@@ -33,7 +33,8 @@ PARTITION_LIST = "LIST"
 # This value from pg_class.relkind denotes a materialized view
 VIEW_TYPE_MATERIALIZED = "m"
 
-LOG = logging.getLogger(__file__)
+LOG = logging.getLogger("pg_partition")
+# SQLFILE = open('/tmp/pg_partition.sql', 'wt')
 
 
 # Standardized SQL executor
@@ -51,6 +52,7 @@ def conn_execute(sql, params=None):
         cursor = conn.cursor()
         LOG.debug(f"SQL: {sql}")
         LOG.debug(f"PARAMS: {params}")
+        # print(cursor.mogrify(sql, params).decode('utf-8') + '\n', file=SQLFILE, flush=True)
         cursor.execute(sql, params)
         return cursor
     else:
@@ -245,6 +247,7 @@ select t.relname::text as table_name,
    and a.attname = %s
    and d.classid = 'pg_class'::regclass;
 """
+        LOG.info("Re-initialize sequence by copying specified existing sequence")
         cur = conn_execute(
             sql, [source_sequence["schema_name"], source_sequence["table_name"], source_sequence["column_name"]]
         )
@@ -256,7 +259,7 @@ select t.relname::text as table_name,
         self.increment_by = rec["increment_by"]
         self.cache = rec["cache_size"]
         self.cycle = self.CYCLE if rec["cycle"] else self.NO_CYCLE
-        self.current_value = rec["last_value"]
+        self.current_value = rec["last_value"] or 1
         self.owner = rec["sequenceowner"]
 
     def default_constraint(self):
@@ -286,7 +289,7 @@ ALTER SEQUENCE "{self.target_schema}"."{self.name}"
                 """
 select setval(%s::regclass, %s);
 """,
-                (self.current_value, self.current_value),
+                (self.target_schema + "." + self.name, self.current_value),
             )
         else:
             return ("", None)
@@ -331,7 +334,7 @@ class ColumnDefinition:
         self.default = default
 
     def alter_column(self):
-        LOG.info("Running alter column")
+        LOG.info("Running alter column for column definiton")
         if not (bool(self.data_type) or bool(self.null) or bool(self.default)):
             return ""
 
@@ -352,6 +355,7 @@ ALTER TABLE "{self.target_schema}"."{self.target_table}"
         # """
         #             )
         if self.default:
+            LOG.info("Setting default value")
             alters.append(
                 f"""      ALTER COLUMN "{self.column_name}" SET DEFAULT {self.default}
 """
@@ -372,7 +376,7 @@ class ConstraintDefinition:
         self.definition = constraintrec["definition"]
 
     def alter_add_constraint(self):
-        LOG.info("Runing ALTER TABLE ADD CONSTRAINT")
+        LOG.info(f"Runing ALTER TABLE ADD CONSTRAINT p_{self.constraint_name}")
         sql = f"""
 ALTER TABLE "{self.target_schema}"."{self.target_table}"
       ADD CONSTRAINT "p_{self.constraint_name}" {self.definition} ;
@@ -397,10 +401,11 @@ class PKDefinition:
 
     def alter_table(self, schema_name, table_name):
         LOG.info("Adding PRIMARY KEY constraint")
+        column_names = ",".join(self.column_names)
         return f"""
 ALTER TABLE "{schema_name}"."{table_name}"
       ADD CONSTRAINT "{self.name}"
-      PRIMARY KEY ({",".join("{c.name}" for c in self.column_names)}) ;
+      PRIMARY KEY ({column_names}) ;
 """
 
 
@@ -425,13 +430,15 @@ class IndexDefinition:
             self.definition += " ;"
 
     def create(self):
-        LOG.info(f'Creating index "p_{self.index_name}"')
         index_parts = self.INDEX_PARSER.findall(self.definition)
         if index_parts:
+            LOG.info(f'Creating index "p_{self.index_name}"')
             index_parts = list(index_parts[0])
             index_parts[self.INDEX_NAME_IX] = f"p_{self.index_name}"
             index_parts[self.INDEX_TABLE_IX] = f"{self.target_schema}.{self.target_table}"
             return " ".join(index_parts)
+        else:
+            LOG.error(f"ERROR parsing index definition for {self.index_name} [[ {self.definition} ]]")
 
         return ""
 
@@ -564,7 +571,7 @@ class ConvertToPartition:
         return f"""Convert "{self.source_schema}"."{self.source_table_name}" to a partitioned table"""
 
     def __get_constraints(self):
-        LOG.debug(f"Getting constraints for table {self.source_schema}.{self.source_table_name}")
+        LOG.info(f"Getting constraints for table {self.source_schema}.{self.source_table_name}")
         sql = """
 select c.oid::int as constraint_oid,
        n.nspname::text as schema_name,
@@ -613,7 +620,7 @@ select c.oid::int as constraint_oid,
         ]
 
     def __get_indexes(self):
-        LOG.debug(f"Getting indexes for table {self.source_schema}.{self.source_table_name}")
+        LOG.info(f"Getting indexes for table {self.source_schema}.{self.source_table_name}")
         sql = """
 with pk_indexes as (
 select i.relname
@@ -642,7 +649,7 @@ select i.*
         return [IndexDefinition(self.target_schema, self.partitioned_table_name, rec) for rec in fetchall(cur)]
 
     def __get_views(self):
-        LOG.debug(f"Getting views referencing table {self.source_schema}.{self.source_table_name}")
+        LOG.info(f"Getting views referencing table {self.source_schema}.{self.source_table_name}")
         sql = """
 WITH RECURSIVE view_deps AS (
 SELECT DISTINCT
@@ -669,7 +676,7 @@ SELECT DISTINCT
  WHERE NOT (dependent_ns.nspname = source_ns.nspname AND
             dependent_view.relname = source_table.relname)
    AND source_table.relnamespace = %s::regnamespace
-   AND source_table.oid = %s::regclass
+   AND source_table.relname = %s
 UNION
 SELECT DISTINCT
        dependent_ns.nspname as dependent_schema,
@@ -728,7 +735,7 @@ PARTITION BY {self.partition_type} ( "{self.partition_key}" ) ;
         conn_execute(sql)
 
     def __create_default_partition(self):
-        LOG.info(f'Creating default partition "{self.target_schema}"."{self.partitioned_table_name}_default"')
+        LOG.info(f'Creating default partition "{self.target_schema}"."{self.source_table_name}_default"')
         sql = f"""
 CREATE TABLE "{self.target_schema}"."{self.source_table_name}_default"
 PARTITION OF {self.partitioned_table_name} DEFAULT ;
@@ -757,7 +764,7 @@ VALUES (
 """
         params = [
             self.target_schema,
-            f"{self.partitioned_table_name}_default",
+            f"{self.source_table_name}_default",
             self.partitioned_table_name,
             self.partition_type.lower(),
             self.partition_key,
@@ -768,7 +775,7 @@ VALUES (
     def __set_primary_key(self):
         LOG.info("Setting any primary key definition")
         if self.pk_def:
-            self.pk_def.alter_table(self.target_schema, self.partitioned_table_name)
+            conn_execute(self.pk_def.alter_table(self.target_schema, self.partitioned_table_name))
 
     def __set_column_definitions(self):
         LOG.info("Applying any column alterations")
@@ -797,8 +804,8 @@ VALUES (
             conn_execute(cdef.alter_add_constraint())
 
     def __create_indexes(self):
-        LOG.info("Applying any table indexes")
         for idef in self.indexes:
+            LOG.info(f"Applying index definition from {idef.index_name}")
             conn_execute(idef.create())
 
     def __create_partitions(self):
@@ -813,6 +820,18 @@ CALL public.create_date_partitions( %s, %s, %s, %s, %s );
             self.partition_key,
         ]
         conn_execute(sql, params)
+
+        sql = f"""
+select table_name,
+       to_char(date(partition_parameters->>'from'), 'YYYY_MM') as suffix
+  from "{self.target_schema}"."partitioned_tables"
+ where schema_name = %s
+   and partition_of_table_name = %s
+   and table_name ~ %s
+"""
+        params = [self.target_schema, self.partitioned_table_name, f"^{self.partitioned_table_name}"]
+        cur = conn_execute(sql, params)
+        self.created_partitions = fetchall(cur)
 
     def __copy_data(self):
         sql = f"""
@@ -844,6 +863,14 @@ ALTER TABLE "{self.target_schema}"."{self.partitioned_table_name}"
 RENAME TO "{self.source_table_name}" ;
 """
         )
+        for partition in self.created_partitions:
+            r_partition_name = f'{self.source_table_name}_{partition["suffix"]}'
+            sql_actions.append(
+                f"""
+ALTER TABLE "{self.target_schema}"."{partition['table_name']}"
+RENAME TO "{r_partition_name}" ;
+"""
+            )
         update_sql = """
 UPDATE partitioned_tables
    SET partition_of_table_name = %s
@@ -873,7 +900,7 @@ UPDATE partitioned_tables
     def __refresh_views(self):
         LOG.info("Refreshing any materialized views")
         for vdef in self.views:
-            if vdef.view_type == "matview":
+            if vdef.view_type == VIEW_TYPE_MATERIALIZED:
                 conn_execute(vdef.refresh())
 
     def convert_to_partition(self, drop_orig=True):
