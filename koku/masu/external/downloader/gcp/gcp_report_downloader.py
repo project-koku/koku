@@ -10,7 +10,6 @@ from rest_framework.exceptions import ValidationError
 
 from api.common import log_json
 from masu.config import Config
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
@@ -97,21 +96,14 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             )
 
             report_dict["manifest_id"] = manifest_id
-            report_dict["assembly_id"] = manifest_dict.get("assemblyId")
-            report_dict["compression"] = manifest_dict.get("Compression")
+            report_dict["assembly_id"] = manifest_dict.get("assembly_id")
+            report_dict["compression"] = manifest_dict.get("compression")
             files_list = [
                 {"key": key, "local_file": self.get_local_file_for_report(key)}
                 for key in manifest_dict.get("file_names")
             ]
             report_dict["files"] = files_list
         return report_dict
-
-    def check_if_manifest_should_be_downloaded(self, assembly_id):
-        """Check if we should download this manifest."""
-        manifest = None
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
-        return True if manifest else False
 
     def _generate_monthly_pseudo_manifest(self, start_date):
         """
