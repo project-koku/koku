@@ -17,6 +17,7 @@
 """Sources Model Serializers."""
 import copy
 import logging
+from socket import gaierror
 from uuid import uuid4
 from xmlrpc.client import Fault
 from xmlrpc.client import ServerProxy
@@ -137,6 +138,9 @@ class SourcesSerializer(serializers.ModelSerializer):
         except Fault as error:
             LOG.error(f"Sources update error: {error}")
             raise SourcesStorageError(str(error))
+        except (ConnectionRefusedError, gaierror) as error:
+            LOG.error(f"Sources update dependency error: {error}")
+            raise SourcesDependencyError(f"Sources-client: {error}")
         return get_source_instance(instance.source_id)
 
 
