@@ -9,7 +9,7 @@ SELECT l.key,
     array_agg(DISTINCT l.value) as values,
     l.cost_entry_bill_id,
     array_agg(DISTINCT l.subscription_guid) as subscription_guid,
-    array_agg(DISTINCT l.namespace) as namespace
+    array_agg(DISTINCT l.namespace)
 FROM (
     SELECT key,
         value,
@@ -19,7 +19,7 @@ FROM (
     FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary AS li,
         jsonb_each_text(li.tags) labels
 ) l
-GROUP BY l.key, l.cost_entry_bill_id
-ON CONFLICT (key, cost_entry_bill_id) DO UPDATE
+GROUP BY l.key, l.cost_entry_bill_id, l.namespace
+ON CONFLICT (key, cost_entry_bill_id, namespace) DO UPDATE
 SET values = EXCLUDED.values
 ;
