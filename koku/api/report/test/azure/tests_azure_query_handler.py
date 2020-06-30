@@ -1090,12 +1090,30 @@ class AzureReportQueryHandlerTest(IamTestCase):
             ("?", AzureCostView, AzureCostSummary),
             ("?group_by[subscription_guid]=*", AzureCostView, AzureCostSummaryByAccount),
             ("?group_by[resource_location]=*", AzureCostView, AzureCostSummaryByLocation),
+            (
+                "?group_by[resource_location]=*&group_by[subscription_guid]=*",
+                AzureCostView,
+                AzureCostSummaryByLocation,
+            ),
             ("?group_by[service_name]=*", AzureCostView, AzureCostSummaryByService),
+            ("?group_by[service_name]=*&group_by[subscription_guid]=*", AzureCostView, AzureCostSummaryByService),
             ("?", AzureInstanceTypeView, AzureComputeSummary),
+            ("?group_by[subscription_guid]=*", AzureInstanceTypeView, AzureComputeSummary),
             ("?", AzureStorageView, AzureStorageSummary),
+            ("?group_by[subscription_guid]=*", AzureStorageView, AzureStorageSummary),
             ("?filter[service_name]=Database,Cosmos%20DB,Cache%20for%20Redis", AzureCostView, AzureDatabaseSummary),
             (
+                "?filter[service_name]=Database,Cosmos%20DB,Cache%20for%20Redis&group_by[subscription_guid]=*",
+                AzureCostView,
+                AzureDatabaseSummary,
+            ),
+            (
                 "?filter[service_name]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway",  # noqa: E501
+                AzureCostView,
+                AzureNetworkSummary,
+            ),
+            (
+                "?filter[service_name]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway&group_by[subscription_guid]=*",  # noqa: E501
                 AzureCostView,
                 AzureNetworkSummary,
             ),

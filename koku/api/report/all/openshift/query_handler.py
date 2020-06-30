@@ -38,18 +38,18 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
         report_type = self.parameters.report_type
         report_group = "default"
 
-        excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
-
-        filter_keys = set(self.parameters.get("filter", {}).keys())
-        filter_keys = filter_keys.difference(excluded_filters)
-        group_by_keys = list(self.parameters.get("group_by", {}).keys())
+        filter_keys = self._get_query_table_filter_keys()
+        group_by_keys = self._get_query_table_group_by_keys()
+        key_tuple = tuple(sorted(filter_keys.union(group_by_keys)))
+        if key_tuple:
+            report_group = key_tuple
 
         if not check_view_filter_and_group_by_criteria(filter_keys, group_by_keys):
             return query_table
 
         # Special Casess for Network and Database Cards in the UI
         service_filter = {f.replace("\"'", "") for f in self.parameters.get("filter", {}).get("service", [])}
-        network_services = [
+        network_services = {
             "AmazonVPC",
             "AmazonCloudFront",
             "AmazonRoute53",
@@ -61,8 +61,8 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
             "ExpressRoute",
             "Load Balancer",
             "Application Gateway",
-        ]
-        database_services = [
+        }
+        database_services = {
             "AmazonRDS",
             "AmazonDynamoDB",
             "AmazonElastiCache",
@@ -72,16 +72,12 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
             "Database",
             "Cosmos DB",
             "Cache for Redis",
-        ]
+        }
         if report_type == "costs" and service_filter and not service_filter.difference(network_services):
             report_type = "network"
         elif report_type == "costs" and service_filter and not service_filter.difference(database_services):
             report_type = "database"
 
-        if group_by_keys:
-            report_group = group_by_keys[0]
-        elif filter_keys and not group_by_keys:
-            report_group = list(filter_keys)[0]
         try:
             query_table = self._mapper.views[report_type][report_group]
         except KeyError:
