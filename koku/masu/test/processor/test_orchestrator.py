@@ -222,22 +222,20 @@ class OrchestratorTest(MasuTestCase):
         orchestrator.prepare()
         mock_task.assert_not_called()
 
-    @patch("masu.util.aws.common.get_assume_role_session")
     @patch("masu.processor.orchestrator.chord", return_value=True)
-    def wip_test_start_manifest_processing(self, mock_task, mock_session):
+    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest", return_value={"foo": "bar"})
+    def test_start_manifest_processing(self, mock_task, mock_download_manifest):
         """Test start_manifest_processing."""
-        mock_session = mock_session.return_value
-
         orchestrator = Orchestrator()
         account = self.mock_accounts[0]
         orchestrator.start_manifest_processing(
             account.get("customer_name"),
             account.get("authentication"),
             account.get("billing_source"),
-            account.get("provider_type"),
+            "AWS-local",
             account.get("schema_name"),
             account.get("provider_uuid"),
-            DateAccessor().get_billing_months(1),
+            DateAccessor().get_billing_months(1)[0],
         )
 
     @patch("masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete")
