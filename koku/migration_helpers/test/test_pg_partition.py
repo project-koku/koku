@@ -245,11 +245,66 @@ SELECT vd.*,
         res = [dict(zip(cols, rec)) for rec in cur.fetchall()]
         return res
 
+    def _init_data(self):
+        sql = """
+insert into public.__pg_part_fk_test (data) values ('eek') returning *;
+"""
+        cur = self.execute(sql)
+        rec = dict(zip((d.name for d in cur.description), cur.fetchone()))
+        sql = """
+insert into public.__pg_partition_test (ref_id, utilization_date, label, data)
+values
+(null, '2020-01-01'::date, 'no-ref', 95.25),
+(%s, '2020-01-01'::date, 'has-ref', 105.25),
+(%s, '2020-02-01'::date, 'eek-ref', 115.25) ;
+"""
+        self.execute(sql, [rec["id"], rec["id"]])
+
+    def _count_data(self, table):
+        sql = f"""
+select count(*) from public.{table} ;
+"""
+        cur = self.execute(sql)
+        return cur.fetchone()[0]
+
+    def test_default_repr(self):
+        """
+        Test repr(Default) == str(Default)
+        """
+        self.assertEqual(repr(ppart.Default(1)), str(ppart.Default(1)))
+        self.assertEqual(repr(ppart.Default(None)), str(ppart.Default(None)))
+
+    def test_no_sql_execute(self):
+        """
+        Test calling execute with no sql returns None
+        """
+        self.assertTrue(ppart.conn_execute(None) is None)
+
+    def test_fetch_with_none(self):
+        """
+        Test calling fetch routines with none returns empty object
+        """
+        self.assertEqual(ppart.fetchall(None), [])
+        self.assertEqual(ppart.fetchone(None), {})
+
     def test_resolve_schema(self):
+        """
+        Test resolving current_schema
+        """
         schema = ppart.resolve_schema(ppart.CURRENT_SCHEMA)
         self.assertNotEqual(schema, ppart.CURRENT_SCHEMA)
 
+    def test_resolve_schema_with_schema(self):
+        """
+        Test resolving specified schema
+        """
+        schema = ppart.resolve_schema("public")
+        self.assertEqual(schema, "public")
+
     def test_partition_table_base(self):
+        """
+        Test partition of table structure only
+        """
         self._clean_test()
         self._setup_test()
 
@@ -292,27 +347,19 @@ SELECT vd.*,
         self._clean_test()
 
     def test_partition_table_full(self):
+        """
+        Test partitioning of table structure, dependent structures and data copy
+        """
         self._clean_test()
         self._setup_test(matview=True, indexes=True, foreign_key=True)
 
-        sql = """
-insert into public.__pg_part_fk_test (data) values ('eek') returning *;
-"""
-        cur = self.execute(sql)
-        rec = dict(zip((d.name for d in cur.description), cur.fetchone()))
-        sql = """
-insert into public.__pg_partition_test (ref_id, utilization_date, label, data)
-values
-(null, '2020-01-01'::date, 'no-ref', 95.25),
-(%s, '2020-01-01'::date, 'has-ref', 105.25),
-(%s, '2020-02-01'::date, 'eek-ref', 115.25) ;
-"""
-        self.execute(sql, [rec["id"], rec["id"]])
+        self._init_data()
 
         self.assertFalse(self._is_partitioned())
         self.assertEqual(len(self._get_indexes()), 3)  # PK + FK + matview
         self.assertEqual(len(self._get_views()), 1)
         self.assertEqual(len(self._get_table_constraints()), 2)  # PK + FK
+        self.assertEqual(self._count_data("__pg_partition_test"), 3)
 
         schema = "public"
         source_table = "__pg_partition_test"
@@ -351,5 +398,9 @@ values
         self.assertEqual(len(self._get_indexes()), 3)  # PK + FK + matview
         self.assertEqual(len(self._get_views()), 1)
         self.assertEqual(len(self._get_table_constraints()), 2)  # PK + FK
+        self.assertEqual(self._count_data("__pg_partition_test"), 3)
+        self.assertEqual(self._count_data("__pg_partition_test_2020_01"), 2)
+        self.assertEqual(self._count_data("__pg_partition_test_2020_02"), 1)
+        self.assertEqual(self._count_data("__pg_partition_test_default"), 0)
 
         self._clean_test()
