@@ -18,6 +18,7 @@
 """Koku Test Runner."""
 import logging
 import os
+import sys
 
 from django.conf import settings
 from django.db import connections
@@ -29,10 +30,15 @@ from tenant_schemas.utils import tenant_context
 from api.models import Customer
 from api.models import Tenant
 from api.report.test.utils import NiseDataLoader
+from koku.env import ENVIRONMENT
 from reporting.models import OCPEnabledTagKeys
 
+GITHUB_ACTIONS = ENVIRONMENT.bool("GITHUB_ACTIONS", default=False)
 LOG = logging.getLogger(__name__)
 OCP_ENABLED_TAGS = ["app", "storageclass", "environment", "version"]
+
+if GITHUB_ACTIONS:
+    sys.stdout = open(os.devnull, "w")
 
 
 class KokuTestRunner(DiscoverRunner):
