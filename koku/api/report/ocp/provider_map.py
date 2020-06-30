@@ -1225,20 +1225,34 @@ class OCPProviderMap(ProviderMap):
         ]
 
         self.views = {
-            "costs": {"default": OCPCostSummary, "cluster": OCPCostSummary, "node": OCPCostSummaryByNode},
-            "costs_by_project": {"default": OCPCostSummaryByProject, "project": OCPCostSummaryByProject},
+            "costs": {
+                "default": OCPCostSummary,
+                ("cluster",): OCPCostSummary,
+                ("node",): OCPCostSummaryByNode,
+                ("cluster", "node"): OCPCostSummaryByNode,
+            },
+            "costs_by_project": {
+                "default": OCPCostSummaryByProject,
+                ("project",): OCPCostSummaryByProject,
+                ("cluster", "project"): OCPCostSummaryByProject,
+            },
             "cpu": {
                 "default": OCPPodSummary,
-                "project": OCPPodSummaryByProject,
-                "cpu": OCPPodSummary,
-                "cluster": OCPPodSummary,
+                ("cluster",): OCPPodSummary,
+                ("project",): OCPPodSummaryByProject,
+                ("cluster", "project"): OCPPodSummaryByProject,
             },
             "memory": {
                 "default": OCPPodSummary,
-                "project": OCPPodSummaryByProject,
-                "memory": OCPPodSummary,
-                "cluster": OCPPodSummary,
+                ("cluster",): OCPPodSummary,
+                ("project",): OCPPodSummaryByProject,
+                ("cluster", "project"): OCPPodSummaryByProject,
             },
-            "volume": {"default": OCPVolumeSummary, "project": OCPVolumeSummaryByProject, "cluster": OCPVolumeSummary},
+            "volume": {
+                "default": OCPVolumeSummary,
+                ("cluster",): OCPVolumeSummary,
+                ("project",): OCPVolumeSummaryByProject,
+                ("cluster", "project"): OCPVolumeSummaryByProject,
+            },
         }
         super().__init__(provider, report_type)
