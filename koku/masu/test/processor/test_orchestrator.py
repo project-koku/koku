@@ -222,10 +222,12 @@ class OrchestratorTest(MasuTestCase):
         orchestrator.prepare()
         mock_task.assert_not_called()
 
+    mock_manifest = {"manifest_id": 1, "files": [{"local_file": "file1.csv", "key": "filekey"}]}
+
     @patch("masu.processor.orchestrator.chord", return_value=True)
-    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest", return_value={"foo": "bar"})
-    def test_start_manifest_processing(self, mock_task, mock_download_manifest):
-        """Test start_manifest_processing."""
+    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest", return_value={})
+    def test_start_manifest_processing_empty_manifest(self, mock_download_manifest, mock_task):
+        """Test start_manifest_processing with an empty manifest."""
         orchestrator = Orchestrator()
         account = self.mock_accounts[0]
         orchestrator.start_manifest_processing(
@@ -237,6 +239,7 @@ class OrchestratorTest(MasuTestCase):
             account.get("provider_uuid"),
             DateAccessor().get_billing_months(1)[0],
         )
+        mock_task.assert_not_called()
 
     @patch("masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete")
     def test_get_reports(self, fake_accessor):
