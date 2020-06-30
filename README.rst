@@ -65,7 +65,7 @@ This project is developed using the Django web framework. Many configuration set
 
 5. Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment (virtualenv) and dependency management (pip). To install pipenv, use pip ::
 
-    pip3 install pipenv
+    pip3 install pipenv==2018.11.26
 
 6. Then project dependencies and a virtual environment can be created using ::
 

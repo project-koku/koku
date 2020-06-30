@@ -961,10 +961,15 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_populate_markup_cost(self):
         """Test that the daily summary table is populated."""
         summary_table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
+        summary_table = getattr(self.accessor.report_schema, summary_table_name)
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
+
+            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
+            start_date = summary_entry["usage_start__min"]
+            end_date = summary_entry["usage_start__max"]
 
         query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
@@ -973,7 +978,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             )
             expected_markup = expected_markup.get("markup")
 
-        self.accessor.populate_markup_cost(0.1, bill_ids)
+        self.accessor.populate_markup_cost(0.1, start_date, end_date, bill_ids)
         with schema_context(self.schema):
             query = (
                 self.accessor._get_db_obj_query(summary_table_name)
@@ -986,13 +991,18 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_populate_markup_cost_no_billsids(self):
         """Test that the daily summary table is populated."""
         summary_table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
+        summary_table = getattr(self.accessor.report_schema, summary_table_name)
 
         query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
             expected_markup = query.aggregate(markup=Sum(F("unblended_cost") * decimal.Decimal(0.1)))
             expected_markup = expected_markup.get("markup")
 
-        self.accessor.populate_markup_cost(0.1, None)
+            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
+            start_date = summary_entry["usage_start__min"]
+            end_date = summary_entry["usage_start__max"]
+
+        self.accessor.populate_markup_cost(0.1, start_date, end_date, None)
         with schema_context(self.schema):
             query = self.accessor._get_db_obj_query(summary_table_name).aggregate(Sum("markup_cost"))
             actual_markup = query.get("markup_cost__sum")

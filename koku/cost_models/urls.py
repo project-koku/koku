@@ -15,7 +15,7 @@
 #
 """Describes the urls and patterns for the API application."""
 from django.conf.urls import include
-from django.conf.urls import url
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from cost_models.views import CostModelViewSet
@@ -23,4 +23,4 @@ from cost_models.views import CostModelViewSet
 ROUTER = DefaultRouter()
 ROUTER.register(r"cost-models", CostModelViewSet, basename="cost-models")
 
-urlpatterns = [url(r"^", include(ROUTER.urls))]
+urlpatterns = [path("", include(ROUTER.urls))]
