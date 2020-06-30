@@ -67,6 +67,15 @@ class AWSReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for AWS."""
 
     provider = Provider.PROVIDER_AWS
+    network_services = {"AmazonVPC", "AmazonCloudFront", "AmazonRoute53", "AmazonAPIGateway"}
+    database_services = {
+        "AmazonRDS",
+        "AmazonDynamoDB",
+        "AmazonElastiCache",
+        "AmazonNeptune",
+        "AmazonRedshift",
+        "AmazonDocumentDB",
+    }
 
     def __init__(self, parameters):
         """Establish AWS report query handler.
@@ -115,52 +124,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
             if q_param in prefix_removed_parameters_list:
                 annotations[q_param] = F(db_field)
         return annotations
-
-    def _get_query_table_group_by_keys(self):
-        """Return the group by keys specific for selecting the query table."""
-        return set(self.parameters.get("group_by", {}).keys())
-
-    def _get_query_table_filter_keys(self):
-        """Return the filter keys specific for selecting the query table."""
-        excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
-        filter_keys = set(self.parameters.get("filter", {}).keys())
-        return filter_keys.difference(excluded_filters)
-
-    @property
-    def query_table(self):
-        """Return the database table to query against."""
-        query_table = self._mapper.query_table
-        report_type = self.parameters.report_type
-        report_group = "default"
-
-        filter_keys = self._get_query_table_filter_keys()
-        group_by_keys = self._get_query_table_group_by_keys()
-        key_tuple = tuple(sorted(filter_keys.union(group_by_keys)))
-        if key_tuple:
-            report_group = key_tuple
-
-        # Special Casess for Network and Database Cards in the UI
-        service_filter = set(self.parameters.get("filter", {}).get("service", []))
-        network_services = {"AmazonVPC", "AmazonCloudFront", "AmazonRoute53", "AmazonAPIGateway"}
-        database_services = {
-            "AmazonRDS",
-            "AmazonDynamoDB",
-            "AmazonElastiCache",
-            "AmazonNeptune",
-            "AmazonRedshift",
-            "AmazonDocumentDB",
-        }
-        if report_type == "costs" and service_filter and not service_filter.difference(network_services):
-            report_type = "network"
-        elif report_type == "costs" and service_filter and not service_filter.difference(database_services):
-            report_type = "database"
-
-        try:
-            query_table = self._mapper.views[report_type][report_group]
-        except KeyError:
-            msg = f"{report_group} for {report_type} has no entry in views. Using the default."
-            LOG.warning(msg)
-        return query_table
 
     def format_sub_org_results(self, query_data_results, query_data, sub_orgs_dict):
         """
