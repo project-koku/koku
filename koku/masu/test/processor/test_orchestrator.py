@@ -25,6 +25,7 @@ from api.models import Provider
 from masu.config import Config
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
+from masu.external.date_accessor import DateAccessor
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
@@ -220,6 +221,24 @@ class OrchestratorTest(MasuTestCase):
         orchestrator = Orchestrator()
         orchestrator.prepare()
         mock_task.assert_not_called()
+
+    @patch("masu.util.aws.common.get_assume_role_session")
+    @patch("masu.processor.orchestrator.chord", return_value=True)
+    def wip_test_start_manifest_processing(self, mock_task, mock_session):
+        """Test start_manifest_processing."""
+        mock_session = mock_session.return_value
+
+        orchestrator = Orchestrator()
+        account = self.mock_accounts[0]
+        orchestrator.start_manifest_processing(
+            account.get("customer_name"),
+            account.get("authentication"),
+            account.get("billing_source"),
+            account.get("provider_type"),
+            account.get("schema_name"),
+            account.get("provider_uuid"),
+            DateAccessor().get_billing_months(1),
+        )
 
     @patch("masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete")
     def test_get_reports(self, fake_accessor):
