@@ -31,6 +31,7 @@ from django.db.models import Q
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
 
+from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
@@ -49,6 +50,16 @@ def is_grouped_or_filtered_by_project(parameters):
     filters = list(parameters.parameters.get("filter", {}).keys())
     effects = group_by + filters
     return [key for key in effects if "project" in key]
+
+
+def check_view_filter_and_group_by_criteria(filter_set, group_by_set):
+    """Return a bool for whether a view can be used."""
+    no_view_group_bys = {"project", "node"}
+    # The dashboard does not show any data grouped by OpenShift cluster, node, or project
+    # so we do not have views for these group bys
+    if group_by_set.intersection(no_view_group_bys) or filter_set.intersection(no_view_group_bys):
+        return False
+    return True
 
 
 class ReportQueryHandler(QueryHandler):
@@ -71,6 +82,54 @@ class ReportQueryHandler(QueryHandler):
         self.query_delta = {"value": None, "percent": None}
 
         self.query_filter = self._get_filter()
+
+    @property
+    def query_table_group_by_keys(self):
+        """Return the group by keys specific for selecting the query table."""
+        return set(self.parameters.get("group_by", {}).keys())
+
+    @property
+    def query_table_filter_keys(self):
+        """Return the filter keys specific for selecting the query table."""
+        excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
+        filter_keys = set(self.parameters.get("filter", {}).keys())
+        return filter_keys.difference(excluded_filters)
+
+    @property
+    def query_table(self):
+        """Return the database table or view to query against."""
+        query_table = self._mapper.query_table
+        report_type = self.parameters.report_type
+        report_group = "default"
+
+        if self.provider in (
+            Provider.OCP_AWS,
+            Provider.OCP_AZURE,
+            Provider.OCP_ALL,
+        ) and not check_view_filter_and_group_by_criteria(
+            self.query_table_filter_keys, self.query_table_group_by_keys
+        ):
+            return query_table
+
+        key_tuple = tuple(sorted(self.query_table_filter_keys.union(self.query_table_group_by_keys)))
+        if key_tuple:
+            report_group = key_tuple
+
+        # Special Casess for Network and Database Cards in the UI
+        service_filter = set(self.parameters.get("filter", {}).get("service", []))
+        if self.provider in (Provider.PROVIDER_AZURE, Provider.OCP_AZURE):
+            service_filter = set(self.parameters.get("filter", {}).get("service_name", []))
+        if report_type == "costs" and service_filter and not service_filter.difference(self.network_services):
+            report_type = "network"
+        elif report_type == "costs" and service_filter and not service_filter.difference(self.database_services):
+            report_type = "database"
+
+        try:
+            query_table = self._mapper.views[report_type][report_group]
+        except KeyError:
+            msg = f"{report_group} for {report_type} has no entry in views. Using the default."
+            LOG.warning(msg)
+        return query_table
 
     def initialize_totals(self):
         """Initialize the total response column values."""
