@@ -20,6 +20,7 @@ import logging
 from socket import gaierror
 from uuid import uuid4
 from xmlrpc.client import Fault
+from xmlrpc.client import ProtocolError
 from xmlrpc.client import ServerProxy
 
 from django.db import transaction
@@ -138,7 +139,7 @@ class SourcesSerializer(serializers.ModelSerializer):
         except Fault as error:
             LOG.error(f"Sources update error: {error}")
             raise SourcesStorageError(str(error))
-        except (ConnectionRefusedError, gaierror) as error:
+        except (ConnectionRefusedError, gaierror, ProtocolError) as error:
             LOG.error(f"Sources update dependency error: {error}")
             raise SourcesDependencyError(f"Sources-client: {error}")
         return get_source_instance(instance.source_id)

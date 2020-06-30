@@ -308,6 +308,11 @@ class SourcesSerializerTests(IamTestCase):
                 validated_data = {"billing_source": {"bucket": "some-new-bucket"}}
                 serializer.update(self.aws_obj, validated_data)
 
+        # catch ProtocolError
+        with self.assertRaises(SourcesDependencyError):
+            validated_data = {"billing_source": {"bucket": "some-new-bucket"}}
+            serializer.update(self.aws_obj, validated_data)
+
     def test_create_via_admin_serializer(self):
         """Test create source with admin serializer."""
         source_data = {
