@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the sources serializer."""
+from socket import gaierror
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -31,6 +32,7 @@ from providers.provider_access import ProviderAccessor
 from sources.api import get_account_from_header
 from sources.api import HEADER_X_RH_IDENTITY
 from sources.api.serializers import AdminSourcesSerializer
+from sources.api.serializers import SourcesDependencyError
 from sources.api.serializers import SourcesSerializer
 from sources.config import Config
 from sources.sources_patch_handler import SourcesPatchHandler
@@ -292,6 +294,19 @@ class SourcesSerializerTests(IamTestCase):
         validated_data = {"billing_source": {"bucket": test_bucket}}
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.aws_obj, validated_data)
+
+    def test_patch_unavailable_sources_client(self):
+        serializer = SourcesSerializer(context=self.request_context)
+        with patch("sources.api.serializers.ServerProxy") as mock_client:
+            mock_client.side_effect = ConnectionRefusedError
+            with self.assertRaises(SourcesDependencyError):
+                validated_data = {"billing_source": {"bucket": "some-new-bucket"}}
+                serializer.update(self.aws_obj, validated_data)
+
+            mock_client.side_effect = gaierror
+            with self.assertRaises(SourcesDependencyError):
+                validated_data = {"billing_source": {"bucket": "some-new-bucket"}}
+                serializer.update(self.aws_obj, validated_data)
 
     def test_create_via_admin_serializer(self):
         """Test create source with admin serializer."""
