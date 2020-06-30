@@ -61,8 +61,7 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
         source = self.get_object()
         manager = ProviderBuilder(request.user.identity_header.get("encoded"))
         manager.destroy_provider(source.koku_uuid)
-        response = super().destroy(request, *args, **kwargs)
-        return response
+        return super().destroy(request, *args, **kwargs)
 
 
 LOG = logging.getLogger(__name__)

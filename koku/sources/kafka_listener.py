@@ -102,9 +102,7 @@ def _collect_pending_items():
     create_events = storage.load_providers_to_create()
     update_events = storage.load_providers_to_update()
     destroy_events = storage.load_providers_to_delete()
-    pending_events = create_events + update_events + destroy_events
-
-    return pending_events
+    return create_events + update_events + destroy_events
 
 
 def _log_process_queue_event(queue, event):
@@ -146,12 +144,17 @@ def execute_process_queue():
 def storage_callback(sender, instance, **kwargs):
     """Load Sources ready for Koku Synchronization when Sources table is updated."""
     update_fields = kwargs.get("update_fields", ())
-    if update_fields and "pending_update" in update_fields:
-        if instance.koku_uuid and instance.pending_update and not instance.pending_delete:
-            update_event = {"operation": "update", "provider": instance}
-            _log_process_queue_event(PROCESS_QUEUE, update_event)
-            LOG.debug(f"Update Event Queued for:\n{str(instance)}")
-            PROCESS_QUEUE.put_nowait((next(COUNT), update_event))
+    if (
+        update_fields
+        and "pending_update" in update_fields
+        and instance.koku_uuid
+        and instance.pending_update
+        and not instance.pending_delete
+    ):
+        update_event = {"operation": "update", "provider": instance}
+        _log_process_queue_event(PROCESS_QUEUE, update_event)
+        LOG.debug(f"Update Event Queued for:\n{str(instance)}")
+        PROCESS_QUEUE.put_nowait((next(COUNT), update_event))
 
     if instance.pending_delete:
         delete_event = {"operation": "destroy", "provider": instance}
@@ -297,7 +300,7 @@ def sources_network_info(source_id, auth_header):
     source_type_name = sources_network.get_source_type_name(source_type_id)
     endpoint_id = sources_network.get_endpoint_id()
 
-    if not endpoint_id and not source_type_name == SOURCES_OCP_SOURCE_NAME:
+    if not endpoint_id and source_type_name != SOURCES_OCP_SOURCE_NAME:
         LOG.warning(f"Unable to find endpoint for Source ID: {source_id}")
         return
 
@@ -333,13 +336,7 @@ def cost_mgmt_msg_filter(msg_data):
     source_type_id = int(source_details.get("source_type_id"))
     source_type_name = sources_network.get_source_type_name(source_type_id)
 
-    if source_type_name not in (
-        SOURCES_OCP_SOURCE_NAME,
-        SOURCES_AWS_SOURCE_NAME,
-        SOURCES_AWS_LOCAL_SOURCE_NAME,
-        SOURCES_AZURE_SOURCE_NAME,
-        SOURCES_AZURE_LOCAL_SOURCE_NAME,
-    ):
+    if source_type_name not in SOURCE_PROVIDER_MAP.keys():
         LOG.debug(f"Filtering unexpected source type {source_type_name}.")
         return None
     return msg_data

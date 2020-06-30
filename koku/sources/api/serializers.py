@@ -135,7 +135,7 @@ class SourcesSerializer(serializers.ModelSerializer):
                     authentication = self._update_authentication(instance, authentication)
                     sources_client.update_authentication(instance.source_id, authentication)
         except Fault as error:
-            LOG.error(f"Sources update error: {str(error)}")
+            LOG.error(f"Sources update error: {error}")
             raise SourcesStorageError(str(error))
         return get_source_instance(instance.source_id)
 
