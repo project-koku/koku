@@ -252,7 +252,6 @@ def summarize_reports(reports_to_summarize):
         None
 
     """
-    LOG.info(f"POST_REPORT_TASKS: summarize_report: {str(reports_to_summarize)}")
     reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports_to_summarize}]
 
     for report in reports_deduplicated:
