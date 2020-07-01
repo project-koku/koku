@@ -34,7 +34,6 @@ from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from kafka.errors import KafkaError
-from kombu.exceptions import OperationalError as RabbitOperationalError
 from rest_framework.exceptions import ValidationError
 
 from api.provider.models import Provider
@@ -547,14 +546,6 @@ def execute_koku_provider_op(msg):
         )
         LOG.error(err_msg)
         sources_client.set_source_status(account_error)
-    except RabbitOperationalError:
-        err_msg = f"RabbitmQ unavailable. Unable to {operation} Source ID: {provider.source_id}"
-        LOG.error(err_msg)
-        sources_network = SourcesHTTPClient(provider.auth_header, provider.source_id)
-        sources_network.set_source_status(err_msg)
-
-        # Re-raise exception so it can be re-queued in synchronize_sources
-        raise RabbitOperationalError(err_msg)
 
 
 def _requeue_provider_sync_message(priority, msg, queue):
@@ -613,14 +604,6 @@ def process_synchronize_sources_msg(msg_tuple, process_queue):
             f" Encountered {type(error).__name__}: {error}"
         )
         _requeue_provider_sync_message(priority, msg, process_queue)
-
-    except RabbitOperationalError as error:
-        LOG.warning(
-            f"[synchronize_sources] RabbitMQ is down and re-queueing failed operation."
-            f" Encountered {type(error).__name__}: {error}"
-        )
-        _requeue_provider_sync_message(priority, msg, process_queue)
-
     except Exception as error:
         # The reason for catching all exceptions is to ensure that the event
         # loop remains active in the event that provider synchronization fails unexpectedly.
