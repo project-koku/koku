@@ -17,21 +17,25 @@
 """Sources Model Serializers."""
 import copy
 import logging
+from socket import gaierror
 from uuid import uuid4
+from xmlrpc.client import Fault
+from xmlrpc.client import ProtocolError
+from xmlrpc.client import ServerProxy
 
 from django.db import transaction
-from kombu.exceptions import OperationalError
 from rest_framework import serializers
 
 from api.common import error_obj
 from api.provider.models import Provider
 from api.provider.models import Sources
+from api.provider.provider_builder import ProviderBuilder
 from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
+from koku.settings import SOURCES_CLIENT_BASE_URL
 from sources.api import get_account_from_header
 from sources.api import get_auth_header
-from sources.kafka_source_manager import KafkaSourceManager
+from sources.storage import get_source_instance
 from sources.storage import SourcesStorageError
-from sources.tasks import create_or_update_provider
 
 LOG = logging.getLogger(__name__)
 
@@ -41,7 +45,6 @@ ALLOWED_BILLING_SOURCE_PROVIDERS = (
     Provider.PROVIDER_AZURE,
     Provider.PROVIDER_AZURE_LOCAL,
 )
-
 ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
 
 
@@ -108,12 +111,7 @@ class SourcesSerializer(serializers.ModelSerializer):
                 billing_copy.update(billing_source.get("data_source"))
                 billing_source["data_source"] = billing_copy
         self._validate_billing_source(instance.source_type, billing_source)
-        instance.billing_source = billing_source
-        update_fields = []
-        if instance.source_uuid:
-            instance.pending_update = True
-            update_fields = ["billing_source", "pending_update"]
-        return instance, update_fields
+        return billing_source
 
     def _update_authentication(self, instance, authentication):
         if instance.source_type not in ALLOWED_AUTHENTICATION_PROVIDERS:
@@ -123,39 +121,28 @@ class SourcesSerializer(serializers.ModelSerializer):
             auth_dict["credentials"] = {"subscription_id": None}
         subscription_id = authentication.get("credentials", {}).get("subscription_id")
         auth_dict["credentials"]["subscription_id"] = subscription_id
-        instance.authentication = auth_dict
-        update_fields = []
-        if instance.source_uuid:
-            instance.pending_update = True
-            update_fields = ["authentication", "pending_update"]
-        return instance, update_fields
+        return auth_dict
 
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
         billing_source = validated_data.get("billing_source")
         authentication = validated_data.get("authentication")
 
-        billing_fields = []
-        if billing_source:
-            instance, billing_fields = self._update_billing_source(instance, billing_source)
-
-        auth_fields = []
-        if authentication:
-            instance, auth_fields = self._update_authentication(instance, authentication)
-
-        update_fields = list(set(billing_fields + auth_fields))
-        instance.save(update_fields=update_fields)
-
-        # create provider with celery task
         try:
-            task = create_or_update_provider.delay(instance.source_id)
-            LOG.info(f"Updating Koku Provider for Source ID: {str(instance.source_id)} in task: {task.id}")
-        except OperationalError:
-            key = "sources"
-            message = f"RabbitMQ unavailable. Unable to update Source ID {instance.source_id}."
-            LOG.error(message)
-            raise SourcesDependencyError(error_obj(key, message))
-        return instance
+            with ServerProxy(SOURCES_CLIENT_BASE_URL) as sources_client:
+                if billing_source:
+                    billing_source = self._update_billing_source(instance, billing_source)
+                    sources_client.update_billing_source(instance.source_id, billing_source)
+                if authentication:
+                    authentication = self._update_authentication(instance, authentication)
+                    sources_client.update_authentication(instance.source_id, authentication)
+        except Fault as error:
+            LOG.error(f"Sources update error: {error}")
+            raise SourcesStorageError(str(error))
+        except (ConnectionRefusedError, gaierror, ProtocolError) as error:
+            LOG.error(f"Sources update dependency error: {error}")
+            raise SourcesDependencyError(f"Sources-client: {error}")
+        return get_source_instance(instance.source_id)
 
 
 class AdminSourcesSerializer(SourcesSerializer):
@@ -202,7 +189,7 @@ class AdminSourcesSerializer(SourcesSerializer):
     def create(self, validated_data):
         """Create a source from validated data."""
         auth_header = get_auth_header(self.context.get("request"))
-        manager = KafkaSourceManager(auth_header)
+        manager = ProviderBuilder(auth_header)
         validated_data["auth_header"] = auth_header
         source = Sources.objects.create(**validated_data)
         provider = manager.create_provider(
