@@ -215,7 +215,7 @@ manifest:
 	python scripts/create_manifest.py
 
 check-manifest:
-	./.travis/check_manifest.sh
+	.github/scripts/check_manifest.sh
 
 run-migrations:
 	$(DJANGO_MANAGE) migrate_schemas
