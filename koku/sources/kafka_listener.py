@@ -28,6 +28,7 @@ from xmlrpc.server import SimpleXMLRPCServer
 from confluent_kafka import Consumer
 from confluent_kafka import TopicPartition
 from django.db import connection
+from django.db import IntegrityError
 from django.db import InterfaceError
 from django.db import OperationalError
 from django.db import transaction
@@ -470,7 +471,7 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
                 connection.close()
                 LOG.error(err)
                 rewind_consumer_to_retry(consumer, topic_partition)
-            except SourcesHTTPClientError as err:
+            except (IntegrityError, SourcesHTTPClientError) as err:
                 LOG.error(err)
                 rewind_consumer_to_retry(consumer, topic_partition)
             except SourceNotFoundError:
@@ -594,8 +595,8 @@ def process_synchronize_sources_msg(msg_tuple, process_queue):
         if msg.get("operation") != "destroy":
             storage.clear_update_flag(msg.get("provider").source_id)
 
-    except SourcesIntegrationError as error:
-        LOG.warning(f"[synchronize_sources] Re-queuing failed operation. Error: {str(error)}")
+    except (IntegrityError, SourcesIntegrationError) as error:
+        LOG.warning(f"[synchronize_sources] Re-queuing failed operation. Encountered {type(error).__name__}: {error}")
         _requeue_provider_sync_message(priority, msg, process_queue)
     except (InterfaceError, OperationalError) as error:
         connection.close()
