@@ -469,7 +469,7 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
                     consumer.commit()
             except (IntegrityError, InterfaceError, OperationalError) as err:
                 connection.close()
-                LOG.error(err)
+                LOG.error(f"{type(err).__name__}: {err}")
                 rewind_consumer_to_retry(consumer, topic_partition)
             except SourcesHTTPClientError as err:
                 LOG.error(err)
