@@ -213,6 +213,8 @@ else:
         },
     }
 
+if ENVIRONMENT.get_value("CACHED_VIEWS_DISABLED", default=False):
+    CACHES.update({"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
 DATABASES = {"default": database.config()}
 
 DATABASE_ROUTERS = ("tenant_schemas.routers.TenantSyncRouter",)
