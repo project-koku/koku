@@ -19,6 +19,7 @@ import logging
 
 from django.conf import settings
 from django.db import connection
+from django.db import IntegrityError
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
@@ -60,8 +61,19 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
         """Delete a source."""
         source = self.get_object()
         manager = ProviderBuilder(request.user.identity_header.get("encoded"))
-        manager.destroy_provider(source.koku_uuid)
-        return super().destroy(request, *args, **kwargs)
+        for _ in range(5):
+            try:
+                manager.destroy_provider(source.koku_uuid)
+            except IntegrityError as error:
+                LOG.warning(f"Retrying Source delete due to error: {error}")
+            except Exception as error:  # catch everything else. return immediately
+                msg = f"Source removal resulted in UNKNOWN error: {type(error).__name__}: {error}"
+                LOG.error(msg)
+                return Response(msg, status=500)
+            else:
+                return super().destroy(request, *args, **kwargs)
+        LOG.error("Failed to remove Source")
+        return Response("Failed to remove Source", status=500)
 
 
 LOG = logging.getLogger(__name__)
