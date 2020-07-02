@@ -28,14 +28,14 @@ from django.db.models.signals import post_save
 from django.test import TestCase
 from faker import Faker
 from kafka.errors import KafkaError
-from kombu.exceptions import OperationalError as RabbitOperationalError
 from requests.exceptions import RequestException
 from rest_framework.exceptions import ValidationError
 
 import sources.kafka_listener as source_integration
 from api.provider.models import Provider
 from api.provider.models import Sources
-from api.provider.provider_manager import ProviderManagerError
+from api.provider.provider_builder import ProviderBuilder
+from api.provider.provider_builder import ProviderBuilderError
 from koku.middleware import IdentityHeaderMiddleware
 from masu.prometheus_stats import WORKER_REGISTRY
 from providers.provider_access import ProviderAccessor
@@ -44,21 +44,18 @@ from sources.config import Config
 from sources.kafka_listener import process_message
 from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import storage_callback
-from sources.kafka_source_manager import KafkaSourceManager
-from sources.kafka_source_manager import KafkaSourceManagerError
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
-from sources.tasks import create_or_update_provider
-from sources.tasks import delete_source_and_provider
+from sources.sources_provider_coordinator import SourcesProviderCoordinator
 
 faker = Faker()
 SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}"
 
 
 def raise_source_manager_error(param_a, param_b, param_c, param_d, param_e):
-    """Raise KafkaSourceManagerError"""
-    raise KafkaSourceManagerError()
+    """Raise ProviderBuilderError"""
+    raise ProviderBuilderError()
 
 
 def raise_validation_error(param_a, param_b, param_c, param_d, param_e):
@@ -67,8 +64,8 @@ def raise_validation_error(param_a, param_b, param_c, param_d, param_e):
 
 
 def raise_provider_manager_error(param_a):
-    """Raise ProviderManagerError"""
-    raise ProviderManagerError("test exception")
+    """Raise ProviderBuilderError"""
+    raise ProviderBuilderError("test exception")
 
 
 class ConsumerRecord:
@@ -129,24 +126,6 @@ class MsgDataGenerator:
         return msg_data
 
 
-class MockTask:
-    """Mock task class."""
-
-    def __init__(self, *args):
-        """Initialize the task."""
-        self.id = uuid4()
-        create_or_update_provider(*args)
-
-
-class MockDestroyTask:
-    """Mock destroy task class."""
-
-    def __init__(self, *args):
-        """Initialize the task."""
-        self.id = uuid4()
-        delete_source_and_provider(*args)
-
-
 class MockKafkaConsumer:
     def __init__(self, preloaded_messages=["hi", "world"]):
         self.preloaded_messages = preloaded_messages
@@ -189,6 +168,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
     def setUp(self):
         """Setup the test method."""
+        super().setUp()
         self.aws_source = {
             "source_id": 10,
             "source_uuid": uuid4(),
@@ -223,71 +203,94 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             "offset": 12,
         }
 
-    @patch("sources.tasks.create_or_update_provider.delay", side_effect=MockTask)
-    def test_execute_koku_provider_op_create(self, mock_delay):
+    def test_execute_koku_provider_op_create(self):
         """Test to execute Koku Operations to sync with Sources for creation."""
         source_id = self.aws_source.get("source_id")
-        application_type_id = 2
         provider = Sources(**self.aws_source)
         provider.save()
 
         msg = {"operation": "create", "provider": provider, "offset": provider.offset}
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            source_integration.execute_koku_provider_op(msg, application_type_id)
+        with patch.object(SourcesHTTPClient, "set_source_status"):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                source_integration.execute_koku_provider_op(msg)
         self.assertIsNotNone(Sources.objects.get(source_id=source_id).koku_uuid)
         self.assertFalse(Sources.objects.get(source_id=source_id).pending_update)
         self.assertEqual(Sources.objects.get(source_id=source_id).koku_uuid, str(provider.source_uuid))
 
-    @patch("sources.tasks.delete_source_and_provider.delay", side_effect=MockDestroyTask)
-    def test_execute_koku_provider_op_destroy(self, mock_destroy):
+    def test_execute_koku_provider_op_destroy(self):
         """Test to execute Koku Operations to sync with Sources for destruction."""
         source_id = self.aws_source.get("source_id")
-        application_type_id = 2
         provider = Sources(**self.aws_source)
         provider.save()
 
         msg = {"operation": "destroy", "provider": provider, "offset": provider.offset}
-        source_integration.execute_koku_provider_op(msg, application_type_id)
+        with patch.object(SourcesHTTPClient, "set_source_status"):
+            source_integration.execute_koku_provider_op(msg)
         self.assertEqual(Sources.objects.filter(source_id=source_id).exists(), False)
 
-    @patch("sources.tasks.delete_source_and_provider.delay", side_effect=MockDestroyTask)
-    def test_execute_koku_provider_op_destroy_provider_not_found(self, mock_destroy):
+    def test_execute_koku_provider_op_destroy_provider_not_found(self):
         """Test to execute Koku Operations to sync with Sources for destruction with provider missing.
 
-        First, raise ProviderManagerError. Check that provider and source still exists.
+        First, raise ProviderBuilderError. Check that provider and source still exists.
         Then, re-call provider destroy without exception, then see both source and provider are gone.
 
         """
         source_id = self.aws_source.get("source_id")
-        application_type_id = 2
         provider = Sources(**self.aws_source)
         provider.save()
         # check that the source exists
         self.assertTrue(Sources.objects.filter(source_id=source_id).exists())
+
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            create_or_update_provider(source_id)  # create the provider
+            builder = SourcesProviderCoordinator(source_id, provider.auth_header)
+            builder.create_account(
+                provider.name,
+                provider.source_type,
+                provider.authentication,
+                provider.billing_source,
+                provider.source_uuid,
+            )
+
         self.assertTrue(Provider.objects.filter(uuid=provider.source_uuid).exists())
         provider = Sources.objects.get(source_id=source_id)
 
         msg = {"operation": "destroy", "provider": provider, "offset": provider.offset}
-        with patch.object(KafkaSourceManager, "destroy_provider", side_effect=raise_provider_manager_error):
-            source_integration.execute_koku_provider_op(msg, application_type_id)
-            self.assertTrue(Provider.objects.filter(uuid=provider.source_uuid).exists())
-            self.assertTrue(Sources.objects.filter(source_uuid=provider.source_uuid).exists())
+        with patch.object(SourcesHTTPClient, "set_source_status"):
+            with patch.object(ProviderBuilder, "destroy_provider", side_effect=raise_provider_manager_error):
+                source_integration.execute_koku_provider_op(msg)
+                self.assertTrue(Provider.objects.filter(uuid=provider.source_uuid).exists())
+                self.assertTrue(Sources.objects.filter(source_uuid=provider.source_uuid).exists())
+                self.assertTrue(Sources.objects.filter(koku_uuid=provider.source_uuid).exists())
 
-        source_integration.execute_koku_provider_op(msg, application_type_id)
+        with patch.object(SourcesHTTPClient, "set_source_status"):
+            source_integration.execute_koku_provider_op(msg)
         self.assertFalse(Provider.objects.filter(uuid=provider.source_uuid).exists())
 
-    @patch("sources.tasks.create_or_update_provider.delay", side_effect=MockTask)
-    def test_execute_koku_provider_op_update(self, mock_create):
+    def test_execute_koku_provider_op_update(self):
         """Test to execute Koku Operations to sync with Sources for update."""
         source_id = self.aws_source.get("source_id")
-        application_type_id = 2
         provider = Sources(**self.aws_source)
         provider.save()
-        uuid = provider.source_uuid
+
+        msg = {"operation": "create", "provider": provider, "offset": provider.offset}
+        with patch.object(SourcesHTTPClient, "set_source_status"):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                source_integration.execute_koku_provider_op(msg)
+
+        builder = SourcesProviderCoordinator(source_id, provider.auth_header)
+
+        source = storage.get_source_instance(source_id)
+        uuid = source.koku_uuid
+
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            create_or_update_provider(source_id)
+            builder.update_account(
+                provider.source_uuid,
+                provider.name,
+                provider.source_type,
+                provider.authentication,
+                provider.billing_source,
+            )
+
         self.assertEqual(
             Provider.objects.get(uuid=uuid).billing_source.bucket, self.aws_source.get("billing_source").get("bucket")
         )
@@ -298,29 +301,15 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         provider.save()
 
         msg = {"operation": "update", "provider": provider, "offset": provider.offset}
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            source_integration.execute_koku_provider_op(msg, application_type_id)
+        with patch.object(SourcesHTTPClient, "set_source_status"):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                source_integration.execute_koku_provider_op(msg)
         response = Sources.objects.get(source_id=source_id)
         self.assertEqual(response.pending_update, False)
         self.assertEqual(response.billing_source, {"bucket": "new-bucket"})
 
         response = Provider.objects.get(uuid=uuid)
         self.assertEqual(response.billing_source.bucket, "new-bucket")
-
-    @patch("sources.tasks.create_or_update_provider.delay")
-    def test_execute_koku_provider_op_create_rabbit_down(self, mock_delay):
-        """Test to execute Koku Operations to sync with Sources for creation with rabbit down."""
-        application_type_id = 2
-        provider = Sources(**self.aws_source)
-        provider.save()
-
-        mock_error = RabbitOperationalError()
-        mock_delay.side_effect = mock_error
-        msg = {"operation": "create", "provider": provider, "offset": provider.offset}
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            with patch("sources.kafka_listener.SourcesHTTPClient.set_source_status"):
-                with self.assertRaises(RabbitOperationalError):
-                    source_integration.execute_koku_provider_op(msg, application_type_id)
 
     def test_get_sources_msg_data(self):
         """Test to get sources details from msg."""
@@ -466,8 +455,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with self.assertRaises(source_integration.SourcesMessageError):
             source_integration.get_sources_msg_data(msg, cost_management_app_type)
 
-    @patch("sources.tasks.create_or_update_provider.delay")
-    def test_collect_pending_items(self, mock_delay):
+    def test_collect_pending_items(self):
         """Test to load the in-progress queue."""
         aws_source = Sources(
             source_id=1,
@@ -1231,8 +1219,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         test_queue = queue.PriorityQueue()
 
-        cost_management_app_type = 2
-
         test_matrix = [
             {"test_value": {"operation": "update", "provider": provider}, "side_effect": InterfaceError},
             {"test_value": {"operation": "update", "provider": provider}, "side_effect": OperationalError},
@@ -1242,20 +1228,18 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             mock_process_message.side_effect = test.get("side_effect")
             with patch("sources.kafka_listener.connection.close") as close_mock:
                 with patch.object(Config, "RETRY_SECONDS", 0):
-                    process_synchronize_sources_msg((i, test["test_value"]), cost_management_app_type, test_queue)
+                    process_synchronize_sources_msg((i, test["test_value"]), test_queue)
                     close_mock.assert_called()
         for i in range(2):
             priority, _ = test_queue.get_nowait()
             self.assertEqual(priority, i)
 
-    @patch("sources.tasks.delete_source_and_provider.delay")
-    def test_process_synchronize_sources_msg(self, mock_destroy):
+    @patch("sources.kafka_listener.execute_koku_provider_op")
+    def test_process_synchronize_sources_msg(self, mock_process_message):
         """Test processing synchronize messages."""
         provider = Sources(**self.aws_source)
 
         test_queue = queue.PriorityQueue()
-
-        cost_management_app_type = 2
 
         messages = [
             {"operation": "create", "provider": provider, "offset": provider.offset},
@@ -1263,19 +1247,11 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         ]
 
         for msg in messages:
-            with patch("sources.storage.clear_update_flag") as mock_clear_flag, patch(
-                "sources.tasks.create_or_update_provider.delay"
-            ) as mock_delay:
-                process_synchronize_sources_msg((0, msg), cost_management_app_type, test_queue)
-                mock_delay.assert_called()
+            with patch("sources.storage.clear_update_flag") as mock_clear_flag:
+                process_synchronize_sources_msg((0, msg), test_queue)
                 mock_clear_flag.assert_called()
-                mock_destroy.assert_not_called()
 
         msg = {"operation": "destroy", "provider": provider}
-        with patch("sources.storage.clear_update_flag") as mock_clear_flag, patch(
-            "sources.tasks.create_or_update_provider.delay"
-        ) as mock_delay:
-            process_synchronize_sources_msg((0, msg), cost_management_app_type, test_queue)
-            mock_delay.assert_not_called()
+        with patch("sources.storage.clear_update_flag") as mock_clear_flag:
+            process_synchronize_sources_msg((0, msg), test_queue)
             mock_clear_flag.assert_not_called()
-        mock_destroy.assert_called()
