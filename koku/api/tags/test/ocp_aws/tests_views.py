@@ -23,6 +23,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.test.iam_test_case import RbacPermissions
 
 
 class OCPAWSTagsViewTest(IamTestCase):
@@ -95,3 +96,31 @@ class OCPAWSTagsViewTest(IamTestCase):
 
         response_data = response.json()
         self.assertEqual(response_data.get("data", []), [])
+
+    @RbacPermissions(
+        {
+            "aws.account": {"read": ["*"]},
+            "openshift.cluster": {"read": ["*"]},
+            "openshift.project": {"read": ["cost-management"]},
+            "openshift.node": {"read": ["*"]},
+        }
+    )
+    def test_rbac_tags_queries(self):
+        """Test that appropriate tag values are returned when data is restricted by namespace."""
+        cost_mgmt_tag_values = {
+            "version": ["beta"],
+            "storageclass": ["epsilon"],
+            "environment": ["dev"],
+            "app": ["cost"],
+        }
+        url = reverse("openshift-aws-tags")
+        client = APIClient()
+        params = {"key_only": False}
+        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        for tag in data.get("data"):
+            self.assertIn(tag.get("key"), cost_mgmt_tag_values.keys())
+            self.assertEqual(tag.get("values"), cost_mgmt_tag_values.get(tag.get("key")))
