@@ -7,7 +7,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpstoragevolumeclaimlabel_summary (
 SELECT l.key,
     array_agg(DISTINCT l.value) as values,
     l.report_period_id,
-    array_agg(DISTINCT l.namespace) as namespace
+    array_agg(DISTINCT l.namespace)
 FROM (
     SELECT key,
         value,
@@ -16,7 +16,7 @@ FROM (
     FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily AS li,
         jsonb_each_text(li.persistentvolumeclaim_labels) labels
 ) l
-GROUP BY l.key, l.report_period_id
-ON CONFLICT (key, report_period_id) DO UPDATE
+GROUP BY l.key, l.report_period_id, l.namespace
+ON CONFLICT (key, report_period_id, namespace) DO UPDATE
 SET values = EXCLUDED.values
 ;
