@@ -26,6 +26,7 @@ from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.test.iam_test_case import RbacPermissions
 from api.utils import DateHelper
 from reporting.models import OCPUsageLineItemDailySummary
 
@@ -175,3 +176,30 @@ class OCPTagsViewTest(IamTestCase):
 
         response_data = response.json()
         self.assertEqual(response_data.get("data", []), [])
+
+    @RbacPermissions(
+        {
+            "openshift.cluster": {"read": ["*"]},
+            "openshift.project": {"read": ["banking"]},
+            "openshift.node": {"read": ["*"]},
+        }
+    )
+    def test_rbac_ocp_tags(self):
+        """Test that appropriate tag values are returned when data is restricted by namespace."""
+        banking_tag_values = {
+            "version": ["MilkyWay"],
+            "storageclass": ["Odin"],
+            "environment": ["qe"],
+            "app": ["banking"],
+        }
+        url = reverse("openshift-tags")
+        client = APIClient()
+        params = {"key_only": False, "filter[enabled]": False}
+        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        for tag in data.get("data"):
+            self.assertIn(tag.get("key"), banking_tag_values.keys())
+            self.assertEqual(tag.get("values"), banking_tag_values.get(tag.get("key")))

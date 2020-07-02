@@ -215,7 +215,7 @@ manifest:
 	python scripts/create_manifest.py
 
 check-manifest:
-	./.travis/check_manifest.sh
+	.github/scripts/check_manifest.sh
 
 run-migrations:
 	$(DJANGO_MANAGE) migrate_schemas
@@ -609,9 +609,9 @@ ifndef output_file_name
 	$(error param output_file_name is not set)
 endif
 ifdef generator_template_file
-	@nise yaml -p ocp -c $(or $(generator_config_file), default) -t $(generator_template_file) -o $(output_file_name) $(generator_flags)
+	@nise yaml ocp -c $(or $(generator_config_file), default) -t $(generator_template_file) -o $(output_file_name) $(generator_flags)
 else
-	@nise yaml -p ocp -c $(or $(generator_config_file), default) -o $(output_file_name) $(generator_flags)
+	@nise yaml ocp -c $(or $(generator_config_file), default) -o $(output_file_name) $(generator_flags)
 endif
 
 
