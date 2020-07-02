@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the sources serializer."""
+from socket import gaierror
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -34,9 +35,21 @@ from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesDependencyError
 from sources.api.serializers import SourcesSerializer
 from sources.config import Config
+from sources.sources_patch_handler import SourcesPatchHandler
 from sources.storage import SourcesStorageError
 
 fake = Faker()
+
+
+class MockSourcesClient:
+    def __init__(self, address):
+        self._url = address
+
+    def update_billing_source(self, source_id, billing_source):
+        return SourcesPatchHandler().update_billing_source(source_id, billing_source)
+
+    def update_authentication(self, source_id, authentication):
+        return SourcesPatchHandler().update_authentication(source_id, authentication)
 
 
 class SourcesSerializerTests(IamTestCase):
@@ -100,16 +113,18 @@ class SourcesSerializerTests(IamTestCase):
         source.save()
         return source
 
-    @patch("sources.tasks.create_or_update_provider.delay")
-    def test_azure_source_update_missing_credential(self, mock_delay):
+    def test_azure_source_update_missing_credential(self):
         """Test the update azure source with missing credentials."""
         self.azure_obj.authentication = {}
         self.azure_obj.save()
 
         serializer = SourcesSerializer(context=self.request_context)
         validated_data = {"authentication": {"credentials": {"subscription_id": "subscription-uuid"}}}
-        instance = serializer.update(self.azure_obj, validated_data)
-        self.assertEqual("subscription-uuid", instance.authentication.get("credentials").get("subscription_id"))
+        with patch("sources.api.serializers.ServerProxy") as mock_client:
+            mock_sources_client = MockSourcesClient("http://mock-soures-client")
+            mock_client.return_value.__enter__.return_value = mock_sources_client
+            instance = serializer.update(self.azure_obj, validated_data)
+            self.assertEqual("subscription-uuid", instance.authentication.get("credentials").get("subscription_id"))
 
         for field in ("client_id", "tenant_id", "client_secret"):
             self.assertNotIn(field, instance.authentication.get("credentials").keys())
@@ -122,23 +137,12 @@ class SourcesSerializerTests(IamTestCase):
         serializer = SourcesSerializer(context=self.request_context)
         validated_data = {"authentication": {"credentials": {"subscription_id": "subscription-uuid"}}}
         with self.assertRaises(SourcesStorageError):
-            serializer.update(self.azure_obj, validated_data)
+            with patch("sources.api.serializers.ServerProxy") as mock_client:
+                mock_sources_client = MockSourcesClient("http://mock-soures-client")
+                mock_client.return_value.__enter__.return_value = mock_sources_client
+                serializer.update(self.azure_obj, validated_data)
 
-    @patch("sources.tasks.create_or_update_provider.delay")
-    def test_source_update_rabbit_down(self, mock_delay):
-        """Test the updating a source with rabbit down."""
-        self.azure_obj.source_type = Provider.PROVIDER_AZURE
-        self.azure_obj.save()
-
-        serializer = SourcesSerializer(context=self.request_context)
-        validated_data = {"authentication": {"credentials": {"subscription_id": "subscription-uuid"}}}
-        mock_side_effect = SourcesDependencyError("Where's Rabbit")
-        mock_delay.side_effect = mock_side_effect
-        with self.assertRaises(SourcesDependencyError):
-            serializer.update(self.azure_obj, validated_data)
-
-    @patch("sources.tasks.create_or_update_provider.delay")
-    def test_azure_source_billing_source_update(self, mock_delay):
+    def test_azure_source_billing_source_update(self):
         """Test the updating azure billing_source."""
         serializer = SourcesSerializer(context=self.request_context)
         test_resource_group = "TESTRG"
@@ -148,13 +152,16 @@ class SourcesSerializerTests(IamTestCase):
                 "data_source": {"resource_group": test_resource_group, "storage_account": test_storage_account}
             }
         }
-        instance = serializer.update(self.azure_obj, validated_data)
+        with patch("sources.api.serializers.ServerProxy") as mock_client:
+            mock_sources_client = MockSourcesClient("http://mock-soures-client")
+            mock_client.return_value.__enter__.return_value = mock_sources_client
+            instance = serializer.update(self.azure_obj, validated_data)
+
         self.assertIn("data_source", instance.billing_source.keys())
         self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
         self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
 
-    @patch("sources.tasks.create_or_update_provider.delay")
-    def test_azure_source_billing_source_resource_group_update(self, mock_delay):
+    def test_azure_source_billing_source_resource_group_update(self):
         """Test the updating azure billing_source."""
         serializer = SourcesSerializer(context=self.request_context)
         test_resource_group = "TESTRG"
@@ -164,19 +171,26 @@ class SourcesSerializerTests(IamTestCase):
                 "data_source": {"resource_group": test_resource_group, "storage_account": test_storage_account}
             }
         }
-        instance = serializer.update(self.azure_obj, validated_data)
+        with patch("sources.api.serializers.ServerProxy") as mock_client:
+            mock_sources_client = MockSourcesClient("http://mock-soures-client")
+            mock_client.return_value.__enter__.return_value = mock_sources_client
+            instance = serializer.update(self.azure_obj, validated_data)
+
         self.assertIn("data_source", instance.billing_source.keys())
         self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
         self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
 
+        self.azure_obj = instance
         new_resource_group = "NEW_RG"
         validated_data = {"billing_source": {"data_source": {"resource_group": new_resource_group}}}
-        instance = serializer.update(self.azure_obj, validated_data)
+        with patch("sources.api.serializers.ServerProxy") as mock_client:
+            mock_sources_client = MockSourcesClient("http://mock-soures-client")
+            mock_client.return_value.__enter__.return_value = mock_sources_client
+            instance = serializer.update(self.azure_obj, validated_data)
         self.assertIn("data_source", instance.billing_source.keys())
         self.assertEqual(new_resource_group, instance.billing_source.get("data_source").get("resource_group"))
 
-    @patch("sources.tasks.create_or_update_provider.delay")
-    def test_azure_source_billing_source_storage_account_update(self, mock_delay):
+    def test_azure_source_billing_source_storage_account_update(self):
         """Test the updating azure billing_source."""
         serializer = SourcesSerializer(context=self.request_context)
         test_resource_group = "TESTRG"
@@ -186,19 +200,26 @@ class SourcesSerializerTests(IamTestCase):
                 "data_source": {"resource_group": test_resource_group, "storage_account": test_storage_account}
             }
         }
-        instance = serializer.update(self.azure_obj, validated_data)
+        with patch("sources.api.serializers.ServerProxy") as mock_client:
+            mock_sources_client = MockSourcesClient("http://mock-soures-client")
+            mock_client.return_value.__enter__.return_value = mock_sources_client
+            instance = serializer.update(self.azure_obj, validated_data)
+
         self.assertIn("data_source", instance.billing_source.keys())
         self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
         self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
 
+        self.azure_obj = instance
         new_storage_account = "NEW_SA"
         validated_data = {"billing_source": {"data_source": {"storage_account": new_storage_account}}}
-        instance = serializer.update(self.azure_obj, validated_data)
-        self.assertIn("data_source", instance.billing_source.keys())
-        self.assertEqual(new_storage_account, instance.billing_source.get("data_source").get("storage_account"))
+        with patch("sources.api.serializers.ServerProxy") as mock_client:
+            mock_sources_client = MockSourcesClient("http://mock-soures-client")
+            mock_client.return_value.__enter__.return_value = mock_sources_client
+            instance = serializer.update(self.azure_obj, validated_data)
+            self.assertIn("data_source", instance.billing_source.keys())
+            self.assertEqual(new_storage_account, instance.billing_source.get("data_source").get("storage_account"))
 
-    @patch("sources.tasks.create_or_update_provider.delay")
-    def test_azure_source_billing_source_update_with_koku_uuid(self, mock_delay):
+    def test_azure_source_billing_source_update_with_koku_uuid(self):
         """Test the updating azure billing_source with source_uuid."""
         self.azure_obj.source_uuid = fake.uuid4()
         self.azure_obj.pending_update = False
@@ -212,7 +233,10 @@ class SourcesSerializerTests(IamTestCase):
                 "data_source": {"resource_group": test_resource_group, "storage_account": test_storage_account}
             }
         }
-        instance = serializer.update(self.azure_obj, validated_data)
+        with patch("sources.api.serializers.ServerProxy") as mock_client:
+            mock_sources_client = MockSourcesClient("http://mock-soures-client")
+            mock_client.return_value.__enter__.return_value = mock_sources_client
+            instance = serializer.update(self.azure_obj, validated_data)
         self.assertTrue(instance.pending_update)
 
     def test_azure_source_billing_source_update_missing_data_source(self):
@@ -238,14 +262,17 @@ class SourcesSerializerTests(IamTestCase):
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.azure_obj, validated_data)
 
-    @patch("sources.tasks.create_or_update_provider.delay")
-    def test_aws_source_billing_source_update(self, mock_delay):
+    def test_aws_source_billing_source_update(self):
         """Test the updating aws billing_source."""
         serializer = SourcesSerializer(context=self.request_context)
         test_bucket = "some-new-bucket"
         validated_data = {"billing_source": {"bucket": test_bucket}}
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            instance = serializer.update(self.aws_obj, validated_data)
+        with patch("sources.api.serializers.ServerProxy") as mock_client:
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                mock_sources_client = MockSourcesClient("http://mock-soures-client")
+                mock_client.return_value.__enter__.return_value = mock_sources_client
+                instance = serializer.update(self.aws_obj, validated_data)
+
         self.assertIn("bucket", instance.billing_source.keys())
         self.assertEqual(test_bucket, instance.billing_source.get("bucket"))
 
@@ -268,8 +295,25 @@ class SourcesSerializerTests(IamTestCase):
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.aws_obj, validated_data)
 
-    @patch("sources.tasks.create_or_update_provider.delay")
-    def test_create_via_admin_serializer(self, mock_delay):
+    def test_patch_unavailable_sources_client(self):
+        serializer = SourcesSerializer(context=self.request_context)
+        with patch("sources.api.serializers.ServerProxy") as mock_client:
+            mock_client.side_effect = ConnectionRefusedError
+            with self.assertRaises(SourcesDependencyError):
+                validated_data = {"billing_source": {"bucket": "some-new-bucket"}}
+                serializer.update(self.aws_obj, validated_data)
+
+            mock_client.side_effect = gaierror
+            with self.assertRaises(SourcesDependencyError):
+                validated_data = {"billing_source": {"bucket": "some-new-bucket"}}
+                serializer.update(self.aws_obj, validated_data)
+
+        # catch ProtocolError
+        with self.assertRaises(SourcesDependencyError):
+            validated_data = {"billing_source": {"bucket": "some-new-bucket"}}
+            serializer.update(self.aws_obj, validated_data)
+
+    def test_create_via_admin_serializer(self):
         """Test create source with admin serializer."""
         source_data = {
             "name": "test1",
@@ -327,10 +371,9 @@ class SourcesSerializerTests(IamTestCase):
         account = get_account_from_header(Mock(headers={HEADER_X_RH_IDENTITY: "badencoding&&&"}))
         self.assertIsNone(account)
 
-    @patch("sources.tasks.create_or_update_provider.delay")
     @patch("api.provider.serializers.ProviderSerializer.get_request_info")
     @patch("sources.api.serializers.get_auth_header", return_value=Config.SOURCES_FAKE_HEADER)
-    def test_provider_create(self, mock_header, mock_request_info, mock_delay):
+    def test_provider_create(self, mock_header, mock_request_info):
         mock_request_info.return_value = self.User, self.Customer
 
         serializer = AdminSourcesSerializer(context=self.request_context)
@@ -351,5 +394,9 @@ class SourcesSerializerTests(IamTestCase):
         serializer = SourcesSerializer(context=self.request_context)
         validated = {"billing_source": {"bucket": "second-bucket"}}
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            instance2 = serializer.update(instance, validated)
+            with patch("sources.api.serializers.ServerProxy") as mock_client:
+                mock_sources_client = MockSourcesClient("http://mock-soures-client")
+                mock_client.return_value.__enter__.return_value = mock_sources_client
+                instance2 = serializer.update(instance, validated)
+
         self.assertEqual(instance2.billing_source.get("bucket"), "second-bucket")
