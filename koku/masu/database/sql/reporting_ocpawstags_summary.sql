@@ -9,7 +9,7 @@ SELECT l.key,
     array_agg(DISTINCT l.value) as values,
     l.cost_entry_bill_id,
     array_cat(array_agg(DISTINCT l.usage_account_id), array_agg(DISTINCT aa.account_alias )) as accounts,
-    array_agg(DISTINCT l.namespace) as namespace
+    array_agg(DISTINCT l.namespace)
 FROM (
     SELECT key,
         value,
@@ -21,7 +21,7 @@ FROM (
 ) l
 LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON l.usage_account_id = aa.account_id
-GROUP BY l.key, l.cost_entry_bill_id
-ON CONFLICT (key, cost_entry_bill_id) DO UPDATE
+GROUP BY l.key, l.cost_entry_bill_id, l.namespace
+ON CONFLICT (key, cost_entry_bill_id, namespace) DO UPDATE
 SET values = EXCLUDED.values
 ;
