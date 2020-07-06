@@ -99,6 +99,7 @@ help:
 	@echo "                                         url:      localhost:3001"
 	@echo "                                         user:     admin"
 	@echo "                                         password: admin12"
+	@echo "  docker-up-min                        run database, koku/masu servers and worker"
 	@echo "  docker-down                          shut down all containers"
 	@echo "  docker-rabbit                        run RabbitMQ container"
 	@echo "  docker-reinitdb                      drop and recreate the database"
@@ -214,7 +215,7 @@ manifest:
 	python scripts/create_manifest.py
 
 check-manifest:
-	./.travis/check_manifest.sh
+	.github/scripts/check_manifest.sh
 
 run-migrations:
 	$(DJANGO_MANAGE) migrate_schemas
@@ -491,7 +492,7 @@ docker-down-db:
 	docker-compose rm -s -v -f db
 
 docker-logs:
-	docker-compose logs -f
+	docker-compose logs -f koku-server koku-worker masu-server
 
 docker-rabbit:
 	docker-compose up -d rabbit
@@ -537,6 +538,9 @@ docker-up:
 
 docker-up-no-build:
 	docker-compose up -d
+
+docker-up-min:
+	docker-compose up --build -d db redis koku-server masu-server koku-worker
 
 docker-up-db:
 	docker-compose up -d db
@@ -605,9 +609,9 @@ ifndef output_file_name
 	$(error param output_file_name is not set)
 endif
 ifdef generator_template_file
-	@nise yaml -p ocp -c $(or $(generator_config_file), default) -t $(generator_template_file) -o $(output_file_name) $(generator_flags)
+	@nise yaml ocp -c $(or $(generator_config_file), default) -t $(generator_template_file) -o $(output_file_name) $(generator_flags)
 else
-	@nise yaml -p ocp -c $(or $(generator_config_file), default) -o $(output_file_name) $(generator_flags)
+	@nise yaml ocp -c $(or $(generator_config_file), default) -o $(output_file_name) $(generator_flags)
 endif
 
 

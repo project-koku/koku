@@ -1,7 +1,8 @@
 ===========
 Koku README
 ===========
-|license| |Build Status| |codecov| |Updates| |Python 3| |Docs|
+
+|license| |Unittests| |codecov| |Updates| |Python 3| |Docs|
 
 About
 =====
@@ -64,7 +65,7 @@ This project is developed using the Django web framework. Many configuration set
 
 5. Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment (virtualenv) and dependency management (pip). To install pipenv, use pip ::
 
-    pip3 install pipenv
+    pip3 install pipenv==2018.11.26
 
 6. Then project dependencies and a virtual environment can be created using ::
 
@@ -270,8 +271,8 @@ Please refer to Contributing_.
 
 .. |license| image:: https://img.shields.io/github/license/project-koku/koku.svg
    :target: https://github.com/project-koku/koku/blob/master/LICENSE
-.. |Build Status| image:: https://travis-ci.org/project-koku/koku.svg?branch=master
-   :target: https://travis-ci.org/project-koku/koku
+.. |Unittests| image:: https://github.com/project-koku/koku/workflows/Unit%20Tests/badge.svg
+   :target: https://github.com/project-koku/koku/actions
 .. |codecov| image:: https://codecov.io/gh/project-koku/koku/branch/master/graph/badge.svg
    :target: https://codecov.io/gh/project-koku/koku
 .. |Updates| image:: https://pyup.io/repos/github/project-koku/koku/shield.svg?t=1524249231720

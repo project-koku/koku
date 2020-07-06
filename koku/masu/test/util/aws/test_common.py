@@ -27,6 +27,7 @@ from dateutil.relativedelta import relativedelta
 from faker import Faker
 from tenant_schemas.utils import schema_context
 
+from masu.config import Config
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external import AWS_REGIONS
@@ -36,6 +37,7 @@ from masu.test.external.downloader.aws import fake_arn
 from masu.test.external.downloader.aws import fake_aws_account_id
 from masu.test.external.downloader.aws.test_aws_report_downloader import FakeSession
 from masu.util.aws import common as utils
+from masu.util.common import get_path_prefix
 from reporting.models import AWSCostEntryBill
 
 # the cn endpoints aren't supported by moto, so filter them out
@@ -323,13 +325,12 @@ class TestAWSUtils(MasuTestCase):
 
     def test_remove_files_not_in_set_from_s3_bucket(self):
         """Test remove_files_not_in_set_from_s3_bucket."""
-        removed = utils.remove_files_not_in_set_from_s3_bucket(
-            "request_id", "account", "provider_uuid", None, "manifest_id"
-        )
-        self.assertEqual(removed, None)
+        removed = utils.remove_files_not_in_set_from_s3_bucket("request_id", None, "manifest_id")
+        self.assertEqual(removed, [])
 
         date_accessor = DateAccessor()
         start_date = date_accessor.today_with_timezone("utc").replace(day=1)
+        s3_csv_path = get_path_prefix("account", "provider_uuid", start_date, Config.CSV_DATA_TYPE)
         expected_key = "removed_key"
         mock_object = Mock(metadata={}, key=expected_key)
         mock_summary = Mock()
@@ -337,17 +338,13 @@ class TestAWSUtils(MasuTestCase):
         with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
                 mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [mock_summary]
-                removed = utils.remove_files_not_in_set_from_s3_bucket(
-                    "request_id", "account", "provider_uuid", start_date, "manifest_id"
-                )
+                removed = utils.remove_files_not_in_set_from_s3_bucket("request_id", s3_csv_path, "manifest_id")
                 self.assertEqual(removed, [expected_key])
 
         with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
                 mock_s3.side_effect = ClientError({}, "Error")
-                removed = utils.remove_files_not_in_set_from_s3_bucket(
-                    "request_id", "account", "provider_uuid", start_date, "manifest_id"
-                )
+                removed = utils.remove_files_not_in_set_from_s3_bucket("request_id", s3_csv_path, "manifest_id")
                 self.assertEqual(removed, [])
 
     def test_copy_data_to_s3_bucket(self):
@@ -365,6 +362,89 @@ class TestAWSUtils(MasuTestCase):
                 mock_s3.side_effect = ClientError({}, "Error")
                 upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
                 self.assertEqual(upload, None)
+
+    def test_get_file_keys_from_s3_with_manifest_id(self):
+        """Test get_file_keys_from_s3_with_manifest_id."""
+        files = utils.get_file_keys_from_s3_with_manifest_id("request_id", "s3_path", "manifest_id")
+        self.assertEqual(files, [])
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                files = utils.get_file_keys_from_s3_with_manifest_id("request_id", None, "manifest_id")
+                self.assertEqual(files, [])
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                mock_s3.side_effect = ClientError({}, "Error")
+                files = utils.get_file_keys_from_s3_with_manifest_id("request_id", "s3_path", "manifest_id")
+                self.assertEqual(files, [])
+
+    def test_convert_csv_to_parquet(self):
+        """Test convert_csv_to_parquet."""
+        result = utils.convert_csv_to_parquet(
+            "request_id", None, "s3_parquet_path", "local_path", "manifest_id", "csv_filename"
+        )
+        self.assertFalse(result)
+
+        result = utils.convert_csv_to_parquet(
+            "request_id", "s3_csv_path", "s3_parquet_path", "local_path", "manifest_id", "csv_filename"
+        )
+        self.assertFalse(result)
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                with patch("masu.util.aws.common.Path"):
+                    mock_s3.side_effect = ClientError({}, "Error")
+                    result = utils.convert_csv_to_parquet(
+                        "request_id", "s3_csv_path", "s3_parquet_path", "local_path", "manifest_id", "csv_filename.csv"
+                    )
+                    self.assertFalse(result)
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource"):
+                with patch("masu.util.aws.common.Path"):
+                    result = utils.convert_csv_to_parquet(
+                        "request_id",
+                        "s3_csv_path",
+                        "s3_parquet_path",
+                        "local_path",
+                        "manifest_id",
+                        "csv_filename.csv.gz",
+                    )
+                    self.assertFalse(result)
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource"):
+                with patch("masu.util.aws.common.Path"):
+                    with patch("masu.util.aws.common.pd"):
+                        with patch("masu.util.aws.common.open") as mock_open:
+                            mock_open.side_effect = ValueError()
+                            result = utils.convert_csv_to_parquet(
+                                "request_id",
+                                "s3_csv_path",
+                                "s3_parquet_path",
+                                "local_path",
+                                "manifest_id",
+                                "csv_filename.csv.gz",
+                            )
+                            self.assertFalse(result)
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource"):
+                with patch("masu.util.aws.common.Path"):
+                    with patch("masu.util.aws.common.pd"):
+                        with patch("masu.util.aws.common.open"):
+                            with patch("masu.util.aws.common.BytesIO"):
+                                with patch("masu.util.aws.common.copy_data_to_s3_bucket"):
+                                    result = utils.convert_csv_to_parquet(
+                                        "request_id",
+                                        "s3_csv_path",
+                                        "s3_parquet_path",
+                                        "local_path",
+                                        "manifest_id",
+                                        "csv_filename.csv.gz",
+                                    )
+                                    self.assertTrue(result)
 
 
 class AwsArnTest(TestCase):

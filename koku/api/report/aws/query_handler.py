@@ -25,7 +25,6 @@ from django.db.models import Value
 from django.db.models import Window
 from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce
-from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
 
@@ -68,6 +67,15 @@ class AWSReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for AWS."""
 
     provider = Provider.PROVIDER_AWS
+    network_services = {"AmazonVPC", "AmazonCloudFront", "AmazonRoute53", "AmazonAPIGateway"}
+    database_services = {
+        "AmazonRDS",
+        "AmazonDynamoDB",
+        "AmazonElastiCache",
+        "AmazonNeptune",
+        "AmazonRedshift",
+        "AmazonDocumentDB",
+    }
 
     def __init__(self, parameters):
         """Establish AWS report query handler.
@@ -114,56 +122,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         )
         for q_param, db_field in fields.items():
             if q_param in prefix_removed_parameters_list:
-                annotations[q_param] = Concat(db_field, Value(""))
+                annotations[q_param] = F(db_field)
         return annotations
-
-    @property
-    def query_table(self):
-        """Return the database table to query against."""
-        query_table = self._mapper.query_table
-        report_type = self.parameters.report_type
-        report_group = "default"
-
-        excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
-        filter_keys = set(self.parameters.get("filter", {}).keys())
-        filter_keys = filter_keys.difference(excluded_filters)
-        group_by_keys = list(self.parameters.get("group_by", {}).keys())
-
-        # If grouping by more than 1 field, we default to the daily summary table
-        if len(group_by_keys) > 1:
-            return query_table
-        if len(filter_keys) > 1:
-            return query_table
-        # If filtering on a different field than grouping by, we default to the daily summary table
-        if group_by_keys and len(filter_keys.difference(group_by_keys)) != 0:
-            return query_table
-
-        # Special Casess for Network and Database Cards in the UI
-        service_filter = set(self.parameters.get("filter", {}).get("service", []))
-        network_services = ["AmazonVPC", "AmazonCloudFront", "AmazonRoute53", "AmazonAPIGateway"]
-        database_services = [
-            "AmazonRDS",
-            "AmazonDynamoDB",
-            "AmazonElastiCache",
-            "AmazonNeptune",
-            "AmazonRedshift",
-            "AmazonDocumentDB",
-        ]
-        if report_type == "costs" and service_filter and not service_filter.difference(network_services):
-            report_type = "network"
-        elif report_type == "costs" and service_filter and not service_filter.difference(database_services):
-            report_type = "database"
-
-        if group_by_keys:
-            report_group = group_by_keys[0]
-        elif filter_keys and not group_by_keys:
-            report_group = list(filter_keys)[0]
-        try:
-            query_table = self._mapper.views[report_type][report_group]
-        except KeyError:
-            msg = f"{report_group} for {report_type} has no entry in views. Using the default."
-            LOG.warning(msg)
-        return query_table
 
     def format_sub_org_results(self, query_data_results, query_data, sub_orgs_dict):
         """

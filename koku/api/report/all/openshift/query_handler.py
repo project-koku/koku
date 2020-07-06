@@ -19,7 +19,6 @@ import logging
 
 from api.models import Provider
 from api.report.all.openshift.provider_map import OCPAllProviderMap
-from api.report.ocp_aws.query_handler import check_view_filter_and_group_by_criteria
 from api.report.ocp_aws.query_handler import OCPInfrastructureReportQueryHandlerBase
 from api.report.queries import is_grouped_or_filtered_by_project
 
@@ -30,64 +29,30 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
     """Handles report queries and responses for OCP on All Infrastructure."""
 
     provider = Provider.OCP_ALL
-
-    @property
-    def query_table(self):
-        """Return the database table to query against."""
-        query_table = self._mapper.query_table
-        report_type = self.parameters.report_type
-        report_group = "default"
-
-        excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
-
-        filter_keys = set(self.parameters.get("filter", {}).keys())
-        filter_keys = filter_keys.difference(excluded_filters)
-        group_by_keys = list(self.parameters.get("group_by", {}).keys())
-
-        if not check_view_filter_and_group_by_criteria(filter_keys, group_by_keys):
-            return query_table
-
-        # Special Casess for Network and Database Cards in the UI
-        service_filter = {f.replace("\"'", "") for f in self.parameters.get("filter", {}).get("service", [])}
-        network_services = [
-            "AmazonVPC",
-            "AmazonCloudFront",
-            "AmazonRoute53",
-            "AmazonAPIGateway",
-            "Virtual Network",
-            "VPN",
-            "DNS",
-            "Traffic Manager",
-            "ExpressRoute",
-            "Load Balancer",
-            "Application Gateway",
-        ]
-        database_services = [
-            "AmazonRDS",
-            "AmazonDynamoDB",
-            "AmazonElastiCache",
-            "AmazonNeptune",
-            "AmazonRedshift",
-            "AmazonDocumentDB",
-            "Database",
-            "Cosmos DB",
-            "Cache for Redis",
-        ]
-        if report_type == "costs" and service_filter and not service_filter.difference(network_services):
-            report_type = "network"
-        elif report_type == "costs" and service_filter and not service_filter.difference(database_services):
-            report_type = "database"
-
-        if group_by_keys:
-            report_group = group_by_keys[0]
-        elif filter_keys and not group_by_keys:
-            report_group = list(filter_keys)[0]
-        try:
-            query_table = self._mapper.views[report_type][report_group]
-        except KeyError:
-            msg = f"{report_group} for {report_type} has no entry in views. Using the default."
-            LOG.warning(msg)
-        return query_table
+    network_services = {
+        "AmazonVPC",
+        "AmazonCloudFront",
+        "AmazonRoute53",
+        "AmazonAPIGateway",
+        "Virtual Network",
+        "VPN",
+        "DNS",
+        "Traffic Manager",
+        "ExpressRoute",
+        "Load Balancer",
+        "Application Gateway",
+    }
+    database_services = {
+        "AmazonRDS",
+        "AmazonDynamoDB",
+        "AmazonElastiCache",
+        "AmazonNeptune",
+        "AmazonRedshift",
+        "AmazonDocumentDB",
+        "Database",
+        "Cosmos DB",
+        "Cache for Redis",
+    }
 
     def __init__(self, parameters):
         """Establish OCP report query handler.
