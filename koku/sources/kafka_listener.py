@@ -27,7 +27,8 @@ from xmlrpc.server import SimpleXMLRPCServer
 
 from confluent_kafka import Consumer
 from confluent_kafka import TopicPartition
-from django.db import connection
+from django.db import connections
+from django.db import DEFAULT_DB_ALIAS
 from django.db import IntegrityError
 from django.db import InterfaceError
 from django.db import OperationalError
@@ -75,6 +76,12 @@ SOURCE_PROVIDER_MAP = {
     SOURCES_AZURE_SOURCE_NAME: Provider.PROVIDER_AZURE,
     SOURCES_AZURE_LOCAL_SOURCE_NAME: Provider.PROVIDER_AZURE_LOCAL,
 }
+
+# import debugpy
+
+# debugpy.listen(("0.0.0.0", 5678))
+# LOG.warning("Waiting for debug attach")
+# debugpy.wait_for_client()
 
 
 class SourcesIntegrationError(ValidationError):
@@ -468,7 +475,8 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
                     process_message(application_source_id, msg)
                     consumer.commit()
             except (IntegrityError, InterfaceError, OperationalError) as err:
-                connection.close()
+                connections[DEFAULT_DB_ALIAS].connection.close()
+                connections[DEFAULT_DB_ALIAS].connection = None
                 LOG.error(f"{type(err).__name__}: {err}")
                 rewind_consumer_to_retry(consumer, topic_partition)
             except SourcesHTTPClientError as err:
@@ -599,7 +607,8 @@ def process_synchronize_sources_msg(msg_tuple, process_queue):
         LOG.warning(f"[synchronize_sources] Re-queuing failed operation. Error: {error}")
         _requeue_provider_sync_message(priority, msg, process_queue)
     except (IntegrityError, InterfaceError, OperationalError) as error:
-        connection.close()
+        connections[DEFAULT_DB_ALIAS].connection.close()
+        connections[DEFAULT_DB_ALIAS].connection = None
         LOG.warning(
             f"[synchronize_sources] Closing DB connection and re-queueing failed operation."
             f" Encountered {type(error).__name__}: {error}"
