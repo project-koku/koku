@@ -111,7 +111,7 @@ class InsertAwsOrgTree:
             self.account_alias_mapping[account_alias_id] = act_info
             self.cursor.execute(insert_account_sql, values)
             LOG.info(
-                f"Adding account={act_info['account_alias_name']} "
+                f"Adding account='{act_info['account_alias_name']}' "
                 f"to org={org_node['org_unit_id']} on created_timestamp={date}."
             )
 
