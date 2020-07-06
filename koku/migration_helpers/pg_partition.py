@@ -657,7 +657,7 @@ SELECT DISTINCT
        dependent_view.oid as dependent_view_oid,
        dependent_view.relname as dependent_view,
        dependent_view.relkind as dependent_view_type,
-       dependent_view_owner.rolname as dependent_view_owner,
+       dependent_view.relowner::regrole::text as dependent_view_owner,
        source_ns.nspname as source_schema,
        source_table.relname as source_table
   FROM pg_depend
@@ -671,8 +671,6 @@ SELECT DISTINCT
     ON dependent_ns.oid = dependent_view.relnamespace
   JOIN pg_namespace source_ns
     ON source_ns.oid = source_table.relnamespace
-  JOIN pg_authid dependent_view_owner
-    ON dependent_view_owner.oid = dependent_view.relowner
  WHERE NOT (dependent_ns.nspname = source_ns.nspname AND
             dependent_view.relname = source_table.relname)
    AND source_table.relnamespace = %s::regnamespace
@@ -683,7 +681,7 @@ SELECT DISTINCT
        dependent_view.oid as dependent_view_oid,
        dependent_view.relname as dependent_view,
        dependent_view.relkind as dependent_view_type,
-       dependent_view_owner.rolname as dependent_view_owner,
+       dependent_view.relowner::regrole::text as dependent_view_owner,
        source_ns.nspname as source_schema,
        source_table.relname as source_table
   FROM pg_depend
@@ -697,15 +695,19 @@ SELECT DISTINCT
     ON dependent_ns.oid = dependent_view.relnamespace
   JOIN pg_namespace source_ns
     ON source_ns.oid = source_table.relnamespace
-  JOIN pg_authid dependent_view_owner
-    ON dependent_view_owner.oid = dependent_view.relowner
   JOIN view_deps vd
     ON vd.dependent_schema = source_ns.nspname
    AND vd.dependent_view = source_table.relname
    AND NOT (dependent_ns.nspname = vd.dependent_schema AND
             dependent_view.relname = vd.dependent_view)
 )
-SELECT vd.*,
+SELECT vd.dependent_schema,
+       vd.dependent_view_oid,
+       vd.dependent_view,
+       vd.dependent_view_type,
+       replace(vd.dependent_view_owner, '"', '') as dependent_view_owner,
+       vd.source_schema,
+       vd.source_table,
        (select array_agg(row_to_json(vi))
           from pg_indexes vi
          where vi.schemaname = vd.dependent_schema
