@@ -474,13 +474,13 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
                 with transaction.atomic():
                     process_message(application_source_id, msg)
                     consumer.commit()
-            except (IntegrityError, InterfaceError, OperationalError) as err:
+            except (InterfaceError, OperationalError) as err:
                 connections[DEFAULT_DB_ALIAS].connection.close()
                 connections[DEFAULT_DB_ALIAS].connection = None
                 LOG.error(f"{type(err).__name__}: {err}")
                 rewind_consumer_to_retry(consumer, topic_partition)
-            except SourcesHTTPClientError as err:
-                LOG.error(err)
+            except (IntegrityError, SourcesHTTPClientError) as err:
+                LOG.error(f"{type(err).__name__}: {err}")
                 rewind_consumer_to_retry(consumer, topic_partition)
             except SourceNotFoundError:
                 LOG.warning(f"Source not found in platform sources. Skipping msg: {msg}")
@@ -603,10 +603,10 @@ def process_synchronize_sources_msg(msg_tuple, process_queue):
         if msg.get("operation") != "destroy":
             storage.clear_update_flag(msg.get("provider").source_id)
 
-    except SourcesIntegrationError as error:
+    except (IntegrityError, SourcesIntegrationError) as error:
         LOG.warning(f"[synchronize_sources] Re-queuing failed operation. Error: {error}")
         _requeue_provider_sync_message(priority, msg, process_queue)
-    except (IntegrityError, InterfaceError, OperationalError) as error:
+    except (InterfaceError, OperationalError) as error:
         connections[DEFAULT_DB_ALIAS].connection.close()
         connections[DEFAULT_DB_ALIAS].connection = None
         LOG.warning(
