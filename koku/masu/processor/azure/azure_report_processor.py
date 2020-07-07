@@ -20,6 +20,7 @@ import logging
 from datetime import datetime
 from os import remove
 
+import ciso8601
 import pytz
 import ujson as json
 from dateutil import parser
@@ -120,9 +121,11 @@ class AzureReportProcessor(ReportProcessorBase):
 
         report_date_range = utils.month_date_range(parser.parse(row_date))
         start_date, end_date = report_date_range.split("-")
+        start_date = start_date.replace(" +0000 UTC", "+0000")
+        end_date = end_date.replace(" +0000 UTC", "+0000")
 
-        start_date_utc = parser.parse(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
-        end_date_utc = parser.parse(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
+        start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
+        end_date_utc = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
 
         key = (start_date_utc, self._provider_uuid)
         if key in self.processed_report.bills:
