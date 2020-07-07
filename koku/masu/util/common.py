@@ -134,8 +134,8 @@ def safe_float(val):
     """
     result = float(0)
     try:
-        float(val)
-    except ValueError:
+        result = float(val)
+    except (ValueError, TypeError):
         pass
     return result
 
@@ -147,7 +147,7 @@ def safe_dict(val):
     result = {}
     try:
         result = json.loads(val)
-    except ValueError:
+    except (ValueError, TypeError):
         pass
     return json.dumps(result)
 
