@@ -196,22 +196,10 @@ class OCPReportProcessorBase(ReportProcessorBase):
             label_string (str): The raw report string of pod labels
 
         Returns:
-            (dict): The JSON dictionary made from the label string
+            (str): The JSON dictionary as a string made from the label string
 
         """
-        labels = label_string.split("|") if label_string else []
-        label_dict = {}
-
-        for label in labels:
-            try:
-                key, value = label.split(":")
-                key = key.replace("label_", "")
-                label_dict[key] = value
-            except ValueError as err:
-                LOG.warning(err)
-                LOG.warning("%s could not be properly split", label)
-                continue
-
+        label_dict = utils.process_openshift_labels(label_string)
         return json.dumps(label_dict)
 
     def _update_mappings(self):

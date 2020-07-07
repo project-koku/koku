@@ -20,6 +20,7 @@ import logging
 from django.conf import settings
 from django.core.cache import caches
 from django.core.cache.backends import locmem
+from django.core.cache.backends.dummy import DummyCache
 from django.core.cache.backends.locmem import LocMemCache
 from django_redis.cache import RedisCache
 from redis import Redis
@@ -56,6 +57,9 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
     elif isinstance(cache, LocMemCache):
         all_keys = list(locmem._caches.get(settings.TEST_CACHE_LOCATION).keys())
         all_keys = [key.split(":", 2)[-1] for key in all_keys]
+    elif isinstance(cache, DummyCache):
+        LOG.info("Skipping cache invalidation because views caching is disabled.")
+        return
     else:
         msg = "Using an unsupported caching backend!"
         raise KokuCacheError(msg)
