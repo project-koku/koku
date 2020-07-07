@@ -34,6 +34,7 @@ class OCPUsageReportPeriod(models.Model):
         unique_together = ("cluster_id", "report_period_start", "provider")
 
     cluster_id = models.CharField(max_length=50, null=False)
+    cluster_alias = models.CharField(max_length=256, null=True)
     report_period_start = models.DateTimeField(null=False)
     report_period_end = models.DateTimeField(null=False)
 
@@ -316,7 +317,6 @@ class OCPUsagePodLabelSummary(models.Model):
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
-    # namespace = models.CharField(max_length=253, null=False)
     namespace = ArrayField(models.CharField(max_length=253))
 
 

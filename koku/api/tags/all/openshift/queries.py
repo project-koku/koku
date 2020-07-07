@@ -36,8 +36,14 @@ class OCPAllTagQueryHandler(TagQueryHandler):
             "annotations": {"accounts": F("subscription_guid")},
         },
     ]
-    SUPPORTED_FILTERS = ["account"]
-    FILTER_MAP = {"account": {"field": "accounts", "operation": "icontains", "composition_key": "account_filter"}}
+    SUPPORTED_FILTERS = ["account", "cluster"]
+    FILTER_MAP = {
+        "account": {"field": "accounts", "operation": "icontains", "composition_key": "account_filter"},
+        "cluster": [
+            {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
+            {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
+        ],
+    }
 
     def __init__(self, parameters):
         """Establish OCP on All infrastructure tag query handler.

@@ -30,6 +30,11 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
     data_sources = [{"db_table": OCPAzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
     SUPPORTED_FILTERS = AzureTagQueryHandler.SUPPORTED_FILTERS + OCPTagQueryHandler.SUPPORTED_FILTERS
     FILTER_MAP = merge_dicts(AzureTagQueryHandler.FILTER_MAP, OCPTagQueryHandler.FILTER_MAP)
+    # override cluster since we are getting it from a different table and field(s)
+    FILTER_MAP["cluster"] = [
+        {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
+        {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
+    ]
 
     def __init__(self, parameters):
         """Establish Azure report query handler.
