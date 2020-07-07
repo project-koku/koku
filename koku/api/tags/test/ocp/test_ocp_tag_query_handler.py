@@ -217,9 +217,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
                 .distinct()
                 .all()
             )
-            storage_tag_keys = [tag.get("key") for tag in storage_tag_keys]
-
-            tag_keys = storage_tag_keys
+            tag_keys = [tag.get("key") for tag in storage_tag_keys]
 
         result = handler.get_tag_keys()
         self.assertEqual(sorted(result), sorted(tag_keys))
