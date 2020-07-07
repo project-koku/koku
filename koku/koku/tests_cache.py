@@ -77,7 +77,7 @@ class KokuCacheTest(IamTestCase):
 
     @override_settings(
         CACHES={
-            "default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache", "LOCATION": "worker_cache_table"}
+            "default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}
         }
     )
     def test_invalidate_view_cache_for_tenant_and_cache_key_dummy_cache(self):
