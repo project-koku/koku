@@ -22,7 +22,7 @@ from api.report.serializers import handle_invalid_fields
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 
-OCP_FILTER_OP_FIELDS = ["project", "enabled"]
+OCP_FILTER_OP_FIELDS = ["project", "enabled", "cluster"]
 AWS_FILTER_OP_FIELDS = ["account"]
 AZURE_FILTER_OP_FIELDS = ["subscription_guid"]
 
@@ -85,6 +85,7 @@ class OCPFilterSerializer(FilterSerializer):
     type = serializers.ChoiceField(choices=TYPE_CHOICES, required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
     enabled = serializers.BooleanField(default=True, required=False)
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the OCPFilterSerializer."""
