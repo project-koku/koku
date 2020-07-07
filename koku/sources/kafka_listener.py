@@ -114,7 +114,7 @@ def _log_process_queue_event(queue, event):
     LOG.info(f"Adding operation {operation} for {name} to process queue (size: {queue.qsize()})")
 
 
-def close_and_set_db_connection():
+def close_and_set_db_connection():  # pragma: no cover
     """Close the db connection and set to None."""
     connections[DEFAULT_DB_ALIAS].connection.close()
     connections[DEFAULT_DB_ALIAS].connection = None
