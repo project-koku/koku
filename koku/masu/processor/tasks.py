@@ -52,9 +52,11 @@ from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.worker_cache import WorkerCache
+from masu.util.aws.common import aws_post_processor
 from masu.util.aws.common import convert_csv_to_parquet
 from masu.util.aws.common import get_file_keys_from_s3_with_manifest_id
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
+from masu.util.common import get_column_converters
 from masu.util.common import get_path_prefix
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
@@ -639,21 +641,36 @@ def convert_to_parquet(request_id, account, provider_uuid, provider_type, start_
         LOG.info(log_json(request_id, msg, context))
         return
 
+    post_processor = None
     # OCP data is daily chunked report files.
     # AWS and Azure are monthly reports. Previous reports should be removed so data isn't duplicated
     if provider_type != Provider.PROVIDER_OCP:
         remove_files_not_in_set_from_s3_bucket(request_id, s3_parquet_path, manifest_id, context)
 
+    if provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
+        post_processor = aws_post_processor
+
     failed_conversion = []
     for csv_filename in files:
+        kwargs = {}
         parquet_path = s3_parquet_path
         if provider_type == Provider.PROVIDER_OCP:
             for report_type in REPORT_TYPES.keys():
                 if report_type in csv_filename:
                     parquet_path = f"{s3_parquet_path}/{report_type}"
+                    kwargs["report_type"] = report_type
                     break
+        converters = get_column_converters(provider_type, **kwargs)
         result = convert_csv_to_parquet(
-            request_id, s3_csv_path, parquet_path, local_path, manifest_id, csv_filename, context
+            request_id,
+            s3_csv_path,
+            parquet_path,
+            local_path,
+            manifest_id,
+            csv_filename,
+            converters,
+            post_processor,
+            context,
         )
         if not result:
             failed_conversion.append(csv_filename)
