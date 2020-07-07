@@ -2936,7 +2936,7 @@
                 "in": "query",
                 "name": "cluster",
                 "required": false,
-                "description": "The clusterID or cluster_alias to filter on",
+                "description": "The cluster_id or cluster_alias to filter on",
                 "schema": {
                     "$ref": "#/components/schemas/cluster"
                 }
