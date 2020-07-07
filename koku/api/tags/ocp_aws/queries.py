@@ -30,7 +30,11 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
     data_sources = [{"db_table": OCPAWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
     SUPPORTED_FILTERS = AWSTagQueryHandler.SUPPORTED_FILTERS + OCPTagQueryHandler.SUPPORTED_FILTERS
     FILTER_MAP = merge_dicts(AWSTagQueryHandler.FILTER_MAP, OCPTagQueryHandler.FILTER_MAP)
-    FILTER_MAP["cluster"] = {"field": "cluster_id", "operation": "icontains"}
+    # override cluster since we are getting it from a different table and field(s)
+    FILTER_MAP["cluster"] = [
+        {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
+        {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
+    ]
 
     def __init__(self, parameters):
         """Establish AWS report query handler.

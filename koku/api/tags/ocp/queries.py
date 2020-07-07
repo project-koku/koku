@@ -49,7 +49,10 @@ class OCPTagQueryHandler(TagQueryHandler):
     FILTER_MAP = {
         "project": {"field": "namespace", "operation": "icontains"},
         "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
-        "cluster": {"field": "report_period__cluster_id", "operation": "icontains"},
+        "cluster": [
+            {"field": "report_period__cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
+            {"field": "report_period__cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
+        ],
     }
 
     def __init__(self, parameters):

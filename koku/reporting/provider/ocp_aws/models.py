@@ -210,6 +210,7 @@ class OCPAWSTagsSummary(models.Model):
     accounts = ArrayField(models.CharField(max_length=63))
     namespace = ArrayField(models.CharField(max_length=253))
     cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
 
 
 # Materialized Views for UI Reporting
