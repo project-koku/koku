@@ -173,6 +173,23 @@ class CommonUtilTests(MasuTestCase):
         with self.assertRaises(StopIteration):
             next(date_generator)
 
+    def test_safe_float(self):
+        """Test the safe_float method handles good and bad inputs."""
+        out = common_utils.safe_float("foo")
+        self.assertEqual(out, float(0))
+
+        out = common_utils.safe_float("1.1")
+        self.assertEqual(out, float("1.1"))
+
+    def test_safe_dict(self):
+        """Test the safe_dict method handles good and bad inputs."""
+        out = common_utils.safe_dict(1)
+        self.assertEqual(out, "{}")
+
+        expected = '{"a": "b", "c": "d"}'
+        out = common_utils.safe_dict(expected)
+        self.assertEqual(out, expected)
+
 
 class NamedTemporaryGZipTests(TestCase):
     """Tests for NamedTemporaryGZip."""
