@@ -1168,7 +1168,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 mock_consumer = MockKafkaConsumer([msg])
 
                 mock_process_message.side_effect = test.get("side_effect")
-                with patch("sources.kafka_listener.connection.close") as close_mock:
+                with patch("sources.kafka_listener.close_and_set_db_connection") as close_mock:
                     with patch.object(Config, "RETRY_SECONDS", 0):
                         source_integration.listen_for_messages(msg, mock_consumer, cost_management_app_type)
                         close_mock.assert_called()
@@ -1204,7 +1204,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             mock_consumer = MockKafkaConsumer([msg])
 
             mock_process_message.side_effect = test.get("side_effect")
-            with patch("sources.kafka_listener.connection.close") as close_mock:
+            with patch("sources.kafka_listener.close_and_set_db_connection") as close_mock:
                 with patch.object(Config, "RETRY_SECONDS", 0):
                     source_integration.listen_for_messages(msg, mock_consumer, cost_management_app_type)
                     close_mock.assert_not_called()
@@ -1226,7 +1226,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         for i, test in enumerate(test_matrix):
             mock_process_message.side_effect = test.get("side_effect")
-            with patch("sources.kafka_listener.connection.close") as close_mock:
+            with patch("sources.kafka_listener.close_and_set_db_connection") as close_mock:
                 with patch.object(Config, "RETRY_SECONDS", 0):
                     process_synchronize_sources_msg((i, test["test_value"]), test_queue)
                     close_mock.assert_called()

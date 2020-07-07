@@ -120,6 +120,12 @@ def _log_process_queue_event(queue, event):
     LOG.info(f"Adding operation {operation} for {name} to process queue (size: {queue.qsize()})")
 
 
+def close_and_set_db_connection():
+    """Close the db connection and set to None."""
+    connections[DEFAULT_DB_ALIAS].connection.close()
+    connections[DEFAULT_DB_ALIAS].connection = None
+
+
 def load_process_queue():
     """
     Re-populate the process queue for any Source events that need synchronization.
@@ -475,8 +481,7 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
                     process_message(application_source_id, msg)
                     consumer.commit()
             except (InterfaceError, OperationalError) as err:
-                connections[DEFAULT_DB_ALIAS].connection.close()
-                connections[DEFAULT_DB_ALIAS].connection = None
+                close_and_set_db_connection()
                 LOG.error(f"{type(err).__name__}: {err}")
                 rewind_consumer_to_retry(consumer, topic_partition)
             except (IntegrityError, SourcesHTTPClientError) as err:
@@ -607,8 +612,7 @@ def process_synchronize_sources_msg(msg_tuple, process_queue):
         LOG.warning(f"[synchronize_sources] Re-queuing failed operation. Error: {error}")
         _requeue_provider_sync_message(priority, msg, process_queue)
     except (InterfaceError, OperationalError) as error:
-        connections[DEFAULT_DB_ALIAS].connection.close()
-        connections[DEFAULT_DB_ALIAS].connection = None
+        close_and_set_db_connection()
         LOG.warning(
             f"[synchronize_sources] Closing DB connection and re-queueing failed operation."
             f" Encountered {type(error).__name__}: {error}"
