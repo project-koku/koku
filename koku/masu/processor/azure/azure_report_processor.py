@@ -121,8 +121,6 @@ class AzureReportProcessor(ReportProcessorBase):
 
         report_date_range = utils.month_date_range(parser.parse(row_date))
         start_date, end_date = report_date_range.split("-")
-        start_date = start_date.replace(" +0000 UTC", "+0000")
-        end_date = end_date.replace(" +0000 UTC", "+0000")
 
         start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
         end_date_utc = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
