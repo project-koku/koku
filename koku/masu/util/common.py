@@ -17,6 +17,7 @@
 """Common util functions."""
 import calendar
 import gzip
+import json
 import logging
 import re
 from datetime import timedelta
@@ -24,6 +25,7 @@ from os import remove
 from tempfile import gettempdir
 from uuid import uuid4
 
+import pandas as pd
 from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
@@ -32,6 +34,8 @@ from api.models import Provider
 from masu.config import Config
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
+from masu.util.ocp.common import process_openshift_datetime
+from masu.util.ocp.common import process_openshift_labels
 
 LOG = logging.getLogger(__name__)
 
@@ -122,6 +126,94 @@ def month_date_range(for_date_time):
     end_month = start_month.replace(day=num_days)
     timeformat = "%Y%m%d"
     return "{}-{}".format(start_month.strftime(timeformat), end_month.strftime(timeformat))
+
+
+def safe_float(val):
+    """
+    Convert the given value to a float or 0f.
+    """
+    result = float(0)
+    try:
+        float(val)
+    except ValueError:
+        pass
+    return result
+
+
+def safe_dict(val):
+    """
+    Convert the given value to a dictionary or empyt dict.
+    """
+    result = {}
+    try:
+        result = json.loads(val)
+    except ValueError:
+        pass
+    return json.dumps(result)
+
+
+def get_column_converters(provider_type, **kwargs):
+    """
+    Get the column data types for a provider.
+
+    Args:
+        provider_type (str): The provider type
+        kwargs (Dict): Additional meta data related to the report
+
+    Returns:
+        (Dict): column_name -> function
+    """
+    converters = {}
+    if provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
+        converters = {
+            "bill/BillingPeriodStartDate": pd.to_datetime,
+            "bill/BillingPeriodEndDate": pd.to_datetime,
+            "lineItem/UsageStartDate": pd.to_datetime,
+            "lineItem/UsageEndDate": pd.to_datetime,
+            "lineItem/UsageAmount": safe_float,
+            "lineItem/NormalizationFactor": safe_float,
+            "lineItem/NormalizedUsageAmount": safe_float,
+            "lineItem/UnblendedRate": safe_float,
+            "lineItem/UnblendedCost": safe_float,
+            "lineItem/BlendedRate": safe_float,
+            "lineItem/BlendedCost": safe_float,
+            "pricing/publicOnDemandCost": safe_float,
+            "pricing/publicOnDemandRate": safe_float,
+        }
+    elif provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
+        converters = {
+            "UsageDateTime": pd.to_datetime,
+            "UsageQuantity": safe_float,
+            "ResourceRate": safe_float,
+            "PreTaxCost": safe_float,
+            "Tags": safe_dict,
+        }
+    elif provider_type == Provider.PROVIDER_OCP:
+        converters = {
+            "report_period_start": process_openshift_datetime,
+            "report_period_end": process_openshift_datetime,
+            "interval_start": process_openshift_datetime,
+            "interval_end": process_openshift_datetime,
+            "node_labels": process_openshift_labels,
+            "pod_usage_cpu_core_seconds": safe_float,
+            "pod_request_cpu_core_seconds": safe_float,
+            "pod_limit_cpu_core_seconds": safe_float,
+            "pod_usage_memory_byte_seconds": safe_float,
+            "pod_request_memory_byte_seconds": safe_float,
+            "pod_limit_memory_byte_seconds": safe_float,
+            "node_capacity_cpu_cores": safe_float,
+            "node_capacity_cpu_core_seconds": safe_float,
+            "node_capacity_memory_bytes": safe_float,
+            "node_capacity_memory_byte_seconds": safe_float,
+            "pod_labels": process_openshift_labels,
+            "persistentvolumeclaim_capacity_bytes": safe_float,
+            "persistentvolumeclaim_capacity_byte_seconds": safe_float,
+            "volume_request_storage_byte_seconds": safe_float,
+            "persistentvolumeclaim_usage_byte_seconds": safe_float,
+            "persistentvolume_labels": process_openshift_labels,
+            "persistentvolumeclaim_labels": process_openshift_labels,
+        }
+    return converters
 
 
 class NamedTemporaryGZip:
