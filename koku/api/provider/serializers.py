@@ -360,7 +360,9 @@ class ProviderSerializer(serializers.ModelSerializer):
         bucket = billing_source.get("bucket")
 
         try:
-            if customer.account_id not in settings.DEMO_ACCOUNTS:
+            if customer.account_id in settings.DEMO_ACCOUNTS:
+                LOG.info("Customer account is a DEMO account. Skipping cost_usage_source_ready check.")
+            else:
                 if credentials and data_source and provider_type not in [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP]:
                     interface.cost_usage_source_ready(credentials, data_source)
                 else:
@@ -384,6 +386,7 @@ class ProviderSerializer(serializers.ModelSerializer):
                         f"{conflict_provder.name} already exists. Edit source settings to configure a new source."
                     )
                     LOG.warn(message)
+                    raise serializers.ValidationError(error_obj(ProviderErrors.DUPLICATE_AUTH, message))
 
             for key in validated_data.keys():
                 setattr(instance, key, validated_data[key])
@@ -394,8 +397,9 @@ class ProviderSerializer(serializers.ModelSerializer):
 
             try:
                 instance.save()
-            except IntegrityError:
-                raise serializers.ValidationError(error_obj(ProviderErrors.DUPLICATE_AUTH, message))
+            except IntegrityError as error:
+                message = f"Unknown IntegrityError: {error}"
+                raise serializers.ValidationError(error_obj(ProviderErrors.UNKNOWN_UPDATE, message))
             return instance
 
 

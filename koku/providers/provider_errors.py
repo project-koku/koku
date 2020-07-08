@@ -23,6 +23,7 @@ class ProviderErrors:
     # KEYS
     INVALID_SOURCE_TYPE = "source_type"
     DUPLICATE_AUTH = "source.duplicate"
+    UNKNOWN_UPDATE = "source.update"
 
     AWS_NO_REPORT_FOUND = "authentication.provider_resource_name.noreportfound"
     AWS_REPORT_CONFIG = "aws.report.configuration"
