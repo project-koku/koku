@@ -392,10 +392,10 @@ class ProviderSerializerTest(IamTestCase):
             serializer = ProviderSerializer(data=provider, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
-            with self.assertRaises(ValidationError) as excCtx:
-                serializer.validated_data["billing_source"] = {"data_source": {"bucket": "my_new_bucket"}}
-                if serializer.is_valid(raise_exception=True):
-                    with patch("api.provider.models.Provider.save", side_effect=IntegrityError("test error")):
+            serializer.validated_data["billing_source"] = {"data_source": {"bucket": "my_new_bucket"}}
+            if serializer.is_valid(raise_exception=True):
+                with patch("api.provider.models.Provider.save", side_effect=IntegrityError("test error")):
+                    with self.assertRaises(ValidationError) as excCtx:
                         serializer.update(serializer.instance, serializer.validated_data)
 
             validationErr = excCtx.exception.detail[ProviderErrors.UNKNOWN_UPDATE][0]
