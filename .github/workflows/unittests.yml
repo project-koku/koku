@@ -46,16 +46,13 @@ jobs:
 
       - name: Cache dependencies
         id: cache-dependencies
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
-          path: ~/.cache/pipenv
-          key: ${{ runner.os }}-pipenv-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}-${{ github.ref }}
-      - name: Cache virtualenv
-        id: cache-virtualenv
-        uses: actions/cache@v1
-        with:
-          path: ~/.local/share/virtualenvs
-          key: ${{ runner.os }}-venv-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}-${{ github.ref }}
+          path: |
+            ~/.cache/pipenv
+            ~/.local/share/virtualenvs
+          key: ${{ runner.os }}-env-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}-${{ github.ref }}
+
       - name: Install dependencies
         if: steps.cache-dependencies.outputs.cache-hit != 'true' || steps.cache-virtualenv.outputs.cache-hit != 'true'
         run: |
