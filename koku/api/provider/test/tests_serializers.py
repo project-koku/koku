@@ -20,6 +20,7 @@ import uuid
 from itertools import permutations
 from unittest.mock import patch
 
+from django.db import IntegrityError
 from faker import Faker
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -384,6 +385,21 @@ class ProviderSerializerTest(IamTestCase):
         self.assertTrue(instance.active)
         self.assertIsNone(schema_name)
         self.assertFalse("schema_name" in serializer.data["customer"])
+
+    def test_update_with_integrity_error(self):
+        provider = self.generic_providers[Provider.PROVIDER_AWS]
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+            with self.assertRaises(ValidationError) as excCtx:
+                serializer.validated_data["billing_source"] = {"data_source": {"bucket": "my_new_bucket"}}
+                if serializer.is_valid(raise_exception=True):
+                    with patch("api.provider.models.Provider.save", side_effect=IntegrityError("test error")):
+                        serializer.update(serializer.instance, serializer.validated_data)
+
+            validationErr = excCtx.exception.detail[ProviderErrors.UNKNOWN_UPDATE][0]
+            self.assertTrue("IntegrityError: test error" in str(validationErr))
 
     def test_error_providers_with_same_auth_or_billing_source(self):
         """Test that the errors are wrapped correctly."""
