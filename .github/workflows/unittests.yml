@@ -42,23 +42,19 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install pipenv
-        uses: dschep/install-pipenv-action@v1
-        with:
-          version: 2018.11.26
+        run: sudo python3 -m pip install pipenv==2018.11.26
+
       - name: Cache dependencies
         id: cache-dependencies
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
-          path: ~/.cache/pipenv
-          key: ${{ runner.os }}-pipenv-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}
-      - name: Cache virtualenv
-        id: cache-virtualenv
-        uses: actions/cache@v1
-        with:
-          path: ~/.local/share/virtualenvs
-          key: ${{ runner.os }}-venv-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}
+          path: |
+            ~/.cache/pipenv
+            ~/.local/share/virtualenvs
+          key: ${{ runner.os }}-env-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}
+
       - name: Install dependencies
-        if: steps.cache-dependencies.outputs.cache-hit != 'true' || steps.cache-virtualenv.outputs.cache-hit != 'true'
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
         run: |
           pipenv install --dev --ignore-pipfile --python ${{ matrix.python-version }}
 
