@@ -111,6 +111,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         self._report_name = path.basename(report_path)
         self._cluster_id = utils.get_cluster_id_from_provider(provider_uuid)
+        self._cluster_alias = utils.get_cluster_alias_from_cluster_id(self._cluster_id)
 
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
@@ -152,12 +153,13 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         return report_id
 
-    def _create_report_period(self, row, cluster_id, report_db_accessor):
+    def _create_report_period(self, row, cluster_id, report_db_accessor, cluster_alias):
         """Create a report period object.
 
         Args:
             row (dict): A dictionary representation of a CSV file row
             cluster_id (str): cluster ID
+            cluster_alias (str): cluster alias
 
         Returns:
             (str): The DB id of the report period object
@@ -176,6 +178,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         data = {
             "cluster_id": cluster_id,
+            "cluster_alias": cluster_alias,
             "report_period_start": start,
             "report_period_end": end,
             "provider_id": self._provider_uuid,
@@ -196,22 +199,10 @@ class OCPReportProcessorBase(ReportProcessorBase):
             label_string (str): The raw report string of pod labels
 
         Returns:
-            (dict): The JSON dictionary made from the label string
+            (str): The JSON dictionary as a string made from the label string
 
         """
-        labels = label_string.split("|") if label_string else []
-        label_dict = {}
-
-        for label in labels:
-            try:
-                key, value = label.split(":")
-                key = key.replace("label_", "")
-                label_dict[key] = value
-            except ValueError as err:
-                LOG.warning(err)
-                LOG.warning("%s could not be properly split", label)
-                continue
-
+        label_dict = utils.process_openshift_labels(label_string)
         return json.dumps(label_dict)
 
     def _update_mappings(self):
@@ -236,7 +227,9 @@ class OCPReportProcessorBase(ReportProcessorBase):
                 LOG.info(f"File '{self._report_path}' opened for processing")
                 reader = csv.DictReader(f)
                 for row in reader:
-                    report_period_id = self._create_report_period(row, self._cluster_id, report_db)
+                    report_period_id = self._create_report_period(
+                        row, self._cluster_id, report_db, self._cluster_alias
+                    )
                     report_id = self._create_report(row, report_period_id, report_db)
 
                     self._create_usage_report_line_item(row, report_period_id, report_id, report_db)

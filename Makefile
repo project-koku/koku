@@ -187,7 +187,11 @@ load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
 
 load-aws-org-unit-tree:
-	$(PYTHON) $(TOPDIR)/scripts/insert_aws_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml)
+	@if [ $(shell $(PYTHON) -c 'import sys; print(sys.version_info[0])') = '3' ] ; then \
+		$(PYTHON) $(TOPDIR)/scripts/insert_aws_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml) ; \
+	else \
+		echo "This make target requires python3." ; \
+	fi
 
 collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
