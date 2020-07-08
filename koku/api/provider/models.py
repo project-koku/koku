@@ -168,8 +168,10 @@ class Provider(models.Model):
 
         should_ingest = False
         # These values determine if a Provider is new
+        # The task_cache is used to prevent multiple tasks from being kicked off if a
+        # provider is created and then edited within the time_to_cache time period
         if self.created_timestamp and not self.setup_complete and self.uuid not in TASK_CACHE:
-            TASK_CACHE[self.uuid] = True  # skip this logic for the set timeout time
+            TASK_CACHE[self.uuid] = True
             should_ingest = True
 
         try:
