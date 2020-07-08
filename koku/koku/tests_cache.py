@@ -75,6 +75,12 @@ class KokuCacheTest(IamTestCase):
         self.assertIsNone(self.cache.get(key_to_clear))
         self.assertIsNotNone(self.cache.get(remaining_key))
 
+    @override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
+    def test_invalidate_view_cache_for_tenant_and_cache_key_dummy_cache(self):
+        """Test that using DummyCache logs correctly."""
+        with self.assertLogs(logger="koku.cache", level="INFO"):
+            invalidate_view_cache_for_tenant_and_cache_key(self.schema_name, self.cache_key_prefix)
+
     @override_settings(
         CACHES={
             "default": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "worker_cache_table"}
