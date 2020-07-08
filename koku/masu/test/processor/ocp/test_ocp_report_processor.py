@@ -107,6 +107,7 @@ class OCPReportProcessorTest(MasuTestCase):
         self.storage_report = f"{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_storage.csv"
         self.node_report = f"{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_node_labels.csv"
         self.test_report_gzip = f"{self.temp_dir}/test_cur.csv.gz"
+        self.cluster_alias = "My OCP cluster"
         shutil.copy2(self.test_report_path, self.test_report)
         shutil.copy2(self.storage_report_path, self.storage_report)
         shutil.copy2(self.node_report_path, self.node_report)
@@ -351,7 +352,9 @@ class OCPReportProcessorTest(MasuTestCase):
     def test_write_processed_rows_to_csv(self):
         """Test that the CSV bulk upload file contains proper data."""
         cluster_id = "12345"
-        report_period_id = self.ocp_processor._processor._create_report_period(self.row, cluster_id, self.accessor)
+        report_period_id = self.ocp_processor._processor._create_report_period(
+            self.row, cluster_id, self.accessor, self.cluster_alias
+        )
         report_id = self.ocp_processor._processor._create_report(self.row, report_period_id, self.accessor)
         self.ocp_processor._processor._create_usage_report_line_item(
             self.row, report_period_id, report_id, self.accessor
@@ -377,7 +380,9 @@ class OCPReportProcessorTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP["report_period"]
         cluster_id = "12345"
         with OCPReportDBAccessor(self.schema) as accessor:
-            report_period_id = self.ocp_processor._processor._create_report_period(self.row, cluster_id, accessor)
+            report_period_id = self.ocp_processor._processor._create_report_period(
+                self.row, cluster_id, accessor, self.cluster_alias
+            )
 
         self.assertIsNotNone(report_period_id)
 
@@ -392,7 +397,9 @@ class OCPReportProcessorTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP["report"]
         cluster_id = "12345"
         with OCPReportDBAccessor(self.schema) as accessor:
-            report_period_id = self.ocp_processor._processor._create_report_period(self.row, cluster_id, accessor)
+            report_period_id = self.ocp_processor._processor._create_report_period(
+                self.row, cluster_id, accessor, self.cluster_alias
+            )
 
             report_id = self.ocp_processor._processor._create_report(self.row, report_period_id, accessor)
 
@@ -406,7 +413,9 @@ class OCPReportProcessorTest(MasuTestCase):
     def test_create_usage_report_line_item(self):
         """Test that line item data is returned properly."""
         cluster_id = "12345"
-        report_period_id = self.ocp_processor._processor._create_report_period(self.row, cluster_id, self.accessor)
+        report_period_id = self.ocp_processor._processor._create_report_period(
+            self.row, cluster_id, self.accessor, self.cluster_alias
+        )
         report_id = self.ocp_processor._processor._create_report(self.row, report_period_id, self.accessor)
         row = copy.deepcopy(self.row)
         row["pod_labels"] = "label_one:mic_check|label_two:one_two"
@@ -426,7 +435,9 @@ class OCPReportProcessorTest(MasuTestCase):
     def test_create_usage_report_line_item_storage_no_labels(self):
         """Test that line item data is returned properly."""
         cluster_id = "12345"
-        report_period_id = self.ocp_processor._processor._create_report_period(self.row, cluster_id, self.accessor)
+        report_period_id = self.ocp_processor._processor._create_report_period(
+            self.row, cluster_id, self.accessor, self.cluster_alias
+        )
         report_id = self.ocp_processor._processor._create_report(self.row, report_period_id, self.accessor)
         row = copy.deepcopy(self.row)
         row["persistentvolume_labels"] = ""
@@ -461,7 +472,9 @@ class OCPReportProcessorTest(MasuTestCase):
             provider_uuid=self.ocp_provider_uuid,
         )
         with OCPReportDBAccessor(self.schema) as accessor:
-            report_period_id = storage_processor._processor._create_report_period(self.row, cluster_id, accessor)
+            report_period_id = storage_processor._processor._create_report_period(
+                self.row, cluster_id, accessor, self.cluster_alias
+            )
             report_id = storage_processor._processor._create_report(self.row, report_period_id, accessor)
             row = copy.deepcopy(self.row)
             del row["pod_labels"]
@@ -483,7 +496,9 @@ class OCPReportProcessorTest(MasuTestCase):
     def test_create_usage_report_line_item_missing_labels(self):
         """Test that line item data with missing pod_labels is returned properly."""
         cluster_id = "12345"
-        report_period_id = self.ocp_processor._processor._create_report_period(self.row, cluster_id, self.accessor)
+        report_period_id = self.ocp_processor._processor._create_report_period(
+            self.row, cluster_id, self.accessor, self.cluster_alias
+        )
         report_id = self.ocp_processor._processor._create_report(self.row, report_period_id, self.accessor)
         row = copy.deepcopy(self.row)
 
