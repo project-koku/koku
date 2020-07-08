@@ -23,6 +23,7 @@ from api.tags.ocp_aws.queries import OCPAWSTagQueryHandler
 from api.tags.ocp_aws.view import OCPAWSTagView
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
+from reporting.models import OCPAWSTagsSummary
 
 
 class OCPAWSTagQueryHandlerTest(IamTestCase):
@@ -119,6 +120,21 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
                 .all()
             )
             tag_keys = [tag.get("tag_keys") for tag in tag_keys]
+
+        result = handler.get_tag_keys()
+        self.assertEqual(sorted(result), sorted(tag_keys))
+
+    def test_get_tag_cluster_filter(self):
+        """Test that tags from a cluster are returned with the cluster filter."""
+        url = "?filter[cluster]=OCP-on-AWS"
+        query_params = self.mocked_query_params(url, OCPAWSTagView)
+        handler = OCPAWSTagQueryHandler(query_params)
+
+        with tenant_context(self.tenant):
+            tag_keys = (
+                OCPAWSTagsSummary.objects.filter(cluster_id__contains="OCP-on-AWS").values("key").distinct().all()
+            )
+            tag_keys = [tag.get("key") for tag in tag_keys]
 
         result = handler.get_tag_keys()
         self.assertEqual(sorted(result), sorted(tag_keys))

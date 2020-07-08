@@ -192,6 +192,8 @@ class OCPAzureTagsSummary(models.Model):
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
     subscription_guid = ArrayField(models.CharField(max_length=50))
     namespace = ArrayField(models.CharField(max_length=253, null=False))
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
 
 
 # Materialized Views for UI Reporting
