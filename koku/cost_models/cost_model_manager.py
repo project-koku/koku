@@ -94,7 +94,6 @@ class CostModelManager:
                 LOG.info(f"Provider {provider_uuid} does not exist. Skipping cost-model update.")
             else:
                 schema_name = provider.customer.schema_name
-                LOG.info(f"The type in cost_model_manager.py is :{type(start_date)}")
                 update_cost_model_costs.delay(schema_name, provider.uuid, start_date, end_date)
 
     def update(self, **data):
