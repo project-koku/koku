@@ -42,9 +42,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install pipenv
-        uses: dschep/install-pipenv-action@v1
-        with:
-          version: 2018.11.26
+        run: sudo python3 -m pip install pipenv==2018.11.26
+
       - name: Cache dependencies
         id: cache-dependencies
         uses: actions/cache@v1
