@@ -150,14 +150,7 @@ def execute_process_queue():
 @receiver(post_save, sender=Sources)
 def storage_callback(sender, instance, **kwargs):
     """Load Sources ready for Koku Synchronization when Sources table is updated."""
-    update_fields = kwargs.get("update_fields", ())
-    if (
-        update_fields
-        and "pending_update" in update_fields
-        and instance.koku_uuid
-        and instance.pending_update
-        and not instance.pending_delete
-    ):
+    if instance.koku_uuid and instance.pending_update and not instance.pending_delete:
         update_event = {"operation": "update", "provider": instance}
         _log_process_queue_event(PROCESS_QUEUE, update_event)
         LOG.debug(f"Update Event Queued for:\n{str(instance)}")
