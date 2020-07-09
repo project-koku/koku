@@ -17,7 +17,6 @@
 """View for update_cost_model_costs endpoint."""
 import logging
 
-from dateutil.parser import parse
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -43,19 +42,14 @@ def update_cost_model_costs(request):
 
     provider_uuid = params.get("provider_uuid")
     schema_name = params.get("schema")
-    start_date = params.get("start_date")
-    end_date = params.get("end_date")
+    default_start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
+    default_end_date = DateHelper().today.strftime("%Y-%m-%d")
+    start_date = params.get("start_date", default=default_start_date)
+    end_date = params.get("end_date", default=default_end_date)
 
     if provider_uuid is None or schema_name is None:
         errmsg = "provider_uuid and schema_name are required parameters."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-
-    if start_date is None:
-        start_date = str(DateHelper().this_month_start)
-    if end_date is None:
-        end_date = str(DateHelper().today)
-    start_date = parse(start_date)
-    end_date = parse(end_date)
 
     LOG.info("Calling update_cost_model_costs async task.")
 
