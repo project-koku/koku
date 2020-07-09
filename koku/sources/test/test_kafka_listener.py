@@ -43,6 +43,7 @@ from providers.provider_access import ProviderAccessor
 from sources import storage
 from sources.config import Config
 from sources.kafka_listener import process_message
+from sources.kafka_listener import PROCESS_QUEUE
 from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import SourcesIntegrationError
 from sources.kafka_listener import storage_callback
@@ -1276,3 +1277,39 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with patch("sources.storage.clear_update_flag") as mock_clear_flag:
             process_synchronize_sources_msg((0, msg), test_queue)
             mock_clear_flag.assert_not_called()
+
+    def test_storage_callback_create(self):
+        """Test storage callback puts create task onto queue."""
+        local_source = Sources(**self.aws_local_source, pending_update=True)
+        local_source.save()
+
+        with patch("sources.kafka_listener.execute_process_queue"):
+            storage_callback("", local_source)
+            _, msg = PROCESS_QUEUE.get_nowait()
+            self.assertEqual(msg.get("operation"), "create")
+
+    def test_storage_callback_update(self):
+        """Test storage callback puts update task onto queue."""
+        uuid = self.aws_local_source.get("source_uuid")
+        local_source = Sources(**self.aws_local_source, koku_uuid=uuid, pending_update=True)
+        local_source.save()
+
+        with patch("sources.kafka_listener.execute_process_queue"), patch(
+            "sources.storage.screen_and_build_provider_sync_create_event", return_value=False
+        ):
+            storage_callback("", local_source)
+            _, msg = PROCESS_QUEUE.get_nowait()
+            self.assertEqual(msg.get("operation"), "update")
+
+    def test_storage_callback_update_and_delete(self):
+        """Test storage callback only deletes on pending update and delete."""
+        uuid = self.aws_local_source.get("source_uuid")
+        local_source = Sources(**self.aws_local_source, koku_uuid=uuid, pending_update=True, pending_delete=True)
+        local_source.save()
+
+        with patch("sources.kafka_listener.execute_process_queue"), patch(
+            "sources.storage.screen_and_build_provider_sync_create_event", return_value=False
+        ):
+            storage_callback("", local_source)
+            _, msg = PROCESS_QUEUE.get_nowait()
+            self.assertEqual(msg.get("operation"), "destroy")
