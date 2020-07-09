@@ -22,6 +22,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import requests_mock
+from django.db import IntegrityError
 from django.db import InterfaceError
 from django.db import OperationalError
 from django.db.models.signals import post_save
@@ -42,7 +43,9 @@ from providers.provider_access import ProviderAccessor
 from sources import storage
 from sources.config import Config
 from sources.kafka_listener import process_message
+from sources.kafka_listener import PROCESS_QUEUE
 from sources.kafka_listener import process_synchronize_sources_msg
+from sources.kafka_listener import SourcesIntegrationError
 from sources.kafka_listener import storage_callback
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
@@ -1168,7 +1171,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 mock_consumer = MockKafkaConsumer([msg])
 
                 mock_process_message.side_effect = test.get("side_effect")
-                with patch("sources.kafka_listener.connection.close") as close_mock:
+                with patch("sources.kafka_listener.close_and_set_db_connection") as close_mock:
                     with patch.object(Config, "RETRY_SECONDS", 0):
                         source_integration.listen_for_messages(msg, mock_consumer, cost_management_app_type)
                         close_mock.assert_called()
@@ -1204,7 +1207,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             mock_consumer = MockKafkaConsumer([msg])
 
             mock_process_message.side_effect = test.get("side_effect")
-            with patch("sources.kafka_listener.connection.close") as close_mock:
+            with patch("sources.kafka_listener.close_and_set_db_connection") as close_mock:
                 with patch.object(Config, "RETRY_SECONDS", 0):
                     source_integration.listen_for_messages(msg, mock_consumer, cost_management_app_type)
                     close_mock.assert_not_called()
@@ -1214,8 +1217,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         """Test processing synchronize messages with database errors."""
         provider = Sources.objects.create(**self.aws_source)
         provider.save()
-        future_mock = asyncio.Future()
-        future_mock.set_result("test result")
 
         test_queue = queue.PriorityQueue()
 
@@ -1226,10 +1227,31 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         for i, test in enumerate(test_matrix):
             mock_process_message.side_effect = test.get("side_effect")
-            with patch("sources.kafka_listener.connection.close") as close_mock:
+            with patch("sources.kafka_listener.close_and_set_db_connection") as close_mock:
                 with patch.object(Config, "RETRY_SECONDS", 0):
                     process_synchronize_sources_msg((i, test["test_value"]), test_queue)
                     close_mock.assert_called()
+        for i in range(2):
+            priority, _ = test_queue.get_nowait()
+            self.assertEqual(priority, i)
+
+    @patch("sources.kafka_listener.execute_koku_provider_op")
+    def test_process_synchronize_sources_msg_integration_error(self, mock_process_message):
+        """Test processing synchronize messages with database errors."""
+        provider = Sources.objects.create(**self.aws_source)
+        provider.save()
+
+        test_queue = queue.PriorityQueue()
+
+        test_matrix = [
+            {"test_value": {"operation": "update", "provider": provider}, "side_effect": IntegrityError},
+            {"test_value": {"operation": "update", "provider": provider}, "side_effect": SourcesIntegrationError},
+        ]
+
+        for i, test in enumerate(test_matrix):
+            mock_process_message.side_effect = test.get("side_effect")
+            with patch.object(Config, "RETRY_SECONDS", 0):
+                process_synchronize_sources_msg((i, test["test_value"]), test_queue)
         for i in range(2):
             priority, _ = test_queue.get_nowait()
             self.assertEqual(priority, i)
@@ -1255,3 +1277,39 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with patch("sources.storage.clear_update_flag") as mock_clear_flag:
             process_synchronize_sources_msg((0, msg), test_queue)
             mock_clear_flag.assert_not_called()
+
+    def test_storage_callback_create(self):
+        """Test storage callback puts create task onto queue."""
+        local_source = Sources(**self.aws_local_source, pending_update=True)
+        local_source.save()
+
+        with patch("sources.kafka_listener.execute_process_queue"):
+            storage_callback("", local_source)
+            _, msg = PROCESS_QUEUE.get_nowait()
+            self.assertEqual(msg.get("operation"), "create")
+
+    def test_storage_callback_update(self):
+        """Test storage callback puts update task onto queue."""
+        uuid = self.aws_local_source.get("source_uuid")
+        local_source = Sources(**self.aws_local_source, koku_uuid=uuid, pending_update=True)
+        local_source.save()
+
+        with patch("sources.kafka_listener.execute_process_queue"), patch(
+            "sources.storage.screen_and_build_provider_sync_create_event", return_value=False
+        ):
+            storage_callback("", local_source)
+            _, msg = PROCESS_QUEUE.get_nowait()
+            self.assertEqual(msg.get("operation"), "update")
+
+    def test_storage_callback_update_and_delete(self):
+        """Test storage callback only deletes on pending update and delete."""
+        uuid = self.aws_local_source.get("source_uuid")
+        local_source = Sources(**self.aws_local_source, koku_uuid=uuid, pending_update=True, pending_delete=True)
+        local_source.save()
+
+        with patch("sources.kafka_listener.execute_process_queue"), patch(
+            "sources.storage.screen_and_build_provider_sync_create_event", return_value=False
+        ):
+            storage_callback("", local_source)
+            _, msg = PROCESS_QUEUE.get_nowait()
+            self.assertEqual(msg.get("operation"), "destroy")

@@ -27,7 +27,9 @@ from xmlrpc.server import SimpleXMLRPCServer
 
 from confluent_kafka import Consumer
 from confluent_kafka import TopicPartition
-from django.db import connection
+from django.db import connections
+from django.db import DEFAULT_DB_ALIAS
+from django.db import IntegrityError
 from django.db import InterfaceError
 from django.db import OperationalError
 from django.db import transaction
@@ -112,6 +114,12 @@ def _log_process_queue_event(queue, event):
     LOG.info(f"Adding operation {operation} for {name} to process queue (size: {queue.qsize()})")
 
 
+def close_and_set_db_connection():  # pragma: no cover
+    """Close the db connection and set to None."""
+    connections[DEFAULT_DB_ALIAS].connection.close()
+    connections[DEFAULT_DB_ALIAS].connection = None
+
+
 def load_process_queue():
     """
     Re-populate the process queue for any Source events that need synchronization.
@@ -142,14 +150,7 @@ def execute_process_queue():
 @receiver(post_save, sender=Sources)
 def storage_callback(sender, instance, **kwargs):
     """Load Sources ready for Koku Synchronization when Sources table is updated."""
-    update_fields = kwargs.get("update_fields", ())
-    if (
-        update_fields
-        and "pending_update" in update_fields
-        and instance.koku_uuid
-        and instance.pending_update
-        and not instance.pending_delete
-    ):
+    if instance.koku_uuid and instance.pending_update and not instance.pending_delete:
         update_event = {"operation": "update", "provider": instance}
         _log_process_queue_event(PROCESS_QUEUE, update_event)
         LOG.debug(f"Update Event Queued for:\n{str(instance)}")
@@ -467,11 +468,11 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
                     process_message(application_source_id, msg)
                     consumer.commit()
             except (InterfaceError, OperationalError) as err:
-                connection.close()
-                LOG.error(err)
+                close_and_set_db_connection()
+                LOG.error(f"{type(err).__name__}: {err}")
                 rewind_consumer_to_retry(consumer, topic_partition)
-            except SourcesHTTPClientError as err:
-                LOG.error(err)
+            except (IntegrityError, SourcesHTTPClientError) as err:
+                LOG.error(f"{type(err).__name__}: {err}")
                 rewind_consumer_to_retry(consumer, topic_partition)
             except SourceNotFoundError:
                 LOG.warning(f"Source not found in platform sources. Skipping msg: {msg}")
@@ -594,11 +595,11 @@ def process_synchronize_sources_msg(msg_tuple, process_queue):
         if msg.get("operation") != "destroy":
             storage.clear_update_flag(msg.get("provider").source_id)
 
-    except SourcesIntegrationError as error:
-        LOG.warning(f"[synchronize_sources] Re-queuing failed operation. Error: {str(error)}")
+    except (IntegrityError, SourcesIntegrationError) as error:
+        LOG.warning(f"[synchronize_sources] Re-queuing failed operation. Error: {error}")
         _requeue_provider_sync_message(priority, msg, process_queue)
     except (InterfaceError, OperationalError) as error:
-        connection.close()
+        close_and_set_db_connection()
         LOG.warning(
             f"[synchronize_sources] Closing DB connection and re-queueing failed operation."
             f" Encountered {type(error).__name__}: {error}"

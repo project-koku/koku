@@ -272,3 +272,42 @@ def detect_type(report_path):
         if report_columns == sorted_columns:
             return report_type, report_enum
     return None, OCPReportTypes.UNKNOWN
+
+
+def process_openshift_datetime(val):
+    """
+    Convert the date time from the Metering operator reports to a consumable datetime.
+    """
+    result = None
+    try:
+        datetime_str = str(val).replace(" +0000 UTC", "")
+        result = pd.to_datetime(datetime_str)
+    except parser.ParserError:
+        pass
+    return result
+
+
+def process_openshift_labels(label_string):
+    """Convert the report string to a JSON dictionary.
+
+    Args:
+        label_string (str): The raw report string of pod labels
+
+    Returns:
+        (dict): The JSON dictionary made from the label string
+
+    """
+    labels = label_string.split("|") if label_string else []
+    label_dict = {}
+
+    for label in labels:
+        try:
+            key, value = label.split(":")
+            key = key.replace("label_", "")
+            label_dict[key] = value
+        except ValueError as err:
+            LOG.warning(err)
+            LOG.warning("%s could not be properly split", label)
+            continue
+
+    return label_dict

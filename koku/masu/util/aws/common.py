@@ -16,6 +16,7 @@
 #
 """AWS utility functions."""
 import datetime
+import json
 import logging
 import os
 import re
@@ -375,8 +376,32 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
     return removed
 
 
-def convert_csv_to_parquet(
-    request_id, s3_csv_path, s3_parquet_path, local_path, manifest_id, csv_filename, context={}
+def aws_post_processor(data_frame):
+    """
+    Consume the AWS data and add a column creating a dictionary for the aws tags
+    """
+    resource_tags_dict = data_frame.apply(
+        lambda row: {
+            column.replace("resourceTags/user:", ""): value
+            for column, value in row.items()
+            if "resourceTags/user:" in column and value
+        },
+        axis=1,
+    )
+    data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
+    return data_frame
+
+
+def convert_csv_to_parquet(  # noqa: C901
+    request_id,
+    s3_csv_path,
+    s3_parquet_path,
+    local_path,
+    manifest_id,
+    csv_filename,
+    converters={},
+    post_processor=None,
+    context={},
 ):
     """
     Convert CSV files to parquet on S3.
@@ -421,7 +446,11 @@ def convert_csv_to_parquet(
 
     output_file = f"{local_path}/{parquet_file}"
     try:
-        data_frame = pd.read_csv(tmpfile, **kwargs)
+        col_names = pd.read_csv(tmpfile, nrows=0, **kwargs).columns
+        converters.update({col: str for col in col_names if col not in converters})
+        data_frame = pd.read_csv(tmpfile, converters=converters, **kwargs)
+        if post_processor:
+            data_frame = post_processor(data_frame)
         data_frame.to_parquet(output_file)
     except Exception as err:
         os.remove(tmpfile)
