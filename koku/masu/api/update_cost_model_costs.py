@@ -42,10 +42,8 @@ def update_cost_model_costs(request):
 
     provider_uuid = params.get("provider_uuid")
     schema_name = params.get("schema")
-    default_start_date = DateHelper().this_month_start.date()
-    default_start_date = default_start_date.strftime("%m/%d/%Y")
-    default_end_date = DateHelper().today.date()
-    default_end_date = default_end_date.strftime("%m/%d/%Y")
+    default_start_date = DateHelper().this_month_start.date().strftime("%Y-%m-%d")
+    default_end_date = DateHelper().today.date().strftime("%Y-%m-%d")
     start_date = params.get("start_date", default=default_start_date)
     end_date = params.get("end_date", default=default_end_date)
 
