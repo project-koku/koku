@@ -178,7 +178,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
         obtain the account results, and each sub_org results.
         Else it will return the original query.
         """
-
         original_filters = copy.deepcopy(self.parameters.parameters.get("filter"))
         sub_orgs_dict = {}
         query_data_results = {}
