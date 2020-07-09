@@ -1,4 +1,5 @@
 """Tests for celery tasks."""
+import logging
 import os
 import tempfile
 from collections import namedtuple
@@ -21,10 +22,13 @@ from api.models import Provider
 from api.utils import DateHelper
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 
 fake = faker.Faker()
 DummyS3Object = namedtuple("DummyS3Object", "key")
+
+LOG = logging.getLogger(__name__)
 
 
 class TestCeleryTasks(MasuTestCase):
@@ -248,3 +252,22 @@ class TestCeleryTasks(MasuTestCase):
         self.assertEqual(os.path.exists(tmpdirname), False)
         # test no files found for codecov
         tasks.clean_volume()
+
+    @patch("masu.celery.tasks.AWSOrgUnitCrawler")
+    def test_crawl_account_hierarchy_with_provider_uuid(self, mock_crawler):
+        """Test that only accounts associated with the provider_uuid are polled."""
+        mock_crawler.crawl_account_hierarchy.return_value = True
+        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+            tasks.crawl_account_hierarchy(self.aws_test_provider_uuid)
+            expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % ("1")
+            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+    @patch("masu.celery.tasks.AWSOrgUnitCrawler")
+    def test_crawl_account_hierarchy_without_provider_uuid(self, mock_crawler):
+        """Test that all polling accounts for user are used when no provider_uuid is provided."""
+        _, polling_accounts = Orchestrator.get_accounts()
+        mock_crawler.crawl_account_hierarchy.return_value = True
+        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+            tasks.crawl_account_hierarchy()
+            expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % (len(polling_accounts))
+            self.assertIn(expected_log_msg, captured_logs.output[0])
