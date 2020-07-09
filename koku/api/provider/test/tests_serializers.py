@@ -15,12 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Provider serializers."""
+import copy
 import random
 import uuid
 from itertools import permutations
 from unittest.mock import patch
 
-from django.db import IntegrityError
 from faker import Faker
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -386,20 +386,25 @@ class ProviderSerializerTest(IamTestCase):
         self.assertIsNone(schema_name)
         self.assertFalse("schema_name" in serializer.data["customer"])
 
-    def test_update_with_integrity_error(self):
+    def test_update_with_duplication_error(self):
         provider = self.generic_providers[Provider.PROVIDER_AWS]
+        provider2 = copy.deepcopy(provider)
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             serializer = ProviderSerializer(data=provider, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
-                serializer.save()
-            serializer.validated_data["billing_source"] = {"data_source": {"bucket": "my_new_bucket"}}
+                serializer.save()  # add first provider
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            provider2["billing_source"] = {"data_source": {"bucket": "my_new_bucket"}}
+            serializer = ProviderSerializer(data=provider2, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
-                with patch("api.provider.models.Provider.save", side_effect=IntegrityError("test error")):
-                    with self.assertRaises(ValidationError) as excCtx:
-                        serializer.update(serializer.instance, serializer.validated_data)
+                serializer.save()  # add second provider
+            serializer.validated_data["billing_source"] = provider.get("billing_source")
+            if serializer.is_valid(raise_exception=True):
+                with self.assertRaises(ValidationError) as excCtx:
+                    serializer.update(serializer.instance, serializer.validated_data)  # try to make second match first
 
-            validationErr = excCtx.exception.detail[ProviderErrors.UNKNOWN_UPDATE][0]
-            self.assertTrue("IntegrityError: test error" in str(validationErr))
+            validationErr = excCtx.exception.detail[ProviderErrors.DUPLICATE_AUTH][0]
+            self.assertTrue("Cost management does not allow duplicate accounts" in str(validationErr))
 
     def test_error_providers_with_same_auth_or_billing_source(self):
         """Test that the errors are wrapped correctly."""

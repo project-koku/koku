@@ -18,7 +18,6 @@
 import logging
 
 from django.conf import settings
-from django.db import IntegrityError
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework.fields import empty
@@ -395,11 +394,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             instance.billing_source = bill
             instance.active = True
 
-            try:
-                instance.save()
-            except IntegrityError as error:
-                message = f"Unknown IntegrityError: {error}"
-                raise serializers.ValidationError(error_obj(ProviderErrors.UNKNOWN_UPDATE, message))
+            instance.save()
             return instance
 
 

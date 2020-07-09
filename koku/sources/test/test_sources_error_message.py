@@ -108,13 +108,6 @@ class SourcesErrorMessageTest(TestCase):
             message_obj = SourcesErrorMessage(error)
             self.assertEquals(message_obj.display(source_id=1), test.get("expected_message"))
 
-    def test_unknown_source_update(self):
-        """Test unknown IntegrityError."""
-        message = "Unknown IntegrityError: unknown"
-        error = ValidationError(error_obj(ProviderErrors.UNKNOWN_UPDATE, message))
-        message_obj = SourcesErrorMessage(error)
-        self.assertIn("IntegrityError", message_obj.display(source_id=1))
-
     def test_general_string_error(self):
         """Test general string error fallback."""
         random_error_dict = {"rando": "error"}
