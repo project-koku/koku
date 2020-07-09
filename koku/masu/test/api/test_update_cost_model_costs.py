@@ -38,8 +38,10 @@ class UpdateCostModelCostTest(TestCase):
         response = self.client.get(reverse("update_cost_model_costs"), params)
         body = response.json()
 
-        start_date = str(DateHelper().this_month_start.date())
-        end_date = str(DateHelper().today.date())
+        start_date = DateHelper().this_month_start.date()
+        start_date = start_date.strftime("%m/%d/%Y")
+        end_date = DateHelper().today.date()
+        end_date = end_date.strftime("%m/%d/%Y")
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
         mock_update.delay.assert_called_with(params["schema"], params["provider_uuid"], start_date, end_date)
