@@ -37,6 +37,16 @@ class AzureReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for Azure."""
 
     provider = Provider.PROVIDER_AZURE
+    network_services = {
+        "Virtual Network",
+        "VPN",
+        "DNS",
+        "Traffic Manager",
+        "ExpressRoute",
+        "Load Balancer",
+        "Application Gateway",
+    }
+    database_services = {"Database", "Cosmos DB", "Cache for Redis"}
 
     def __init__(self, parameters):
         """Establish Azure report query handler.
@@ -79,53 +89,6 @@ class AzureReportQueryHandler(ReportQueryHandler):
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(""))
         return annotations
-
-    def _get_query_table_group_by_keys(self):
-        """Return the group by keys specific for selecting the query table."""
-        return set(self.parameters.get("group_by", {}).keys())
-
-    def _get_query_table_filter_keys(self):
-        """Return the filter keys specific for selecting the query table."""
-        excluded_filters = {"time_scope_value", "time_scope_units", "resolution"}
-        filter_keys = set(self.parameters.get("filter", {}).keys())
-        return filter_keys.difference(excluded_filters)
-
-    @property
-    def query_table(self):
-        """Return the database table to query against."""
-        query_table = self._mapper.query_table
-        report_type = self.parameters.report_type
-        report_group = "default"
-
-        filter_keys = self._get_query_table_filter_keys()
-        group_by_keys = self._get_query_table_group_by_keys()
-        key_tuple = tuple(sorted(filter_keys.union(group_by_keys)))
-        if key_tuple:
-            report_group = key_tuple
-
-        # Special Casess for Network and Database Cards in the UI
-        service_filter = set(self.parameters.get("filter", {}).get("service_name", []))
-        network_services = {
-            "Virtual Network",
-            "VPN",
-            "DNS",
-            "Traffic Manager",
-            "ExpressRoute",
-            "Load Balancer",
-            "Application Gateway",
-        }
-        database_services = {"Database", "Cosmos DB", "Cache for Redis"}
-        if report_type == "costs" and service_filter and not service_filter.difference(network_services):
-            report_type = "network"
-        elif report_type == "costs" and service_filter and not service_filter.difference(database_services):
-            report_type = "database"
-
-        try:
-            query_table = self._mapper.views[report_type][report_group]
-        except KeyError:
-            msg = f"{report_group} for {report_type} has no entry in views. Using the default."
-            LOG.warning(msg)
-        return query_table
 
     def _format_query_response(self):
         """Format the query response with data.

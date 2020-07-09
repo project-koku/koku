@@ -19,6 +19,7 @@ import logging
 
 from django.conf import settings
 from django.db import connection
+from django.db import IntegrityError
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
@@ -43,12 +44,12 @@ from api.common.permissions import RESOURCE_TYPE_MAP
 from api.iam.models import Tenant
 from api.iam.serializers import create_schema_name
 from api.provider.models import Sources
+from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesDependencyError
 from sources.api.serializers import SourcesSerializer
-from sources.kafka_source_manager import KafkaSourceManager
 from sources.storage import SourcesStorageError
 
 
@@ -59,10 +60,20 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
     def destroy(self, request, *args, **kwargs):
         """Delete a source."""
         source = self.get_object()
-        manager = KafkaSourceManager(request.user.identity_header.get("encoded"))
-        manager.destroy_provider(source.koku_uuid)
-        response = super().destroy(request, *args, **kwargs)
-        return response
+        manager = ProviderBuilder(request.user.identity_header.get("encoded"))
+        for _ in range(5):
+            try:
+                manager.destroy_provider(source.koku_uuid)
+            except IntegrityError as error:
+                LOG.warning(f"Retrying Source delete due to error: {error}")
+            except Exception as error:  # catch everything else. return immediately
+                msg = f"Source removal resulted in UNKNOWN error: {type(error).__name__}: {error}"
+                LOG.error(msg)
+                return Response(msg, status=500)
+            else:
+                return super().destroy(request, *args, **kwargs)
+        LOG.error("Failed to remove Source")
+        return Response("Failed to remove Source", status=500)
 
 
 LOG = logging.getLogger(__name__)
