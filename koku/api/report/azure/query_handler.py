@@ -143,13 +143,15 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
         return output
 
-    def _build_sum(self, query, annotations):
+    def _build_sum(self, query):
         """Build the sum results for the query."""
         sum_units = {}
         query_sum = self.initialize_totals()
+
         cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
         count_units_fallback = self._mapper.report_type_map.get("count_units_fallback")
+
         if query.exists():
             sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
             if self._mapper.usage_units_key:
@@ -162,7 +164,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
             if self._mapper.usage_units_key:
                 units_value = sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
                 sum_units["usage_units"] = units_value
-            if annotations.get("count_units"):
+            if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
                 sum_units["count_units"] = count_units_fallback
 
             query_sum = self.calculate_total(**sum_units)
@@ -194,7 +196,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query_data.values(*query_group_by).annotate(**annotations)
-            query_sum = self._build_sum(query, annotations)
+            query_sum = self._build_sum(query)  # , annotations)
 
             if self._limit:
                 rank_order = getattr(F(self.order_field), self.order_direction)()
