@@ -18,6 +18,7 @@
 import logging
 from uuid import uuid4
 
+from cachetools import TTLCache
 from django.conf import settings
 from django.contrib.postgres.fields import JSONField
 from django.db import models
@@ -25,6 +26,9 @@ from django.db import transaction
 from django.db.models.constraints import CheckConstraint
 
 LOG = logging.getLogger(__name__)
+TIME_TO_CACHE = 3600  # in seconds (60 minutes)
+MAX_CACHE_SIZE = 10000
+TASK_CACHE = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
 
 
 class ProviderAuthentication(models.Model):
@@ -164,7 +168,10 @@ class Provider(models.Model):
 
         should_ingest = False
         # These values determine if a Provider is new
-        if self.created_timestamp and not self.setup_complete:
+        # The task_cache is used to prevent multiple tasks from being kicked off if a
+        # provider is created and then edited within the time_to_cache time period
+        if self.created_timestamp and not self.setup_complete and self.uuid not in TASK_CACHE:
+            TASK_CACHE[self.uuid] = True
             should_ingest = True
 
         try:
