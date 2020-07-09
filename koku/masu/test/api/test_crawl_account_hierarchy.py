@@ -16,22 +16,53 @@
 #
 """Test the crawl_account_hierarchy endpoint view."""
 from unittest.mock import patch
+from urllib.parse import urlencode
 
-from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 
+from masu.test import MasuTestCase
+
 
 @override_settings(ROOT_URLCONF="masu.urls")
-class crawlAccountHierarchyTest(TestCase):
+class crawlAccountHierarchyTest(MasuTestCase):
     """Test Cases for the crawl_account_hierarchy endpoint."""
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.crawl_account_hierarchy.crawl_hierarchy")
     def test_get_crawl_account_hierarchy(self, mock_update, _):
-        """Test the GET report_data endpoint."""
+        """Test the GET crawl_account_hierarchy endpoint."""
+        params = {"provider_uuid": self.aws_test_provider_uuid}
+        query_string = urlencode(params)
+        url = reverse("crawl_account_hierarchy") + "?" + query_string
+        response = self.client.get(url)
+        body = response.json()
+        expected_key = "Crawl Account Hierarchy Task ID"
+        self.assertIsNotNone(body.get(expected_key))
+        self.assertEqual(response.status_code, 200)
+        mock_update.delay.assert_called_with(provider_uuid=self.aws_test_provider_uuid)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_get_crawl_account_hierarchy_bad_provider_uuid(self, _):
+        """Test the GET crawl_account_hierarchy endpoint with bad provider uuid."""
+        bad_provider_uuid = "bad_provider_uuid"
+        params = {"provider_uuid": bad_provider_uuid}
+        query_string = urlencode(params)
+        url = reverse("crawl_account_hierarchy") + "?" + query_string
+        expected_errmsg = f"The provider_uuid {bad_provider_uuid} does not exist."
+        response = self.client.get(url)
+        body = response.json()
+        errmsg = body.get("Error")
+        self.assertIsNotNone(errmsg)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(errmsg, expected_errmsg)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_require_provider_uuid(self, _):
+        """Test the GET crawl_account_hierarchy endpoint with no provider uuid."""
         response = self.client.get(reverse("crawl_account_hierarchy"))
         body = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Crawl account hierarchy Task ID", body)
-        mock_update.delay.assert_called_with()
+        errmsg = body.get("Error")
+        expected_errmsg = "provider_uuid is a required parameter."
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(errmsg, expected_errmsg)

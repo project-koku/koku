@@ -18,7 +18,6 @@
 import logging
 
 from django.conf import settings
-from django.db import IntegrityError
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework.fields import empty
@@ -171,11 +170,10 @@ class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
             raise serializers.ValidationError(error_obj(key, message))
 
         report_prefix = data_source.get("report_prefix", "")
-        if report_prefix:
-            if len(report_prefix) > REPORT_PREFIX_MAX_LENGTH:
-                key = "data_source.report_prefix"
-                message = f"Ensure this field has no more than {REPORT_PREFIX_MAX_LENGTH} characters."
-                raise serializers.ValidationError(error_obj(key, message))
+        if report_prefix and len(report_prefix) > REPORT_PREFIX_MAX_LENGTH:
+            key = "data_source.report_prefix"
+            message = f"Ensure this field has no more than {REPORT_PREFIX_MAX_LENGTH} characters."
+            raise serializers.ValidationError(error_obj(key, message))
 
         return data
 
@@ -361,7 +359,9 @@ class ProviderSerializer(serializers.ModelSerializer):
         bucket = billing_source.get("bucket")
 
         try:
-            if customer.account_id not in settings.DEMO_ACCOUNTS:
+            if customer.account_id in settings.DEMO_ACCOUNTS:
+                LOG.info("Customer account is a DEMO account. Skipping cost_usage_source_ready check.")
+            else:
                 if credentials and data_source and provider_type not in [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP]:
                     interface.cost_usage_source_ready(credentials, data_source)
                 else:
@@ -374,16 +374,18 @@ class ProviderSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
             auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
-            dup_queryset = (
-                Provider.objects.filter(authentication=auth).filter(billing_source=bill).filter(customer=customer)
-            )
-            if dup_queryset.count() != 0:
-                conflict_provder = dup_queryset.first()
-                message = (
-                    f"Cost management does not allow duplicate accounts. "
-                    f"{conflict_provder.name} already exists. Edit source settings to configure a new source."
+            if instance.billing_source != bill or instance.authentication != auth:
+                dup_queryset = (
+                    Provider.objects.filter(authentication=auth).filter(billing_source=bill).filter(customer=customer)
                 )
-                LOG.warn(message)
+                if dup_queryset.count() != 0:
+                    conflict_provder = dup_queryset.first()
+                    message = (
+                        f"Cost management does not allow duplicate accounts. "
+                        f"{conflict_provder.name} already exists. Edit source settings to configure a new source."
+                    )
+                    LOG.warn(message)
+                    raise serializers.ValidationError(error_obj(ProviderErrors.DUPLICATE_AUTH, message))
 
             for key in validated_data.keys():
                 setattr(instance, key, validated_data[key])
@@ -392,10 +394,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             instance.billing_source = bill
             instance.active = True
 
-            try:
-                instance.save()
-            except IntegrityError:
-                raise serializers.ValidationError(error_obj(ProviderErrors.DUPLICATE_AUTH, message))
+            instance.save()
             return instance
 
 

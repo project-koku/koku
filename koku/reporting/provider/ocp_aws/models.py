@@ -200,7 +200,7 @@ class OCPAWSTagsSummary(models.Model):
         """Meta for OCPUsageTagSummary."""
 
         db_table = "reporting_ocpawstags_summary"
-        unique_together = ("key", "cost_entry_bill")
+        unique_together = ("key", "cost_entry_bill", "namespace")
 
     id = models.BigAutoField(primary_key=True)
 
@@ -209,6 +209,8 @@ class OCPAWSTagsSummary(models.Model):
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE)
     accounts = ArrayField(models.CharField(max_length=63))
     namespace = ArrayField(models.CharField(max_length=253))
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
 
 
 # Materialized Views for UI Reporting

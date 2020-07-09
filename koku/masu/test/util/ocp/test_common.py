@@ -21,6 +21,8 @@ import tempfile
 from unittest.mock import patch
 from uuid import UUID
 
+import pandas as pd
+
 from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -89,3 +91,10 @@ class OCPUtilTests(MasuTestCase):
             os.makedirs(expected_path, exist_ok=True)
             self.assertTrue(utils.poll_ingest_override_for_provider(self.ocp_test_provider_uuid))
         shutil.rmtree(fake_dir)
+
+    def test_process_openshift_datetime(self):
+        """Test process_openshift_datetime method with good and bad values."""
+        expected_dt_str = "2020-07-01 00:00:00"
+        expected = pd.to_datetime(expected_dt_str)
+        dt = utils.process_openshift_datetime("2020-07-01 00:00:00 +0000 UTC")
+        self.assertEqual(expected, dt)

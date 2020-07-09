@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Kafka Source Manager."""
+"""Provider Builder."""
 import json
 import logging
 from base64 import b64decode
@@ -36,26 +36,23 @@ from sources.config import Config
 LOG = logging.getLogger(__name__)
 
 
-class KafkaSourceManagerError(ValidationError):
-    """KafkaSourceManager Error."""
+class ProviderBuilderError(ValidationError):
+    """ProviderBuilder Error."""
 
     pass
 
 
-class KafkaSourceManagerNonRecoverableError(Exception):
-    """KafkaSourceManager Unrecoverable Error."""
-
-    pass
-
-
-class KafkaSourceManager:
-    """Kafka Source Manager to create koku providers."""
+class ProviderBuilder:
+    """Provider Builder to create koku providers."""
 
     def __init__(self, auth_header):
         """Initialize the client."""
         self._base_url = Config.KOKU_API_URL
-        header = {"x-rh-identity": auth_header, "sources-client": "True"}
-        self._identity_header = header
+        if isinstance(auth_header, dict) and auth_header.get("x-rh-identity"):
+            self._identity_header = auth_header
+        else:
+            header = {"x-rh-identity": auth_header, "sources-client": "True"}
+            self._identity_header = header
 
     def _get_dict_from_text_field(self, value):
         try:
@@ -68,14 +65,14 @@ class KafkaSourceManager:
         if authentication.get("resource_name"):
             auth = {"provider_resource_name": authentication.get("resource_name")}
         else:
-            raise KafkaSourceManagerError("Missing provider_resource_name")
+            raise ProviderBuilderError("Missing provider_resource_name")
         return auth
 
     def _build_credentials_auth(self, authentication):
         if authentication.get("credentials"):
             auth = {"credentials": authentication.get("credentials")}
         else:
-            raise KafkaSourceManagerError("Missing credentials")
+            raise ProviderBuilderError("Missing credentials")
         return auth
 
     def _authentication_for_aws(self, authentication):
@@ -105,14 +102,14 @@ class KafkaSourceManager:
         if billing_source.get("bucket") is not None:
             billing = {"bucket": billing_source.get("bucket")}
         else:
-            raise KafkaSourceManagerError("Missing bucket")
+            raise ProviderBuilderError("Missing bucket")
         return billing
 
     def _build_provider_data_source(self, billing_source):
         if billing_source.get("data_source"):
             billing = {"data_source": billing_source.get("data_source")}
         else:
-            raise KafkaSourceManagerError("Missing data_source")
+            raise ProviderBuilderError("Missing data_source")
         return billing
 
     def _billing_source_for_aws(self, billing_source):
@@ -140,17 +137,6 @@ class KafkaSourceManager:
         provider_fn = provider_map.get(provider_type)
         if provider_fn:
             return provider_fn(billing_source)
-
-    def _handle_bad_requests(self, response):
-        """Raise an exception with error message string for Platform Sources."""
-        if response.status_code == 401 or response.status_code == 403:
-            raise KafkaSourceManagerNonRecoverableError("Insufficient Permissions")
-        if response.status_code == 400:
-            detail_msg = "Unknown Error"
-            errors = response.json().get("errors")
-            if errors:
-                detail_msg = errors[0].get("detail")
-            raise KafkaSourceManagerNonRecoverableError(detail_msg)
 
     def _create_context(self):
         """Create request context object."""
@@ -191,8 +177,12 @@ class KafkaSourceManager:
 
         connection.set_tenant(tenant)
         serializer = ProviderSerializer(data=json_data, context=context)
-        if serializer.is_valid(raise_exception=True):
-            instance = serializer.save()
+        try:
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+        except ValidationError as error:
+            connection.set_schema_to_public()
+            raise error
         connection.set_schema_to_public()
         return instance
 

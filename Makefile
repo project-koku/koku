@@ -187,7 +187,11 @@ load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
 
 load-aws-org-unit-tree:
-	$(PYTHON) $(TOPDIR)/scripts/insert_aws_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml)
+	@if [ $(shell $(PYTHON) -c 'import sys; print(sys.version_info[0])') = '3' ] ; then \
+		$(PYTHON) $(TOPDIR)/scripts/insert_aws_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml) ; \
+	else \
+		echo "This make target requires python3." ; \
+	fi
 
 collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
@@ -215,7 +219,7 @@ manifest:
 	python scripts/create_manifest.py
 
 check-manifest:
-	./.travis/check_manifest.sh
+	.github/scripts/check_manifest.sh
 
 run-migrations:
 	$(DJANGO_MANAGE) migrate_schemas
@@ -609,9 +613,9 @@ ifndef output_file_name
 	$(error param output_file_name is not set)
 endif
 ifdef generator_template_file
-	@nise yaml -p ocp -c $(or $(generator_config_file), default) -t $(generator_template_file) -o $(output_file_name) $(generator_flags)
+	@nise yaml ocp -c $(or $(generator_config_file), default) -t $(generator_template_file) -o $(output_file_name) $(generator_flags)
 else
-	@nise yaml -p ocp -c $(or $(generator_config_file), default) -o $(output_file_name) $(generator_flags)
+	@nise yaml ocp -c $(or $(generator_config_file), default) -o $(output_file_name) $(generator_flags)
 endif
 
 

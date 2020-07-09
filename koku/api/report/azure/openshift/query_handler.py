@@ -26,7 +26,6 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.report.azure.query_handler import AzureReportQueryHandler
-from api.report.ocp_aws.query_handler import check_view_filter_and_group_by_criteria
 from api.report.queries import is_grouped_or_filtered_by_project
 
 LOG = logging.getLogger(__name__)
@@ -78,46 +77,6 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             annotations["project"] = F("namespace")
 
         return annotations
-
-    @property
-    def query_table(self):
-        """Return the database table to query against."""
-        query_table = self._mapper.query_table
-        report_type = self.parameters.report_type
-        report_group = "default"
-
-        filter_keys = self._get_query_table_filter_keys()
-        group_by_keys = self._get_query_table_group_by_keys()
-        key_tuple = tuple(sorted(filter_keys.union(group_by_keys)))
-        if key_tuple:
-            report_group = key_tuple
-
-        if not check_view_filter_and_group_by_criteria(filter_keys, group_by_keys):
-            return query_table
-
-        # Special Casess for Network and Database Cards in the UI
-        service_filter = set(self.parameters.get("filter", {}).get("service_name", []))
-        network_services = {
-            "Virtual Network",
-            "VPN",
-            "DNS",
-            "Traffic Manager",
-            "ExpressRoute",
-            "Load Balancer",
-            "Application Gateway",
-        }
-        database_services = {"Cosmos DB", "Cache for Redis", "Database"}
-        if report_type == "costs" and service_filter and not service_filter.difference(network_services):
-            report_type = "network"
-        elif report_type == "costs" and service_filter and not service_filter.difference(database_services):
-            report_type = "database"
-
-        try:
-            query_table = self._mapper.views[report_type][report_group]
-        except KeyError:
-            msg = f"{report_group} for {report_type} has no entry in views. Using the default."
-            LOG.warning(msg)
-        return query_table
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
