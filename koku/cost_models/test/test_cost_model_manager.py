@@ -26,6 +26,7 @@ from api.metrics import constants as metric_constants
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
+from cost_models.cost_model_manager import update_cost_model_costs
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 
@@ -258,3 +259,34 @@ class CostModelManagerTest(IamTestCase):
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
+
+    def test_deleting_cost_model_refreshes_materialized_views(self):
+        """Test deleting a cost model refreshes the materialized views."""
+        provider_name = "sample_provider"
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+
+        # Get Provider UUID
+        provider_uuid = provider.uuid
+
+        data = {
+            "name": "Test Cost Model",
+            "description": "Test",
+            "provider_uuids": [provider_uuid],
+            "markup": {"value": 10, "unit": "percent"},
+        }
+
+        with tenant_context(self.tenant):
+            manager = CostModelManager()
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                cost_model_obj = manager.create(**data)
+            self.assertIsNotNone(cost_model_obj.uuid)
+
+            cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
+            self.assertIsNotNone(cost_model_map)
+
+            with patch("masu.processor.tasks.update_cost_model_costs.delay", side_effect=update_cost_model_costs):
+                with patch("masu.processor.tasks.refresh_materialized_views.delay") as mock_refresh:
+                    # simulates deleting a cost_model
+                    manager.update_provider_uuids(provider_uuids=[])
+                    mock_refresh.assert_called()

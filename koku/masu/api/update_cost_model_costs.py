@@ -26,6 +26,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.processor.tasks import update_cost_model_costs as cost_task
 
@@ -53,6 +54,11 @@ def update_cost_model_costs(request):
 
     LOG.info("Calling update_cost_model_costs async task.")
 
-    async_result = cost_task.delay(schema_name, provider_uuid, start_date, end_date)
+    try:
+        provider = Provider.objects.get(uuid=provider_uuid)
+    except Provider.DoesNotExist:
+        return Response({"Error": "Provider does not exist."}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        async_result = cost_task.delay(schema_name, provider_uuid, start_date, end_date, provider.type)
 
     return Response({"Update Cost Model Cost Task ID": str(async_result)})

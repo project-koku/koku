@@ -324,7 +324,7 @@ def update_all_summary_tables(start_date, end_date=None):
 
 
 @app.task(name="masu.processor.tasks.update_cost_model_costs", queue_name="reporting")
-def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_date=None):
+def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_date=None, provider_type=None):
     """Update usage charge information.
 
     Args:
@@ -339,7 +339,7 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
     """
     with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
         cost_model = cost_model_accessor.cost_model
-    if cost_model is not None:
+    if cost_model is not None or provider_type is not None:
         worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
         stmt = (
@@ -352,6 +352,9 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
         updater = CostModelCostUpdater(schema_name, provider_uuid)
         if updater:
             updater.update_cost_model_costs(start_date, end_date)
+            if provider_type:
+                refresh_materialized_views.delay(schema_name, provider_type)
+
     else:
         stmt = (
             f"\n update_cost_model_costs skipped. No cost model available for \n"
