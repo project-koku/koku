@@ -262,9 +262,12 @@ def clean_volume():
 
 
 @app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue_name="crawl_account_hierarchy")
-def crawl_account_hierarchy():
+def crawl_account_hierarchy(provider_uuid=None):
     """Crawl top level accounts to discover hierarchy."""
-    _, polling_accounts = Orchestrator.get_accounts()
+    if provider_uuid:
+        _, polling_accounts = Orchestrator.get_accounts(provider_uuid=provider_uuid)
+    else:
+        _, polling_accounts = Orchestrator.get_accounts()
     LOG.info("Account hierarchy crawler found %s accounts to scan" % len(polling_accounts))
     processed = 0
     skipped = 0

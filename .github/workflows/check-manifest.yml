@@ -5,7 +5,7 @@ on:
     branches: [master]
 
 jobs:
-  pre-commit:
+  check-manifest:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Repository

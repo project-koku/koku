@@ -17,7 +17,6 @@
 """Test the update_cost_model_costs endpoint view."""
 from unittest.mock import patch
 
-from dateutil.parser import parse
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -39,8 +38,8 @@ class UpdateCostModelCostTest(TestCase):
         response = self.client.get(reverse("update_cost_model_costs"), params)
         body = response.json()
 
-        start_date = parse(str(DateHelper().this_month_start))
-        end_date = parse(str(DateHelper().today))
+        start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
+        end_date = DateHelper().today.strftime("%Y-%m-%d")
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
         mock_update.delay.assert_called_with(params["schema"], params["provider_uuid"], start_date, end_date)
@@ -60,8 +59,8 @@ class UpdateCostModelCostTest(TestCase):
         response = self.client.get(reverse("update_cost_model_costs"), params)
         body = response.json()
 
-        start_date = parse(params["start_date"])
-        end_date = parse(params["end_date"])
+        start_date = params["start_date"]
+        end_date = params["end_date"]
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
         mock_update.delay.assert_called_with(params["schema"], params["provider_uuid"], start_date, end_date)
