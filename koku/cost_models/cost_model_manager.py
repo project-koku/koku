@@ -84,8 +84,8 @@ class CostModelManager:
                 raise CostModelException(log_msg)
             CostModelMap.objects.create(cost_model=self._model, provider_uuid=provider_uuid)
 
-        start_date = DateHelper().this_month_start
-        end_date = DateHelper().today
+        start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
+        end_date = DateHelper().today.strftime("%Y-%m-%d")
         for provider_uuid in providers_to_delete | providers_to_create:
             # Update cost-model costs for each provider
             try:

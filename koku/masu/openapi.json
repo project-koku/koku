@@ -33,6 +33,10 @@
       {
         "name": "Status",
         "description": "Operations about status"
+      },
+      {
+        "name": "Crawl Account Hierarchy",
+        "description": "Start the crawler for account hierarchy."
       }
     ],
     "paths": {
@@ -408,6 +412,42 @@
           ]
         },
         "parameters": []
+      },
+      "/crawl_account_hierarchy/": {
+        "get": {
+          "summary": "Start the crawler for account hierarchy.",
+          "operationId": "crawlAccountHierarchy",
+          "description": "Returns crawl account hierarchy async task ID.",
+          "parameters": [
+            {
+              "name": "provider_uuid",
+              "in": "query",
+              "description": "The provider UUID",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid",
+                "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "The celery task ID of the crawl account hierarchy task",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/CrawlAccountHierarchy"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Crawl Account Hierarchy"
+          ]
+        },
+        "parameters": []
       }
     },
     "components": {
@@ -602,6 +642,16 @@
             },
             "database_connections": {
               "type": "string"
+            }
+          }
+        },
+        "CrawlAccountHierarchy": {
+          "type": "object",
+          "properties": {
+            "Crawl Account Hierarchy Task ID": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
             }
           }
         }
