@@ -104,9 +104,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
 
-        # FIXME: usage doesn't have units yet. waiting on MSFT
         self.assertEqual(total.get("usage", {}).get("value"), current_totals.get("usage"))
-        # self.assertEqual(total.get("usage", {}), current_totals.get("usage"))
         self.assertEqual(total.get("request", {}).get("value"), current_totals.get("request"))
         self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
         self.assertEqual(total.get("limit", {}).get("value"), current_totals.get("limit"))
