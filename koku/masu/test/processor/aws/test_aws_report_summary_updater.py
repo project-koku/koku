@@ -32,6 +32,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
 from masu.test import MasuTestCase
+from masu.test.database.helpers import ManifestCreationHelper
 from masu.test.database.helpers import ReportObjectCreator
 
 
@@ -107,7 +108,11 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
     @patch("masu.processor.aws.aws_report_summary_updater.AWSReportDBAccessor.populate_line_item_daily_table")
     def test_update_summary_tables_new_bill(self, mock_daily, mock_summary):
         """Test that summary tables are run for a full month."""
-        self.manifest.num_processed_files = self.manifest.num_total_files
+        manifest_helper = ManifestCreationHelper(
+            self.manifest.id, self.manifest.num_total_files, self.manifest.assembly_id
+        )
+        manifest_helper.generate_test_report_files()
+        manifest_helper.process_all_files()
 
         start_date = self.date_accessor.today_with_timezone("UTC")
         end_date = start_date
@@ -166,7 +171,11 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
 
         self.manifest = self.manifest_accessor.add(**manifest_dict)
 
-        self.manifest.num_processed_files = self.manifest.num_total_files
+        manifest_helper = ManifestCreationHelper(
+            self.manifest.id, self.manifest.num_total_files, self.manifest.assembly_id
+        )
+        manifest_helper.generate_test_report_files()
+        manifest_helper.process_all_files()
 
         self.updater = AWSReportSummaryUpdater(self.schema, self.provider, self.manifest)
 
@@ -237,7 +246,11 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
     @patch("masu.processor.aws.aws_report_summary_updater.AWSReportDBAccessor.populate_line_item_daily_table")
     def test_update_summary_tables_finalized_bill(self, mock_daily, mock_summary):
         """Test that summary tables are run for a full month."""
-        self.manifest.num_processed_files = self.manifest.num_total_files
+        manifest_helper = ManifestCreationHelper(
+            self.manifest.id, self.manifest.num_total_files, self.manifest.assembly_id
+        )
+        manifest_helper.generate_test_report_files()
+        manifest_helper.process_all_files()
 
         start_date = self.date_accessor.today_with_timezone("UTC")
         end_date = start_date

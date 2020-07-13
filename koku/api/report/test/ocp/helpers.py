@@ -100,7 +100,6 @@ class OCPReportDataGenerator:
             "manifest_creation_datetime": manifest_creation_datetime,
             "manifest_updated_datetime": manifest_updated_datetime,
             "billing_period_start_datetime": billing_period_start,
-            "num_processed_files": 1,
             "num_total_files": 1,
             "provider_id": provider_uuid,
         }

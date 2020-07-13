@@ -404,7 +404,7 @@ class ProcessReportFileTests(MasuTestCase):
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-            self.assertEqual(manifest.num_processed_files, 0)
+            self.assertEqual(manifest_accessor.number_of_files_processed(manifest_id), 0)
             self.assertEqual(manifest.manifest_updated_datetime, initial_update_time)
 
         with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:

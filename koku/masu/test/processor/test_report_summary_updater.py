@@ -181,7 +181,6 @@ class ReportSummaryUpdaterTest(MasuTestCase):
             "assembly_id": "1234",
             "billing_period_start_datetime": billing_start,
             "num_total_files": 2,
-            "num_processed_files": 1,
             "provider_uuid": self.ocp_provider_uuid,
         }
         with ReportManifestDBAccessor() as accessor:
