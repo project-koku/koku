@@ -286,7 +286,7 @@ class CostModelManagerTest(IamTestCase):
             self.assertIsNotNone(cost_model_map)
 
             with patch("masu.processor.tasks.update_cost_model_costs.delay", side_effect=update_cost_model_costs):
-                with patch("masu.processor.tasks.refresh_materialized_views.delay") as mock_refresh:
+                with patch("masu.processor.tasks.refresh_materialized_views") as mock_refresh:
                     # simulates deleting a cost_model
                     manager.update_provider_uuids(provider_uuids=[])
                     mock_refresh.assert_called()
