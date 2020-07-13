@@ -260,7 +260,6 @@ class CostModelManagerTest(IamTestCase):
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
 
-    # TODO fix this test
     @patch("cost_models.cost_model_manager.refresh_materialized_views")
     @patch("cost_models.cost_model_manager.update_cost_model_costs")
     @patch("cost_models.cost_model_manager.chain")
@@ -282,18 +281,19 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            cost_model_obj = manager.create(**data)
+            with patch("cost_models.cost_model_manager.chain"):
+                cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
 
-        start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
-        end_date = DateHelper().today.strftime("%Y-%m-%d")
+            start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
+            end_date = DateHelper().today.strftime("%Y-%m-%d")
 
-        # simulates deleting a cost_model
-        manager.update_provider_uuids(provider_uuids=[])
-        mock_chain.assert_called_once_with(
-            mock_update.s(self.schema_name, provider_uuid, start_date, end_date),
-            mock_refresh.si(self.schema_name, provider.type),
-        )
+            # simulates deleting a cost_model
+            manager.update_provider_uuids(provider_uuids=[])
+            mock_chain.assert_called_once_with(
+                mock_update.s(self.schema_name, provider_uuid, start_date, end_date),
+                mock_refresh.si(self.schema_name, provider.type),
+            )
