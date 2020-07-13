@@ -330,11 +330,26 @@ class ParamSerializer(BaseSerializer):
 
             if "group_by" in self.initial_data:
                 group_keys = self.initial_data.get("group_by").keys()
+
                 if key in group_keys:
                     continue  # found matching group-by
 
+                # check for or keys
+                or_keys = []
+                for k in group_keys:
+                    if "or:" in k:
+                        field_value = k.split(":").pop()
+                        or_keys.append(field_value)
+
+                if key in or_keys:
+                    continue  # found matching group-by with or
+
                 # special case: we order by account_alias, but we group by account.
                 if key == "account_alias" and "account" in group_keys:
+                    continue
+
+                # special case: we order by account_alias, but we group by account using or.
+                if key == "account_alias" and "account" in or_keys:
                     continue
 
             error[key] = _(f'Order-by "{key}" requires matching Group-by.')
