@@ -329,7 +329,7 @@ class ParamSerializer(BaseSerializer):
                 continue  # fields that do not require a group-by
 
             if "or:" in key:
-                error[key] = _(f'The order_by key "{key}" can not contain the or paramerter.')
+                error[key] = _(f'The order_by key "{key}" can not contain the or parameter.')
                 raise serializers.ValidationError(error)
 
             if "group_by" in self.initial_data and "or:" not in key:
