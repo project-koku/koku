@@ -279,10 +279,14 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
             line_items_only = True
             chain(
                 update_cost_model_costs.s(schema_name, provider_uuid, start_date, end_date),
+                refresh_materialized_views.si(schema_name, provider, manifest_id),
                 remove_expired_data.si(schema_name, provider, simulate, provider_uuid, line_items_only),
             ).apply_async()
         else:
-            update_cost_model_costs.delay(schema_name, provider_uuid, start_date, end_date)
+            chain(
+                update_cost_model_costs.s(schema_name, provider_uuid, start_date, end_date),
+                refresh_materialized_views.si(schema_name, provider, manifest_id),
+            ).apply_async()
     else:
         refresh_materialized_views.delay(schema_name, provider, manifest_id)
 
