@@ -18,12 +18,14 @@
 import copy
 import logging
 
+from celery import chain
 from django.db import transaction
 
 from api.provider.models import Provider
 from api.utils import DateHelper
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import update_cost_model_costs
 
 
@@ -94,9 +96,10 @@ class CostModelManager:
                 LOG.info(f"Provider {provider_uuid} does not exist. Skipping cost-model update.")
             else:
                 schema_name = provider.customer.schema_name
-                update_cost_model_costs.delay(
-                    schema_name, provider.uuid, start_date, end_date, provider_type=provider.type
-                )
+                chain(
+                    update_cost_model_costs.s(schema_name, provider.uuid, start_date, end_date),
+                    refresh_materialized_views.si(schema_name, provider.type),
+                ).apply_async()
 
     def update(self, **data):
         """Update the cost model object."""

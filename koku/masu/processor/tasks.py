@@ -22,7 +22,6 @@ from decimal import Decimal
 from decimal import InvalidOperation
 
 from botocore.exceptions import ClientError
-from celery import chain
 from celery.utils.log import get_task_logger
 from dateutil import parser
 from django.conf import settings
@@ -265,30 +264,39 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
     start_date, end_date = updater.update_daily_tables(start_date, end_date)
     updater.update_summary_tables(start_date, end_date)
 
-    if provider_uuid:
-        dh = DateHelper(utc=True)
-        prev_month_last_day = dh.last_month_end
-        start_date_obj = datetime.datetime.strptime(start_date, "%Y-%m-%d")
-        prev_month_last_day = prev_month_last_day.replace(tzinfo=None)
-        prev_month_last_day = prev_month_last_day.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
-        if manifest_id and (start_date_obj <= prev_month_last_day):
-            # We want make sure that the manifest_id is not none, because
-            # we only want to call the delete line items after the summarize_reports
-            # task above
-            simulate = False
-            line_items_only = True
-            chain(
-                update_cost_model_costs.s(schema_name, provider_uuid, start_date, end_date),
-                refresh_materialized_views.si(schema_name, provider, manifest_id),
-                remove_expired_data.si(schema_name, provider, simulate, provider_uuid, line_items_only),
-            ).apply_async()
-        else:
-            chain(
-                update_cost_model_costs.s(schema_name, provider_uuid, start_date, end_date),
-                refresh_materialized_views.si(schema_name, provider, manifest_id),
-            ).apply_async()
-    else:
+    if not provider_uuid:
         refresh_materialized_views.delay(schema_name, provider, manifest_id)
+        return
+
+    with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
+        cost_model = cost_model_accessor.cost_model
+
+    if cost_model is not None:
+        chain = update_cost_model_costs.s(
+            schema_name, provider_uuid, start_date, end_date
+        ) | refresh_materialized_views.si(schema_name, provider, manifest_id)
+    else:
+        stmt = (
+            f"\n update_cost_model_costs skipped. No cost model available for \n"
+            f" schema_name: {schema_name},\n"
+            f" provider_uuid: {provider_uuid}"
+        )
+        LOG.info(stmt)
+        chain = refresh_materialized_views.s(schema_name, provider, manifest_id)
+
+    dh = DateHelper(utc=True)
+    prev_month_start_day = dh.last_month_start.replace(tzinfo=None)
+    start_date_obj = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+    if manifest_id and (start_date_obj <= prev_month_start_day):
+        # We want make sure that the manifest_id is not none, because
+        # we only want to call the delete line items after the summarize_reports
+        # task above
+        simulate = False
+        line_items_only = True
+
+        chain |= remove_expired_data.si(schema_name, provider, simulate, provider_uuid, line_items_only)
+
+    chain.apply_async()
 
 
 @app.task(name="masu.processor.tasks.update_all_summary_tables", queue_name="reporting")
@@ -337,31 +345,18 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
         None
 
     """
-    with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
-        cost_model = cost_model_accessor.cost_model
-    if cost_model is not None or provider_type is not None:
-        worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
+    worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
-        stmt = (
-            f"update_cost_model_costs called with args:\n"
-            f" schema_name: {schema_name},\n"
-            f" provider_uuid: {provider_uuid}"
-        )
-        LOG.info(stmt)
+    stmt = (
+        f"update_cost_model_costs called with args:\n"
+        f" schema_name: {schema_name},\n"
+        f" provider_uuid: {provider_uuid}"
+    )
+    LOG.info(stmt)
 
-        updater = CostModelCostUpdater(schema_name, provider_uuid)
-        if updater:
-            updater.update_cost_model_costs(start_date, end_date)
-            if provider_type:
-                refresh_materialized_views(schema_name, provider_type)
-
-    else:
-        stmt = (
-            f"\n update_cost_model_costs skipped. No cost model available for \n"
-            f" schema_name: {schema_name},\n"
-            f" provider_uuid: {provider_uuid}"
-        )
-        LOG.info(stmt)
+    updater = CostModelCostUpdater(schema_name, provider_uuid)
+    if updater:
+        updater.update_cost_model_costs(start_date, end_date)
 
 
 @app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name="reporting")

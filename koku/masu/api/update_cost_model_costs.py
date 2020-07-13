@@ -17,6 +17,7 @@
 """View for update_cost_model_costs endpoint."""
 import logging
 
+from celery import chain
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -28,6 +29,7 @@ from rest_framework.settings import api_settings
 
 from api.provider.models import Provider
 from api.utils import DateHelper
+from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import update_cost_model_costs as cost_task
 
 LOG = logging.getLogger(__name__)
@@ -52,13 +54,15 @@ def update_cost_model_costs(request):
         errmsg = "provider_uuid and schema_name are required parameters."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-    LOG.info("Calling update_cost_model_costs async task.")
-
     try:
         provider = Provider.objects.get(uuid=provider_uuid)
     except Provider.DoesNotExist:
         return Response({"Error": "Provider does not exist."}, status=status.HTTP_400_BAD_REQUEST)
-    else:
-        async_result = cost_task.delay(schema_name, provider_uuid, start_date, end_date, provider.type)
+
+    LOG.info("Calling update_cost_model_costs async task.")
+    async_result = chain(
+        cost_task.s(schema_name, provider_uuid, start_date, end_date),
+        refresh_materialized_views.si(schema_name, provider.type),
+    ).apply_async()
 
     return Response({"Update Cost Model Cost Task ID": str(async_result)})
