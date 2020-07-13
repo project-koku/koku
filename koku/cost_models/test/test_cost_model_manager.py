@@ -24,9 +24,9 @@ from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
 from api.provider.models import Provider
+from api.utils import DateHelper
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
-from cost_models.cost_model_manager import update_cost_model_costs
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 
@@ -69,7 +69,7 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            with patch("cost_models.cost_model_manager.chain"):
                 cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
@@ -101,7 +101,7 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            with patch("cost_models.cost_model_manager.chain"):
                 cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
@@ -138,7 +138,7 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            with patch("cost_models.cost_model_manager.chain"):
                 cost_model_obj = manager.create(**data)
 
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
@@ -147,7 +147,7 @@ class CostModelManagerTest(IamTestCase):
             self.assertEqual(CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(), provider_names_uuids)
 
             second_cost_model_obj = None
-            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            with patch("cost_models.cost_model_manager.chain"):
                 with self.assertRaises(CostModelException):
                     second_cost_model_obj = manager.create(**data)
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
@@ -184,7 +184,7 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            with patch("cost_models.cost_model_manager.chain"):
                 cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
@@ -216,7 +216,7 @@ class CostModelManagerTest(IamTestCase):
         cost_model_obj = None
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            with patch("cost_models.cost_model_manager.chain"):
                 cost_model_obj = manager.create(**data)
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
@@ -232,7 +232,7 @@ class CostModelManagerTest(IamTestCase):
         # Add provider to existing cost model
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            with patch("cost_models.cost_model_manager.chain"):
                 manager.update_provider_uuids(provider_uuids=[provider_uuid])
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
@@ -243,7 +243,7 @@ class CostModelManagerTest(IamTestCase):
         # Add provider again to existing cost model.  Verify there is still only 1 item in map
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            with patch("cost_models.cost_model_manager.chain"):
                 manager.update_provider_uuids(provider_uuids=[provider_uuid])
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
@@ -254,13 +254,17 @@ class CostModelManagerTest(IamTestCase):
         # Remove provider from existing rate
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            with patch("cost_models.cost_model_manager.chain"):
                 manager.update_provider_uuids(provider_uuids=[])
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
 
-    def test_deleting_cost_model_refreshes_materialized_views(self):
+    # TODO fix this test
+    @patch("cost_models.cost_model_manager.refresh_materialized_views")
+    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    @patch("cost_models.cost_model_manager.chain")
+    def test_deleting_cost_model_refreshes_materialized_views(self, mock_chain, mock_update, mock_refresh):
         """Test deleting a cost model refreshes the materialized views."""
         provider_name = "sample_provider"
         with patch("masu.celery.tasks.check_report_updates"):
@@ -278,15 +282,18 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
-                cost_model_obj = manager.create(**data)
+            cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
 
-            with patch("masu.processor.tasks.update_cost_model_costs.delay", side_effect=update_cost_model_costs):
-                with patch("masu.processor.tasks.refresh_materialized_views") as mock_refresh:
-                    # simulates deleting a cost_model
-                    manager.update_provider_uuids(provider_uuids=[])
-                    mock_refresh.assert_called()
+        start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
+        end_date = DateHelper().today.strftime("%Y-%m-%d")
+
+        # simulates deleting a cost_model
+        manager.update_provider_uuids(provider_uuids=[])
+        mock_chain.assert_called_once_with(
+            mock_update.s(self.schema_name, provider_uuid, start_date, end_date),
+            mock_refresh.si(self.schema_name, provider.type),
+        )
