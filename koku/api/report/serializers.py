@@ -352,10 +352,6 @@ class ParamSerializer(BaseSerializer):
                 if key == "account_alias" and ("account" in group_keys or "account" in or_keys):
                     continue
 
-                # special case: we order by account_alias, but we group by account using or.
-                # if key == "account_alias" and "account" in or_keys:
-                #    continue
-
             error[key] = _(f'Order-by "{key}" requires matching Group-by.')
             raise serializers.ValidationError(error)
         return value
