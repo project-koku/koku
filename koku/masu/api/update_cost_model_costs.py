@@ -59,6 +59,6 @@ def update_cost_model_costs(request):
     except Provider.DoesNotExist:
         return Response({"Error": "Provider does not exist."}, status=status.HTTP_400_BAD_REQUEST)
     else:
-        async_result = cost_task(schema_name, provider_uuid, start_date, end_date, provider.type)
+        async_result = cost_task.delay(schema_name, provider_uuid, start_date, end_date, provider.type)
 
     return Response({"Update Cost Model Cost Task ID": str(async_result)})

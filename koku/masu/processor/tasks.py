@@ -353,7 +353,7 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
         if updater:
             updater.update_cost_model_costs(start_date, end_date)
             if provider_type:
-                refresh_materialized_views.delay(schema_name, provider_type)
+                refresh_materialized_views(schema_name, provider_type)
 
     else:
         stmt = (
