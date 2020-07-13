@@ -444,3 +444,19 @@ class QueryParamSerializerTest(TestCase):
         serializer = QueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
+
+    def test_multiple_group_by_error(self):
+        """Test or Error."""
+        query_params = {
+            "group_by": {"account": ["account1"], "project": ["project1"]},
+            "order_by": {"or:cost": "asc"},
+            "filter": {
+                "resolution": "daily",
+                "time_scope_value": "-10",
+                "time_scope_units": "day",
+                "resource_scope": [],
+            },
+        }
+        serializer = QueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)

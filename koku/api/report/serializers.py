@@ -328,7 +328,11 @@ class ParamSerializer(BaseSerializer):
             if key in self.order_by_whitelist:
                 continue  # fields that do not require a group-by
 
-            if "group_by" in self.initial_data:
+            if "or:" in key:
+                error[key] = _(f'The order_by key "{key}" can not contain the or paramerter.')
+                raise serializers.ValidationError(error)
+
+            if "group_by" in self.initial_data and "or:" not in key:
                 group_keys = self.initial_data.get("group_by").keys()
 
                 if key in group_keys:
@@ -345,12 +349,12 @@ class ParamSerializer(BaseSerializer):
                     continue  # found matching group-by with or
 
                 # special case: we order by account_alias, but we group by account.
-                if key == "account_alias" and "account" in group_keys:
+                if key == "account_alias" and ("account" in group_keys or "account" in or_keys):
                     continue
 
                 # special case: we order by account_alias, but we group by account using or.
-                if key == "account_alias" and "account" in or_keys:
-                    continue
+                # if key == "account_alias" and "account" in or_keys:
+                #    continue
 
             error[key] = _(f'Order-by "{key}" requires matching Group-by.')
             raise serializers.ValidationError(error)
