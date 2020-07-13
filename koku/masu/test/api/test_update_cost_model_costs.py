@@ -30,7 +30,7 @@ class UpdateCostModelCostTest(TestCase):
 
     @patch("masu.api.update_cost_model_costs.Provider")
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.update_cost_model_costs.cost_task.delay")
+    @patch("masu.api.update_cost_model_costs.cost_task")
     def test_get_update_cost_model_costs(self, mock_update, _, __):
         """Test the GET report_data endpoint."""
         params = {"schema": "acct10001", "provider_uuid": "3c6e687e-1a09-4a05-970c-2ccf44b0952e"}
@@ -48,7 +48,7 @@ class UpdateCostModelCostTest(TestCase):
 
     @patch("masu.api.update_cost_model_costs.Provider")
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.update_cost_model_costs.cost_task.delay")
+    @patch("masu.api.update_cost_model_costs.cost_task")
     def test_get_update_cost_model_costs_with_dates(self, mock_update, _, __):
         """Test the GET report_data endpoint."""
         params = {
