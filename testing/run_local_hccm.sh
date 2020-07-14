@@ -50,6 +50,6 @@ hccm_local_container() {
                            -v $SCRIPTPATH/local_providers/azure_local:/tmp/local_container${FLAGS} \
                            -v $SCRIPTPATH/pvc_dir/insights_local:/var/tmp/masu/insights_local${FLAGS} \
                            $IMAGE \
-                           bash -c "iqe plugin uninstall hccm && iqe plugin install --editable /hccm_plugin/ && $COMMAND"
+                           bash -c "iqe plugin uninstall cost_management && iqe plugin install --editable /hccm_plugin/ && $COMMAND"
 }
 hccm_local_container
