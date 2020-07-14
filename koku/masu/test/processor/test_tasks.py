@@ -899,21 +899,24 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date.date())
         self.assertEqual(result_end_date, expected_end_date.date())
 
-    @patch("masu.processor.tasks.remove_expired_data")
-    @patch("masu.processor.tasks.refresh_materialized_views")
+    # @patch("masu.processor.tasks.remove_expired_data")
+    # @patch("masu.processor.tasks.refresh_materialized_views")
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.CostModelDBAccessor")
-    def test_update_summary_tables_remove_expired_data(self, mock_accessor, mock_chain, mock_refresh, mock_remove):
+    def test_update_summary_tables_remove_expired_data(self, mock_accessor, mock_chain):
         provider = Provider.PROVIDER_AWS
         provider_aws_uuid = self.aws_provider_uuid
         start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
         end_date = DateHelper().today
+        expected_start_date = start_date.strftime("%Y-%m-%d")
+        expected_end_date = end_date.strftime("%Y-%m-%d")
         manifest_id = 1
 
         update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, end_date, manifest_id)
         mock_chain.assert_called_once_with(
-            mock_refresh.s(self.schema, provider, manifest_id),
-            mock_remove.si(self.schema, provider, False, provider_aws_uuid, True),
+            update_cost_model_costs.s(self.schema, provider_aws_uuid, expected_start_date, expected_end_date)
+            | refresh_materialized_views.si(self.schema, provider, manifest_id)
+            | remove_expired_data.si(self.schema, provider, False, provider_aws_uuid, True)
         )
 
     @patch("masu.processor.tasks.update_summary_tables")
