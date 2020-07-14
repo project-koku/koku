@@ -452,11 +452,41 @@ class QueryParamSerializerTest(TestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
-    def test_multiple_group_by_error(self):
-        """Test or Error."""
+    def test_multiple_group_by_with_matching_sort_or(self):
+        """Test multiple group by with a matching sort for or group_by parameters."""
+        query_params = {
+            "group_by": {"or:account": "*", "or:region": "east"},
+            "order_by": {"region": "asc"},
+            "filter": {
+                "resolution": "daily",
+                "time_scope_value": "-10",
+                "time_scope_units": "day",
+                "resource_scope": [],
+            },
+        }
+        serializer = QueryParamSerializer(data=query_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_multiple_group_by_with_matching_sort(self):
+        """Test multiple group by with a matching sort for group_by parameters"""
+        query_params = {
+            "group_by": {"account": "*", "region": "east"},
+            "order_by": {"region": "asc"},
+            "filter": {
+                "resolution": "daily",
+                "time_scope_value": "-10",
+                "time_scope_units": "day",
+                "resource_scope": [],
+            },
+        }
+        serializer = QueryParamSerializer(data=query_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_multiple_group_by_error_invalid_or_key(self):
+        """Test error is thrown when or order_by parameter is used."""
         query_params = {
             "group_by": {"account": ["account1"], "project": ["project1"]},
-            "order_by": {"cost": "asc"},
+            "order_by": {"or:usage": "asc"},
             "filter": {
                 "resolution": "daily",
                 "time_scope_value": "-10",
@@ -469,26 +499,10 @@ class QueryParamSerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
     def test_multiple_group_by_error_invalid_key(self):
-        """Test or Error."""
+        """Test error when invalid order_by parameter is passed."""
         query_params = {
-            "group_by": {"or:account": ["account1"], "or:project": ["project1"]},
-            "order_by": {"project": "asc"},
-            "filter": {
-                "resolution": "daily",
-                "time_scope_value": "-10",
-                "time_scope_units": "day",
-                "resource_scope": [],
-            },
-        }
-        serializer = QueryParamSerializer(data=query_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
-
-    def test_multiple_group_by_error_invalid_key_or(self):
-        """Test or Error."""
-        query_params = {
-            "group_by": {"account": ["account1"], "project": ["project1"]},
-            "order_by": {"or:cost": "asc"},
+            "group_by": {"or:account": "*", "or:project": "*"},
+            "order_by": {"region": "asc"},
             "filter": {
                 "resolution": "daily",
                 "time_scope_value": "-10",
@@ -501,7 +515,7 @@ class QueryParamSerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
     def test_multiple_group_by_error_valid_key_whitelist(self):
-        """Test for valid key on whitelist."""
+        """Test for valid key for special case account alias."""
         query_params = {
             "group_by": {"account": ["account1"], "project": ["project1"]},
             "order_by": {"account_alias": "asc"},
@@ -517,7 +531,7 @@ class QueryParamSerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
     def test_multiple_group_by_valid_with_or(self):
-        """Test for valid key on whitelist."""
+        """Test for valid key on special case account alias with or group_by parameters."""
         query_params = {
             "group_by": {"or:account": ["account1"], "or:project": ["project1"]},
             "order_by": {"account_alias": "asc"},
