@@ -18,6 +18,8 @@
 import logging
 from tempfile import mkdtemp
 
+from django.db.utils import IntegrityError
+
 from api.common import log_json
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 
@@ -82,8 +84,16 @@ class ReportDownloaderBase:
                     "num_total_files": num_of_files,
                     "provider_uuid": self._provider_uuid,
                 }
-                manifest_entry = manifest_accessor.add(**manifest_dict)
-
+                try:
+                    manifest_entry = manifest_accessor.add(**manifest_dict)
+                except IntegrityError as error:
+                    msg = (
+                        f"Manifest entry uniqueness collision: Error {error}. "
+                        "Manifest already added, getting manifest_entry_id."
+                    )
+                    LOG.warning(log_json(self.request_id, msg, self.context))
+                    with ReportManifestDBAccessor() as manifest_accessor:
+                        manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
             manifest_accessor.mark_manifest_as_updated(manifest_entry)
             manifest_id = manifest_entry.id
 

@@ -16,7 +16,9 @@
 #
 """Test the report downloader base class."""
 import os.path
+from unittest.mock import patch
 
+from django.db.utils import IntegrityError
 from faker import Faker
 from model_bakery import baker
 
@@ -49,17 +51,17 @@ class ReportDownloaderBaseTest(MasuTestCase):
         super().setUp()
         self.cache_key = self.fake.word()
         self.downloader = ReportDownloaderBase(provider_uuid=self.aws_provider_uuid, cache_key=self.cache_key)
-        billing_start = self.date_accessor.today_with_timezone("UTC").replace(day=1)
+        self.billing_start = self.date_accessor.today_with_timezone("UTC").replace(day=1)
         self.manifest_dict = {
             "assembly_id": self.assembly_id,
-            "billing_period_start_datetime": billing_start,
+            "billing_period_start_datetime": self.billing_start,
             "num_total_files": 2,
             "provider_uuid": self.aws_provider_uuid,
         }
         with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.add(**self.manifest_dict)
-            manifest.save()
-            self.manifest_id = manifest.id
+            self.manifest = manifest_accessor.add(**self.manifest_dict)
+            self.manifest.save()
+            self.manifest_id = self.manifest.id
         for i in [1, 2]:
             baker.make(
                 CostUsageReportStatus,
@@ -99,3 +101,11 @@ class ReportDownloaderBaseTest(MasuTestCase):
         """Test that a manifest ID is returned."""
         manifest_id = self.downloader._get_existing_manifest_db_id(self.assembly_id)
         self.assertEqual(manifest_id, self.manifest_id)
+
+    @patch.object(ReportManifestDBAccessor, "get_manifest")
+    def test_process_manifest_db_record_race(self, mock_get_manifest):
+        """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
+        mock_get_manifest.side_effect = [None, self.manifest]
+        with patch.object(ReportManifestDBAccessor, "add", side_effect=IntegrityError):
+            manifest_id = self.downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2)
+        self.assertEqual(manifest_id, self.manifest.id)
