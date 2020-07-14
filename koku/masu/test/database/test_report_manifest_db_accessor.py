@@ -25,6 +25,7 @@ from tenant_schemas.utils import schema_context
 from api.iam.test.iam_test_case import IamTestCase
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.test.database.helpers import ManifestCreationHelper
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
@@ -139,8 +140,13 @@ class ReportManifestDBAccessorTest(IamTestCase):
         self.assertEqual(assembly_ids, [manifest.assembly_id, manifest2.assembly_id])
 
         # test that when the manifest's files have been processed - it is no longer returned
-        manifest2.num_processed_files = manifest_dict2.get("num_total_files")
-        manifest2.save()
+        manifest2_helper = ManifestCreationHelper(
+            manifest2.id, manifest_dict2.get("num_total_files"), manifest_dict2.get("assembly_id")
+        )
+
+        manifest2_helper.generate_test_report_files()
+        manifest2_helper.process_all_files()
+
         assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
         self.assertEqual(assembly_ids, [manifest.assembly_id])
 
