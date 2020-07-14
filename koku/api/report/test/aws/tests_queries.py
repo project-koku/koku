@@ -41,6 +41,7 @@ from api.report.aws.view import AWSCostView
 from api.report.aws.view import AWSInstanceTypeView
 from api.report.aws.view import AWSStorageView
 from api.report.queries import strip_tag_prefix
+from api.report.test.aws.test_views import _calculate_accounts_and_subous
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
@@ -63,57 +64,6 @@ from reporting.models import AWSStorageSummaryByRegion
 from reporting.models import AWSStorageSummaryByService
 
 LOG = logging.getLogger(__name__)
-
-
-def _calculate_subtotals(data):
-    """Returns the expected totals given the response data."""
-
-    def total_costs(cost_values):
-        total = 0
-        for value in cost_values:
-            total += value
-        return total
-
-    cost = []
-    infra = []
-    sup = []
-    for dictionary in data:
-        for _, value in dictionary.items():
-            if isinstance(value, list):
-                for item in value:
-                    if isinstance(item, dict):
-                        if "values" in item.keys():
-                            value = item["values"][0]
-                            cost.append(value["cost"]["total"]["value"])
-                            infra.append(value["infrastructure"]["total"]["value"])
-                            sup.append(value["supplementary"]["total"]["value"])
-                        else:
-                            cost.append(item["cost"]["total"]["value"])
-                            infra.append(item["infrastructure"]["total"]["value"])
-                            sup.append(item["supplementary"]["total"]["value"])
-
-    cost_total = total_costs(cost)
-    infra_total = total_costs(infra)
-    sup_total = total_costs(sup)
-    return (cost_total, infra_total, sup_total)
-
-
-def _calculate_accounts_and_sub_ous(data):
-    """Returns list of accounts and sub ous given data."""
-    accounts = []
-    sub_ous = []
-    for dictionary in data:
-        for _, value in dictionary.items():
-            if isinstance(value, list):
-                for item in value:
-                    if isinstance(item, dict):
-                        if "account" in item.keys():
-                            account = item["account"]
-                            accounts.append(account)
-                        elif "org_unit_id" in item.keys():
-                            sub_ou = item["org_unit_id"]
-                            sub_ous.append(sub_ou)
-    return (list(set(accounts)), list(set(sub_ous)))
 
 
 def get_account_ailases():
@@ -1351,6 +1301,12 @@ class AWSReportQueryTest(IamTestCase):
                 # infra and total cost match
                 self.assertEqual(cost_total, expected_cost_total)
                 self.assertEqual(infra_total, expected_cost_total)
+                # test the org units and accounts returned are correct
+                accounts_and_sub_ous = _calculate_accounts_and_subous(data.get("data"))
+                for account in ou_to_account_subou_map.get(org_unit).get("accounts"):
+                    self.assertIn(account, accounts_and_sub_ous)
+                for sub_ou in ou_to_account_subou_map.get(org_unit).get("org_units"):
+                    self.assertIn(sub_ou, accounts_and_sub_ous)
 
         # for each org defined in our yaml file assert that everything is as expected
         orgs_to_check = ["R_001", "OU_001", "OU_002", "OU_003", "OU_004", "OU_005"]
