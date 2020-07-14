@@ -31,21 +31,15 @@ LOG = logging.getLogger(__name__)
 
 def _calculate_accounts_and_subous(data):
     """Returns list of accounts and sub_ous in the input data."""
-    accounts = []
-    sub_ous = []
+    accounts_and_subous = []
     if data:
-        for dictionary in data:
-            for _, value in dictionary.items():
-                if isinstance(value, list):
-                    for item in value:
-                        if isinstance(item, dict):
-                            if "account" in item.keys():
-                                account = item["account"]
-                                accounts.append(account)
-                            elif "org_unit_id" in item.keys():
-                                sub_ou = item["org_unit_id"]
-                                sub_ous.append(sub_ou)
-    return (list(set(accounts)), list(set(sub_ous)))
+        for day in data:
+            org_entities = day.get("org_entities", [])
+            for dictionary in org_entities:
+                for key, value in dictionary.items():
+                    if key == "id":
+                        accounts_and_subous.append(value)
+    return list(set(accounts_and_subous))
 
 
 class AWSReportViewTest(IamTestCase):
@@ -212,13 +206,13 @@ class AWSReportViewTest(IamTestCase):
             qs = f"?group_by[org_unit_id]={org_unit}"
             url = reverse("reports-aws-costs") + qs
             response = self.client.get(url, **self.headers)
-            accounts, sub_ous = _calculate_accounts_and_subous(response.data.get("data"))
+            accounts_and_subous = _calculate_accounts_and_subous(response.data.get("data"))
             # These accounts are tied to this org unit inside of the
             # aws_org_tree.yml that populates the data for tests
             for account in ou_to_account_subou_map.get(org_unit).get("accounts"):
-                self.assertIn(account, accounts)
+                self.assertIn(account, accounts_and_subous)
             for ou in ou_to_account_subou_map.get(org_unit).get("org_units"):
-                self.assertIn(ou, sub_ous)
+                self.assertIn(ou, accounts_and_subous)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @RbacPermissions(
@@ -240,13 +234,13 @@ class AWSReportViewTest(IamTestCase):
             qs = f"?group_by[org_unit_id]={org_unit}"
             url = reverse("reports-aws-costs") + qs
             response = self.client.get(url, **self.headers)
-            accounts, sub_ous = _calculate_accounts_and_subous(response.data.get("data"))
+            accounts_and_subous = _calculate_accounts_and_subous(response.data.get("data"))
             # These accounts are tied to this org unit inside of the
             # aws_org_tree.yml that populates the data for tests
             for account in ou_to_account_subou_map.get(org_unit).get("accounts"):
-                self.assertIn(account, accounts)
+                self.assertIn(account, accounts_and_subous)
             for ou in ou_to_account_subou_map.get(org_unit).get("org_units"):
-                self.assertIn(ou, sub_ous)
+                self.assertIn(ou, accounts_and_subous)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # test that OU_001 raises a 403
@@ -270,13 +264,13 @@ class AWSReportViewTest(IamTestCase):
             qs = f"?group_by[org_unit_id]={org_unit}"
             url = reverse("reports-aws-costs") + qs
             response = self.client.get(url, **self.headers)
-            accounts, sub_ous = _calculate_accounts_and_subous(response.data.get("data"))
+            accounts_and_subous = _calculate_accounts_and_subous(response.data.get("data"))
             # These accounts are tied to this org unit inside of the
             # aws_org_tree.yml that populates the data for tests
             for account in ou_to_account_subou_map.get(org_unit).get("accounts"):
-                self.assertIn(account, accounts)
+                self.assertIn(account, accounts_and_subous)
             for ou in ou_to_account_subou_map.get(org_unit).get("org_units"):
-                self.assertIn(ou, sub_ous)
+                self.assertIn(ou, accounts_and_subous)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
             # test filter
@@ -295,13 +289,13 @@ class AWSReportViewTest(IamTestCase):
             qs = f"?group_by[org_unit_id]={org_unit}"
             url = reverse("reports-aws-costs") + qs
             response = self.client.get(url, **self.headers)
-            accounts, sub_ous = _calculate_accounts_and_subous(response.data.get("data"))
+            accounts_and_subous = _calculate_accounts_and_subous(response.data.get("data"))
             # These accounts are tied to this org unit inside of the
             # aws_org_tree.yml that populates the data for tests
             for account in ou_to_account_subou_map.get(org_unit).get("accounts"):
-                self.assertIn(account, accounts)
+                self.assertIn(account, accounts_and_subous)
             for ou in ou_to_account_subou_map.get(org_unit).get("org_units"):
-                self.assertIn(ou, sub_ous)
+                self.assertIn(ou, accounts_and_subous)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @RbacPermissions({"aws.account": {"read": ["9999999999991"]}, "aws.organizational_unit": {"read": ["*"]}})
@@ -310,8 +304,8 @@ class AWSReportViewTest(IamTestCase):
         qs = "group_by[org_unit_id]=OU_001"
         url = reverse("reports-aws-costs") + "?" + qs
         response = self.client.get(url, **self.headers)
-        accounts, sub_ous = _calculate_accounts_and_subous(response.data.get("data"))
-        self.assertEqual(accounts, ["9999999999991"])
+        accounts_and_subous = _calculate_accounts_and_subous(response.data.get("data"))
+        self.assertEqual(accounts_and_subous, ["9999999999991"])
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @RbacPermissions({"aws.account": {"read": ["fakeaccount"]}, "aws.organizational_unit": {"read": ["fake_org"]}})
