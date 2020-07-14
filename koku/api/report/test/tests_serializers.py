@@ -355,6 +355,13 @@ class OrderBySerializerTest(TestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
+    def test_order_by_params_invalid_fields_or(self):
+        """Test parse of order_by params for invalid fields."""
+        order_params = {"or:cost": "asc", "invalid": "param"}
+        serializer = OrderBySerializer(data=order_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
 
 class QueryParamSerializerTest(TestCase):
     """Tests for the handling query parameter parsing serializer."""
@@ -496,8 +503,8 @@ class QueryParamSerializerTest(TestCase):
     def test_parse_query_params_or_success(self):
         """Test parse of a query params successfully."""
         query_params = {
-            "group_by": {"account": ["account1"]},
-            "order_by": {"project": "asc"},
+            "group_by": {"or:project": "*"},
+            "order_by": {"cluster": "asc"},
             "filter": {
                 "resolution": "daily",
                 "time_scope_value": "-10",
