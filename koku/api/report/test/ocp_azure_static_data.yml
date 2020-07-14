@@ -4,16 +4,15 @@ generators:
       start_date: {{ start_date }}
       end_date: {{ end_date }}
       nodes:
-        - node:
-          node_name: azure_compute_1
+        - node_name: azure_compute_1
           cpu_cores: 2
           memory_gig: 8
           resource_id: 99999995
+          labels: label_environment:Jupiter
           namespaces:
-            mobile:
+            - namespace_name: mobile
               pods:
-                - pod:
-                  pod_name: pod_name1
+                - pod_name: pod_name1
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
@@ -21,21 +20,18 @@ generators:
                   pod_seconds: 3600
                   labels: label_environment:Jupiter|label_app:mobile|label_version:Mars
               volumes:
-                - volume:
-                  volume_name: pvc-volume_1
+                - volume_name: pvc-volume_1
                   storage_class: gp2
                   volume_request_gig: 20
                   labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur
                   volume_claims:
-                  - volume_claim:
-                    volume_claim_name: pod_name1_data
+                  - volume_claim_name: pod_name1_data
                     pod_name: pod_name1
                     labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur
                     capacity_gig: 20
-            news-site:
+            - namespace_name: news-site
               pods:
-                - pod:
-                  pod_name: pod_name2
+                - pod_name: pod_name2
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
@@ -43,22 +39,20 @@ generators:
                   pod_seconds: 3600
                   labels: label_environment:Jupiter|label_app:mobile|label_version:Mars
               volumes:
-                - volume:
-                  volume_name: pvc-volume_2
+                - volume_name: pvc-volume_2
                   storage_class: gp2
                   volume_request_gig: 20
                   labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Loki
                   volume_claims:
-                  - volume_claim:
-                    volume_claim_name: pod_name2_data
+                  - volume_claim_name: pod_name2_data
                     pod_name: pod_name2
                     labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Loki
                     capacity_gig: 20
-        - node:
-          node_name: azure_compute_2
+        - node_name: azure_compute_2
           cpu_cores: 2
           memory_gig: 8
           resource_id: 99999996
+          labels: label_environment:qe
           namespaces:
             banking:
               pods:
@@ -82,16 +76,15 @@ generators:
                     pod_name: pod_name3
                     labels: label_environment:qe|label_app:banking|label_version:MilkyWay|label_storageclass:Odin
                     capacity_gig: 20
-        - node:
-          node_name: azure_compute_3
+        - node_name: azure_compute_3
           cpu_cores: 2
           memory_gig: 8
           resource_id: 99999997
+          labels: label_environment:Mars
           namespaces:
-            weather:
+            - namespace_name: weather
               pods:
-                - pod:
-                  pod_name: pod_name4
+                - pod_name: pod_name4
                   cpu_request: 2
                   mem_request_gig: 4
                   cpu_limit: 2
@@ -99,37 +92,33 @@ generators:
                   pod_seconds: 3600
                   labels: label_environment:Mars|label_app:weather|label_version:Andromeda
               volumes:
-                - volume:
-                  volume_name: pvc-volume_4
+                - volume_name: pvc-volume_4
                   storage_class: gp2
                   volume_request_gig: 20
                   labels: label_environment:Mars|label_app:weather|label_version:Andromeda|label_storageclass:Thor
                   volume_claims:
-                  - volume_claim:
-                    volume_claim_name: pod_name4_data
+                  - volume_claim_name: pod_name4_data
                     pod_name: pod_name4
                     labels: label_environment:Mars|label_app:weather|label_version:Andromeda|label_storageclass:Thor
                     capacity_gig: 20
-        - node:
-          node_name: azure_master
+        - node_name: azure_master
           cpu_cores: 2
           memory_gig: 8
           resource_id: 99999998
+          labels: label_environment:Mars
           namespaces:
-            kube-system:
+            - namespace_name: kube-system
               pods:
-                - pod:
-                  pod_name: pod_name5
+                - pod_name: pod_name5
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
                   labels: label_environment:Mars|label_app:Sombrero|label_version:Sombrero
-            openshift:
+            - namespace_name: openshift
               pods:
-                - pod:
-                  pod_name: pod_name6
+                - pod_name: pod_name6
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1

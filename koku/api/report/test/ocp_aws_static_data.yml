@@ -4,16 +4,15 @@ generators:
       start_date: {{ start_date }}
       end_date: {{ end_date }}
       nodes:
-        - node:
-          node_name: aws_compute_1
+        - node_name: aws_compute_1
           cpu_cores: 2
           memory_gig: 8
           resource_id: 55555555
+          labels: label_environment:dev
           namespaces:
-            install-test:
+            - namespace_name: install-test
               pods:
-                - pod:
-                  pod_name: pod_name1
+                - pod_name: pod_name1
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
@@ -21,21 +20,18 @@ generators:
                   pod_seconds: 3600
                   labels: label_environment:dev|label_app:catalog|label_version:prod
               volumes:
-                - volume:
-                  volume_name: pvc-volume_1
+                - volume_name: pvc-volume_1
                   storage_class: gp2
                   volume_request_gig: 20
                   labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:bravo
                   volume_claims:
-                  - volume_claim:
-                    volume_claim_name: pod_name1_data
+                  - volume_claim_name: pod_name1_data
                     pod_name: pod_name1
                     labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:bravo
                     capacity_gig: 20
-            catalog:
+            - namespace_name: catalog
               pods:
-                - pod:
-                  pod_name: pod_name2
+                - pod_name: pod_name2
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
@@ -43,27 +39,24 @@ generators:
                   pod_seconds: 3600
                   labels: label_environment:dev|label_app:catalog|label_version:prod
               volumes:
-                - volume:
-                  volume_name: pvc-volume_2
+                - volume_name: pvc-volume_2
                   storage_class: gp2
                   volume_request_gig: 20
                   labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:delta
                   volume_claims:
-                  - volume_claim:
-                    volume_claim_name: pod_name2_data
+                  - volume_claim_name: pod_name2_data
                     pod_name: pod_name2
                     labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:delta
                     capacity_gig: 20
-        - node:
-          node_name: aws_compute_2
+        - node_name: aws_compute_2
           cpu_cores: 2
           memory_gig: 8
           resource_id: 55555556
+          labels: label_environment:qe
           namespaces:
-            cost-management:
+            - namespace_name: cost-management
               pods:
-                - pod:
-                  pod_name: pod_name3
+                - pod_name: pod_name3
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
@@ -71,27 +64,24 @@ generators:
                   pod_seconds: 3600
                   labels: label_environment:qe|label_app:cost|label_version:beta
               volumes:
-                - volume:
-                  volume_name: pvc-volume_3
+                - volume_name: pvc-volume_3
                   storage_class: gp2
                   volume_request_gig: 20
                   labels: label_environment:qe|label_app:cost|label_version:beta|label_storageclass:epsilon
                   volume_claims:
-                  - volume_claim:
-                    volume_claim_name: pod_name3_data
+                  - volume_claim_name: pod_name3_data
                     pod_name: pod_name3
                     labels: label_environment:qe|label_app:cost|label_version:beta|label_storageclass:epsilon
                     capacity_gig: 20
-        - node:
-          node_name: aws_compute_3
+        - node_name: aws_compute_3
           cpu_cores: 2
           memory_gig: 8
           resource_id: 55555557
+          labels: label_environment:prod
           namespaces:
-            analytics:
+            - namespace_name: analytics
               pods:
-                - pod:
-                  pod_name: pod_name4
+                - pod_name: pod_name4
                   cpu_request: 2
                   mem_request_gig: 4
                   cpu_limit: 2
@@ -99,37 +89,33 @@ generators:
                   pod_seconds: 3600
                   labels: label_environment:prod|label_app:analytics|label_version:gamma
               volumes:
-                - volume:
-                  volume_name: pvc-volume_4
+                - volume_name: pvc-volume_4
                   storage_class: gp2
                   volume_request_gig: 20
                   labels: label_environment:prod|label_app:analytics|label_version:gamma|label_storageclass:charlie
                   volume_claims:
-                  - volume_claim:
-                    volume_claim_name: pod_name4_data
+                  - volume_claim_name: pod_name4_data
                     pod_name: pod_name4
                     labels: label_environment:prod|label_app:analytics|label_version:gamma|label_storageclass:charlie
                     capacity_gig: 20
-        - node:
-          node_name: aws_master
+        - node_name: aws_master
           cpu_cores: 2
           memory_gig: 8
           resource_id: 55555558
+          labels: label_environment:prod
           namespaces:
-            kube-system:
+            - namespace_name: kube-system
               pods:
-                - pod:
-                  pod_name: pod_name5
+                - pod_name: pod_name5
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
                   labels: label_environment:prod|label_app:master|label_version:master
-            openshift:
+            - namespace_name: openshift
               pods:
-                - pod:
-                  pod_name: pod_name6
+                - pod_name: pod_name6
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
