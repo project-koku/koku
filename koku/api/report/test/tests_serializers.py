@@ -449,7 +449,39 @@ class QueryParamSerializerTest(TestCase):
         """Test or Error."""
         query_params = {
             "group_by": {"account": ["account1"], "project": ["project1"]},
-            "order_by": {"or:cost": "asc"},
+            "order_by": {"or:region": "asc"},
+            "filter": {
+                "resolution": "daily",
+                "time_scope_value": "-10",
+                "time_scope_units": "day",
+                "resource_scope": [],
+            },
+        }
+        serializer = QueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_multiple_group_by_error_invalid_key(self):
+        """Test or Error."""
+        query_params = {
+            "group_by": {"account": ["account1"], "project": ["project1"]},
+            "order_by": {"reigion": "asc"},
+            "filter": {
+                "resolution": "daily",
+                "time_scope_value": "-10",
+                "time_scope_units": "day",
+                "resource_scope": [],
+            },
+        }
+        serializer = QueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_multiple_group_by_or_key(self):
+        """Test or Error."""
+        query_params = {
+            "group_by": {"account": ["account1"], "project": ["project1"]},
+            "order_by": {"or:project": "asc"},
             "filter": {
                 "resolution": "daily",
                 "time_scope_value": "-10",
