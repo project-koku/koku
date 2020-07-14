@@ -492,3 +492,20 @@ class QueryParamSerializerTest(TestCase):
         serializer = QueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
+
+    def test_parse_query_params_or_success(self):
+        """Test parse of a query params successfully."""
+        query_params = {
+            "group_by": {"account": ["account1"]},
+            "order_by": {"project": "asc"},
+            "filter": {
+                "resolution": "daily",
+                "time_scope_value": "-10",
+                "time_scope_units": "day",
+                "resource_scope": [],
+            },
+            "units": "byte",
+        }
+        serializer = QueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)

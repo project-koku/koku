@@ -332,7 +332,7 @@ class ParamSerializer(BaseSerializer):
                 error[key] = _(f'The order_by key "{key}" can not contain the or parameter.')
                 raise serializers.ValidationError(error)
 
-            if "group_by" in self.initial_data and "or:" not in key:
+            if "group_by" in self.initial_data:
                 group_keys = self.initial_data.get("group_by").keys()
 
                 if key in group_keys:
