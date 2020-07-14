@@ -254,6 +254,11 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     with ProviderDBAccessor(provider_uuid) as provider_accessor:
         provider = provider_accessor.get_provider()
 
+    if not provider:
+        err_msg = "Provider UUID is not associated with a given provider."
+        LOG.warning(err_msg)
+        return []
+
     if provider.type not in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
         err_msg = f"Provider UUID is not an AWS type.  It is {provider.type}"
         LOG.warning(err_msg)

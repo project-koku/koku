@@ -245,6 +245,10 @@ class TestAWSUtils(MasuTestCase):
 
         self.assertEqual(bill_ids, expected_bill_ids)
 
+        # Try with unknown provider uuid
+        bills = utils.get_bills_from_provider(self.unkown_test_provider_uuid, self.schema)
+        self.assertEqual(bills, [])
+
     def test_get_bill_ids_from_provider_with_start_date(self):
         """Test that bill IDs are returned for an AWS provider with start date."""
         date_accessor = DateAccessor()
