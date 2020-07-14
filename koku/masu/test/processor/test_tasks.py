@@ -899,6 +899,23 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date.date())
         self.assertEqual(result_end_date, expected_end_date.date())
 
+    @patch("masu.processor.tasks.remove_expired_data")
+    @patch("masu.processor.tasks.refresh_materialized_views")
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.tasks.CostModelDBAccessor")
+    def test_update_summary_tables_remove_expired_data(self, mock_accessor, mock_chain, mock_refresh, mock_remove):
+        provider = Provider.PROVIDER_AWS
+        provider_aws_uuid = self.aws_provider_uuid
+        start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
+        end_date = DateHelper().today
+        manifest_id = 1
+
+        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, end_date, manifest_id)
+        mock_chain.assert_called_once_with(
+            mock_refresh.s(self.schema, provider, manifest_id),
+            mock_remove.si(self.schema, provider, False, provider_aws_uuid, True),
+        )
+
     @patch("masu.processor.tasks.update_summary_tables")
     def test_get_report_data_for_all_providers(self, mock_update):
         """Test GET report_data endpoint with provider_uuid=*."""
