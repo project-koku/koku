@@ -116,7 +116,6 @@ class NiseDataLoader:
                 _fill_optional=True,
                 provider=provider,
                 billing_period_start_datetime=bill_date,
-                num_processed_files=0,
                 num_total_files=3,
             )
             with open(static_data_path, "w") as f:
