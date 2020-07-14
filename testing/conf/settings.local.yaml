@@ -1,5 +1,5 @@
 local:
-  hccm:
+  cost_management:
     use_sources: False
     ocp_dir: /var/tmp/masu/insights_local
     aws_dir: /tmp/local_bucket
