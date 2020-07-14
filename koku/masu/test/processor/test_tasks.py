@@ -899,8 +899,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date.date())
         self.assertEqual(result_end_date, expected_end_date.date())
 
-    # @patch("masu.processor.tasks.remove_expired_data")
-    # @patch("masu.processor.tasks.refresh_materialized_views")
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.CostModelDBAccessor")
     def test_update_summary_tables_remove_expired_data(self, mock_accessor, mock_chain):
