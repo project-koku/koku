@@ -519,8 +519,7 @@ def summarize_manifest(report_meta):
     provider_type = report_meta.get("provider_type")
 
     with ReportManifestDBAccessor() as manifest_accesor:
-        manifest = manifest_accesor.get_manifest_by_id(manifest_id)
-        if manifest.num_processed_files == manifest.num_total_files:
+        if manifest_accesor.manifest_ready_for_summary(manifest_id):
             report_meta = {
                 "schema_name": schema_name,
                 "provider_type": provider_type,
@@ -560,8 +559,7 @@ def convert_manifest_to_parquet(request_id, report_meta, context={}):
         context = {"account": schema_name[4:], "provider_uuid": provider_uuid, "provider_type": provider_type}
 
     with ReportManifestDBAccessor() as manifest_accesor:
-        manifest = manifest_accesor.get_manifest_by_id(manifest_id)
-        if manifest.num_processed_files == manifest.num_total_files:
+        if manifest_accesor.manifest_ready_for_summary(manifest_id):
             report_meta = {
                 "schema_name": schema_name,
                 "provider_type": provider_type,

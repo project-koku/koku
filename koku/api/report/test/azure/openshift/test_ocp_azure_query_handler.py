@@ -37,7 +37,6 @@ from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
 from api.report.azure.openshift.view import OCPAzureCostView
 from api.report.azure.openshift.view import OCPAzureInstanceTypeView
 from api.report.azure.openshift.view import OCPAzureStorageView
-from api.report.test.azure.helpers import AZURE_SERVICES
 from api.utils import DateHelper
 from reporting.models import AzureCostEntryBill
 from reporting.models import OCPAzureComputeSummary
@@ -51,6 +50,25 @@ from reporting.models import OCPAzureNetworkSummary
 from reporting.models import OCPAzureStorageSummary
 
 LOG = logging.getLogger(__name__)
+
+AZURE_SERVICES = {
+    "Bandwidth": ["Bandwidth"],
+    "Log Analytics": ["Log Analytics"],
+    "SQL Database": ["SQL DB Single Std"],
+    "Storage": [
+        "Blob Storage",
+        "Files",
+        "General Block Blob",
+        "Premium SSD Managed Disks",
+        "Queues v2",
+        "Standard Page Blob",
+        "Standard SSD Managed Disks",
+        "Storage - Bandwidth",
+        "Tables",
+    ],
+    "Virtual Machines": ["A Series", "A Series VM", "BS Series VM"],
+    "Virtual Network": ["IP Addresses"],
+}
 
 
 class OCPAzureQueryHandlerTestNoData(IamTestCase):
