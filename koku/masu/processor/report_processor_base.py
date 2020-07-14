@@ -187,17 +187,18 @@ class ReportProcessorBase:
             return True
 
         for manifest in manifest_list:
-            if manifest.num_processed_files >= manifest.num_total_files:
-                log_statement = (
-                    f"Processing bill starting on {bill_date}.\n"
-                    f" Processing data on or after {self.data_cutoff_date}.\n"
-                    f" schema_name: {self._schema},\n"
-                    f" provider_uuid: {self._provider_uuid},\n"
-                    f" manifest_id: {self._manifest_id}"
-                )
-                LOG.info(log_statement)
-                # We have fully processed a manifest for this provider
-                return False
+            with ReportManifestDBAccessor() as manifest_accessor:
+                if manifest_accessor.manifest_ready_for_summary(manifest.id):
+                    log_statement = (
+                        f"Processing bill starting on {bill_date}.\n"
+                        f" Processing data on or after {self.data_cutoff_date}.\n"
+                        f" schema_name: {self._schema},\n"
+                        f" provider_uuid: {self._provider_uuid},\n"
+                        f" manifest_id: {self._manifest_id}"
+                    )
+                    LOG.info(log_statement)
+                    # We have fully processed a manifest for this provider
+                    return False
 
         return True
 
@@ -212,7 +213,8 @@ class ReportProcessorBase:
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(self._manifest_id)
-            if manifest.num_processed_files != 0:
+            num_processed_files = manifest_accessor.number_of_files_processed(self._manifest_id)
+            if num_processed_files != 0:
                 return False
             # Override the bill date to correspond with the manifest
             bill_date = manifest.billing_period_start_datetime.date()

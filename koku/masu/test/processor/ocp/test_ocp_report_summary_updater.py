@@ -33,6 +33,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_report_summary_updater import OCPReportSummaryUpdater
 from masu.test import MasuTestCase
+from masu.test.database.helpers import ManifestCreationHelper
 from masu.test.database.helpers import ReportObjectCreator
 from reporting_common.models import CostUsageReportManifest
 
@@ -225,7 +226,11 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.manifest_accessor.delete(self.manifest)
         self.manifest = self.manifest_accessor.add(**manifest_dict)
 
-        self.manifest.num_processed_files = self.manifest.num_total_files
+        manifest_helper = ManifestCreationHelper(
+            self.manifest.id, self.manifest.num_total_files, self.manifest.assembly_id
+        )
+        manifest_helper.generate_test_report_files()
+        manifest_helper.process_all_files()
         self.manifest.save()
 
         self.updater = OCPReportSummaryUpdater(self.schema, self.provider, self.manifest)

@@ -24,6 +24,7 @@ from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
+from masu.test.database.helpers import ManifestCreationHelper
 
 fake = faker.Faker()
 DummyS3Object = namedtuple("DummyS3Object", "key")
@@ -242,6 +243,11 @@ class TestCeleryTasks(MasuTestCase):
             # now edit the manifest to say that all the files have been processed
             # and rerun the clean_volumes task
             manifest.num_processed_files = manifest_dict.get("num_total_files")
+            manifest_helper = ManifestCreationHelper(
+                manifest.id, manifest_dict.get("num_total_files"), manifest_dict.get("assembly_id")
+            )
+            manifest_helper.generate_test_report_files()
+            manifest_helper.process_all_files()
             manifest.save()
             tasks.clean_volume()
             # ensure that the original file is deleted from the volume

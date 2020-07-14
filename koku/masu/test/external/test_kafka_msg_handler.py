@@ -271,6 +271,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "file": "/path/to/file.csv",
         }
         summarize_manifest_uuid = uuid.uuid4()
+        parquet_convert_uuid = uuid.uuid4()
         test_matrix = [
             {
                 "test_value": {
@@ -281,6 +282,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 },
                 "handle_message_returns": (msg_handler.SUCCESS_CONFIRM_STATUS, [report_meta_1]),
                 "summarize_manifest_returns": summarize_manifest_uuid,
+                "parquet_convert_returns": parquet_convert_uuid,
                 "expected_fn": _expected_success_path,
             },
             {
@@ -292,6 +294,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 },
                 "handle_message_returns": (msg_handler.FAILURE_CONFIRM_STATUS, None),
                 "summarize_manifest_returns": summarize_manifest_uuid,
+                "parquet_convert_returns": parquet_convert_uuid,
                 "expected_fn": _expected_success_path,
             },
             {
@@ -303,6 +306,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 },
                 "handle_message_returns": (None, None),
                 "summarize_manifest_returns": summarize_manifest_uuid,
+                "parquet_convert_returns": parquet_convert_uuid,
                 "expected_fn": _expected_fail_path,
             },
             {
@@ -314,6 +318,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 },
                 "handle_message_returns": (None, [report_meta_1]),
                 "summarize_manifest_returns": summarize_manifest_uuid,
+                "parquet_convert_returns": parquet_convert_uuid,
                 "expected_fn": _expected_fail_path,
             },
         ]
@@ -332,10 +337,14 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         "masu.external.kafka_msg_handler.summarize_manifest",
                         return_value=test.get("summarize_manifest_returns"),
                     ):
-                        with patch("masu.external.kafka_msg_handler.process_report"):
-                            with patch("masu.external.kafka_msg_handler.send_confirmation") as confirmation_mock:
-                                msg_handler.process_messages(msg)
-                                test.get("expected_fn")(msg, test, confirmation_mock)
+                        with patch(
+                            "masu.external.kafka_msg_handler.convert_reports_to_parquet.delay",
+                            return_value=test.get("parquet_convert_returns"),
+                        ):
+                            with patch("masu.external.kafka_msg_handler.process_report"):
+                                with patch("masu.external.kafka_msg_handler.send_confirmation") as confirmation_mock:
+                                    msg_handler.process_messages(msg)
+                                    test.get("expected_fn")(msg, test, confirmation_mock)
 
     def test_handle_messages(self):
         """Test to ensure that kafka messages are handled."""
@@ -399,6 +408,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
             def get_manifest_by_id(self, manifest_id):
                 return self
+
+            def manifest_ready_for_summary(self, manifest_id):
+                return self.num_processed_files == self.num_total_files
 
         # Check when manifest is done
         mock_manifest_accessor = FakeManifest(num_processed_files=2, num_total_files=2)
