@@ -345,11 +345,11 @@ class ParamSerializer(BaseSerializer):
                 if key in group_keys:
                     continue  # found matching group-by
 
-                elif key in or_keys:
+                if key in or_keys:
                     continue  # found matching group-by with or
 
                 # special case: we order by account_alias, but we group by account.
-                elif key == "account_alias" and ("account" in group_keys or "account" in or_keys):
+                if key == "account_alias" and ("account" in group_keys or "account" in or_keys):
                     continue
 
             error[key] = _(f'Order-by "{key}" requires matching Group-by.')
