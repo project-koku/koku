@@ -137,18 +137,38 @@ class AWSReportQueryHandler(ReportQueryHandler):
         Returns:
             (list) the overall query data results
         """
+        # loop through original query data
+        for each_day in query_data:
+            accounts = each_day.get("accounts", [])
+            # rename id/alias and add type
+            for account in accounts:
+                account["id"] = account.pop("account")
+                account["type"] = "account"
+                for value in account.get("values"):
+                    value["id"] = value.pop("account")
+                    value["alias"] = value.pop("account_alias")
+            # rename entire structure to org_entities
+            each_day["org_entities"] = each_day.pop("accounts", [])
+        # now go through each sub org query
         for org_name, org_data in query_data_results.items():
             for day in org_data:
                 for each_day in query_data:
                     if day["date"] == each_day["date"] and day.get("values"):
-                        each_day["sub_orgs"].append(
+                        values = day.get("values")
+                        for value in values:
+                            # add id and org alias to values
+                            value["id"] = sub_orgs_dict.get(org_name)[0]
+                            value["alias"] = org_name
+                        org_entities = each_day["org_entities"]
+                        org_entities.append(
                             {
-                                "org_unit_name": org_name,
-                                "org_unit_id": sub_orgs_dict.get(org_name)[0],
+                                "id": sub_orgs_dict.get(org_name)[0],
+                                "type": "organizational_unit",
                                 "date": day.get("date"),
-                                "values": day.get("values"),
+                                "values": values,
                             }
                         )
+                        each_day["org_entities"] = org_entities
         return query_data
 
     def execute_query(self):  # noqa: C901
@@ -184,6 +204,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
                         AWSOrganizationalUnit.objects.filter(level=(org_unit_object.level + 1))
                         .filter(org_unit_path__icontains=org_unit_object.org_unit_id)
                         .filter(account_alias__isnull=True)
+                        .order_by("org_unit_id", "-created_timestamp")
+                        .distinct("org_unit_id")
                     )
                 )
                 for org_object in sub_orgs:
@@ -212,11 +234,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             sub_query_data, sub_query_sum = self.execute_individual_query()
             query_data_results[sub_org_name] = sub_query_data
             query_sum_results.append(sub_query_sum)
-        # Add the sub_org results to the query_data
         if org_unit_applied:
-            for day in query_data:
-                day["sub_orgs"] = []
-        if query_data_results:
             query_data = self.format_sub_org_results(query_data_results, query_data, sub_orgs_dict)
         # Add each of the sub_org sums to the query_sum
         if query_sum_results:
