@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP Tag Query Handling."""
+from copy import deepcopy
+
 from django.db.models import Exists
 from django.db.models import OuterRef
 
@@ -45,15 +47,22 @@ class OCPTagQueryHandler(TagQueryHandler):
             "annotations": {"enabled": Exists(enabled)},
         },
     ]
-    SUPPORTED_FILTERS = ["project", "enabled", "cluster"]
-    FILTER_MAP = {
-        "project": {"field": "namespace", "operation": "icontains"},
-        "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
-        "cluster": [
-            {"field": "report_period__cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
-            {"field": "report_period__cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
-        ],
-    }
+    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["project", "enabled", "cluster"]
+    FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
+    FILTER_MAP.update(
+        {
+            "project": {"field": "namespace", "operation": "icontains"},
+            "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+            "cluster": [
+                {"field": "report_period__cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
+                {
+                    "field": "report_period__cluster_alias",
+                    "operation": "icontains",
+                    "composition_key": "cluster_filter",
+                },
+            ],
+        }
+    )
 
     def __init__(self, parameters):
         """Establish AWS report query handler.

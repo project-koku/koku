@@ -106,6 +106,14 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
         self.assertEqual(handler.time_scope_units, "day")
         self.assertEqual(handler.time_scope_value, -10)
 
+    def test_specific_key(self):
+        """Test that execute_query() succeeds with key parameter."""
+        url = f"?filter[key]={self.fake.word()}"
+        query_params = self.mocked_query_params(url, OCPAWSTagView)
+        handler = OCPAWSTagQueryHandler(query_params)
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get("data"))
+
     def test_get_tag_keys(self):
         """Test that all OCP-on-AWS tag keys are returned."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"

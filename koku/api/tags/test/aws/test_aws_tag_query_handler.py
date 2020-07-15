@@ -100,6 +100,14 @@ class AWSTagQueryHandlerTest(IamTestCase):
         self.assertEqual(handler.time_scope_units, "day")
         self.assertEqual(handler.time_scope_value, -10)
 
+    def test_execute_query_for_key(self):
+        """Test that the execute query runs properly with key query."""
+        url = f"?filter[key]={self.fake.word()}"
+        query_params = self.mocked_query_params(url, AWSTagView)
+        handler = AWSTagQueryHandler(query_params)
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get("data"))
+
     def test_slice_tag_values_list(self):
         """Test that long tag value lists are sliced."""
         slice_limit = 2

@@ -63,8 +63,8 @@ class TagQueryHandler(QueryHandler):
 
     provider = "TAGS"
     data_sources = []
-    SUPPORTED_FILTERS = []
-    FILTER_MAP = {}
+    SUPPORTED_FILTERS = ["key"]
+    FILTER_MAP = {"key": {"field": "key", "operation": "icontains", "composition_key": "key_filter"}}
 
     dh = DateHelper()
 

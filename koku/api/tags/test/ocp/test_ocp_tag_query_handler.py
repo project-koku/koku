@@ -110,6 +110,14 @@ class OCPTagQueryHandlerTest(IamTestCase):
         self.assertEqual(handler.time_scope_units, "day")
         self.assertEqual(handler.time_scope_value, -10)
 
+    def test_execute_query_for_key(self):
+        """Test that the execute query runs properly with key query."""
+        url = f"?filter[key]={self.fake.word()}"
+        query_params = self.mocked_query_params(url, OCPTagView)
+        handler = OCPTagQueryHandler(query_params)
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get("data"))
+
     def test_get_tag_keys_filter_true(self):
         """Test that not all tag keys are returned with a filter."""
         url = (

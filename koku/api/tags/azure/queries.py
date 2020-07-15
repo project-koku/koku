@@ -16,6 +16,7 @@
 #
 """Azure Tag Query Handling."""
 import logging
+from copy import deepcopy
 
 from api.models import Provider
 from api.report.azure.provider_map import AzureProviderMap
@@ -30,8 +31,9 @@ class AzureTagQueryHandler(TagQueryHandler):
 
     provider = Provider.PROVIDER_AZURE
     data_sources = [{"db_table": AzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
-    SUPPORTED_FILTERS = ["subscription_guid"]
-    FILTER_MAP = {"subscription_guid": {"field": "subscription_guid", "operation": "icontains"}}
+    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["subscription_guid"]
+    FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
+    FILTER_MAP.update({"subscription_guid": {"field": "subscription_guid", "operation": "icontains"}})
 
     def __init__(self, parameters):
         """Establish Azure report query handler.
