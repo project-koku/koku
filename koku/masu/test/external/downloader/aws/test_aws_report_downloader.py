@@ -493,3 +493,17 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         result = downloader.get_manifest_context_for_date(current_month)
         self.assertEqual(result, {})
+
+    @patch.object(AWSReportDownloader, "download_file")
+    def todo_test_get_manifest(self, mock_downloader):
+        """Test to get manifest."""
+        import io
+        import json
+
+        mock_manifest = {"assembly_id": "abc"}
+        manifest_string = json.dumps(mock_manifest)
+        mock_manifest_file = io.StringIO(manifest_string)
+        mock_downloader.return_value = (mock_manifest_file, None)
+        fake_report_date = self.fake.date_time().replace(day=1)
+
+        _ = self.aws_report_downloader._get_manifest(fake_report_date)
