@@ -517,47 +517,6 @@ def summarize_manifest(report_meta):
     return async_id
 
 
-def convert_manifest_to_parquet(request_id, report_meta, context={}):
-    """
-    Kick off manifest conversion when all report files have completed line item processing.
-
-    Args:
-        request_id (str) - The triggering request identifier
-        report (Dict) - keys: value
-                        schema_name: String,
-                        manifest_id: Integer,
-                        provider_uuid: String,
-                        provider_type: String,
-                        date: DateTime
-        context (Dict) - Logging context
-
-    Returns:
-        Celery Async UUID.
-
-    """
-    async_id = None
-    schema_name = report_meta.get("schema_name")
-    manifest_id = report_meta.get("manifest_id")
-    provider_uuid = report_meta.get("provider_uuid")
-    provider_type = report_meta.get("provider_type")
-    start_date = report_meta.get("date")
-
-    if not context:
-        context = {"account": schema_name[4:], "provider_uuid": provider_uuid, "provider_type": provider_type}
-
-    with ReportManifestDBAccessor() as manifest_accesor:
-        if manifest_accesor.manifest_ready_for_summary(manifest_id):
-            report_meta = {
-                "schema_name": schema_name,
-                "provider_type": provider_type,
-                "provider_uuid": provider_uuid,
-                "manifest_id": manifest_id,
-                "start_date": start_date,
-            }
-
-    return async_id
-
-
 def process_report(request_id, report):
     """
     Process line item report.

@@ -82,7 +82,6 @@ class ReportDownloaderTest(MasuTestCase):
             report_name=FAKE.slug(),
             provider_type=provider_type,
             provider_uuid=uuid4(),
-            cache_key=FAKE.word(),
         )
         return downloader
 

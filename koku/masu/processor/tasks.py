@@ -164,8 +164,8 @@ def get_report_files(
         f" provider_uuid: {provider_uuid}\n"
     )
     if report_dict:
-        stmt += " file: " + str(report_dict["file"]) + "\n"
-        LOG.info(stmt[:-1])
+        stmt += f" file: {report_dict['file']}"
+        LOG.info(stmt)
     else:
         return None
 
@@ -179,10 +179,7 @@ def get_report_files(
         )
         LOG.info(stmt)
         worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
-        # import time
 
-        # LOG.info("Sleeping for 60 seconds")
-        # time.sleep(60)
         _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
 
         report_meta = {

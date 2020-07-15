@@ -18,7 +18,6 @@
 import logging
 
 from celery import chord
-from dateutil import parser
 
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -137,19 +136,12 @@ class Orchestrator:
                 compression - (String): Report compression format
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
         """
-        month = report_month
-        if isinstance(report_month, str):
-            month = parser.parse(report_month)
-        cache_key = f"{provider_uuid}:{month}"
-
-        manifest = None
         downloader = ReportDownloader(
             customer_name=customer_name,
             access_credential=authentication,
             report_source=billing_source,
             provider_type=provider_type,
             provider_uuid=provider_uuid,
-            cache_key=cache_key,
             report_name=None,
         )
         manifest = downloader.download_manifest(report_month)

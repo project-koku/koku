@@ -49,7 +49,6 @@ class ReportDownloader:
         report_source,
         provider_type,
         provider_uuid,
-        cache_key,
         report_name=None,
         account=None,
         request_id="no_request_id",
@@ -61,7 +60,6 @@ class ReportDownloader:
         self.report_name = report_name
         self.provider_type = provider_type
         self.provider_uuid = provider_uuid
-        self.cache_key = cache_key
         self.request_id = request_id
         self.account = account
         if self.account is None:
@@ -96,7 +94,6 @@ class ReportDownloader:
                 bucket=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
                 request_id=self.request_id,
                 account=self.account,
             )
@@ -107,7 +104,6 @@ class ReportDownloader:
                 bucket=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
                 request_id=self.request_id,
                 account=self.account,
             )
@@ -118,7 +114,6 @@ class ReportDownloader:
                 billing_source=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
                 request_id=self.request_id,
                 account=self.account,
             )
@@ -129,7 +124,6 @@ class ReportDownloader:
                 billing_source=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
                 request_id=self.request_id,
                 account=self.account,
             )
@@ -140,7 +134,6 @@ class ReportDownloader:
                 bucket=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
                 request_id=self.request_id,
                 account=self.account,
             )
@@ -151,7 +144,6 @@ class ReportDownloader:
                 billing_source=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
                 request_id=self.request_id,
                 account=self.account,
             )

@@ -79,7 +79,6 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
             report_source=self.fake_bucket_name,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
             provider_uuid=self.aws_provider_uuid,
-            cache_key=self.fake.word(),
         )
 
         self.aws_local_report_downloader = AWSLocalReportDownloader(
@@ -88,7 +87,6 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 "auth_credential": self.fake_auth_credential,
                 "bucket": self.fake_bucket_name,
                 "provider_uuid": self.aws_provider_uuid,
-                "cache_key": self.fake.word(),
             }
         )
 
@@ -119,7 +117,6 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 "auth_credential": self.fake_auth_credential,
                 "bucket": self.fake_bucket_name,
                 "report_name": "awesome-report",
-                "cache_key": self.fake.word(),
             }
         )
         self.assertEqual(report_downloader.report_name, "awesome-report")
@@ -131,7 +128,6 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 "customer_name": self.fake_customer_name,
                 "auth_credential": self.fake_auth_credential,
                 "bucket": self.fake_bucket_name,
-                "cache_key": self.fake.word(),
             }
         )
         self.assertEqual(report_downloader.report_name, self.fake_report_name)
@@ -150,7 +146,6 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 fake_bucket,
                 Provider.PROVIDER_AWS_LOCAL,
                 self.aws_provider_uuid,
-                cache_key=self.fake.word(),
             )
             # Names from test report .gz file
             report_context = {
@@ -177,7 +172,6 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 "customer_name": self.fake_customer_name,
                 "auth_credential": self.fake_auth_credential,
                 "bucket": bucket,
-                "cache_key": self.fake.word(),
             }
         )
         self.assertEqual(report_downloader.report_name, report_name)
@@ -197,7 +191,6 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 "customer_name": self.fake_customer_name,
                 "auth_credential": self.fake_auth_credential,
                 "bucket": bucket,
-                "cache_key": self.fake.word(),
             }
         )
         self.assertIsNone(report_downloader.report_name)
@@ -213,7 +206,6 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 "customer_name": self.fake_customer_name,
                 "auth_credential": self.fake_auth_credential,
                 "bucket": bucket,
-                "cache_key": self.fake.word(),
             }
         )
         self.assertIsNone(report_downloader.report_name)

@@ -92,7 +92,6 @@ def _get_report_files(
             report_source=billing_source,
             provider_type=provider_type,
             provider_uuid=provider_uuid,
-            cache_key=cache_key,
             report_name=None,
             account=customer_name[4:],
             request_id=task.request.id,
