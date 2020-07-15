@@ -23,6 +23,8 @@ from unittest.mock import patch
 from faker import Faker
 
 from masu.config import Config
+from masu.external import UNCOMPRESSED
+from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
@@ -213,3 +215,24 @@ class AzureReportDownloaderTest(MasuTestCase):
                 provider_uuid=self.azure_provider_uuid,
             )
             mock_download_cost_method._azure_client.download_cost_export.assert_not_called()
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader._get_manifest")
+    def test_get_manifest_context_for_date(self, mock_manifest):
+        """Test that the manifest is read."""
+
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+
+        start_str = current_month.strftime(self.downloader.manifest_date_format)
+        assembly_id = "1234"
+        compression = UNCOMPRESSED
+        report_keys = ["file1", "file2"]
+        mock_manifest.return_value = {
+            "assemblyId": assembly_id,
+            "Compression": compression,
+            "reportKeys": report_keys,
+            "billingPeriod": {"start": start_str},
+        }
+        result = self.downloader.get_manifest_context_for_date(current_month)
+        self.assertEqual(result.get("assembly_id"), assembly_id)
+        self.assertEqual(result.get("compression"), compression)
+        self.assertIsNotNone(result.get("files"))
