@@ -41,7 +41,7 @@ WITH data(key, value, cost_id, account) AS (
 
 INSERT INTO {{schema | sqlsafe}}.reporting_awstags_summary_values (awstagssummary_id, awstagsvalues_id)
 SELECT DISTINCT ins1.key_id, ins2.values_id
-FROM   data d
+FROM data d
 INNER JOIN ins1 ON d.key = ins1.key
 INNER JOIN ins2 ON d.value = ins2.value
 ON CONFLICT (awstagssummary_id, awstagsvalues_id) DO NOTHING;
