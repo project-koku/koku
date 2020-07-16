@@ -35,6 +35,7 @@ class FilterSerializer(serializers.Serializer):
     TIME_UNIT_CHOICES = (("day", "day"), ("month", "month"))
 
     key = StringOrListField(required=False)
+    value = StringOrListField(required=False)
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
     time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
     time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
