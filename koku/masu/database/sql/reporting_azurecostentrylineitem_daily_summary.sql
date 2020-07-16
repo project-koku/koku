@@ -3,14 +3,19 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
     WITH cte_split_units AS (
         SELECT li.id,
             m.currency,
-            CASE WHEN split_part(m.unit_of_measure, ' ', 2) != '' AND m.unit_of_measure != '100 Hours'
+            CASE WHEN split_part(m.unit_of_measure, ' ', 2) != '' AND NOT (m.unit_of_measure = '100 Hours' AND m.meter_category='Virtual Machines')
                 THEN  split_part(m.unit_of_measure, ' ', 1)::integer
                 ELSE 1::integer
                 END as multiplier,
-            CASE WHEN split_part(m.unit_of_measure, ' ', 2) != ''
-                THEN  split_part(m.unit_of_measure, ' ', 2)
+            CASE
+                WHEN split_part(m.unit_of_measure, ' ', 2) = 'Hours'
+                    THEN  'Hrs'
+                WHEN split_part(m.unit_of_measure, ' ', 2) = 'GB/Month'
+                    THEN  'GB-Mo'
+                WHEN split_part(m.unit_of_measure, ' ', 2) != ''
+                    THEN  split_part(m.unit_of_measure, ' ', 2)
                 ELSE m.unit_of_measure
-                END as unit_of_measure
+            END as unit_of_measure
             -- split_part(m.unit_of_measure, ' ', 2) as unit
         FROM {{schema | safe}}.reporting_azurecostentrylineitem_daily AS li
         JOIN {{schema | safe}}.reporting_azuremeter AS m
