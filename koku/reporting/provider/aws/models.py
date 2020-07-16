@@ -288,7 +288,7 @@ class AWSTagsValues(models.Model):
 
         db_table = "reporting_awstags_values"
 
-    value = models.CharField(max_length=253)
+    value = models.CharField(max_length=253, unique=True)
 
 
 class AWSTagsSummary(models.Model):
