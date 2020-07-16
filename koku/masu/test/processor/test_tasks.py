@@ -53,6 +53,7 @@ from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import convert_to_parquet
 from masu.processor.tasks import get_report_files
+from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
@@ -1010,3 +1011,16 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         vh = next(iter(koku_celery.app.conf.beat_schedule["vacuum-schemas"]["schedule"].hour))
         avh = next(iter(koku_celery.app.conf.beat_schedule["autovacuum-tune-schemas"]["schedule"].hour))
         self.assertTrue(avh == (23 if vh == 0 else (vh - 1)))
+
+    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
+    def test_record_report_status(self, mock_accessor):
+        mock_accessor.return_value = True
+        manifest_id = 1
+        file_name = "testfile.csv"
+        request_id = 3
+        already_processed = record_report_status(manifest_id, file_name, request_id)
+        self.assertTrue(already_processed)
+
+        mock_accessor.return_value = False
+        already_processed = record_report_status(manifest_id, file_name, request_id)
+        self.assertFalse(already_processed)
