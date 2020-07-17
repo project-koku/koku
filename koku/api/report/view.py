@@ -39,7 +39,9 @@ LOG = logging.getLogger(__name__)
 
 def get_paginator(filter_query_params, count, group_by_params=False):
     """Determine which paginator to use based on query params."""
-    if group_by_params and "group_by[org_unit_id]" in group_by_params or "group_by[or:org_unit_id]" in group_by_params:
+    if group_by_params and (
+        "group_by[org_unit_id]" in group_by_params or "group_by[or:org_unit_id]" in group_by_params
+    ):
         paginator = OrgUnitPagination(filter_query_params)
     else:
         if "offset" in filter_query_params:
