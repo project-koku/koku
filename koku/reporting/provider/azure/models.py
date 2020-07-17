@@ -141,6 +141,15 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
+class AzureTagsValues(models.Model):
+    class Meta:
+        """Meta for AzureTagsValues."""
+
+        db_table = "reporting_azuretags_values"
+
+    value = models.CharField(max_length=253, unique=True)
+
+
 class AzureTagsSummary(models.Model):
     """A collection of all current existing tag key and values."""
 
@@ -153,7 +162,7 @@ class AzureTagsSummary(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     key = models.CharField(max_length=253)
-    values = ArrayField(models.CharField(max_length=253))
+    values = models.ManyToManyField(AzureTagsValues)
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
     subscription_guid = ArrayField(models.CharField(max_length=50))
 
