@@ -168,7 +168,14 @@ class AWSReportQueryHandler(ReportQueryHandler):
                                 "values": values,
                             }
                         )
+                        # now we need to do an order by cost if it exists
+                        reverse = False
+                        if "-cost_total" in self.order:
+                            # if - then we want to order by desc
+                            reverse = True
+                        org_entities.sort(key=lambda e: e["values"][0]["cost"]["total"]["value"], reverse=reverse)
                         each_day["org_entities"] = org_entities
+
         return query_data
 
     def execute_query(self):  # noqa: C901
