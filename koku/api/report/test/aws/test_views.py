@@ -348,7 +348,9 @@ class AWSReportViewTest(IamTestCase):
         self.assertIn("filter", meta)
         self.assertIn("count", meta)
 
-        self.assertEqual(len(data), count)
+        for entry in data:
+            org_entities = entry.get("org_entities", [])
+            self.assertEqual(len(org_entities), count)
 
     def test_ou_group_by_filter_limit_offset_pagination(self):
         """Test that the ranked group pagination works."""
