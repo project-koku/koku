@@ -168,7 +168,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                                 "values": values,
                             }
                         )
-                        # now we need to do an order by cost if it exists
+                        # now we need to do an order by cost
                         reverse = False
                         if "-cost_total" in self.order:
                             # if - then we want to order by desc

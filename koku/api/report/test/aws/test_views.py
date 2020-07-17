@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the AWS Report views."""
+import copy
 import logging
 
 from django.urls import reverse
@@ -403,3 +404,33 @@ class AWSReportViewTest(IamTestCase):
                 self.assertEqual(len(org_entities), max((count - offset), 0))
             else:
                 self.assertEqual(len(org_entities), limit)
+
+    def test_group_by_org_unit_order_by_cost_asc(self):
+        """Test that ordering by cost=asc works as expected"""
+        qs = "?group_by[org_unit_id]=R_001&order_by[cost]=asc"
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        data = response.data.get("data", [])
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Now we need to loop through the results and make sure that
+        # the org units are in asc order according to cost
+        for entry in data:
+            org_entities = entry.get("org_entities", [])
+            sorted_org_entities = copy.deepcopy(org_entities)
+            sorted_org_entities.sort(key=lambda e: e["values"][0]["cost"]["total"]["value"], reverse=False)
+            self.assertEqual(org_entities, sorted_org_entities)
+
+    def test_group_by_org_unit_order_by_cost_desc(self):
+        """Test that ordering by cost=descworks as expected"""
+        qs = "?group_by[org_unit_id]=R_001&order_by[cost]=desc"
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        data = response.data.get("data")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Now we need to loop through the results and make sure that
+        # the org units are in desc order according to cost
+        for entry in data:
+            org_entities = entry.get("org_entities", [])
+            sorted_org_entities = copy.deepcopy(org_entities)
+            sorted_org_entities.sort(key=lambda e: e["values"][0]["cost"]["total"]["value"], reverse=True)
+            self.assertEqual(org_entities, sorted_org_entities)
