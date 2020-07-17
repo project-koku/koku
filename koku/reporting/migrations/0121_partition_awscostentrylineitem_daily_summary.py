@@ -10,7 +10,7 @@ from migration_helpers import pg_partition as ppart
 
 # Change reporting_ocpusagelineitem_daily_summary
 # to a partitioned table with the same definition
-def convert_ocpusage_lids_to_partitioned(apps, schema_editor):
+def convert_awscostentry_lids_to_partitioned(apps, schema_editor):
     # Resolve the current schema name
     target_schema = ppart.resolve_schema(ppart.CURRENT_SCHEMA)
     # This is the table we will model from
@@ -44,45 +44,9 @@ def convert_ocpusage_lids_to_partitioned(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0021_db_functions"), ("reporting", "0119_auto_20200707_1934")]
+    dependencies = [("reporting", "0120_partitioned_ocplineitemusage_daily_summary")]
 
     operations = [
-        migrations.AlterModelOptions(name="ocpusagelineitemdailysummary", options={"managed": False}),
-        migrations.CreateModel(
-            name="PartitionedTable",
-            fields=[
-                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("schema_name", models.TextField(validators=[reporting.partition.models.validate_not_empty])),
-                ("table_name", models.TextField(validators=[reporting.partition.models.validate_not_empty])),
-                (
-                    "partition_of_table_name",
-                    models.TextField(validators=[reporting.partition.models.validate_not_empty]),
-                ),
-                ("partition_type", models.TextField(validators=[reporting.partition.models.validate_not_empty])),
-                ("partition_col", models.TextField(validators=[reporting.partition.models.validate_not_empty])),
-                (
-                    "partition_parameters",
-                    django.contrib.postgres.fields.jsonb.JSONField(
-                        validators=[reporting.partition.models.validate_not_empty]
-                    ),
-                ),
-            ],
-            options={"db_table": "partitioned_tables"},
-        ),
-        migrations.AddIndex(
-            model_name="partitionedtable",
-            index=models.Index(fields=["schema_name", "table_name"], name="partable_table"),
-        ),
-        migrations.AddIndex(
-            model_name="partitionedtable",
-            index=models.Index(fields=["partition_type"], name="partable_partition_type"),
-        ),
-        migrations.AddIndex(
-            model_name="partitionedtable",
-            index=django.contrib.postgres.indexes.GinIndex(
-                fields=["partition_parameters"], name="partable_partition_parameters"
-            ),
-        ),
-        migrations.AlterUniqueTogether(name="partitionedtable", unique_together={("schema_name", "table_name")}),
-        migrations.RunPython(code=convert_ocpusage_lids_to_partitioned),
+        migrations.AlterModelOptions(name="awscostentrylineitemdailysummary", options={"managed": False}),
+        migrations.RunPython(code=convert_awscostentry_lids_to_partitioned),
     ]
