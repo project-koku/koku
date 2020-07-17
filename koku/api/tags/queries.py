@@ -245,31 +245,8 @@ class TagQueryHandler(QueryHandler):
         LOG.debug(f"_get_exclusions: {composed_exclusions}")
         return composed_exclusions
 
-    def get_tag_keys(self, filters=True):
-        """Get a list of tag keys to validate filters."""
-        type_filter = self.parameters.get_filter("type")
-        tag_keys = set()
-        with tenant_context(self.tenant):
-            for source in self.data_sources:
-                tag_keys_query = source.get("db_table").objects
-                annotations = source.get("annotations")
-                if annotations:
-                    tag_keys_query = tag_keys_query.annotate(**annotations)
-                if filters is True:
-                    tag_keys_query = tag_keys_query.filter(self.query_filter)
-
-                if type_filter and type_filter != source.get("type"):
-                    continue
-                exclusion = self._get_exclusions("key")
-                tag_keys_query = tag_keys_query.exclude(exclusion).values("key").distinct().all()
-
-                tag_keys.update({tag.get("key") for tag in tag_keys_query})
-
-        return list(tag_keys)
-
     def get_tags(self):
         """Get a list of tags and values to validate filters.
-
         Return a list of dictionaries containing the tag keys.
         If OCP, these dicationaries will return as:
             [
@@ -300,7 +277,8 @@ class TagQueryHandler(QueryHandler):
 
         final_data = []
         with tenant_context(self.tenant):
-            vals = ["key"]
+            tag_keys = {}
+            vals = ["key", "values"]
             for source in sources:
                 if type_filter and source.get("type") not in type_filter_array:
                     continue
@@ -310,10 +288,10 @@ class TagQueryHandler(QueryHandler):
                     tag_keys_query = tag_keys_query.annotate(**annotations)
                     for annotation_key in annotations.keys():
                         vals.append(annotation_key)
+
                 exclusion = self._get_exclusions("key")
-                t_keys = list(tag_keys_query.filter(self.query_filter).exclude(exclusion).values_list(*vals).all())
-                t_tup = self._get_tag_key_tuple(t_keys, tag_keys_query)
-                converted = self._convert_to_dict(t_tup)
+                tag_keys = list(tag_keys_query.filter(self.query_filter).exclude(exclusion).values_list(*vals).all())
+                converted = self._convert_to_dict(tag_keys, vals)
                 if type_filter and source.get("type"):
                     self.append_to_final_data_with_type(final_data, converted, source)
                 else:
@@ -322,13 +300,6 @@ class TagQueryHandler(QueryHandler):
         # sort the values and deduplicate before returning
         self.deduplicate_and_sort(final_data)
         return final_data
-
-    def _get_tag_key_tuple(self, t_keys, tag_keys_query):
-        t_tup = []
-        for tag in t_keys:
-            t_vals = list(tag_keys_query.get(key=tag[0]).values.values_list("value", flat=True))
-            t_tup.append((tag[0], t_vals))
-        return t_tup
 
     def deduplicate_and_sort(self, data):
         for dikt in data:
