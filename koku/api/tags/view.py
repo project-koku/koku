@@ -76,7 +76,8 @@ class TagView(ReportView):
                         lizt.append(val)
                 else:
                     lizt.append(dikt.get("values"))
-            # output["data"] = [val for dikt in output.get("data") for val in dikt.get("values")]
+            output["data"] = lizt
+
         max_rank = handler.max_rank
 
         paginator = get_paginator(params.parameters.get("filter", {}), max_rank)
