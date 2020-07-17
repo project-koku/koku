@@ -69,7 +69,14 @@ class TagView(ReportView):
         handler = self.query_handler(params)
         output = handler.execute_query()
         if key:
-            output["data"] = [val for dikt in output.get("data") for val in dikt.get("values")]
+            lizt = []
+            for dikt in output.get("data"):
+                if isinstance(dikt.get("values"), list):
+                    for val in dikt.get("values"):
+                        lizt.append(val)
+                else:
+                    lizt.append(dikt.get("values"))
+            # output["data"] = [val for dikt in output.get("data") for val in dikt.get("values")]
         max_rank = handler.max_rank
 
         paginator = get_paginator(params.parameters.get("filter", {}), max_rank)

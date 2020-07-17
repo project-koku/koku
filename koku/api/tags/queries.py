@@ -64,10 +64,7 @@ class TagQueryHandler(QueryHandler):
     provider = "TAGS"
     data_sources = []
     SUPPORTED_FILTERS = ["key", "value"]
-    FILTER_MAP = {
-        "key": {"field": "key", "operation": "icontains", "composition_key": "key_filter"},
-        "value": {"field": "values__value", "operation": "icontains", "composition_key": "value_filter"},
-    }
+    FILTER_MAP = {"key": {"field": "key", "operation": "icontains", "composition_key": "key_filter"}}
 
     dh = DateHelper()
 
@@ -163,10 +160,11 @@ class TagQueryHandler(QueryHandler):
 
         """
         filters = QueryFilterCollection()
-        for source in self.data_sources:
-            start_filter, end_filter = self._get_time_based_filters(source, delta)
-            filters.add(query_filter=start_filter)
-            filters.add(query_filter=end_filter)
+        if not self.parameters.get_filter("value"):
+            for source in self.data_sources:
+                start_filter, end_filter = self._get_time_based_filters(source, delta)
+                filters.add(query_filter=start_filter)
+                filters.add(query_filter=end_filter)
 
         for filter_key in self.SUPPORTED_FILTERS:
             filter_value = self.parameters.get_filter(filter_key)
