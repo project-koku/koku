@@ -26,7 +26,7 @@ def convert_ocpusage_lids_to_partitioned(apps, schema_editor):
     # We want to change the target tables's 'id' column default
     target_identity_col = ppart.ColumnDefinition(target_schema, target_table, "id", default=ppart.Default(new_seq))
     # We also need to include the identity col as part of the primary key definition
-    new_pk = ppart.PKDefinition("reporting_ocpuseagelineitem_daily_summary_pkey", ["usage_start", "id"])
+    new_pk = ppart.PKDefinition(f"{target_table}_pkey", ["usage_start", "id"])
     # Init the converter
     p_converter = ppart.ConvertToPartition(
         source_table,
