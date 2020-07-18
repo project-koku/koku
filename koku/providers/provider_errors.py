@@ -44,7 +44,7 @@ class ProviderErrors:
 
     AWS_MISSING_RESOURCE_NAME_MESSAGE = "Provider resource name is a required parameter for AWS and must not be blank."
     AWS_RESOURCE_NAME_UNREACHABLE_MESSAGE = (
-        "The role ARN has been entered incorrectly for this source. "
+        "The role ARN was entered incorrectly for this source. "
         "Edit your AWS source and verify the name of your ARN."
     )
     AWS_BUCKET_MISSING_MESSAGE = (
@@ -52,7 +52,7 @@ class ProviderErrors:
         "Edit your AWS source to include the name of your S3 bucket."
     )
     AWS_BILLING_SOURCE_NOT_FOUND_MESSAGE = (
-        "The S3 bucket has been entered incorrectly for this source. "
+        "The S3 bucket was entered incorrectly for this source. "
         "Edit your AWS source and verify the name of your S3 bucket."
     )
     AWS_COMPRESSION_REPORT_CONFIG_MESSAGE = (
@@ -79,28 +79,27 @@ class ProviderErrors:
         "Edit your Azure source to include the subscription ID."
     )
     AZURE_MISSING_ALL_PATCH_VALUES_MESSAGE = (
-        "Cost management requires more information for your Azure source. "
-        "Edit your Azure source to include the subscription ID, resource group "
+        "Cost management requires a subscription ID, resource group "
         "and storage account."
+        "Edit your Azure source to include these details."
     )
     AZURE_INCORRECT_CLIENT_SECRET_MESSAGE = (
-        "The client secret has been entered incorrectly for this source. "
+        "The client secret was entered incorrectly for this source. "
         "Edit your Azure source and verify the client secret."
     )
     AZURE_INCORRECT_CLIENT_ID_MESSAGE = (
-        "The client ID has been entered incorrectly for this source. "
-        "Edit your Azure source and verify the client ID."
+        "The client ID was entered incorrectly for this source. Edit your Azure source and verify the client ID."
     )
     AZURE_INCORRECT_RESOURCE_GROUP_MESSAGE = (
-        "The resource group has been entered incorrectly for this source. "
+        "The resource group was entered incorrectly for this source. "
         "Edit your Azure source and verify the resource group."
     )
     AZURE_INCORRECT_STORAGE_ACCOUNT_MESSAGE = (
-        "The storage account has been entered incorrectly for this source. "
+        "The storage account was entered incorrectly for this source. "
         "Edit your Azure source and verify the storage account."
     )
     AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE = (
-        "The subscription ID has been entered incorrectly for this source. "
+        "The subscription ID was entered incorrectly for this source. "
         "Edit your Azure source and verify the subscription ID."
     )
     AZURE_GENERAL_CLIENT_ERROR_MESSAGE = "Azure client configuration error."
