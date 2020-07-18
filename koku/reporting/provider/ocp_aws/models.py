@@ -207,6 +207,7 @@ class OCPAWSTagsSummary(models.Model):
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE)
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     accounts = ArrayField(models.CharField(max_length=63))
     namespace = ArrayField(models.CharField(max_length=253))
 
