@@ -857,6 +857,103 @@ services:
         - db
         - koku-rabbit
 
+  koku-listener-1:
+    container_name: koku_listener_1
+    image: koku_base
+    working_dir: /koku/
+    entrypoint: ['python', 'koku/manage.py', 'listener']
+    environment:
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - MASU_SECRET_KEY=abc
+      - INSIGHTS_KAFKA_HOST=kafka
+      - INSIGHTS_KAFKA_PORT=29092
+      - KAFKA_CONNECT=True
+      - prometheus_multiproc_dir=/tmp
+      - MASU_DATE_OVERRIDE
+      - MASU_DEBUG
+      - LOG_LEVEL=INFO
+      - DJANGO_LOG_LEVEL=INFO
+      - KOKU_LOG_LEVEL=INFO
+      - INITIAL_INGEST_NUM_MONTHS=1
+      - PYTHONPATH=/koku/koku
+      - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+      - S3_ENDPOINT
+      - S3_ACCESS_KEY
+      - S3_SECRET
+      - DEVELOPMENT=${DEVELOPMENT-True}
+    privileged: true
+    ports:
+        - "9987:9999"
+    volumes:
+      - '.:/koku'
+    links:
+      - db
+      - koku-rabbit
+    depends_on:
+      - koku-base
+      - db
+      - koku-rabbit
+
+  koku-listener-2:
+    container_name: koku_listener_2
+    image: koku_base
+    working_dir: /koku/
+    entrypoint: ['python', 'koku/manage.py', 'listener']
+    environment:
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - MASU_SECRET_KEY=abc
+      - INSIGHTS_KAFKA_HOST=kafka
+      - INSIGHTS_KAFKA_PORT=29092
+      - KAFKA_CONNECT=True
+      - prometheus_multiproc_dir=/tmp
+      - MASU_DATE_OVERRIDE
+      - MASU_DEBUG
+      - LOG_LEVEL=INFO
+      - DJANGO_LOG_LEVEL=INFO
+      - KOKU_LOG_LEVEL=INFO
+      - INITIAL_INGEST_NUM_MONTHS=1
+      - PYTHONPATH=/koku/koku
+      - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+      - S3_ENDPOINT
+      - S3_ACCESS_KEY
+      - S3_SECRET
+      - DEVELOPMENT=${DEVELOPMENT-True}
+    privileged: true
+    ports:
+        - "9986:9999"
+    volumes:
+      - '.:/koku'
+    links:
+      - db
+      - koku-rabbit
+    depends_on:
+      - koku-base
+      - db
+      - koku-rabbit
   sources-client:
       container_name: sources_client
       image: koku_base

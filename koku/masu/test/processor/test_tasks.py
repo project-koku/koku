@@ -32,6 +32,7 @@ import faker
 from dateutil import relativedelta
 from django.db.models import Max
 from django.db.models import Min
+from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
 
 import koku.celery as koku_celery
@@ -45,6 +46,7 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -53,6 +55,7 @@ from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import convert_to_parquet
 from masu.processor.tasks import get_report_files
+from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import remove_expired_data
@@ -67,6 +70,7 @@ from masu.test.external.downloader.aws import fake_arn
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
+from reporting_common.models import CostUsageReportStatus
 
 
 class FakeDownloader(Mock):
@@ -1024,3 +1028,25 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_accessor.return_value = False
         already_processed = record_report_status(manifest_id, file_name, request_id)
         self.assertFalse(already_processed)
+
+    def test_record_all_manifest_files(self):
+        """Test that file list is saved in ReportStatsDBAccessor."""
+        files_list = ["file1.csv", "file2.csv", "file3.csv"]
+        manifest_id = 1
+
+        record_all_manifest_files(manifest_id, files_list)
+
+        for report_file in files_list:
+            CostUsageReportStatus.objects.filter(report_name=report_file).exists()
+
+    def test_record_all_manifest_files_concurrent_writes(self):
+        """Test that file list is saved in ReportStatsDBAccessor race condition."""
+        files_list = ["file1.csv", "file2.csv", "file3.csv"]
+        manifest_id = 1
+
+        record_all_manifest_files(manifest_id, files_list)
+        with patch.object(ReportStatsDBAccessor, "add", side_effect=IntegrityError):
+            record_all_manifest_files(manifest_id, files_list)
+
+        for report_file in files_list:
+            CostUsageReportStatus.objects.filter(report_name=report_file).exists()

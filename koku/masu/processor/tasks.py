@@ -27,6 +27,7 @@ from celery.utils.log import get_task_logger
 from dateutil import parser
 from django.conf import settings
 from django.db import connection
+from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
@@ -70,8 +71,16 @@ LOG = get_task_logger(__name__)
 def record_all_manifest_files(manifest_id, report_files):
     """Store all report file names for manifest ID."""
     for report in report_files:
-        with ReportStatsDBAccessor(report, manifest_id):
-            LOG.debug(f"Logging {report} for manifest ID: {manifest_id}")
+        try:
+            with ReportStatsDBAccessor(report, manifest_id):
+                LOG.debug(f"Logging {report} for manifest ID: {manifest_id}")
+        except IntegrityError:
+            # OCP records the entire file list for a new manifest when the listener
+            # recieves a payload.  With multiple listeners it is possilbe for
+            # two listeners to recieve a report file for the same manifest at
+            # roughly the same time.  In that case the report file may already
+            # exist and an IntegrityError would be thrown.
+            LOG.debug(f"Report {report} has already been recorded.")
 
 
 def record_report_status(manifest_id, file_name, request_id, context={}):
