@@ -212,3 +212,14 @@ class ReportDownloaderTest(MasuTestCase):
             self.assertEqual(result.get("start_date"), mock_date)
             self.assertEqual(result.get("assembly_id"), assembly_id)
             self.assertEqual(result.get("manifest_id"), manifest_id)
+
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
+    def test_download_manifest(self, mock_dl):
+        """Test download_manifest."""
+        downloader = self.create_downloader(Provider.PROVIDER_AWS)
+        mock_manifest = {"fake": "manifest"}
+        mock_date = FAKE.date()
+
+        with patch.object(AWSReportDownloader, "get_manifest_context_for_date", return_value=mock_manifest):
+            manifest = downloader.download_manifest(mock_date)
+            self.assertEqual(manifest, mock_manifest)
