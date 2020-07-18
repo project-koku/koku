@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from datetime import datetime
@@ -7,6 +8,19 @@ import psycopg2
 import requests
 import yaml
 from psycopg2 import sql
+
+logging.basicConfig(level=logging.INFO)
+
+LOG = logging.getLogger(__name__)
+
+
+def require_env(envvar):
+    """Require that the env var be set to move forward with script."""
+    var_value = os.getenv(envvar)
+    if var_value is None:
+        LOG.error(f"The variable '{envvar}' is required in your environment.")
+        sys.exit(1)
+    return var_value
 
 
 class InsertAwsOrgTree:
@@ -28,24 +42,16 @@ class InsertAwsOrgTree:
         self.today_accounts = []
         self.today_orgs = []
         self.nise_accounts = []
-
-    def require_env(self, envvar):
-        """Require that the env var be set to move forward with script."""
-        var_value = os.getenv(envvar)
-        if var_value is None:
-            err_msg = "The variable '%s' is required in your environment."
-            print(err_msg % (envvar))
-            sys.exit(1)
-        return var_value
+        self.account_alias_mapping = {}
 
     def _establish_db_conn(self):
         """Creates a connection to the database."""
         dbinfo = {
             "database": self.db_name,
-            "user": self.require_env("DATABASE_USER"),
-            "password": self.require_env("DATABASE_PASSWORD"),
-            "port": self.require_env("POSTGRES_SQL_SERVICE_PORT"),
-            "host": self.require_env("POSTGRES_SQL_SERVICE_HOST"),
+            "user": require_env("DATABASE_USER"),
+            "password": require_env("DATABASE_PASSWORD"),
+            "port": require_env("POSTGRES_SQL_SERVICE_PORT"),
+            "host": require_env("POSTGRES_SQL_SERVICE_HOST"),
         }
         with psycopg2.connect(**dbinfo) as conn:
             conn.autocommit = True
@@ -56,7 +62,7 @@ class InsertAwsOrgTree:
         """Local data from yaml file."""
         yamlfile = None
         if not os.path.isfile(filename):
-            print("Error: No such file: %s" % filename)
+            LOG.error(f"Error: No such file: {filename}")
             sys.exit(1)
         try:
             with open(filename, "r+") as yaml_file:
@@ -74,6 +80,7 @@ class InsertAwsOrgTree:
         account_alias_sql = sql.SQL(account_alias_sql).format(schema=sql.Identifier(self.schema))
         values = [act_info["account_alias_id"], act_info["account_alias_name"], act_info["account_alias_id"]]
         self.cursor.execute(account_alias_sql, values)
+        LOG.debug(f"Adding account '{values[1]}' to account alias table.")
         account_alias_id = self.cursor.fetchone()[0]
         select_sql = """SELECT * FROM {schema}.reporting_awsorganizationalunit
                         WHERE org_unit_name = %s AND org_unit_id = %s AND org_unit_path = %s
@@ -101,7 +108,12 @@ class InsertAwsOrgTree:
                 org_node["level"],
                 account_alias_id,
             ]
+            self.account_alias_mapping[account_alias_id] = act_info
             self.cursor.execute(insert_account_sql, values)
+            LOG.info(
+                f"Adding account='{act_info['account_alias_name']}' "
+                f"to org={org_node['org_unit_id']} on created_timestamp={date}."
+            )
 
     def _insert_org_sql(self, org_node, date):
         """Inserts the org unit information into the database."""
@@ -124,6 +136,10 @@ class InsertAwsOrgTree:
                 org_node["level"],
             ]
             self.cursor.execute(org_insert_sql, values)
+            LOG.info(
+                f"Creating OU={org_node['org_unit_id']} with path={org_node['org_path']} "
+                f"at level={org_node['level']} on created_timestamp={date}."
+            )
 
     def _set_deleted_timestamp(self, date):
         """Updates the delete timestamp for values left in the yesterday lists."""
@@ -137,12 +153,16 @@ class InsertAwsOrgTree:
                                        SET deleted_timestamp = %s WHERE account_alias_id = %s"""
                 update_delete_sql = sql.SQL(update_delete_sql).format(schema=sql.Identifier(self.schema))
                 self.cursor.execute(update_delete_sql, [date, alias_id])
+                act_info = self.account_alias_mapping.get(alias_id)
+                LOG.info(f"Updating account={act_info.get('account_alias_name')} with delete_timestamp={date}")
+
         if self.yesterday_orgs != []:
             for org_unit in self.yesterday_orgs:
                 update_delete_sql = """UPDATE {schema}.reporting_awsorganizationalunit
                                        SET deleted_timestamp = %s WHERE org_unit_id = %s"""
                 update_delete_sql = sql.SQL(update_delete_sql).format(schema=sql.Identifier(self.schema))
                 self.cursor.execute(update_delete_sql, [date, org_unit])
+                LOG.info(f"Updating org={org_unit} with delete_timestamp={date}")
         self.yesterday_accounts = self.today_accounts
         self.yesterday_orgs = self.today_orgs
         self.today_accounts = []
@@ -165,6 +185,7 @@ class InsertAwsOrgTree:
                 day = day_dict["day"]
                 date_delta = day["date"]
                 date = self.calculate_date(date_delta)
+                LOG.info(f"Converted date_delta={date_delta} to {date}")
                 for node in day["nodes"]:
                     org_id = node["org_unit_id"]
                     parent_path = node.get("parent_path", "")
@@ -189,7 +210,7 @@ class InsertAwsOrgTree:
                             self._insert_account(node, account, date)
                 self._set_deleted_timestamp(date)
         except KeyError as e:
-            print(
+            LOG.error(
                 f"Error: '{self.tree_yml_path}' file is not formatted correctly, could not find the following key: {e}"
             )
             sys.exit(1)
@@ -201,6 +222,7 @@ class InsertAwsOrgTree:
         for account in self.nise_accounts:
             if account not in new_nise_user_accounts:
                 new_nise_user_accounts.append(account)
+        LOG.info("Adding crawler accounts to nise yaml.")
         self.nise_yaml_contents["accounts"]["user"] = new_nise_user_accounts
         for generator in self.nise_yaml_contents["generators"]:
             for _, metadata in generator.items():
@@ -213,24 +235,26 @@ class InsertAwsOrgTree:
             f"nise report aws --static-report-file {self.nise_yml_path} "
             f"--aws-s3-bucket-name {testing_path} --aws-s3-report-name local-bucket"
         )
+        LOG.info("Running the following Nise command:\n" f"\t{nise_command}")
         os.system(nise_command)
         # Add aws source
         source_url = "http://{}:{}/api/cost-management/v1/sources/".format(
-            self.require_env("KOKU_API_HOSTNAME"), self.require_env("KOKU_PORT")
+            require_env("KOKU_API_HOSTNAME"), require_env("KOKU_PORT")
         )
         json_info = {
             "name": "aws_org_tree",
             "source_type": "AWS-local",
-            "authentication": {"resource_name": self.require_env("AWS_RESOURCE_NAME")},
+            "authentication": {"resource_name": require_env("AWS_RESOURCE_NAME")},
             "billing_source": {"bucket": "/tmp/local_bucket_1"},
         }
+        LOG.info("Creating a source with the following information:\n" f"\t{json_info}")
         requests.post(source_url, json=json_info)
-        # Trigger the download
+        LOG.info("Triggering the masu download")
         download_url = "http://{}:{}/api/cost-management/v1/download/".format(
-            self.require_env("MASU_API_HOSTNAME"), self.require_env("MASU_PORT")
+            require_env("MASU_API_HOSTNAME"), require_env("MASU_PORT")
         )
         requests.get(download_url)
-        nise_repo_path = self.require_env("NISE_REPO_PATH")
+        nise_repo_path = require_env("NISE_REPO_PATH")
         if nise_repo_path in self.nise_yml_path:
             git_checkout_cmd = "cd {} && git checkout -- {}".format(nise_repo_path, "example_aws_static_data.yml")
             os.system(git_checkout_cmd)
@@ -240,14 +264,14 @@ if "__main__" in __name__:
     # Without making sure the migrations are run there is a chance that the
     # reporting_awsorganizationalunit table will not be created in the database yet.
     url = "http://{}:{}/api/cost-management/v1/organizations/aws/".format(
-        os.getenv("KOKU_API_HOSTNAME"), os.getenv("KOKU_PORT")
+        require_env("KOKU_API_HOSTNAME"), require_env("KOKU_PORT")
     )
     requests.get(url)
     default_tree_yml = "scripts/aws_org_tree.yml"
-    default_nise_yml = os.path.join(os.getenv("NISE_REPO_PATH"), "example_aws_static_data.yml")
+    default_nise_yml = os.path.join(require_env("NISE_REPO_PATH"), "example_aws_static_data.yml")
     default_schema = "acct10001"
-    default_db = os.getenv("DATABASE_NAME")
-    default_delta_start = today = datetime.today().date()
+    default_db = require_env("DATABASE_NAME")
+    default_delta_start = datetime.today().date()
     arg_list = [default_tree_yml, default_schema, default_db, default_delta_start, default_nise_yml]
     sys_args = sys.argv
     sys_args.pop(0)

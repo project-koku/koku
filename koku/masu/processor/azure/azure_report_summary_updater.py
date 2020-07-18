@@ -22,6 +22,7 @@ import logging
 from tenant_schemas.utils import schema_context
 
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.azure.common import get_bills_from_provider
 from masu.util.common import date_range_pair
@@ -129,12 +130,11 @@ class AzureReportSummaryUpdater:
 
     def _determine_if_full_summary_update_needed(self, bill):
         """Decide whether to update summary tables for full billing period."""
-        processed_files = self._manifest.num_processed_files
-        total_files = self._manifest.num_total_files
-
         summary_creation = bill.summary_data_creation_datetime
 
-        is_done_processing = processed_files == total_files
+        is_done_processing = False
+        with ReportManifestDBAccessor() as manifest_accesor:
+            is_done_processing = manifest_accesor.manifest_ready_for_summary(self._manifest.id)
 
         is_new_bill = summary_creation is None
 

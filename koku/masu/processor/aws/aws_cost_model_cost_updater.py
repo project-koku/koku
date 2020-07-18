@@ -55,7 +55,7 @@ class AWSCostModelCostUpdater:
             with AWSReportDBAccessor(self._schema) as report_accessor:
                 with schema_context(self._schema):
                     bill_ids = [str(bill.id) for bill in bills]
-                report_accessor.populate_markup_cost(markup_value, bill_ids)
+                report_accessor.populate_markup_cost(markup_value, start_date, end_date, bill_ids)
         except AWSCostModelCostUpdaterError as error:
             LOG.error("Unable to update markup costs. Error: %s", str(error))
 

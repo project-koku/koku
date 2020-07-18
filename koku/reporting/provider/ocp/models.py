@@ -34,6 +34,7 @@ class OCPUsageReportPeriod(models.Model):
         unique_together = ("cluster_id", "report_period_start", "provider")
 
     cluster_id = models.CharField(max_length=50, null=False)
+    cluster_alias = models.CharField(max_length=256, null=True)
     report_period_start = models.DateTimeField(null=False)
     report_period_end = models.DateTimeField(null=False)
 
@@ -309,7 +310,7 @@ class OCPUsagePodLabelSummary(models.Model):
         """Meta for OCPUsageTagSummary."""
 
         db_table = "reporting_ocpusagepodlabel_summary"
-        unique_together = ("key", "report_period")
+        unique_together = ("key", "report_period", "namespace")
 
     id = models.BigAutoField(primary_key=True)
 
@@ -416,7 +417,7 @@ class OCPStorageVolumeLabelSummary(models.Model):
         """Meta for OCPStorageVolumeLabelSummary."""
 
         db_table = "reporting_ocpstoragevolumelabel_summary"
-        unique_together = ("key", "report_period")
+        unique_together = ("key", "report_period", "namespace")
 
     id = models.BigAutoField(primary_key=True)
 

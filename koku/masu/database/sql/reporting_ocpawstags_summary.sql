@@ -4,7 +4,9 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawstags_summary (
     cost_entry_bill_id,
     report_period_id,
     accounts,
-    namespace
+    namespace,
+    cluster_id,
+    cluster_alias
 )
 WITH cte_unnested_aws_tags AS (
     SELECT tags.*,

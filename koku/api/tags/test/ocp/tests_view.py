@@ -26,8 +26,11 @@ from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.test.iam_test_case import RbacPermissions
 from api.utils import DateHelper
+from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsageLineItemDailySummary
+from reporting.models import OCPUsagePodLabelSummary
 
 
 class OCPTagsViewTest(IamTestCase):
@@ -175,3 +178,62 @@ class OCPTagsViewTest(IamTestCase):
 
         response_data = response.json()
         self.assertEqual(response_data.get("data", []), [])
+
+    @RbacPermissions(
+        {
+            "openshift.cluster": {"read": ["*"]},
+            "openshift.project": {"read": ["banking"]},
+            "openshift.node": {"read": ["*"]},
+        }
+    )
+    def test_rbac_ocp_tags(self):
+        """Test that appropriate tag values are returned when data is restricted by namespace."""
+        with tenant_context(self.tenant):
+            banking_storage_tags = (
+                OCPStorageVolumeLabelSummary.objects.filter(namespace=["banking"]).values("key").distinct().all()
+            )
+            banking_usage_tags = (
+                OCPUsagePodLabelSummary.objects.filter(namespace=["banking"]).values("key").distinct().all()
+            )
+            tag_keys = [tag.get("key") for tag in banking_storage_tags] + [
+                tag.get("key") for tag in banking_usage_tags
+            ]
+
+        url = reverse("openshift-tags")
+        client = APIClient()
+        params = {"key_only": False, "filter[enabled]": False}
+        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        for tag in data.get("data"):
+            self.assertIn(tag.get("key"), tag_keys)
+
+    def test_cluster_filter(self):
+        """Test that appropriate tag values are returned when data is filtered by cluster."""
+        url = reverse("openshift-tags")
+        client = APIClient()
+        params = {"key_only": False, "filter[enabled]": False, "filter[cluster]": "OCP-on-AWS"}
+        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        with tenant_context(self.tenant):
+            cluster_storage_tags = (
+                OCPStorageVolumeLabelSummary.objects.filter(report_period__cluster_id__contains="OCP-on-AWS")
+                .values("key")
+                .distinct()
+                .all()
+            )
+            cluster_usage_tags = (
+                OCPUsagePodLabelSummary.objects.filter(report_period__cluster_id__contains="OCP-on-AWS")
+                .values("key")
+                .distinct()
+                .all()
+            )
+            tag_keys = [tag.get("key") for tag in cluster_storage_tags] + [
+                tag.get("key") for tag in cluster_usage_tags
+            ]
+        for tag in data.get("data"):
+            self.assertIn(tag.get("key"), tag_keys)

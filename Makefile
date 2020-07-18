@@ -86,6 +86,9 @@ help:
 	@echo "  reset-db-statistics                   clear the pg_stat_statements statistics"
 	@echo "  run-migrations                        run migrations against database"
 	@echo "  serve                                 run the Django app on localhost"
+	@echo "  shell                                 run the Django interactive shell"
+	@echo "  shell-schema                          run the Django interactive shell with the specified schema"
+	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
 	@echo "  superuser                             create a Django super user"
 	@echo "  unittest                              run unittests"
 	@echo ""
@@ -187,7 +190,11 @@ load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
 
 load-aws-org-unit-tree:
-	$(PYTHON) $(TOPDIR)/scripts/insert_aws_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml)
+	@if [ $(shell $(PYTHON) -c 'import sys; print(sys.version_info[0])') = '3' ] ; then \
+		$(PYTHON) $(TOPDIR)/scripts/insert_aws_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml) ; \
+	else \
+		echo "This make target requires python3." ; \
+	fi
 
 collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
@@ -215,7 +222,7 @@ manifest:
 	python scripts/create_manifest.py
 
 check-manifest:
-	./.travis/check_manifest.sh
+	.github/scripts/check_manifest.sh
 
 run-migrations:
 	$(DJANGO_MANAGE) migrate_schemas
@@ -229,6 +236,13 @@ serve-masu:
 	FLASK_ENV=development \
 	MASU_SECRET_KEY='t@@ m4nY 53Cr3tZ' \
 	flask run
+
+shell:
+	$(DJANGO_MANAGE) shell
+
+shell-schema: schema := acct10001
+shell-schema:
+	$(DJANGO_MANAGE) tenant_command shell --schema=$(schema)
 
 unittest:
 	$(DJANGO_MANAGE) test $(PYDIR) -v 2
@@ -609,9 +623,9 @@ ifndef output_file_name
 	$(error param output_file_name is not set)
 endif
 ifdef generator_template_file
-	@nise yaml -p ocp -c $(or $(generator_config_file), default) -t $(generator_template_file) -o $(output_file_name) $(generator_flags)
+	@nise yaml ocp -c $(or $(generator_config_file), default) -t $(generator_template_file) -o $(output_file_name) $(generator_flags)
 else
-	@nise yaml -p ocp -c $(or $(generator_config_file), default) -o $(output_file_name) $(generator_flags)
+	@nise yaml ocp -c $(or $(generator_config_file), default) -o $(output_file_name) $(generator_flags)
 endif
 
 

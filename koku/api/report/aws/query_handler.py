@@ -67,6 +67,15 @@ class AWSReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for AWS."""
 
     provider = Provider.PROVIDER_AWS
+    network_services = {"AmazonVPC", "AmazonCloudFront", "AmazonRoute53", "AmazonAPIGateway"}
+    database_services = {
+        "AmazonRDS",
+        "AmazonDynamoDB",
+        "AmazonElastiCache",
+        "AmazonNeptune",
+        "AmazonRedshift",
+        "AmazonDocumentDB",
+    }
 
     def __init__(self, parameters):
         """Establish AWS report query handler.
@@ -116,52 +125,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 annotations[q_param] = F(db_field)
         return annotations
 
-    def _get_query_table_group_by_keys(self):
-        """Return the group by keys specific for selecting the query table."""
-        return set(self.parameters.get("group_by", {}).keys())
-
-    def _get_query_table_filter_keys(self):
-        """Return the filter keys specific for selecting the query table."""
-        excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
-        filter_keys = set(self.parameters.get("filter", {}).keys())
-        return filter_keys.difference(excluded_filters)
-
-    @property
-    def query_table(self):
-        """Return the database table to query against."""
-        query_table = self._mapper.query_table
-        report_type = self.parameters.report_type
-        report_group = "default"
-
-        filter_keys = self._get_query_table_filter_keys()
-        group_by_keys = self._get_query_table_group_by_keys()
-        key_tuple = tuple(sorted(filter_keys.union(group_by_keys)))
-        if key_tuple:
-            report_group = key_tuple
-
-        # Special Casess for Network and Database Cards in the UI
-        service_filter = set(self.parameters.get("filter", {}).get("service", []))
-        network_services = {"AmazonVPC", "AmazonCloudFront", "AmazonRoute53", "AmazonAPIGateway"}
-        database_services = {
-            "AmazonRDS",
-            "AmazonDynamoDB",
-            "AmazonElastiCache",
-            "AmazonNeptune",
-            "AmazonRedshift",
-            "AmazonDocumentDB",
-        }
-        if report_type == "costs" and service_filter and not service_filter.difference(network_services):
-            report_type = "network"
-        elif report_type == "costs" and service_filter and not service_filter.difference(database_services):
-            report_type = "database"
-
-        try:
-            query_table = self._mapper.views[report_type][report_group]
-        except KeyError:
-            msg = f"{report_group} for {report_type} has no entry in views. Using the default."
-            LOG.warning(msg)
-        return query_table
-
     def format_sub_org_results(self, query_data_results, query_data, sub_orgs_dict):
         """
         Add the sub_orgs into the overall results if grouping by org unit.
@@ -174,19 +137,38 @@ class AWSReportQueryHandler(ReportQueryHandler):
         Returns:
             (list) the overall query data results
         """
+        # loop through original query data
+        for each_day in query_data:
+            accounts = each_day.get("accounts", [])
+            # rename id/alias and add type
+            for account in accounts:
+                account["id"] = account.pop("account")
+                account["type"] = "account"
+                for value in account.get("values"):
+                    value["id"] = value.pop("account")
+                    value["alias"] = value.pop("account_alias")
+            # rename entire structure to org_entities
+            each_day["org_entities"] = each_day.pop("accounts", [])
+        # now go through each sub org query
         for org_name, org_data in query_data_results.items():
             for day in org_data:
                 for each_day in query_data:
-                    if day["date"] == each_day["date"]:
-                        if day.get("values"):
-                            each_day["sub_orgs"].append(
-                                {
-                                    "org_unit_name": org_name,
-                                    "org_unit_id": sub_orgs_dict.get(org_name),
-                                    "date": day.get("date"),
-                                    "values": day.get("values"),
-                                }
-                            )
+                    if day["date"] == each_day["date"] and day.get("values"):
+                        values = day.get("values")
+                        for value in values:
+                            # add id and org alias to values
+                            value["id"] = sub_orgs_dict.get(org_name)[0]
+                            value["alias"] = org_name
+                        org_entities = each_day["org_entities"]
+                        org_entities.append(
+                            {
+                                "id": sub_orgs_dict.get(org_name)[0],
+                                "type": "organizational_unit",
+                                "date": day.get("date"),
+                                "values": values,
+                            }
+                        )
+                        each_day["org_entities"] = org_entities
         return query_data
 
     def execute_query(self):  # noqa: C901
@@ -222,18 +204,23 @@ class AWSReportQueryHandler(ReportQueryHandler):
                         AWSOrganizationalUnit.objects.filter(level=(org_unit_object.level + 1))
                         .filter(org_unit_path__icontains=org_unit_object.org_unit_id)
                         .filter(account_alias__isnull=True)
+                        .order_by("org_unit_id", "-created_timestamp")
+                        .distinct("org_unit_id")
                     )
                 )
                 for org_object in sub_orgs:
-                    sub_orgs_dict[org_object.org_unit_name] = org_object.org_unit_id
+                    sub_orgs_dict[org_object.org_unit_name] = org_object.org_unit_id, org_object.org_unit_path
             # First we need to modify the parameters to get all accounts if org unit group_by is used
-            self.parameters.parameters["filter"]["org_unit_id"] = org_unit_group_by_data
+            self.parameters.set_filter(org_unit_id=org_unit_group_by_data)
             self.query_filter = self._get_filter()
         # grab the base query
         # (without org_units this is the only query - with org_units this is the query to find the accounts)
         query_data, query_sum = self.execute_individual_query()
         # Next we want to loop through each sub_org and execute the query for it
-        for sub_org_name, sub_org_id in sub_orgs_dict.items():
+        for sub_org_name, value in sub_orgs_dict.items():
+            sub_org_id, org_unit_path = value
+            if self.parameters.get_filter("org_unit_id"):
+                self.parameters.parameters["filter"].pop("org_unit_id")
             if self.parameters.parameters["group_by"].get("account"):
                 self.parameters.parameters["group_by"].pop("account")
             # only add the org_unit to the filter if the user has access
@@ -242,16 +229,12 @@ class AWSReportQueryHandler(ReportQueryHandler):
             if self.access:
                 org_access = self.access.get("aws.organizational_unit", {}).get("read", [])
             if org_access is None or (sub_org_id in org_access or "*" in org_access):
-                self.parameters.parameters["filter"]["org_unit_id"] = [sub_org_id]
+                self.parameters.set_filter(org_unit_path=[org_unit_path])
             self.query_filter = self._get_filter()
             sub_query_data, sub_query_sum = self.execute_individual_query()
             query_data_results[sub_org_name] = sub_query_data
             query_sum_results.append(sub_query_sum)
-        # Add the sub_org results to the query_data
         if org_unit_applied:
-            for day in query_data:
-                day["sub_orgs"] = []
-        if query_data_results:
             query_data = self.format_sub_org_results(query_data_results, query_data, sub_orgs_dict)
         # Add each of the sub_org sums to the query_sum
         if query_sum_results:
@@ -462,12 +445,11 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         expected_keys = list(sum1)
         if "value" in expected_keys:
             sum2["value"] = sum1["value"] + sum2["value"]
-            return sum2
         else:
             for expected_key in expected_keys:
                 if sum1.get(expected_key) and sum2.get(expected_key):
                     sum2[expected_key] = self.total_sum(sum1.get(expected_key), sum2.get(expected_key))
-            return sum2
+        return sum2
 
     def execute_individual_query(self):  # noqa: C901
         """Execute query and return provided data.

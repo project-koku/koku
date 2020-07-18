@@ -52,9 +52,11 @@ from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.worker_cache import WorkerCache
+from masu.util.aws.common import aws_post_processor
 from masu.util.aws.common import convert_csv_to_parquet
 from masu.util.aws.common import get_file_keys_from_s3_with_manifest_id
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
+from masu.util.common import get_column_converters
 from masu.util.common import get_path_prefix
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
@@ -263,30 +265,39 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
     start_date, end_date = updater.update_daily_tables(start_date, end_date)
     updater.update_summary_tables(start_date, end_date)
 
-    if provider_uuid:
-        dh = DateHelper(utc=True)
-        prev_month_last_day = dh.last_month_end
-        start_date_obj = datetime.datetime.strptime(start_date, "%Y-%m-%d")
-        prev_month_last_day = prev_month_last_day.replace(tzinfo=None)
-        prev_month_last_day = prev_month_last_day.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
-        if manifest_id and (start_date_obj <= prev_month_last_day):
-            # We want make sure that the manifest_id is not none, because
-            # we only want to call the delete line items after the summarize_reports
-            # task above
-            simulate = False
-            line_items_only = True
-            chain(
-                update_cost_model_costs.s(schema_name, provider_uuid, start_date, end_date),
-                refresh_materialized_views.si(schema_name, provider, manifest_id),
-                remove_expired_data.si(schema_name, provider, simulate, provider_uuid, line_items_only),
-            ).apply_async()
-        else:
-            chain(
-                update_cost_model_costs.s(schema_name, provider_uuid, start_date, end_date),
-                refresh_materialized_views.si(schema_name, provider, manifest_id),
-            ).apply_async()
-    else:
+    if not provider_uuid:
         refresh_materialized_views.delay(schema_name, provider, manifest_id)
+        return
+
+    with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
+        cost_model = cost_model_accessor.cost_model
+
+    if cost_model is not None:
+        linked_tasks = update_cost_model_costs.s(
+            schema_name, provider_uuid, start_date, end_date
+        ) | refresh_materialized_views.si(schema_name, provider, manifest_id)
+    else:
+        stmt = (
+            f"\n update_cost_model_costs skipped. No cost model available for \n"
+            f" schema_name: {schema_name},\n"
+            f" provider_uuid: {provider_uuid}"
+        )
+        LOG.info(stmt)
+        linked_tasks = refresh_materialized_views.s(schema_name, provider, manifest_id)
+
+    dh = DateHelper(utc=True)
+    prev_month_start_day = dh.last_month_start.replace(tzinfo=None)
+    start_date_obj = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+    if manifest_id and (start_date_obj <= prev_month_start_day):
+        # We want make sure that the manifest_id is not none, because
+        # we only want to call the delete line items after the summarize_reports
+        # task above
+        simulate = False
+        line_items_only = True
+
+        linked_tasks |= remove_expired_data.si(schema_name, provider, simulate, provider_uuid, line_items_only)
+
+    chain(linked_tasks).apply_async()
 
 
 @app.task(name="masu.processor.tasks.update_all_summary_tables", queue_name="reporting")
@@ -322,7 +333,7 @@ def update_all_summary_tables(start_date, end_date=None):
 
 
 @app.task(name="masu.processor.tasks.update_cost_model_costs", queue_name="reporting")
-def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_date=None):
+def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_date=None, provider_type=None):
     """Update usage charge information.
 
     Args:
@@ -335,28 +346,18 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
         None
 
     """
-    with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
-        cost_model = cost_model_accessor.cost_model
-    if cost_model is not None:
-        worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
+    worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
-        stmt = (
-            f"update_cost_model_costs called with args:\n"
-            f" schema_name: {schema_name},\n"
-            f" provider_uuid: {provider_uuid}"
-        )
-        LOG.info(stmt)
+    stmt = (
+        f"update_cost_model_costs called with args:\n"
+        f" schema_name: {schema_name},\n"
+        f" provider_uuid: {provider_uuid}"
+    )
+    LOG.info(stmt)
 
-        updater = CostModelCostUpdater(schema_name, provider_uuid)
-        if updater:
-            updater.update_cost_model_costs(start_date, end_date)
-    else:
-        stmt = (
-            f"\n update_cost_model_costs skipped. No cost model available for \n"
-            f" schema_name: {schema_name},\n"
-            f" provider_uuid: {provider_uuid}"
-        )
-        LOG.info(stmt)
+    updater = CostModelCostUpdater(schema_name, provider_uuid)
+    if updater:
+        updater.update_cost_model_costs(start_date, end_date)
 
 
 @app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name="reporting")
@@ -639,21 +640,36 @@ def convert_to_parquet(request_id, account, provider_uuid, provider_type, start_
         LOG.info(log_json(request_id, msg, context))
         return
 
+    post_processor = None
     # OCP data is daily chunked report files.
     # AWS and Azure are monthly reports. Previous reports should be removed so data isn't duplicated
     if provider_type != Provider.PROVIDER_OCP:
         remove_files_not_in_set_from_s3_bucket(request_id, s3_parquet_path, manifest_id, context)
 
+    if provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
+        post_processor = aws_post_processor
+
     failed_conversion = []
     for csv_filename in files:
+        kwargs = {}
         parquet_path = s3_parquet_path
         if provider_type == Provider.PROVIDER_OCP:
             for report_type in REPORT_TYPES.keys():
                 if report_type in csv_filename:
                     parquet_path = f"{s3_parquet_path}/{report_type}"
+                    kwargs["report_type"] = report_type
                     break
+        converters = get_column_converters(provider_type, **kwargs)
         result = convert_csv_to_parquet(
-            request_id, s3_csv_path, parquet_path, local_path, manifest_id, csv_filename, context
+            request_id,
+            s3_csv_path,
+            parquet_path,
+            local_path,
+            manifest_id,
+            csv_filename,
+            converters,
+            post_processor,
+            context,
         )
         if not result:
             failed_conversion.append(csv_filename)

@@ -17,7 +17,7 @@
 """View for update_cost_model_costs endpoint."""
 import logging
 
-from dateutil.parser import parse
+from celery import chain
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -27,7 +27,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.provider.models import Provider
 from api.utils import DateHelper
+from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import update_cost_model_costs as cost_task
 
 LOG = logging.getLogger(__name__)
@@ -43,22 +45,24 @@ def update_cost_model_costs(request):
 
     provider_uuid = params.get("provider_uuid")
     schema_name = params.get("schema")
-    start_date = params.get("start_date")
-    end_date = params.get("end_date")
+    default_start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
+    default_end_date = DateHelper().today.strftime("%Y-%m-%d")
+    start_date = params.get("start_date", default=default_start_date)
+    end_date = params.get("end_date", default=default_end_date)
 
     if provider_uuid is None or schema_name is None:
         errmsg = "provider_uuid and schema_name are required parameters."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-    if start_date is None:
-        start_date = str(DateHelper().this_month_start)
-    if end_date is None:
-        end_date = str(DateHelper().today)
-    start_date = parse(start_date)
-    end_date = parse(end_date)
+    try:
+        provider = Provider.objects.get(uuid=provider_uuid)
+    except Provider.DoesNotExist:
+        return Response({"Error": "Provider does not exist."}, status=status.HTTP_400_BAD_REQUEST)
 
     LOG.info("Calling update_cost_model_costs async task.")
-
-    async_result = cost_task.delay(schema_name, provider_uuid, start_date, end_date)
+    async_result = chain(
+        cost_task.s(schema_name, provider_uuid, start_date, end_date),
+        refresh_materialized_views.si(schema_name, provider.type),
+    ).apply_async()
 
     return Response({"Update Cost Model Cost Task ID": str(async_result)})

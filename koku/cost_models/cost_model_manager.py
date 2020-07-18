@@ -18,12 +18,14 @@
 import copy
 import logging
 
+from celery import chain
 from django.db import transaction
 
 from api.provider.models import Provider
 from api.utils import DateHelper
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import update_cost_model_costs
 
 
@@ -84,8 +86,8 @@ class CostModelManager:
                 raise CostModelException(log_msg)
             CostModelMap.objects.create(cost_model=self._model, provider_uuid=provider_uuid)
 
-        start_date = DateHelper().this_month_start
-        end_date = DateHelper().today
+        start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
+        end_date = DateHelper().today.strftime("%Y-%m-%d")
         for provider_uuid in providers_to_delete | providers_to_create:
             # Update cost-model costs for each provider
             try:
@@ -94,7 +96,10 @@ class CostModelManager:
                 LOG.info(f"Provider {provider_uuid} does not exist. Skipping cost-model update.")
             else:
                 schema_name = provider.customer.schema_name
-                update_cost_model_costs.delay(schema_name, provider.uuid, start_date, end_date)
+                chain(
+                    update_cost_model_costs.s(schema_name, provider.uuid, start_date, end_date),
+                    refresh_materialized_views.si(schema_name, provider.type),
+                ).apply_async()
 
     def update(self, **data):
         """Update the cost model object."""
