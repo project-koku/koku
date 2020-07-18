@@ -24,7 +24,9 @@ WITH cte_unnested_aws_tags AS (
 ),
 cte_unnested_ocp_pod_tags AS (
     SELECT tags.*,
-        rp.report_period_start
+        rp.report_period_start,
+        rp.cluster_id,
+        rp.cluster_alias
     FROM (
         SELECT key,
             value,
@@ -42,7 +44,9 @@ cte_unnested_ocp_pod_tags AS (
 ),
 cte_unnested_ocp_volume_tags AS (
     SELECT tags.*,
-        rp.report_period_start
+        rp.report_period_start,
+        rp.cluster_id,
+        rp.cluster_alias
     FROM (
         SELECT key,
             value,
@@ -63,14 +67,18 @@ SELECT key,
     cost_entry_bill_id,
     report_period_id,
     accounts,
-    array_agg(DISTINCT project) as namespace
+    array_agg(DISTINCT project) as namespace,
+    max(cluster_id) as cluster_id,
+    max(cluster_alias) as cluster_alias
 FROM (
     SELECT aws.key,
         aws.value,
         aws.accounts,
         ocp.project,
         aws.cost_entry_bill_id,
-        ocp.report_period_id
+        ocp.report_period_id,
+        ocp.cluster_id,
+        ocp.cluster_alias
     FROM cte_unnested_aws_tags AS aws
     JOIN cte_unnested_ocp_pod_tags AS ocp
         ON lower(aws.key) = lower(ocp.key)
@@ -84,7 +92,9 @@ FROM (
         aws.accounts,
         ocp.project,
         aws.cost_entry_bill_id,
-        ocp.report_period_id
+        ocp.report_period_id,
+        ocp.cluster_id,
+        ocp.cluster_alias
     FROM cte_unnested_aws_tags AS aws
     JOIN cte_unnested_ocp_volume_tags AS ocp
         ON lower(aws.key) = lower(ocp.key)
