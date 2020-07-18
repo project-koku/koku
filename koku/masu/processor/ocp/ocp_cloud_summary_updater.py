@@ -97,6 +97,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
 
         # OpenShift on AWS
         with AWSReportDBAccessor(self._schema) as accessor:
+            accessor.populate_ocp_on_aws_tags_summary_table()
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
                     "Updating OpenShift on AWS summary table for "
@@ -110,7 +111,6 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                     str(aws_bill_ids),
                 )
                 accessor.populate_ocp_on_aws_cost_daily_summary(start, end, cluster_id, aws_bill_ids, markup_value)
-            accessor.populate_ocp_on_aws_tags_summary_table()
 
         with OCPReportDBAccessor(self._schema) as accessor:
             # This call just sends the infrastructure cost to the
