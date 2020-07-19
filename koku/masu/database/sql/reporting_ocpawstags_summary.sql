@@ -105,6 +105,6 @@ GROUP BY key,
     accounts,
     cost_entry_bill_id,
     report_period_id
-ON CONFLICT (key, cost_entry_bill_id) DO UPDATE
+ON CONFLICT (key, cost_entry_bill_id, namespace) DO UPDATE
 SET values = EXCLUDED.values
 ;
