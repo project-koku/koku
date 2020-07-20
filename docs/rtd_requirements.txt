@@ -12,7 +12,7 @@ billiard==3.6.3.0
 boto3==1.14.23
 botocore==1.17.23
 bs4==0.0.1
-cachetools==4.1.0
+cachetools==4.1.1
 celery-prometheus-exporter==1.7.0
 celery==4.4.5
 certifi==2020.6.20
