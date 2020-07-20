@@ -114,6 +114,8 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     class Meta:
         """Meta for AzureCostEntryLineItemDailySummary."""
 
+        managed = False
+
         db_table = "reporting_azurecostentrylineitem_daily_summary"
         indexes = [models.Index(fields=["usage_start"], name="ix_azurecstentrydlysumm_start")]
         # A GIN functional index named "ix_azure_costentrydlysumm_service_name" was created manually
