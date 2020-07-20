@@ -4,7 +4,7 @@ amqp==2.6.0
 azure-common==1.1.25
 azure-core==1.7.0
 azure-mgmt-costmanagement==0.2.0
-azure-mgmt-resource==10.0.0
+azure-mgmt-resource==10.1.0
 azure-mgmt-storage==11.0.0
 azure-storage-blob==12.3.2
 beautifulsoup4==4.9.1
