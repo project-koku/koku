@@ -48,7 +48,7 @@ jinja2==2.11.2
 jinjasql==0.1.8
 jmespath==0.10.0
 kafka-python==2.0.1
-kombu==4.6.10
+kombu==4.6.11
 markupsafe==1.1.1
 mccabe==0.6.1
 msrest==0.6.16
