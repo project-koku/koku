@@ -16,11 +16,16 @@
 #
 """Azure Tag Query Handling."""
 import logging
+from copy import deepcopy
 
 from api.models import Provider
+from api.query_filter import QueryFilter
+from api.query_filter import QueryFilterCollection
 from api.report.azure.provider_map import AzureProviderMap
 from api.tags.queries import TagQueryHandler
 from reporting.models import AzureTagsSummary
+from reporting.provider.azure.models import AzureTagsValues
+
 
 LOG = logging.getLogger(__name__)
 
@@ -29,9 +34,10 @@ class AzureTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for Azure."""
 
     provider = Provider.PROVIDER_AZURE
-    data_sources = [{"db_table": AzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
-    SUPPORTED_FILTERS = ["subscription_guid"]
-    FILTER_MAP = {"subscription_guid": {"field": "subscription_guid", "operation": "icontains"}}
+    data_sources = [{"db_table": AzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period", "db_values": AzureTagsValues}]
+    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["subscription_guid"]
+    FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
+    FILTER_MAP.update({"subscription_guid": {"field": "subscription_guid", "operation": "icontains"}})
 
     def __init__(self, parameters):
         """Establish Azure report query handler.
@@ -44,3 +50,12 @@ class AzureTagQueryHandler(TagQueryHandler):
             self._mapper = AzureProviderMap(provider=self.provider, report_type=parameters.report_type)
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
+
+    def _get_key_filter(self):
+        """Add new `exact` QueryFilter that filters on the key name."""
+        filters = QueryFilterCollection()
+        if self.parameters.get_filter("value"):
+            filters.add(QueryFilter(field="azuretagssummary__key", operation="exact", parameter=self.key))
+        else:
+            filters.add(QueryFilter(field="key", operation="exact", parameter=self.key))
+        return self.query_filter & filters.compose()

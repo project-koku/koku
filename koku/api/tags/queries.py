@@ -64,7 +64,10 @@ class TagQueryHandler(QueryHandler):
     provider = "TAGS"
     data_sources = []
     SUPPORTED_FILTERS = ["key", "value"]
-    FILTER_MAP = {"key": {"field": "key", "operation": "icontains", "composition_key": "key_filter"}}
+    FILTER_MAP = {
+        "key": {"field": "key", "operation": "icontains", "composition_key": "key_filter"},
+        "value": {"field": "values__value", "operation": "icontains", "composition_key": "value_filter"},
+    }
 
     dh = DateHelper()
 
@@ -160,7 +163,7 @@ class TagQueryHandler(QueryHandler):
 
         """
         filters = QueryFilterCollection()
-        if not self.parameters.get_filter("value"):
+        if not self.parameters.get_filter('value'):
             for source in self.data_sources:
                 start_filter, end_filter = self._get_time_based_filters(source, delta)
                 filters.add(query_filter=start_filter)
@@ -243,28 +246,6 @@ class TagQueryHandler(QueryHandler):
         LOG.debug(f"_get_exclusions: {composed_exclusions}")
         return composed_exclusions
 
-    def get_tag_keys(self, filters=True):
-        """Get a list of tag keys to validate filters."""
-        type_filter = self.parameters.get_filter("type")
-        tag_keys = set()
-        with tenant_context(self.tenant):
-            for source in self.data_sources:
-                tag_keys_query = source.get("db_table").objects
-                annotations = source.get("annotations")
-                if annotations:
-                    tag_keys_query = tag_keys_query.annotate(**annotations)
-                if filters is True:
-                    tag_keys_query = tag_keys_query.filter(self.query_filter)
-
-                if type_filter and type_filter != source.get("type"):
-                    continue
-                exclusion = self._get_exclusions("key")
-                tag_keys_query = tag_keys_query.exclude(exclusion).values("key").distinct().all()
-
-                tag_keys.update({tag.get("key") for tag in tag_keys_query})
-
-        return list(tag_keys)
-
     def get_tags(self):
         """Get a list of tags and values to validate filters.
         Return a list of dictionaries containing the tag keys.
@@ -321,6 +302,38 @@ class TagQueryHandler(QueryHandler):
         self.deduplicate_and_sort(final_data)
         return final_data
 
+    def get_tag_values(self):
+        type_filter = self.parameters.get_filter("type")
+        type_filter_array = []
+
+        # Sort the data_sources so that those with a "type" go first
+        sources = sorted(self.data_sources, key=lambda dikt: dikt.get("type", ""), reverse=True)
+
+        if type_filter and type_filter == "*":
+            for source in sources:
+                source_type = source.get("type")
+                if source_type:
+                    type_filter_array.append(source_type)
+        elif type_filter:
+            type_filter_array.append(type_filter)
+
+        final_data = []
+        with tenant_context(self.tenant):
+            tag_keys = {}
+            for source in sources:
+                if type_filter and source.get("type") not in type_filter_array:
+                    continue
+                tag_values_query = source.get("db_values").objects
+                exclusion = self._get_exclusions("key")
+                t_keys = list(tag_values_query.filter(self.query_filter))
+                t_tup = self._value_filter_dict(t_keys)
+                converted = self._convert_to_dict(t_tup)
+                if type_filter and source.get("type"):
+                    self.append_to_final_data_with_type(final_data, converted, source)
+                else:
+                    self.append_to_final_data_without_type(final_data, converted)
+        return final_data
+        
     def deduplicate_and_sort(self, data):
         for dikt in data:
             dikt["values"] = sorted(set(dikt["values"]), reverse=self.order_direction == "desc")
@@ -377,6 +390,9 @@ class TagQueryHandler(QueryHandler):
         if self.parameters.get("key_only"):
             tag_data = self.get_tag_keys()
             query_data = sorted(tag_data, reverse=self.order_direction == "desc")
+        elif self.parameters.get_filter('value'):
+            tag_data = self.get_tag_values()
+            query_data = sorted(tag_data, key=lambda k: k["key"], reverse=self.order_direction == "desc")
         else:
             tag_data = self.get_tags()
             query_data = sorted(tag_data, key=lambda k: k["key"], reverse=self.order_direction == "desc")
