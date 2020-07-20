@@ -163,7 +163,7 @@ class TagQueryHandler(QueryHandler):
 
         """
         filters = QueryFilterCollection()
-        if not self.parameters.get_filter('value'):
+        if not self.parameters.get_filter("value"):
             for source in self.data_sources:
                 start_filter, end_filter = self._get_time_based_filters(source, delta)
                 filters.add(query_filter=start_filter)
@@ -333,7 +333,7 @@ class TagQueryHandler(QueryHandler):
                 else:
                     self.append_to_final_data_without_type(final_data, converted)
         return final_data
-        
+
     def deduplicate_and_sort(self, data):
         for dikt in data:
             dikt["values"] = sorted(set(dikt["values"]), reverse=self.order_direction == "desc")
@@ -390,7 +390,7 @@ class TagQueryHandler(QueryHandler):
         if self.parameters.get("key_only"):
             tag_data = self.get_tag_keys()
             query_data = sorted(tag_data, reverse=self.order_direction == "desc")
-        elif self.parameters.get_filter('value'):
+        elif self.parameters.get_filter("value"):
             tag_data = self.get_tag_values()
             query_data = sorted(tag_data, key=lambda k: k["key"], reverse=self.order_direction == "desc")
         else:

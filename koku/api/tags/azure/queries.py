@@ -34,7 +34,13 @@ class AzureTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for Azure."""
 
     provider = Provider.PROVIDER_AZURE
-    data_sources = [{"db_table": AzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period", "db_values": AzureTagsValues}]
+    data_sources = [
+        {
+            "db_table": AzureTagsSummary,
+            "db_column_period": "cost_entry_bill__billing_period",
+            "db_values": AzureTagsValues,
+        }
+    ]
     SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["subscription_guid"]
     FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
     FILTER_MAP.update({"subscription_guid": {"field": "subscription_guid", "operation": "icontains"}})
