@@ -159,7 +159,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query_data.values(*query_group_by).annotate(**annotations)
-            query_sum = self._build_sum(query)  # , annotations)
+            query_sum = self._build_sum(query)
 
             if self._limit:
                 rank_order = getattr(F(self.order_field), self.order_direction)()
