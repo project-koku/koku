@@ -229,9 +229,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
                             "org_unit_id", flat=True
                         )
                     # Note: The django orm won't let you do an order_by distinct on the union or
-                    # intersect of multiple queries. Therefore we confvert it a list and then query a
-                    # gain to make it work. We need the additional order and group_by to handle cases
-                    # like ou_005 being under both ou_002 & ou_001 on an or group by.
+                    # intersect of multiple queries. Therefore we convert it a list and then query
+                    # again to make it work. We need the additional order and group_by to handle
+                    # cases like ou_005 being under both ou_002 & ou_001 on an or group by.
                     sub_orgs = (
                         AWSOrganizationalUnit.objects.filter(org_unit_id__in=sub_ou_ids_list)
                         .filter(account_alias__isnull=True)
