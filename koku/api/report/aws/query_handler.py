@@ -183,31 +183,63 @@ class AWSReportQueryHandler(ReportQueryHandler):
         query_data_results = {}
         query_sum_results = []
         org_unit_applied = False
-        if "org_unit_id" in self.parameters.parameters.get("group_by"):
+        group_by_param = self.parameters.parameters.get("group_by")
+        ou_group_by_key = None
+        for potential_key in ["org_unit_id", "or:org_unit_id"]:
+            if potential_key in group_by_param:
+                ou_group_by_key = potential_key
+        if ou_group_by_key:
             org_unit_applied = True
-            # remove the org unit and add in group by account
-            org_unit_group_by_data = self.parameters.parameters.get("group_by").pop("org_unit_id")
+            # Whenever we do a groub_by org unit, we are actually doing a group_by account
+            # and filtering on the org unit. Therefore we are removing the group by org unit.
+            org_unit_group_by_data = group_by_param.pop(ou_group_by_key)
+            # Parent OU filters
+            org_unit_objects = (
+                AWSOrganizationalUnit.objects.filter(org_unit_id__in=org_unit_group_by_data)
+                .filter(account_alias__isnull=True)
+                .order_by("org_unit_id", "-created_timestamp")
+                .distinct("org_unit_id")
+            )
+            # adding a group by account.
             if not self.parameters.parameters["group_by"].get("account"):
                 self.parameters.parameters["group_by"]["account"] = ["*"]
                 if self.access:
                     self.parameters._configure_access_params(self.parameters.caller)
 
-            # look up the org_unit_object so that we can get the level
-            org_unit_object = (
-                AWSOrganizationalUnit.objects.filter(org_unit_id=org_unit_group_by_data[0])
-                .filter(account_alias__isnull=True)
-                .first()
-            )
-            if org_unit_object:
-                sub_orgs = list(
-                    set(
+            if org_unit_objects:
+                sub_ou_list = []
+                # Loop through parent ids to find children org units 1 level below.
+                for org_unit_object in org_unit_objects:
+                    sub_query = (
                         AWSOrganizationalUnit.objects.filter(level=(org_unit_object.level + 1))
                         .filter(org_unit_path__icontains=org_unit_object.org_unit_id)
                         .filter(account_alias__isnull=True)
                         .order_by("org_unit_id", "-created_timestamp")
                         .distinct("org_unit_id")
                     )
-                )
+                    sub_ou_list.append(sub_query)
+
+                # only do a union or intersection if we have more than one group_by passed in
+                if len(sub_ou_list) > 1:
+                    sub_query_set = sub_ou_list.pop()
+                    if "or:" in ou_group_by_key:
+                        sub_ou_ids_list = sub_query_set.union(*sub_ou_list).values_list("org_unit_id", flat=True)
+                    else:
+                        sub_ou_ids_list = sub_query_set.intersection(*sub_ou_list).values_list(
+                            "org_unit_id", flat=True
+                        )
+                    # Note: The django orm won't let you do an order_by distinct on the union or
+                    # intersect of multiple queries. Therefore we confvert it a list and then query a
+                    # gain to make it work. We need the additional order and group_by to handle cases
+                    # like ou_005 being under both ou_002 & ou_001 on an or group by.
+                    sub_orgs = (
+                        AWSOrganizationalUnit.objects.filter(org_unit_id__in=sub_ou_ids_list)
+                        .filter(account_alias__isnull=True)
+                        .order_by("org_unit_id", "-created_timestamp")
+                        .distinct("org_unit_id")
+                    )
+                else:
+                    sub_orgs = sub_ou_list[0]
                 for org_object in sub_orgs:
                     sub_orgs_dict[org_object.org_unit_name] = org_object.org_unit_id, org_object.org_unit_path
             # First we need to modify the parameters to get all accounts if org unit group_by is used
