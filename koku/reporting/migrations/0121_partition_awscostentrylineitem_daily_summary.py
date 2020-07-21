@@ -5,7 +5,7 @@ from django.db import migrations
 from django.db import models
 
 import reporting.partition.models
-from migration_helpers import pg_partition as ppart
+from koku import pg_partition as ppart
 
 
 # Change reporting_ocpusagelineitem_daily_summary
