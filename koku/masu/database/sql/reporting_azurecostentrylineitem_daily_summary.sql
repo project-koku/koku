@@ -12,6 +12,8 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
                     THEN  'Hrs'
                 WHEN split_part(m.unit_of_measure, ' ', 2) = 'GB/Month'
                     THEN  'GB-Mo'
+                WHEN split_part(m.unit_of_measure, ' ', 2) = '/Month'
+                    THEN  '-Mo'
                 WHEN split_part(m.unit_of_measure, ' ', 2) != ''
                     THEN  split_part(m.unit_of_measure, ' ', 2)
                 ELSE m.unit_of_measure
