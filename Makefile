@@ -86,6 +86,9 @@ help:
 	@echo "  reset-db-statistics                   clear the pg_stat_statements statistics"
 	@echo "  run-migrations                        run migrations against database"
 	@echo "  serve                                 run the Django app on localhost"
+	@echo "  shell                                 run the Django interactive shell"
+	@echo "  shell-schema                          run the Django interactive shell with the specified schema"
+	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
 	@echo "  superuser                             create a Django super user"
 	@echo "  unittest                              run unittests"
 	@echo ""
@@ -233,6 +236,13 @@ serve-masu:
 	FLASK_ENV=development \
 	MASU_SECRET_KEY='t@@ m4nY 53Cr3tZ' \
 	flask run
+
+shell:
+	$(DJANGO_MANAGE) shell
+
+shell-schema: schema := acct10001
+shell-schema:
+	$(DJANGO_MANAGE) tenant_command shell --schema=$(schema)
 
 unittest:
 	$(DJANGO_MANAGE) test $(PYDIR) -v 2
