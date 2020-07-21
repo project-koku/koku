@@ -12,11 +12,12 @@ def apply_create_partition_procedure(apps, schema_editor):
                 raise FileNotFoundError("Could not find the db_functions dir")
             path = os.path.dirname(path)
         else:
-            path = os.path.join(path, "db_functions", "create_date_partitions.sql")
+            path = os.path.join(path, "db_functions")
             break
 
-    sqlbuff = open(path, "rt").read()
-    schema_editor.execute(sqlbuff)
+    for funcfile in ("create_table_date_range_partition.sql", "create_date_partitions.sql"):
+        sqlbuff = open(os.path.join(path, funcfile), "rt").read()
+        schema_editor.execute(sqlbuff)
 
 
 class Migration(migrations.Migration):
