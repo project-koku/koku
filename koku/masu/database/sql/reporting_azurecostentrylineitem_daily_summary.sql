@@ -70,8 +70,7 @@ CALL public.create_date_partitions(
         'reporting_azurecostentrylineitem_daily_summary_{{uuid | sqlsafe}}',
         'usage_start',
         '{{schema | sqlsafe}}',
-        'reporting_azurecostentrylineitem_daily_summary',
-        'usage_start'
+        'reporting_azurecostentrylineitem_daily_summary'
     );
 
 -- Populate the daily summary line item data
