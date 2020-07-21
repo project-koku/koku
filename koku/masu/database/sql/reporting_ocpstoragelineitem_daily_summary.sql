@@ -88,8 +88,7 @@ CALL public.create_date_partitions(
         'reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsafe}}',
         'usage_start',
         '{{schema | sqlsafe}}',
-        'reporting_ocpusagelineitem_daily_summary',
-        'usage_start'
+        'reporting_ocpusagelineitem_daily_summary'
     );
 
 -- Populate the daily aggregate line item data

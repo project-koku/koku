@@ -812,14 +812,13 @@ VALUES (
 
     def __create_partitions(self):
         sql = """
-CALL public.create_date_partitions( %s, %s, %s, %s, %s );
+CALL public.create_date_partitions( %s::text, %s::text, %s::text, %s::text );
 """
         params = [
             f"{self.source_schema}.{self.source_table_name}",  # This will be quoted properly in the proc
             self.partition_key,
             self.target_schema,
             self.partitioned_table_name,
-            self.partition_key,
         ]
         conn_execute(sql, params)
 
