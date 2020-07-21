@@ -3,21 +3,13 @@ import os
 
 from django.db import migrations
 
+from koku import migration_sql_helpers as msh
+
 
 def apply_create_partition_procedure(apps, schema_editor):
-    path = os.path.dirname(os.path.abspath(__file__))
-    while True:
-        if "db_functions" not in os.listdir(path):
-            if path == os.path.sep:
-                raise FileNotFoundError("Could not find the db_functions dir")
-            path = os.path.dirname(path)
-        else:
-            path = os.path.join(path, "db_functions")
-            break
-
+    path = msh.find_db_functions_dir()
     for funcfile in ("create_table_date_range_partition.sql", "create_date_partitions.sql"):
-        sqlbuff = open(os.path.join(path, funcfile), "rt").read()
-        schema_editor.execute(sqlbuff)
+        msh.apply_sql_file(schema_editor, os.path.join(path, funcfile))
 
 
 class Migration(migrations.Migration):
