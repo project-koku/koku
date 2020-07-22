@@ -62,8 +62,8 @@ class ProviderBuilder:
         return db_dict
 
     def _build_provider_resource_name_auth(self, authentication):
-        if authentication.get("resource_name"):
-            auth = {"provider_resource_name": authentication.get("resource_name")}
+        if authentication.get("credentials"):
+            auth = {"credentials": authentication.get("credentials")}
         else:
             raise ProviderBuilderError("Missing provider_resource_name")
         return auth
@@ -99,8 +99,9 @@ class ProviderBuilder:
             return provider_fn(authentication)
 
     def _build_provider_bucket(self, billing_source):
-        if billing_source.get("bucket") is not None:
-            billing = {"bucket": billing_source.get("bucket")}
+        if billing_source.get("data_source"):
+            data_source = billing_source.get("data_source")
+            billing = {"data_source": {"bucket": data_source.get("bucket")}}
         else:
             raise ProviderBuilderError("Missing bucket")
         return billing

@@ -355,10 +355,11 @@ def add_provider_sources_auth_info(source_id, authentication):
     if source:
         current_auth_dict = source.authentication
         subscription_id = None
-        if current_auth_dict.get("credentials", {}):
-            subscription_id = current_auth_dict.get("credentials", {}).get("subscription_id")
-        if subscription_id and authentication.get("credentials"):
-            authentication["credentials"]["subscription_id"] = subscription_id
+        if source.source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            if current_auth_dict.get("credentials", {}):
+                subscription_id = current_auth_dict.get("credentials", {}).get("subscription_id")
+            if subscription_id and authentication.get("credentials"):
+                authentication["credentials"]["subscription_id"] = subscription_id
         if source.authentication != authentication:
             source.authentication = authentication
             source.save()
@@ -395,21 +396,6 @@ def add_provider_sources_network_info(source_id, source_uuid, name, source_type,
             save_needed = True
         if save_needed:
             source.save()
-
-
-def _validate_billing_source(provider_type, billing_source):
-    """Validate billing source parameters."""
-    if provider_type == Provider.PROVIDER_AWS:
-        if not billing_source.get("bucket"):
-            raise SourcesStorageError("Missing AWS bucket.")
-    elif provider_type == Provider.PROVIDER_AZURE:
-        data_source = billing_source.get("data_source")
-        if not data_source:
-            raise SourcesStorageError("Missing AZURE data_source.")
-        if not data_source.get("resource_group"):
-            raise SourcesStorageError("Missing AZURE resource_group")
-        if not data_source.get("storage_account"):
-            raise SourcesStorageError("Missing AZURE storage_account")
 
 
 def add_provider_koku_uuid(source_id, koku_uuid):
