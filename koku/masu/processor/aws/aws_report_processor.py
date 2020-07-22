@@ -169,7 +169,9 @@ class AWSReportProcessor(ReportProcessorBase):
 
                 if is_finalized_data:
                     report_db.mark_bill_as_finalized(bill_id)
-                report_db.merge_temp_table(self.table_name._meta.db_table, temp_table, self.line_item_columns)
+
+                if self.processed_report.line_items:
+                    report_db.merge_temp_table(self.table_name._meta.db_table, temp_table, self.line_item_columns)
 
         LOG.info("Completed report processing for file: %s and schema: %s", self._report_name, self._schema)
 
