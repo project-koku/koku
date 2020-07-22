@@ -545,7 +545,7 @@ def execute_koku_provider_op(msg):
         err_msg = (
             f"Unable to {operation} provider for Source ID: {str(provider.source_id)}. Reason: {str(account_error)}"
         )
-        LOG.error(err_msg)
+        LOG.warning(err_msg)
         sources_client.set_source_status(account_error)
 
 
