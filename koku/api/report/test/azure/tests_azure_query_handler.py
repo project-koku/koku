@@ -1156,24 +1156,27 @@ class AzureReportQueryHandlerTest(IamTestCase):
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 
-    def test_multiple_group_by_ors(self):
-        """ Test multiple groupbys"""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[delta]=asc&group_by[subscription_guid]=38f1d748-3ac7-4b7f-a5ae-8b5ff16db82d,38f1d748-3ac7-4b7f-a5ae-8b5ff16db82e&delta=cost"  # noqa: E501
-        path = reverse("reports-azure-costs")
-        query_params = self.mocked_query_params(url, AzureCostView, path)
+    def test_execute_query_annotate(self):
+        """Test that query enters cost unit and usage unit ."""
+        with tenant_context(self.tenant):
+            subscription_guid = AzureCostEntryLineItemDailySummary.objects.filter(
+                usage_start__gte=self.dh.this_month_start
+            ).values("subscription_guid")[0]
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[subscription_guid]={subscription_guid}"  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureInstanceTypeView)
         handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        LOG.info("$" * 200)
-        LOG.info(data)
         self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get("total"))
+        total = query_output.get("total")
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        filters = {**self.this_month_filter, "subscription_guid": subscription_guid}
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        self.assertIsNotNone(total.get("cost"))
+        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
             month_val = data_item.get("date")
-            month_data = data_item.get("subscription_guids")
             self.assertEqual(month_val, cmonth_str)
-            self.assertIsInstance(month_data, list)
-            for month_item in month_data:
-                self.assertIsInstance(month_item.get("subscription_guid"), str)
-                self.assertIsInstance(month_item.get("values"), list)
-                self.assertIsInstance(month_item.get("values")[0].get("delta_value"), Decimal)
