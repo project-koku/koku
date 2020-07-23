@@ -17,18 +17,10 @@
 """Sources Patch Handler."""
 import logging
 
-from django.db import connections
-from django.db import DEFAULT_DB_ALIAS
-
 from sources import storage
+from sources.kafka_listener import close_and_set_db_connection as reset_db_connection
 
 LOG = logging.getLogger(__name__)
-
-
-def reset_db_connection():
-    if connections[DEFAULT_DB_ALIAS].connection:
-        connections[DEFAULT_DB_ALIAS].connection.close()
-    connections[DEFAULT_DB_ALIAS].connection = None
 
 
 class SourcesPatchHandler:
