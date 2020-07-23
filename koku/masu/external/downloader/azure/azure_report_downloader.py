@@ -245,15 +245,15 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.error(log_json(self.request_id, msg, self.context))
             raise AzureReportDownloaderError(msg)
 
-        if etag != stored_etag:
-            msg = f"Downloading {key} to {full_file_path}"
-            LOG.info(log_json(self.request_id, msg, self.context))
-            blob = self._azure_client.download_cost_export(key, self.container_name, destination=full_file_path)
-            # Push to S3
-            s3_csv_path = get_path_prefix(self.account, self._provider_uuid, start_date, Config.CSV_DATA_TYPE)
-            copy_local_report_file_to_s3_bucket(
-                self.request_id, s3_csv_path, full_file_path, local_filename, manifest_id, start_date, self.context
-            )
+        msg = f"Downloading {key} to {full_file_path}"
+        LOG.info(log_json(self.request_id, msg, self.context))
+        blob = self._azure_client.download_cost_export(key, self.container_name, destination=full_file_path)
+        # Push to S3
+        s3_csv_path = get_path_prefix(self.account, self._provider_uuid, start_date, Config.CSV_DATA_TYPE)
+        copy_local_report_file_to_s3_bucket(
+            self.request_id, s3_csv_path, full_file_path, local_filename, manifest_id, start_date, self.context
+        )
+
         msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
         LOG.info(log_json(self.request_id, msg, self.context))
         return full_file_path, etag
