@@ -168,7 +168,7 @@ class AzureProviderMap(ProviderMap):
                         "delta_key": {"usage": Sum("usage_quantity")},
                         "filter": [
                             {"field": "instance_type", "operation": "isnull", "parameter": False},
-                            # {"field": "unit_of_measure", "operation": "exact", "parameter": "Hrs"},
+                            {"field": "unit_of_measure", "operation": "exact", "parameter": "Hrs"},
                         ],
                         "group_by": ["instance_type"],
                         "cost_units_key": "currency",
@@ -229,7 +229,7 @@ class AzureProviderMap(ProviderMap):
                         "delta_key": {"usage": Sum("usage_quantity")},
                         "filter": [
                             {"field": "service_name", "operation": "icontains", "parameter": "Storage"},
-                            # {"field": "unit_of_measure", "operation": "icontains", "parameter": "-Mo"},
+                            {"field": "unit_of_measure", "operation": "exact", "parameter": "GB-Mo"},
                         ],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
