@@ -17,6 +17,9 @@
 """Sources Patch Handler."""
 import logging
 
+from django.db import connections
+from django.db import DEFAULT_DB_ALIAS
+
 from sources import storage
 
 LOG = logging.getLogger(__name__)
@@ -27,6 +30,7 @@ class SourcesPatchHandler:
 
     def update_billing_source(self, source_id, billing_source):
         """Store billing source update."""
+        connections[DEFAULT_DB_ALIAS].connection = None
         instance = storage.get_source(source_id, "Unable to PATCH", LOG.error)
         instance.billing_source = billing_source
         if instance.source_uuid:
@@ -37,6 +41,7 @@ class SourcesPatchHandler:
 
     def update_authentication(self, source_id, authentication):
         """Store authentication update."""
+        connections[DEFAULT_DB_ALIAS].connection = None
         instance = storage.get_source(source_id, "Unable to PATCH", LOG.error)
         instance.authentication = authentication
         if instance.source_uuid:
