@@ -10,7 +10,7 @@ if (env.CHANGE_ID) {
         ocDeployerBuilderPath: "hccm/koku",
         ocDeployerComponentPath: "hccm",
         ocDeployerServiceSets: "ingress,platform-mq,sources,hccm",
-        iqePlugins: ["iqe-cost-management-plugin"],
+        iqePlugins: ["iqe-cost_management-plugin"],
         pytestMarker: "cost_smoke",
         // local settings file
         configFileCredentialsId: "hccm_smoke_settings_local_yaml",
