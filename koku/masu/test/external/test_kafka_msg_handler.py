@@ -657,3 +657,11 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.ERROR):
             msg_handler.delivery_callback(err, msg)
+
+    @patch("masu.external.kafka_msg_handler.create_daily_archives", return_value=[])
+    def test_construct_parquet_reports(self, mock_daily_archives):
+        """Test construct parquet reports."""
+        report_meta = {"account": "testaccount", "provider_uuid": "abc", "manifest_id": 1, "date": "today"}
+
+        reports = msg_handler.construct_parquet_reports(1, "context", report_meta, "/payload/path", "report_file")
+        self.assertEqual(reports, [])
