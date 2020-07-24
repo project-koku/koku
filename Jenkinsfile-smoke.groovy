@@ -4,7 +4,7 @@
 
 @Library("github.com/RedHatInsights/insights-pipeline-lib@v3") _
 
-// This smoke job will run upload tests.
+// This smoke job will run cost-management tests.
 def appConfigs = [
     cost_management: [plugins: ["cost_management"]]
 ]
