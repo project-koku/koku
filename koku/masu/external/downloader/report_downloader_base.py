@@ -21,6 +21,7 @@ from tempfile import mkdtemp
 from django.db.utils import IntegrityError
 
 from api.common import log_json
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 
 LOG = logging.getLogger(__name__)
@@ -94,7 +95,16 @@ class ReportDownloaderBase:
                     LOG.warning(log_json(self.request_id, msg, self.context))
                     with ReportManifestDBAccessor() as manifest_accessor:
                         manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
-            manifest_accessor.mark_manifest_as_updated(manifest_entry)
-            manifest_id = manifest_entry.id
+            if not manifest_entry:
+                msg = f"Manifest entry not found for given manifest {manifest_dict}."
+                with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
+                    provider = provider_accessor.get_provider()
+                    if not provider:
+                        msg = f"Provider entry not found for {self._provider_uuid}."
+                LOG.warning(log_json(self.request_id, msg, self.context))
+                raise IntegrityError(msg)
+            else:
+                manifest_accessor.mark_manifest_as_updated(manifest_entry)
+                manifest_id = manifest_entry.id
 
         return manifest_id
