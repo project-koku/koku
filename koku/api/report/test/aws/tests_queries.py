@@ -41,6 +41,7 @@ from api.report.aws.view import AWSCostView
 from api.report.aws.view import AWSInstanceTypeView
 from api.report.aws.view import AWSStorageView
 from api.report.queries import strip_tag_prefix
+from api.report.test.aws.test_views import _calculate_accounts_and_subous
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
@@ -61,59 +62,9 @@ from reporting.models import AWSStorageSummary
 from reporting.models import AWSStorageSummaryByAccount
 from reporting.models import AWSStorageSummaryByRegion
 from reporting.models import AWSStorageSummaryByService
+from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
-
-
-def _calculate_subtotals(data):
-    """Returns the expected totals given the response data."""
-
-    def total_costs(cost_values):
-        total = 0
-        for value in cost_values:
-            total += value
-        return total
-
-    cost = []
-    infra = []
-    sup = []
-    for dictionary in data:
-        for _, value in dictionary.items():
-            if isinstance(value, list):
-                for item in value:
-                    if isinstance(item, dict):
-                        if "values" in item.keys():
-                            value = item["values"][0]
-                            cost.append(value["cost"]["total"]["value"])
-                            infra.append(value["infrastructure"]["total"]["value"])
-                            sup.append(value["supplementary"]["total"]["value"])
-                        else:
-                            cost.append(item["cost"]["total"]["value"])
-                            infra.append(item["infrastructure"]["total"]["value"])
-                            sup.append(item["supplementary"]["total"]["value"])
-
-    cost_total = total_costs(cost)
-    infra_total = total_costs(infra)
-    sup_total = total_costs(sup)
-    return (cost_total, infra_total, sup_total)
-
-
-def _calculate_accounts_and_sub_ous(data):
-    """Returns list of accounts and sub ous given data."""
-    accounts = []
-    sub_ous = []
-    for dictionary in data:
-        for _, value in dictionary.items():
-            if isinstance(value, list):
-                for item in value:
-                    if isinstance(item, dict):
-                        if "account" in item.keys():
-                            account = item["account"]
-                            accounts.append(account)
-                        elif "org_unit_id" in item.keys():
-                            sub_ou = item["org_unit_id"]
-                            sub_ous.append(sub_ou)
-    return (list(set(accounts)), list(set(sub_ous)))
 
 
 def get_account_ailases():
@@ -1351,6 +1302,12 @@ class AWSReportQueryTest(IamTestCase):
                 # infra and total cost match
                 self.assertEqual(cost_total, expected_cost_total)
                 self.assertEqual(infra_total, expected_cost_total)
+                # test the org units and accounts returned are correct
+                accounts_and_sub_ous = _calculate_accounts_and_subous(data.get("data"))
+                for account in ou_to_account_subou_map.get(org_unit).get("accounts"):
+                    self.assertIn(account, accounts_and_sub_ous)
+                for sub_ou in ou_to_account_subou_map.get(org_unit).get("org_units"):
+                    self.assertIn(sub_ou, accounts_and_sub_ous)
 
         # for each org defined in our yaml file assert that everything is as expected
         orgs_to_check = ["R_001", "OU_001", "OU_002", "OU_003", "OU_004", "OU_005"]
@@ -1415,6 +1372,37 @@ class AWSReportQueryTest(IamTestCase):
             # infra and total cost match
             self.assertEqual(org_cost_total, expected_cost_total)
             self.assertEqual(org_infra_total, expected_cost_total)
+
+    def test_rename_org_unit(self):
+        """Test that a renamed org unit only shows up once."""
+        with tenant_context(self.tenant):
+            # Check to make sure OU_001 was renamed in the default dummy data
+            renamed_org_id = "OU_001"
+            org_unit_names = AWSOrganizationalUnit.objects.filter(org_unit_id=renamed_org_id).values_list(
+                "org_unit_name", flat=True
+            )
+            # Find expected alias
+            self.assertGreaterEqual(len(org_unit_names), 2)
+            expected_alias = (
+                AWSOrganizationalUnit.objects.filter(org_unit_id=renamed_org_id)
+                .order_by("org_unit_id", "-created_timestamp")
+                .distinct("org_unit_id")
+                .values_list("org_unit_name", flat=True)
+            )
+            self.assertEqual(len(expected_alias), 1)
+            expected_alias = expected_alias[0]
+            # Check to make sure all alias returns equal the expected for the renamed org unit
+            org_unit = "R_001"
+            url = f"?group_by[org_unit_id]={org_unit}"
+            query_params = self.mocked_query_params(url, AWSCostView, "costs")
+            handler = AWSReportQueryHandler(query_params)
+            handler.execute_query()
+            query_data = handler.query_data
+            for element in query_data:
+                for org_entity in element.get("org_entities"):
+                    if org_entity.get("type") == "organizational_unit" and org_entity.get("id") == renamed_org_id:
+                        org_values = org_entity.get("values", [])[0]
+                        self.assertEqual(org_values.get("alias"), expected_alias)
 
 
 class AWSReportQueryLogicalAndTest(IamTestCase):

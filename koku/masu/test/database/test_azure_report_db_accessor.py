@@ -227,25 +227,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
             actual_markup = query.get("markup_cost__sum")
             self.assertAlmostEqual(actual_markup, expected_markup, 6)
 
-    def test_populate_markup_cost_no_billsids(self):
-        """Test that the daily summary table is populated."""
-        summary_table_name = AZURE_REPORT_TABLE_MAP["line_item_daily_summary"]
-        summary_table = getattr(self.accessor.report_schema, summary_table_name)
-
-        query = self.accessor._get_db_obj_query(summary_table_name)
-        with schema_context(self.schema):
-            expected_markup = query.aggregate(markup=Sum(F("pretax_cost") * decimal.Decimal(0.1)))
-            expected_markup = expected_markup.get("markup")
-            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
-            start_date = summary_entry["usage_start__min"]
-            end_date = summary_entry["usage_start__max"]
-
-        self.accessor.populate_markup_cost(0.1, start_date, end_date, None)
-        with schema_context(self.schema):
-            query = self.accessor._get_db_obj_query(summary_table_name).aggregate(Sum("markup_cost"))
-            actual_markup = query.get("markup_cost__sum")
-            self.assertAlmostEqual(actual_markup, expected_markup, 6)
-
     def test_populate_ocp_on_azure_cost_daily_summary(self):
         """Test the method to run OpenShift on Azure SQL."""
         summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
