@@ -118,6 +118,28 @@ class AzureReportProcessor(ReportProcessorBase):
         )
         LOG.info(stmt)
 
+    def _process_tags(self, tag_str):
+        """Return a JSON string of Azure resource tags.
+
+        Args:
+            tag_str (dict): A string for tags from the CSV file
+
+        Returns:
+            (str): A JSON string of Azure resource tags
+
+        """
+        if "{" in tag_str:
+            return tag_str
+        elif tag_str == "":
+            return "{}"
+        tags = tag_str.split('","')
+        tag_dict = {}
+        for tag in tags:
+            key, value = tag.split(": ")
+            tag_dict[key.strip('"')] = value.strip('"')
+
+        return json.dumps(tag_dict)
+
     def _create_cost_entry_bill(self, row, report_db_accessor):
         """Create a cost entry bill object.
 
@@ -248,7 +270,7 @@ class AzureReportProcessor(ReportProcessorBase):
         tag_str = ""
 
         if "tags" in data:
-            tag_str = data.pop("tags")
+            tag_str = self._process_tags(data.pop("tags"))
 
         data = report_db_accesor.clean_data(data, self.table_name._meta.db_table)
 
