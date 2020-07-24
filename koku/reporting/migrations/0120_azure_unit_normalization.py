@@ -21,8 +21,6 @@ class Migration(migrations.Migration):
                                 THEN  'Hrs'
                             WHEN split_part(m.unit_of_measure, ' ', 2) = 'GB/Month'
                                 THEN  'GB-Mo'
-                            WHEN split_part(m.unit_of_measure, ' ', 2) = '/Month'
-                                THEN  '-Mo'
                             WHEN split_part(m.unit_of_measure, ' ', 2) != ''
                                 THEN  split_part(m.unit_of_measure, ' ', 2)
                             ELSE m.unit_of_measure
