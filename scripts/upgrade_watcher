@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+#
+# Copyright 2020 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
+# ==============================================
+#  upgrade_watcher
+#  Watches for a specific version reported from the database
+#  Once seen, it will execute a single SQL script
+#
+#  ENVIRONMENT
+#  -------------------------------------------
+#  PGHOST=<database hostname>
+#  PGPORT=<databse port>
+#  PGDATABASE=<database to which to connect
+#  PGUSER=<database superuser>
+#  PGPASSWORD=<password for PGUSER>
+#  TARGET_DATABASE=<database to analyze and reindex>
+#  NEED_VERSION=<version string that the server version must START WITH>
+#  POST_UPGRADE_SCRIPT=</path/to/sql-script>
+#
+
+
+# This check was inspired by a code snippet from
+# https://stackoverflow.com/questions/3601515/how-to-check-if-a-variable-is-set-in-bash
+function assert_var
+{
+    if [[ -z ${!1+x} ]]
+    then
+        echo "$1 environment variable is not set" >&2
+        return 1
+    fi
+
+    return 0
+}
+
+
+# Checks versions by splitting a version string into an int array.
+# This is done for both the need version and the have version.
+# Then checks matches by the shortest array length.
+function version_check
+{
+    echo "Checking for PostgreSQL version ${NEED_VERSION}"
+    read -r -d '' SQL <<EOF
+with need_version as (
+select string_to_array('${NEED_VERSION}', '.')::int[] as version
+),
+have_version as (
+select string_to_array(split_part(setting, ' ', 1)::text, '.')::int[] as version
+  from pg_settings
+ where name = 'server_version'
+),
+min_cardinality as (
+select case when cardinality(n.version) < cardinality(h.version)
+                 then cardinality(n.version)
+            else cardinality(h.version) end::int as min_len
+  from need_version n,
+       have_version h
+)
+select (n.version[:m.min_len] = h.version[:m.min_len])::boolean::int as check
+  from need_version n,
+       have_version h,
+       min_cardinality m;
+EOF
+
+    RES=$(psql -h $PGHOST -p $PGPORT -d $PGDATABASE -U $PGUSER -t --csv -c "${SQL}" 2>/dev/null)
+    test $RES -eq 1
+    return $?
+}
+
+
+# Executes the SQL script and captures output to a log file
+function post_upgrade_tasks
+{
+    echo "Running post-upgrade tasks"
+    psql -h $PGHOST -p $PGPORT -d $PGDATABASE -U $PGUSER -f $POST_UPGRADE_SCRIPT \
+         --variable=TARGET_DB=$TARGET_DATABASE 2>&1 | tee post-upgrade.log
+    return $?
+}
+
+
+# Main routine
+function upgrade_watch
+{
+    while true
+    do
+        if pg_isready -h $PGHOST -p $PGPORT
+        then
+            if version_check
+            then
+                if post_upgrade_tasks
+                then
+                    echo "Post-Upgrade: SUCCESS!"
+                else
+                    echo "Post-Upgrade: *** FAILED ***!"
+                fi
+                echo "See details in post-upgrade.log"
+                break
+            fi
+        fi
+
+        sleep 10
+    done
+
+    return $?
+}
+
+
+# Env var checks
+_EVRES=0
+for _EVAR in PGHOST PGPORT PGDATABASE PGUSER PGPASSWORD TARGET_DATABASE NEED_VERSION POST_UPGRADE_SCRIPT
+do
+    assert_var $_EVAR
+    (( _EVRES += $? ))
+done
+
+
+# Run main routine and exit with a return code
+if [[ $_EVRES -eq 0 ]]
+then
+    upgrade_watch
+    exit $?
+else
+    exit $_EVRES
+fi
