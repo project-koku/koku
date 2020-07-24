@@ -35,8 +35,20 @@ from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDaily
 from reporting.provider.azure.models import AzureCostEntryProductService
 from reporting.provider.azure.models import AzureMeter
+from reporting_common import AZURE_REPORT_COLUMNS
 
 LOG = logging.getLogger(__name__)
+
+
+def normalize_header(header_str):
+    """Return the normalized English header column names for Azure."""
+    header = header_str.strip("\n").split(",")
+    for column in header:
+        if column in AZURE_REPORT_COLUMNS:
+            # The header is in English
+            return header
+    # Extract the English header values in parenthesis
+    return [item.split("(")[1].strip(")") for item in header]
 
 
 class ProcessedAzureReport:
@@ -272,9 +284,10 @@ class AzureReportProcessor(ReportProcessorBase):
         self._delete_line_items(AzureReportDBAccessor)
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode, encoding="utf-8-sig") as f:
+            header = normalize_header(f.readline())
             with AzureReportDBAccessor(self._schema) as report_db:
                 LOG.info("File %s opened for processing", str(f))
-                reader = csv.DictReader(f)
+                reader = csv.DictReader(f, fieldnames=header)
                 for row in reader:
                     if not self._should_process_row(row, "UsageDateTime", is_full_month):
                         continue
