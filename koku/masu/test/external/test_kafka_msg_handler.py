@@ -209,7 +209,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             mock_consumer = MockKafkaConsumer([msg])
 
             mock_process_message.side_effect = test.get("side_effect")
-            with patch("masu.external.kafka_msg_handler.connection.close") as close_mock:
+            with patch("masu.external.kafka_msg_handler.close_and_set_db_connection") as close_mock:
                 with patch.object(Config, "RETRY_SECONDS", 0):
                     msg_handler.listen_for_messages(msg, mock_consumer)
                     close_mock.assert_called()
@@ -248,7 +248,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             mock_consumer = MockKafkaConsumer([msg])
 
             mock_process_message.side_effect = test.get("side_effect")
-            with patch("masu.external.kafka_msg_handler.connection.close") as close_mock:
+            with patch("masu.external.kafka_msg_handler.close_and_set_db_connection") as close_mock:
                 with patch.object(Config, "RETRY_SECONDS", 0):
                     msg_handler.listen_for_messages(msg, mock_consumer)
                     close_mock.assert_not_called()
@@ -346,7 +346,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                     msg_handler.process_messages(msg)
                                     test.get("expected_fn")(msg, test, confirmation_mock)
 
-    def test_handle_messages(self):
+    @patch("masu.external.kafka_msg_handler.close_and_set_db_connection")
+    def test_handle_messages(self, _):
         """Test to ensure that kafka messages are handled."""
         hccm_msg = MockMessage(msg_handler.HCCM_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
         advisor_msg = MockMessage("platform.upload.advisor", "http://insights-upload.com/quarnantine/file_to_validate")
