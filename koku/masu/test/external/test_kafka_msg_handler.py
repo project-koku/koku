@@ -101,6 +101,9 @@ class MockKafkaConsumer:
     def poll(self, *args, **kwargs):
         return self.preloaded_messages.pop(0)
 
+    def seek(self, *args, **kwargs):
+        pass
+
     def commit(self):
         self.preloaded_messages.pop()
 
