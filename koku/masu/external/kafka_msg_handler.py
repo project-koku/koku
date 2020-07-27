@@ -770,6 +770,7 @@ def listen_for_messages(msg, consumer):
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
         process_messages(msg)
         LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
+        consumer.commit()
     except (InterfaceError, OperationalError, ReportProcessorDBError) as error:
         close_and_set_db_connection()
         LOG.error(f"[listen_for_messages] Database error. Error: {type(error).__name__}: {error}. Retrying...")
@@ -783,8 +784,6 @@ def listen_for_messages(msg, consumer):
         consumer.commit()
     except Exception as error:
         LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)
-    else:
-        consumer.commit()
 
 
 def koku_listener_thread():  # pragma: no cover
