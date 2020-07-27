@@ -28,6 +28,7 @@ from dateutil import parser
 from django.conf import settings
 from django.db import connection
 from django.db import transaction
+from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
@@ -66,6 +67,21 @@ from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 
 LOG = get_task_logger(__name__)
+
+
+def record_all_manifest_files(manifest_id, report_files):
+    """Store all report file names for manifest ID."""
+    for report in report_files:
+        try:
+            with ReportStatsDBAccessor(report, manifest_id):
+                LOG.debug(f"Logging {report} for manifest ID: {manifest_id}")
+        except IntegrityError:
+            # OCP records the entire file list for a new manifest when the listener
+            # recieves a payload.  With multiple listeners it is possilbe for
+            # two listeners to recieve a report file for the same manifest at
+            # roughly the same time.  In that case the report file may already
+            # exist and an IntegrityError would be thrown.
+            LOG.debug(f"Report {report} has already been recorded.")
 
 
 @app.task(name="masu.processor.tasks.get_report_files", queue_name="download", bind=True)  # noqa: C901
@@ -265,30 +281,39 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
     start_date, end_date = updater.update_daily_tables(start_date, end_date)
     updater.update_summary_tables(start_date, end_date)
 
-    if provider_uuid:
-        dh = DateHelper(utc=True)
-        prev_month_last_day = dh.last_month_end
-        start_date_obj = datetime.datetime.strptime(start_date, "%Y-%m-%d")
-        prev_month_last_day = prev_month_last_day.replace(tzinfo=None)
-        prev_month_last_day = prev_month_last_day.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
-        if manifest_id and (start_date_obj <= prev_month_last_day):
-            # We want make sure that the manifest_id is not none, because
-            # we only want to call the delete line items after the summarize_reports
-            # task above
-            simulate = False
-            line_items_only = True
-            chain(
-                update_cost_model_costs.s(schema_name, provider_uuid, start_date, end_date),
-                refresh_materialized_views.si(schema_name, provider, manifest_id),
-                remove_expired_data.si(schema_name, provider, simulate, provider_uuid, line_items_only),
-            ).apply_async()
-        else:
-            chain(
-                update_cost_model_costs.s(schema_name, provider_uuid, start_date, end_date),
-                refresh_materialized_views.si(schema_name, provider, manifest_id),
-            ).apply_async()
-    else:
+    if not provider_uuid:
         refresh_materialized_views.delay(schema_name, provider, manifest_id)
+        return
+
+    with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
+        cost_model = cost_model_accessor.cost_model
+
+    if cost_model is not None:
+        linked_tasks = update_cost_model_costs.s(
+            schema_name, provider_uuid, start_date, end_date
+        ) | refresh_materialized_views.si(schema_name, provider, manifest_id)
+    else:
+        stmt = (
+            f"\n update_cost_model_costs skipped. No cost model available for \n"
+            f" schema_name: {schema_name},\n"
+            f" provider_uuid: {provider_uuid}"
+        )
+        LOG.info(stmt)
+        linked_tasks = refresh_materialized_views.s(schema_name, provider, manifest_id)
+
+    dh = DateHelper(utc=True)
+    prev_month_start_day = dh.last_month_start.replace(tzinfo=None)
+    start_date_obj = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+    if manifest_id and (start_date_obj <= prev_month_start_day):
+        # We want make sure that the manifest_id is not none, because
+        # we only want to call the delete line items after the summarize_reports
+        # task above
+        simulate = False
+        line_items_only = True
+
+        linked_tasks |= remove_expired_data.si(schema_name, provider, simulate, provider_uuid, line_items_only)
+
+    chain(linked_tasks).apply_async()
 
 
 @app.task(name="masu.processor.tasks.update_all_summary_tables", queue_name="reporting")
@@ -324,7 +349,7 @@ def update_all_summary_tables(start_date, end_date=None):
 
 
 @app.task(name="masu.processor.tasks.update_cost_model_costs", queue_name="reporting")
-def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_date=None):
+def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_date=None, provider_type=None):
     """Update usage charge information.
 
     Args:
@@ -337,28 +362,18 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
         None
 
     """
-    with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
-        cost_model = cost_model_accessor.cost_model
-    if cost_model is not None:
-        worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
+    worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
-        stmt = (
-            f"update_cost_model_costs called with args:\n"
-            f" schema_name: {schema_name},\n"
-            f" provider_uuid: {provider_uuid}"
-        )
-        LOG.info(stmt)
+    stmt = (
+        f"update_cost_model_costs called with args:\n"
+        f" schema_name: {schema_name},\n"
+        f" provider_uuid: {provider_uuid}"
+    )
+    LOG.info(stmt)
 
-        updater = CostModelCostUpdater(schema_name, provider_uuid)
-        if updater:
-            updater.update_cost_model_costs(start_date, end_date)
-    else:
-        stmt = (
-            f"\n update_cost_model_costs skipped. No cost model available for \n"
-            f" schema_name: {schema_name},\n"
-            f" provider_uuid: {provider_uuid}"
-        )
-        LOG.info(stmt)
+    updater = CostModelCostUpdater(schema_name, provider_uuid)
+    if updater:
+        updater.update_cost_model_costs(start_date, end_date)
 
 
 @app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name="reporting")

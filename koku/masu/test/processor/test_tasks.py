@@ -32,6 +32,7 @@ import faker
 from dateutil import relativedelta
 from django.db.models import Max
 from django.db.models import Min
+from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
 
 import koku.celery as koku_celery
@@ -41,7 +42,6 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
-from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.provider_status_accessor import ProviderStatusCode
@@ -55,6 +55,7 @@ from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import convert_to_parquet
 from masu.processor.tasks import get_report_files
+from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
@@ -68,6 +69,7 @@ from masu.test.external.downloader.aws import fake_arn
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
+from reporting_common.models import CostUsageReportStatus
 
 
 class FakeDownloader(Mock):
@@ -404,7 +406,7 @@ class ProcessReportFileTests(MasuTestCase):
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-            self.assertEqual(manifest.num_processed_files, 0)
+            self.assertEqual(manifest_accessor.number_of_files_processed(manifest_id), 0)
             self.assertEqual(manifest.manifest_updated_datetime, initial_update_time)
 
         with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
@@ -733,7 +735,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_chain.return_value.apply_async.assert_called()
 
-    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.tasks.chain")
     def test_update_summary_tables_aws_end_date(self, mock_charge_info):
         """Test that the summary table task respects a date range."""
         provider = Provider.PROVIDER_AWS_LOCAL
@@ -860,7 +862,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_chain.return_value.apply_async.assert_called()
 
-    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.tasks.chain")
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_memory_gb_usage_per_hour_rates")
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_cpu_core_usage_per_hour_rates")
     def test_update_summary_tables_ocp_end_date(self, mock_cpu_rate, mock_mem_rate, mock_charge_info):
@@ -899,6 +901,24 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         self.assertEqual(result_start_date, expected_start_date.date())
         self.assertEqual(result_end_date, expected_end_date.date())
+
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.tasks.CostModelDBAccessor")
+    def test_update_summary_tables_remove_expired_data(self, mock_accessor, mock_chain):
+        provider = Provider.PROVIDER_AWS
+        provider_aws_uuid = self.aws_provider_uuid
+        start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
+        end_date = DateHelper().today
+        expected_start_date = start_date.strftime("%Y-%m-%d")
+        expected_end_date = end_date.strftime("%Y-%m-%d")
+        manifest_id = 1
+
+        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, end_date, manifest_id)
+        mock_chain.assert_called_once_with(
+            update_cost_model_costs.s(self.schema, provider_aws_uuid, expected_start_date, expected_end_date)
+            | refresh_materialized_views.si(self.schema, provider, manifest_id)
+            | remove_expired_data.si(self.schema, provider, False, provider_aws_uuid, True)
+        )
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_get_report_data_for_all_providers(self, mock_update):
@@ -1146,21 +1166,25 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         avh = next(iter(koku_celery.app.conf.beat_schedule["autovacuum-tune-schemas"]["schedule"].hour))
         self.assertTrue(avh == (23 if vh == 0 else (vh - 1)))
 
-    @patch("masu.processor.tasks.CostModelCostUpdater")
-    def test_no_cost_model_during_cost_model_update(self, mock_updater):
-        """Test cost model update not called if no cost model is present."""
+    def test_record_all_manifest_files(self):
+        """Test that file list is saved in ReportStatsDBAccessor."""
+        files_list = ["file1.csv", "file2.csv", "file3.csv"]
+        manifest_id = 1
 
-        provider_ocp_uuid = self.ocp_test_provider_uuid
-        with CostModelDBAccessor(self.schema, provider_ocp_uuid) as cost_model_accessor:
-            test_cost_model = cost_model_accessor.cost_model
-        self.assertIsNone(test_cost_model)
+        record_all_manifest_files(manifest_id, files_list)
 
-        start_date = DateHelper().last_month_start
-        end_date = DateHelper().last_month_end
+        for report_file in files_list:
+            CostUsageReportStatus.objects.filter(report_name=report_file).exists()
 
-        update_cost_model_costs(
-            schema_name=self.schema, provider_uuid=provider_ocp_uuid, start_date=start_date, end_date=end_date
-        )
+    def test_record_all_manifest_files_concurrent_writes(self):
+        """Test that file list is saved in ReportStatsDBAccessor race condition."""
+        files_list = ["file1.csv", "file2.csv", "file3.csv"]
+        manifest_id = 1
 
-        self.assertFalse(mock_updater.called)
-        self.assertEqual(mock_updater.call_count, 0)
+        record_all_manifest_files(manifest_id, files_list)
+        with patch.object(ReportStatsDBAccessor, "does_db_entry_exist", return_value=False):
+            with patch.object(ReportStatsDBAccessor, "add", side_effect=IntegrityError):
+                record_all_manifest_files(manifest_id, files_list)
+
+        for report_file in files_list:
+            CostUsageReportStatus.objects.filter(report_name=report_file).exists()

@@ -18,7 +18,10 @@
 import logging
 from tempfile import mkdtemp
 
+from django.db.utils import IntegrityError
+
 from api.common import log_json
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.worker_cache import WorkerCache
 
@@ -121,9 +124,26 @@ class ReportDownloaderBase:
                     "provider_uuid": self._provider_uuid,
                     "task": self._task.request.id,
                 }
-                manifest_entry = manifest_accessor.add(**manifest_dict)
-
-            manifest_accessor.mark_manifest_as_updated(manifest_entry)
-            manifest_id = manifest_entry.id
+                try:
+                    manifest_entry = manifest_accessor.add(**manifest_dict)
+                except IntegrityError as error:
+                    msg = (
+                        f"Manifest entry uniqueness collision: Error {error}. "
+                        "Manifest already added, getting manifest_entry_id."
+                    )
+                    LOG.warning(log_json(self.request_id, msg, self.context))
+                    with ReportManifestDBAccessor() as manifest_accessor:
+                        manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
+            if not manifest_entry:
+                msg = f"Manifest entry not found for given manifest {manifest_dict}."
+                with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
+                    provider = provider_accessor.get_provider()
+                    if not provider:
+                        msg = f"Provider entry not found for {self._provider_uuid}."
+                LOG.warning(log_json(self.request_id, msg, self.context))
+                raise IntegrityError(msg)
+            else:
+                manifest_accessor.mark_manifest_as_updated(manifest_entry)
+                manifest_id = manifest_entry.id
 
         return manifest_id

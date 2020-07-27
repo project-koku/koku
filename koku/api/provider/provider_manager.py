@@ -132,9 +132,12 @@ class ProviderManager:
                 report_status = CostUsageReportStatus.objects.filter(manifest=provider_manifest).first()
                 status["assembly_id"] = provider_manifest.assembly_id
                 status["billing_period_start"] = provider_manifest.billing_period_start_datetime.date()
-                status["files_processed"] = "{}/{}".format(
-                    provider_manifest.num_processed_files, provider_manifest.num_total_files
-                )
+
+                num_processed_files = CostUsageReportStatus.objects.filter(
+                    manifest_id=provider_manifest.id, last_completed_datetime__isnull=False
+                ).count()
+                status["files_processed"] = f"{num_processed_files}/{provider_manifest.num_total_files}"
+
                 last_process_start_date = None
                 last_process_complete_date = None
                 last_manifest_complete_datetime = None
