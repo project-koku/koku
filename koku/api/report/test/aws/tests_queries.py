@@ -1411,33 +1411,6 @@ class AWSReportQueryTest(IamTestCase):
             for result in accounts_and_sub_ous:
                 self.assertIn(result, expected_accounts_and_sub_ous)
 
-    def test_group_by_org_unit_all(self):
-        """Check that the total is correct when grouping by org_unit_id=*."""
-        with tenant_context(self.tenant):
-            # grab org_unit_id=* query data
-            org_group_by_url = "?group_by[org_unit_id]=*"
-            query_params = self.mocked_query_params(org_group_by_url, AWSCostView, "costs")
-            handler = AWSReportQueryHandler(query_params)
-            org_data = handler.execute_query()
-            # grab the actual totals for the org_unit_id group by
-            org_cost_total = org_data.get("total").get("cost").get("total").get("value")
-            org_infra_total = org_data.get("total").get("infrastructure").get("total").get("value")
-            org_sup_total = org_data.get("total").get("supplementary").get("total").get("value")
-
-            # grab query data without group by
-            overall_url = "?"
-            query_params = self.mocked_query_params(overall_url, AWSCostView)
-            handler = AWSReportQueryHandler(query_params)
-            overall_data = handler.execute_query()
-            # grab the actual totals for the org_unit_id group by
-            overall_cost_total = overall_data.get("total").get("cost").get("total").get("value")
-            overall_infra_total = overall_data.get("total").get("infrastructure").get("total").get("value")
-            overall_sup_total = overall_data.get("total").get("supplementary").get("total").get("value")
-
-            self.assertEqual(org_cost_total, overall_cost_total)
-            self.assertEqual(org_infra_total, overall_infra_total)
-            self.assertEqual(org_sup_total, overall_sup_total)
-
     def test_filter_org_unit(self):
         """Check that the total is correct when filtering by org_unit_id."""
         with tenant_context(self.tenant):
