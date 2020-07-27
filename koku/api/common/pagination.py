@@ -204,9 +204,10 @@ class OrgUnitPagination(ReportPagination):
         org_objects = []
         org_data = dataset.get("data")
         for date in org_data:
-            for entry in date.get("org_entities"):
-                org_objects.append(entry["id"])
-            date["org_entities"] = date["org_entities"][self.offset : self.offset + self.limit]  # noqa: E203
+            if date.get("org_entities"):
+                for entry in date.get("org_entities"):
+                    org_objects.append(entry["id"])
+                date["org_entities"] = date["org_entities"][self.offset : self.offset + self.limit]  # noqa: E203
         org_objects = set(org_objects)
         self.count = len(org_objects)
         return dataset
