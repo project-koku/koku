@@ -1239,10 +1239,10 @@
         },
         "identify": {
             "hashes": [
-                "sha256:acf0712ab4042642e8f44e9532d95c26fbe60c0ab8b6e5b654dd1bc6512810e0",
-                "sha256:b2cd24dece806707e0b50517c1b3bcf3044e0b1cb13a72e7d34aa31c91f2a55a"
+                "sha256:110ed090fec6bce1aabe3c72d9258a9de82207adeaa5a05cd75c635880312f9a",
+                "sha256:ccd88716b890ecbe10920659450a635d2d25de499b9a638525a48b48261d989b"
             ],
-            "version": "==1.4.20"
+            "version": "==1.4.25"
         },
         "idna": {
             "hashes": [
