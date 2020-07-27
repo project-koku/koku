@@ -51,7 +51,7 @@ kafka-python==2.0.1
 kombu==4.6.11
 markupsafe==1.1.1
 mccabe==0.6.1
-msrest==0.6.16
+msrest==0.6.17
 msrestazure==0.6.3
 numpy==1.19.0
 oauthlib==3.1.0
