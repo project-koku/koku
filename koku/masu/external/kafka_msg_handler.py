@@ -32,7 +32,9 @@ from tarfile import TarFile
 import requests
 from confluent_kafka import Consumer
 from confluent_kafka import Producer
-from django.db import connection
+from confluent_kafka import TopicPartition
+from django.db import connections
+from django.db import DEFAULT_DB_ALIAS
 from django.db import InterfaceError
 from django.db import OperationalError
 from kombu.exceptions import OperationalError as RabbitOperationalError
@@ -67,6 +69,13 @@ PRODUCER = Producer({"bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS, "messag
 
 class KafkaMsgHandlerError(Exception):
     """Kafka msg handler error."""
+
+
+def close_and_set_db_connection():  # pragma: no cover
+    """Close the db connection and set to None."""
+    if connections[DEFAULT_DB_ALIAS].connection:
+        connections[DEFAULT_DB_ALIAS].connection.close()
+    connections[DEFAULT_DB_ALIAS].connection = None
 
 
 def delivery_callback(err, msg):
@@ -454,7 +463,7 @@ def handle_message(msg):
             report_metas = extract_payload(value["url"], request_id, context)
             return SUCCESS_CONFIRM_STATUS, report_metas
         except (OperationalError, InterfaceError) as error:
-            connection.close()
+            close_and_set_db_connection()
             msg = f"Unable to extract payload, db closed. {type(error).__name__}: {error}"
             LOG.error(log_json(request_id, msg, context))
             raise KafkaMsgHandlerError(msg)
@@ -697,7 +706,6 @@ def get_consumer():  # pragma: no cover
             "group.id": "hccm-group",
             "queued.max.messages.kbytes": 1024,
             "enable.auto.commit": False,
-            "enable.auto.offset.store": False,
             "max.poll.interval.ms": 1080000,  # 18 minutes
         }
     )
@@ -720,6 +728,13 @@ def listen_for_messages_loop():
             continue
 
         listen_for_messages(msg, consumer)
+
+
+def rewind_consumer_to_retry(consumer, topic_partition):
+    """Helper method to log and rewind kafka consumer for retry."""
+    LOG.info(f"Seeking back to offset: {topic_partition.offset}, partition: {topic_partition.partition}")
+    consumer.seek(topic_partition)
+    time.sleep(Config.RETRY_SECONDS)
 
 
 def listen_for_messages(msg, consumer):
@@ -750,25 +765,24 @@ def listen_for_messages(msg, consumer):
         None
 
     """
+    offset = msg.offset()
+    partition = msg.partition()
+    topic_partition = TopicPartition(topic=HCCM_TOPIC, partition=partition, offset=offset)
     try:
-        offset = msg.offset()
-        partition = msg.partition()
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
         process_messages(msg)
         LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
-        consumer.store_offsets(msg)
         consumer.commit()
     except (InterfaceError, OperationalError, ReportProcessorDBError) as error:
-        connection.close()
+        close_and_set_db_connection()
         LOG.error(f"[listen_for_messages] Database error. Error: {type(error).__name__}: {error}. Retrying...")
-        time.sleep(Config.RETRY_SECONDS)
+        rewind_consumer_to_retry(consumer, topic_partition)
     except (KafkaMsgHandlerError, RabbitOperationalError) as error:
         LOG.error(f"[listen_for_messages] Internal error. {type(error).__name__}: {error}. Retrying...")
-        time.sleep(Config.RETRY_SECONDS)
+        rewind_consumer_to_retry(consumer, topic_partition)
     except ReportProcessorError as error:
         LOG.error(f"[listen_for_messages] Report processing error: {str(error)}")
         LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
-        consumer.store_offsets(msg)
         consumer.commit()
     except Exception as error:
         LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)
