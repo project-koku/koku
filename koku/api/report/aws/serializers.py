@@ -110,9 +110,12 @@ class QueryParamSerializer(ParamSerializer):
         validate_field(self, "group_by", GroupBySerializer, value, tag_keys=self.tag_keys)
         # Additionally, since we only have the org_unit_id group_by available for cost reports
         # we must explicitly raise a validation error if it is a different report type
+        # or if we are grouping by org_unit_id with the * since that is essentially grouping by
+        # accounts. If we ever want to change this we need to decide what would be appropriate to see
+        # here. Such as all org units or top level org units
         if "org_unit_id" in self.initial_data.get("group_by", {}).keys():
             request = self.context.get("request")
-            if "costs" not in request.path:
+            if "costs" not in request.path or self.initial_data.get("group_by", {}).get("org_unit_id", "") == "*":
                 error = {"org_unit_id": _("Unsupported parameter or invalid value")}
                 raise serializers.ValidationError(error)
         return value
