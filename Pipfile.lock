@@ -501,10 +501,10 @@
         },
         "msrestazure": {
             "hashes": [
-                "sha256:0ae7f903ff81631512beef39602c4104a8fe04cb7d166f28a1ec43c0f0985749",
-                "sha256:0ec9db93eeea6a6cf1240624a04f49cd8bbb26b98d84a63a8220cfda858c2a96"
+                "sha256:3de50f56147ef529b31e099a982496690468ecef33f0544cb0fa0cfe1e1de5b9",
+                "sha256:a06f0dabc9a6f5efe3b6add4bd8fb623aeadacf816b7a35b0f89107e0544d189"
             ],
-            "version": "==0.6.3"
+            "version": "==0.6.4"
         },
         "numpy": {
             "hashes": [
@@ -1396,10 +1396,10 @@
         },
         "msrestazure": {
             "hashes": [
-                "sha256:0ae7f903ff81631512beef39602c4104a8fe04cb7d166f28a1ec43c0f0985749",
-                "sha256:0ec9db93eeea6a6cf1240624a04f49cd8bbb26b98d84a63a8220cfda858c2a96"
+                "sha256:3de50f56147ef529b31e099a982496690468ecef33f0544cb0fa0cfe1e1de5b9",
+                "sha256:a06f0dabc9a6f5efe3b6add4bd8fb623aeadacf816b7a35b0f89107e0544d189"
             ],
-            "version": "==0.6.3"
+            "version": "==0.6.4"
         },
         "nodeenv": {
             "hashes": [
