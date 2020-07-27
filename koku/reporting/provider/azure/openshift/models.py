@@ -183,13 +183,14 @@ class OCPAzureTagsSummary(models.Model):
         """Meta for AzureTagsSummary."""
 
         db_table = "reporting_ocpazuretags_summary"
-        unique_together = ("key", "cost_entry_bill", "namespace")
+        unique_together = ("key", "cost_entry_bill", "report_period", "namespace")
 
     id = models.BigAutoField(primary_key=True)
 
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     subscription_guid = ArrayField(models.CharField(max_length=50))
     namespace = ArrayField(models.CharField(max_length=253, null=False))
     cluster_id = models.CharField(max_length=50, null=True)
