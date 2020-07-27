@@ -35,8 +35,20 @@ from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDaily
 from reporting.provider.azure.models import AzureCostEntryProductService
 from reporting.provider.azure.models import AzureMeter
+from reporting_common import AZURE_REPORT_COLUMNS
 
 LOG = logging.getLogger(__name__)
+
+
+def normalize_header(header_str):
+    """Return the normalized English header column names for Azure."""
+    header = header_str.strip("\n").split(",")
+    for column in header:
+        if column in AZURE_REPORT_COLUMNS:
+            # The header is in English
+            return header
+    # Extract the English header values in parenthesis
+    return [item.split("(")[1].strip(")") for item in header]
 
 
 class ProcessedAzureReport:
@@ -105,6 +117,28 @@ class AzureReportProcessor(ReportProcessorBase):
             f" file: {report_path}"
         )
         LOG.info(stmt)
+
+    def _process_tags(self, tag_str):
+        """Return a JSON string of Azure resource tags.
+
+        Args:
+            tag_str (dict): A string for tags from the CSV file
+
+        Returns:
+            (str): A JSON string of Azure resource tags
+
+        """
+        if "{" in tag_str:
+            return tag_str
+        elif tag_str == "":
+            return "{}"
+        tags = tag_str.split('","')
+        tag_dict = {}
+        for tag in tags:
+            key, value = tag.split(": ")
+            tag_dict[key.strip('"')] = value.strip('"')
+
+        return json.dumps(tag_dict)
 
     def _create_cost_entry_bill(self, row, report_db_accessor):
         """Create a cost entry bill object.
@@ -236,7 +270,7 @@ class AzureReportProcessor(ReportProcessorBase):
         tag_str = ""
 
         if "tags" in data:
-            tag_str = data.pop("tags")
+            tag_str = self._process_tags(data.pop("tags"))
 
         data = report_db_accesor.clean_data(data, self.table_name._meta.db_table)
 
@@ -272,9 +306,10 @@ class AzureReportProcessor(ReportProcessorBase):
         self._delete_line_items(AzureReportDBAccessor)
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode, encoding="utf-8-sig") as f:
+            header = normalize_header(f.readline())
             with AzureReportDBAccessor(self._schema) as report_db:
                 LOG.info("File %s opened for processing", str(f))
-                reader = csv.DictReader(f)
+                reader = csv.DictReader(f, fieldnames=header)
                 for row in reader:
                     if not self._should_process_row(row, "UsageDateTime", is_full_month):
                         continue
