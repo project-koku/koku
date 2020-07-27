@@ -168,7 +168,14 @@ class AWSReportQueryHandler(ReportQueryHandler):
                                 "values": values,
                             }
                         )
+                        # now we need to do an order by cost
+                        reverse = False
+                        if "-cost_total" in self.order:
+                            # if - then we want to order by desc
+                            reverse = True
+                        org_entities.sort(key=lambda e: e["values"][0]["cost"]["total"]["value"], reverse=reverse)
                         each_day["org_entities"] = org_entities
+
         return query_data
 
     def execute_query(self):  # noqa: C901
@@ -247,7 +254,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             self.query_filter = self._get_filter()
         # grab the base query
         # (without org_units this is the only query - with org_units this is the query to find the accounts)
-        query_data, query_sum = self.execute_individual_query()
+        query_data, query_sum = self.execute_individual_query(org_unit_applied)
         # Next we want to loop through each sub_org and execute the query for it
         for sub_org_name, value in sub_orgs_dict.items():
             sub_org_id, org_unit_path = value
@@ -263,7 +270,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             if org_access is None or (sub_org_id in org_access or "*" in org_access):
                 self.parameters.set_filter(org_unit_path=[org_unit_path])
             self.query_filter = self._get_filter()
-            sub_query_data, sub_query_sum = self.execute_individual_query()
+            sub_query_data, sub_query_sum = self.execute_individual_query(org_unit_applied)
             query_data_results[sub_org_name] = sub_query_data
             query_sum_results.append(sub_query_sum)
         if org_unit_applied:
@@ -483,7 +490,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     sum2[expected_key] = self.total_sum(sum1.get(expected_key), sum2.get(expected_key))
         return sum2
 
-    def execute_individual_query(self):  # noqa: C901
+    def execute_individual_query(self, org_unit_applied=False):  # noqa: C901
         """Execute query and return provided data.
 
         Returns:
@@ -520,7 +527,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
             query_sum = self._build_sum(query, annotations)
 
-            if self._limit:
+            if self._limit and not org_unit_applied:
                 rank_order = getattr(F(self.order_field), self.order_direction)()
                 rank_by_total = Window(expression=RowNumber(), partition_by=F("date"), order_by=rank_order)
                 query_data = query_data.annotate(rank=rank_by_total)
