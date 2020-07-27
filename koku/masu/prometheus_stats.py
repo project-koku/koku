@@ -60,3 +60,11 @@ KAFKA_CONNECTION_ERRORS_COUNTER = Counter(
 )
 
 CELERY_ERRORS_COUNTER = Counter("celery_errors", "Number of celery errors", registry=WORKER_REGISTRY)
+
+SOURCES_KAFKA_LOOP_RETRY = Counter(
+    "sources_kafka_retry_errors", "Number of sources kafka retry errors", registry=WORKER_REGISTRY
+)
+
+SOURCES_PROVIDER_OP_RETRY_LOOP_COUNTER = Counter(
+    "sources_provider_op_retry_errors", "Number of sources provider operation retry errors", registry=WORKER_REGISTRY
+)

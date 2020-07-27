@@ -19,6 +19,17 @@ from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 
+VIEWS = (
+    "reporting_azure_compute_summary",
+    "reporting_azure_cost_summary",
+    "reporting_azure_cost_summary_by_account",
+    "reporting_azure_cost_summary_by_location",
+    "reporting_azure_cost_summary_by_service",
+    "reporting_azure_database_summary",
+    "reporting_azure_network_summary",
+    "reporting_azure_storage_summary",
+)
+
 
 class AzureCostEntryBill(models.Model):
     """The billing information for a Cost Usage Report.
@@ -51,7 +62,7 @@ class AzureCostEntryProductService(models.Model):
         unique_together = ("instance_id", "instance_type", "service_tier", "service_name")
 
     instance_id = models.TextField(max_length=512, null=False)
-    resource_location = models.TextField(null=False)
+    resource_location = models.TextField(null=True)
     consumed_service = models.TextField(null=False)
     resource_type = models.TextField(null=False)
     resource_group = models.TextField(null=False)
@@ -69,13 +80,13 @@ class AzureMeter(models.Model):
     """The Azure meter."""
 
     meter_id = models.UUIDField(editable=False, unique=True, null=False)
-    meter_name = models.CharField(max_length=50, null=False)
-    meter_category = models.CharField(max_length=50, null=True)
-    meter_subcategory = models.CharField(max_length=50, null=True)
-    meter_region = models.CharField(max_length=50, null=True)
+    meter_name = models.TextField(null=False)
+    meter_category = models.TextField(null=True)
+    meter_subcategory = models.TextField(null=True)
+    meter_region = models.TextField(null=True)
     resource_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    currency = models.CharField(max_length=10, null=False)
-    unit_of_measure = models.CharField(max_length=63, null=True)
+    currency = models.TextField(null=True)
+    unit_of_measure = models.TextField(null=True)
 
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
 
@@ -96,7 +107,7 @@ class AzureCostEntryLineItemDaily(models.Model):
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
     cost_entry_product = models.ForeignKey("AzureCostEntryProductService", on_delete=models.SET_NULL, null=True)
     meter = models.ForeignKey("AzureMeter", on_delete=models.SET_NULL, null=True)
-    subscription_guid = models.CharField(max_length=50, null=False)
+    subscription_guid = models.TextField(null=False)
     tags = JSONField(null=True)
     usage_date = models.DateField(null=False)
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -123,10 +134,10 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     id = models.BigAutoField(primary_key=True)
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
     meter = models.ForeignKey("AzureMeter", on_delete=models.SET_NULL, null=True)
-    subscription_guid = models.CharField(max_length=50, null=False)
-    instance_type = models.CharField(max_length=50, null=True)
-    service_name = models.CharField(max_length=50, null=False)
-    resource_location = models.CharField(max_length=50, null=False)
+    subscription_guid = models.TextField(null=False)
+    instance_type = models.TextField(null=True)
+    service_name = models.TextField(null=True)
+    resource_location = models.TextField(null=True)
     tags = JSONField(null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=True)
@@ -134,10 +145,10 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     offer_id = models.PositiveIntegerField(null=True)
-    currency = models.CharField(max_length=10, null=False, default="USD")
-    instance_ids = ArrayField(models.CharField(max_length=256), null=True)
+    currency = models.TextField(null=True)
+    instance_ids = ArrayField(models.TextField(), null=True)
     instance_count = models.IntegerField(null=True)
-    unit_of_measure = models.CharField(max_length=63, null=True)
+    unit_of_measure = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
@@ -177,7 +188,7 @@ class AzureCostSummary(models.Model):
     usage_end = models.DateField(null=False)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    currency = models.CharField(max_length=10, null=False, default="USD")
+    currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
@@ -197,10 +208,10 @@ class AzureCostSummaryByAccount(models.Model):
     id = models.IntegerField(primary_key=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
-    subscription_guid = models.CharField(max_length=50, null=False)
+    subscription_guid = models.TextField(null=False)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    currency = models.CharField(max_length=10, null=False, default="USD")
+    currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
@@ -220,11 +231,11 @@ class AzureCostSummaryByLocation(models.Model):
     id = models.IntegerField(primary_key=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
-    subscription_guid = models.CharField(max_length=50, null=False)
-    resource_location = models.CharField(max_length=50, null=False)
+    subscription_guid = models.TextField(null=False)
+    resource_location = models.TextField(null=True)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    currency = models.CharField(max_length=10, null=False, default="USD")
+    currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
@@ -244,11 +255,11 @@ class AzureCostSummaryByService(models.Model):
     id = models.IntegerField(primary_key=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
-    subscription_guid = models.CharField(max_length=50, null=False)
+    subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=False)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    currency = models.CharField(max_length=10, null=False, default="USD")
+    currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
@@ -268,15 +279,15 @@ class AzureComputeSummary(models.Model):
     id = models.IntegerField(primary_key=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
-    subscription_guid = models.CharField(max_length=50, null=False)
-    instance_type = models.CharField(max_length=50, null=True)
-    instance_ids = ArrayField(models.CharField(max_length=256), null=True)
+    subscription_guid = models.TextField(null=False)
+    instance_type = models.TextField(null=True)
+    instance_ids = ArrayField(models.TextField(), null=True)
     instance_count = models.IntegerField(null=True)
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    unit_of_measure = models.CharField(max_length=63, null=True)
+    unit_of_measure = models.TextField(null=True)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    currency = models.CharField(max_length=10, null=False, default="USD")
+    currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
@@ -296,13 +307,13 @@ class AzureStorageSummary(models.Model):
     id = models.IntegerField(primary_key=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
-    subscription_guid = models.CharField(max_length=50, null=False)
+    subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=False)
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    unit_of_measure = models.CharField(max_length=63, null=True)
+    unit_of_measure = models.TextField(null=True)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    currency = models.CharField(max_length=10, null=False, default="USD")
+    currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
@@ -322,13 +333,13 @@ class AzureNetworkSummary(models.Model):
     id = models.IntegerField(primary_key=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
-    subscription_guid = models.CharField(max_length=50, null=False)
+    subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=False)
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    unit_of_measure = models.CharField(max_length=63, null=True)
+    unit_of_measure = models.TextField(null=True)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    currency = models.CharField(max_length=10, null=False, default="USD")
+    currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
@@ -348,11 +359,11 @@ class AzureDatabaseSummary(models.Model):
     id = models.IntegerField(primary_key=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
-    subscription_guid = models.CharField(max_length=50, null=False)
+    subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=False)
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    unit_of_measure = models.CharField(max_length=63, null=True)
+    unit_of_measure = models.TextField(null=True)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    currency = models.CharField(max_length=10, null=False, default="USD")
+    currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
