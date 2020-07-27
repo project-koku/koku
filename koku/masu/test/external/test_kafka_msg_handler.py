@@ -445,7 +445,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     with patch(
                         "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
                     ):
-                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
+                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
                                 msg_handler.extract_payload(payload_url, "test_request_id")
                                 expected_path = "{}/{}/{}/".format(
@@ -484,7 +484,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     with patch(
                         "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
                     ):
-                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
+                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
                                 msg_handler.extract_payload(payload_url, "test_request_id")
                                 expected_path = "{}/{}/{}/".format(
