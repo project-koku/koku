@@ -15,7 +15,7 @@ WITH cte_unnested_azure_tags AS (
         SELECT key,
             value,
             cost_entry_bill_id,
-            accounts
+            subscription_guid
         FROM {{schema | sqlsafe}}.reporting_azuretags_summary AS ts,
             unnest(ts.values) AS values(value)
     ) AS tags
@@ -66,14 +66,14 @@ SELECT key,
     array_agg(DISTINCT value) as values,
     cost_entry_bill_id,
     report_period_id,
-    accounts,
+    subscription_guid,
     array_agg(DISTINCT project) as namespace,
     max(cluster_id) as cluster_id,
     max(cluster_alias) as cluster_alias
 FROM (
     SELECT azure.key,
         azure.value,
-        azure.accounts,
+        azure.subscription_guid,
         ocp.project,
         azure.cost_entry_bill_id,
         ocp.report_period_id,
@@ -89,7 +89,7 @@ FROM (
 
     SELECT azure.key,
         azure.value,
-        azure.accounts,
+        azure.subscription_guid,
         ocp.project,
         azure.cost_entry_bill_id,
         ocp.report_period_id,
@@ -102,9 +102,9 @@ FROM (
             AND azure.billing_period_start = ocp.report_period_start
 ) AS matches
 GROUP BY key,
-    accounts,
+    subscription_guid,
     cost_entry_bill_id,
     report_period_id
-ON CONFLICT (key, cost_entry_bill_id, namespace) DO UPDATE
+ON CONFLICT (key, cost_entry_bill_id, report_period_id, namespace) DO UPDATE
 SET values = EXCLUDED.values
 ;
