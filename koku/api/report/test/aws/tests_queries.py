@@ -1364,53 +1364,6 @@ class AWSReportQueryTest(IamTestCase):
             for expected in expected_accounts_and_sub_ous:
                 self.assertIn(expected, accounts_and_sub_ous)
 
-    def test_execute_query_with_multiple_org_unit_group_by(self):
-        """Test that when data has multiple grouped by org_unit_id, the totals add up correctly."""
-        ou_to_compare = ["OU_001", "OU_002"]
-        with tenant_context(self.tenant):
-            org_unit = ou_to_compare[0]
-            url = f"?group_by[org_unit_id]={ou_to_compare[0]}&group_by[org_unit_id]={ou_to_compare[1]}"
-            query_params = self.mocked_query_params(url, AWSCostView, "costs")
-            handler = AWSReportQueryHandler(query_params)
-            data = handler.execute_query()
-
-            # grab the accounts and sub_ous and compare the expected results
-            expected_cost_total = []
-            expected_accounts_and_sub_ous = []
-            parent_zero_accounts = self.ou_to_account_subou_map.get(ou_to_compare[0]).get("accounts")
-            parent_one_accounts = self.ou_to_account_subou_map.get(ou_to_compare[1]).get("accounts")
-            accounts = list(set(parent_one_accounts + parent_zero_accounts))
-            parent_zero_org_units = self.ou_to_account_subou_map.get(ou_to_compare[0]).get("org_units")
-            parent_one_org_units = self.ou_to_account_subou_map.get(ou_to_compare[1]).get("org_units")
-            org_units = list(set(parent_zero_org_units) & set(parent_one_org_units))
-            expected_accounts_and_sub_ous = org_units + accounts
-
-            path = self.ou_to_account_subou_map.get(org_unit).get("org_unit_path")
-            ten_days_ago = self.dh.n_days_ago(self.dh.today, 10)
-            expected = AWSCostEntryLineItemDailySummary.objects.filter(
-                usage_start__gte=ten_days_ago,
-                usage_end__lte=self.dh.today,
-                organizational_unit__org_unit_path__icontains=path,
-            ).aggregate(
-                **{
-                    "cost_total": Sum(
-                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
-                    )
-                }
-            )
-            # infra and total cost match
-            expected_cost_total = expected.get("cost_total")
-            self.assertIsNotNone(expected_cost_total)
-            cost_total = data.get("total").get("cost").get("total").get("value")
-            infra_total = data.get("total").get("infrastructure").get("total").get("value")
-            self.assertEqual(cost_total, expected_cost_total)
-            self.assertEqual(infra_total, expected_cost_total)
-            # test the org units and accounts returned are correct
-            accounts_and_sub_ous = _calculate_accounts_and_subous(data.get("data"))
-            for result in accounts_and_sub_ous:
-                self.assertIn(result, expected_accounts_and_sub_ous)
-
     def test_filter_org_unit(self):
         """Check that the total is correct when filtering by org_unit_id."""
         with tenant_context(self.tenant):

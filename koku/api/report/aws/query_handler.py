@@ -144,7 +144,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             for account in accounts:
                 account["id"] = account.pop("account")
                 account["type"] = "account"
-                for value in account.get("values"):
+                for value in account.get("values", []):
                     value["id"] = value.pop("account")
                     value["alias"] = value.pop("account_alias")
             # rename entire structure to org_entities
@@ -229,16 +229,10 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 # only do a union or intersection if we have more than one group_by passed in
                 if len(sub_ou_list) > 1:
                     sub_query_set = sub_ou_list.pop()
-                    if "or:" in ou_group_by_key:
-                        sub_ou_ids_list = sub_query_set.union(*sub_ou_list).values_list("org_unit_id", flat=True)
-                    else:
-                        sub_ou_ids_list = sub_query_set.intersection(*sub_ou_list).values_list(
-                            "org_unit_id", flat=True
-                        )
-                    # Note: The django orm won't let you do an order_by distinct on the union or
-                    # intersect of multiple queries. Therefore we convert it a list and then query
-                    # again to make it work. We need the additional order and group_by to handle
-                    # cases like ou_005 being under both ou_002 & ou_001 on an or group by.
+                    sub_ou_ids_list = sub_query_set.union(*sub_ou_list).values_list("org_unit_id", flat=True)
+                    # Note: The django orm won't let you do an order_by & distinct on the union of
+                    # multiple queries. The additional order_by &  distinct is essential to handle
+                    # use cases like OU_005 being moved from OU_002 to OU_001.
                     sub_orgs = (
                         AWSOrganizationalUnit.objects.filter(org_unit_id__in=sub_ou_ids_list)
                         .filter(account_alias__isnull=True)
