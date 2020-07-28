@@ -1,17 +1,47 @@
--- We use a LATERAL JOIN here to get the JSON tags split out into key, value
--- columns. We reference this split multiple times so we put it in a
--- TEMPORARY TABLE for re-use
+CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
+    SELECT jsonb_build_object(key, value) as tag,
+        lower(key) as key,
+        lower(value) as value,
+        cost_entry_bill_id,
+        report_period_id
+    FROM (
+        SELECT key,
+            value,
+            ts.cost_entry_bill_id,
+            ts.report_period_id
+        FROM {{schema | sqlsafe}}.reporting_ocpazuretags_summary AS ts,
+            unnest(values) AS values(value)
+        {% if bill_ids %}
+        WHERE ts.cost_entry_bill_id IN (
+            {%- for bill_id in bill_ids -%}
+            {{bill_id}}{% if not loop.last %},{% endif %}
+            {%- endfor -%}
+        )
+        {% endif %}
+    ) AS keyval
+    -- Filter down to the labels for the cluster of interest
+    JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
+        ON keyval.report_period_id = rp.id
+    {% if cluster_id %}
+    WHERE rp.cluster_id = {{cluster_id}}
+    {% endif %}
+)
+;
+
 CREATE TEMPORARY TABLE reporting_azure_tags_{{uuid | sqlsafe}} AS (
     SELECT azure.*,
-        LOWER(key) as key,
-        LOWER(value) as value
-        FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure,
-            jsonb_each_text(azure.tags) labels
+        tag.tag,
+        tag.key,
+        tag.value
+        FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure
+        JOIN matched_tags_{{uuid | sqlsafe}} as tag
+            ON azure.cost_entry_bill_id = tag.cost_entry_bill_id
+                AND azure.tags @> tag.tag
         WHERE azure.usage_date >= {{start_date}}::date
             AND azure.usage_date <= {{end_date}}::date
             --azure_where_clause
             {% if bill_ids %}
-            AND cost_entry_bill_id IN (
+            AND azure.cost_entry_bill_id IN (
                 {%- for bill_id in bill_ids -%}
                 {{bill_id}}{% if not loop.last %},{% endif %}
                 {%- endfor -%}
@@ -20,70 +50,90 @@ CREATE TEMPORARY TABLE reporting_azure_tags_{{uuid | sqlsafe}} AS (
 )
 ;
 
--- We use a LATERAL JOIN here to get the JSON tags split out into key, value
--- columns. We reference this split multiple times so we put it in a
--- TEMPORARY TABLE for re-use
-CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
-    SELECT ocp.*
-    FROM (
-        SELECT ocp.*,
-            LOWER(key) as key,
-            LOWER(value) as value
-        FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
-            jsonb_each_text(ocp.persistentvolume_labels) labels
-        WHERE ocp.usage_start >= {{start_date}}::date
-            AND ocp.usage_start <= {{end_date}}::date
-            --ocp_where_clause
-            {% if cluster_id %}
-            AND cluster_id = {{cluster_id}}
+CREATE TEMPORARY TABLE reporting_azure_special_case_tags_{{uuid | sqlsafe}} AS (
+    WITH cte_tag_options AS (
+        SELECT jsonb_build_object(key, value) as tag,
+            key,
+            value,
+            cost_entry_bill_id
+        FROM (
+            SELECT key,
+                value,
+                -- account,
+                ts.cost_entry_bill_id
+            FROM {{schema | sqlsafe}}.reporting_azuretags_summary AS ts,
+                unnest(values) AS values(value)
+                -- unnest(accounts) AS accounts(account)
+            --azure_where_clause
+            {% if bill_ids %}
+            WHERE ts.cost_entry_bill_id IN (
+                {%- for bill_id in bill_ids -%}
+                {{bill_id}}{% if not loop.last %},{% endif %}
+                {%- endfor -%}
+            )
             {% endif %}
-
-        UNION ALL
-
-        SELECT ocp.*,
-            LOWER(key) as key,
-            LOWER(value) as value
-        FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
-            jsonb_each_text(ocp.persistentvolumeclaim_labels) labels
-        WHERE ocp.usage_start >= {{start_date}}::date
-            AND ocp.usage_start <= {{end_date}}::date
-            --ocp_where_clause
-            {% if cluster_id %}
-            AND cluster_id = {{cluster_id}}
-            {% endif %}
-    ) AS ocp
-    INNER JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
-        ON LOWER(enabled_tags.key) = ocp.key
+        ) AS keyval
+        WHERE lower(key) IN ('openshift_cluster', 'openshift_node', 'openshift_project')
+        -- WHERE account IS NOT NULL
+    )
+    SELECT azure.*,
+        lower(tag.key) as key,
+        lower(tag.value) as value
+    FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure
+    JOIN cte_tag_options as tag
+            ON azure.cost_entry_bill_id = tag.cost_entry_bill_id
+                AND azure.tags @> tag.tag
+    WHERE azure.usage_date >= {{start_date}}::date
+        AND azure.usage_date <= {{end_date}}::date
+        --azure_where_clause
+        {% if bill_ids %}
+        AND azure.cost_entry_bill_id IN (
+            {%- for bill_id in bill_ids -%}
+            {{bill_id}}{% if not loop.last %},{% endif %}
+            {%- endfor -%}
+        )
+        {% endif %}
 )
 ;
 
--- We use a LATERAL JOIN here to get the JSON tags split out into key, value
--- columns. We reference this split multiple times so we put it in a
--- TEMPORARY TABLE for re-use
+CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
+    SELECT ocp.*,
+        tag.tag
+    FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
+    JOIN matched_tags_{{uuid | sqlsafe}} AS tag
+        ON ocp.report_period_id = tag.report_period_id
+            -- AND ocp.persistentvolumeclaim_labels ? tag.key
+            AND ocp.persistentvolumeclaim_labels @> tag.tag
+    WHERE ocp.usage_start >= {{start_date}}::date
+        AND ocp.usage_start <= {{end_date}}::date
+        --ocp_where_clause
+        {% if cluster_id %}
+        AND cluster_id = {{cluster_id}}
+        {% endif %}
+)
+;
+
 CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
-    SELECT ocp.*
-    FROM (
-        SELECT ocp.*,
-            LOWER(key) as key,
-            LOWER(value) as value
-        FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp,
-            jsonb_each_text(ocp.pod_labels) labels
-        WHERE ocp.usage_start >= {{start_date}}::date
-            AND ocp.usage_start <= {{end_date}}::date
-            --ocp_where_clause
-            {% if cluster_id %}
-            AND cluster_id = {{cluster_id}}
-            {% endif %}
-    ) AS ocp
-    INNER JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
-        ON LOWER(enabled_tags.key) = ocp.key
+    SELECT ocp.*,
+        tag.tag
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
+    JOIN matched_tags_{{uuid | sqlsafe}} AS tag
+        ON ocp.report_period_id = tag.report_period_id
+            -- AND ocp.pod_labels ? tag.key
+            AND ocp.pod_labels @> tag.tag
+    WHERE ocp.usage_start >= {{start_date}}::date
+        AND ocp.usage_start <= {{end_date}}::date
+        --ocp_where_clause
+        {% if cluster_id %}
+        AND cluster_id = {{cluster_id}}
+        {% endif %}
 )
 ;
 
 -- First we match OCP pod data to Azure data using a direct
 -- resource id match. This usually means OCP node -> Azure Virutal Machine.
-CREATE TEMPORARY TABLE reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}} AS (
-    WITH cte_resource_id_matched AS (
+CREATE TEMPORARY TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS (
+    (WITH cte_resource_id_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -160,14 +210,13 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}
         ON rm.azure_id = sp.azure_id
     JOIN cte_number_of_shared_pods AS spod
         ON rm.azure_id = spod.azure_id
+    )
 
-)
-;
+    UNION
 
--- Next we match where the azure tag is the special openshift_project key
--- and the value matches an OpenShift project name
-CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_project_tag_matched_{{uuid | sqlsafe}} AS (
-    WITH cte_tag_matched AS (
+    -- Next we match where the azure tag is the special openshift_project key
+    -- and the value matches an OpenShift project name
+    (WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -197,16 +246,12 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_project_tag_matched_{{uuid 
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
-        FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
+        FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
-            ON azure.key = 'openshift_project' AND azure.value = lower(ocp.namespace)
+            ON azure.key = 'openshift_project' AND lower(azure.value) = lower(ocp.namespace)
                 AND azure.usage_date = ocp.usage_start
-        -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}} AS rm
-            ON rm.azure_id = azure.id
         WHERE azure.usage_date >= {{start_date}}::date
             AND azure.usage_date <= {{end_date}}::date
-            AND rm.azure_id IS NULL
     ),
     cte_number_of_shared_projects AS (
         SELECT azure_id,
@@ -229,13 +274,13 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_project_tag_matched_{{uuid 
         ON tm.azure_id = sp.azure_id
     JOIN cte_number_of_shared_pods AS spod
         ON tm.azure_id = spod.azure_id
-)
-;
+    )
 
--- Next we match where the azure tag is the special openshift_node key
--- and the value matches an OpenShift node name
-CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_node_tag_matched_{{uuid | sqlsafe}} AS (
-    WITH cte_tag_matched AS (
+    UNION
+
+    -- Next we match where the azure tag is the special openshift_node key
+    -- and the value matches an OpenShift node name
+    (WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -265,19 +310,12 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_node_tag_matched_{{uuid | s
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
-        FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
+        FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON azure.key = 'openshift_node' AND azure.value = lower(ocp.node)
                 AND azure.usage_date = ocp.usage_start
-        -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}} AS rm
-            ON rm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
-            ON ptm.azure_id = azure.id
         WHERE azure.usage_date >= {{start_date}}::date
             AND azure.usage_date <= {{end_date}}::date
-            AND rm.azure_id IS NULL
-            AND ptm.azure_id IS NULL
     ),
     cte_number_of_shared_projects AS (
         SELECT azure_id,
@@ -300,13 +338,78 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_node_tag_matched_{{uuid | s
         ON tm.azure_id = sp.azure_id
     JOIN cte_number_of_shared_pods AS spod
         ON tm.azure_id = spod.azure_id
-)
-;
+    )
 
--- Next we match where the azure tag is the special openshift_cluster key
--- and the value matches an OpenShift cluster name
-CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_cluster_tag_matched_{{uuid | sqlsafe}} AS (
-    WITH cte_tag_matched AS (
+    UNION
+
+    -- Next we match where the azure tag is the special openshift_cluster key
+    -- and the value matches an OpenShift cluster name
+    (WITH cte_tag_matched AS (
+        SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
+            ocp.cluster_id,
+            ocp.cluster_alias,
+            ocp.namespace,
+            ocp.pod,
+            ocp.node,
+            ocp.pod_labels,
+            ocp.pod_usage_cpu_core_seconds,
+            ocp.pod_request_cpu_core_seconds,
+            ocp.pod_limit_cpu_core_seconds,
+            ocp.pod_usage_memory_byte_seconds,
+            ocp.pod_request_memory_byte_seconds,
+            ocp.node_capacity_cpu_cores,
+            ocp.node_capacity_cpu_core_seconds,
+            ocp.node_capacity_memory_bytes,
+            ocp.node_capacity_memory_byte_seconds,
+            ocp.cluster_capacity_cpu_core_seconds,
+            ocp.cluster_capacity_memory_byte_seconds,
+            azure.id AS azure_id,
+            azure.cost_entry_bill_id,
+            azure.cost_entry_product_id,
+            azure.meter_id,
+            azure.subscription_guid,
+            azure.usage_date,
+            azure.usage_quantity,
+            azure.pretax_cost,
+            azure.offer_id,
+            azure.tags
+        FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
+        JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
+            ON (azure.key = 'openshift_cluster' AND azure.value = lower(ocp.cluster_id)
+                OR azure.key = 'openshift_cluster' AND azure.value = lower(ocp.cluster_alias))
+                AND azure.usage_date = ocp.usage_start
+        WHERE azure.usage_date >= {{start_date}}::date
+            AND azure.usage_date <= {{end_date}}::date
+    ),
+    cte_number_of_shared_projects AS (
+        SELECT azure_id,
+            count(DISTINCT namespace) as shared_projects
+        FROM cte_tag_matched
+        GROUP BY azure_id
+    ),
+    cte_number_of_shared_pods AS (
+        SELECT azure_id,
+            count(DISTINCT pod) as shared_pods
+        FROM cte_tag_matched
+        GROUP BY azure_id
+    )
+    SELECT tm.*,
+        tm.pretax_cost / spod.shared_pods as pod_cost,
+        sp.shared_projects,
+        spod.shared_pods
+    FROM cte_tag_matched AS tm
+    JOIN cte_number_of_shared_projects AS sp
+        ON tm.azure_id = sp.azure_id
+    JOIN cte_number_of_shared_pods AS spod
+        ON tm.azure_id = spod.azure_id
+    )
+
+    UNION
+
+    -- Next we match where the pod label key and value
+    -- and Azure tag key and value match directly
+    (WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -338,21 +441,10 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_cluster_tag_matched_{{uuid 
             azure.tags
         FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
-            ON (azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_id
-                OR azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_alias)
+            ON lower(azure.tag::text)::jsonb = lower(ocp.tag::text)::jsonb
                 AND azure.usage_date = ocp.usage_start
-        -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}} AS rm
-            ON rm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
-            ON ptm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
-            ON ntm.azure_id = azure.id
         WHERE azure.usage_date >= {{start_date}}::date
             AND azure.usage_date <= {{end_date}}::date
-            AND rm.azure_id IS NULL
-            AND ptm.azure_id IS NULL
-            AND ntm.azure_id IS NULL
     ),
     cte_number_of_shared_projects AS (
         SELECT azure_id,
@@ -375,118 +467,14 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_cluster_tag_matched_{{uuid 
         ON tm.azure_id = sp.azure_id
     JOIN cte_number_of_shared_pods AS spod
         ON tm.azure_id = spod.azure_id
-)
-;
-
--- Next we match where the pod label key and value
--- and Azure tag key and value match directly
-CREATE TEMPORARY TABLE reporting_ocp_azure_direct_tag_matched_{{uuid | sqlsafe}} AS (
-    WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
-            ocp.report_period_id,
-            ocp.cluster_id,
-            ocp.cluster_alias,
-            ocp.namespace,
-            ocp.pod,
-            ocp.node,
-            ocp.pod_labels,
-            ocp.pod_usage_cpu_core_seconds,
-            ocp.pod_request_cpu_core_seconds,
-            ocp.pod_limit_cpu_core_seconds,
-            ocp.pod_usage_memory_byte_seconds,
-            ocp.pod_request_memory_byte_seconds,
-            ocp.node_capacity_cpu_cores,
-            ocp.node_capacity_cpu_core_seconds,
-            ocp.node_capacity_memory_bytes,
-            ocp.node_capacity_memory_byte_seconds,
-            ocp.cluster_capacity_cpu_core_seconds,
-            ocp.cluster_capacity_memory_byte_seconds,
-            azure.id AS azure_id,
-            azure.cost_entry_bill_id,
-            azure.cost_entry_product_id,
-            azure.meter_id,
-            azure.subscription_guid,
-            azure.usage_date,
-            azure.usage_quantity,
-            azure.pretax_cost,
-            azure.offer_id,
-            azure.tags
-        FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
-        JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
-            ON azure.key = ocp.key
-                AND azure.value = ocp.value
-                AND azure.usage_date = ocp.usage_start
-        -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}} AS rm
-            ON rm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
-            ON ptm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
-            ON ntm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_openshift_cluster_tag_matched_{{uuid | sqlsafe}} AS ctm
-            ON ctm.azure_id = azure.id
-        WHERE azure.usage_date >= {{start_date}}::date
-            AND azure.usage_date <= {{end_date}}::date
-            AND rm.azure_id IS NULL
-            AND ptm.azure_id IS NULL
-            AND ntm.azure_id IS NULL
-            AND ctm.azure_id IS NULL
-    ),
-    cte_number_of_shared_projects AS (
-        SELECT azure_id,
-            count(DISTINCT namespace) as shared_projects
-        FROM cte_tag_matched
-        GROUP BY azure_id
-    ),
-    cte_number_of_shared_pods AS (
-        SELECT azure_id,
-            count(DISTINCT pod) as shared_pods
-        FROM cte_tag_matched
-        GROUP BY azure_id
     )
-    SELECT tm.*,
-        tm.pretax_cost / spod.shared_pods as pod_cost,
-        sp.shared_projects,
-        spod.shared_pods
-    FROM cte_tag_matched AS tm
-    JOIN cte_number_of_shared_projects AS sp
-        ON tm.azure_id = sp.azure_id
-    JOIN cte_number_of_shared_pods AS spod
-        ON tm.azure_id = spod.azure_id
 )
 ;
 
--- We UNION the various matches into a table holding all of the
--- OpenShift pod data matches for easier use.
-CREATE TEMPORARY TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS (
-    SELECT *
-    FROM reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}}
-
-    UNION
-
-    SELECT *
-    FROM reporting_ocp_azure_openshift_project_tag_matched_{{uuid | sqlsafe}}
-
-    UNION
-
-    SELECT *
-    FROM reporting_ocp_azure_openshift_node_tag_matched_{{uuid | sqlsafe}}
-
-    UNION
-
-    SELECT *
-    FROM reporting_ocp_azure_openshift_cluster_tag_matched_{{uuid | sqlsafe}}
-
-    UNION
-
-    SELECT *
-    FROM reporting_ocp_azure_direct_tag_matched_{{uuid | sqlsafe}}
-);
-
--- First we match OCP storage data to Azure data using a direct
--- resource id match. OCP PVC name -> Azure instance ID.
-CREATE TEMPORARY TABLE reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}} AS (
-    WITH cte_resource_id_matched AS (
+CREATE TEMPORARY TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS (
+    -- First we match OCP storage data to Azure data using a direct
+    -- resource id match. OCP PVC name -> Azure instance ID.
+    (WITH cte_resource_id_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -556,14 +544,13 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_resource_id_matched_{{uuid | 
         ON rm.azure_id = sp.azure_id
     JOIN cte_number_of_shared_pods AS spod
         ON rm.azure_id = spod.azure_id
+    )
 
-)
-;
+    UNION
 
--- Then we match where the azure tag is the special openshift_project key
--- and the value matches an OpenShift project name
-CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_project_tag_matched_{{uuid | sqlsafe}} AS (
-    WITH cte_tag_matched AS (
+    -- Then we match where the azure tag is the special openshift_project key
+    -- and the value matches an OpenShift project name
+    (WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -590,16 +577,12 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_project_tag_matched
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
-        FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
+        FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
-            ON azure.key = 'openshift_project' AND azure.value = ocp.namespace
+            ON azure.key = 'openshift_project' AND azure.value = lower(ocp.namespace)
                 AND azure.usage_date = ocp.usage_start
-        LEFT JOIN reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}} AS rm
-            ON rm.azure_id = azure.id
         WHERE azure.usage_date >= {{start_date}}::date
             AND azure.usage_date <= {{end_date}}::date
-            AND rm.azure_id IS NULL
-
     ),
     cte_number_of_shared_projects AS (
         SELECT azure_id,
@@ -622,13 +605,13 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_project_tag_matched
         ON tm.azure_id = sp.azure_id
     JOIN cte_number_of_shared_pods AS spod
         ON tm.azure_id = spod.azure_id
-)
-;
+    )
 
--- Next we match where the azure tag is the special openshift_node key
--- and the value matches an OpenShift node name
-CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_node_tag_matched_{{uuid | sqlsafe}} AS (
-    WITH cte_tag_matched AS (
+    UNION
+
+    -- Next we match where the azure tag is the special openshift_node key
+    -- and the value matches an OpenShift node name
+    (WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -655,19 +638,12 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_node_tag_matched_{{
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
-        FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
+        FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
-            ON azure.key = 'openshift_node' AND azure.value = ocp.node
+            ON azure.key = 'openshift_node' AND azure.value = lower(ocp.node)
                 AND azure.usage_date = ocp.usage_start
-        -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}} AS rm
-            ON rm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_storage_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
-            ON ptm.azure_id = azure.id
         WHERE azure.usage_date >= {{start_date}}::date
             AND azure.usage_date <= {{end_date}}::date
-            AND rm.azure_id IS NULL
-            AND ptm.azure_id IS NULL
     ),
     cte_number_of_shared_projects AS (
         SELECT azure_id,
@@ -690,13 +666,13 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_node_tag_matched_{{
         ON tm.azure_id = sp.azure_id
     JOIN cte_number_of_shared_pods AS spod
         ON tm.azure_id = spod.azure_id
-)
-;
+    )
 
--- Next we match where the azure tag is the special openshift_cluster key
--- and the value matches an OpenShift cluster name
-CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_cluster_tag_matched_{{uuid | sqlsafe}} AS (
-    WITH cte_tag_matched AS (
+    UNION
+
+    -- Next we match where the azure tag is the special openshift_cluster key
+    -- and the value matches an OpenShift cluster name
+    (WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -723,23 +699,13 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_cluster_tag_matched
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
-        FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
+        FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
-            ON (azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_id
-                OR azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_alias)
+            ON (azure.key = 'openshift_cluster' AND azure.value = lower(ocp.cluster_id)
+                OR azure.key = 'openshift_cluster' AND azure.value = lower(ocp.cluster_alias))
                 AND azure.usage_date = ocp.usage_start
-        -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}} AS rm
-            ON rm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_storage_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
-            ON ptm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_storage_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
-            ON ntm.azure_id = azure.id
         WHERE azure.usage_date >= {{start_date}}::date
             AND azure.usage_date <= {{end_date}}::date
-            AND rm.azure_id IS NULL
-            AND ptm.azure_id IS NULL
-            AND ntm.azure_id IS NULL
     ),
     cte_number_of_shared_projects AS (
         SELECT azure_id,
@@ -762,13 +728,13 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_cluster_tag_matched
         ON tm.azure_id = sp.azure_id
     JOIN cte_number_of_shared_pods AS spod
         ON tm.azure_id = spod.azure_id
-)
-;
+    )
 
--- Then we match for OpenShift volume data where the volume label key and value
--- and azure tag key and value match directly
-CREATE TEMPORARY TABLE reporting_ocp_azure_storage_direct_tag_matched_{{uuid | sqlsafe}} AS (
-    WITH cte_tag_matched AS (
+    UNION
+
+    -- Then we match for OpenShift volume data where the volume label key and value
+    -- and azure tag key and value match directly
+    (WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -799,31 +765,17 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_direct_tag_matched_{{uuid | s
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON (
                     (
-                        azure.key = ocp.key
-                        AND azure.value = ocp.value
+                        lower(azure.tag::text)::jsonb = lower(ocp.tag::text)::jsonb
                     )
                 OR
                     (
                         azure.key = 'kubernetes.io-created-for-pv-name'
-                        AND azure.value = ocp.persistentvolume
+                        AND azure.value = lower(ocp.persistentvolume)
                     )
             )
                 AND azure.usage_date = ocp.usage_start
-        -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}} AS rm
-            ON rm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_storage_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
-            ON ptm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_storage_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
-            ON ntm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_storage_openshift_cluster_tag_matched_{{uuid | sqlsafe}} AS ctm
-            ON ctm.azure_id = azure.id
         WHERE azure.usage_date >= {{start_date}}::date
             AND azure.usage_date <= {{end_date}}::date
-            AND rm.azure_id IS NULL
-            AND ptm.azure_id IS NULL
-            AND ntm.azure_id IS NULL
-            AND ctm.azure_id IS NULL
     ),
     cte_number_of_shared_projects AS (
         SELECT azure_id,
@@ -846,35 +798,9 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_direct_tag_matched_{{uuid | s
         ON tm.azure_id = sp.azure_id
     JOIN cte_number_of_shared_pods AS spod
         ON tm.azure_id = spod.azure_id
+    )
 )
 ;
-
--- We UNION the various matches into a table holding all of the
--- OpenShift volume data matches for easier use.
-CREATE TEMPORARY TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS (
-    SELECT *
-    FROM reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}}
-
-    UNION
-
-    SELECT *
-    FROM reporting_ocp_azure_storage_openshift_project_tag_matched_{{uuid | sqlsafe}}
-
-    UNION
-
-    SELECT *
-    FROM reporting_ocp_azure_storage_openshift_node_tag_matched_{{uuid | sqlsafe}}
-
-    UNION
-
-    SELECT *
-    FROM reporting_ocp_azure_storage_openshift_cluster_tag_matched_{{uuid | sqlsafe}}
-
-    UNION
-
-    SELECT *
-    FROM reporting_ocp_azure_storage_direct_tag_matched_{{uuid | sqlsafe}}
-);
 
 -- The full summary data for Openshift pod<->azure and
 -- Openshift volume<->azure matches are UNIONed together
