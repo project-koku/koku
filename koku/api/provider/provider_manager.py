@@ -137,6 +137,7 @@ class ProviderManager:
                     manifest_id=provider_manifest.id, last_completed_datetime__isnull=False
                 ).count()
                 status["files_processed"] = f"{num_processed_files}/{provider_manifest.num_total_files}"
+
                 last_process_start_date = None
                 last_process_complete_date = None
                 last_manifest_complete_datetime = None
@@ -192,7 +193,6 @@ class ProviderManager:
                 current_user.username, str(self.model)
             )
             raise ProviderManagerError(err_msg)
-        refresh_materialized_views(self.model.customer.schema_name, self.model.type)
 
 
 @receiver(post_delete, sender=Provider)
@@ -230,3 +230,4 @@ def provider_post_delete_callback(*args, **kwargs):
 
         delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
         transaction.on_commit(delete_func)
+    refresh_materialized_views(provider.customer.schema_name, provider.type)
