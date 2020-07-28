@@ -36,35 +36,11 @@ CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
 -- columns. We reference this split multiple times so we put it in a
 -- TEMPORARY TABLE for re-use
 CREATE TEMPORARY TABLE reporting_aws_tags_{{uuid | sqlsafe}} AS (
-    -- WITH cte_tag_options AS (
-    --     SELECT jsonb_build_object(key, value) as tag,
-    --         key,
-    --         -- account,
-    --         cost_entry_bill_id
-    --     FROM (
-    --         SELECT key,
-    --             value,
-    --             -- account,
-    --             ts.cost_entry_bill_id
-    --         FROM {{schema | sqlsafe}}.reporting_ocpawstags_summary AS ts,
-    --             unnest(values) AS values(value)
-    --             -- unnest(accounts) AS accounts(account)
-    --         {% if bill_ids %}
-    --         WHERE ts.cost_entry_bill_id IN (
-    --             {%- for bill_id in bill_ids -%}
-    --             {{bill_id}}{% if not loop.last %},{% endif %}
-    --             {%- endfor -%}
-    --         )
-    --         {% endif %}
-    --     ) AS keyval
-    --     -- WHERE account IS NOT NULL
-    -- )
     SELECT aws.*,
         tag.tag
         FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws
         JOIN matched_tags_{{uuid | sqlsafe}} as tag
             ON aws.cost_entry_bill_id = tag.cost_entry_bill_id
-                -- AND aws.usage_account_id = tag.account
                 AND aws.tags @> tag.tag
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
@@ -82,17 +58,15 @@ CREATE TEMPORARY TABLE reporting_aws_tags_{{uuid | sqlsafe}} AS (
 CREATE TEMPORARY TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}} AS (
     WITH cte_tag_options AS (
         SELECT jsonb_build_object(key, value) as tag,
-            key,
-            value,
+            lower(key) as key,
+            lower(value) as value,
             cost_entry_bill_id
         FROM (
             SELECT key,
                 value,
-                -- account,
                 ts.cost_entry_bill_id
             FROM {{schema | sqlsafe}}.reporting_awstags_summary AS ts,
                 unnest(values) AS values(value)
-                -- unnest(accounts) AS accounts(account)
             --aws_where_clause
             {% if bill_ids %}
             WHERE ts.cost_entry_bill_id IN (
@@ -103,7 +77,6 @@ CREATE TEMPORARY TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}} AS (
             {% endif %}
         ) AS keyval
         WHERE lower(key) IN ('openshift_cluster', 'openshift_node', 'openshift_project')
-        -- WHERE account IS NOT NULL
     )
     SELECT aws.*,
         lower(tag.key) as key,
@@ -111,7 +84,6 @@ CREATE TEMPORARY TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}} AS (
     FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws
     JOIN cte_tag_options as tag
             ON aws.cost_entry_bill_id = tag.cost_entry_bill_id
-                -- AND aws.usage_account_id = tag.account
                 AND aws.tags @> tag.tag
     WHERE aws.usage_start >= {{start_date}}::date
         AND aws.usage_start <= {{end_date}}::date
@@ -126,34 +98,12 @@ CREATE TEMPORARY TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}} AS (
 )
 ;
 
--- We use a LATERAL JOIN here to get the JSON tags split out into key, value
--- columns. We reference this split multiple times so we put it in a
--- TEMPORARY TABLE for re-use
 CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
-    -- WITH cte_tag_options AS (
-    --     SELECT jsonb_build_object(keyval.key, keyval.value) as tag,
-    --         keyval.key,
-    --         keyval.namespace,
-    --         keyval.cost_entry_bill_id
-    --     FROM (
-    --         SELECT key,
-    --             value,
-    --             project as namespace,
-    --             ts.cost_entry_bill_id
-    --         FROM {{schema | sqlsafe}}.reporting_ocpawstags_summary AS ts,
-    --             unnest(values) AS values(value),
-    --             -- unnest(namespace) AS namespaces(project)
-    --     ) AS keyval
-    --     JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
-    --         ON LOWER(enabled_tags.key) = LOWER(keyval.key)
-    --     WHERE namespace IS NOT NULL
-    -- )
     SELECT ocp.*,
         tag.tag
     FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
     JOIN matched_tags_{{uuid | sqlsafe}} AS tag
         ON ocp.report_period_id = tag.report_period_id
-            -- AND ocp.persistentvolumeclaim_labels ? tag.key
             AND ocp.persistentvolumeclaim_labels @> tag.tag
     WHERE ocp.usage_start >= {{start_date}}::date
         AND ocp.usage_start <= {{end_date}}::date
@@ -164,34 +114,12 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
 )
 ;
 
--- We use a LATERAL JOIN here to get the JSON tags split out into key, value
--- columns. We reference this split multiple times so we put it in a
--- TEMPORARY TABLE for re-use
 CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
-    -- WITH cte_tag_options AS (
-    --     SELECT jsonb_build_object(keyval.key, keyval.value) as tag,
-    --         keyval.key,
-    --         keyval.namespace,
-    --         keyval.cost_entry_bill_id
-    --     FROM (
-    --         SELECT key,
-    --             value,
-    --             project as namespace,
-    --             ts.cost_entry_bill_id
-    --         FROM {{schema | sqlsafe}}.reporting_ocpawstags_summary AS ts,
-    --             unnest(values) AS values(value),
-    --             unnest(namespace) AS namespaces(project)
-    --     ) AS keyval
-    --     JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
-    --         ON LOWER(enabled_tags.key) = LOWER(keyval.key)
-    --     WHERE namespace IS NOT NULL
-    -- )
     SELECT ocp.*,
         tag.tag
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
     JOIN matched_tags_{{uuid | sqlsafe}} AS tag
         ON ocp.report_period_id = tag.report_period_id
-            -- AND ocp.pod_labels ? tag.key
             AND ocp.pod_labels @> tag.tag
     WHERE ocp.usage_start >= {{start_date}}::date
         AND ocp.usage_start <= {{end_date}}::date
@@ -339,17 +267,10 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
-            ON aws.key = 'openshift_project' AND aws.value = ocp.namespace
+            ON aws.key = 'openshift_project' AND aws.value = lower(ocp.namespace)
                 AND aws.usage_start = ocp.usage_start
-        -- LEFT JOIN reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}} AS rm
-        --     ON rm.aws_id = aws.id
-        -- LEFT JOIN reporting_ocp_aws_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
-        --     ON dtm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
-            -- AND rm.aws_id IS NULL
-            -- AND dtm.aws_id IS NULL
-
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -419,20 +340,10 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
-            ON aws.key = 'openshift_node' AND aws.value = ocp.node
+            ON aws.key = 'openshift_node' AND aws.value = lower(ocp.node)
                 AND aws.usage_start = ocp.usage_start
-        -- ANTI JOIN to remove rows that already matched
-        -- LEFT JOIN reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}} AS rm
-        --     ON rm.aws_id = aws.id
-        -- LEFT JOIN reporting_ocp_aws_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
-        --     ON dtm.aws_id = aws.id
-        -- LEFT JOIN reporting_ocp_aws_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
-        --     ON ptm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
-            -- AND rm.aws_id IS NULL
-            -- AND dtm.aws_id IS NULL
-            -- AND ptm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -502,24 +413,11 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
-            ON (aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_id
-                OR aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_alias)
+            ON (aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_id)
+                OR aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_alias))
                 AND aws.usage_start = ocp.usage_start
-        -- ANTI JOIN to remove rows that already matched
-        -- LEFT JOIN reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}} AS rm
-        --     ON rm.aws_id = aws.id
-        -- LEFT JOIN reporting_ocp_aws_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
-        --     ON dtm.aws_id = aws.id
-        -- LEFT JOIN reporting_ocp_aws_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
-        --     ON ptm.aws_id = aws.id
-        -- LEFT JOIN reporting_ocp_aws_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
-        --     ON ntm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
-            -- AND rm.aws_id IS NULL
-            -- AND dtm.aws_id IS NULL
-            -- AND ptm.aws_id IS NULL
-            -- AND ntm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -591,11 +489,8 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON aws.tag = ocp.tag
                 AND aws.usage_start = ocp.usage_start
-        -- LEFT JOIN reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}} AS rm
-        --     ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
-            -- AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -664,13 +559,10 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
-            ON aws.key = 'openshift_project' AND aws.value = ocp.namespace
+            ON aws.key = 'openshift_project' AND aws.value = lower(ocp.namespace)
                 AND aws.usage_start = ocp.usage_start
-        -- LEFT JOIN reporting_ocp_aws_storage_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
-        --     ON dtm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
-            -- AND dtm.aws_id IS NULL
 
     ),
     cte_number_of_shared AS (
@@ -738,17 +630,10 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
-            ON aws.key = 'openshift_node' AND aws.value = ocp.node
+            ON aws.key = 'openshift_node' AND aws.value = lower(ocp.node)
                 AND aws.usage_start = ocp.usage_start
-        -- ANTI JOIN to remove rows that already matched
-        -- LEFT JOIN reporting_ocp_aws_storage_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
-        --     ON dtm.aws_id = aws.id
-        -- LEFT JOIN reporting_ocp_aws_storage_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
-        --     ON ptm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
-            -- AND dtm.aws_id IS NULL
-            -- AND ptm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -815,21 +700,11 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
-            ON (aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_id
-                OR aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_alias)
+            ON (aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_id)
+                OR aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_alias))
                 AND aws.usage_start = ocp.usage_start
-        -- ANTI JOIN to remove rows that already matched
-        -- LEFT JOIN reporting_ocp_aws_storage_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
-        --     ON dtm.aws_id = aws.id
-        -- LEFT JOIN reporting_ocp_aws_storage_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
-        --     ON ptm.aws_id = aws.id
-        -- LEFT JOIN reporting_ocp_aws_storage_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
-        --     ON ntm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
-            -- AND dtm.aws_id IS NULL
-            -- AND ptm.aws_id IS NULL
-            -- AND ntm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -896,7 +771,7 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
             aws.tags
         FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
-            ON aws.tag = ocp.tag
+            ON lower(aws.tag::text)::jsonb = lower(ocp.tag::text)::jsonb
                 AND aws.usage_start = ocp.usage_start
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
