@@ -397,7 +397,7 @@ class TestAWSUtils(MasuTestCase):
 
         with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-                with patch("masu.util.aws.common.os.remove"):
+                with patch("masu.util.aws.common.shutil.rmtree"):
                     with patch("masu.util.aws.common.Path"):
                         mock_s3.side_effect = ClientError({}, "Error")
                         result = utils.convert_csv_to_parquet(
@@ -412,7 +412,7 @@ class TestAWSUtils(MasuTestCase):
 
         with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.util.aws.common.get_s3_resource"):
-                with patch("masu.util.aws.common.os.remove"):
+                with patch("masu.util.aws.common.shutil.rmtree"):
                     with patch("masu.util.aws.common.Path"):
                         result = utils.convert_csv_to_parquet(
                             "request_id",
@@ -426,7 +426,7 @@ class TestAWSUtils(MasuTestCase):
 
         with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.util.aws.common.get_s3_resource"):
-                with patch("masu.util.aws.common.os.remove"):
+                with patch("masu.util.aws.common.shutil.rmtree"):
                     with patch("masu.util.aws.common.Path"):
                         with patch("masu.util.aws.common.pd"):
                             with patch("masu.util.aws.common.open") as mock_open:
@@ -444,7 +444,7 @@ class TestAWSUtils(MasuTestCase):
         with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.util.aws.common.get_s3_resource"):
                 with patch("masu.util.aws.common.Path"):
-                    with patch("masu.util.aws.common.os.remove"):
+                    with patch("masu.util.aws.common.shutil.rmtree"):
                         with patch("masu.util.aws.common.pd"):
                             with patch("masu.util.aws.common.open"):
                                 with patch("masu.util.aws.common.BytesIO"):
