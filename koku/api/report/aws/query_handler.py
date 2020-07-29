@@ -221,6 +221,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                         AWSOrganizationalUnit.objects.filter(level=(org_unit_object.level + 1))
                         .filter(org_unit_path__icontains=org_unit_object.org_unit_id)
                         .filter(account_alias__isnull=True)
+                        .exclude(org_unit_id__in=org_unit_group_by_data)
                         .order_by("org_unit_id", "-created_timestamp")
                         .distinct("org_unit_id")
                     )
