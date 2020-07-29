@@ -131,10 +131,10 @@ CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
 ;
 
 
+-- First we match OCP pod data to AWS data using a direct
+-- resource id match. This usually means OCP node -> AWS EC2 instance ID.
 CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS (
-    -- First we match OCP pod data to AWS data using a direct
-    -- resource id match. This usually means OCP node -> AWS EC2 instance ID.
-    (WITH cte_resource_id_matched AS (
+    WITH cte_resource_id_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -213,13 +213,13 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
     FROM cte_resource_id_matched AS rm
     JOIN cte_number_of_shared AS shared
         ON rm.aws_id = shared.aws_id
-    )
+)
+;
 
-    UNION
-
-    -- Next we match where the AWS tag is the special openshift_project key
-    -- and the value matches an OpenShift project name
-    (WITH cte_tag_matched AS (
+-- Next we match where the AWS tag is the special openshift_project key
+-- and the value matches an OpenShift project name
+INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
+    WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -269,8 +269,12 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON aws.key = 'openshift_project' AND aws.value = lower(ocp.namespace)
                 AND aws.usage_start = ocp.usage_start
+        -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
+            ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -286,13 +290,13 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
-    )
+)
+;
 
-    UNION
-
-    -- Next we match where the AWS tag is the special openshift_node key
-    -- and the value matches an OpenShift node name
-    (WITH cte_tag_matched AS (
+-- Next we match where the AWS tag is the special openshift_node key
+-- and the value matches an OpenShift node name
+INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
+    WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -342,8 +346,12 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON aws.key = 'openshift_node' AND aws.value = lower(ocp.node)
                 AND aws.usage_start = ocp.usage_start
+        -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
+            ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -359,13 +367,13 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
-    )
+)
+;
 
-    UNION
-
-    -- Next we match where the AWS tag is the special openshift_cluster key
-    -- and the value matches an OpenShift cluster name
-    (WITH cte_tag_matched AS (
+-- Next we match where the AWS tag is the special openshift_cluster key
+-- and the value matches an OpenShift cluster name
+ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
+    WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -416,8 +424,12 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
             ON (aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_id)
                 OR aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_alias))
                 AND aws.usage_start = ocp.usage_start
+        -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
+            ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -433,13 +445,13 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
-    )
+)
+;
 
-    UNION
-
-    -- Next we match where the pod label key and value
-    -- and AWS tag key and value match directly
-    (WITH cte_tag_matched AS (
+-- Next we match where the pod label key and value
+-- and AWS tag key and value match directly
+ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
+    WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -487,10 +499,14 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
             aws.tags
         FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
-            ON aws.tag = ocp.tag
+            ON lower(aws.tag::text)::jsonb = lower(ocp.tag::text)::jsonb
                 AND aws.usage_start = ocp.usage_start
+        -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
+            ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -506,15 +522,14 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
-    )
 )
 ;
 
 
+-- First we match where the AWS tag is the special openshift_project key
+-- and the value matches an OpenShift project name
 CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS (
-    -- First we match where the AWS tag is the special openshift_project key
-    -- and the value matches an OpenShift project name
-    (WITH cte_tag_matched AS (
+    WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -579,13 +594,13 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
-    )
+)
+;
 
-    UNION
-
-    -- Next we match where the AWS tag is the special openshift_node key
-    -- and the value matches an OpenShift node name
-    (WITH cte_tag_matched AS (
+-- Next we match where the AWS tag is the special openshift_node key
+-- and the value matches an OpenShift node name
+INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
+    WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -632,8 +647,12 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON aws.key = 'openshift_node' AND aws.value = lower(ocp.node)
                 AND aws.usage_start = ocp.usage_start
+        -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
+            ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -649,13 +668,13 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
-    )
+)
+;
 
-    UNION
-
-    -- Next we match where the AWS tag is the special openshift_cluster key
-    -- and the value matches an OpenShift cluster name
-    (WITH cte_tag_matched AS (
+-- Next we match where the AWS tag is the special openshift_cluster key
+-- and the value matches an OpenShift cluster name
+ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
+    WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -703,8 +722,12 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
             ON (aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_id)
                 OR aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_alias))
                 AND aws.usage_start = ocp.usage_start
+        -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
+            ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -720,13 +743,13 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
-    )
+)
+;
 
-    UNION
-
-    -- Then we match for OpenShift volume data where the volume label key and value
-    -- and AWS tag key and value match directly
-    (WITH cte_tag_matched AS (
+-- Then we match for OpenShift volume data where the volume label key and value
+-- and AWS tag key and value match directly
+ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
+    WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -773,8 +796,12 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON lower(aws.tag::text)::jsonb = lower(ocp.tag::text)::jsonb
                 AND aws.usage_start = ocp.usage_start
+        -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
+            ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -790,7 +817,6 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
-    )
 )
 ;
 
