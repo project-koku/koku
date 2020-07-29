@@ -28,6 +28,7 @@ from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.pagination import OrgUnitPagination
 from api.common.pagination import ReportPagination
 from api.common.pagination import ReportRankedPagination
 from api.query_params import QueryParameters
@@ -36,13 +37,18 @@ from api.utils import UnitConverter
 LOG = logging.getLogger(__name__)
 
 
-def get_paginator(filter_query_params, count):
+def get_paginator(filter_query_params, count, group_by_params=False):
     """Determine which paginator to use based on query params."""
-    if "offset" in filter_query_params:
-        paginator = ReportRankedPagination()
-        paginator.count = count
+    if group_by_params and (
+        "group_by[org_unit_id]" in group_by_params or "group_by[or:org_unit_id]" in group_by_params
+    ):
+        paginator = OrgUnitPagination(filter_query_params)
     else:
-        paginator = ReportPagination()
+        if "offset" in filter_query_params:
+            paginator = ReportRankedPagination()
+            paginator.count = count
+        else:
+            paginator = ReportPagination()
     return paginator
 
 
@@ -171,7 +177,7 @@ class ReportView(APIView):
                     error = {"details": _("Unit conversion failed.")}
                     raise ValidationError(error)
 
-        paginator = get_paginator(params.parameters.get("filter", {}), max_rank)
+        paginator = get_paginator(params.parameters.get("filter", {}), max_rank, request.query_params)
         paginated_result = paginator.paginate_queryset(output, request)
         LOG.debug(f"DATA: {output}")
         return paginator.get_paginated_response(paginated_result)

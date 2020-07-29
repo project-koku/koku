@@ -52,6 +52,7 @@ class MockSourcesClient:
         return SourcesPatchHandler().update_authentication(source_id, authentication)
 
 
+@patch("sources.sources_patch_handler.reset_db_connection")
 class SourcesSerializerTests(IamTestCase):
     """Test Cases for the sources endpoint."""
 
@@ -113,7 +114,7 @@ class SourcesSerializerTests(IamTestCase):
         source.save()
         return source
 
-    def test_azure_source_update_missing_credential(self):
+    def test_azure_source_update_missing_credential(self, _):
         """Test the update azure source with missing credentials."""
         self.azure_obj.authentication = {}
         self.azure_obj.save()
@@ -129,7 +130,7 @@ class SourcesSerializerTests(IamTestCase):
         for field in ("client_id", "tenant_id", "client_secret"):
             self.assertNotIn(field, instance.authentication.get("credentials").keys())
 
-    def test_azure_source_update_wrong_type(self):
+    def test_azure_source_update_wrong_type(self, _):
         """Test the updating azure source with wrong source type."""
         self.azure_obj.source_type = Provider.PROVIDER_AWS
         self.azure_obj.save()
@@ -142,7 +143,7 @@ class SourcesSerializerTests(IamTestCase):
                 mock_client.return_value.__enter__.return_value = mock_sources_client
                 serializer.update(self.azure_obj, validated_data)
 
-    def test_azure_source_billing_source_update(self):
+    def test_azure_source_billing_source_update(self, _):
         """Test the updating azure billing_source."""
         serializer = SourcesSerializer(context=self.request_context)
         test_resource_group = "TESTRG"
@@ -161,7 +162,7 @@ class SourcesSerializerTests(IamTestCase):
         self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
         self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
 
-    def test_azure_source_billing_source_resource_group_update(self):
+    def test_azure_source_billing_source_resource_group_update(self, _):
         """Test the updating azure billing_source."""
         serializer = SourcesSerializer(context=self.request_context)
         test_resource_group = "TESTRG"
@@ -190,7 +191,7 @@ class SourcesSerializerTests(IamTestCase):
         self.assertIn("data_source", instance.billing_source.keys())
         self.assertEqual(new_resource_group, instance.billing_source.get("data_source").get("resource_group"))
 
-    def test_azure_source_billing_source_storage_account_update(self):
+    def test_azure_source_billing_source_storage_account_update(self, _):
         """Test the updating azure billing_source."""
         serializer = SourcesSerializer(context=self.request_context)
         test_resource_group = "TESTRG"
@@ -219,7 +220,7 @@ class SourcesSerializerTests(IamTestCase):
             self.assertIn("data_source", instance.billing_source.keys())
             self.assertEqual(new_storage_account, instance.billing_source.get("data_source").get("storage_account"))
 
-    def test_azure_source_billing_source_update_with_koku_uuid(self):
+    def test_azure_source_billing_source_update_with_koku_uuid(self, _):
         """Test the updating azure billing_source with source_uuid."""
         self.azure_obj.source_uuid = fake.uuid4()
         self.azure_obj.pending_update = False
@@ -239,14 +240,14 @@ class SourcesSerializerTests(IamTestCase):
             instance = serializer.update(self.azure_obj, validated_data)
         self.assertTrue(instance.pending_update)
 
-    def test_azure_source_billing_source_update_missing_data_source(self):
+    def test_azure_source_billing_source_update_missing_data_source(self, _):
         """Test the updating azure billing_source with missing data_source."""
         serializer = SourcesSerializer(context=self.request_context)
         validated_data = {"billing_source": {"wrong": {}}}
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.azure_obj, validated_data)
 
-    def test_azure_source_billing_source_update_missing_resource_group(self):
+    def test_azure_source_billing_source_update_missing_resource_group(self, _):
         """Test the updating azure billing_source with missing resource group."""
         serializer = SourcesSerializer(context=self.request_context)
         test_storage_account = "testsa"
@@ -254,7 +255,7 @@ class SourcesSerializerTests(IamTestCase):
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.azure_obj, validated_data)
 
-    def test_azure_source_billing_source_update_missing_storage_account(self):
+    def test_azure_source_billing_source_update_missing_storage_account(self, _):
         """Test the updating azure billing_source with missing storage account."""
         serializer = SourcesSerializer(context=self.request_context)
         test_resource_group = "TESTRG"
@@ -262,7 +263,7 @@ class SourcesSerializerTests(IamTestCase):
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.azure_obj, validated_data)
 
-    def test_aws_source_billing_source_update(self):
+    def test_aws_source_billing_source_update(self, _):
         """Test the updating aws billing_source."""
         serializer = SourcesSerializer(context=self.request_context)
         test_bucket = "some-new-bucket"
@@ -276,7 +277,7 @@ class SourcesSerializerTests(IamTestCase):
         self.assertIn("bucket", instance.billing_source.keys())
         self.assertEqual(test_bucket, instance.billing_source.get("bucket"))
 
-    def test_aws_source_billing_source_update_missing_bucket(self):
+    def test_aws_source_billing_source_update_missing_bucket(self, _):
         """Test the updating aws billing_source."""
         serializer = SourcesSerializer(context=self.request_context)
         test_bucket = None
@@ -284,7 +285,7 @@ class SourcesSerializerTests(IamTestCase):
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.aws_obj, validated_data)
 
-    def test_ocp_source_billing_source_update(self):
+    def test_ocp_source_billing_source_update(self, _):
         """Test the updating billing_source for invalid OCP source."""
         self.aws_obj.instance_type = Provider.PROVIDER_OCP
         self.aws_obj.save()
@@ -295,7 +296,7 @@ class SourcesSerializerTests(IamTestCase):
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.aws_obj, validated_data)
 
-    def test_patch_unavailable_sources_client(self):
+    def test_patch_unavailable_sources_client(self, _):
         serializer = SourcesSerializer(context=self.request_context)
         with patch("sources.api.serializers.ServerProxy") as mock_client:
             mock_client.side_effect = ConnectionRefusedError
@@ -313,7 +314,7 @@ class SourcesSerializerTests(IamTestCase):
             validated_data = {"billing_source": {"bucket": "some-new-bucket"}}
             serializer.update(self.aws_obj, validated_data)
 
-    def test_create_via_admin_serializer(self):
+    def test_create_via_admin_serializer(self, _):
         """Test create source with admin serializer."""
         source_data = {
             "name": "test1",
@@ -348,7 +349,7 @@ class SourcesSerializerTests(IamTestCase):
             else:
                 self.fail("test_create_via_admin_serializer failed")
 
-    def test_create_via_admin_serializer_bad_source_type(self):
+    def test_create_via_admin_serializer_bad_source_type(self, _):
         """Raise error for bad source type on create."""
         source_data = {
             "name": "test",
@@ -363,7 +364,7 @@ class SourcesSerializerTests(IamTestCase):
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
 
-    def test_negative_get_account_from_header(self):
+    def test_negative_get_account_from_header(self, _):
         """Test flow with out header."""
         account = get_account_from_header(Mock(headers={}))
         self.assertIsNone(account)
@@ -373,7 +374,7 @@ class SourcesSerializerTests(IamTestCase):
 
     @patch("api.provider.serializers.ProviderSerializer.get_request_info")
     @patch("sources.api.serializers.get_auth_header", return_value=Config.SOURCES_FAKE_HEADER)
-    def test_provider_create(self, mock_header, mock_request_info):
+    def test_provider_create(self, mock_header, mock_request_info, _):
         mock_request_info.return_value = self.User, self.Customer
 
         serializer = AdminSourcesSerializer(context=self.request_context)
