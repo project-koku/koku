@@ -54,7 +54,7 @@ class ProviderDBAccessorTest(MasuTestCase):
     def test_initializer_no_args(self):
         """Test Initializer with no arguments."""
         with ProviderDBAccessor() as accessor:
-            self.assertTrue(accessor.does_db_entry_exist())
+            self.assertFalse(accessor.does_db_entry_exist())
 
     def test_get_uuid(self):
         """Test uuid getter."""
