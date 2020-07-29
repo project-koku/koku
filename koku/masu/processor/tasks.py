@@ -162,7 +162,7 @@ def get_report_files(
                 if not start_date:
                     start_date = report_dict.get("start_date")
                 worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
-                _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
+                _process_report_file(schema_name, provider_type, report_dict)
                 known_manifest_ids = [report.get("manifest_id") for report in reports_to_summarize]
                 if report_dict.get("manifest_id") not in known_manifest_ids:
                     report_meta = {
