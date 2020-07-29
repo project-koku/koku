@@ -44,7 +44,7 @@ def convert_ocpusage_lids_to_partitioned(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0021_db_functions"), ("reporting", "0120_auto_20200724_1354")]
+    dependencies = [("api", "0021_db_functions"), ("reporting", "0121_auto_20200728_2258")]
 
     operations = [
         migrations.AlterModelOptions(name="ocpusagelineitemdailysummary", options={"managed": False}),
