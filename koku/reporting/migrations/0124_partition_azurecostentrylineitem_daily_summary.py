@@ -44,7 +44,7 @@ def convert_azurecostentry_lids_to_partitioned(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0121_partitioned_ocplineitemusage_daily_summary")]
+    dependencies = [("reporting", "0122_partitioned_ocplineitemusage_daily_summary")]
 
     operations = [
         migrations.AlterModelOptions(name="azurecostentrylineitemdailysummary", options={"managed": False}),
