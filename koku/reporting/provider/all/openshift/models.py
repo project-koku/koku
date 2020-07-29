@@ -24,6 +24,7 @@ VIEWS = (
     "reporting_ocpallcostlineitem_daily_summary",
     "reporting_ocpallcostlineitem_project_daily_summary",
     "reporting_ocpall_compute_summary",
+    "reporting_ocpall_storage_summary",
     "reporting_ocpall_cost_summary",
     "reporting_ocpall_cost_summary_by_account",
     "reporting_ocpall_cost_summary_by_region",
