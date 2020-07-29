@@ -12,7 +12,7 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary AS (
     FROM (
         SELECT 'AWS' as source_type,
             cluster_id,
-            cluster_alias,
+            max(cluster_alias) as cluster_alias,
             data_source,
             namespace::text as namespace,
             node::text as node,
@@ -21,27 +21,42 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary AS (
             usage_start,
             usage_end,
             usage_account_id,
-            account_alias_id,
+            max(account_alias_id) as account_alias_id,
             product_code,
             product_family,
             instance_type,
             region,
             availability_zone,
-            usage_amount,
-            unit,
-            unblended_cost,
-            project_markup_cost,
-            pod_cost,
-            currency_code,
-            source_uuid
+            sum(usage_amount) as usage_amount,
+            max(unit) as unit,
+            sum(unblended_cost) as unblended_cost,
+            sum(project_markup_cost) as project_markup_cost,
+            sum(pod_cost) as pod_cost,
+            max(currency_code) as currency_code,
+            max(source_uuid::text)::uuid as source_uuid
         FROM reporting_ocpawscostlineitem_project_daily_summary
         WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+        GROUP BY source_type,
+            usage_start,
+            usage_end,
+            cluster_id,
+            data_source,
+            namespace,
+            node,
+            usage_account_id,
+            resource_id,
+            product_code,
+            product_family,
+            instance_type,
+            region,
+            availability_zone,
+            pod_labels
 
         UNION
 
         SELECT 'Azure' as source_type,
             cluster_id,
-            cluster_alias,
+            max(cluster_alias) as cluster_alias,
             data_source,
             namespace::text as namespace,
             node::text as node,
@@ -56,15 +71,30 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary AS (
             instance_type,
             resource_location as region,
             NULL as availability_zone,
-            usage_quantity as usage_amount,
-            unit_of_measure as unit,
-            pretax_cost as unblended_cost,
-            project_markup_cost,
-            pod_cost,
-            currency as currency_code,
-            source_uuid
+            sum(usage_quantity) as usage_amount,
+            max(unit_of_measure) as unit,
+            sum(pretax_cost) as unblended_cost,
+            sum(project_markup_cost) as project_markup_cost,
+            sum(pod_cost) as pod_cost,
+            max(currency) as currency_code,
+            max(source_uuid::text)::uuid as source_uuid
         FROM reporting_ocpazurecostlineitem_project_daily_summary
         WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+        GROUP BY source_type,
+            usage_start,
+            usage_end,
+            cluster_id,
+            data_source,
+            namespace,
+            node,
+            usage_account_id,
+            resource_id,
+            product_code,
+            product_family,
+            instance_type,
+            region,
+            availability_zone,
+            pod_labels
     ) AS lids
 )
 ;
