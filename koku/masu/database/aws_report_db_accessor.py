@@ -306,5 +306,3 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
                     AWSCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
                         markup_cost=(F("unblended_cost") * markup)
                     )
-            else:
-                AWSCostEntryLineItemDailySummary.objects.update(markup_cost=(F("unblended_cost") * markup))

@@ -187,3 +187,27 @@ class ReportRankedPagination(ReportPagination):
         self.offset = self.get_offset(request)
 
         return queryset
+
+
+class OrgUnitPagination(ReportPagination):
+    """A paginator of org units."""
+
+    def __init__(self, params):
+        """Set the parameters."""
+        self.limit = params.get("limit", 10)
+        self.offset = params.get("offset", 0)
+        self.count = 0
+
+    def paginate_queryset(self, dataset, request, view=None):
+        """Override queryset pagination."""
+        self.request = request
+        org_objects = []
+        org_data = dataset.get("data")
+        for date in org_data:
+            if date.get("org_entities"):
+                for entry in date.get("org_entities"):
+                    org_objects.append(entry["id"])
+                date["org_entities"] = date["org_entities"][self.offset : self.offset + self.limit]  # noqa: E203
+        org_objects = set(org_objects)
+        self.count = len(org_objects)
+        return dataset
