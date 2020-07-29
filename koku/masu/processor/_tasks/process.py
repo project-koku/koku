@@ -35,7 +35,6 @@ def _process_report_file(schema_name, provider, report_dict):
     Args:
         schema_name   (String) db schema name
         provider      (String) provider type
-        provider_uuid (String) provider uuid
         report_dict   (dict) The report data dict from previous task
 
     Returns:
