@@ -189,7 +189,7 @@ def get_report_files(
         LOG.info(stmt)
         worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
 
-        _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
+        _process_report_file(schema_name, provider_type, report_dict)
 
         report_meta = {
             "schema_name": schema_name,

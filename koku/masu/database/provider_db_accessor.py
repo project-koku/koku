@@ -43,8 +43,9 @@ class ProviderDBAccessor(KokuDBAccess):
     @property
     def provider(self):
         """Return the provider this accessor is instantiated for."""
-        if self._provider is None:
-            self._provider = self._get_db_obj_query().first()
+        query = self._get_db_obj_query()
+        if self._provider is None and query:
+            self._provider = query.first()
         return self._provider
 
     @property
@@ -64,11 +65,14 @@ class ProviderDBAccessor(KokuDBAccess):
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
 
         """
+        if not self._auth_id and not self._uuid:
+            return self._table.objects.none()
         query = self._table.objects.all()
         if self._auth_id:
             query = query.filter(authentication_id=self._auth_id)
         if self._uuid:
             query = query.filter(uuid=self._uuid)
+
         return query
 
     def get_provider(self):

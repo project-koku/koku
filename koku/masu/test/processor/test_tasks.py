@@ -243,7 +243,12 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
+        report_dict = {
+            "file": path,
+            "compression": "gzip",
+            "start_date": str(DateHelper().today),
+            "provider_uuid": provider_uuid,
+        }
 
         mock_proc = mock_processor()
         mock_stats_acc = mock_stats_accessor().__enter__()
@@ -251,7 +256,7 @@ class ProcessReportFileTests(MasuTestCase):
         mock_provider_acc = mock_provider_accessor().__enter__()
         mock_provider_acc.get_setup_complete.return_value = False
 
-        _process_report_file(schema_name, provider, provider_uuid, report_dict)
+        _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
         mock_proc.remove_processed_files.assert_not_called()
@@ -274,7 +279,12 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
+        report_dict = {
+            "file": path,
+            "compression": "gzip",
+            "start_date": str(DateHelper().today),
+            "provider_uuid": provider_uuid,
+        }
 
         mock_proc = mock_processor()
         mock_stats_acc = mock_stats_accessor().__enter__()
@@ -282,7 +292,7 @@ class ProcessReportFileTests(MasuTestCase):
         mock_provider_acc = mock_provider_accessor().__enter__()
         mock_provider_acc.get_setup_complete.return_value = True
 
-        _process_report_file(schema_name, provider, provider_uuid, report_dict)
+        _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
         mock_proc.remove_processed_files.assert_called()
@@ -301,13 +311,18 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
+        report_dict = {
+            "file": path,
+            "compression": "gzip",
+            "start_date": str(DateHelper().today),
+            "provider_uuid": provider_uuid,
+        }
 
         mock_processor.side_effect = ReportProcessorError("mock error")
         mock_stats_acc = mock_stats_accessor().__enter__()
 
         with self.assertRaises(ReportProcessorError):
-            _process_report_file(schema_name, provider, provider_uuid, report_dict)
+            _process_report_file(schema_name, provider, report_dict)
 
         mock_stats_acc.log_last_started_datetime.assert_called()
         mock_stats_acc.log_last_completed_datetime.assert_not_called()
@@ -324,13 +339,18 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
+        report_dict = {
+            "file": path,
+            "compression": "gzip",
+            "start_date": str(DateHelper().today),
+            "provider_uuid": provider_uuid,
+        }
 
         mock_proc = mock_processor()
         mock_stats_acc = mock_stats_accessor().__enter__()
         mock_manifest_acc = mock_manifest_accessor().__enter__()
 
-        _process_report_file(schema_name, provider, provider_uuid, report_dict)
+        _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
         mock_stats_acc.log_last_started_datetime.assert_called()
