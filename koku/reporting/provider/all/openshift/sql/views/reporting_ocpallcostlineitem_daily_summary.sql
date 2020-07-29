@@ -2,6 +2,7 @@ DROP INDEX IF EXISTS ocpallcstdlysumm_node;
 DROP INDEX IF EXISTS ocpallcstdlysumm_node_like;
 DROP INDEX IF EXISTS ocpallcstdlysumm_nsp;
 DROP INDEX IF EXISTS ocpall_product_code_ilike;
+DROP INDEX IF EXISTS ocpall_cost_daily_summary;
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_daily_summary;
 
 CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
@@ -66,6 +67,9 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
     ) AS lids
 )
 ;
+
+CREATE UNIQUE INDEX ocpall_cost_daily_summary
+    ON reporting_ocpallcostlineitem_daily_summary (source_type, usage_start, cluster_id, namespace, node, usage_account_id, resource_id, product_code, product_family, instance_type, region, availability_zone, tags)
 
 CREATE INDEX ocpallcstdlysumm_node
     ON reporting_ocpallcostlineitem_daily_summary (node text_pattern_ops);

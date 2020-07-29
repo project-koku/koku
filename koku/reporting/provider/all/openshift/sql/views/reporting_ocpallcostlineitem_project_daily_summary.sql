@@ -1,3 +1,4 @@
+DROP INDEX IF EXISTS ocpall_cost_project_daily_summary;
 DROP INDEX IF EXISTS ocpallcstprjdlysumm_node;
 DROP INDEX IF EXISTS ocpallcstprjdlysumm_nsp;
 DROP INDEX IF EXISTS ocpallcstprjdlysumm_node_like;
@@ -66,6 +67,10 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary AS (
         WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
     ) AS lids
 )
+;
+
+CREATE UNIQUE INDEX ocpall_cost_project_daily_summary
+    ON reporting_ocpallcostlineitem_project_daily_summary (source_type, usage_start, cluster_id, data_source, namespace, node, usage_account_id, resource_id, product_code, product_family, instance_type, region, availability_zone, pod_labels)
 ;
 
 CREATE INDEX ocpallcstprjdlysumm_node
