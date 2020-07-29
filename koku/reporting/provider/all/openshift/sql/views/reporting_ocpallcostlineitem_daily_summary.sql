@@ -70,6 +70,7 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
 
 CREATE UNIQUE INDEX ocpall_cost_daily_summary
     ON reporting_ocpallcostlineitem_daily_summary (source_type, usage_start, cluster_id, namespace, node, usage_account_id, resource_id, product_code, product_family, instance_type, region, availability_zone, tags)
+;
 
 CREATE INDEX ocpallcstdlysumm_node
     ON reporting_ocpallcostlineitem_daily_summary (node text_pattern_ops);
