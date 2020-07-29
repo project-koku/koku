@@ -20,6 +20,19 @@ from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
+VIEWS = (
+    "reporting_ocpallcostlineitem_daily_summary",
+    "reporting_ocpallcostlineitem_project_daily_summary",
+    "reporting_ocpall_compute_summary",
+    "reporting_ocpall_storage_summary",
+    "reporting_ocpall_cost_summary",
+    "reporting_ocpall_cost_summary_by_account",
+    "reporting_ocpall_cost_summary_by_region",
+    "reporting_ocpall_cost_summary_by_service",
+    "reporting_ocpall_database_summary",
+    "reporting_ocpall_network_summary",
+)
+
 
 class OCPAllCostLineItemDailySummary(models.Model):
     """A summarized view of OCP on All infrastructure cost."""
