@@ -870,19 +870,16 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         def _expected_application_create(msg_data, test, source_network_info_mock):
             source_name = test.get("source_name")
             query_results = Sources.objects.filter(source_id=msg_data.get("source_id"))
-            if source_name == "amazon":
+            if source_name in ["amazon", "ocp"]:
                 self.assertTrue(query_results.exists())
                 self.assertEqual(query_results.first().auth_header, msg_data.get("auth_header"))
                 source_network_info_mock.assert_called()
-            else:
-                self.assertFalse(query_results.exists())
-                source_network_info_mock.assert_not_called()
 
         test_matrix = [
             {
                 "event": source_integration.KAFKA_APPLICATION_CREATE,
                 "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
-                "source_name": "ansible-tower",
+                "source_name": "ocp",
                 "expected_fn": _expected_application_create,
             },
             {
@@ -900,8 +897,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                     test.get("expected_fn")(msg_data, test, mock_sources_network_info)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_process_message_application_create_source_not_found(self):
-        """Test the process_message function."""
+    def test_process_message_application_unsupported_source_type(self):
+        """Test the process_message function with an unsupported source type."""
         test_application_id = 2
 
         test = {
@@ -909,8 +906,12 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
         }
         msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
-        with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError("NOT FOUND TEST")):
-            self.assertIsNone(process_message(test_application_id, msg_data))
+        with patch.object(
+            SourcesHTTPClient, "get_source_details", return_value={"name": "my ansible", "source_type_id": 2}
+        ):
+            with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="ansible-tower"):
+                with patch.object(SourcesHTTPClient, "get_endpoint_id", return_value=1):
+                    self.assertIsNone(process_message(test_application_id, msg_data))
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     @patch("sources.kafka_listener.sources_network_info", returns=None)
