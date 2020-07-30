@@ -24,6 +24,9 @@ from api.organizations.aws.view import AWSOrgView
 from api.report.all.openshift.view import OCPAllCostView
 from api.report.all.openshift.view import OCPAllInstanceTypeView
 from api.report.all.openshift.view import OCPAllStorageView
+from api.report.aws.openshift.view import OCPAWSCostView
+from api.report.aws.openshift.view import OCPAWSInstanceTypeView
+from api.report.aws.openshift.view import OCPAWSStorageView
 from api.report.aws.view import AWSCostView
 from api.report.aws.view import AWSInstanceTypeView
 from api.report.aws.view import AWSStorageView
@@ -37,14 +40,11 @@ from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
 from api.report.ocp.view import OCPVolumeView
-from api.report.ocp_aws.view import OCPAWSCostView
-from api.report.ocp_aws.view import OCPAWSInstanceTypeView
-from api.report.ocp_aws.view import OCPAWSStorageView
 from api.settings.view import SettingsView
 from api.status.views import StatusView
 from api.tags.all.openshift.view import OCPAllTagView
+from api.tags.aws.openshift.view import OCPAWSTagView
 from api.tags.aws.view import AWSTagView
 from api.tags.azure.openshift.view import OCPAzureTagView
 from api.tags.azure.view import AzureTagView
 from api.tags.ocp.view import OCPTagView
-from api.tags.ocp_aws.view import OCPAWSTagView
