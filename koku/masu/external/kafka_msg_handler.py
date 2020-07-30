@@ -623,7 +623,7 @@ def process_report(request_id, report):
         "manifest_id": manifest_id,
         "provider_uuid": provider_uuid,
     }
-    return _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
+    return _process_report_file(schema_name, provider_type, report_dict)
 
 
 def report_metas_complete(report_metas):
