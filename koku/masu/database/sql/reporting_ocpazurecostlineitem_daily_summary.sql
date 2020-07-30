@@ -129,8 +129,7 @@ CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
 -- resource id match. This usually means OCP node -> Azure Virutal Machine.
 CREATE TEMPORARY TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS (
     WITH cte_resource_id_matched AS (
-        SELECT row_number() OVER (PARTITION BY ocp.id, azure.id ORDER BY ocp.id, azure.id) as row_number,
-            ocp.id AS ocp_id,
+        SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -213,8 +212,7 @@ CREATE TEMPORARY TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} 
 -- and the value matches an OpenShift project name
 INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT row_number() OVER (PARTITION BY ocp.id, azure.id ORDER BY ocp.id, azure.id) as row_number,
-            ocp.id AS ocp_id,
+        SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -281,9 +279,8 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
 -- Next we match where the azure tag is the special openshift_node key
 -- and the value matches an OpenShift node name
 INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
-    (WITH cte_tag_matched AS (
-        SELECT row_number() OVER (PARTITION BY ocp.id, azure.id ORDER BY ocp.id, azure.id) as row_number,
-            ocp.id AS ocp_id,
+    WITH cte_tag_matched AS (
+        SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -344,16 +341,14 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
         ON tm.azure_id = sp.azure_id
     JOIN cte_number_of_shared_pods AS spod
         ON tm.azure_id = spod.azure_id
-    )
 )
 ;
 
 -- Next we match where the azure tag is the special openshift_cluster key
 -- and the value matches an OpenShift cluster name
 INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
-    (WITH cte_tag_matched AS (
-        SELECT row_number() OVER (PARTITION BY ocp.id, azure.id ORDER BY ocp.id, azure.id) as row_number,
-            ocp.id AS ocp_id,
+    WITH cte_tag_matched AS (
+        SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -415,16 +410,14 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
         ON tm.azure_id = sp.azure_id
     JOIN cte_number_of_shared_pods AS spod
         ON tm.azure_id = spod.azure_id
-    )
 )
 ;
 
 -- Next we match where the pod label key and value
 -- and Azure tag key and value match directly
 INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
-    (WITH cte_tag_matched AS (
-        SELECT row_number() OVER (PARTITION BY ocp.id, azure.id ORDER BY ocp.id, azure.id) as row_number,
-            ocp.id AS ocp_id,
+    WITH cte_tag_matched AS (
+        SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -485,14 +478,13 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
         ON tm.azure_id = sp.azure_id
     JOIN cte_number_of_shared_pods AS spod
         ON tm.azure_id = spod.azure_id
-    )
 )
 ;
 
 -- First we match OCP storage data to Azure data using a direct
 -- resource id match. OCP PVC name -> Azure instance ID.
 CREATE TEMPORARY TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS (
-    (WITH cte_resource_id_matched AS (
+    WITH cte_resource_id_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
@@ -562,7 +554,6 @@ CREATE TEMPORARY TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}
         ON rm.azure_id = sp.azure_id
     JOIN cte_number_of_shared_pods AS spod
         ON rm.azure_id = spod.azure_id
-    )
 )
 ;
 
