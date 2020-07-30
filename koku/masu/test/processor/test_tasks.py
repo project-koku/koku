@@ -57,6 +57,7 @@ from masu.processor.tasks import convert_to_parquet
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import remove_expired_data
+from masu.processor.tasks import remove_stale_tenants
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
@@ -1164,3 +1165,14 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         self.assertFalse(mock_updater.called)
         self.assertEqual(mock_updater.call_count, 0)
+
+
+class TestRemoveStaleTenants(MasuTestCase):
+    @patch("masu.processor.tasks.connection")
+    def test_remove_stale_tenant(self, mock_conn):
+        """Test the removal of stale tenants that are older than two weeks"""
+        # record = Customer.objects.get(schema_name=schema_name)
+        # print(record)
+        # record.update(date_create=older_date_variable)
+        # with tenant_context(self.tenant):
+        remove_stale_tenants(self)

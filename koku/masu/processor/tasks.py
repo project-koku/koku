@@ -681,9 +681,10 @@ def convert_to_parquet(request_id, account, provider_uuid, provider_type, start_
         LOG.warn(log_json(request_id, msg, context))
         return
 
-    def remove_stale_tenants(self):
-        """ Remove stale tenants from the tenant api """
-        table_sql = """
+
+def remove_stale_tenants(self):
+    """ Remove stale tenants from the tenant api """
+    table_sql = """
     SELECT schema_name
       FROM api_customer c
       LEFT
@@ -694,8 +695,11 @@ def convert_to_parquet(request_id, account, provider_uuid, provider_type, start_
         ON p.uuid::text = s.koku_uuid
      WHERE s.source_id IS null AND c.date_created < now() - INTERVAL '2 weeks';
         """
-        with connection.cursor() as cursor:
-            cursor.execute(table_sql)
-            data = cursor.fetchall()
+    LOG.info(Tenant.objects.all())
+    with connection.cursor() as cursor:
+        cursor.execute(table_sql)
+        LOG.info("*" * 200)
+        data = cursor.fetchall()
+        LOG.info(data)
 
-            Tenant.objects.filter(schema_name__in=[i[0] for i in data]).delete()
+        Tenant.objects.filter(schema_name__in=[i[0] for i in data]).delete()
