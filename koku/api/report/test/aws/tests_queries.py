@@ -1328,7 +1328,7 @@ class AWSReportQueryTest(IamTestCase):
             expected = AWSCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=ten_days_ago,
                 usage_end__lte=self.dh.today,
-                organizational_unit__org_unit_id__icontains=org_unit,
+                organizational_unit__org_unit_path__icontains=org_unit,
             ).aggregate(
                 **{
                     "cost_total": Sum(

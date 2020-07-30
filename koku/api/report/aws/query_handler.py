@@ -218,7 +218,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 for org_object in sub_orgs:
                     sub_orgs_dict[org_object.org_unit_name] = org_object.org_unit_id, org_object.org_unit_path
             # First we need to modify the parameters to get all accounts if org unit group_by is used
-            self.parameters.set_filter(org_unit_id=org_unit_group_by_data)
+            self.parameters.set_filter(org_unit_single_level=org_unit_group_by_data)
             self.query_filter = self._get_filter()
         # grab the base query
         # (without org_units this is the only query - with org_units this is the query to find the accounts)
@@ -228,6 +228,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
             sub_org_id, org_unit_path = value
             if self.parameters.get_filter("org_unit_id"):
                 self.parameters.parameters["filter"].pop("org_unit_id")
+            if self.parameters.get_filter("org_unit_single_level"):
+                self.parameters.parameters["filter"].pop("org_unit_single_level")
             if self.parameters.parameters["group_by"].get("account"):
                 self.parameters.parameters["group_by"].pop("account")
             # only add the org_unit to the filter if the user has access
@@ -236,7 +238,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             if self.access:
                 org_access = self.access.get("aws.organizational_unit", {}).get("read", [])
             if org_access is None or (sub_org_id in org_access or "*" in org_access):
-                self.parameters.set_filter(org_unit_path=[org_unit_path])
+                self.parameters.set_filter(org_unit_id=[sub_org_id])
             self.query_filter = self._get_filter()
             sub_query_data, sub_query_sum = self.execute_individual_query(org_unit_applied)
             query_data_results[sub_org_name] = sub_query_data
