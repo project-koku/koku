@@ -441,3 +441,40 @@ class AWSReportViewTest(IamTestCase):
             sorted_org_entities = copy.deepcopy(org_entities)
             sorted_org_entities.sort(key=lambda e: e["values"][0]["cost"]["total"]["value"], reverse=True)
             self.assertEqual(org_entities, sorted_org_entities)
+
+    def test_multiple_and_group_by_org_unit_bad_request(self):
+        """Test that grouping by org unit on non costs reports raises a validation error."""
+        qs = "?group_by[org_unit_id]=R_001&group_by[org_unit_id]=OU_001"
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_multiple_mixed_group_by_org_unit_bad_request(self):
+        """Test that grouping by org unit on non costs reports raises a validation error."""
+        qs = "?group_by[org_unit_id]=R_001&group_by[or:org_unit_id]=OU_001"
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_group_by_org_unit_or_wildcard_bad_request(self):
+        """Test that grouping by org unit on non costs reports raises a validation error."""
+        qs = "?group_by[or:org_unit_id]=*"
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_group_by_org_unit_id_and_wildcard_region(self):
+        """Test multiple group by with org unit id and region."""
+        # The ui team uses these to populate graphs
+        qs = "?group_by[or:org_unit_id]=R_001&group_by[region]=*"
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_group_by_org_unit_id_and_wildcard_account(self):
+        """Test multiple group by with org unit id and account."""
+        qs = "?group_by[or:org_unit_id]=R_001&group_by[account]=*"
+        # The ui team uses these to populate graphs
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
