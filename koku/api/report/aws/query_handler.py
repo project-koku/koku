@@ -227,7 +227,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     )
                     sub_ou_list.append(sub_query)
 
-                # only do a union or intersection if we have more than one group_by passed in
+                # only do a union if more than one org_unit_id was passed in.
                 if len(sub_ou_list) > 1:
                     sub_query_set = sub_ou_list.pop()
                     sub_ou_ids_list = sub_query_set.union(*sub_ou_list).values_list("org_unit_id", flat=True)

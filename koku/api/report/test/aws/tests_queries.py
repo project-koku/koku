@@ -1310,7 +1310,7 @@ class AWSReportQueryTest(IamTestCase):
                     self.assertIn(sub_ou, accounts_and_sub_ous)
 
         # for each org defined in our yaml file assert that everything is as expected
-        orgs_to_check = ["R_001", "OU_001", "OU_002", "OU_003", "OU_004", "OU_005"]
+        orgs_to_check = self.ou_to_account_subou_map.keys()
         for org in orgs_to_check:
             with self.subTest(org=org):
                 check_accounts_subous_totals(org)
@@ -1425,6 +1425,44 @@ class AWSReportQueryTest(IamTestCase):
                     if org_entity.get("type") == "organizational_unit" and org_entity.get("id") == renamed_org_id:
                         org_values = org_entity.get("values", [])[0]
                         self.assertEqual(org_values.get("alias"), expected_alias)
+
+    def test_multi_group_by_parent_and_child(self):
+        """Test that cost is not calculated twice in a multiple group by of parent and child."""
+        with tenant_context(self.tenant):
+            parent_org_unit = "R_001"
+            child_org_unit = self.ou_to_account_subou_map.get(parent_org_unit, {}).get("org_units", [])
+            self.assertNotEqual(child_org_unit, [])
+            child_org_unit = child_org_unit[0]
+            parent_url = f"?group_by[org_unit_id]={parent_org_unit}"
+            query_params = self.mocked_query_params(parent_url, AWSCostView, "costs")
+            handler = AWSReportQueryHandler(query_params)
+            expected_total = handler.execute_query().get("total", None)
+            self.assertIsNotNone(expected_total)
+            # multiple group_by with one of the group by values is the child of the other parent
+            multi_url = f"?group_by[or:org_unit_id]={parent_org_unit}&group_by[or:org_unit_id]={child_org_unit}"
+            query_params = self.mocked_query_params(multi_url, AWSCostView, "costs")
+            handler = AWSReportQueryHandler(query_params)
+            result_total = handler.execute_query().get("total")
+            self.assertEqual(expected_total, result_total)
+
+    def test_multi_group_by_seperate_children(self):
+        """Test cost sum of multi org_unit_id group by of children nodes"""
+        with tenant_context(self.tenant):
+            org_units = ["OU_001", "OU_002"]
+            expected_costs = []
+            for org_unit in org_units:
+                url = f"?group_by[org_unit_id]={org_unit}"
+                params = self.mocked_query_params(url, AWSCostView, "costs")
+                handler = AWSReportQueryHandler(params)
+                expected_cost = handler.execute_query().get("total", {}).get("cost", {}).get("total", {}).get("value")
+                self.assertIsNotNone(expected_cost)
+                expected_costs.append(expected_cost)
+            # multiple group_by cost check
+            multi_url = f"?group_by[or:org_unit_id]={org_units[0]}&group_by[or:org_unit_id]={org_units[1]}"
+            multi_params = self.mocked_query_params(multi_url, AWSCostView, "costs")
+            multi_handler = AWSReportQueryHandler(multi_params)
+            multi_cost = multi_handler.execute_query().get("total", {}).get("cost", {}).get("total", {}).get("value")
+            self.assertEqual(sum(expected_costs), multi_cost)
 
 
 class AWSReportQueryLogicalAndTest(IamTestCase):
