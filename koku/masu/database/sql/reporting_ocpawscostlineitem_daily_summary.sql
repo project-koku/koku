@@ -36,23 +36,33 @@ CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
 -- columns. We reference this split multiple times so we put it in a
 -- TEMPORARY TABLE for re-use
 CREATE TEMPORARY TABLE reporting_aws_tags_{{uuid | sqlsafe}} AS (
-    SELECT aws.*,
-        tag.tag
-        FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws
-        JOIN matched_tags_{{uuid | sqlsafe}} as tag
-            ON aws.cost_entry_bill_id = tag.cost_entry_bill_id
-                AND aws.tags @> tag.tag
-        WHERE aws.usage_start >= {{start_date}}::date
-            AND aws.usage_start <= {{end_date}}::date
-            --aws_where_clause
-            {% if bill_ids %}
-            AND aws.cost_entry_bill_id IN (
-                {%- for bill_id in bill_ids -%}
-                {{bill_id}}{% if not loop.last %},{% endif %}
-                {%- endfor -%}
-            )
-            {% endif %}
+    SELECT aws.*
+    FROM (
+        SELECT aws.*,
+            lower(aws.tags::text)::jsonb as lower_tags,
+            row_number() OVER (PARTITION BY aws.id ORDER BY aws.id) as row_number
+            FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws
+            JOIN matched_tags_{{uuid | sqlsafe}} as tag
+                ON aws.cost_entry_bill_id = tag.cost_entry_bill_id
+                    AND aws.tags @> tag.tag
+            WHERE aws.usage_start >= {{start_date}}::date
+                AND aws.usage_start <= {{end_date}}::date
+                --aws_where_clause
+                {% if bill_ids %}
+                AND aws.cost_entry_bill_id IN (
+                    {%- for bill_id in bill_ids -%}
+                    {{bill_id}}{% if not loop.last %},{% endif %}
+                    {%- endfor -%}
+                )
+                {% endif %}
+    ) AS aws
+    WHERE aws.row_number = 1
 )
+;
+
+DROP INDEX IF EXISTS aws_tags_gin_idx
+;
+CREATE INDEX aws_tags_gin_idx ON reporting_aws_tags_{{uuid | sqlsafe}} USING GIN (lower_tags)
 ;
 
 CREATE TEMPORARY TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}} AS (
@@ -100,7 +110,7 @@ CREATE TEMPORARY TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}} AS (
 
 CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
     SELECT ocp.*,
-        tag.tag
+        lower(tag.tag::text)::jsonb as tag
     FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
     JOIN matched_tags_{{uuid | sqlsafe}} AS tag
         ON ocp.report_period_id = tag.report_period_id
@@ -116,7 +126,7 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
 
 CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
     SELECT ocp.*,
-        tag.tag
+        lower(tag.tag::text)::jsonb as tag
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
     JOIN matched_tags_{{uuid | sqlsafe}} AS tag
         ON ocp.report_period_id = tag.report_period_id
@@ -499,7 +509,7 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             aws.tags
         FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
-            ON lower(aws.tag::text)::jsonb = lower(ocp.tag::text)::jsonb
+            ON aws.lower_tags @> ocp.tag
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
@@ -794,7 +804,7 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
             aws.tags
         FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
-            ON lower(aws.tag::text)::jsonb = lower(ocp.tag::text)::jsonb
+            ON aws.lower_tags @> ocp.tag
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
@@ -1217,3 +1227,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
         project_markup_cost,
         source_uuid
     FROM reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}}
+;
+
+DROP INDEX IF EXISTS aws_tags_gin_idx;

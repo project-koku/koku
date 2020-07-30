@@ -29,26 +29,37 @@ CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
 ;
 
 CREATE TEMPORARY TABLE reporting_azure_tags_{{uuid | sqlsafe}} AS (
-    SELECT azure.*,
-        tag.tag,
-        tag.key,
-        tag.value
-        FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure
-        JOIN matched_tags_{{uuid | sqlsafe}} as tag
-            ON azure.cost_entry_bill_id = tag.cost_entry_bill_id
-                AND azure.tags @> tag.tag
-        WHERE azure.usage_date >= {{start_date}}::date
-            AND azure.usage_date <= {{end_date}}::date
-            --azure_where_clause
-            {% if bill_ids %}
-            AND azure.cost_entry_bill_id IN (
-                {%- for bill_id in bill_ids -%}
-                {{bill_id}}{% if not loop.last %},{% endif %}
-                {%- endfor -%}
-            )
-            {% endif %}
+    SELECT azure.*
+    FROM (
+        SELECT azure.*,
+            lower(azure.tags::text)::jsonb as lower_tags,
+            row_number() OVER (PARTITION BY azure.id ORDER BY azure.id) as row_number
+            tag.key,
+            tag.value
+            FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure
+            JOIN matched_tags_{{uuid | sqlsafe}} as tag
+                ON azure.cost_entry_bill_id = tag.cost_entry_bill_id
+                    AND azure.tags @> tag.tag
+            WHERE azure.usage_date >= {{start_date}}::date
+                AND azure.usage_date <= {{end_date}}::date
+                --azure_where_clause
+                {% if bill_ids %}
+                AND azure.cost_entry_bill_id IN (
+                    {%- for bill_id in bill_ids -%}
+                    {{bill_id}}{% if not loop.last %},{% endif %}
+                    {%- endfor -%}
+                )
+                {% endif %}
+    ) AS azure
+    WHERE azure.row_number = 1
 )
 ;
+
+DROP INDEX IF EXISTS azure_tags_gin_idx
+;
+CREATE INDEX azure_tags_gin_idx ON reporting_azure_tags_{{uuid | sqlsafe}} USING GIN (lower_tags)
+;
+
 
 CREATE TEMPORARY TABLE reporting_azure_special_case_tags_{{uuid | sqlsafe}} AS (
     WITH cte_tag_options AS (
@@ -95,7 +106,7 @@ CREATE TEMPORARY TABLE reporting_azure_special_case_tags_{{uuid | sqlsafe}} AS (
 
 CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
     SELECT ocp.*,
-        tag.tag
+        lower(tag.tag::text)::jsonb as tag
     FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
     JOIN matched_tags_{{uuid | sqlsafe}} AS tag
         ON ocp.report_period_id = tag.report_period_id
@@ -111,7 +122,7 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
 
 CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
     SELECT ocp.*,
-        tag.tag
+        lower(tag.tag::text)::jsonb as tag
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
     JOIN matched_tags_{{uuid | sqlsafe}} AS tag
         ON ocp.report_period_id = tag.report_period_id
@@ -448,7 +459,7 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
             azure.tags
         FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
-            ON lower(azure.tag::text)::jsonb = lower(ocp.tag::text)::jsonb
+            ON azure.lower_tags @> ocp.tag
                 AND azure.usage_date = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS rm
@@ -787,7 +798,7 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON (
                     (
-                        lower(azure.tag::text)::jsonb = lower(ocp.tag::text)::jsonb
+                        azure.lower_tags @> ocp.tag
                     )
                 OR
                     (
@@ -1192,3 +1203,5 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_su
         source_uuid
     FROM reporting_ocpazurecostlineitem_project_daily_summary_{{uuid | sqlsafe}}
 ;
+
+DROP INDEX IF EXISTS azure_tags_gin_idx;
