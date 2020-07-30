@@ -28,14 +28,13 @@ from masu.processor.report_processor import ReportProcessor
 LOG = get_task_logger(__name__)
 
 
-def _process_report_file(schema_name, provider, provider_uuid, report_dict):
+def _process_report_file(schema_name, provider, report_dict):
     """
     Task to process a Report.
 
     Args:
         schema_name   (String) db schema name
         provider      (String) provider type
-        provider_uuid (String) provider uuid
         report_dict   (dict) The report data dict from previous task
 
     Returns:
@@ -81,8 +80,6 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
     with ReportManifestDBAccessor() as manifest_accesor:
         manifest = manifest_accesor.get_manifest_by_id(manifest_id)
         if manifest:
-            manifest.num_processed_files += 1
-            manifest.save()
             manifest_accesor.mark_manifest_as_updated(manifest)
         else:
             LOG.error("Unable to find manifest for ID: %s, file %s", manifest_id, file_name)

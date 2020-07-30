@@ -32,7 +32,9 @@ from tarfile import TarFile
 import requests
 from confluent_kafka import Consumer
 from confluent_kafka import Producer
-from django.db import connection
+from confluent_kafka import TopicPartition
+from django.db import connections
+from django.db import DEFAULT_DB_ALIAS
 from django.db import InterfaceError
 from django.db import OperationalError
 from kombu.exceptions import OperationalError as RabbitOperationalError
@@ -51,6 +53,7 @@ from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import convert_reports_to_parquet
+from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
@@ -66,6 +69,13 @@ PRODUCER = Producer({"bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS, "messag
 
 class KafkaMsgHandlerError(Exception):
     """Kafka msg handler error."""
+
+
+def close_and_set_db_connection():  # pragma: no cover
+    """Close the db connection and set to None."""
+    if connections[DEFAULT_DB_ALIAS].connection:
+        connections[DEFAULT_DB_ALIAS].connection.close()
+    connections[DEFAULT_DB_ALIAS].connection = None
 
 
 def delivery_callback(err, msg):
@@ -350,6 +360,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
         try:
             shutil.copy(payload_source_path, payload_destination_path)
             current_meta["current_file"] = payload_destination_path
+            record_all_manifest_files(report_meta["manifest_id"], report_meta.get("files"))
             if not record_report_status(report_meta["manifest_id"], report_file, request_id, context):
                 msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
                 LOG.info(log_json(request_id, msg, context))
@@ -452,7 +463,7 @@ def handle_message(msg):
             report_metas = extract_payload(value["url"], request_id, context)
             return SUCCESS_CONFIRM_STATUS, report_metas
         except (OperationalError, InterfaceError) as error:
-            connection.close()
+            close_and_set_db_connection()
             msg = f"Unable to extract payload, db closed. {type(error).__name__}: {error}"
             LOG.error(log_json(request_id, msg, context))
             raise KafkaMsgHandlerError(msg)
@@ -519,8 +530,7 @@ def summarize_manifest(report_meta):
     provider_type = report_meta.get("provider_type")
 
     with ReportManifestDBAccessor() as manifest_accesor:
-        manifest = manifest_accesor.get_manifest_by_id(manifest_id)
-        if manifest.num_processed_files == manifest.num_total_files:
+        if manifest_accesor.manifest_ready_for_summary(manifest_id):
             report_meta = {
                 "schema_name": schema_name,
                 "provider_type": provider_type,
@@ -560,8 +570,7 @@ def convert_manifest_to_parquet(request_id, report_meta, context={}):
         context = {"account": schema_name[4:], "provider_uuid": provider_uuid, "provider_type": provider_type}
 
     with ReportManifestDBAccessor() as manifest_accesor:
-        manifest = manifest_accesor.get_manifest_by_id(manifest_id)
-        if manifest.num_processed_files == manifest.num_total_files:
+        if manifest_accesor.manifest_ready_for_summary(manifest_id):
             report_meta = {
                 "schema_name": schema_name,
                 "provider_type": provider_type,
@@ -614,7 +623,7 @@ def process_report(request_id, report):
         "manifest_id": manifest_id,
         "provider_uuid": provider_uuid,
     }
-    return _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
+    return _process_report_file(schema_name, provider_type, report_dict)
 
 
 def report_metas_complete(report_metas):
@@ -697,7 +706,6 @@ def get_consumer():  # pragma: no cover
             "group.id": "hccm-group",
             "queued.max.messages.kbytes": 1024,
             "enable.auto.commit": False,
-            "enable.auto.offset.store": False,
             "max.poll.interval.ms": 1080000,  # 18 minutes
         }
     )
@@ -720,6 +728,13 @@ def listen_for_messages_loop():
             continue
 
         listen_for_messages(msg, consumer)
+
+
+def rewind_consumer_to_retry(consumer, topic_partition):
+    """Helper method to log and rewind kafka consumer for retry."""
+    LOG.info(f"Seeking back to offset: {topic_partition.offset}, partition: {topic_partition.partition}")
+    consumer.seek(topic_partition)
+    time.sleep(Config.RETRY_SECONDS)
 
 
 def listen_for_messages(msg, consumer):
@@ -750,25 +765,24 @@ def listen_for_messages(msg, consumer):
         None
 
     """
+    offset = msg.offset()
+    partition = msg.partition()
+    topic_partition = TopicPartition(topic=HCCM_TOPIC, partition=partition, offset=offset)
     try:
-        offset = msg.offset()
-        partition = msg.partition()
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
         process_messages(msg)
         LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
-        consumer.store_offsets(msg)
         consumer.commit()
     except (InterfaceError, OperationalError, ReportProcessorDBError) as error:
-        connection.close()
+        close_and_set_db_connection()
         LOG.error(f"[listen_for_messages] Database error. Error: {type(error).__name__}: {error}. Retrying...")
-        time.sleep(Config.RETRY_SECONDS)
+        rewind_consumer_to_retry(consumer, topic_partition)
     except (KafkaMsgHandlerError, RabbitOperationalError) as error:
         LOG.error(f"[listen_for_messages] Internal error. {type(error).__name__}: {error}. Retrying...")
-        time.sleep(Config.RETRY_SECONDS)
+        rewind_consumer_to_retry(consumer, topic_partition)
     except ReportProcessorError as error:
         LOG.error(f"[listen_for_messages] Report processing error: {str(error)}")
         LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
-        consumer.store_offsets(msg)
         consumer.commit()
     except Exception as error:
         LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)

@@ -101,6 +101,9 @@ class MockKafkaConsumer:
     def poll(self, *args, **kwargs):
         return self.preloaded_messages.pop(0)
 
+    def seek(self, *args, **kwargs):
+        pass
+
     def commit(self):
         self.preloaded_messages.pop()
 
@@ -209,7 +212,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             mock_consumer = MockKafkaConsumer([msg])
 
             mock_process_message.side_effect = test.get("side_effect")
-            with patch("masu.external.kafka_msg_handler.connection.close") as close_mock:
+            with patch("masu.external.kafka_msg_handler.close_and_set_db_connection") as close_mock:
                 with patch.object(Config, "RETRY_SECONDS", 0):
                     msg_handler.listen_for_messages(msg, mock_consumer)
                     close_mock.assert_called()
@@ -248,7 +251,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             mock_consumer = MockKafkaConsumer([msg])
 
             mock_process_message.side_effect = test.get("side_effect")
-            with patch("masu.external.kafka_msg_handler.connection.close") as close_mock:
+            with patch("masu.external.kafka_msg_handler.close_and_set_db_connection") as close_mock:
                 with patch.object(Config, "RETRY_SECONDS", 0):
                     msg_handler.listen_for_messages(msg, mock_consumer)
                     close_mock.assert_not_called()
@@ -271,6 +274,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "file": "/path/to/file.csv",
         }
         summarize_manifest_uuid = uuid.uuid4()
+        parquet_convert_uuid = uuid.uuid4()
         test_matrix = [
             {
                 "test_value": {
@@ -281,6 +285,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 },
                 "handle_message_returns": (msg_handler.SUCCESS_CONFIRM_STATUS, [report_meta_1]),
                 "summarize_manifest_returns": summarize_manifest_uuid,
+                "parquet_convert_returns": parquet_convert_uuid,
                 "expected_fn": _expected_success_path,
             },
             {
@@ -292,6 +297,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 },
                 "handle_message_returns": (msg_handler.FAILURE_CONFIRM_STATUS, None),
                 "summarize_manifest_returns": summarize_manifest_uuid,
+                "parquet_convert_returns": parquet_convert_uuid,
                 "expected_fn": _expected_success_path,
             },
             {
@@ -303,6 +309,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 },
                 "handle_message_returns": (None, None),
                 "summarize_manifest_returns": summarize_manifest_uuid,
+                "parquet_convert_returns": parquet_convert_uuid,
                 "expected_fn": _expected_fail_path,
             },
             {
@@ -314,6 +321,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 },
                 "handle_message_returns": (None, [report_meta_1]),
                 "summarize_manifest_returns": summarize_manifest_uuid,
+                "parquet_convert_returns": parquet_convert_uuid,
                 "expected_fn": _expected_fail_path,
             },
         ]
@@ -332,12 +340,17 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         "masu.external.kafka_msg_handler.summarize_manifest",
                         return_value=test.get("summarize_manifest_returns"),
                     ):
-                        with patch("masu.external.kafka_msg_handler.process_report"):
-                            with patch("masu.external.kafka_msg_handler.send_confirmation") as confirmation_mock:
-                                msg_handler.process_messages(msg)
-                                test.get("expected_fn")(msg, test, confirmation_mock)
+                        with patch(
+                            "masu.external.kafka_msg_handler.convert_reports_to_parquet.delay",
+                            return_value=test.get("parquet_convert_returns"),
+                        ):
+                            with patch("masu.external.kafka_msg_handler.process_report"):
+                                with patch("masu.external.kafka_msg_handler.send_confirmation") as confirmation_mock:
+                                    msg_handler.process_messages(msg)
+                                    test.get("expected_fn")(msg, test, confirmation_mock)
 
-    def test_handle_messages(self):
+    @patch("masu.external.kafka_msg_handler.close_and_set_db_connection")
+    def test_handle_messages(self, _):
         """Test to ensure that kafka messages are handled."""
         hccm_msg = MockMessage(msg_handler.HCCM_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
         advisor_msg = MockMessage("platform.upload.advisor", "http://insights-upload.com/quarnantine/file_to_validate")
@@ -400,6 +413,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
             def get_manifest_by_id(self, manifest_id):
                 return self
 
+            def manifest_ready_for_summary(self, manifest_id):
+                return self.num_processed_files == self.num_total_files
+
         # Check when manifest is done
         mock_manifest_accessor = FakeManifest(num_processed_files=2, num_total_files=2)
 
@@ -433,7 +449,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     with patch(
                         "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
                     ):
-                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
+                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
                                 msg_handler.extract_payload(payload_url, "test_request_id")
                                 expected_path = "{}/{}/{}/".format(
@@ -472,7 +488,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     with patch(
                         "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
                     ):
-                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
+                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
                                 msg_handler.extract_payload(payload_url, "test_request_id")
                                 expected_path = "{}/{}/{}/".format(

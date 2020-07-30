@@ -17,7 +17,9 @@
 """Test the report downloader base class."""
 import os.path
 from unittest.mock import Mock
+from unittest.mock import patch
 
+from django.db.utils import IntegrityError
 from faker import Faker
 from model_bakery import baker
 
@@ -54,19 +56,19 @@ class ReportDownloaderBaseTest(MasuTestCase):
         self.downloader = ReportDownloaderBase(
             task=self.mock_task, provider_uuid=self.aws_provider_uuid, cache_key=self.cache_key
         )
-        billing_start = self.date_accessor.today_with_timezone("UTC").replace(day=1)
+        self.billing_start = self.date_accessor.today_with_timezone("UTC").replace(day=1)
         self.task_id = str(self.fake.uuid4())
         self.manifest_dict = {
             "assembly_id": self.assembly_id,
-            "billing_period_start_datetime": billing_start,
+            "billing_period_start_datetime": self.billing_start,
             "num_total_files": 2,
             "provider_uuid": self.aws_provider_uuid,
             "task": self.task_id,
         }
         with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.add(**self.manifest_dict)
-            manifest.save()
-            self.manifest_id = manifest.id
+            self.manifest = manifest_accessor.add(**self.manifest_dict)
+            self.manifest.save()
+            self.manifest_id = self.manifest.id
         for i in [1, 2]:
             baker.make(
                 CostUsageReportStatus,
@@ -155,3 +157,22 @@ class ReportDownloaderBaseTest(MasuTestCase):
 
         result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
         self.assertFalse(result)
+
+    @patch.object(ReportManifestDBAccessor, "get_manifest")
+    def test_process_manifest_db_record_race(self, mock_get_manifest):
+        """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
+        mock_get_manifest.side_effect = [None, self.manifest]
+        with patch.object(ReportManifestDBAccessor, "add", side_effect=IntegrityError):
+            manifest_id = self.downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2)
+        self.assertEqual(manifest_id, self.manifest.id)
+
+    @patch.object(ReportManifestDBAccessor, "get_manifest")
+    def test_process_manifest_db_record_race_no_provider(self, mock_get_manifest):
+        """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
+        mock_get_manifest.side_effect = [None, None]
+        with patch.object(ReportManifestDBAccessor, "add", side_effect=IntegrityError):
+            downloader = ReportDownloaderBase(
+                task=self.mock_task, provider_uuid=self.unkown_test_provider_uuid, cache_key=self.cache_key
+            )
+            with self.assertRaises(IntegrityError):
+                downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2)

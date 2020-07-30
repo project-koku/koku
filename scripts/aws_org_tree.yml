@@ -85,7 +85,7 @@ account_structure:
                 account_alias_name: 'Root A Test'
           - organizational_unit:
             org_unit_id: 'OU_001'
-            org_unit_name: 'Dept OU_001'
+            org_unit_name: 'Dept OU_001 (Rename)'
             parent_path: "R_001"
             accounts:
               - account_alias_id: '9999999999991'
@@ -107,3 +107,6 @@ account_structure:
             org_unit_id: 'OU_005'
             org_unit_name: 'Dept OU_005'
             parent_path: "R_001&OU_001"
+            accounts:
+              - account_alias_id: '9999999999995'
+                account_alias_name: 'account 005'
