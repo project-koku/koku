@@ -32,6 +32,7 @@ from tenant_schemas.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
 from api.common import log_json
+from api.iam.models import Tenant
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
@@ -679,3 +680,22 @@ def convert_to_parquet(request_id, account, provider_uuid, provider_type, start_
         msg = f"Failed to convert the following files to parquet:{','.join(failed_conversion)}."
         LOG.warn(log_json(request_id, msg, context))
         return
+
+    def remove_stale_tenants(self):
+        """ Remove stale tenants from the tenant api """
+        table_sql = """
+    SELECT schema_name
+      FROM api_customer c
+      LEFT
+      JOIN api_provider p
+        ON c.id = p.customer_id
+      LEFT
+      JOIN api_sources s
+        ON p.uuid::text = s.koku_uuid
+     WHERE s.source_id IS null AND c.date_created < now() - INTERVAL '2 weeks';
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(table_sql)
+            data = cursor.fetchall()
+
+            Tenant.objects.filter(schema_name__in=[i[0] for i in data]).delete()
