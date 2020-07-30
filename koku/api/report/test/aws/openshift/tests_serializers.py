@@ -20,10 +20,10 @@ from unittest.mock import Mock
 
 from rest_framework import serializers
 
-from api.report.ocp_aws.serializers import OCPAWSFilterSerializer
-from api.report.ocp_aws.serializers import OCPAWSGroupBySerializer
-from api.report.ocp_aws.serializers import OCPAWSOrderBySerializer
-from api.report.ocp_aws.serializers import OCPAWSQueryParamSerializer
+from api.report.aws.openshift.serializers import OCPAWSFilterSerializer
+from api.report.aws.openshift.serializers import OCPAWSGroupBySerializer
+from api.report.aws.openshift.serializers import OCPAWSOrderBySerializer
+from api.report.aws.openshift.serializers import OCPAWSQueryParamSerializer
 
 
 class OCPAWSFilterSerializerTest(TestCase):
