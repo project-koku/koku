@@ -141,8 +141,5 @@ class Migration(migrations.Migration):
             name="unit_of_measure",
             field=models.TextField(null=True),
         ),
-        migrations.AddIndex(
-            model_name="awscostentrylineitemdaily", index=models.Index(fields=["resource_id"], name="resource_id_idx")
-        ),
         migrations.RunPython(add_views),
     ]

@@ -30,4 +30,7 @@ class Migration(migrations.Migration):
             name="ocpazuretagssummary", unique_together={("key", "cost_entry_bill", "report_period", "namespace")}
         ),
         migrations.DeleteModel(name="OCPStorageVolumeClaimLabelSummary"),
+        migrations.AddIndex(
+            model_name="awscostentrylineitemdaily", index=models.Index(fields=["resource_id"], name="resource_id_idx")
+        ),
     ]
