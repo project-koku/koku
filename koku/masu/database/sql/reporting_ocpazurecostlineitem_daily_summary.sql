@@ -33,7 +33,7 @@ CREATE TEMPORARY TABLE reporting_azure_tags_{{uuid | sqlsafe}} AS (
     FROM (
         SELECT azure.*,
             lower(azure.tags::text)::jsonb as lower_tags,
-            row_number() OVER (PARTITION BY azure.id ORDER BY azure.id) as row_number
+            row_number() OVER (PARTITION BY azure.id ORDER BY azure.id) as row_number,
             tag.key,
             tag.value
             FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure
