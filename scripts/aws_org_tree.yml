@@ -107,3 +107,6 @@ account_structure:
             org_unit_id: 'OU_005'
             org_unit_name: 'Dept OU_005'
             parent_path: "R_001&OU_001"
+            accounts:
+              - account_alias_id: '9999999999995'
+                account_alias_name: 'account 005'

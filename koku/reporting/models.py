@@ -51,6 +51,17 @@ from reporting.provider.aws.models import AWSStorageSummaryByAccount
 from reporting.provider.aws.models import AWSStorageSummaryByRegion
 from reporting.provider.aws.models import AWSStorageSummaryByService
 from reporting.provider.aws.models import AWSTagsSummary
+from reporting.provider.aws.openshift.models import OCPAWSComputeSummary
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummary
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummary
+from reporting.provider.aws.openshift.models import OCPAWSCostSummary
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccount
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByRegion
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByService
+from reporting.provider.aws.openshift.models import OCPAWSDatabaseSummary
+from reporting.provider.aws.openshift.models import OCPAWSNetworkSummary
+from reporting.provider.aws.openshift.models import OCPAWSStorageSummary
+from reporting.provider.aws.openshift.models import OCPAWSTagsSummary
 from reporting.provider.azure.models import AzureComputeSummary
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDaily
@@ -96,17 +107,6 @@ from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import OCPVolumeSummary
 from reporting.provider.ocp.models import OCPVolumeSummaryByProject
-from reporting.provider.ocp_aws.models import OCPAWSComputeSummary
-from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
-from reporting.provider.ocp_aws.models import OCPAWSCostLineItemProjectDailySummary
-from reporting.provider.ocp_aws.models import OCPAWSCostSummary
-from reporting.provider.ocp_aws.models import OCPAWSCostSummaryByAccount
-from reporting.provider.ocp_aws.models import OCPAWSCostSummaryByRegion
-from reporting.provider.ocp_aws.models import OCPAWSCostSummaryByService
-from reporting.provider.ocp_aws.models import OCPAWSDatabaseSummary
-from reporting.provider.ocp_aws.models import OCPAWSNetworkSummary
-from reporting.provider.ocp_aws.models import OCPAWSStorageSummary
-from reporting.provider.ocp_aws.models import OCPAWSTagsSummary
 
 
 AWS_MATERIALIZED_VIEWS = (

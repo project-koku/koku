@@ -32,6 +32,7 @@ import faker
 from dateutil import relativedelta
 from django.db.models import Max
 from django.db.models import Min
+from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
 
 import koku.celery as koku_celery
@@ -54,6 +55,7 @@ from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import convert_to_parquet
 from masu.processor.tasks import get_report_files
+from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
@@ -67,6 +69,7 @@ from masu.test.external.downloader.aws import fake_arn
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
+from reporting_common.models import CostUsageReportStatus
 
 
 class FakeDownloader(Mock):
@@ -233,7 +236,12 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
+        report_dict = {
+            "file": path,
+            "compression": "gzip",
+            "start_date": str(DateHelper().today),
+            "provider_uuid": provider_uuid,
+        }
 
         mock_proc = mock_processor()
         mock_stats_acc = mock_stats_accessor().__enter__()
@@ -241,7 +249,7 @@ class ProcessReportFileTests(MasuTestCase):
         mock_provider_acc = mock_provider_accessor().__enter__()
         mock_provider_acc.get_setup_complete.return_value = False
 
-        _process_report_file(schema_name, provider, provider_uuid, report_dict)
+        _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
         mock_proc.remove_processed_files.assert_not_called()
@@ -264,7 +272,12 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
+        report_dict = {
+            "file": path,
+            "compression": "gzip",
+            "start_date": str(DateHelper().today),
+            "provider_uuid": provider_uuid,
+        }
 
         mock_proc = mock_processor()
         mock_stats_acc = mock_stats_accessor().__enter__()
@@ -272,7 +285,7 @@ class ProcessReportFileTests(MasuTestCase):
         mock_provider_acc = mock_provider_accessor().__enter__()
         mock_provider_acc.get_setup_complete.return_value = True
 
-        _process_report_file(schema_name, provider, provider_uuid, report_dict)
+        _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
         mock_proc.remove_processed_files.assert_called()
@@ -291,13 +304,18 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
+        report_dict = {
+            "file": path,
+            "compression": "gzip",
+            "start_date": str(DateHelper().today),
+            "provider_uuid": provider_uuid,
+        }
 
         mock_processor.side_effect = ReportProcessorError("mock error")
         mock_stats_acc = mock_stats_accessor().__enter__()
 
         with self.assertRaises(ReportProcessorError):
-            _process_report_file(schema_name, provider, provider_uuid, report_dict)
+            _process_report_file(schema_name, provider, report_dict)
 
         mock_stats_acc.log_last_started_datetime.assert_called()
         mock_stats_acc.log_last_completed_datetime.assert_not_called()
@@ -314,13 +332,18 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
+        report_dict = {
+            "file": path,
+            "compression": "gzip",
+            "start_date": str(DateHelper().today),
+            "provider_uuid": provider_uuid,
+        }
 
         mock_proc = mock_processor()
         mock_stats_acc = mock_stats_accessor().__enter__()
         mock_manifest_acc = mock_manifest_accessor().__enter__()
 
-        _process_report_file(schema_name, provider, provider_uuid, report_dict)
+        _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
         mock_stats_acc.log_last_started_datetime.assert_called()
@@ -1162,3 +1185,26 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         vh = next(iter(koku_celery.app.conf.beat_schedule["vacuum-schemas"]["schedule"].hour))
         avh = next(iter(koku_celery.app.conf.beat_schedule["autovacuum-tune-schemas"]["schedule"].hour))
         self.assertTrue(avh == (23 if vh == 0 else (vh - 1)))
+
+    def test_record_all_manifest_files(self):
+        """Test that file list is saved in ReportStatsDBAccessor."""
+        files_list = ["file1.csv", "file2.csv", "file3.csv"]
+        manifest_id = 1
+
+        record_all_manifest_files(manifest_id, files_list)
+
+        for report_file in files_list:
+            CostUsageReportStatus.objects.filter(report_name=report_file).exists()
+
+    def test_record_all_manifest_files_concurrent_writes(self):
+        """Test that file list is saved in ReportStatsDBAccessor race condition."""
+        files_list = ["file1.csv", "file2.csv", "file3.csv"]
+        manifest_id = 1
+
+        record_all_manifest_files(manifest_id, files_list)
+        with patch.object(ReportStatsDBAccessor, "does_db_entry_exist", return_value=False):
+            with patch.object(ReportStatsDBAccessor, "add", side_effect=IntegrityError):
+                record_all_manifest_files(manifest_id, files_list)
+
+        for report_file in files_list:
+            CostUsageReportStatus.objects.filter(report_name=report_file).exists()
