@@ -124,7 +124,7 @@ class OCPAWSTagsViewTest(IamTestCase):
 
         for tag in data.get("data"):
             self.assertIn(tag.get("key"), cost_mgmt_tag_values.keys())
-            self.assertEqual(tag.get("values"), cost_mgmt_tag_values.get(tag.get("key")))
+            self.assertEqual(sorted(tag.get("values")), cost_mgmt_tag_values.get(tag.get("key")))
 
     def test_cluster_filter(self):
         """Test that appropriate tag values are returned when data is filtered by cluster."""
