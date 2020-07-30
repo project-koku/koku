@@ -23,11 +23,11 @@ from faker import Faker
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
+from api.report.aws.openshift.query_handler import OCPAWSReportQueryHandler
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
 from api.report.azure.query_handler import AzureReportQueryHandler
 from api.report.ocp.query_handler import OCPReportQueryHandler
-from api.report.ocp_aws.query_handler import OCPAWSReportQueryHandler
 from api.report.provider_map import ProviderMap
 from api.report.queries import ReportQueryHandler
 from api.report.view import ReportView
