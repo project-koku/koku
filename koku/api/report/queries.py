@@ -168,7 +168,7 @@ class ReportQueryHandler(QueryHandler):
                 filter_list = list(set(filter_list + custom_list))
         return filter_list
 
-    def _get_search_filter(self, filters):
+    def _get_search_filter(self, filters):  # noqa: C901
         """Populate the query filter collection for search filters.
 
         Args:
@@ -180,6 +180,7 @@ class ReportQueryHandler(QueryHandler):
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
         for q_param, filt in fields.items():
+            access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
             filter_ = self.parameters.get_filter(q_param, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
@@ -194,6 +195,16 @@ class ReportQueryHandler(QueryHandler):
                     for item in list_:
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
+            if access:
+                if isinstance(filt, list):
+                    for _filt in filt:
+                        _filt["operation"] = "in"
+                        q_filter = QueryFilter(parameter=access, **_filt)
+                        filters.add(q_filter)
+                else:
+                    filt["operation"] = "in"
+                    q_filter = QueryFilter(parameter=access, **filt)
+                    filters.add(q_filter)
 
         # Update filters with tag filters
         filters = self._set_tag_filters(filters)

@@ -86,7 +86,7 @@ class QueryParameters:
 
         self._validate()  # sets self.parameters
 
-        for item in ["filter", "group_by", "order_by"]:
+        for item in ["filter", "group_by", "order_by", "access"]:
             if item not in self.parameters:
                 self.parameters[item] = OrderedDict()
 
@@ -195,7 +195,7 @@ class QueryParameters:
             items = set(group_by.get(filter_key))
             result = get_replacement_result(items, access_list, raise_exception)
             if result:
-                self.parameters["group_by"][filter_key] = result
+                self.parameters["access"][filter_key] = result
                 access_filter_applied = True
 
         if not access_filter_applied:
@@ -203,9 +203,9 @@ class QueryParameters:
                 items = set(self.get_filter(filter_key))
                 result = get_replacement_result(items, access_list, raise_exception)
                 if result:
-                    self.parameters["filter"][filter_key] = result
+                    self.parameters["access"][filter_key] = result
             elif access_list:
-                self.parameters["filter"][filter_key] = access_list
+                self.parameters["access"][filter_key] = access_list
 
     def _set_access_ocp_all(self, provider, filter_key, access_key, raise_exception=True):
         """Alter query parameters based on user access."""
@@ -357,6 +357,10 @@ class QueryParameters:
     def get_group_by(self, key, default=None):
         """Get a group_by parameter key."""
         return self.get("group_by", OrderedDict()).get(key, default)
+
+    def get_access(self, filt, default=None):
+        """Get a access parameter."""
+        return self.get("access", OrderedDict()).get(filt, default)
 
     def set(self, key, value):
         """Set parameter data."""

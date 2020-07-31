@@ -556,7 +556,7 @@ class QueryParametersTests(TestCase):
             tag_handler=[],
         )
         params = QueryParameters(fake_request, fake_view)
-        self.assertEqual(params.get_filter("account"), ["account1", "account2"])
+        self.assertEqual(params.get_access("account"), ["account1", "account2"])
         self.assertEqual(params.get_filter("region"), "*")
 
     def test_update_query_parameters_add_subscription_guid_filter_obj(self):
