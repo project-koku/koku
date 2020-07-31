@@ -236,19 +236,21 @@ def get_sources_msg_data(msg, app_type_id):
 
 
 def get_authentication(source_type, sources_network):
+    result = None
     if source_type == Provider.PROVIDER_OCP:
         source_details = sources_network.get_source_details()
         if source_details.get("source_ref"):
-            return {"resource_name": source_details.get("source_ref")}
+            result = {"provider_resource_name": source_details.get("source_ref")}
         else:
             raise SourcesHTTPClientError("Unable to find Cluster ID")
     elif source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-        return {"resource_name": sources_network.get_aws_role_arn()}
+        result = sources_network.get_aws_role_arn()
     elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-        return {"credentials": sources_network.get_azure_credentials()}
+        result = sources_network.get_azure_credentials()
     else:
         LOG.error(f"Unexpected source type: {source_type}")
-        return
+        return result
+    return {"credentials": result}
 
 
 def save_auth_info(auth_header, source_id):
@@ -527,25 +529,13 @@ def execute_koku_provider_op(msg):
     try:
         if operation == "create":
             LOG.info(f"Creating Koku Provider for Source ID: {str(provider.source_id)}")
-            instance = account_coordinator.create_account(
-                provider.name,
-                provider.source_type,
-                provider.authentication,
-                provider.billing_source,
-                provider.source_uuid,
-            )
+            instance = account_coordinator.create_account(provider)
             LOG.info(f"Creating provider {instance.uuid} for Source ID: {provider.source_id}")
         elif operation == "update":
-            instance = account_coordinator.update_account(
-                provider.koku_uuid,
-                provider.name,
-                provider.source_type,
-                provider.authentication,
-                provider.billing_source,
-            )
+            instance = account_coordinator.update_account(provider)
             LOG.info(f"Updating provider {instance.uuid} for Source ID: {provider.source_id}")
         elif operation == "destroy":
-            account_coordinator.destroy_account(provider.koku_uuid)
+            account_coordinator.destroy_account(provider)
             LOG.info(f"Destroying provider {provider.koku_uuid} for Source ID: {provider.source_id}")
         else:
             LOG.error(f"unknown operation: {operation}")

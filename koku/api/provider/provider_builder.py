@@ -100,8 +100,7 @@ class ProviderBuilder:
 
     def _build_provider_bucket(self, billing_source):
         if billing_source.get("data_source"):
-            data_source = billing_source.get("data_source")
-            billing = {"data_source": {"bucket": data_source.get("bucket")}}
+            billing = {"data_source": billing_source.get("data_source")}
         else:
             raise ProviderBuilderError("Missing bucket")
         return billing
@@ -162,19 +161,20 @@ class ProviderBuilder:
         context = {"user": user, "customer": customer}
         return context, customer, user
 
-    def create_provider(self, name, provider_type, authentication, billing_source, source_uuid=None):
+    def create_provider_from_source(self, source):
         """Call to create provider."""
         connection.set_schema_to_public()
-        context, customer, user = self._create_context()
+        context, customer, _ = self._create_context()
         tenant = Tenant.objects.get(schema_name=customer.schema_name)
+        provider_type = source.source_type
         json_data = {
-            "name": name,
+            "name": source.name,
             "type": provider_type.lower(),
-            "authentication": self.get_authentication_for_provider(provider_type, authentication),
-            "billing_source": self.get_billing_source_for_provider(provider_type, billing_source),
+            "authentication": self.get_authentication_for_provider(provider_type, source.authentication),
+            "billing_source": self.get_billing_source_for_provider(provider_type, source.billing_source),
         }
-        if source_uuid:
-            json_data["uuid"] = str(source_uuid)
+        if source.source_uuid:
+            json_data["uuid"] = str(source.source_uuid)
 
         connection.set_tenant(tenant)
         serializer = ProviderSerializer(data=json_data, context=context)
@@ -187,19 +187,20 @@ class ProviderBuilder:
         connection.set_schema_to_public()
         return instance
 
-    def update_provider(self, provider_uuid, name, provider_type, authentication, billing_source):
+    def update_provider_from_source(self, source):
         """Call to update provider."""
         connection.set_schema_to_public()
         context, customer, _ = self._create_context()
         tenant = Tenant.objects.get(schema_name=customer.schema_name)
+        provider_type = source.source_type
         json_data = {
-            "name": name,
+            "name": source.name,
             "type": provider_type.lower(),
-            "authentication": self.get_authentication_for_provider(provider_type, authentication),
-            "billing_source": self.get_billing_source_for_provider(provider_type, billing_source),
+            "authentication": self.get_authentication_for_provider(provider_type, source.authentication),
+            "billing_source": self.get_billing_source_for_provider(provider_type, source.billing_source),
         }
         connection.set_tenant(tenant)
-        instance = Provider.objects.get(uuid=provider_uuid)
+        instance = Provider.objects.get(uuid=source.koku_uuid)
         serializer = ProviderSerializer(instance=instance, data=json_data, partial=False, context=context)
         serializer.is_valid(raise_exception=True)
         serializer.save()

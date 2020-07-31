@@ -89,13 +89,13 @@ class SourcesSerializer(serializers.ModelSerializer):
 
     def _validate_billing_source(self, provider_type, billing_source):
         """Validate billing source parameters."""
-        data_source = billing_source.get("data_source")
-        if not data_source:
-            raise SourcesStorageError(f"Missing {provider_type.upper()} data_source.")
         if provider_type == Provider.PROVIDER_AWS:
-            if not data_source.get("bucket"):
+            if not billing_source.get("bucket"):
                 raise SourcesStorageError("Missing AWS bucket.")
         elif provider_type == Provider.PROVIDER_AZURE:
+            data_source = billing_source.get("data_source")
+            if not data_source:
+                raise SourcesStorageError("Missing AZURE data_source.")
             if not data_source.get("resource_group"):
                 raise SourcesStorageError("Missing AZURE resource_group")
             if not data_source.get("storage_account"):
@@ -111,6 +111,10 @@ class SourcesSerializer(serializers.ModelSerializer):
                 billing_copy.update(billing_source.get("data_source"))
                 billing_source["data_source"] = billing_copy
         self._validate_billing_source(instance.source_type, billing_source)
+        if instance.source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL) and not billing_source.get(
+            "data_source"
+        ):
+            billing_source = {"data_source": billing_source}
         return billing_source
 
     def _update_authentication(self, instance, authentication):

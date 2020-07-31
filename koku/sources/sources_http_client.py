@@ -186,7 +186,7 @@ class SourcesHTTPClient:
         authentications_internal_response = r.json()
         password = authentications_internal_response.get("password")
 
-        return password
+        return {"provider_resource_name": password}
 
     def get_azure_credentials(self):
         """Get the Azure Credentials from Sources Authentication service."""

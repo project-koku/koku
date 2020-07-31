@@ -296,7 +296,6 @@ class ProviderSerializer(serializers.ModelSerializer):
         if "billing_source" in validated_data:
             billing_source = validated_data.pop("billing_source")
             data_source = billing_source.get("data_source", {})
-            bucket = data_source.get("bucket")
         else:
             # Because of a unique together constraint, this is done
             # to allow for this field to be non-required for OCP
@@ -306,17 +305,13 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         authentication = validated_data.pop("authentication")
         credentials = authentication.get("credentials")
-        provider_resource_name = credentials.get("provider_resource_name")
         provider_type = validated_data["type"]
         provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type)
         validated_data["type"] = provider_type
         interface = ProviderAccessor(provider_type)
 
         if customer.account_id not in settings.DEMO_ACCOUNTS:
-            if credentials and data_source and provider_type not in [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP]:
-                interface.cost_usage_source_ready(credentials, data_source)
-            else:
-                interface.cost_usage_source_ready(provider_resource_name, bucket)
+            interface.cost_usage_source_ready(credentials, data_source)
 
         bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
         auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
@@ -353,19 +348,14 @@ class ProviderSerializer(serializers.ModelSerializer):
         interface = ProviderAccessor(provider_type)
         authentication = validated_data.pop("authentication")
         credentials = authentication.get("credentials")
-        provider_resource_name = credentials.get("provider_resource_name")
         billing_source = validated_data.pop("billing_source")
         data_source = billing_source.get("data_source")
-        bucket = billing_source.get("bucket")
 
         try:
             if customer.account_id in settings.DEMO_ACCOUNTS:
                 LOG.info("Customer account is a DEMO account. Skipping cost_usage_source_ready check.")
             else:
-                if credentials and data_source and provider_type not in [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP]:
-                    interface.cost_usage_source_ready(credentials, data_source)
-                else:
-                    interface.cost_usage_source_ready(provider_resource_name, bucket)
+                interface.cost_usage_source_ready(credentials, data_source)
         except serializers.ValidationError as validation_error:
             instance.active = False
             instance.save()

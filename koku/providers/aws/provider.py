@@ -127,8 +127,10 @@ class AWSProvider(ProviderInterface):
         """Return name of the provider."""
         return Provider.PROVIDER_AWS
 
-    def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
+    def cost_usage_source_is_reachable(self, credentials, data_source):
         """Verify that the S3 bucket exists and is reachable."""
+
+        credential_name = credentials.get("provider_resource_name")
         if not credential_name or credential_name.isspace():
             key = ProviderErrors.AWS_MISSING_RESOURCE_NAME
             message = ProviderErrors.AWS_MISSING_RESOURCE_NAME_MESSAGE
@@ -141,6 +143,7 @@ class AWSProvider(ProviderInterface):
             internal_message = f"Unable to access account resources with ARN {credential_name}."
             raise serializers.ValidationError(error_obj(key, internal_message))
 
+        storage_resource_name = data_source.get("bucket")
         if not storage_resource_name or storage_resource_name.isspace():
             key = ProviderErrors.AWS_BUCKET_MISSING
             message = ProviderErrors.AWS_BUCKET_MISSING_MESSAGE
