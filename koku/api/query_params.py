@@ -350,6 +350,10 @@ class QueryParameters:
             return self.parameters.get(item, default)
         return default
 
+    def get_access(self, filt, default=None):
+        """Get an access parameter."""
+        return self.get("access", OrderedDict()).get(filt, default)
+
     def get_filter(self, filt, default=None):
         """Get a filter parameter."""
         return self.get("filter", OrderedDict()).get(filt, default)
@@ -357,10 +361,6 @@ class QueryParameters:
     def get_group_by(self, key, default=None):
         """Get a group_by parameter key."""
         return self.get("group_by", OrderedDict()).get(key, default)
-
-    def get_access(self, filt, default=None):
-        """Get a access parameter."""
-        return self.get("access", OrderedDict()).get(filt, default)
 
     def set(self, key, value):
         """Set parameter data."""

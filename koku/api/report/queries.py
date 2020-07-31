@@ -84,6 +84,11 @@ class ReportQueryHandler(QueryHandler):
         self.query_filter = self._get_filter()
 
     @property
+    def query_table_access_keys(self):
+        """Return the access keys specific for selecting the query table."""
+        return set(self.parameters.get("access", {}).keys())
+
+    @property
     def query_table_group_by_keys(self):
         """Return the group by keys specific for selecting the query table."""
         return set(self.parameters.get("group_by", {}).keys())
@@ -111,7 +116,9 @@ class ReportQueryHandler(QueryHandler):
         ):
             return query_table
 
-        key_tuple = tuple(sorted(self.query_table_filter_keys.union(self.query_table_group_by_keys)))
+        key_tuple = tuple(
+            sorted(self.query_table_filter_keys.union(self.query_table_group_by_keys, self.query_table_access_keys))
+        )
         if key_tuple:
             report_group = key_tuple
 
