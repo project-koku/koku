@@ -46,20 +46,20 @@ class OCPProvider(ProviderInterface):
         """Return name of the provider."""
         return Provider.PROVIDER_OCP
 
-    def cost_usage_source_is_reachable(self, cluster_id, storage_resource_name):
+    def cost_usage_source_is_reachable(self, cluster_id, data_source):
         """Verify that the cost usage source exists and is reachable."""
         if not cluster_id or len(cluster_id) == 0:
             key = "authentication.provider_resource_name"
             message = "Provider resource name is a required parameter for OCP."
             LOG.info(message)
             raise serializers.ValidationError(error_obj(key, message))
-        if storage_resource_name:
+        if data_source:
             key = "billing_source.bucket"
             message = "Bucket is an invalid parameter for OCP."
             LOG.error(message)
             raise serializers.ValidationError(error_obj(key, message))
 
-        # TODO: Add storage_resource_name existance check once Insights integration is complete.
+        # TODO: Add data_source existance check once Insights integration is complete.
         message = f"Stub to verify that OCP report for cluster {cluster_id} is accessible."
         LOG.info(message)
 
