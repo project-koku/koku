@@ -338,7 +338,7 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
             ON aws.key = 'openshift_project' AND aws.value = lower(ocp.namespace)
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
@@ -415,7 +415,7 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
             ON aws.key = 'openshift_node' AND aws.value = lower(ocp.node)
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
@@ -492,7 +492,7 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
             ON (aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_id)
                 OR aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_alias))
                 AND aws.usage_start = ocp.usage_start
@@ -645,7 +645,7 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
             aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
             ON aws.key = 'openshift_project' AND aws.value = lower(ocp.namespace)
                 AND aws.usage_start = ocp.usage_start
         WHERE aws.usage_start >= {{start_date}}::date
@@ -716,7 +716,7 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
             aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
             ON aws.key = 'openshift_node' AND aws.value = lower(ocp.node)
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
@@ -790,7 +790,7 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
             aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
             ON (aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_id)
                 OR aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_alias))
                 AND aws.usage_start = ocp.usage_start

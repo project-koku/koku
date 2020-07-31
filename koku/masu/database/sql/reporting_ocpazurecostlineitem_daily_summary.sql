@@ -152,7 +152,7 @@ CREATE TEMPORARY TABLE reporting_azure_special_case_tags_{{uuid | sqlsafe}} AS (
             )
             {% endif %}
         ) AS keyval
-        WHERE lower(key) IN ('openshift_cluster', 'openshift_node', 'openshift_project')
+        WHERE lower(key) IN ('openshift_cluster', 'openshift_node', 'openshift_project', 'kubernetes.io-created-for-pv-name')
     )
     SELECT azure.*,
         lower(tag.key) as key,
@@ -323,7 +323,7 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
             azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
-        JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
             ON azure.key = 'openshift_project' AND azure.value = lower(ocp.namespace)
                 AND azure.usage_date = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
@@ -391,7 +391,7 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
             azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
-        JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
             ON azure.key = 'openshift_node' AND azure.value = lower(ocp.node)
                 AND azure.usage_date = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
@@ -459,7 +459,7 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
             azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
-        JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
             ON (azure.key = 'openshift_cluster' AND azure.value = lower(ocp.cluster_id)
                 OR azure.key = 'openshift_cluster' AND azure.value = lower(ocp.cluster_alias))
                 AND azure.usage_date = ocp.usage_start
@@ -669,7 +669,7 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
             azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
-        JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
             ON azure.key = 'openshift_project' AND azure.value = lower(ocp.namespace)
                 AND azure.usage_date = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
@@ -734,7 +734,7 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
             azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
-        JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
             ON azure.key = 'openshift_node' AND azure.value = lower(ocp.node)
                 AND azure.usage_date = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
@@ -799,7 +799,7 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
             azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
-        JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
             ON (azure.key = 'openshift_cluster' AND azure.value = lower(ocp.cluster_id)
                 OR azure.key = 'openshift_cluster' AND azure.value = lower(ocp.cluster_alias))
                 AND azure.usage_date = ocp.usage_start
@@ -834,6 +834,70 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
 )
 ;
 
+-- Next we match where the azure tag is kubernetes.io-created-for-pv-name
+ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
+    WITH cte_tag_matched AS (
+        SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
+            ocp.cluster_id,
+            ocp.cluster_alias,
+            ocp.namespace,
+            ocp.pod,
+            ocp.node,
+            ocp.persistentvolumeclaim,
+            ocp.persistentvolume,
+            ocp.storageclass,
+            ocp.persistentvolumeclaim_capacity_bytes,
+            ocp.persistentvolumeclaim_capacity_byte_seconds,
+            ocp.volume_request_storage_byte_seconds,
+            ocp.persistentvolumeclaim_usage_byte_seconds,
+            ocp.persistentvolume_labels,
+            ocp.persistentvolumeclaim_labels,
+            azure.id AS azure_id,
+            azure.cost_entry_bill_id,
+            azure.cost_entry_product_id,
+            azure.meter_id,
+            azure.subscription_guid,
+            azure.usage_date,
+            azure.usage_quantity,
+            azure.pretax_cost,
+            azure.offer_id,
+            azure.tags
+        FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
+        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
+            ON azure.key = 'kubernetes.io-created-for-pv-name'
+                AND azure.value = lower(ocp.persistentvolume)
+        -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS rm
+            ON rm.azure_id = azure.id
+        WHERE azure.usage_date >= {{start_date}}::date
+            AND azure.usage_date <= {{end_date}}::date
+            AND rm.azure_id IS NULL
+    ),
+    cte_number_of_shared_projects AS (
+        SELECT azure_id,
+            count(DISTINCT namespace) as shared_projects
+        FROM cte_tag_matched
+        GROUP BY azure_id
+    ),
+    cte_number_of_shared_pods AS (
+        SELECT azure_id,
+            count(DISTINCT pod) as shared_pods
+        FROM cte_tag_matched
+        GROUP BY azure_id
+    )
+    SELECT tm.*,
+        tm.pretax_cost / spod.shared_pods as pod_cost,
+        sp.shared_projects,
+        spod.shared_pods
+    FROM cte_tag_matched AS tm
+    JOIN cte_number_of_shared_projects AS sp
+        ON tm.azure_id = sp.azure_id
+    JOIN cte_number_of_shared_pods AS spod
+        ON tm.azure_id = spod.azure_id
+ )
+ ;
+
 -- Then we match for OpenShift volume data where the volume label key and value
 -- and azure tag key and value match directly
 INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
@@ -866,16 +930,7 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
             azure.tags
         FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
-            ON (
-                    (
-                        azure.lower_tags @> ocp.tag
-                    )
-                OR
-                    (
-                        azure.key = 'kubernetes.io-created-for-pv-name'
-                        AND azure.value = lower(ocp.persistentvolume)
-                    )
-            )
+            ON azure.lower_tags @> ocp.tag
                 AND azure.usage_date = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS rm
