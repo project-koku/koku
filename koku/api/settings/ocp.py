@@ -20,6 +20,7 @@ from rest_framework.serializers import ValidationError
 from tenant_schemas.utils import schema_context
 
 from api.common import error_obj
+from api.provider.models import Provider
 from api.query_params import QueryParameters
 from api.settings.utils import create_dual_list_select
 from api.settings.utils import create_plain_text
@@ -147,7 +148,7 @@ class OpenShiftSettings:
                 updated = True
 
         if updated:
-            invalidate_view_cache_for_tenant_and_source_type(self.schema, "OCP")
+            invalidate_view_cache_for_tenant_and_source_type(self.schema, Provider.PROVIDER_OCP)
 
         return updated
 
