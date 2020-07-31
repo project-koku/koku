@@ -365,7 +365,7 @@ def add_provider_sources_auth_info(source_id, authentication):
             source.save()
 
 
-def add_provider_sources_network_info(source_id, source_uuid, name, source_type, endpoint_id):
+def add_provider_sources_network_info(details, source_id):
     """
     Add additional Sources information to a Source database object.
 
@@ -382,17 +382,17 @@ def add_provider_sources_network_info(source_id, source_uuid, name, source_type,
     save_needed = False
     source = get_source(source_id, f"Unable to add network details.  Source ID: {source_id} does not exist", LOG.error)
     if source:
-        if source.name != name:
-            source.name = name
+        if source.name != details.name:
+            source.name = details.name
             save_needed = True
-        if str(source.source_uuid) != source_uuid:
-            source.source_uuid = source_uuid
+        if str(source.source_uuid) != details.source_uuid:
+            source.source_uuid = details.source_uuid
             save_needed = True
-        if source.source_type != source_type:
-            source.source_type = source_type
+        if source.source_type != details.source_type:
+            source.source_type = details.source_type
             save_needed = True
-        if str(source.endpoint_id) != endpoint_id:
-            source.endpoint_id = endpoint_id
+        if str(source.endpoint_id) != details.endpoint_id:
+            source.endpoint_id = details.endpoint_id
             save_needed = True
         if save_needed:
             source.save()
