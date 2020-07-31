@@ -27,6 +27,7 @@ from api.settings.utils import create_subform
 from api.settings.utils import OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
+from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from reporting.models import OCPEnabledTagKeys
 
 
@@ -144,6 +145,9 @@ class OpenShiftSettings:
             for new_tag in enabled_tags:
                 OCPEnabledTagKeys.objects.create(key=new_tag)
                 updated = True
+
+        if updated:
+            invalidate_view_cache_for_tenant_and_source_type(self.schema, "OCP")
 
         return updated
 
