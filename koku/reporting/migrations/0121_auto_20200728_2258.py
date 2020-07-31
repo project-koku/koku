@@ -56,15 +56,12 @@ class Migration(migrations.Migration):
                 DROP INDEX IF EXISTS ocpall_storage_summary;
                 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpall_storage_summary;
 
-                DROP INDEX IF EXISTS ocpall_cost_daily_summary;
                 DROP INDEX IF EXISTS ocpallcstdlysumm_node;
                 DROP INDEX IF EXISTS ocpallcstdlysumm_node_like;
                 DROP INDEX IF EXISTS ocpallcstdlysumm_nsp;
                 DROP INDEX IF EXISTS ocpall_product_code_ilike;
-
                 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_daily_summary;
 
-                DROP INDEX IF EXISTS ocpall_cost_project_daily_summary;
                 DROP INDEX IF EXISTS ocpallcstprjdlysumm_node;
                 DROP INDEX IF EXISTS ocpallcstprjdlysumm_nsp;
                 DROP INDEX IF EXISTS ocpallcstprjdlysumm_node_like;
