@@ -2,33 +2,95 @@
 -- optionally filter AWS and OCP data by provider/source
 -- Ex aws_where_clause: 'AND cost_entry_bill_id IN (1, 2, 3)'
 -- Ex ocp_where_clause: "AND cluster_id = 'abcd-1234`"
-
-
 CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
-    SELECT jsonb_build_object(key, value) as tag,
-        cost_entry_bill_id,
-        report_period_id
-    FROM (
-        SELECT key,
-            value,
-            ts.cost_entry_bill_id,
-            ts.report_period_id
-        FROM {{schema | sqlsafe}}.reporting_ocpawstags_summary AS ts,
-            unnest(values) AS values(value)
+    WITH cte_unnested_aws_tags AS (
+        SELECT tags.*,
+            b.billing_period_start
+        FROM (
+            SELECT key,
+                value,
+                cost_entry_bill_id
+            FROM {{schema | sqlsafe}}.reporting_awstags_summary AS ts,
+                unnest(ts.values) AS values(value)
+        ) AS tags
+        JOIN {{schema | sqlsafe}}.reporting_awscostentrybill AS b
+            ON tags.cost_entry_bill_id = b.id
         {% if bill_ids %}
-        WHERE ts.cost_entry_bill_id IN (
+        WHERE b.id IN (
             {%- for bill_id in bill_ids -%}
             {{bill_id}}{% if not loop.last %},{% endif %}
             {%- endfor -%}
         )
         {% endif %}
-    ) AS keyval
-    -- Filter down to the labels for the cluster of interest
-    JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
-        ON keyval.report_period_id = rp.id
-    {% if cluster_id %}
-    WHERE rp.cluster_id = {{cluster_id}}
-    {% endif %}
+    ),
+    cte_unnested_ocp_pod_tags AS (
+        SELECT tags.*,
+            rp.report_period_start,
+            rp.cluster_id,
+            rp.cluster_alias
+        FROM (
+            SELECT key,
+                value,
+                report_period_id
+            FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS ts,
+                unnest(ts.values) AS values(value)
+        ) AS tags
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
+            ON tags.report_period_id = rp.id
+        -- Filter out tags that aren't enabled
+        JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
+            ON lower(enabled_tags.key) = lower(tags.key)
+        {% if cluster_id %}
+        WHERE rp.cluster_id = {{cluster_id}}
+        {% endif %}
+    ),
+    cte_unnested_ocp_volume_tags AS (
+        SELECT tags.*,
+            rp.report_period_start,
+            rp.cluster_id,
+            rp.cluster_alias
+        FROM (
+            SELECT key,
+                value,
+                report_period_id
+            FROM {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary AS ts,
+                unnest(ts.values) AS values(value)
+        ) AS tags
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
+            ON tags.report_period_id = rp.id
+        -- Filter out tags that aren't enabled
+        JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
+            ON lower(enabled_tags.key) = lower(tags.key)
+        {% if cluster_id %}
+        WHERE rp.cluster_id = {{cluster_id}}
+        {% endif %}
+    )
+    SELECT jsonb_build_object(key, value) as tag,
+        cost_entry_bill_id,
+        report_period_id
+    FROM (
+        SELECT aws.key,
+            aws.value,
+            aws.cost_entry_bill_id,
+            ocp.report_period_id
+        FROM cte_unnested_aws_tags AS aws
+        JOIN cte_unnested_ocp_pod_tags AS ocp
+            ON lower(aws.key) = lower(ocp.key)
+                AND lower(aws.value) = lower(ocp.value)
+                AND aws.billing_period_start = ocp.report_period_start
+
+        UNION
+
+        SELECT aws.key,
+            aws.value,
+            aws.cost_entry_bill_id,
+            ocp.report_period_id
+        FROM cte_unnested_aws_tags AS aws
+        JOIN cte_unnested_ocp_volume_tags AS ocp
+            ON lower(aws.key) = lower(ocp.key)
+                AND lower(aws.value) = lower(ocp.value)
+                AND aws.billing_period_start = ocp.report_period_start
+    ) AS matches
 )
 ;
 
