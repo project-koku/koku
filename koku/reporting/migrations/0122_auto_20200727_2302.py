@@ -9,26 +9,6 @@ class Migration(migrations.Migration):
     dependencies = [("reporting", "0121_auto_20200728_2258")]
 
     operations = [
-        migrations.AddField(
-            model_name="ocpawstagssummary",
-            name="report_period",
-            field=models.ForeignKey(
-                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.OCPUsageReportPeriod"
-            ),
-        ),
-        migrations.AddField(
-            model_name="ocpazuretagssummary",
-            name="report_period",
-            field=models.ForeignKey(
-                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.OCPUsageReportPeriod"
-            ),
-        ),
-        migrations.AlterUniqueTogether(
-            name="ocpawstagssummary", unique_together={("key", "cost_entry_bill", "report_period", "namespace")}
-        ),
-        migrations.AlterUniqueTogether(
-            name="ocpazuretagssummary", unique_together={("key", "cost_entry_bill", "report_period", "namespace")}
-        ),
         migrations.DeleteModel(name="OCPStorageVolumeClaimLabelSummary"),
         migrations.AddIndex(
             model_name="awscostentrylineitemdaily", index=models.Index(fields=["resource_id"], name="resource_id_idx")

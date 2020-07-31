@@ -109,10 +109,10 @@ class OCPAWSTagsViewTest(IamTestCase):
     def test_rbac_tags_queries(self):
         """Test that appropriate tag values are returned when data is restricted by namespace."""
         cost_mgmt_tag_values = {
-            "version": ["beta", "gamma", "master", "prod"],
-            "storageclass": ["bravo", "charlie", "delta", "epsilon"],
+            "version": ["beta"],
+            "storageclass": ["epsilon"],
             "environment": ["dev"],
-            "app": ["analytics", "catalog", "cost"],
+            "app": ["cost"],
         }
         url = reverse("openshift-aws-tags")
         client = APIClient()
@@ -124,7 +124,7 @@ class OCPAWSTagsViewTest(IamTestCase):
 
         for tag in data.get("data"):
             self.assertIn(tag.get("key"), cost_mgmt_tag_values.keys())
-            self.assertEqual(sorted(tag.get("values")), cost_mgmt_tag_values.get(tag.get("key")))
+            self.assertEqual(tag.get("values"), cost_mgmt_tag_values.get(tag.get("key")))
 
     def test_cluster_filter(self):
         """Test that appropriate tag values are returned when data is filtered by cluster."""
