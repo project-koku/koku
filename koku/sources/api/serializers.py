@@ -196,9 +196,7 @@ class AdminSourcesSerializer(SourcesSerializer):
         manager = ProviderBuilder(auth_header)
         validated_data["auth_header"] = auth_header
         source = Sources.objects.create(**validated_data)
-        provider = manager.create_provider(
-            source.name, source.source_type, source.authentication, source.billing_source, source.source_uuid
-        )
+        provider = manager.create_provider_from_source(source)
         source.koku_uuid = provider.uuid
         source.save()
         LOG.info("Admin created Source and Provider.")

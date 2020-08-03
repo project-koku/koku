@@ -116,10 +116,7 @@ class ProviderBuilder:
         return self._build_provider_bucket(billing_source)
 
     def _billing_source_for_ocp(self, billing_source):
-        if not billing_source:
-            billing_source = {}
-        billing_source["bucket"] = ""
-        return self._build_provider_bucket(billing_source)
+        return dict()
 
     def _billing_source_for_azure(self, billing_source):
         return self._build_provider_data_source(billing_source)

@@ -56,12 +56,7 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
     """Serializer for the Provider Authentication model."""
 
     uuid = serializers.UUIDField(read_only=True)
-
-    # XXX: This field is DEPRECATED;
-    # XXX: the credentials field should be used instead.
-    provider_resource_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-
-    credentials = serializers.JSONField(allow_null=True, required=False)
+    credentials = serializers.JSONField(allow_null=False, required=True)
 
     def validate(self, data):
         """Validate authentication parameters."""
@@ -69,15 +64,13 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
             data["credentials"] = data.get("credentials", {})
         if data.get("provider_resource_name") and not data.get("credentials"):
             data["credentials"] = {"provider_resource_name": data.get("provider_resource_name")}
-        if data.get("credentials").get("provider_resource_name"):
-            data["provider_resource_name"] = data.get("credentials").get("provider_resource_name")
         return data
 
     class Meta:
         """Metadata for the serializer."""
 
         model = ProviderAuthentication
-        fields = ("uuid", "provider_resource_name", "credentials")
+        fields = ("uuid", "credentials")
 
 
 class AWSAuthenticationSerializer(ProviderAuthenticationSerializer):
@@ -86,8 +79,6 @@ class AWSAuthenticationSerializer(ProviderAuthenticationSerializer):
 
 class AzureAuthenticationSerializer(ProviderAuthenticationSerializer):
     """Azure auth serializer."""
-
-    credentials = serializers.JSONField(allow_null=True, required=True)
 
     def validate_credentials(self, creds):
         """Validate credentials field."""
@@ -115,18 +106,13 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
     """Serializer for the Provider Billing Source model."""
 
     uuid = serializers.UUIDField(read_only=True)
-
-    # XXX: This field is DEPRECATED
-    # XXX: the data_source field should be used instead.
-    bucket = serializers.CharField(max_length=63, required=False, allow_null=True, allow_blank=True)
-
     data_source = serializers.JSONField(allow_null=True, required=False)
 
     class Meta:
         """Metadata for the serializer."""
 
         model = ProviderBillingSource
-        fields = ("uuid", "bucket", "data_source")
+        fields = ("uuid", "data_source")
 
     def validate(self, data):
         """Validate billing source."""
@@ -134,8 +120,6 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
             data["data_source"] = data.get("data_source", {})
         if (data.get("bucket") or data.get("bucket") == "") and not data.get("data_source"):
             data["data_source"] = {"bucket": data.get("bucket")}
-        if data.get("data_source").get("bucket"):
-            data["bucket"] = data.get("data_source").get("bucket")
         return data
 
 
@@ -146,8 +130,6 @@ class AWSBillingSourceSerializer(ProviderBillingSourceSerializer):
 class AzureBillingSourceSerializer(ProviderBillingSourceSerializer):
     """Azure billing source serializer."""
 
-    data_source = serializers.JSONField(allow_null=True, required=True)
-
     def validate_data_source(self, data_source):
         """Validate data_source field."""
         key = "provider.data_source"
@@ -157,8 +139,6 @@ class AzureBillingSourceSerializer(ProviderBillingSourceSerializer):
 
 class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
     """GCP billing source serializer."""
-
-    data_source = serializers.JSONField(allow_null=True, required=True)
 
     def validate(self, data):
         """Validate data_source field."""
@@ -261,7 +241,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             )()
             self.fields["billing_source"] = BILLING_SOURCE_SERIALIZERS.get(
                 Provider.PROVIDER_CASE_MAPPING.get(provider_type)
-            )(default={"bucket": "", "data_source": {"bucket": ""}})
+            )()
         else:
             self.fields["authentication"] = ProviderAuthenticationSerializer()
             self.fields["billing_source"] = ProviderBillingSourceSerializer()
@@ -292,23 +272,14 @@ class ProviderSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Create a provider from validated data."""
         user, customer = self.get_request_info()
-
-        if "billing_source" in validated_data:
-            billing_source = validated_data.pop("billing_source")
-            data_source = billing_source.get("data_source", {})
-        else:
-            # Because of a unique together constraint, this is done
-            # to allow for this field to be non-required for OCP
-            # but will still have a blank no-op entry in the DB
-            billing_source = {"bucket": "", "data_source": {}}
-            data_source = None
-
-        authentication = validated_data.pop("authentication")
-        credentials = authentication.get("credentials")
-        provider_type = validated_data["type"]
+        provider_type = validated_data["type"].lower()
         provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type)
         validated_data["type"] = provider_type
         interface = ProviderAccessor(provider_type)
+        authentication = validated_data.pop("authentication")
+        credentials = authentication.get("credentials")
+        billing_source = validated_data.pop("billing_source")
+        data_source = billing_source.get("data_source")
 
         if customer.account_id not in settings.DEMO_ACCOUNTS:
             interface.cost_usage_source_ready(credentials, data_source)
