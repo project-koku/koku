@@ -513,6 +513,8 @@ class ReportQueryHandler(QueryHandler):
     def _initialize_response_output(self, parameters):
         """Initialize output response object."""
         output = copy.deepcopy(parameters.parameters)
+        # remove access from the output
+        output.pop("access")
         output.update(parameters.display_parameters)
 
         return output

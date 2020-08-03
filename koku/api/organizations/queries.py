@@ -131,6 +131,13 @@ class OrgQueryHandler(QueryHandler):
                 for item in filter_value:
                     q_filter = QueryFilter(parameter=item, **filter_obj)
                     filters.add(q_filter)
+            access = self.parameters.get_access(filter_key)
+            filt = self.FILTER_MAP.get(filter_key, [])
+            if access and filt:
+                filt = self.FILTER_MAP.get(filter_key)
+                filt["operation"] = "in"
+                q_filter = QueryFilter(parameter=access, **filt)
+                filters.add(q_filter)
 
         # Update filters that specifiy and or or in the query parameter
         and_composed_filters = self._set_operator_specified_filters("and")

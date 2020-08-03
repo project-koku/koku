@@ -17,6 +17,7 @@
 """Test the QueryParameters."""
 import logging
 import random
+from collections import OrderedDict
 from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
@@ -238,6 +239,8 @@ class QueryParametersTests(TestCase):
     def test_parameters_property(self):
         """Test that the parameters property returns expected value."""
         expected = parser.parse(str(self.fake_uri))
+        # add access since it is a part of the parameters but not the uri
+        expected["access"] = OrderedDict()
         fake_request = Mock(
             spec=HttpRequest,
             user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
@@ -470,7 +473,7 @@ class QueryParametersTests(TestCase):
         self.assertEqual(params.get_group_by("region"), "*")
 
     def test_access_replace_wildcard(self):
-        """Test that a group by account wildcard is replaced with only the subset of accounts."""
+        """Test that a group by account wildcard only has access to the proper accounts."""
         fake_uri = "group_by[account]=*&" "group_by[region]=*"
         test_access = {"aws.account": {"read": ["account1", "account2"]}, "aws.organizational_unit": {"read": ["*"]}}
         fake_request = Mock(
@@ -487,11 +490,11 @@ class QueryParametersTests(TestCase):
             tag_handler=[],
         )
         params = QueryParameters(fake_request, fake_view)
-        self.assertEqual(params.get_group_by("account"), ["account1", "account2"])
+        self.assertEqual(params.get_access("account"), ["account1", "account2"])
         self.assertEqual(params.get_group_by("region"), "*")
 
     def test_access_gb_filtered_intersection(self):
-        """Test that a group by account filtered list is replaced with only the intersection of accounts."""
+        """Test that a group by account filtered list causes a 403 when filtering on accounts without access."""
         guid1 = uuid4()
         guid2 = uuid4()
         guid3 = uuid4()
@@ -514,9 +517,8 @@ class QueryParametersTests(TestCase):
             serializer=Mock,
             tag_handler=[],
         )
-        params = QueryParameters(fake_request, fake_view)
-        self.assertEqual(params.get_group_by("subscription_guid"), [str(guid1)])
-        self.assertEqual(params.get_group_by("resource_location"), "*")
+        with self.assertRaises(PermissionDenied):
+            QueryParameters(fake_request, fake_view)
 
     def test_access_empty_intersection(self):
         """Test that a group by cluster filtered list causes 403 with empty intersection."""
@@ -560,7 +562,7 @@ class QueryParametersTests(TestCase):
         self.assertEqual(params.get_filter("region"), "*")
 
     def test_update_query_parameters_add_subscription_guid_filter_obj(self):
-        """Test that if no group_by or filter is present a filter of subscription_guids is added."""
+        """Test that if no group_by or filter is present, access is the subscription_guids available."""
         guid1 = uuid4()
         guid2 = uuid4()
         test_access = {"azure.subscription_guid": {"read": [guid1, guid2]}}
@@ -578,10 +580,10 @@ class QueryParametersTests(TestCase):
             tag_handler=[],
         )
         params = QueryParameters(fake_request, fake_view)
-        self.assertEqual(params.get_filter("subscription_guid"), [guid1, guid2])
+        self.assertEqual(params.get_access("subscription_guid"), [guid1, guid2])
 
     def test_update_query_parameters_filtered_intersection(self):
-        """Test that a filter by cluster filtered list is replaced with only the intersection of cluster."""
+        """Test that a filter by cluster filtered list causes a 403 when filtering on accounts without access."""
         fake_uri = "filter[cluster]=cluster1&" "filter[cluster]=cluster3"
         test_access = {"openshift.cluster": {"read": ["cluster1", "cluster2"]}}
         fake_request = Mock(
@@ -597,8 +599,8 @@ class QueryParametersTests(TestCase):
             serializer=Mock,
             tag_handler=[],
         )
-        params = QueryParameters(fake_request, fake_view)
-        self.assertEqual(params.get_filter("cluster"), ["cluster1"])
+        with self.assertRaises(PermissionDenied):
+            QueryParameters(fake_request, fake_view)
 
     def test_get_tenant(self):
         """Test that get_tenant() returns a Tenant."""

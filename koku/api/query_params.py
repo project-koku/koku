@@ -378,15 +378,15 @@ def get_replacement_result(param_res_list, access_list, raise_exception=True):
         return access_list
     if not (access_list or raise_exception):
         return list(param_res_list)
-    intersection = param_res_list & set(access_list)
-    if not intersection:
+    access_difference = param_res_list.difference(set(access_list))
+    if access_difference:
         LOG.warning(
             "User does not have permissions for the requested params: %s. Current access: %s.",
             param_res_list,
             access_list,
         )
-        raise PermissionDenied()
-    return list(intersection)
+        raise PermissionDenied(f"no access to {access_difference}")
+    return param_res_list
 
 
 def get_tenant(user):
