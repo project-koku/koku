@@ -16,7 +16,7 @@
 #
 """OCP-on-AWS Tag Query Handling."""
 from api.models import Provider
-from api.report.ocp_aws.provider_map import OCPAWSProviderMap
+from api.report.aws.openshift.provider_map import OCPAWSProviderMap
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.utils import merge_dicts
