@@ -63,9 +63,9 @@ class AzureCostEntryProductService(models.Model):
 
     instance_id = models.TextField(max_length=512, null=False)
     resource_location = models.TextField(null=True)
-    consumed_service = models.TextField(null=False)
-    resource_type = models.TextField(null=False)
-    resource_group = models.TextField(null=False)
+    consumed_service = models.TextField(null=True)
+    resource_type = models.TextField(null=True)
+    resource_group = models.TextField(null=True)
     additional_info = JSONField(null=True)
     service_tier = models.TextField(null=True)
     service_name = models.TextField(null=True)
