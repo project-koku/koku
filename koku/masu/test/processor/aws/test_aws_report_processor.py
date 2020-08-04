@@ -925,7 +925,6 @@ class AWSReportProcessorTest(MasuTestCase):
             provider__uuid=self.aws_provider_uuid, billing_period_start_datetime=DateHelper().this_month_start
         ).first()
         CostUsageReportStatus.objects.filter(manifest_id=manifest.id).delete()
-
         bill_date = manifest.billing_period_start_datetime
         processor = AWSReportProcessor(
             schema_name=self.schema,

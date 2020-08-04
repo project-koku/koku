@@ -32,8 +32,18 @@ from masu.providers.status import ProviderStatus
 LOG = get_task_logger(__name__)
 
 
+# disabled until the program flow stabilizes a bit more
+# pylint: disable=too-many-arguments,too-many-locals
 def _get_report_files(
-    task, customer_name, authentication, billing_source, provider_type, provider_uuid, report_month, cache_key
+    task,
+    customer_name,
+    authentication,
+    billing_source,
+    provider_type,
+    provider_uuid,
+    report_month,
+    cache_key,
+    report_context,
 ):
     """
     Task to download a Report.
@@ -58,6 +68,7 @@ def _get_report_files(
     request_id = task.request.id
     context = {"account": customer_name[4:], "provider_uuid": provider_uuid}
     month_string = report_month.strftime("%B %Y")
+    report_context["date"] = report_month
     log_statement = (
         f"Downloading report for:\n"
         f" schema_name: {customer_name}\n"
@@ -73,21 +84,19 @@ def _get_report_files(
         disk_msg = f"Unable to find available disk space. {Config.PVC_DIR} does not exist"
     LOG.info(log_json(request_id, disk_msg, context))
 
-    reports = None
+    report = None
     try:
         downloader = ReportDownloader(
-            task=task,
             customer_name=customer_name,
             access_credential=authentication,
             report_source=billing_source,
             provider_type=provider_type,
             provider_uuid=provider_uuid,
-            cache_key=cache_key,
             report_name=None,
             account=customer_name[4:],
             request_id=task.request.id,
         )
-        reports = downloader.download_report(report_month)
+        report = downloader.download_report(report_context)
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
         worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
         WorkerCache().remove_task_from_cache(cache_key)
@@ -98,4 +107,4 @@ def _get_report_files(
 
     with ProviderStatus(provider_uuid) as status:
         status.set_status(ProviderStatusCode.READY)
-    return reports
+    return report

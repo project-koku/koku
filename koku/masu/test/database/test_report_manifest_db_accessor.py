@@ -29,7 +29,6 @@ from masu.test.database.helpers import ManifestCreationHelper
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
-
 FAKE = Faker()
 
 
