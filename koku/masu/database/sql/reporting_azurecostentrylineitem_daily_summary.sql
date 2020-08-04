@@ -16,7 +16,7 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
                     THEN  split_part(m.unit_of_measure, ' ', 2)
                 ELSE m.unit_of_measure
             END as unit_of_measure
-            -- split_part(m.unit_of_measure, ' ', 2) as unit
+
         FROM {{schema | safe}}.reporting_azurecostentrylineitem_daily AS li
         JOIN {{schema | safe}}.reporting_azuremeter AS m
             ON li.meter_id = m.id
