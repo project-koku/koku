@@ -132,8 +132,8 @@ class AzureReportProcessorTest(MasuTestCase):
 
     def test_process_azure_small_batches(self):
         """Test the processing of an uncompressed azure file in small batches."""
-        with patch.object(Config, "REPORT_PROCESSING_BATCH_SIZE", 1):
-            # Re-init processor so that REPORT_PROCESSING_BATCH_SIZE is 1.
+        with patch.object(Config, "REPORT_PROCESSING_BATCH_SIZE", 2):
+            # Re-init processor so that REPORT_PROCESSING_BATCH_SIZE is 2.
             self.processor = AzureReportProcessor(
                 schema_name=self.schema,
                 report_path=self.test_report,

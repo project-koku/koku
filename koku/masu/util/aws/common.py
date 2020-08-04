@@ -319,6 +319,7 @@ def copy_local_report_file_to_s3_bucket(
     Copies local report file to s3 bucket
     """
     if s3_path and settings.ENABLE_S3_ARCHIVING:
+        LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         with open(full_file_path, "rb") as fin:
             data = BytesIO(fin.read())
             copy_data_to_s3_bucket(request_id, s3_path, local_filename, data, manifest_id, context)
