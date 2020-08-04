@@ -118,7 +118,7 @@ def convert_azurecostentry_lids_to_partitioned(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0021_db_functions"), ("reporting", "0121_auto_20200728_2258")]
+    dependencies = [("api", "0021_db_functions"), ("reporting", "0122_auto_20200803_2307")]
 
     operations = [
         # =====================================================
