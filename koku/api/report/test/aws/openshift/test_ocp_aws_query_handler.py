@@ -20,10 +20,10 @@ import copy
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.report.ocp_aws.query_handler import OCPAWSReportQueryHandler
-from api.report.ocp_aws.view import OCPAWSCostView
-from api.report.ocp_aws.view import OCPAWSInstanceTypeView
-from api.report.ocp_aws.view import OCPAWSStorageView
+from api.report.aws.openshift.query_handler import OCPAWSReportQueryHandler
+from api.report.aws.openshift.view import OCPAWSCostView
+from api.report.aws.openshift.view import OCPAWSInstanceTypeView
+from api.report.aws.openshift.view import OCPAWSStorageView
 from api.report.queries import check_view_filter_and_group_by_criteria
 from api.utils import DateHelper
 from reporting.models import AWSCostEntryBill
