@@ -208,6 +208,11 @@ class ReportQueryHandler(QueryHandler):
                         _filt["operation"] = "in"
                         q_filter = QueryFilter(parameter=access, **_filt)
                         filters.add(q_filter)
+                elif filt["field"] == "organizational_unit__org_unit_path":
+                    filt["field"] = "organizational_unit__org_unit_id"
+                    filt["operation"] = "in"
+                    q_filter = QueryFilter(parameter=access, **filt)
+                    filters.add(q_filter)
                 else:
                     filt["operation"] = "in"
                     q_filter = QueryFilter(parameter=access, **filt)
