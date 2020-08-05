@@ -523,13 +523,24 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
 
             query_sum = self._build_sum(query, annotations)
+            # Set default delta if one was not passed in.
+            if self.order_field == "delta":
+                if self._delta is None:
+                    delta_keys = list(self._mapper.report_type_map.get("delta_key").keys())
+                    if delta_keys:
+                        self._delta = delta_keys[0]
 
-            if self._limit and not org_unit_applied:
-                rank_order = getattr(F(self.order_field), self.order_direction)()
-                rank_by_total = Window(expression=RowNumber(), partition_by=F("date"), order_by=rank_order)
-                query_data = query_data.annotate(rank=rank_by_total)
-                query_order_by.insert(1, "rank")
-                query_data = self._ranked_list(query_data)
+            if not org_unit_applied:
+                if self._limit and query_data:
+                    rank_orders = []
+                    if self.order_field == "delta":
+                        rank_orders.append(getattr(F(self._delta), self.order_direction)())
+                    else:
+                        rank_orders.append(getattr(F(self.order_field), self.order_direction)())
+                    rank_by_total = Window(expression=RowNumber(), partition_by=F("date"), order_by=rank_orders)
+                    query_data = query_data.annotate(rank=rank_by_total)
+                    query_order_by.insert(1, "rank")
+                    query_data = self._ranked_list(query_data)
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
