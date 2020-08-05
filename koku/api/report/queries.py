@@ -203,20 +203,7 @@ class ReportQueryHandler(QueryHandler):
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
             if access:
-                if isinstance(filt, list):
-                    for _filt in filt:
-                        _filt["operation"] = "in"
-                        q_filter = QueryFilter(parameter=access, **_filt)
-                        filters.add(q_filter)
-                elif filt["field"] == "organizational_unit__org_unit_path":
-                    filt["field"] = "organizational_unit__org_unit_id"
-                    filt["operation"] = "in"
-                    q_filter = QueryFilter(parameter=access, **filt)
-                    filters.add(q_filter)
-                else:
-                    filt["operation"] = "in"
-                    q_filter = QueryFilter(parameter=access, **filt)
-                    filters.add(q_filter)
+                self._set_access_filters(access, filt, filters)
 
         # Update filters with tag filters
         filters = self._set_tag_filters(filters)
@@ -233,6 +220,22 @@ class ReportQueryHandler(QueryHandler):
             composed_filters = composed_filters & multi_field_or_composed_filters
         LOG.debug(f"_get_search_filter: {composed_filters}")
         return composed_filters
+
+    def _set_access_filters(self, access, filt, filters):
+        if isinstance(filt, list):
+            for _filt in filt:
+                _filt["operation"] = "in"
+                q_filter = QueryFilter(parameter=access, **_filt)
+                filters.add(q_filter)
+        elif filt["field"] == "organizational_unit__org_unit_path":
+            filt["field"] = "organizational_unit__org_unit_id"
+            filt["operation"] = "in"
+            q_filter = QueryFilter(parameter=access, **filt)
+            filters.add(q_filter)
+        else:
+            filt["operation"] = "in"
+            q_filter = QueryFilter(parameter=access, **filt)
+            filters.add(q_filter)
 
     def _set_or_filters(self):
         """Create a composed filter collection of ORed filters.
