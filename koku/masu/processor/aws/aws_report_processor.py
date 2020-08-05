@@ -24,7 +24,6 @@ from os import remove
 from django.conf import settings
 
 from masu.config import Config
-from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from reporting.provider.aws.models import AWSCostEntry
@@ -101,7 +100,7 @@ class AWSReportProcessor(ReportProcessorBase):
             self.existing_reservation_map = report_db.get_reservations()
 
         self.line_item_columns = None
-
+        self.table_name = AWSCostEntryLineItem()
         stmt = (
             f"Initialized report processor for:\n"
             f" schema_name: {self._schema}\n"
@@ -134,6 +133,7 @@ class AWSReportProcessor(ReportProcessorBase):
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode) as f:
             with AWSReportDBAccessor(self._schema) as report_db:
+                temp_table = report_db.create_temp_table(self.table_name._meta.db_table, drop_column="id")
                 LOG.info("File %s opened for processing", str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
@@ -151,7 +151,7 @@ class AWSReportProcessor(ReportProcessorBase):
                             row_count + len(self.processed_report.line_items),
                             self._report_name,
                         )
-                        self._save_to_db(AWS_CUR_TABLE_MAP["line_item"], report_db)
+                        self._save_to_db(temp_table, report_db)
 
                         row_count += len(self.processed_report.line_items)
                         self._update_mappings()
@@ -163,12 +163,15 @@ class AWSReportProcessor(ReportProcessorBase):
                         row_count + len(self.processed_report.line_items),
                         self._report_name,
                     )
-                    self._save_to_db(AWS_CUR_TABLE_MAP["line_item"], report_db)
+                    self._save_to_db(temp_table, report_db)
 
                     row_count += len(self.processed_report.line_items)
 
                 if is_finalized_data:
                     report_db.mark_bill_as_finalized(bill_id)
+
+                if self.processed_report.line_items:
+                    report_db.merge_temp_table(self.table_name._meta.db_table, temp_table, self.line_item_columns)
 
         LOG.info("Completed report processing for file: %s and schema: %s", self._report_name, self._schema)
 

@@ -56,19 +56,18 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {"reportKeys": []}
 
-    def __init__(self, task, customer_name, auth_credential, bucket, report_name=None, **kwargs):
+    def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
-            task             (Object) bound celery object
             customer_name    (String) Name of the customer
             auth_credential  (String) Authentication credential for S3 bucket (RoleARN)
             report_name      (String) Name of the Cost Usage Report to download (optional)
             bucket           (String) Name of the S3 bucket containing the CUR
 
         """
-        super().__init__(task, **kwargs)
+        super().__init__(**kwargs)
 
         if customer_name[4:] in settings.DEMO_ACCOUNTS:
             demo_account = settings.DEMO_ACCOUNTS.get(customer_name[4:])
@@ -281,40 +280,27 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         return full_file_path, s3_etag
 
-    def get_report_context_for_date(self, date_time):
+    def get_manifest_context_for_date(self, date):
         """
-        Get the report context for a provided date.
+        Get the manifest context for a provided date.
 
         Args:
-            date_time (DateTime): The starting datetime object
+            date (Date): The starting datetime object
 
         Returns:
             ({}) Dictionary containing the following keys:
                 manifest_id - (String): Manifest ID for ReportManifestDBAccessor
                 assembly_id - (String): UUID identifying report file
                 compression - (String): Report compression format
-                files       - ([]): List of report files.
+                files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
 
         """
-        should_download = True
         manifest_dict = {}
         report_dict = {}
-        manifest_file, manifest = self._get_manifest(date_time)
+        manifest_file, manifest = self._get_manifest(date)
         if manifest != self.empty_manifest:
             manifest_dict = self._prepare_db_manifest_record(manifest)
-            should_download = self.check_if_manifest_should_be_downloaded(manifest_dict.get("assembly_id"))
         self._remove_manifest_file(manifest_file)
-
-        if not should_download:
-            manifest_id = self._get_existing_manifest_db_id(manifest_dict.get("assembly_id"))
-            msg = (
-                f"This manifest has already been downloaded and processed:\n"
-                f" schema_name: {self.customer_name},\n"
-                f" provider_uuid: {self._provider_uuid},\n"
-                f" manifest_id: {manifest_id}"
-            )
-            LOG.info(log_json(self.request_id, msg, self.context))
-            return report_dict
 
         if manifest_dict:
             manifest_id = self._process_manifest_db_record(
@@ -324,7 +310,10 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             report_dict["manifest_id"] = manifest_id
             report_dict["assembly_id"] = manifest.get("assemblyId")
             report_dict["compression"] = self.report.get("Compression")
-            report_dict["files"] = manifest.get("reportKeys")
+            files_list = [
+                {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("reportKeys")
+            ]
+            report_dict["files"] = files_list
         return report_dict
 
     def get_local_file_for_report(self, report):

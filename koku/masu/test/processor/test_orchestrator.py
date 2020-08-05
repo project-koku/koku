@@ -25,6 +25,7 @@ from api.models import Provider
 from masu.config import Config
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
+from masu.external.date_accessor import DateAccessor
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
@@ -187,7 +188,7 @@ class OrchestratorTest(MasuTestCase):
 
     @patch("masu.processor.orchestrator.AccountLabel", spec=True)
     @patch("masu.processor.orchestrator.ProviderStatus", spec=True)
-    @patch("masu.processor.orchestrator.get_report_files.apply_async", return_value=True)
+    @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=True)
     def test_prepare_w_status_valid(self, mock_task, mock_accessor, mock_labeler):
         """Test that Orchestrator.prepare() works when status is valid."""
         mock_labeler().get_label_details.return_value = (True, True)
@@ -220,6 +221,78 @@ class OrchestratorTest(MasuTestCase):
         orchestrator = Orchestrator()
         orchestrator.prepare()
         mock_task.assert_not_called()
+
+    @patch("masu.processor.orchestrator.record_report_status", return_value=True)
+    @patch("masu.processor.orchestrator.chord", return_value=True)
+    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest", return_value={})
+    def test_start_manifest_processing_already_progressed(
+        self, mock_record_report_status, mock_download_manifest, mock_task
+    ):
+        """Test start_manifest_processing with report already processed."""
+        orchestrator = Orchestrator()
+        account = self.mock_accounts[0]
+
+        orchestrator.start_manifest_processing(
+            account.get("customer_name"),
+            account.get("authentication"),
+            account.get("billing_source"),
+            "AWS-local",
+            account.get("schema_name"),
+            account.get("provider_uuid"),
+            DateAccessor().get_billing_months(1)[0],
+        )
+        mock_task.assert_not_called()
+
+    @patch("masu.processor.orchestrator.WorkerCache.task_is_running", return_value=True)
+    @patch("masu.processor.orchestrator.chord", return_value=True)
+    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest", return_value={})
+    def test_start_manifest_processing_in_progress(self, mock_record_report_status, mock_download_manifest, mock_task):
+        """Test start_manifest_processing with report in progressed."""
+        orchestrator = Orchestrator()
+        account = self.mock_accounts[0]
+
+        orchestrator.start_manifest_processing(
+            account.get("customer_name"),
+            account.get("authentication"),
+            account.get("billing_source"),
+            "AWS-local",
+            account.get("schema_name"),
+            account.get("provider_uuid"),
+            DateAccessor().get_billing_months(1)[0],
+        )
+        mock_task.assert_not_called()
+
+    @patch("masu.processor.orchestrator.chord")
+    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
+    def test_start_manifest_processing(self, mock_download_manifest, mock_task):
+        """Test start_manifest_processing."""
+        test_matrix = [
+            {"mock_downloader_manifest": {}, "expect_chord_called": False},
+            {
+                "mock_downloader_manifest": {
+                    "manifest_id": 1,
+                    "files": [{"local_file": "file1.csv", "key": "filekey"}],
+                },
+                "expect_chord_called": True,
+            },
+        ]
+        for test in test_matrix:
+            mock_download_manifest.return_value = test.get("mock_downloader_manifest")
+            orchestrator = Orchestrator()
+            account = self.mock_accounts[0]
+            orchestrator.start_manifest_processing(
+                account.get("customer_name"),
+                account.get("authentication"),
+                account.get("billing_source"),
+                "AWS-local",
+                account.get("schema_name"),
+                account.get("provider_uuid"),
+                DateAccessor().get_billing_months(1)[0],
+            )
+            if test.get("expect_chord_called"):
+                mock_task.assert_called()
+            else:
+                mock_task.assert_not_called()
 
     @patch("masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete")
     def test_get_reports(self, fake_accessor):

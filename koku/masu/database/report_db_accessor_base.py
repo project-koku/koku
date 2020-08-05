@@ -101,7 +101,7 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         return temp_table_name
 
-    def merge_temp_table(self, table_name, temp_table_name, columns, conflict_columns):
+    def merge_temp_table(self, table_name, temp_table_name, columns, conflict_columns=None):
         """INSERT temp table rows into the primary table specified.
 
         Args:
@@ -114,16 +114,21 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         """
         column_str = ",".join(columns)
-        conflict_col_str = ",".join(conflict_columns)
-
-        set_clause = ",".join([f"{column} = excluded.{column}" for column in columns])
         upsert_sql = f"""
             INSERT INTO {table_name} ({column_str})
                 SELECT {column_str}
                 FROM {temp_table_name}
-                ON CONFLICT ({conflict_col_str}) DO UPDATE
-                SET {set_clause}
             """
+
+        if conflict_columns:
+            conflict_col_str = ",".join(conflict_columns)
+            set_clause = ",".join([f"{column} = excluded.{column}" for column in columns])
+            conflict_sql = f"""
+                    ON CONFLICT ({conflict_col_str}) DO UPDATE
+                    SET {set_clause}
+                """
+            upsert_sql += conflict_sql
+
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.execute(upsert_sql)

@@ -295,6 +295,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         )
         manifest_helper.generate_test_report_files()
         manifest_helper.process_all_files()
+
         count_records = CostUsageReportManifest.objects.count()
         with self.assertLogs(logger="masu.processor.expired_data_remover", level="INFO") as cm:
             logging.disable(logging.NOTSET)
