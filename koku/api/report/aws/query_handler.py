@@ -29,6 +29,7 @@ from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
+from api.query_filter import QueryFilter
 from api.report.aws.provider_map import AWSProviderMap
 from api.report.queries import ReportQueryHandler
 from reporting.provider.aws.models import AWSOrganizationalUnit
@@ -468,6 +469,22 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 res = {}
 
             return res
+
+    def _set_access_filters(self, access, filt, filters):
+        if isinstance(filt, list):
+            for _filt in filt:
+                _filt["operation"] = "in"
+                q_filter = QueryFilter(parameter=access, **_filt)
+                filters.add(q_filter)
+        elif filt["field"] == "organizational_unit__org_unit_path":
+            filt["field"] = "organizational_unit__org_unit_id"
+            filt["operation"] = "in"
+            q_filter = QueryFilter(parameter=access, **filt)
+            filters.add(q_filter)
+        else:
+            filt["operation"] = "in"
+            q_filter = QueryFilter(parameter=access, **filt)
+            filters.add(q_filter)
 
     def total_sum(self, sum1, sum2):  # noqa: C901
         """
