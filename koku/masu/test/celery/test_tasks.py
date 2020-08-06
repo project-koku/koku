@@ -248,6 +248,7 @@ class TestCeleryTasks(MasuTestCase):
             )
             manifest_helper.generate_test_report_files()
             manifest_helper.process_all_files()
+
             manifest.save()
             tasks.clean_volume()
             # ensure that the original file is deleted from the volume

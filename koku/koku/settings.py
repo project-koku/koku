@@ -401,6 +401,7 @@ RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
 RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", "5672")
 
 CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
+CELERY_RESULTS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 CELERY_IMPORTS = ("masu.processor.tasks", "masu.celery.tasks", "koku.metrics")
 CELERY_BROKER_POOL_LIMIT = None
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
