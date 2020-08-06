@@ -54,6 +54,7 @@ class CURAccountsDB(CURAccountsInterface):
             "provider_type": provider.type,
             "schema_name": provider.customer.schema_name,
             "provider_uuid": provider.uuid,
+            "account_id": provider.customer.account_id,
         }
         return account
 

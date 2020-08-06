@@ -53,8 +53,10 @@ class AWSOrgUnitCrawler(AccountCrawler):
     @transaction.atomic
     def crawl_account_hierarchy(self):
         error_message = (
-            f"Unable to crawl AWS organizational structure with ARN {self.account} and "
-            "provider_uuid ({self.account.get('provider_uud')})"
+            "Unable to crawl AWS organizational structure with ARN {} and "
+            "provider_uuid: {} and account_id: {}".format(
+                self.account, self.account.get("provider_uud"), self.account.get("account_id")
+            )
         )
         try:
             self._init_session()
@@ -63,8 +65,9 @@ class AWSOrgUnitCrawler(AccountCrawler):
             self._compute_org_structure_yesterday()
             root_ou = self._client.list_roots()["Roots"][0]
             LOG.info(
-                "Obtained the root identifier for provider_uuid ({}): {}".format(
-                    self.account.get("provider_uuid"), root_ou["Id"]
+                "Obtained the root identifier for account with provider_uuid: "
+                "{} and account_id: {}. Root identifier: {}".format(
+                    self.account.get("provider_uuid"), self.account.get("account_id"), root_ou["Id"]
                 )
             )
             self._crawl_org_for_accounts(root_ou, root_ou.get("Id"), level=0)
@@ -107,16 +110,18 @@ class AWSOrgUnitCrawler(AccountCrawler):
             for sub_ou in ou_pager.paginate(ParentId=ou.get("Id")).build_full_result().get("OrganizationalUnits"):
                 new_prefix = prefix + ("&%s" % sub_ou.get("Id"))
                 LOG.info(
-                    "Organizational unit found for provider_uuid ({}) during crawl: {}".format(
-                        self.account.get("provider_uuid"), sub_ou.get("Id")
+                    "Organizational unit found for account with provider_uuid: {} and account_id: {}"
+                    " during crawl. org_unit_id: {}".format(
+                        self.account.get("provider_uuid"), self.account.get("account_id"), sub_ou.get("Id")
                     )
                 )
                 self._crawl_org_for_accounts(sub_ou, new_prefix, level)
 
         except Exception:
             LOG.exception(
-                "Failure processing org unit.  Account schema {}, provider_uuid {}, and org_unit_id {}".format(
-                    self.schema, self.account.get("provider_uuid"), ou.get("Id")
+                "Failure processing org_unit_id: {} for account with account schema: {},"
+                " provider_uuid: {}, and account_id: {}".format(
+                    ou.get("Id"), self.schema, self.account.get("provider_uuid"), self.account.get("account_id")
                 )
             )
 
@@ -130,8 +135,9 @@ class AWSOrgUnitCrawler(AccountCrawler):
         session = utils.get_assume_role_session(utils.AwsArn(self._auth_cred))
         session_client = session.client("organizations")
         LOG.info(
-            "Starting aws organizations session for crawler for provider_uuid ({}).".format(
-                self.account.get("provider_uuid")
+            "Starting aws organizations session for crawler for account with"
+            " provider_uuid: {} and account_id: {}.".format(
+                self.account.get("provider_uuid"), self.account.get("account_id")
             )
         )
         self._client = session_client
@@ -171,7 +177,11 @@ class AWSOrgUnitCrawler(AccountCrawler):
         [2] https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/organizations.html
         """
         parent_id = ou.get("Id")
-        LOG.info("Obtaining accounts for organizational unit: %s" % parent_id)
+        LOG.info(
+            "Crawling account with provider_uuid: {} and account_id: {}. Obtaining accounts for org_unit_id: {}".format(
+                self.account.get("provider_uuid"), self.account.get("account_id"), parent_id
+            )
+        )
         child_accounts = self._depaginate_account_list(
             function=self._client.list_accounts_for_parent, resource_key="Accounts", ParentId=parent_id
         )
@@ -232,9 +242,16 @@ class AWSOrgUnitCrawler(AccountCrawler):
             if created:
                 # only log it was saved if was created to reduce logging on everyday calls
                 LOG.info(
-                    "Saving account or org unit: unit_name=%s, unit_id=%s, "
-                    "unit_path=%s, account_alias=%s, provider_uuid=%s, level=%s"
-                    % (unit_name, unit_id, unit_path, account_alias, self.account.get("provider_uuid"), level)
+                    "Saving account or org unit: unit_name={}, unit_id={}, "
+                    "unit_path={}, account_alias={}, provider_uuid={}, account_id={}, level={}".format(
+                        unit_name,
+                        unit_id,
+                        unit_path,
+                        account_alias,
+                        self.account.get("provider_uuid"),
+                        self.account.get("account_id"),
+                        level,
+                    )
                 )
             return org_unit
 
@@ -317,8 +334,8 @@ class AWSOrgUnitCrawler(AccountCrawler):
             end_date = start_date
         with schema_context(self.schema):
             LOG.info(
-                "Tree for {} to {} for provider_uuid ({})".format(
-                    start_date, end_date, self.account.get("provider_uuid")
+                "Obtaining tree from {} to {} for account with provider_uuid: {} and account_id: {}".format(
+                    start_date, end_date, self.account.get("provider_uuid"), self.account.get("account_id")
                 )
             )
             # Remove org units delete on date or before
