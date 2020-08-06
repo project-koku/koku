@@ -25,8 +25,8 @@ from tenant_schemas.utils import tenant_context
 from ..provider_interface import ProviderInterface
 from api.common import error_obj
 from api.provider.models import Provider
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummary
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
-from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 

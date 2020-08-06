@@ -19,8 +19,8 @@ from tenant_schemas.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
 from api.iam.test.iam_test_case import IamTestCase
-from api.tags.ocp_aws.queries import OCPAWSTagQueryHandler
-from api.tags.ocp_aws.view import OCPAWSTagView
+from api.tags.aws.openshift.queries import OCPAWSTagQueryHandler
+from api.tags.aws.openshift.view import OCPAWSTagView
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
 from reporting.models import OCPAWSTagsSummary

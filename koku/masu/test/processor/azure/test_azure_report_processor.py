@@ -34,6 +34,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
+from masu.processor.azure.azure_report_processor import normalize_header
 from masu.test import MasuTestCase
 
 
@@ -131,8 +132,8 @@ class AzureReportProcessorTest(MasuTestCase):
 
     def test_process_azure_small_batches(self):
         """Test the processing of an uncompressed azure file in small batches."""
-        with patch.object(Config, "REPORT_PROCESSING_BATCH_SIZE", 1):
-            # Re-init processor so that REPORT_PROCESSING_BATCH_SIZE is 1.
+        with patch.object(Config, "REPORT_PROCESSING_BATCH_SIZE", 2):
+            # Re-init processor so that REPORT_PROCESSING_BATCH_SIZE is 2.
             self.processor = AzureReportProcessor(
                 schema_name=self.schema,
                 report_path=self.test_report,
@@ -345,3 +346,79 @@ class AzureReportProcessorTest(MasuTestCase):
         date_filter = processor.get_date_column_filter()
 
         self.assertIn("usage_date__gte", date_filter)
+
+    def test_normalize_header(self):
+        """Test that headers are always converted to English."""
+        english_header = (
+            "DepartmentName,AccountName,AccountOwnerId,SubscriptionGuid,"
+            "SubscriptionName,ResourceGroup,ResourceLocation,UsageDateTime,"
+            "ProductName,MeterCategory,MeterSubcategory,MeterId,MeterName,"
+            "MeterRegion,UnitOfMeasure,UsageQuantity,ResourceRate,PreTaxCost,"
+            "CostCenter,ConsumedService,ResourceType,InstanceId,Tags,OfferId,"
+            "AdditionalInfo,ServiceInfo1,ServiceInfo2"
+        )
+        spanish_header = (
+            "Nombre de departamento (DepartmentName),Nombre de cuenta (AccountName),"
+            "Id. del propietario de la cuenta (AccountOwnerId),Ubicación de los recursos (SubscriptionGuid),"
+            "Nombre de la suscripción (SubscriptionName),ResourceGroup (ResourceGroup),"
+            "Ubicación de los recursos (ResourceLocation),UsageDateTime (UsageDateTime),"
+            "ProductName (ProductName),Categoría del medidor (MeterCategory),"
+            "MeterSubcategory (MeterSubcategory),Id. de medidor (MeterId),"
+            "Nombre del medidor (MeterName),Región del medidor (MeterRegion),"
+            "Unidad de medida (UnitOfMeasure),UsageQuantity (UsageQuantity),"
+            "Tasa de recursos (ResourceRate),PreTaxCost (PreTaxCost),"
+            "Centro de coste (CostCenter),Servicio consumido (ConsumedService),"
+            "ResourceType (ResourceType),InstanceId (InstanceId),Etiquetas (Tags),"
+            "OfferId (OfferId),Información adicional (AdditionalInfo),"
+            "Información del servicio 1 (ServiceInfo1),"
+            "Información del servicio 2 (ServiceInfo2)"
+        )
+        expected_header = [
+            "DepartmentName",
+            "AccountName",
+            "AccountOwnerId",
+            "SubscriptionGuid",
+            "SubscriptionName",
+            "ResourceGroup",
+            "ResourceLocation",
+            "UsageDateTime",
+            "ProductName",
+            "MeterCategory",
+            "MeterSubcategory",
+            "MeterId",
+            "MeterName",
+            "MeterRegion",
+            "UnitOfMeasure",
+            "UsageQuantity",
+            "ResourceRate",
+            "PreTaxCost",
+            "CostCenter",
+            "ConsumedService",
+            "ResourceType",
+            "InstanceId",
+            "Tags",
+            "OfferId",
+            "AdditionalInfo",
+            "ServiceInfo1",
+            "ServiceInfo2",
+        ]
+
+        self.assertEqual(normalize_header(english_header), expected_header)
+        self.assertEqual(normalize_header(spanish_header), expected_header)
+
+    def test_process_tags(self):
+        """Test that both tag string formats are parsed properly."""
+        processor = AzureReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.azure_provider_uuid,
+        )
+
+        tag_str_as_json = '{"project":"p1","cost":"management"}'
+        tag_str_no_json = '"project": "p1","cost": "management"'
+        expected_tag_str = '{"project":"p1","cost":"management"}'
+
+        self.assertEqual(processor._process_tags(tag_str_as_json), expected_tag_str)
+        self.assertEqual(processor._process_tags(tag_str_no_json), expected_tag_str)
+        self.assertEqual(processor._process_tags(""), "{}")

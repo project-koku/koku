@@ -123,6 +123,23 @@ class AWSReportQueryTest(IamTestCase):
                 .first()
                 .get("organizational_unit__org_unit_id")
             )
+            # this mapping is based on the aws_org_tree.yml that populates the data for tests
+            # it takes into account the sub orgs that should show up for each org based on
+            # whether or not they have accounts under them in the range
+            # for example, OU_002 & 0U_004 do not show up under R_001 because OU_004 was deleted
+            # before the range began & OU_002 had no accounts during the range
+            self.ou_to_account_subou_map = {
+                "R_001": {"accounts": ["9999999999990"], "org_units": ["OU_001"], "org_unit_path": "R_001"},
+                "OU_001": {
+                    "accounts": ["9999999999991", "9999999999992"],
+                    "org_units": [],
+                    "org_unit_path": "R_001&OU_001",
+                },
+                "OU_002": {"accounts": [], "org_units": ["OU_003"], "org_unit_path": "R_001&OU_002"},
+                "OU_003": {"accounts": ["9999999999993"], "org_units": [], "org_unit_path": "R_001&OU_002&OU_003"},
+                "OU_004": {"accounts": [], "org_units": [], "org_unit_path": "R_001&OU_004"},
+                "OU_005": {"accounts": [], "org_units": [], "org_unit_path": "R_001&OU_001&OU_005"},
+            }
 
     def calculate_total(self, handler):
         """Return expected total cost for the query."""
@@ -1255,23 +1272,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_with_org_unit_group_by(self):
         """Test that when data is grouped by org_unit_id, the totals add up correctly."""
-        # this mapping is based on the aws_org_tree.yml that populates the data for tests
-        # it takes into account the sub orgs that should show up for each org based on
-        # whether or not they have accounts under them in the range
-        # for example, OU_002 & 0U_004 do not show up under R_001 because OU_004 was deleted
-        # before the range began & OU_002 had no accounts during the range
-        ou_to_account_subou_map = {
-            "R_001": {"accounts": ["9999999999990"], "org_units": ["OU_001"], "org_unit_path": "R_001"},
-            "OU_001": {
-                "accounts": ["9999999999991", "9999999999992"],
-                "org_units": [],
-                "org_unit_path": "R_001&OU_001",
-            },
-            "OU_002": {"accounts": [], "org_units": ["OU_003"], "org_unit_path": "R_001&OU_002"},
-            "OU_003": {"accounts": ["9999999999993"], "org_units": [], "org_unit_path": "R_001&OU_002&OU_003"},
-            "OU_004": {"accounts": [], "org_units": [], "org_unit_path": "R_001&OU_004"},
-            "OU_005": {"accounts": [], "org_units": [], "org_unit_path": "R_001&OU_002&OU_005"},
-        }
 
         # helper function so that we don't have to repeat these steps for each ou
         def check_accounts_subous_totals(org_unit):
@@ -1282,7 +1282,7 @@ class AWSReportQueryTest(IamTestCase):
                 handler = AWSReportQueryHandler(query_params)
                 data = handler.execute_query()
                 # grab the accounts and sub_ous and compare with the expected results
-                path = ou_to_account_subou_map.get(org_unit).get("org_unit_path")
+                path = self.ou_to_account_subou_map.get(org_unit).get("org_unit_path")
                 ten_days_ago = self.dh.n_days_ago(self.dh.today, 10)
                 expected = AWSCostEntryLineItemDailySummary.objects.filter(
                     usage_start__gte=ten_days_ago,
@@ -1304,43 +1304,65 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertEqual(infra_total, expected_cost_total)
                 # test the org units and accounts returned are correct
                 accounts_and_sub_ous = _calculate_accounts_and_subous(data.get("data"))
-                for account in ou_to_account_subou_map.get(org_unit).get("accounts"):
+                for account in self.ou_to_account_subou_map.get(org_unit).get("accounts"):
                     self.assertIn(account, accounts_and_sub_ous)
-                for sub_ou in ou_to_account_subou_map.get(org_unit).get("org_units"):
+                for sub_ou in self.ou_to_account_subou_map.get(org_unit).get("org_units"):
                     self.assertIn(sub_ou, accounts_and_sub_ous)
 
         # for each org defined in our yaml file assert that everything is as expected
-        orgs_to_check = ["R_001", "OU_001", "OU_002", "OU_003", "OU_004", "OU_005"]
+        orgs_to_check = self.ou_to_account_subou_map.keys()
         for org in orgs_to_check:
             with self.subTest(org=org):
                 check_accounts_subous_totals(org)
 
-    def test_group_by_org_unit_all(self):
-        """Check that the total is correct when grouping by org_unit_id=*."""
+    def test_execute_query_with_multiple_or_org_unit_group_by(self):
+        """Test that when data has multiple grouped by org_unit_id, the totals add up correctly."""
+        ou_to_compare = ["OU_001", "OU_002"]
         with tenant_context(self.tenant):
-            # grab org_unit_id=* query data
-            org_group_by_url = "?group_by[org_unit_id]=*"
-            query_params = self.mocked_query_params(org_group_by_url, AWSCostView, "costs")
+            url = f"?group_by[or:org_unit_id]={ou_to_compare[0]}&group_by[or:org_unit_id]={ou_to_compare[1]}"
+            query_params = self.mocked_query_params(url, AWSCostView, "costs")
             handler = AWSReportQueryHandler(query_params)
-            org_data = handler.execute_query()
-            # grab the actual totals for the org_unit_id group by
-            org_cost_total = org_data.get("total").get("cost").get("total").get("value")
-            org_infra_total = org_data.get("total").get("infrastructure").get("total").get("value")
-            org_sup_total = org_data.get("total").get("supplementary").get("total").get("value")
+            data = handler.execute_query()
 
-            # grab query data without group by
-            overall_url = "?"
-            query_params = self.mocked_query_params(overall_url, AWSCostView)
-            handler = AWSReportQueryHandler(query_params)
-            overall_data = handler.execute_query()
-            # grab the actual totals for the org_unit_id group by
-            overall_cost_total = overall_data.get("total").get("cost").get("total").get("value")
-            overall_infra_total = overall_data.get("total").get("infrastructure").get("total").get("value")
-            overall_sup_total = overall_data.get("total").get("supplementary").get("total").get("value")
-
-            self.assertEqual(org_cost_total, overall_cost_total)
-            self.assertEqual(org_infra_total, overall_infra_total)
-            self.assertEqual(org_sup_total, overall_sup_total)
+            # grab the accounts and sub_ous and compare the expected results
+            expected_cost_total = []
+            expected_accounts_and_sub_ous = []
+            for org_unit in ou_to_compare:
+                # Since the or: is suppose to do the union of a OU_001 & OU_002 then
+                # we can the expected cost to include both as well as the expected_accounts_and_sub_ous
+                path = self.ou_to_account_subou_map.get(org_unit).get("org_unit_path")
+                ten_days_ago = self.dh.n_days_ago(self.dh.today, 10)
+                expected = AWSCostEntryLineItemDailySummary.objects.filter(
+                    usage_start__gte=ten_days_ago,
+                    usage_end__lte=self.dh.today,
+                    organizational_unit__org_unit_path__icontains=path,
+                ).aggregate(
+                    **{
+                        "cost_total": Sum(
+                            Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                            + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                        )
+                    }
+                )
+                cost_total = expected.get("cost_total")
+                self.assertIsNotNone(cost_total)
+                expected_cost_total.append(cost_total)
+                # Figure out expected accounts & sub orgs
+                sub_orgs = self.ou_to_account_subou_map.get(org_unit).get("org_units")
+                accounts = self.ou_to_account_subou_map.get(org_unit).get("accounts")
+                expected_accounts_and_sub_ous = list(set(expected_accounts_and_sub_ous + sub_orgs + accounts))
+            # infra and total cost match
+            cost_total = data.get("total").get("cost").get("total").get("value")
+            infra_total = data.get("total").get("infrastructure").get("total").get("value")
+            expected_cost_total = sum(expected_cost_total)
+            self.assertEqual(cost_total, expected_cost_total)
+            self.assertEqual(infra_total, expected_cost_total)
+            # test the org units and accounts returned are correct
+            accounts_and_sub_ous = _calculate_accounts_and_subous(data.get("data"))
+            for result in accounts_and_sub_ous:
+                self.assertIn(result, expected_accounts_and_sub_ous)
+            for expected in expected_accounts_and_sub_ous:
+                self.assertIn(expected, accounts_and_sub_ous)
 
     def test_filter_org_unit(self):
         """Check that the total is correct when filtering by org_unit_id."""
@@ -1355,7 +1377,7 @@ class AWSReportQueryTest(IamTestCase):
             expected = AWSCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=ten_days_ago,
                 usage_end__lte=self.dh.today,
-                organizational_unit__org_unit_id__icontains=org_unit,
+                organizational_unit__org_unit_path__icontains=org_unit,
             ).aggregate(
                 **{
                     "cost_total": Sum(
@@ -1403,6 +1425,44 @@ class AWSReportQueryTest(IamTestCase):
                     if org_entity.get("type") == "organizational_unit" and org_entity.get("id") == renamed_org_id:
                         org_values = org_entity.get("values", [])[0]
                         self.assertEqual(org_values.get("alias"), expected_alias)
+
+    def test_multi_group_by_parent_and_child(self):
+        """Test that cost is not calculated twice in a multiple group by of parent and child."""
+        with tenant_context(self.tenant):
+            parent_org_unit = "R_001"
+            child_org_unit = self.ou_to_account_subou_map.get(parent_org_unit, {}).get("org_units", [])
+            self.assertNotEqual(child_org_unit, [])
+            child_org_unit = child_org_unit[0]
+            parent_url = f"?group_by[org_unit_id]={parent_org_unit}"
+            query_params = self.mocked_query_params(parent_url, AWSCostView, "costs")
+            handler = AWSReportQueryHandler(query_params)
+            expected_total = handler.execute_query().get("total", None)
+            self.assertIsNotNone(expected_total)
+            # multiple group_by with one of the group by values is the child of the other parent
+            multi_url = f"?group_by[or:org_unit_id]={parent_org_unit}&group_by[or:org_unit_id]={child_org_unit}"
+            query_params = self.mocked_query_params(multi_url, AWSCostView, "costs")
+            handler = AWSReportQueryHandler(query_params)
+            result_total = handler.execute_query().get("total")
+            self.assertEqual(expected_total, result_total)
+
+    def test_multi_group_by_seperate_children(self):
+        """Test cost sum of multi org_unit_id group by of children nodes"""
+        with tenant_context(self.tenant):
+            org_units = ["OU_001", "OU_002"]
+            expected_costs = []
+            for org_unit in org_units:
+                url = f"?group_by[org_unit_id]={org_unit}"
+                params = self.mocked_query_params(url, AWSCostView, "costs")
+                handler = AWSReportQueryHandler(params)
+                expected_cost = handler.execute_query().get("total", {}).get("cost", {}).get("total", {}).get("value")
+                self.assertIsNotNone(expected_cost)
+                expected_costs.append(expected_cost)
+            # multiple group_by cost check
+            multi_url = f"?group_by[or:org_unit_id]={org_units[0]}&group_by[or:org_unit_id]={org_units[1]}"
+            multi_params = self.mocked_query_params(multi_url, AWSCostView, "costs")
+            multi_handler = AWSReportQueryHandler(multi_params)
+            multi_cost = multi_handler.execute_query().get("total", {}).get("cost", {}).get("total", {}).get("value")
+            self.assertEqual(sum(expected_costs), multi_cost)
 
 
 class AWSReportQueryLogicalAndTest(IamTestCase):

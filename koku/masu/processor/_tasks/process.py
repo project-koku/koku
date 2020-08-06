@@ -24,18 +24,19 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.processor.report_processor import ReportProcessor
+from masu.processor.report_processor import ReportProcessorDBError
+from masu.processor.report_processor import ReportProcessorError
 
 LOG = get_task_logger(__name__)
 
 
-def _process_report_file(schema_name, provider, provider_uuid, report_dict):
+def _process_report_file(schema_name, provider, report_dict):
     """
     Task to process a Report.
 
     Args:
         schema_name   (String) db schema name
         provider      (String) provider type
-        provider_uuid (String) provider uuid
         report_dict   (dict) The report data dict from previous task
 
     Returns:
@@ -65,16 +66,22 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
     with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
         stats_recorder.log_last_started_datetime()
 
-    processor = ReportProcessor(
-        schema_name=schema_name,
-        report_path=report_path,
-        compression=compression,
-        provider=provider,
-        provider_uuid=provider_uuid,
-        manifest_id=manifest_id,
-    )
+    try:
+        processor = ReportProcessor(
+            schema_name=schema_name,
+            report_path=report_path,
+            compression=compression,
+            provider=provider,
+            provider_uuid=provider_uuid,
+            manifest_id=manifest_id,
+        )
 
-    processor.process()
+        processor.process()
+    except (ReportProcessorError, ReportProcessorDBError) as processing_error:
+        with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
+            stats_recorder.clear_last_started_datetime()
+        raise processing_error
+
     with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
         stats_recorder.log_last_completed_datetime()
 

@@ -3,6 +3,9 @@
 
 schedule: every week
 
+# only update insecure dependencies
+update: insecure
+
 requirements:
   - Pipfile
   - Pipfile.lock

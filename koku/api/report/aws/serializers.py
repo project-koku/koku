@@ -108,13 +108,39 @@ class QueryParamSerializer(ParamSerializer):
 
         """
         validate_field(self, "group_by", GroupBySerializer, value, tag_keys=self.tag_keys)
-        # Additionally, since we only have the org_unit_id group_by available for cost reports
-        # we must explicitly raise a validation error if it is a different report type
-        if "org_unit_id" in self.initial_data.get("group_by", {}).keys():
+        # Org unit id validation
+        group_by_params = self.initial_data.get("group_by", {})
+        org_unit_group_keys = ["org_unit_id", "or:org_unit_id"]
+        group_by_keys = group_by_params.keys()
+
+        key_used = []
+        for acceptable_key in org_unit_group_keys:
+            if acceptable_key in group_by_keys:
+                key_used.append(acceptable_key)
+        if key_used:
+            if len(key_used) > 1:
+                # group_by[org_unit_id]=x&group_by[or:org_unit_id]=OU_001 is invalid
+                # If we ever want to change this we need to decide what would be appropriate to see
+                # here.
+                error = {"or_unit_id": _("Multiple org_unit_id must be represented with the or: prefix.")}
+                raise serializers.ValidationError(error)
+            key_used = key_used[0]
             request = self.context.get("request")
-            if "costs" not in request.path:
+            if "costs" not in request.path or self.initial_data.get("group_by", {}).get(key_used, "") == "*":
+                # Additionally, since we only have the org_unit_id group_by available for cost reports
+                # we must explicitly raise a validation error if it is a different report type
+                # or if we are grouping by org_unit_id with the * since that is essentially grouping by
+                # accounts. If we ever want to change this we need to decide what would be appropriate to see
+                # here. Such as all org units or top level org units
                 error = {"org_unit_id": _("Unsupported parameter or invalid value")}
                 raise serializers.ValidationError(error)
+            if "or:" not in key_used:
+                if isinstance(group_by_params.get(key_used), list):
+                    if len(group_by_params.get(key_used)) > 1:
+                        # group_by[org_unit_id]=x&group_by[org_unit_id]=OU_001 is invalid
+                        # because no child nodes would ever intersect due to the tree structure.
+                        error = {"or_unit_id": _("Multiple org_unit_id must be represented with the or: prefix.")}
+                        raise serializers.ValidationError(error)
         return value
 
     def validate_order_by(self, value):

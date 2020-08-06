@@ -193,7 +193,6 @@ class ProviderManager:
                 current_user.username, str(self.model)
             )
             raise ProviderManagerError(err_msg)
-        refresh_materialized_views(self.model.customer.schema_name, self.model.type)
 
 
 @receiver(post_delete, sender=Provider)
@@ -231,3 +230,4 @@ def provider_post_delete_callback(*args, **kwargs):
 
         delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
         transaction.on_commit(delete_func)
+    refresh_materialized_views(provider.customer.schema_name, provider.type)
