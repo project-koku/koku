@@ -21,6 +21,7 @@ from django.core.cache import cache
 from django.test.utils import override_settings
 
 from masu.processor.worker_cache import WorkerCache
+from masu.processor.worker_cache import WorkerCacheError
 from masu.test import MasuTestCase
 
 LOG = logging.getLogger(__name__)
@@ -39,11 +40,19 @@ class WorkerCacheTest(MasuTestCase):
         super().tearDown()
         cache.clear()
 
+    @override_settings(HOSTNAME="koku-worker-1-sdf")
     def test_worker_cache(self):
         """Test the worker_cache property."""
         _worker_cache = WorkerCache().worker_cache
         self.assertEqual(_worker_cache, [])
 
+    @override_settings(HOSTNAME="localhost-1-sdf")
+    def test_worker_cache_invalid_hostname(self):
+        """Test the worker_cache property."""
+        with self.assertRaises(WorkerCacheError):
+            _ = WorkerCache()
+
+    @override_settings(HOSTNAME="koku-worker-1-sdf")
     def test_invalidate_host(self):
         """Test that a host's cache is invalidated."""
         task_list = [1, 2, 3]
@@ -57,6 +66,7 @@ class WorkerCacheTest(MasuTestCase):
 
         self.assertEqual(_cache.worker_cache, [])
 
+    @override_settings(HOSTNAME="koku-worker-1-sdf")
     def test_add_task_to_cache(self):
         """Test that a single task is added."""
         task_key = "task_key"
@@ -67,6 +77,7 @@ class WorkerCacheTest(MasuTestCase):
         _cache.add_task_to_cache(task_key)
         self.assertEqual(_cache.worker_cache, [task_key])
 
+    @override_settings(HOSTNAME="koku-worker-1-sdf")
     def test_remove_task_from_cache(self):
         """Test that a task is removed."""
         task_key = "task_key"
@@ -77,6 +88,7 @@ class WorkerCacheTest(MasuTestCase):
         _cache.remove_task_from_cache(task_key)
         self.assertEqual(_cache.worker_cache, [])
 
+    @override_settings(HOSTNAME="koku-worker-1-sdf")
     def test_remove_task_from_cache_value_not_in_cache(self):
         """Test that a task is removed."""
         task_list = [1, 2, 3, 4]
@@ -88,9 +100,10 @@ class WorkerCacheTest(MasuTestCase):
         _cache.remove_task_from_cache(5)
         self.assertEqual(_cache.worker_cache, task_list)
 
+    @override_settings(HOSTNAME="koku-worker-1-sdf")
     def test_get_all_running_tasks(self):
         """Test that multiple hosts' task lists are combined."""
-        second_host = "test"
+        second_host = "koku-worker-2-sdfsdff"
         first_host_list = [1, 2, 3]
         second_host_list = [4, 5, 6]
         expected = first_host_list + second_host_list
@@ -106,6 +119,7 @@ class WorkerCacheTest(MasuTestCase):
 
         self.assertEqual(sorted(_cache.get_all_running_tasks()), sorted(expected))
 
+    @override_settings(HOSTNAME="koku-worker-1-sdf")
     def test_task_is_running_true(self):
         """Test that a task is running."""
         task_list = [1, 2, 3]
@@ -115,6 +129,7 @@ class WorkerCacheTest(MasuTestCase):
 
         self.assertTrue(_cache.task_is_running(1))
 
+    @override_settings(HOSTNAME="koku-worker-1-sdf")
     def test_task_is_running_false(self):
         """Test that a task is not running."""
         task_list = [1, 2, 3]
