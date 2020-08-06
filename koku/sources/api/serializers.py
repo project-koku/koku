@@ -90,9 +90,8 @@ class SourcesSerializer(serializers.ModelSerializer):
     def _validate_billing_source(self, provider_type, billing_source):
         """Validate billing source parameters."""
         if provider_type == Provider.PROVIDER_AWS:
-            if not billing_source.get("bucket") and not billing_source.get("data_source", {}).get(
-                "bucket"
-            ):  # allow for backwards compatibility with UI
+            # TODO: Remove `and not billing_source.get("bucket")` if UI is updated to send "data_source" field
+            if not billing_source.get("data_source", {}).get("bucket") and not billing_source.get("bucket"):
                 raise SourcesStorageError("Missing AWS bucket.")
         elif provider_type == Provider.PROVIDER_AZURE:
             data_source = billing_source.get("data_source")
