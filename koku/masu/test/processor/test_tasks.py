@@ -36,6 +36,8 @@ from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
 
 import koku.celery as koku_celery
+from api.iam.models import Customer
+from api.iam.models import Tenant
 from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
@@ -72,6 +74,10 @@ from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
 from reporting_common.models import CostUsageReportStatus
+
+# from koku.api.utils import DateHelper
+
+LOG = logging.getLogger(__name__)
 
 
 class FakeDownloader(Mock):
@@ -1075,11 +1081,14 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
 
 class TestRemoveStaleTenants(MasuTestCase):
-    @patch("masu.processor.tasks.connection")
-    def test_remove_stale_tenant(self, mock_conn):
-        """Test the removal of stale tenants that are older than two weeks"""
-        # record = Customer.objects.get(schema_name=schema_name)
-        # print(record)
-        # record.update(date_create=older_date_variable)
-        # with tenant_context(self.tenant):
-        remove_stale_tenants(self)
+    def test_remove_stale_tenant(self):
+        """Test removal of stale tenants that are older than two weeks"""
+        days = 14
+        with schema_context("public"):
+            record = Customer.objects.get(schema_name=self.schema)
+            record.date_created = DateHelper.n_days_ago(self, record.date_created, days)
+            record.save()
+            before_len = Tenant.objects.count()
+            remove_stale_tenants(self)
+            after_len = Tenant.objects.count()
+            self.assertGreater(before_len, after_len)

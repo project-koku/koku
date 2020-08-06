@@ -695,6 +695,7 @@ def convert_to_parquet(
         return
 
 
+@app.task(name="masu.processor.tasks.remove_stale_tenants", queue_name="remove_stale_tenants")
 def remove_stale_tenants(self):
     """ Remove stale tenants from the tenant api """
     table_sql = """
@@ -708,11 +709,7 @@ def remove_stale_tenants(self):
         ON p.uuid::text = s.koku_uuid
      WHERE s.source_id IS null AND c.date_created < now() - INTERVAL '2 weeks';
         """
-    LOG.info(Tenant.objects.all())
     with connection.cursor() as cursor:
         cursor.execute(table_sql)
-        LOG.info("*" * 200)
         data = cursor.fetchall()
-        LOG.info(data)
-
         Tenant.objects.filter(schema_name__in=[i[0] for i in data]).delete()
