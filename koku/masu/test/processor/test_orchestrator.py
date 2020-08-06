@@ -186,42 +186,6 @@ class OrchestratorTest(MasuTestCase):
 
         self.assertEqual(results, [])
 
-    @patch("masu.processor.orchestrator.AccountLabel", spec=True)
-    @patch("masu.processor.orchestrator.ProviderStatus", spec=True)
-    @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=True)
-    def test_prepare_w_status_valid(self, mock_task, mock_accessor, mock_labeler):
-        """Test that Orchestrator.prepare() works when status is valid."""
-        mock_labeler().get_label_details.return_value = (True, True)
-
-        mock_accessor().is_valid.return_value = True
-        mock_accessor().is_backing_off.return_value = False
-
-        orchestrator = Orchestrator()
-        orchestrator.prepare()
-        mock_task.assert_called()
-
-    @patch("masu.processor.orchestrator.ProviderStatus", spec=True)
-    @patch("masu.processor.orchestrator.get_report_files.apply_async", return_value=True)
-    def test_prepare_w_status_invalid(self, mock_task, mock_accessor):
-        """Test that Orchestrator.prepare() is skipped when status is invalid."""
-        mock_accessor.is_valid.return_value = False
-        mock_accessor.is_backing_off.return_value = False
-
-        orchestrator = Orchestrator()
-        orchestrator.prepare()
-        mock_task.assert_not_called()
-
-    @patch("masu.processor.orchestrator.ProviderStatus", spec=True)
-    @patch("masu.processor.orchestrator.get_report_files.apply_async", return_value=True)
-    def test_prepare_w_status_backoff(self, mock_task, mock_accessor):
-        """Test that Orchestrator.prepare() is skipped when backing off."""
-        mock_accessor.is_valid.return_value = False
-        mock_accessor.is_backing_off.return_value = True
-
-        orchestrator = Orchestrator()
-        orchestrator.prepare()
-        mock_task.assert_not_called()
-
     @patch("masu.processor.orchestrator.record_report_status", return_value=True)
     @patch("masu.processor.orchestrator.chord", return_value=True)
     @patch("masu.processor.orchestrator.ReportDownloader.download_manifest", return_value={})
