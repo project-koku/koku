@@ -112,6 +112,7 @@ class SourcesSerializer(serializers.ModelSerializer):
                 billing_copy.update(billing_source.get("data_source"))
                 billing_source["data_source"] = billing_copy
         self._validate_billing_source(instance.source_type, billing_source)
+        # This if statement can also be removed if UI is updated to send "data_source" field
         if instance.source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL) and not billing_source.get(
             "data_source"
         ):
