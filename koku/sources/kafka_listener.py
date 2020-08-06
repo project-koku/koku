@@ -98,7 +98,7 @@ class SourceDetails:
         self.source_uuid = details.get("uid")
         self.source_type_name = sources_network.get_source_type_name(self.source_type_id)
         self.endpoint_id = sources_network.get_endpoint_id()
-        self.source_type = None
+        self.source_type = SOURCE_PROVIDER_MAP.get(self.source_type_name)
 
 
 def _extract_from_header(headers, header_type):
@@ -317,17 +317,16 @@ def sources_network_info(source_id, auth_header):
         None
 
     """
-    details_obj = SourceDetails(auth_header, source_id)
-    if not details_obj.endpoint_id and details_obj.source_type_name != SOURCES_OCP_SOURCE_NAME:
+    src_details = SourceDetails(auth_header, source_id)
+    if not src_details.endpoint_id and src_details.source_type_name != SOURCES_OCP_SOURCE_NAME:
         LOG.warning(f"Unable to find endpoint for Source ID: {source_id}")
         return
 
-    details_obj.source_type = SOURCE_PROVIDER_MAP.get(details_obj.source_type_name)
-    if not details_obj.source_type:
-        LOG.warning(f"Unexpected source type ID: {details_obj.source_type_id}")
+    if not src_details.source_type:
+        LOG.warning(f"Unexpected source type ID: {src_details.source_type_id}")
         return
 
-    storage.add_provider_sources_network_info(details_obj, source_id)
+    storage.add_provider_sources_network_info(src_details, source_id)
     save_auth_info(auth_header, source_id)
 
 
