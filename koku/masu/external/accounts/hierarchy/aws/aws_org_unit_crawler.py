@@ -52,14 +52,21 @@ class AWSOrgUnitCrawler(AccountCrawler):
 
     @transaction.atomic
     def crawl_account_hierarchy(self):
-        error_message = f"Unable to crawl AWS organizational structure with ARN {self.account}"
+        error_message = (
+            f"Unable to crawl AWS organizational structure with ARN {self.account} and "
+            "provider_uuid ({self.account.get('provider_uud')})"
+        )
         try:
             self._init_session()
             self._build_accout_alias_map()
 
             self._compute_org_structure_yesterday()
             root_ou = self._client.list_roots()["Roots"][0]
-            LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
+            LOG.info(
+                "Obtained the root identifier for provider_uuid ({}): {}".format(
+                    self.account.get("provider_uuid"), root_ou["Id"]
+                )
+            )
             self._crawl_org_for_accounts(root_ou, root_ou.get("Id"), level=0)
             self._mark_nodes_deleted()
         except ParamValidationError as param_error:
@@ -99,12 +106,18 @@ class AWSOrgUnitCrawler(AccountCrawler):
             ou_pager = self._client.get_paginator("list_organizational_units_for_parent")
             for sub_ou in ou_pager.paginate(ParentId=ou.get("Id")).build_full_result().get("OrganizationalUnits"):
                 new_prefix = prefix + ("&%s" % sub_ou.get("Id"))
-                LOG.info("Organizational unit found during crawl: %s" % (sub_ou.get("Id")))
+                LOG.info(
+                    "Organizational unit found for provider_uuid ({}) during crawl: {}".format(
+                        self.account.get("provider_uuid"), sub_ou.get("Id")
+                    )
+                )
                 self._crawl_org_for_accounts(sub_ou, new_prefix, level)
 
         except Exception:
             LOG.exception(
-                "Failure processing org unit.  Account schema {} and org_unit_id {}".format(self.schema, ou.get("Id"))
+                "Failure processing org unit.  Account schema {}, provider_uuid {}, and org_unit_id {}".format(
+                    self.schema, self.account.get("provider_uuid"), ou.get("Id")
+                )
             )
 
     def _init_session(self):
@@ -116,7 +129,11 @@ class AWSOrgUnitCrawler(AccountCrawler):
         """
         session = utils.get_assume_role_session(utils.AwsArn(self._auth_cred))
         session_client = session.client("organizations")
-        LOG.info("Starting aws organizations session for crawler.")
+        LOG.info(
+            "Starting aws organizations session for crawler for provider_uuid ({}).".format(
+                self.account.get("provider_uuid")
+            )
+        )
         self._client = session_client
 
     def _depaginate_account_list(self, function, resource_key, **kwargs):
@@ -215,8 +232,9 @@ class AWSOrgUnitCrawler(AccountCrawler):
             if created:
                 # only log it was saved if was created to reduce logging on everyday calls
                 LOG.info(
-                    "Saving account or org unit: unit_name=%s, unit_id=%s, unit_path=%s, account_alias=%s, level=%s"
-                    % (unit_name, unit_id, unit_path, account_alias, level)
+                    "Saving account or org unit: unit_name=%s, unit_id=%s, "
+                    "unit_path=%s, account_alias=%s, provider_uuid=%s, level=%s"
+                    % (unit_name, unit_id, unit_path, account_alias, self.account.get("provider_uuid"), level)
                 )
             return org_unit
 
@@ -248,7 +266,10 @@ class AWSOrgUnitCrawler(AccountCrawler):
         Returns:
             QuerySet(AWSOrganizationalUnit): That were marked deleted
         """
-        LOG.info("Marking org unit deleted deleted: org_unit_id=%s" % (org_unit_id))
+        LOG.info(
+            "Marking org unit deleted for provider_uuid=%s: org_unit_id=%s"
+            % (self.account.get("provider_uuid"), org_unit_id)
+        )
         with schema_context(self.schema):
             accounts = AWSOrganizationalUnit.objects.filter(org_unit_id=org_unit_id)
             # The can be multiple records for a single accounts due to changes in org structure
@@ -295,7 +316,11 @@ class AWSOrgUnitCrawler(AccountCrawler):
         if not end_date:
             end_date = start_date
         with schema_context(self.schema):
-            LOG.info(f"Tree for {start_date} to {end_date}")
+            LOG.info(
+                "Tree for {} to {} for provider_uuid ({})".format(
+                    start_date, end_date, self.account.get("provider_uuid")
+                )
+            )
             # Remove org units delete on date or before
             aws_node_qs = AWSOrganizationalUnit.objects.exclude(deleted_timestamp__lte=start_date)
 
