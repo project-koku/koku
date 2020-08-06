@@ -106,7 +106,7 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
     """Serializer for the Provider Billing Source model."""
 
     uuid = serializers.UUIDField(read_only=True)
-    data_source = serializers.JSONField(allow_null=True, required=False)
+    data_source = serializers.JSONField(allow_null=False, required=False)
 
     class Meta:
         """Metadata for the serializer."""
