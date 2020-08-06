@@ -385,7 +385,7 @@ def get_replacement_result(param_res_list, access_list, raise_exception=True):
             param_res_list,
             access_list,
         )
-        raise PermissionDenied(f"no access to {access_difference}")
+        raise PermissionDenied()
     return param_res_list
 
 
