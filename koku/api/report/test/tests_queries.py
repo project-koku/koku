@@ -347,6 +347,47 @@ class ReportQueryHandlerTest(IamTestCase):
         self.assertIsInstance(output, QueryFilterCollection)
         assertSameQ(output.compose(), expected.compose())
 
+    def test_set_access_filter(self):
+        """Tests that when an access restriction, filters, and a filter are passed in,
+        the correct query filters are added"""
+        # create the elements needed to mock the query handler
+        term = self.mock_tag_key
+        operation = "icontains"
+        params = self.mocked_query_params("", self.mock_view)
+        mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
+        rqh = create_test_handler(params, mapper=mapper)
+        # set filters and access to be used in function
+        filters = QueryFilterCollection()
+        access = ["589173575009"]
+        filt_with_list = [
+            {"field": "account_alias__account_alias", "operation": "icontains", "composition_key": "account_filter"},
+            {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
+        ]
+        filt_without_list = {
+            "field": "account_alias__account_alias",
+            "operation": "icontains",
+            "composition_key": "account_filter",
+        }
+        expected_with_list = QueryFilterCollection(
+            filters=[
+                QueryFilter(field="account_alias__account_alias", operation="in", composition_key="account_filter"),
+                QueryFilter(field="usage_account_id", operation="in", composition_key="account_filter"),
+            ]
+        )
+        expected_without_list = QueryFilterCollection(
+            filters=[
+                QueryFilter(field="account_alias__account_alias", operation="in", composition_key="account_filter")
+            ]
+        )
+        rqh._set_access_filters(access, filt_with_list, filters)
+        self.assertIsInstance(filters, QueryFilterCollection)
+        assertSameQ(filters.compose(), expected_with_list.compose())
+        # reset filters to empty for second check using no list for filt
+        filters = QueryFilterCollection()
+        rqh._set_access_filters(access, filt_without_list, filters)
+        self.assertIsInstance(filters, QueryFilterCollection)
+        assertSameQ(filters.compose(), expected_without_list.compose())
+
     # FIXME: need test for _apply_group_by
     # FIXME: need test for _apply_group_null_label
     # FIXME: need test for _build_custom_filter_list  }

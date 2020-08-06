@@ -222,6 +222,16 @@ class ReportQueryHandler(QueryHandler):
         return composed_filters
 
     def _set_access_filters(self, access, filt, filters):
+        """
+        Sets the access filters to ensure RBAC restrictions given the users access,
+        the current filter and the filter collection
+        Args:
+            access (list) the list containing the users relevant access
+            filt (list or dict) contains the filters that need
+            filters (QueryFilterCollection) the filter collection to add the new filters to
+        returns:
+            None
+        """
         if isinstance(filt, list):
             for _filt in filt:
                 _filt["operation"] = "in"
