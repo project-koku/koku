@@ -23,7 +23,6 @@ from django.db.utils import IntegrityError
 from api.common import log_json
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.processor.worker_cache import WorkerCache
 
 LOG = logging.getLogger(__name__)
 
@@ -35,12 +34,11 @@ class ReportDownloaderBase:
     Base object class for downloading cost reports from a cloud provider.
     """
 
-    def __init__(self, task, download_path=None, **kwargs):
+    def __init__(self, download_path=None, **kwargs):
         """
         Create a downloader.
 
         Args:
-            task          (Object) bound celery object
             download_path (String) filesystem path to store downloaded files
 
         Kwargs:
@@ -52,13 +50,10 @@ class ReportDownloaderBase:
             report_name       (String) cost report name
 
         """
-        self._task = task
-
         if download_path:
             self.download_path = download_path
         else:
             self.download_path = mkdtemp(prefix="masu")
-        self.worker_cache = WorkerCache()
         self._cache_key = kwargs.get("cache_key")
         self._provider_uuid = kwargs.get("provider_uuid")
         self.request_id = kwargs.get("request_id")
@@ -73,39 +68,6 @@ class ReportDownloaderBase:
             if manifest:
                 manifest_id = manifest.id
         return manifest_id
-
-    def check_if_manifest_should_be_downloaded(self, assembly_id):
-        """Check if we should download this manifest.
-
-        We first check if we have a database record of this manifest.
-        That would indicate that we have already downloaded and at least
-        begun processing. We then check the last completed time for
-        a file in this manifest. This second check is to cover the case
-        when we did not complete processing and need to re-downlaod and
-        process the manifest.
-
-        Returns True if the manifest should be downloaded and processed.
-        """
-        if self._cache_key and self.worker_cache.task_is_running(self._cache_key):
-            msg = f"{self._cache_key} is currently running."
-            LOG.info(log_json(self.request_id, msg, self.context))
-            return False
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
-
-            if manifest:
-                manifest_id = manifest.id
-                # check if `last_completed_datetime` is null for any report in the manifest.
-                # if nulls exist, report processing is not complete and reports should be downloaded.
-                need_to_download = manifest_accessor.is_last_completed_datetime_null(manifest_id)
-                if need_to_download:
-                    self.worker_cache.add_task_to_cache(self._cache_key)
-                return need_to_download
-
-        # The manifest does not exist, this is the first time we are
-        # downloading and processing it.
-        self.worker_cache.add_task_to_cache(self._cache_key)
-        return True
 
     def _process_manifest_db_record(self, assembly_id, billing_start, num_of_files):
         """Insert or update the manifest DB record."""
@@ -122,7 +84,6 @@ class ReportDownloaderBase:
                     "billing_period_start_datetime": billing_start,
                     "num_total_files": num_of_files,
                     "provider_uuid": self._provider_uuid,
-                    "task": self._task.request.id,
                 }
                 try:
                     manifest_entry = manifest_accessor.add(**manifest_dict)

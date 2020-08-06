@@ -22,7 +22,6 @@ import shutil
 import tempfile
 import uuid
 from datetime import datetime
-from unittest.mock import Mock
 from unittest.mock import patch
 
 import requests_mock
@@ -34,7 +33,6 @@ from requests.exceptions import HTTPError
 import masu.external.kafka_msg_handler as msg_handler
 from api.provider.models import Provider
 from masu.config import Config
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
@@ -272,6 +270,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "provider_type": "OCP",
             "compression": "UNCOMPRESSED",
             "file": "/path/to/file.csv",
+            "date": datetime.today(),
         }
         summarize_manifest_uuid = uuid.uuid4()
         parquet_convert_uuid = uuid.uuid4()
@@ -341,7 +340,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         return_value=test.get("summarize_manifest_returns"),
                     ):
                         with patch(
-                            "masu.external.kafka_msg_handler.convert_reports_to_parquet.delay",
+                            "masu.external.kafka_msg_handler.convert_to_parquet",
                             return_value=test.get("parquet_convert_returns"),
                         ):
                             with patch("masu.external.kafka_msg_handler.process_report"):
@@ -612,16 +611,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     account = msg_handler.get_account_from_cluster_id(cluster_id, "test_request_id", context)
                     test.get("expected_fn")(account, test)
 
-    def test_record_report_status(self):
-        """Test recording initial report stats."""
-        test_manifest_id = 1
-        test_file_name = "testreportfile.csv"
-        msg_handler.record_report_status(test_manifest_id, test_file_name, "test_request_id")
-
-        with ReportStatsDBAccessor(test_file_name, test_manifest_id) as accessor:
-            self.assertEqual(accessor._manifest_id, test_manifest_id)
-            self.assertEqual(accessor._report_name, test_file_name)
-
     def test_create_manifest_entries(self):
         """Test to create manifest entries."""
         report_meta = {
@@ -641,8 +630,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         """Set up the test for raising a kafka error during sending confirmation."""
         # grab the connection error count before
         connection_errors_before = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
-        with patch("masu.external.kafka_msg_handler.PRODUCER", new_callable=Mock()) as mock_producer:
-            mock_producer.flush.side_effect = KafkaMsgHandlerError
+        with patch("masu.external.kafka_msg_handler.get_producer", side_effect=KafkaMsgHandlerError):
             with self.assertRaises(msg_handler.KafkaMsgHandlerError):
                 msg_handler.send_confirmation(request_id="foo", status=msg_handler.SUCCESS_CONFIRM_STATUS)
             # assert that the error caused the kafka error metric to be incremented
@@ -671,3 +659,11 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.ERROR):
             msg_handler.delivery_callback(err, msg)
+
+    @patch("masu.external.kafka_msg_handler.create_daily_archives", return_value=[])
+    def test_construct_parquet_reports(self, mock_daily_archives):
+        """Test construct parquet reports."""
+        report_meta = {"account": "testaccount", "provider_uuid": "abc", "manifest_id": 1, "date": "today"}
+
+        reports = msg_handler.construct_parquet_reports(1, "context", report_meta, "/payload/path", "report_file")
+        self.assertEqual(reports, [])

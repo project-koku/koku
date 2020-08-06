@@ -156,7 +156,6 @@ class AWSReportSummaryUpdater:
         is_done_processing = False
         with ReportManifestDBAccessor() as manifest_accesor:
             is_done_processing = manifest_accesor.manifest_ready_for_summary(self._manifest.id)
-
         is_newly_finalized = False
         if finalized_datetime is not None:
             is_newly_finalized = finalized_datetime.date() == now_utc.date()

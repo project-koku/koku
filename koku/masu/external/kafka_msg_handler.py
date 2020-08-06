@@ -25,7 +25,6 @@ import tempfile
 import threading
 import time
 import traceback
-import uuid
 from tarfile import ReadError
 from tarfile import TarFile
 
@@ -43,7 +42,6 @@ from api.common import log_json
 from kafka_utils.utils import is_kafka_connected
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
@@ -52,8 +50,9 @@ from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownload
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
-from masu.processor.tasks import convert_reports_to_parquet
+from masu.processor.tasks import convert_to_parquet
 from masu.processor.tasks import record_all_manifest_files
+from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
@@ -64,7 +63,6 @@ HCCM_TOPIC = "platform.upload.hccm"
 VALIDATION_TOPIC = "platform.upload.validation"
 SUCCESS_CONFIRM_STATUS = "success"
 FAILURE_CONFIRM_STATUS = "failure"
-PRODUCER = Producer({"bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS, "message.timeout.ms": 1000})
 
 
 class KafkaMsgHandlerError(Exception):
@@ -100,14 +98,7 @@ def create_manifest_entries(report_meta, request_id, context={}):
 
     """
 
-    class Request:
-        id = uuid.uuid4()
-
-    class Task:
-        request = Request()
-
     downloader = OCPReportDownloader(
-        Task(),
         report_meta.get("schema_name"),
         report_meta.get("cluster_id"),
         None,
@@ -116,36 +107,6 @@ def create_manifest_entries(report_meta, request_id, context={}):
         account=context.get("account", "no_account"),
     )
     return downloader._prepare_db_manifest_record(report_meta)
-
-
-def record_report_status(manifest_id, file_name, request_id, context={}):
-    """
-    Creates initial report status database entry for new report files.
-
-    If a report has already been downloaded from the ingress service
-    there is a chance that processing has already been complete.  The
-    function returns the last completed date time to determine if the
-    report processing should continue in extract_payload.
-
-    Args:
-        manifest_id (Integer): Manifest Identifier.
-        file_name (String): Report file name
-        request_id (String): Identifier associated with the payload
-        context (Dict): Context for logging (account, etc)
-
-    Returns:
-        DateTime - Last completed date time for a given report file.
-
-    """
-    already_processed = False
-    with ReportStatsDBAccessor(file_name, manifest_id) as db_accessor:
-        already_processed = db_accessor.get_last_completed_datetime()
-        if already_processed:
-            msg = f"Report {file_name} has already been processed."
-        else:
-            msg = f"Recording stats entry for {file_name}"
-        LOG.info(log_json(request_id, msg, context))
-    return already_processed
 
 
 def get_account_from_cluster_id(cluster_id, request_id, context={}):
@@ -262,6 +223,38 @@ def extract_payload_contents(request_id, out_dir, tarball_path, tarball, context
     return manifest_path
 
 
+def construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file):
+    """Build, upload and convert parquet reports."""
+    daily_parquet_files = create_daily_archives(
+        request_id,
+        report_meta["account"],
+        report_meta["provider_uuid"],
+        report_file,
+        payload_destination_path,
+        report_meta["manifest_id"],
+        report_meta["date"],
+        context,
+    )
+    return daily_parquet_files
+
+
+def convert_parquet_files(request_id, report_meta):
+    """Convert manifest file's daily files to parquet."""
+    start_date = report_meta["date"]
+    start_date_str = start_date.strftime("%Y-%m-%d")
+    schema_name = report_meta["schema_name"]
+    conversion_task_id = convert_to_parquet.delay(
+        request_id,
+        schema_name[4:],
+        report_meta["provider_uuid"],
+        report_meta["provider_type"],
+        start_date_str,
+        report_meta["manifest_id"],
+    )
+    if conversion_task_id:
+        LOG.info(f"Conversion of CSV to Parquet uuid: {conversion_task_id}")
+
+
 # pylint: disable=too-many-locals
 def extract_payload(url, request_id, context={}):  # noqa: C901
     """
@@ -364,16 +357,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
             if not record_report_status(report_meta["manifest_id"], report_file, request_id, context):
                 msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
                 LOG.info(log_json(request_id, msg, context))
-                create_daily_archives(
-                    request_id,
-                    report_meta["account"],
-                    report_meta["provider_uuid"],
-                    report_file,
-                    payload_destination_path,
-                    report_meta["manifest_id"],
-                    report_meta["date"],
-                    context,
-                )
+                construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
                 report_metas.append(current_meta)
             else:
                 # Report already processed
@@ -404,13 +388,14 @@ def send_confirmation(request_id, status):  # pragma: no cover
         None
 
     """
+    producer = get_producer()
     validation = {"request_id": request_id, "validation": status}
     msg = bytes(json.dumps(validation), "utf-8")
-    PRODUCER.produce(VALIDATION_TOPIC, value=msg, callback=delivery_callback)
+    producer.produce(VALIDATION_TOPIC, value=msg, callback=delivery_callback)
     # Wait up to 1 second for events. Callbacks will be invoked during
     # this method call if the message is acknowledged.
     # `flush` makes this process synchronous compared to async with `poll`
-    PRODUCER.flush(1)
+    producer.flush(1)
 
 
 def handle_message(msg):
@@ -541,49 +526,6 @@ def summarize_manifest(report_meta):
     return async_id
 
 
-def convert_manifest_to_parquet(request_id, report_meta, context={}):
-    """
-    Kick off manifest conversion when all report files have completed line item processing.
-
-    Args:
-        request_id (str) - The triggering request identifier
-        report (Dict) - keys: value
-                        schema_name: String,
-                        manifest_id: Integer,
-                        provider_uuid: String,
-                        provider_type: String,
-                        date: DateTime
-        context (Dict) - Logging context
-
-    Returns:
-        Celery Async UUID.
-
-    """
-    async_id = None
-    schema_name = report_meta.get("schema_name")
-    manifest_id = report_meta.get("manifest_id")
-    provider_uuid = report_meta.get("provider_uuid")
-    provider_type = report_meta.get("provider_type")
-    start_date = report_meta.get("date")
-
-    if not context:
-        context = {"account": schema_name[4:], "provider_uuid": provider_uuid, "provider_type": provider_type}
-
-    with ReportManifestDBAccessor() as manifest_accesor:
-        if manifest_accesor.manifest_ready_for_summary(manifest_id):
-            report_meta = {
-                "schema_name": schema_name,
-                "provider_type": provider_type,
-                "provider_uuid": provider_uuid,
-                "manifest_id": manifest_id,
-                "start_date": start_date,
-            }
-            async_id = convert_reports_to_parquet.delay(
-                request_id=request_id, reports_to_convert=[report_meta], context=context
-            )
-    return async_id
-
-
 def process_report(request_id, report):
     """
     Process line item report.
@@ -683,9 +625,8 @@ def process_messages(msg):
         summary_task_id = summarize_manifest(report_meta)
         if summary_task_id:
             LOG.info(f"Summarization celery uuid: {summary_task_id}")
-        conversion_task_id = convert_manifest_to_parquet(request_id=request_id, report_meta=report_meta)
-        if conversion_task_id:
-            LOG.info(f"Conversion of CSV to Parquet uuid: {conversion_task_id}")
+            convert_parquet_files(request_id, report_meta)
+
     if status:
         if report_metas:
             file_list = [meta.get("current_file") for meta in report_metas]
@@ -711,6 +652,12 @@ def get_consumer():  # pragma: no cover
     )
     consumer.subscribe([HCCM_TOPIC])
     return consumer
+
+
+def get_producer():  # pragma: no cover
+    """Create a Kafka producer."""
+    producer = Producer({"bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS, "message.timeout.ms": 1000})
+    return producer
 
 
 def listen_for_messages_loop():

@@ -121,7 +121,7 @@ def month_date_range(for_date_time):
         (String): "YYYYMMDD-YYYYMMDD", example: "19701101-19701201"
 
     """
-    start_month = for_date_time.replace(day=1, second=1, microsecond=1)
+    start_month = for_date_time.replace(day=1)
     _, num_days = calendar.monthrange(for_date_time.year, for_date_time.month)
     end_month = start_month.replace(day=num_days)
     timeformat = "%Y%m%d"
