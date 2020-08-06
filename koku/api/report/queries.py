@@ -175,7 +175,7 @@ class ReportQueryHandler(QueryHandler):
                 filter_list = list(set(filter_list + custom_list))
         return filter_list
 
-    def _get_search_filter(self, filters):  # noqa: C901
+    def _get_search_filter(self, filters):
         """Populate the query filter collection for search filters.
 
         Args:
