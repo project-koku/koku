@@ -471,20 +471,9 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             return res
 
     def _set_access_filters(self, access, filt, filters):
-        if isinstance(filt, list):
-            for _filt in filt:
-                _filt["operation"] = "in"
-                q_filter = QueryFilter(parameter=access, **_filt)
-                filters.add(q_filter)
-        elif filt["field"] == "organizational_unit__org_unit_path":
+        if not isinstance(filt, list) and filt["field"] == "organizational_unit__org_unit_path":
             filt["field"] = "organizational_unit__org_unit_id"
-            filt["operation"] = "in"
-            q_filter = QueryFilter(parameter=access, **filt)
-            filters.add(q_filter)
-        else:
-            filt["operation"] = "in"
-            q_filter = QueryFilter(parameter=access, **filt)
-            filters.add(q_filter)
+       super()._set_access_filters(self, access, filt, filters)
 
     def total_sum(self, sum1, sum2):  # noqa: C901
         """
