@@ -27,7 +27,6 @@ from dateutil import parser
 from django.conf import settings
 
 from masu.config import Config
-from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util import common as utils
@@ -109,6 +108,7 @@ class AzureReportProcessor(ReportProcessorBase):
             self.existing_meter_map = report_db.get_meters()
 
         self.line_item_columns = None
+        self.table_name = AzureCostEntryLineItemDaily()
 
         stmt = (
             f"Initialized report processor for:\n"
@@ -308,6 +308,7 @@ class AzureReportProcessor(ReportProcessorBase):
         with opener(self._report_path, mode, encoding="utf-8-sig") as f:
             header = normalize_header(f.readline())
             with AzureReportDBAccessor(self._schema) as report_db:
+                temp_table = report_db.create_temp_table(self.table_name._meta.db_table, drop_column="id")
                 LOG.info("File %s opened for processing", str(f))
                 reader = csv.DictReader(f, fieldnames=header)
                 for row in reader:
@@ -321,7 +322,7 @@ class AzureReportProcessor(ReportProcessorBase):
                             row_count + len(self.processed_report.line_items),
                             self._report_name,
                         )
-                        self._save_to_db(AZURE_REPORT_TABLE_MAP["line_item"], report_db)
+                        self._save_to_db(temp_table, report_db)
                         row_count += len(self.processed_report.line_items)
                         self._update_mappings()
 
@@ -332,9 +333,11 @@ class AzureReportProcessor(ReportProcessorBase):
                         row_count + len(self.processed_report.line_items),
                         self._report_name,
                     )
-                    self._save_to_db(AZURE_REPORT_TABLE_MAP["line_item"], report_db)
+                    self._save_to_db(temp_table, report_db)
                     row_count += len(self.processed_report.line_items)
 
+                if self.processed_report.line_items:
+                    report_db.merge_temp_table(self.table_name._meta.db_table, temp_table, self.line_item_columns)
                 LOG.info("Completed report processing for file: %s and schema: %s", self._report_name, self._schema)
             if not settings.DEVELOPMENT:
                 LOG.info("Removing processed file: %s", self._report_path)
