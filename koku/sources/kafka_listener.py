@@ -87,7 +87,10 @@ class SourcesMessageError(ValidationError):
 
 
 class SourceDetails:
+    """Sources Details object."""
+
     def __init__(self, auth_header, source_id):
+        """Constructor."""
         sources_network = SourcesHTTPClient(auth_header, source_id)
         details = sources_network.get_source_details()
         self.name = details.get("name")
@@ -236,21 +239,22 @@ def get_sources_msg_data(msg, app_type_id):
 
 
 def get_authentication(source_type, sources_network):
-    result = None
+    """Get authentication information for a source."""
+    credentials = None
     if source_type == Provider.PROVIDER_OCP:
         source_details = sources_network.get_source_details()
         if source_details.get("source_ref"):
-            result = {"provider_resource_name": source_details.get("source_ref")}
+            credentials = {"provider_resource_name": source_details.get("source_ref")}
         else:
             raise SourcesHTTPClientError("Unable to find Cluster ID")
     elif source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-        result = sources_network.get_aws_role_arn()
+        credentials = sources_network.get_aws_role_arn()
     elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-        result = sources_network.get_azure_credentials()
+        credentials = sources_network.get_azure_credentials()
     else:
         LOG.error(f"Unexpected source type: {source_type}")
-        return result
-    return {"credentials": result}
+        return credentials
+    return {"credentials": credentials}
 
 
 def save_auth_info(auth_header, source_id):
