@@ -48,7 +48,7 @@ class WorkerCacheTest(MasuTestCase):
 
     @override_settings(HOSTNAME="localhost-1-sdf")
     def test_worker_cache_invalid_hostname(self):
-        """Test the worker_cache property."""
+        """Test the worker_cache with non koku-worker- hostname."""
         with self.assertRaises(WorkerCacheError):
             _ = WorkerCache()
 
