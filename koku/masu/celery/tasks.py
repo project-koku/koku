@@ -280,17 +280,16 @@ def crawl_account_hierarchy(provider_uuid=None):
 
         if crawler:
             LOG.info(
-                "Starting account hierarchy crawler for type {} with provider_uuid: {} "
-                "and account_id: {}".format(
-                    account.get("provider_type"), account.get("provider_uuid"), account.get("account_id")
+                "Starting account hierarchy crawler for type {} with provider_uuid: {}".format(
+                    account.get("provider_type"), account.get("provider_uuid")
                 )
             )
             crawler.crawl_account_hierarchy()
             processed += 1
         else:
             LOG.info(
-                "No known crawler for account with provider_uuid: {} and account_id: {} of type {}".format(
-                    account.get("provider_uuid"), account.get("account_id"), account.get("provider_type")
+                "No known crawler for account with provider_uuid: {} of type {}".format(
+                    account.get("provider_uuid"), account.get("provider_type")
                 )
             )
             skipped += 1

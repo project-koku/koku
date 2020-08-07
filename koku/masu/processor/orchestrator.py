@@ -117,15 +117,7 @@ class Orchestrator:
         return DateAccessor().get_billing_months(number_of_months)
 
     def start_manifest_processing(
-        self,
-        customer_name,
-        authentication,
-        billing_source,
-        provider_type,
-        schema_name,
-        provider_uuid,
-        account_id,
-        report_month,
+        self, customer_name, authentication, billing_source, provider_type, schema_name, provider_uuid, report_month
     ):
         """
         Start processing an account's manifest for the specified report_month.
@@ -136,7 +128,6 @@ class Orchestrator:
             (String) billing_source - report storage location
             (String) schema_name - db tenant
             (String) provider_uuid - provider unique identifier
-            (String) account_id - customer account id
             (Date)   report_month - month to get latest manifest
 
         Returns:
