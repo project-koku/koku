@@ -55,9 +55,9 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         Args:
             customer_name    (String) Name of the customer
-            credentials   (Dict) Dictionary containing Azure credentials details.
+            credentials      (Dict) Dictionary containing Azure credentials details.
             report_name      (String) Name of the Cost Usage Report to download (optional)
-            data_source   (Dict) Dictionary containing Azure Storage blob details.
+            data_source      (Dict) Dictionary containing Azure Storage blob details.
 
         """
         super().__init__(**kwargs)
