@@ -164,9 +164,9 @@ services:
       ports:
           - "${RABBITMQ_PORT-5674}:5672"
 
-  koku-worker:
+  koku-worker-1:
       container_name: koku_worker
-      hostname: koku_worker
+      hostname: koku-worker-1-jljlkjfg
       image: koku_base
       working_dir: /koku/koku
       entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
@@ -226,7 +226,7 @@ services:
 
   koku-worker-2:
       container_name: koku_worker_2
-      hostname: koku_worker_2
+      hostname: koku-worker-2-wefwe
       image: koku_base
       working_dir: /koku/koku
       entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
