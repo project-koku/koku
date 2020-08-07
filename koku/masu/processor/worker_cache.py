@@ -16,11 +16,18 @@
 #
 """Cache of worker tasks currently running."""
 import logging
+import re
 
 from django.conf import settings
 from django.core.cache import caches
 
 LOG = logging.getLogger(__name__)
+
+
+class WorkerCacheError(Exception):
+    """Worker Class Exception."""
+
+    pass
 
 
 class WorkerCache:
@@ -48,6 +55,12 @@ class WorkerCache:
     cache = caches["worker"]
 
     def __init__(self):
+        worker_key_pattern = r"koku-worker-\d+"
+        hostname_prefix = re.search(worker_key_pattern, settings.HOSTNAME)
+        if hostname_prefix:
+            self._hostname = hostname_prefix.group()
+        else:
+            raise WorkerCacheError("Invalid hostname for WorkerCache")
         self.add_worker_keys()
 
     @property
@@ -58,24 +71,24 @@ class WorkerCache:
     @property
     def worker_cache(self):
         """Return the value of the cache key."""
-        return self.cache.get(settings.WORKER_CACHE_KEY, default=[], version=settings.HOSTNAME)
+        return self.cache.get(settings.WORKER_CACHE_KEY, default=[], version=self._hostname)
 
     def add_worker_keys(self):
         """Add worker key verison to list of workers."""
         worker_keys = self.worker_cache_keys
-        if settings.HOSTNAME not in worker_keys:
-            worker_keys.update((settings.HOSTNAME,))
+        if self._hostname not in worker_keys:
+            worker_keys.update((self._hostname,))
             self.cache.set("keys", worker_keys)
 
     def invalidate_host(self):
         """Invalidate the cache for a particular host."""
-        self.cache.delete(settings.WORKER_CACHE_KEY, version=settings.HOSTNAME)
+        self.cache.delete(settings.WORKER_CACHE_KEY, version=self._hostname)
 
     def add_task_to_cache(self, task_key):
         """Add an entry to the cache for a task."""
         task_list = self.worker_cache
         task_list.append(task_key)
-        self.cache.set(settings.WORKER_CACHE_KEY, task_list, version=settings.HOSTNAME)
+        self.cache.set(settings.WORKER_CACHE_KEY, task_list, version=self._hostname)
         LOG.info(f"Added task key {task_key} to cache.")
 
     def remove_task_from_cache(self, task_key):
@@ -86,7 +99,7 @@ class WorkerCache:
         except ValueError:
             pass
         else:
-            self.cache.set(settings.WORKER_CACHE_KEY, task_list, version=settings.HOSTNAME)
+            self.cache.set(settings.WORKER_CACHE_KEY, task_list, version=self._hostname)
             LOG.info(f"Removed task key {task_key} from cache.")
 
     def get_all_running_tasks(self):
