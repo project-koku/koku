@@ -23,12 +23,6 @@ from django.core.cache import caches
 LOG = logging.getLogger(__name__)
 
 
-class WorkerCacheError(Exception):
-    """Worker Class Exception."""
-
-    pass
-
-
 class WorkerCache:
     """A cache to track celery tasks across container/pod.
 

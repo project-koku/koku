@@ -21,7 +21,6 @@ from django.core.cache import cache
 from django.test.utils import override_settings
 
 from masu.processor.worker_cache import WorkerCache
-from masu.processor.worker_cache import WorkerCacheError
 from masu.test import MasuTestCase
 
 LOG = logging.getLogger(__name__)
@@ -44,12 +43,6 @@ class WorkerCacheTest(MasuTestCase):
         """Test the worker_cache property."""
         _worker_cache = WorkerCache().worker_cache
         self.assertEqual(_worker_cache, [])
-
-    @override_settings(HOSTNAME="localhost-1-sdf")
-    def test_worker_cache_invalid_hostname(self):
-        """Test the worker_cache with non koku-worker- hostname."""
-        with self.assertRaises(WorkerCacheError):
-            _ = WorkerCache()
 
     def test_invalidate_host(self):
         """Test that a host's cache is invalidated."""
