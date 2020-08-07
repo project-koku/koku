@@ -94,12 +94,13 @@ class NiseDataLoader:
     def load_openshift_data(self, customer, static_data_file, cluster_id):
         """Load OpenShift data into the database."""
         provider_type = Provider.PROVIDER_OCP
+        credentials = {"provider_resource_name": cluster_id}
         with override_settings(AUTO_DATA_INGEST=False):
             provider = baker.make(
                 "Provider",
                 type=provider_type,
-                authentication__provider_resource_name=cluster_id,
-                billing_source__bucket="",
+                authentication__credentials=credentials,
+                billing_source__data_source={},
                 customer=customer,
             )
         template, static_data_path = self.prepare_template(provider_type, static_data_file)
@@ -149,13 +150,15 @@ class NiseDataLoader:
             provider_resource_name = "arn:aws:iam::999999999999:role/CostManagement"
         nise_provider_type = provider_type.replace("-local", "")
         report_name = "Test"
+        credentials = {"provider_resource_name": provider_resource_name}
+        data_source = {"bucket": "test-bucket"}
         with patch.object(settings, "AUTO_DATA_INGEST", False):
             provider = baker.make(
                 "Provider",
                 type=provider_type,
-                authentication__provider_resource_name=provider_resource_name,
+                authentication__credentials=credentials,
+                billing_source__data_source=data_source,
                 customer=customer,
-                billing_source__bucket="test-bucket",
             )
         template, static_data_path = self.prepare_template(provider_type, static_data_file)
         options = {
@@ -218,8 +221,8 @@ class NiseDataLoader:
                 "Provider",
                 type=provider_type,
                 authentication__credentials=credentials,
-                customer=customer,
                 billing_source__data_source=data_source,
+                customer=customer,
             )
         template, static_data_path = self.prepare_template(provider_type, static_data_file)
         options = {
