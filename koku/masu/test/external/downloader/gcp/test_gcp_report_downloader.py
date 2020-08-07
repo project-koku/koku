@@ -73,7 +73,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             # mock_storage_client = mock_storage.Client.return_value
             # mock_storage_client.lookup_bucket.return_value = {}
             downloader = GCPReportDownloader(
-                customer_name=customer_name, billing_source=billing_source, provider_uuid=provider_uuid
+                customer_name=customer_name, data_source=billing_source, provider_uuid=provider_uuid
             )
         return downloader
 

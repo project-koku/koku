@@ -680,7 +680,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_populate_monthly_cost_node_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for nodes in the summary table is populated."""
-        self.cluster_id = self.ocp_provider.authentication.provider_resource_name
+        self.cluster_id = self.ocp_provider.authentication.credentials.get("provider_resource_name")
 
         node_rate = random.randrange(1, 100)
 
@@ -715,7 +715,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_populate_monthly_cost_node_supplementary_cost(self):
         """Test that the monthly supplementary cost row for nodes in the summary table is populated."""
-        self.cluster_id = self.ocp_provider.authentication.provider_resource_name
+        self.cluster_id = self.ocp_provider.authentication.credentials.get("provider_resource_name")
 
         node_rate = random.randrange(1, 100)
 
@@ -750,7 +750,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_populate_monthly_cost_cluster_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for clusters in the summary table is populated."""
-        self.cluster_id = self.ocp_provider.authentication.provider_resource_name
+        self.cluster_id = self.ocp_provider.authentication.credentials.get("provider_resource_name")
 
         cluster_rate = random.randrange(1, 100)
 
@@ -777,7 +777,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_populate_monthly_cost_cluster_supplementary_cost(self):
         """Test that the monthly infrastructure cost row for clusters in the summary table is populated."""
-        self.cluster_id = self.ocp_provider.authentication.provider_resource_name
+        self.cluster_id = self.ocp_provider.authentication.credentials.get("provider_resource_name")
 
         cluster_rate = random.randrange(1, 100)
 
@@ -804,7 +804,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_remove_monthly_cost(self):
         """Test that the monthly cost row in the summary table is removed."""
-        self.cluster_id = self.ocp_provider.authentication.provider_resource_name
+        self.cluster_id = self.ocp_provider.authentication.credentials.get("provider_resource_name")
 
         node_rate = random.randrange(1, 100)
 
