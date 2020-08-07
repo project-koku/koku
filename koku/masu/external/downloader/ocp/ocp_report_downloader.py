@@ -106,15 +106,15 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
 class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """OCP Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
+    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
         """
         Initializer.
 
         Args:
             customer_name    (String) Name of the customer
-            auth_credential  (String) OpenShift cluster ID
+            credentials      (Dict) Credentials containing OpenShift cluster ID
             report_name      (String) Name of the Cost Usage Report to download (optional)
-            bucket           (String) Not used for OCP
+            data_source      (Dict) Not used for OCP
 
         """
         super().__init__(**kwargs)
@@ -123,9 +123,9 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         self.customer_name = customer_name.replace(" ", "_")
         self.report_name = report_name
-        self.cluster_id = auth_credential
+        self.cluster_id = credentials.get("provider_resource_name")
         self.temp_dir = None
-        self.bucket = bucket
+        self.data_source = data_source
         self.context["cluster_id"] = self.cluster_id
 
     def _get_manifest(self, date_time):

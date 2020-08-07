@@ -45,18 +45,20 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {"reportKeys": []}
 
-    def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
+    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
             customer_name    (String) Name of the customer
-            auth_credential  (String) Authentication credential for S3 bucket (RoleARN)
+            credentials      (Dict) credentials credential for S3 bucket (RoleARN)
             report_name      (String) Name of the Cost Usage Report to download (optional)
-            bucket           (String) Name of the S3 bucket containing the CUR
+            data_source      (Dict) Name of the S3 bucket containing the CUR
 
         """
         super().__init__(**kwargs)
+
+        bucket = data_source.get("bucket")
 
         self.customer_name = customer_name.replace(" ", "_")
 
@@ -77,7 +79,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.base_path = bucket
         self.bucket_path = bucket
         self.bucket = bucket.replace("/", "_")
-        self.credential = auth_credential
+        self.credential = credentials
 
     @property
     def manifest_date_format(self):

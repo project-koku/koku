@@ -56,30 +56,32 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {"reportKeys": []}
 
-    def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
+    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
             customer_name    (String) Name of the customer
-            auth_credential  (String) Authentication credential for S3 bucket (RoleARN)
+            credentials   (Dict) credentials credential for S3 bucket (RoleARN)
             report_name      (String) Name of the Cost Usage Report to download (optional)
             bucket           (String) Name of the S3 bucket containing the CUR
 
         """
         super().__init__(**kwargs)
 
+        arn = credentials.get("provider_resource_name")
+        bucket = data_source.get("bucket")
         if customer_name[4:] in settings.DEMO_ACCOUNTS:
             demo_account = settings.DEMO_ACCOUNTS.get(customer_name[4:])
             LOG.info(f"Info found for demo account {customer_name[4:]} = {demo_account}.")
-            if auth_credential in demo_account:
-                demo_info = demo_account.get(auth_credential)
+            if arn in demo_account:
+                demo_info = demo_account.get(arn)
                 self.customer_name = customer_name.replace(" ", "_")
                 self._provider_uuid = kwargs.get("provider_uuid")
                 self.report_name = demo_info.get("report_name")
                 self.report = {"S3Bucket": bucket, "S3Prefix": demo_info.get("report_prefix"), "Compression": "GZIP"}
                 self.bucket = bucket
-                session = utils.get_assume_role_session(utils.AwsArn(auth_credential), "MasuDownloaderSession")
+                session = utils.get_assume_role_session(utils.AwsArn(arn), "MasuDownloaderSession")
                 self.s3_client = session.client("s3")
                 return
 
@@ -87,7 +89,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self._provider_uuid = kwargs.get("provider_uuid")
 
         LOG.debug("Connecting to AWS...")
-        session = utils.get_assume_role_session(utils.AwsArn(auth_credential), "MasuDownloaderSession")
+        session = utils.get_assume_role_session(utils.AwsArn(arn), "MasuDownloaderSession")
         self.cur = session.client("cur")
 
         # fetch details about the report from the cloud provider
