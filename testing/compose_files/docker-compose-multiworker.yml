@@ -165,7 +165,7 @@ services:
           - "${RABBITMQ_PORT-5674}:5672"
 
   koku-worker-1:
-      container_name: koku_worker
+      container_name: koku_worker_1
       hostname: koku-worker-1-fsfsgr
       image: koku_base
       working_dir: /koku/koku
