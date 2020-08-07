@@ -38,7 +38,7 @@ def _get_sts_access(provider_resource_name):
     # create an STS client
     sts_client = boto3.client("sts")
 
-    credentials = dict()
+    credentials = {}
     error_message = f"Unable to assume role with ARN {provider_resource_name}."
     try:
         # Call the assume_role method of the STSConnection object and pass the role

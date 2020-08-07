@@ -46,14 +46,16 @@ class ProviderAuthDBAccessor(KokuDBAccess):
             (django.db.query.QuerySet): QuerySet of objects matching the given filters
 
         """
-        if self._auth_id and not self._provider_resource_name:
+        if self._auth_id and self._provider_resource_name:
+            query = self._table.objects.filter(
+                id=self._auth_id, credentials__provider_resource_name=self._provider_resource_name
+            )
+        elif self._auth_id:
             query = self._table.objects.filter(id=self._auth_id)
-        elif self._provider_resource_name and not self._auth_id:
-            query = self._table.objects.filter(provider_resource_name=self._provider_resource_name)
-        elif self._auth_id and self._provider_resource_name:
-            query = self._table.objects.filter(id=self._auth_id, provider_resource_name=self._provider_resource_name)
+        elif self._provider_resource_name:
+            query = self._table.objects.filter(credentials__provider_resource_name=self._provider_resource_name)
         else:
-            query = self._table.objects.all()
+            query = self._table.objects.none()
         return query
 
     def get_auth_id(self):

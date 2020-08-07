@@ -125,11 +125,11 @@ class ProviderDBAccessor(KokuDBAccess):
         Args:
             None
         Returns:
-            (String): "Provider Resource Name.  i.e. AWS: RoleARN",
-                    example: "arn:aws:iam::111111111111:role/CostManagement"
+            (Dict): {"credentials": "Provider Resource Name.  i.e. AWS: RoleARN"},
+                    example: {"credentials": "arn:aws:iam::111111111111:role/CostManagement"}
 
         """
-        return self.provider.authentication.provider_resource_name
+        return self.provider.authentication.credentials
 
     def get_billing_source(self):
         """

@@ -27,25 +27,12 @@ class CURAccountsDB(CURAccountsInterface):
     """Provider interface definition."""
 
     @staticmethod
-    def get_credentials_from_authentication(provider):
-        """Return credentials."""
-        if provider.authentication and provider.authentication.credentials:
-            return provider.authentication.credentials
-        return None
-
-    @staticmethod
-    def get_data_source_from_billing_source(provider):
-        """Return data_source."""
-        if provider.billing_source and provider.billing_source.data_source:
-            return provider.billing_source.data_source
-        return None
-
-    def get_account_information(self, provider):
+    def get_account_information(provider):
         """Return account information in dictionary."""
         return {
             "customer_name": provider.customer.schema_name,
-            "credentials": self.get_credentials_from_authentication(provider),
-            "data_source": self.get_data_source_from_billing_source(provider),
+            "credentials": provider.authentication.credentials,
+            "data_source": provider.billing_source.data_source,
             "provider_type": provider.type,
             "schema_name": provider.customer.schema_name,
             "provider_uuid": provider.uuid,
