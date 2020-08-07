@@ -20,6 +20,6 @@ services:
     - POSTGRES_DB=koku_test
     - POSTGRES_USER=postgres
     ports:
-      - "15432:5432"
+      - "15433:5432"
     volumes:
       - ./pg_data:/var/lib/pgsql/data
