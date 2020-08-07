@@ -75,6 +75,7 @@ class OrchestratorTest(MasuTestCase):
                 "customer_name": self.fake.word(),
                 "provider_type": Provider.PROVIDER_AWS,
                 "schema_name": self.fake.word(),
+                "account_id": self.fake.word(),
             }
         )
 
@@ -239,6 +240,7 @@ class OrchestratorTest(MasuTestCase):
             "AWS-local",
             account.get("schema_name"),
             account.get("provider_uuid"),
+            account.get("account_id"),
             DateAccessor().get_billing_months(1)[0],
         )
         mock_task.assert_not_called()
@@ -258,6 +260,7 @@ class OrchestratorTest(MasuTestCase):
             "AWS-local",
             account.get("schema_name"),
             account.get("provider_uuid"),
+            account.get("account_id"),
             DateAccessor().get_billing_months(1)[0],
         )
         mock_task.assert_not_called()
@@ -287,6 +290,7 @@ class OrchestratorTest(MasuTestCase):
                 "AWS-local",
                 account.get("schema_name"),
                 account.get("provider_uuid"),
+                account.get("account_id"),
                 DateAccessor().get_billing_months(1)[0],
             )
             if test.get("expect_chord_called"):
