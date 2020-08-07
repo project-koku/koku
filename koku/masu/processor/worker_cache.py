@@ -16,7 +16,6 @@
 #
 """Cache of worker tasks currently running."""
 import logging
-import re
 
 from django.conf import settings
 from django.core.cache import caches
@@ -55,12 +54,7 @@ class WorkerCache:
     cache = caches["worker"]
 
     def __init__(self):
-        worker_key_pattern = r"koku-worker-\d+"
-        hostname_prefix = re.search(worker_key_pattern, settings.HOSTNAME)
-        if hostname_prefix:
-            self._hostname = hostname_prefix.group()
-        else:
-            raise WorkerCacheError("Invalid hostname for WorkerCache")
+        self._hostname = settings.HOSTNAME
         self.add_worker_keys()
 
     @property
