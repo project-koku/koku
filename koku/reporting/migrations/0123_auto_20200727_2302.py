@@ -6,7 +6,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0121_auto_20200728_2258")]
+    dependencies = [("reporting", "0122_auto_20200803_2307")]
 
     operations = [
         migrations.DeleteModel(name="OCPStorageVolumeClaimLabelSummary"),
