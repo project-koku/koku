@@ -28,7 +28,6 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from sources import storage
 from sources.config import Config
-from sources.storage import SourcesStorageError
 
 faker = Faker()
 
@@ -307,55 +306,6 @@ class SourcesStorageTest(TestCase):
                 self.assertEqual(response.get("offset"), test.get("expected_response").get("offset"))
             else:
                 self.assertEqual(response, {})
-
-    def test_validate_billing_source(self):
-        """Test to validate that the billing source dictionary is valid."""
-        test_matrix = [
-            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"bucket": "test-bucket"}, "exception": False},
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"resource_group": "foo", "storage_account": "bar"}},
-                "exception": False,
-            },
-            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"nobucket": "test-bucket"}, "exception": True},
-            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {}, "exception": True},
-            {"provider_type": Provider.PROVIDER_AZURE, "billing_source": {}, "exception": True},
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"nodata_source": {"resource_group": "foo", "storage_account": "bar"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"noresource_group": "foo", "storage_account": "bar"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"resource_group": "foo", "nostorage_account": "bar"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"resource_group": "foo"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"storage_account": "bar"}},
-                "exception": True,
-            },
-        ]
-
-        for test in test_matrix:
-            if test.get("exception"):
-                with self.assertRaises(SourcesStorageError):
-                    storage._validate_billing_source(test.get("provider_type"), test.get("billing_source"))
-            else:
-                try:
-                    storage._validate_billing_source(test.get("provider_type"), test.get("billing_source"))
-                except Exception as error:
-                    self.fail(str(error))
 
     def test_get_source_type(self):
         """Test to source type from source."""
