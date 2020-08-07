@@ -26,6 +26,7 @@ from masu.config import Config
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
+from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
@@ -186,6 +187,32 @@ class OrchestratorTest(MasuTestCase):
         results = orchestrator.remove_expired_report_data()
 
         self.assertEqual(results, [])
+
+    @patch("masu.processor.orchestrator.AccountLabel", spec=True)
+    @patch("masu.processor.orchestrator.ProviderStatus", spec=True)
+    @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", side_effect=ReportDownloaderError)
+    def test_prepare_w_downloader_error(self, mock_task, mock_accessor, mock_labeler):
+        """Test that Orchestrator.prepare() handles downloader errors."""
+        mock_accessor().is_valid.return_value = True
+        mock_accessor().is_backing_off.return_value = False
+
+        orchestrator = Orchestrator()
+        orchestrator.prepare()
+        mock_task.assert_called()
+        mock_labeler.assert_not_called()
+
+    @patch("masu.processor.orchestrator.AccountLabel", spec=True)
+    @patch("masu.processor.orchestrator.ProviderStatus", spec=True)
+    @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", side_effect=Exception)
+    def test_prepare_w_exception(self, mock_task, mock_accessor, mock_labeler):
+        """Test that Orchestrator.prepare() handles broad exceptions."""
+        mock_accessor().is_valid.return_value = True
+        mock_accessor().is_backing_off.return_value = False
+
+        orchestrator = Orchestrator()
+        orchestrator.prepare()
+        mock_task.assert_called()
+        mock_labeler.assert_not_called()
 
     @patch("masu.processor.orchestrator.AccountLabel", spec=True)
     @patch("masu.processor.orchestrator.ProviderStatus", spec=True)
