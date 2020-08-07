@@ -51,6 +51,7 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.fake_customer_name = CUSTOMER_NAME
         self.fake_report_name = "ocp-report"
         self.cluster_id = "my-ocp-cluster-1"
+        self.credentials = {"provider_resource_name": self.cluster_id}
 
         report_path = "{}/{}/{}".format(REPORTS_DIR, self.cluster_id, "20180901-20181001")
         os.makedirs(report_path, exist_ok=True)
@@ -71,8 +72,8 @@ class OCPReportDownloaderTest(MasuTestCase):
 
         self.report_downloader = ReportDownloader(
             customer_name=self.fake_customer_name,
-            access_credential=self.cluster_id,
-            report_source=None,
+            credentials=self.credentials,
+            data_source={},
             provider_type=Provider.PROVIDER_OCP,
             provider_uuid=self.ocp_provider_uuid,
         )
@@ -80,8 +81,8 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.ocp_report_downloader = OCPReportDownloader(
             **{
                 "customer_name": self.fake_customer_name,
-                "auth_credential": self.cluster_id,
-                "bucket": None,
+                "credentials": self.credentials,
+                "data_source": {},
                 "provider_uuid": self.ocp_provider_uuid,
             }
         )

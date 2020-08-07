@@ -73,10 +73,13 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         mytar.extractall(path=self.fake_bucket_name)
         os.makedirs(DATA_DIR, exist_ok=True)
 
+        self.credentials = {"provider_resource_name": self.fake_auth_credential}
+        self.data_source = {"bucket": self.fake_bucket_name}
+
         self.report_downloader = ReportDownloader(
             customer_name=self.fake_customer_name,
-            access_credential=self.fake_auth_credential,
-            report_source=self.fake_bucket_name,
+            credentials=self.credentials,
+            data_source=self.data_source,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
             provider_uuid=self.aws_provider_uuid,
         )
@@ -84,8 +87,8 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         self.aws_local_report_downloader = AWSLocalReportDownloader(
             **{
                 "customer_name": self.fake_customer_name,
-                "auth_credential": self.fake_auth_credential,
-                "bucket": self.fake_bucket_name,
+                "credentials": self.credentials,
+                "data_source": self.data_source,
                 "provider_uuid": self.aws_provider_uuid,
             }
         )
@@ -114,8 +117,8 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         report_downloader = AWSLocalReportDownloader(
             **{
                 "customer_name": self.fake_customer_name,
-                "auth_credential": self.fake_auth_credential,
-                "bucket": self.fake_bucket_name,
+                "credentials": self.credentials,
+                "data_source": self.data_source,
                 "report_name": "awesome-report",
             }
         )
@@ -126,8 +129,8 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         report_downloader = AWSLocalReportDownloader(
             **{
                 "customer_name": self.fake_customer_name,
-                "auth_credential": self.fake_auth_credential,
-                "bucket": self.fake_bucket_name,
+                "credentials": self.credentials,
+                "data_source": self.data_source,
             }
         )
         self.assertEqual(report_downloader.report_name, self.fake_report_name)
@@ -142,8 +145,8 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         with patch.object(DateAccessor, "today", return_value=test_report_date):
             report_downloader = ReportDownloader(
                 self.fake_customer_name,
-                self.fake_auth_credential,
-                fake_bucket,
+                self.credentials,
+                self.data_source,
                 Provider.PROVIDER_AWS_LOCAL,
                 self.aws_provider_uuid,
             )
@@ -170,8 +173,8 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         report_downloader = AWSLocalReportDownloader(
             **{
                 "customer_name": self.fake_customer_name,
-                "auth_credential": self.fake_auth_credential,
-                "bucket": bucket,
+                "credentials": self.credentials,
+                "data_source": self.data_source,
             }
         )
         self.assertEqual(report_downloader.report_name, report_name)
@@ -189,8 +192,8 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         report_downloader = AWSLocalReportDownloader(
             **{
                 "customer_name": self.fake_customer_name,
-                "auth_credential": self.fake_auth_credential,
-                "bucket": bucket,
+                "credentials": self.credentials,
+                "data_source": self.data_source,
             }
         )
         self.assertIsNone(report_downloader.report_name)
@@ -204,8 +207,8 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         report_downloader = AWSLocalReportDownloader(
             **{
                 "customer_name": self.fake_customer_name,
-                "auth_credential": self.fake_auth_credential,
-                "bucket": bucket,
+                "credentials": self.credentials,
+                "data_source": self.data_source,
             }
         )
         self.assertIsNone(report_downloader.report_name)
@@ -241,9 +244,8 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
     def test_get_manifest_context_for_date(self, mock_manifest, mock_delete):
         """Test that the manifest is read."""
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
-        auth_credential = fake_arn(service="iam", generate_account_id=True)
         downloader = AWSLocalReportDownloader(
-            self.fake_customer_name, auth_credential, self.fake_bucket_name, provider_uuid=self.aws_provider_uuid
+            self.fake_customer_name, self.credentials, self.data_source, provider_uuid=self.aws_provider_uuid
         )
 
         start_str = current_month.strftime(downloader.manifest_date_format)
@@ -272,9 +274,8 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
     def test_get_manifest_context_for_date_no_manifest(self, mock_manifest, mock_delete):
         """Test that the manifest is read."""
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
-        auth_credential = fake_arn(service="iam", generate_account_id=True)
         downloader = AWSLocalReportDownloader(
-            self.fake_customer_name, auth_credential, self.fake_bucket_name, provider_uuid=self.aws_provider_uuid
+            self.fake_customer_name, self.credentials, self.data_source, provider_uuid=self.aws_provider_uuid
         )
 
         mock_manifest.return_value = ("", {"reportKeys": []})
