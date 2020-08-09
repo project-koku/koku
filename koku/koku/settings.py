@@ -441,3 +441,5 @@ try:
     DEMO_ACCOUNTS = ENVIRONMENT.json("DEMO_ACCOUNTS", default={})
 except JSONDecodeError:
     pass
+
+OPENSHIFT_DOC_VERSION = "4.5"
