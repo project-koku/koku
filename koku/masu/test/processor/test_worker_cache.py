@@ -158,3 +158,33 @@ class WorkerCacheTest(MasuTestCase):
             mock_inspect.reserved.return_value = mock_worker_list
             _cache = WorkerCache()
             self.assertEqual(_cache.active_workers, test.get("expected_workers"))
+
+    @override_settings(HOSTNAME="kokuworker")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_remove_offline_worker_keys(self, mock_inspect):
+        """Test the remove_offline_worker_keys function."""
+        second_host = "kokuworker2"
+        first_host_list = [1, 2, 3]
+        second_host_list = [4, 5, 6]
+        all_work_list = first_host_list + second_host_list
+
+        mock_worker_list = {"celery@kokuworker": "", f"celery@{second_host}": ""}
+        mock_inspect.reserved.return_value = mock_worker_list
+
+        _cache = WorkerCache()
+        for task in first_host_list:
+            _cache.add_task_to_cache(task)
+
+        with override_settings(HOSTNAME=second_host):
+            _cache = WorkerCache()
+            for task in second_host_list:
+                _cache.add_task_to_cache(task)
+
+        self.assertEqual(sorted(_cache.get_all_running_tasks()), sorted(all_work_list))
+
+        # kokuworker2 goes offline
+        mock_inspect.reset()
+        mock_worker_list = {"celery@kokuworker": ""}
+        mock_inspect.reserved.return_value = mock_worker_list
+        _cache.remove_offline_worker_keys()
+        self.assertEqual(sorted(_cache.get_all_running_tasks()), sorted(first_host_list))

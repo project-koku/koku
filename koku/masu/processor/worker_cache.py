@@ -65,6 +65,8 @@ class WorkerCache:
         """Return a list of active workers."""
         running_workers = []
         for host in CELERY_INSPECT.reserved().keys():
+
+            # Celery returns workers in the form of celery@hostname.
             hostname_pattern = r"[^@]*$"
             found = re.search(hostname_pattern, host)
             if found:
