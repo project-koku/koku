@@ -427,23 +427,6 @@ class OCPStorageVolumeLabelSummary(models.Model):
     namespace = ArrayField(models.CharField(max_length=253))
 
 
-class OCPStorageVolumeClaimLabelSummary(models.Model):
-    """A collection of all current existing tag key and values."""
-
-    class Meta:
-        """Meta for OCPStorageVolumeClaimLabelSummary."""
-
-        db_table = "reporting_ocpstoragevolumeclaimlabel_summary"
-        unique_together = ("key", "report_period", "namespace")
-
-    id = models.BigAutoField(primary_key=True)
-
-    key = models.CharField(max_length=253)
-    values = ArrayField(models.CharField(max_length=253))
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
-    namespace = ArrayField(models.CharField(max_length=253))
-
-
 class OCPNodeLabelLineItem(models.Model):
     """Raw report label data for OpenShift nodes."""
 

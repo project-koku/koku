@@ -106,6 +106,13 @@ def _check_cost_report_access(credential_name, credentials, region="us-east-1", 
         # filter report definitions to reports with a matching S3 bucket name.
         bucket_matched = list(filter(lambda rep: bucket in rep.get("S3Bucket"), reports))
 
+        if not bucket_matched:
+            key = ProviderErrors.AWS_REPORT_CONFIG
+            msg = (
+                f"Cost management requires that an AWS Cost and Usage Report is configured for bucket: {str(bucket)}."
+            )
+            raise serializers.ValidationError(error_obj(key, msg))
+
         for report in bucket_matched:
             if report.get("Compression") not in ALLOWED_COMPRESSIONS:
                 key = ProviderErrors.AWS_COMPRESSION_REPORT_CONFIG
