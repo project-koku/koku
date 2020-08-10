@@ -149,10 +149,12 @@ app.conf.task_routes = {"sources.tasks.*": {"queue": "sources"}}
 
 app.autodiscover_tasks()
 
+CELERY_INSPECT = app.control.inspect()
+
 
 @celeryd_after_setup.connect
-def clear_worker_cache(sender, instance, **kwargs):  # pragma: no cover
-    """Clear WorkerCache after worker is up and running."""
+def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
+    """Wait for migrations to complete before completing worker startup."""
     from .database import check_migrations
 
     while not check_migrations():

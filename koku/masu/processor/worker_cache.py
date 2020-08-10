@@ -21,7 +21,7 @@ import re
 from django.conf import settings
 from django.core.cache import caches
 
-from koku.celery import app
+from koku.celery import CELERY_INSPECT
 
 LOG = logging.getLogger(__name__)
 
@@ -63,10 +63,8 @@ class WorkerCache:
     @property
     def active_workers(self):
         """Return a list of active workers."""
-        i = app.control.inspect()
-        i.reserved().keys()
         running_workers = []
-        for host in i.reserved().keys():
+        for host in CELERY_INSPECT.reserved().keys():
             hostname_pattern = r"[^@]*$"
             found = re.search(hostname_pattern, host)
             if found:
@@ -86,6 +84,13 @@ class WorkerCache:
             worker_keys.update((self._hostname,))
             self.cache.set("keys", worker_keys)
 
+    def remove_worker_key(self, hostname):
+        """Remove worker key verison to list of workers."""
+        worker_keys = self.worker_cache_keys
+        if hostname in worker_keys:
+            worker_keys.remove(hostname)
+            self.cache.set("keys", worker_keys)
+
     def remove_offline_worker_keys(self):
         """Remove worker key for offline workers."""
         worker_keys = self.worker_cache_keys
@@ -93,9 +98,9 @@ class WorkerCache:
 
         for worker in worker_keys:
             if worker not in running_workers:
-                LOG.info(f"Removing stopped worker: {worker}")
+                LOG.info(f"Removing old worker: {worker}")
                 self.invalidate_host(worker)
-                self.cache.delete(worker)
+                self.remove_worker_key(worker)
 
     def invalidate_host(self, host=None):
         """Invalidate the cache for a particular host."""
