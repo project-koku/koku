@@ -54,10 +54,9 @@ generators:
           resource_id: 99999996
           labels: label_environment:qe
           namespaces:
-            banking:
+            - namespace_name: banking
               pods:
-                - pod:
-                  pod_name: pod_name3
+                - pod_name: pod_name3
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
@@ -65,14 +64,12 @@ generators:
                   pod_seconds: 3600
                   labels: label_environment:qe|label_app:banking|label_version:MilkyWay
               volumes:
-                - volume:
-                  volume_name: pvc-volume_3
+                - volume_name: pvc-volume_3
                   storage_class: gp2
                   volume_request_gig: 20
                   labels: label_environment:qe|label_app:banking|label_version:MilkyWay|label_storageclass:Odin
                   volume_claims:
-                  - volume_claim:
-                    volume_claim_name: pod_name3_data
+                  - volume_claim_name: pod_name3_data
                     pod_name: pod_name3
                     labels: label_environment:qe|label_app:banking|label_version:MilkyWay|label_storageclass:Odin
                     capacity_gig: 20
