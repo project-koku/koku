@@ -174,7 +174,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
             **{
                 "customer_name": self.fake_customer_name,
                 "credentials": self.credentials,
-                "data_source": self.data_source,
+                "data_source": {"bucket": bucket},
             }
         )
         self.assertEqual(report_downloader.report_name, report_name)

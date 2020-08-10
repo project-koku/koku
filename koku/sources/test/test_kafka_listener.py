@@ -558,7 +558,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(source_obj.name, source_name)
         self.assertEqual(source_obj.source_type, Provider.PROVIDER_AWS)
-        self.assertEqual(source_obj.authentication, {"resource_name": authentication})
+        self.assertEqual(source_obj.authentication, {"credentials": {"provider_resource_name": authentication}})
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_sources_network_info_sync_aws_local(self):
@@ -615,7 +615,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(source_obj.name, source_name)
         self.assertEqual(source_obj.source_type, Provider.PROVIDER_AWS_LOCAL)
-        self.assertEqual(source_obj.authentication, {"resource_name": authentication})
+        self.assertEqual(source_obj.authentication, {"credentials": {"provider_resource_name": authentication}})
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_sources_network_info_sync_ocp(self):

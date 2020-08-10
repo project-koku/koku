@@ -273,7 +273,9 @@ class AWSProviderTestCase(TestCase):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         try:
-            provider_interface.cost_usage_source_is_reachable("iam_arn", "bucket_name")
+            credentials = {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"}
+            data_source = {"bucket": "bucket_name"}
+            provider_interface.cost_usage_source_is_reachable(credentials, data_source)
         except Exception:
             self.fail("Unexpected Error")
 
@@ -281,7 +283,9 @@ class AWSProviderTestCase(TestCase):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         with self.assertRaises(ValidationError):
-            provider_interface.cost_usage_source_is_reachable(None, "bucket_name")
+            credentials = {"provider_resource_name": None}
+            data_source = {"bucket": "bucket_name"}
+            provider_interface.cost_usage_source_is_reachable(credentials, data_source)
 
     @patch(
         "providers.aws.provider._get_sts_access",
@@ -291,7 +295,9 @@ class AWSProviderTestCase(TestCase):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         with self.assertRaises(ValidationError):
-            provider_interface.cost_usage_source_is_reachable("iam_arn", "bucket_name")
+            credentials = {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"}
+            data_source = {"bucket": "bucket_name"}
+            provider_interface.cost_usage_source_is_reachable(credentials, data_source)
 
     @patch(
         "providers.aws.provider._get_sts_access",
@@ -303,7 +309,9 @@ class AWSProviderTestCase(TestCase):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         with self.assertRaises(ValidationError):
-            provider_interface.cost_usage_source_is_reachable("iam_arn", None)
+            credentials = {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"}
+            data_source = {"bucket": None}
+            provider_interface.cost_usage_source_is_reachable(credentials, data_source)
 
     @patch(
         "providers.aws.provider._get_sts_access",
@@ -319,7 +327,9 @@ class AWSProviderTestCase(TestCase):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         with self.assertRaises(ValidationError):
-            provider_interface.cost_usage_source_is_reachable("iam_arn", "bucket_name")
+            credentials = {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"}
+            data_source = {"bucket": "bucket_name"}
+            provider_interface.cost_usage_source_is_reachable(credentials, data_source)
 
     @patch(
         "providers.aws.provider._get_sts_access",
@@ -335,7 +345,9 @@ class AWSProviderTestCase(TestCase):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         try:
-            provider_interface.cost_usage_source_is_reachable("iam_arn", "bucket_name")
+            credentials = {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"}
+            data_source = {"bucket": "bucket_name"}
+            provider_interface.cost_usage_source_is_reachable(credentials, data_source)
         except Exception:
             self.fail("Unexpected Error")
 

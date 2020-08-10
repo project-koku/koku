@@ -47,7 +47,7 @@ class SourcesHTTPClientTest(TestCase):
         self.name = "Test Source"
         self.application_type = 2
         self.source_id = 1
-        self.authentication = "testauth"
+        self.authentication = {"provider_resource_name": "testauth"}
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_get_source_details(self):
