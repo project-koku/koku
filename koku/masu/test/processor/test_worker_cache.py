@@ -154,10 +154,11 @@ class WorkerCacheTest(MasuTestCase):
             {"hostname": "", "expected_workers": [""]},
         ]
         for test in test_matrix:
-            mock_worker_list = {test.get("hostname"): ""}
-            mock_inspect.reserved.return_value = mock_worker_list
-            _cache = WorkerCache()
-            self.assertEqual(_cache.active_workers, test.get("expected_workers"))
+            with self.subTest(test=test):
+                mock_worker_list = {test.get("hostname"): ""}
+                mock_inspect.reserved.return_value = mock_worker_list
+                _cache = WorkerCache()
+                self.assertEqual(_cache.active_workers, test.get("expected_workers"))
 
     @override_settings(HOSTNAME="kokuworker")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
