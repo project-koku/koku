@@ -9,7 +9,6 @@ from celery import Celery
 from celery import Task
 from celery.schedules import crontab
 from celery.signals import celeryd_after_setup
-from celery.signals import worker_shutting_down
 from django.conf import settings
 
 from koku import sentry  # noqa: F401
@@ -156,22 +155,6 @@ def clear_worker_cache(sender, instance, **kwargs):  # pragma: no cover
     """Clear WorkerCache after worker is up and running."""
     from .database import check_migrations
 
-    # from masu.processor.worker_cache import WorkerCache
-
     while not check_migrations():
         LOGGER.warning("Migrations not done. Sleeping")
         time.sleep(5)
-    # LOGGER.info("Clearing worker task cache.")
-    # WorkerCache().invalidate_host()
-
-
-@worker_shutting_down.connect
-def clear_worker_cache_on_shutdown(sender, **kwargs):  # pragma: no cover
-    # from masu.processor.worker_cache import WorkerCache
-
-    # LOGGER.info("Clearing worker task cache.")
-    try:
-        pass
-        # WorkerCache().invalidate_host()
-    except Exception:
-        LOGGER.info("Cache not cleared on shutdown.")

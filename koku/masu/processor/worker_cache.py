@@ -95,6 +95,7 @@ class WorkerCache:
             if worker not in running_workers:
                 LOG.info(f"Removing stopped worker: {worker}")
                 self.invalidate_host(worker)
+                self.cache.delete(worker)
 
     def invalidate_host(self, host=None):
         """Invalidate the cache for a particular host."""
