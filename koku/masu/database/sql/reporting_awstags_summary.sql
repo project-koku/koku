@@ -23,11 +23,15 @@ WITH data(key, value, cost_id, account) AS (
     LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON l.usage_account_id = aa.account_id
     GROUP BY l.key, l.value, l.cost_entry_bill_id
-)
+),
+data2(key, values) AS (SELECT data.key, array_agg(DISTINCT data.value) from data GROUP BY data.key)
 , ins1 AS (
-    INSERT INTO {{schema | sqlsafe}}.reporting_awstags_summary (key, cost_entry_bill_id, accounts)
-    SELECT DISTINCT key, cost_id, account
-    FROM data
+    INSERT INTO {{schema | sqlsafe}}.reporting_awstags_summary (key, cost_entry_bill_id, accounts, values)
+    SELECT DISTINCT data.key as key,
+    data.cost_id as cost_entry_bill_id,
+    data.account as accounts,
+    data2.values as values
+    FROM data INNER JOIN data2 ON data.key = data2.key
     ON CONFLICT (key, cost_entry_bill_id) DO UPDATE SET key=EXCLUDED.key
     RETURNING key, id as key_id
 )
@@ -39,7 +43,7 @@ WITH data(key, value, cost_id, account) AS (
    RETURNING value, id AS values_id
    )
 
-INSERT INTO {{schema | sqlsafe}}.reporting_awstags_summary_values (awstagssummary_id, awstagsvalues_id)
+INSERT INTO {{schema | sqlsafe}}.reporting_awstags_summary_values_mtm (awstagssummary_id, awstagsvalues_id)
 SELECT DISTINCT ins1.key_id, ins2.values_id
 FROM data d
 INNER JOIN ins1 ON d.key = ins1.key

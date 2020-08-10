@@ -20,11 +20,15 @@ WITH data(key, value, cost_id, subscription_guid) AS (
         {% endif %}
     ) l
     GROUP BY l.key, l.value, l.cost_entry_bill_id
-)
+),
+data2(key, values) AS (SELECT data.key, array_agg(DISTINCT data.value) from data GROUP BY data.key)
 , ins1 AS (
-    INSERT INTO {{schema | sqlsafe}}.reporting_azuretags_summary (key, cost_entry_bill_id, subscription_guid)
-    SELECT DISTINCT key, cost_id, subscription_guid
-    FROM data
+    INSERT INTO {{schema | sqlsafe}}.reporting_azuretags_summary (key, cost_entry_bill_id, subscription_guid, values)
+    SELECT DISTINCT data.key as key,
+    data.cost_id as cost_entry_bill_id,
+    data.subscription_guid as subscription_guid,
+    data2.values as values
+    FROM data INNER JOIN data2 ON data.key = data2.key
     ON CONFLICT (key, cost_entry_bill_id) DO UPDATE SET key=EXCLUDED.key
     RETURNING key, id as key_id
 )

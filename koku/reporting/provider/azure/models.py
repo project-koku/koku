@@ -162,7 +162,8 @@ class AzureTagsSummary(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     key = models.CharField(max_length=253)
-    values = models.ManyToManyField(AzureTagsValues)
+    values = ArrayField(models.CharField(max_length=253))
+    values_mtm = models.ManyToManyField(AzureTagsValues)
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
     subscription_guid = ArrayField(models.CharField(max_length=50))
 

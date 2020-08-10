@@ -303,7 +303,8 @@ class AWSTagsSummary(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     key = models.CharField(max_length=253)
-    values = models.ManyToManyField(AWSTagsValues)
+    values = ArrayField(models.CharField(max_length=253))
+    values_mtm = models.ManyToManyField(AWSTagsValues)
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE)
     accounts = ArrayField(models.CharField(max_length=63))
 
