@@ -369,10 +369,10 @@
         },
         "google-resumable-media": {
             "hashes": [
-                "sha256:5fd2e641f477e50be925a55bcfdf0b0cb97c2b92aacd7b15c1d339f70d55c1c7",
-                "sha256:cdeb8fbb3551a665db921023603af2f0d6ac59ad8b48259cb510b8799505775f"
+                "sha256:0572998cc2c7ba9ca996337896a2f93dbe8bc88866ebd81c8b7f4d7b07222957",
+                "sha256:57841f5e65fb285c01071f439724745b2549a72eb75e5fd979198eb518608ed0"
             ],
-            "version": "==0.4.1"
+            "version": "==0.7.1"
         },
         "googleapis-common-protos": {
             "hashes": [
@@ -1260,10 +1260,10 @@
         },
         "google-resumable-media": {
             "hashes": [
-                "sha256:5fd2e641f477e50be925a55bcfdf0b0cb97c2b92aacd7b15c1d339f70d55c1c7",
-                "sha256:cdeb8fbb3551a665db921023603af2f0d6ac59ad8b48259cb510b8799505775f"
+                "sha256:0572998cc2c7ba9ca996337896a2f93dbe8bc88866ebd81c8b7f4d7b07222957",
+                "sha256:57841f5e65fb285c01071f439724745b2549a72eb75e5fd979198eb518608ed0"
             ],
-            "version": "==0.4.1"
+            "version": "==0.7.1"
         },
         "googleapis-common-protos": {
             "hashes": [
