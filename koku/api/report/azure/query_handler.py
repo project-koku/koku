@@ -204,9 +204,8 @@ class AzureReportQueryHandler(ReportQueryHandler):
             (dict) The aggregated totals for the query
 
         """
-        q_table = self._mapper.query_table
         query_group_by = ["date"] + self._get_group_by()
-        query = q_table.objects.filter(self.query_filter)
+        query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")
