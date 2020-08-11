@@ -212,7 +212,7 @@ class ReportDownloader:
 
         if self.is_report_processed(local_file_name, manifest_id):
             LOG.info(f"File has already been processed: {local_file_name}. Skipping...")
-            return report_dictionary
+            return {}
 
         with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
             stored_etag = stats_recorder.get_etag()
