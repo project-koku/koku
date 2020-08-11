@@ -241,9 +241,6 @@ class AWSOrgUnitCrawler(AccountCrawler):
             # Remove key since we have seen it
             lookup_key = self._create_lookup_key(unit_id, account_id)
             self._structure_yesterday.pop(lookup_key, None)
-            LOG.info("\n\n\n\n\nHERE: ")
-            LOG.info(org_unit.deleted_timestamp)
-            LOG.info(org_unit)
             if created:
                 # only log it was saved if was created to reduce logging on everyday calls
                 LOG.info(
