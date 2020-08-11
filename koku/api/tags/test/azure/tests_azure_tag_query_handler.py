@@ -106,6 +106,26 @@ class AzureTagQueryHandlerTest(IamTestCase):
         self.assertEqual(handler.time_scope_units, "day")
         self.assertEqual(handler.time_scope_value, -10)
 
+    def test_execute_query_for_key(self):
+        """Test that the execute query runs properly with key query."""
+        url = f"?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[key]={self.fake.ean8()}"  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureTagView)
+        handler = AzureTagQueryHandler(query_params)
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get("data"))
+        self.assertEqual(handler.time_scope_units, "day")
+        self.assertEqual(handler.time_scope_value, -10)
+
+    def test_execute_query_for_value(self):
+        """Test that the execute query runs properly with value query. it needs a key ask michael"""
+        url = f"?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[value]={self.fake.ean8()}"  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureTagView)
+        handler = AzureTagQueryHandler(query_params)
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get("data"))
+        self.assertEqual(handler.time_scope_units, "day")
+        self.assertEqual(handler.time_scope_value, -10)
+
     def test_get_tag_keys_filter_true(self):
         """Test that not all tag keys are returned with a filter."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly"
