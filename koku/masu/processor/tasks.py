@@ -147,81 +147,86 @@ def get_report_files(
         None
 
     """
-    worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
-    month = report_month
-    if isinstance(report_month, str):
-        month = parser.parse(report_month)
-
-    report_file = report_context.get("key")
-    cache_key = f"{provider_uuid}:{report_file}"
-    WorkerCache().add_task_to_cache(cache_key)
-
-    report_dict = _get_report_files(
-        self,
-        customer_name,
-        authentication,
-        billing_source,
-        provider_type,
-        provider_uuid,
-        month,
-        cache_key,
-        report_context,
-    )
-
-    stmt = (
-        f"Reports to be processed:\n"
-        f" schema_name: {customer_name}\n"
-        f" provider: {provider_type}\n"
-        f" provider_uuid: {provider_uuid}\n"
-    )
-    if report_dict:
-        stmt += f" file: {report_dict['file']}"
-        LOG.info(stmt)
-    else:
-        WorkerCache().remove_task_from_cache(cache_key)
-        return None
-
     try:
+        worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
+        month = report_month
+        if isinstance(report_month, str):
+            month = parser.parse(report_month)
+
+        report_file = report_context.get("key")
+        cache_key = f"{provider_uuid}:{report_file}"
+        WorkerCache().add_task_to_cache(cache_key)
+
+        report_dict = _get_report_files(
+            self,
+            customer_name,
+            authentication,
+            billing_source,
+            provider_type,
+            provider_uuid,
+            month,
+            cache_key,
+            report_context,
+        )
+
         stmt = (
-            f"Processing starting:\n"
+            f"Reports to be processed:\n"
             f" schema_name: {customer_name}\n"
             f" provider: {provider_type}\n"
             f" provider_uuid: {provider_uuid}\n"
-            f' file: {report_dict.get("file")}'
         )
-        LOG.info(stmt)
-        worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
+        if report_dict:
+            stmt += f" file: {report_dict['file']}"
+            LOG.info(stmt)
+        else:
+            WorkerCache().remove_task_from_cache(cache_key)
+            return None
 
-        _process_report_file(schema_name, provider_type, report_dict)
+        try:
+            stmt = (
+                f"Processing starting:\n"
+                f" schema_name: {customer_name}\n"
+                f" provider: {provider_type}\n"
+                f" provider_uuid: {provider_uuid}\n"
+                f' file: {report_dict.get("file")}'
+            )
+            LOG.info(stmt)
+            worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
 
-        report_meta = {
-            "schema_name": schema_name,
-            "provider_type": provider_type,
-            "provider_uuid": provider_uuid,
-            "manifest_id": report_dict.get("manifest_id"),
-        }
+            _process_report_file(schema_name, provider_type, report_dict)
 
-    except (ReportProcessorError, ReportProcessorDBError) as processing_error:
-        worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-        LOG.error(str(processing_error))
+            report_meta = {
+                "schema_name": schema_name,
+                "provider_type": provider_type,
+                "provider_uuid": provider_uuid,
+                "manifest_id": report_dict.get("manifest_id"),
+            }
+
+        except (ReportProcessorError, ReportProcessorDBError) as processing_error:
+            worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
+            LOG.error(str(processing_error))
+            WorkerCache().remove_task_from_cache(cache_key)
+            raise processing_error
+
         WorkerCache().remove_task_from_cache(cache_key)
-        raise processing_error
-
-    WorkerCache().remove_task_from_cache(cache_key)
-    start_date = report_dict.get("start_date")
-    manifest_id = report_dict.get("manifest_id")
-    if start_date:
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        convert_to_parquet.delay(
-            self.request.id,
-            schema_name[4:],
-            provider_uuid,
-            provider_type,
-            start_date_str,
-            manifest_id,
-            [report_context.get("local_file")],
-        )
-    return report_meta
+        start_date = report_dict.get("start_date")
+        manifest_id = report_dict.get("manifest_id")
+        if start_date:
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            convert_to_parquet.delay(
+                self.request.id,
+                schema_name[4:],
+                provider_uuid,
+                provider_type,
+                start_date_str,
+                manifest_id,
+                [report_context.get("local_file")],
+            )
+        return report_meta
+    except Exception as err:
+        worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
+        LOG.error(str(err))
+        WorkerCache().remove_task_from_cache(cache_key)
 
 
 @app.task(name="masu.processor.tasks.remove_expired_data", queue_name="remove_expired")
@@ -263,6 +268,7 @@ def summarize_reports(reports_to_summarize):
         None
 
     """
+    reports_to_summarize = [report for report in reports_to_summarize if report]
     reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports_to_summarize}]
 
     for report in reports_deduplicated:

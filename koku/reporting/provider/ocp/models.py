@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Models for OCP cost entry tables."""
+from decimal import Decimal
+
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
@@ -282,9 +284,11 @@ class OCPUsageLineItemDailySummary(models.Model):
     # Cost fields
 
     # Infrastructure raw cost comes from a Cloud Provider
-    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True, default=Decimal(0))
 
-    infrastructure_project_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_project_raw_cost = models.DecimalField(
+        max_digits=33, decimal_places=15, null=True, default=Decimal(0)
+    )
 
     infrastructure_usage_cost = JSONField(null=True)
 
