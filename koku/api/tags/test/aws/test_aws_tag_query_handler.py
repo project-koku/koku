@@ -112,3 +112,13 @@ class AWSTagQueryHandlerTest(IamTestCase):
             values = entry.get("values")
             if len(values) > slice_limit:
                 self.assertIn("more...", values[-1])
+
+    def test_execute_query_for_key(self):
+        """Test that the execute query runs properly with key query."""
+        url = f"?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[key]={self.fake.ean8()}"  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSTagView)
+        handler = AWSTagQueryHandler(query_params)
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get("data"))
+        self.assertEqual(handler.time_scope_units, "day")
+        self.assertEqual(handler.time_scope_value, -10)
