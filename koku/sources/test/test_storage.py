@@ -32,6 +32,17 @@ from sources.config import Config
 faker = Faker()
 
 
+class MockDetails:
+    """Mock details object."""
+
+    def __init__(self, name, source_uuid, source_type, endpoint_id):
+        """Init mock details."""
+        self.name = name
+        self.source_uuid = source_uuid
+        self.source_type = source_type
+        self.endpoint_id = endpoint_id
+
+
 class MockProvider:
     """Mock Provider Class."""
 
@@ -167,9 +178,8 @@ class SourcesStorageTest(TestCase):
         source_type = Provider.PROVIDER_AWS
         endpoint_id = 1
         source_uuid = faker.uuid4()
-        storage.add_provider_sources_network_info(
-            self.test_source_id, source_uuid, test_name, source_type, endpoint_id
-        )
+        mock_details = MockDetails(test_name, source_uuid, source_type, endpoint_id)
+        storage.add_provider_sources_network_info(mock_details, self.test_source_id)
 
         test_source = Sources.objects.get(source_id=self.test_source_id)
         self.assertEqual(test_source.name, test_name)
@@ -182,10 +192,8 @@ class SourcesStorageTest(TestCase):
         try:
             test_name = "My Source Name"
             source_type = Provider.PROVIDER_AWS
-            authentication = "testauth"
-            storage.add_provider_sources_network_info(
-                self.test_source_id + 1, faker.uuid4(), test_name, source_type, authentication
-            )
+            mock_details = MockDetails(test_name, faker.uuid4(), source_type, 1)
+            storage.add_provider_sources_network_info(mock_details, self.test_source_id + 1)
         except Exception as error:
             self.fail(str(error))
 
