@@ -151,7 +151,8 @@ def get_report_files(
     if isinstance(report_month, str):
         month = parser.parse(report_month)
 
-    cache_key = f"{provider_uuid}:{month.date()}"
+    report_file = report_context.get("key")
+    cache_key = f"{provider_uuid}:{report_file}"
     WorkerCache().add_task_to_cache(cache_key)
 
     report_dict = _get_report_files(
@@ -176,6 +177,7 @@ def get_report_files(
         stmt += f" file: {report_dict['file']}"
         LOG.info(stmt)
     else:
+        WorkerCache().remove_task_from_cache(cache_key)
         return None
 
     try:

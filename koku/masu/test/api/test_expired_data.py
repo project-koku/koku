@@ -30,9 +30,10 @@ from masu.processor.orchestrator import Orchestrator
 class ExpiredDataTest(TestCase):
     """Test Cases for the expired_data endpoint."""
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("koku.middleware.MASU", return_value=True)
     @patch.object(Orchestrator, "remove_expired_report_data")
-    def test_get_expired_data(self, mock_orchestrator, _):
+    def test_get_expired_data(self, mock_orchestrator, _, mock_service):
         """Test the GET expired_data endpoint."""
         mock_response = [{"customer": "acct10001", "async_id": "f9eb2ce7-4564-4509-aecc-1200958c07cf"}]
         expected_key = "Async jobs for expired data removal (simulated)"
@@ -44,10 +45,11 @@ class ExpiredDataTest(TestCase):
         self.assertIn(expected_key, body)
         self.assertIn(str(mock_response), body.get(expected_key))
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("koku.middleware.MASU", return_value=True)
     @patch.object(Config, "DEBUG", return_value=False)
     @patch.object(Orchestrator, "remove_expired_report_data")
-    def test_del_expired_data(self, mock_orchestrator, mock_debug, _):
+    def test_del_expired_data(self, mock_orchestrator, mock_debug, _, mock_service):
         """Test the DELETE expired_data endpoint."""
         mock_response = [{"customer": "acct10001", "async_id": "f9eb2ce7-4564-4509-aecc-1200958c07cf"}]
         expected_key = "Async jobs for expired data removal"
@@ -60,9 +62,10 @@ class ExpiredDataTest(TestCase):
         self.assertIn(expected_key, body)
         self.assertIn(str(mock_response), body.get(expected_key))
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("koku.middleware.MASU", return_value=True)
     @patch.object(Orchestrator, "remove_expired_report_data")
-    def test_get_expired_data_line_items_only(self, mock_orchestrator, _):
+    def test_get_expired_data_line_items_only(self, mock_orchestrator, _, mock_service):
         """Test the GET expired_data endpoint."""
         mock_response = [{"customer": "acct10001", "async_id": "f9eb2ce7-4564-4509-aecc-1200958c07cf"}]
         expected_key = "Async jobs for expired data removal (simulated)"
@@ -77,10 +80,11 @@ class ExpiredDataTest(TestCase):
         self.assertIn(expected_key, body)
         self.assertIn(str(mock_response), body.get(expected_key))
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("koku.middleware.MASU", return_value=True)
     @patch.object(Config, "DEBUG", return_value=False)
     @patch.object(Orchestrator, "remove_expired_report_data")
-    def test_del_expired_data_line_items_only(self, mock_orchestrator, mock_debug, _):
+    def test_del_expired_data_line_items_only(self, mock_orchestrator, mock_debug, _, mock_service):
         """Test the DELETE expired_data endpoint."""
         mock_response = [{"customer": "acct10001", "async_id": "f9eb2ce7-4564-4509-aecc-1200958c07cf"}]
         expected_key = "Async jobs for expired data removal"
