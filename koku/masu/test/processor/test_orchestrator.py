@@ -78,7 +78,8 @@ class OrchestratorTest(MasuTestCase):
             }
         )
 
-    def test_initializer(self):
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_initializer(self, mock_inspect):
         """Test to init."""
         orchestrator = Orchestrator()
         provider_count = Provider.objects.count()
@@ -117,24 +118,27 @@ class OrchestratorTest(MasuTestCase):
             else:
                 self.fail("Unexpected provider")
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.external.report_downloader.ReportDownloader._set_downloader", return_value=FakeDownloader)
     @patch("masu.external.accounts_accessor.AccountsAccessor.get_accounts", return_value=[])
-    def test_prepare_no_accounts(self, mock_downloader, mock_accounts_accessor):
+    def test_prepare_no_accounts(self, mock_downloader, mock_accounts_accessor, mock_inspect):
         """Test downloading cost usage reports."""
         orchestrator = Orchestrator()
         reports = orchestrator.prepare()
 
         self.assertIsNone(reports)
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch.object(AccountsAccessor, "get_accounts")
-    def test_init_all_accounts(self, mock_accessor):
+    def test_init_all_accounts(self, mock_accessor, mock_inspect):
         """Test initializing orchestrator with forced billing source."""
         mock_accessor.return_value = self.mock_accounts
         orchestrator_all = Orchestrator()
         self.assertEqual(orchestrator_all._accounts, self.mock_accounts)
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch.object(AccountsAccessor, "get_accounts")
-    def test_init_with_billing_source(self, mock_accessor):
+    def test_init_with_billing_source(self, mock_accessor, mock_inspect):
         """Test initializing orchestrator with forced billing source."""
         mock_accessor.return_value = self.mock_accounts
 
@@ -145,8 +149,9 @@ class OrchestratorTest(MasuTestCase):
         found_account = individual._accounts[0]
         self.assertEqual(found_account.get("billing_source"), fake_source.get("billing_source"))
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch.object(AccountsAccessor, "get_accounts")
-    def test_init_all_accounts_error(self, mock_accessor):
+    def test_init_all_accounts_error(self, mock_accessor, mock_inspect):
         """Test initializing orchestrator accounts error."""
         mock_accessor.side_effect = AccountsAccessorError("Sample timeout error")
         try:
@@ -154,9 +159,10 @@ class OrchestratorTest(MasuTestCase):
         except Exception:
             self.fail("unexpected error")
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch.object(ExpiredDataRemover, "remove")
     @patch("masu.processor.orchestrator.remove_expired_data.apply_async", return_value=True)
-    def test_remove_expired_report_data(self, mock_task, mock_remover):
+    def test_remove_expired_report_data(self, mock_task, mock_remover, mock_inspect):
         """Test removing expired report data."""
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
         mock_remover.return_value = expected_results
@@ -172,10 +178,11 @@ class OrchestratorTest(MasuTestCase):
             async_id = results.pop().get("async_id")
             self.assertIn(expected.format(async_id), logger.output)
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch.object(AccountsAccessor, "get_accounts")
     @patch.object(ExpiredDataRemover, "remove")
     @patch("masu.processor.orchestrator.remove_expired_data.apply_async", return_value=True)
-    def test_remove_expired_report_data_no_accounts(self, mock_task, mock_remover, mock_accessor):
+    def test_remove_expired_report_data_no_accounts(self, mock_task, mock_remover, mock_accessor, mock_inspect):
         """Test removing expired report data with no accounts."""
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
         mock_remover.return_value = expected_results
@@ -190,7 +197,7 @@ class OrchestratorTest(MasuTestCase):
     @patch("masu.processor.orchestrator.chord", return_value=True)
     @patch("masu.processor.orchestrator.ReportDownloader.download_manifest", return_value={})
     def test_start_manifest_processing_already_progressed(
-        self, mock_record_report_status, mock_download_manifest, mock_task
+        self, mock_record_report_status, mock_download_manifest, mock_task, mock_inspect
     ):
         """Test start_manifest_processing with report already processed."""
         orchestrator = Orchestrator()
@@ -207,10 +214,13 @@ class OrchestratorTest(MasuTestCase):
         )
         mock_task.assert_not_called()
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.WorkerCache.task_is_running", return_value=True)
     @patch("masu.processor.orchestrator.chord", return_value=True)
     @patch("masu.processor.orchestrator.ReportDownloader.download_manifest", return_value={})
-    def test_start_manifest_processing_in_progress(self, mock_record_report_status, mock_download_manifest, mock_task):
+    def test_start_manifest_processing_in_progress(
+        self, mock_record_report_status, mock_download_manifest, mock_task, mock_inspect
+    ):
         """Test start_manifest_processing with report in progressed."""
         orchestrator = Orchestrator()
         account = self.mock_accounts[0]
@@ -226,9 +236,10 @@ class OrchestratorTest(MasuTestCase):
         )
         mock_task.assert_not_called()
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.chord")
     @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
-    def test_start_manifest_processing(self, mock_download_manifest, mock_task):
+    def test_start_manifest_processing(self, mock_download_manifest, mock_task, mock_inspect):
         """Test start_manifest_processing."""
         test_matrix = [
             {"mock_downloader_manifest": {}, "expect_chord_called": False},
@@ -258,8 +269,9 @@ class OrchestratorTest(MasuTestCase):
             else:
                 mock_task.assert_not_called()
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete")
-    def test_get_reports(self, fake_accessor):
+    def test_get_reports(self, fake_accessor, mock_inspect):
         """Test get_reports for combinations of setup_complete and ingest override."""
         initial_month_qty = Config.INITIAL_INGEST_NUM_MONTHS
         test_matrix = [

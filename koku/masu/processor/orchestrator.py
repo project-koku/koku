@@ -26,6 +26,7 @@ from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
+from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
@@ -163,7 +164,7 @@ class Orchestrator:
                 LOG.info(f"{local_file} was already processed")
                 continue
 
-            cache_key = f"{provider_uuid}:{report_month}"
+            cache_key = f"{provider_uuid}:{report_file}"
             if self.worker_cache.task_is_running(cache_key):
                 LOG.info(f"{local_file} process is in progress")
                 continue
@@ -171,6 +172,7 @@ class Orchestrator:
             report_context = manifest.copy()
             report_context["current_file"] = report_file
             report_context["local_file"] = local_file
+            report_context["key"] = report_file
 
             report_tasks.append(
                 get_report_files.s(
@@ -215,7 +217,18 @@ class Orchestrator:
                     "Getting %s report files for account (provider uuid): %s", month.strftime("%B %Y"), provider_uuid
                 )
                 account["report_month"] = month
-                self.start_manifest_processing(**account)
+                try:
+                    self.start_manifest_processing(**account)
+                except ReportDownloaderError as err:
+                    LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
+                    continue
+                except Exception as err:
+                    # Broad exception catching is important here because any errors thrown can
+                    # block all subsequent account processing.
+                    LOG.error(
+                        f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}."
+                    )
+                    continue
 
                 # update labels
                 labeler = AccountLabel(
@@ -226,6 +239,7 @@ class Orchestrator:
                 account_number, label = labeler.get_label_details()
                 if account_number:
                     LOG.info("Account: %s Label: %s updated.", account_number, label)
+
         return async_result
 
     def remove_expired_report_data(self, simulate=False, line_items_only=False):
