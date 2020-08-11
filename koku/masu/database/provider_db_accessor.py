@@ -125,8 +125,8 @@ class ProviderDBAccessor(KokuDBAccess):
         Args:
             None
         Returns:
-            (Dict): {"credentials": "Provider Resource Name.  i.e. AWS: RoleARN"},
-                    example: {"credentials": "arn:aws:iam::111111111111:role/CostManagement"}
+            (dict): {"credentials": "Provider Resource Name.  i.e. AWS: RoleARN"},
+                    example: {"provider_resource_name": "arn:aws:iam::111111111111:role/CostManagement"}
 
         """
         return self.provider.authentication.credentials
@@ -138,11 +138,11 @@ class ProviderDBAccessor(KokuDBAccess):
         Args:
             None
         Returns:
-            (String): "Identifier for cost usage report.  i.e. AWS: S3 Bucket",
-                    example: "my-s3-cur-bucket"
+            (dict): "Identifier for cost usage report.  i.e. AWS: S3 Bucket",
+                    example: {"bucket": "my-s3-cur-bucket"}
 
         """
-        return self.provider.billing_source.bucket
+        return self.provider.billing_source.data_source
 
     def get_setup_complete(self):
         """

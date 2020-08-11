@@ -61,7 +61,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         start_date = self.dh.today
         end_date = start_date + datetime.timedelta(days=1)
 
-        cluster_id = self.ocp_on_aws_ocp_provider.authentication.provider_resource_name
+        cluster_id = self.ocp_on_aws_ocp_provider.authentication.credentials.get("provider_resource_name")
         manifest = CostUsageReportManifest.objects.filter(
             provider=self.ocp_on_aws_ocp_provider, billing_period_start_datetime=self.dh.this_month_start
         )

@@ -210,8 +210,8 @@ class AzureReportDownloaderTest(MasuTestCase):
         with self.settings(DEMO_ACCOUNTS=demo_accounts):
             AzureReportDownloader(
                 customer_name=f"acct{account_id}",
-                auth_credential=self.azure_credentials,
-                billing_source=self.azure_data_source,
+                credentials=self.azure_credentials,
+                data_source=self.azure_data_source,
                 provider_uuid=self.azure_provider_uuid,
             )
             mock_download_cost_method._azure_client.download_cost_export.assert_not_called()

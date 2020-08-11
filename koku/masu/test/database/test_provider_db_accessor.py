@@ -77,14 +77,14 @@ class ProviderDBAccessorTest(MasuTestCase):
     def test_get_authentication(self):
         """Test provider authentication getter."""
         uuid = self.aws_provider_uuid
-        expected_auth_string = self.aws_db_auth.provider_resource_name
+        expected_auth_string = self.aws_db_auth.credentials
         with ProviderDBAccessor(uuid) as accessor:
             self.assertEqual(expected_auth_string, accessor.get_authentication())
 
     def test_get_billing_source(self):
         """Test provider billing_source getter."""
         uuid = self.aws_provider_uuid
-        expected_billing_source = "test-bucket"
+        expected_billing_source = self.aws_billing_source.data_source
         with ProviderDBAccessor(uuid) as accessor:
             self.assertEqual(expected_billing_source, accessor.get_billing_source())
 

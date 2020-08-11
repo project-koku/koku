@@ -209,7 +209,8 @@ def get_cluster_alias_from_cluster_id(cluster_id):
     """
     cluster_alias = None
     auth_id = None
-    with ProviderAuthDBAccessor(provider_resource_name=cluster_id) as auth_accessor:
+    credentials = {"provider_resource_name": cluster_id}
+    with ProviderAuthDBAccessor(credentials=credentials) as auth_accessor:
         auth_id = auth_accessor.get_auth_id()
         if auth_id:
             with ProviderDBAccessor(auth_id=auth_id) as provider_accessor:
@@ -230,7 +231,8 @@ def get_provider_uuid_from_cluster_id(cluster_id):
     """
     provider_uuid = None
     auth_id = None
-    with ProviderAuthDBAccessor(provider_resource_name=cluster_id) as auth_accessor:
+    credentials = {"provider_resource_name": cluster_id}
+    with ProviderAuthDBAccessor(credentials=credentials) as auth_accessor:
         auth_id = auth_accessor.get_auth_id()
         if auth_id:
             with ProviderDBAccessor(auth_id=auth_id) as provider_accessor:
