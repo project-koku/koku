@@ -26,6 +26,7 @@ from masu.config import Config
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
+from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
@@ -82,8 +83,7 @@ class OrchestratorTest(MasuTestCase):
     def test_initializer(self, mock_inspect):
         """Test to init."""
         orchestrator = Orchestrator()
-        provider_count = Provider.objects.count()
-
+        provider_count = Provider.objects.filter(active=True).count()
         if len(orchestrator._accounts) != provider_count:
             self.fail("Unexpected number of test accounts")
 
@@ -192,6 +192,55 @@ class OrchestratorTest(MasuTestCase):
         results = orchestrator.remove_expired_report_data()
 
         self.assertEqual(results, [])
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.orchestrator.AccountLabel", spec=True)
+    @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", side_effect=ReportDownloaderError)
+    def test_prepare_w_downloader_error(self, mock_task, mock_labeler, mock_inspect):
+        """Test that Orchestrator.prepare() handles downloader errors."""
+
+        orchestrator = Orchestrator()
+        orchestrator.prepare()
+        mock_task.assert_called()
+        mock_labeler.assert_not_called()
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.orchestrator.AccountLabel", spec=True)
+    @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", side_effect=Exception)
+    def test_prepare_w_exception(self, mock_task, mock_labeler, mock_inspect):
+        """Test that Orchestrator.prepare() handles broad exceptions."""
+
+        orchestrator = Orchestrator()
+        orchestrator.prepare()
+        mock_task.assert_called()
+        mock_labeler.assert_not_called()
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.orchestrator.AccountLabel", spec=True)
+    @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=True)
+    def test_prepare_w_status_valid(self, mock_task, mock_labeler, mock_inspect):
+        """Test that Orchestrator.prepare() works when status is valid."""
+        mock_labeler().get_label_details.return_value = (True, True)
+
+        orchestrator = Orchestrator()
+        orchestrator.prepare()
+        mock_task.assert_called()
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.orchestrator.get_report_files.apply_async", return_value=True)
+    def test_prepare_w_status_invalid(self, mock_task, mock_inspect):
+        """Test that Orchestrator.prepare() is skipped when status is invalid."""
+        orchestrator = Orchestrator()
+        orchestrator.prepare()
+        mock_task.assert_not_called()
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.orchestrator.get_report_files.apply_async", return_value=True)
+    def test_prepare_w_status_backoff(self, mock_task, mock_inspect):
+        """Test that Orchestrator.prepare() is skipped when backing off."""
+        orchestrator = Orchestrator()
+        orchestrator.prepare()
+        mock_task.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.record_report_status", return_value=True)
