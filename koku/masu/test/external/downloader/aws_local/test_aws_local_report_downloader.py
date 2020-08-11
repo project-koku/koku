@@ -142,11 +142,12 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         mytar = TarFile.open("./koku/masu/test/data/test_local_bucket_prefix.tar.gz")
         mytar.extractall(fake_bucket)
         test_report_date = datetime(year=2018, month=8, day=7)
+        fake_data_source = {"bucket": fake_bucket}
         with patch.object(DateAccessor, "today", return_value=test_report_date):
             report_downloader = ReportDownloader(
                 self.fake_customer_name,
                 self.credentials,
-                self.data_source,
+                fake_data_source,
                 Provider.PROVIDER_AWS_LOCAL,
                 self.aws_provider_uuid,
             )
@@ -193,7 +194,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
             **{
                 "customer_name": self.fake_customer_name,
                 "credentials": self.credentials,
-                "data_source": self.data_source,
+                "data_source": {"bucket": bucket},
             }
         )
         self.assertIsNone(report_downloader.report_name)
@@ -208,7 +209,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
             **{
                 "customer_name": self.fake_customer_name,
                 "credentials": self.credentials,
-                "data_source": self.data_source,
+                "data_source": {"bucket": bucket},
             }
         )
         self.assertIsNone(report_downloader.report_name)
