@@ -60,24 +60,21 @@ class OrchestratorTest(MasuTestCase):
     def setUp(self):
         """Set up shared variables."""
         super().setUp()
-        self.aws_provider_resource_name = self.aws_provider.authentication.provider_resource_name
-        self.aws_billing_source = self.aws_provider.billing_source.bucket
+        self.aws_credentials = self.aws_provider.authentication.credentials
+        self.aws_data_source = self.aws_provider.billing_source.data_source
         self.azure_credentials = self.azure_provider.authentication.credentials
         self.azure_data_source = self.azure_provider.billing_source.data_source
-        self.ocp_provider_resource_names = [
-            name[0] for name in Provider.objects.values_list("authentication__provider_resource_name")
-        ]
-        self.ocp_billing_source = None
-        self.mock_accounts = []
-        self.mock_accounts.append(
+        self.ocp_credentials = [name[0] for name in Provider.objects.values_list("authentication__credentials")]
+        self.ocp_data_source = {}
+        self.mock_accounts = [
             {
-                "authentication": fake_arn(service="iam", generate_account_id=True),
-                "billing_source": self.fake.word(),
+                "credentials": {"provider_resource_name": fake_arn(service="iam", generate_account_id=True)},
+                "data_source": {"bucket": self.fake.word()},
                 "customer_name": self.fake.word(),
                 "provider_type": Provider.PROVIDER_AWS,
                 "schema_name": self.fake.word(),
             }
-        )
+        ]
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_initializer(self, mock_inspect):
@@ -89,35 +86,37 @@ class OrchestratorTest(MasuTestCase):
             self.fail("Unexpected number of test accounts")
 
         for account in orchestrator._accounts:
-            if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-                self.assertEqual(account.get("authentication"), self.aws_provider_resource_name)
-                self.assertEqual(account.get("billing_source"), self.aws_billing_source)
-                self.assertEqual(account.get("customer_name"), self.schema)
-            elif account.get("provider_type") == Provider.PROVIDER_OCP:
-                self.assertIn(account.get("authentication"), self.ocp_provider_resource_names)
-                self.assertEqual(account.get("billing_source"), self.ocp_billing_source)
-                self.assertEqual(account.get("customer_name"), self.schema)
-            elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-                self.assertEqual(account.get("authentication"), self.azure_credentials)
-                self.assertEqual(account.get("billing_source"), self.azure_data_source)
-                self.assertEqual(account.get("customer_name"), self.schema)
-            else:
-                self.fail("Unexpected provider")
+            with self.subTest(provider_type=account.get("provider_type")):
+                if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+                    self.assertEqual(account.get("credentials"), self.aws_credentials)
+                    self.assertEqual(account.get("data_source"), self.aws_data_source)
+                    self.assertEqual(account.get("customer_name"), self.schema)
+                elif account.get("provider_type") == Provider.PROVIDER_OCP:
+                    self.assertIn(account.get("credentials"), self.ocp_credentials)
+                    self.assertEqual(account.get("data_source"), self.ocp_data_source)
+                    self.assertEqual(account.get("customer_name"), self.schema)
+                elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+                    self.assertEqual(account.get("credentials"), self.azure_credentials)
+                    self.assertEqual(account.get("data_source"), self.azure_data_source)
+                    self.assertEqual(account.get("customer_name"), self.schema)
+                else:
+                    self.fail("Unexpected provider")
 
         if len(orchestrator._polling_accounts) != 2:
             self.fail("Unexpected number of listener test accounts")
 
         for account in orchestrator._polling_accounts:
-            if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-                self.assertEqual(account.get("authentication"), self.aws_provider_resource_name)
-                self.assertEqual(account.get("billing_source"), self.aws_billing_source)
-                self.assertEqual(account.get("customer_name"), self.schema)
-            elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-                self.assertEqual(account.get("authentication"), self.azure_credentials)
-                self.assertEqual(account.get("billing_source"), self.azure_data_source)
-                self.assertEqual(account.get("customer_name"), self.schema)
-            else:
-                self.fail("Unexpected provider")
+            with self.subTest(provider_type=account.get("provider_type")):
+                if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+                    self.assertEqual(account.get("credentials"), self.aws_credentials)
+                    self.assertEqual(account.get("data_source"), self.aws_data_source)
+                    self.assertEqual(account.get("customer_name"), self.schema)
+                elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+                    self.assertEqual(account.get("credentials"), self.azure_credentials)
+                    self.assertEqual(account.get("data_source"), self.azure_data_source)
+                    self.assertEqual(account.get("customer_name"), self.schema)
+                else:
+                    self.fail("Unexpected provider")
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.external.report_downloader.ReportDownloader._set_downloader", return_value=FakeDownloader)
@@ -145,10 +144,10 @@ class OrchestratorTest(MasuTestCase):
 
         fake_source = random.choice(self.mock_accounts)
 
-        individual = Orchestrator(fake_source.get("billing_source"))
+        individual = Orchestrator(fake_source.get("data_source"))
         self.assertEqual(len(individual._accounts), 1)
         found_account = individual._accounts[0]
-        self.assertEqual(found_account.get("billing_source"), fake_source.get("billing_source"))
+        self.assertEqual(found_account.get("data_source"), fake_source.get("data_source"))
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch.object(AccountsAccessor, "get_accounts")
@@ -274,8 +273,8 @@ class OrchestratorTest(MasuTestCase):
 
         orchestrator.start_manifest_processing(
             account.get("customer_name"),
-            account.get("authentication"),
-            account.get("billing_source"),
+            account.get("credentials"),
+            account.get("data_source"),
             "AWS-local",
             account.get("schema_name"),
             account.get("provider_uuid"),
@@ -296,8 +295,8 @@ class OrchestratorTest(MasuTestCase):
 
         orchestrator.start_manifest_processing(
             account.get("customer_name"),
-            account.get("authentication"),
-            account.get("billing_source"),
+            account.get("credentials"),
+            account.get("data_source"),
             "AWS-local",
             account.get("schema_name"),
             account.get("provider_uuid"),
@@ -326,8 +325,8 @@ class OrchestratorTest(MasuTestCase):
             account = self.mock_accounts[0]
             orchestrator.start_manifest_processing(
                 account.get("customer_name"),
-                account.get("authentication"),
-                account.get("billing_source"),
+                account.get("credentials"),
+                account.get("data_source"),
                 "AWS-local",
                 account.get("schema_name"),
                 account.get("provider_uuid"),
