@@ -171,8 +171,9 @@ class GetReportFileTests(MasuTestCase):
                     statement_found = True
             self.assertTrue(statement_found)
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor._tasks.download.ReportDownloader._set_downloader", side_effect=Exception("only a test"))
-    def test_get_report_exception(self, fake_downloader):
+    def test_get_report_exception(self, fake_downloader, mock_inspect):
         """Test task."""
         account = fake_arn(service="iam", generate_account_id=True)
 
@@ -189,12 +190,13 @@ class GetReportFileTests(MasuTestCase):
                 report_context={},
             )
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor._tasks.download.ProviderStatus.set_error")
     @patch(
         "masu.processor._tasks.download.ReportDownloader._set_downloader",
         side_effect=ReportDownloaderError("only a test"),
     )
-    def test_get_report_exception_update_status(self, fake_downloader, fake_status):
+    def test_get_report_exception_update_status(self, fake_downloader, fake_status, mock_inspect):
         """Test that status is updated when an exception is raised."""
         account = fake_arn(service="iam", generate_account_id=True)
 
@@ -424,9 +426,10 @@ class TestProcessorTasks(MasuTestCase):
             "report_context": {"current_file": f"/my/{self.test_assembly_id}/koku-1.csv.gz"},
         }
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.tasks._get_report_files")
     @patch("masu.processor.tasks._process_report_file", side_effect=ReportProcessorError("Mocked Error!"))
-    def test_get_report_exception(self, mock_process_files, mock_get_files):
+    def test_get_report_exception(self, mock_process_files, mock_get_files, mock_inspect):
         """Test raising processor exception is handled."""
         mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP"}
 

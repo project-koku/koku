@@ -165,7 +165,7 @@ class Orchestrator:
                 LOG.info(f"{local_file} was already processed")
                 continue
 
-            cache_key = f"{provider_uuid}:{report_month}"
+            cache_key = f"{provider_uuid}:{report_file}"
             if self.worker_cache.task_is_running(cache_key):
                 LOG.info(f"{local_file} process is in progress")
                 continue
@@ -173,6 +173,7 @@ class Orchestrator:
             report_context = manifest.copy()
             report_context["current_file"] = report_file
             report_context["local_file"] = local_file
+            report_context["key"] = report_file
 
             report_tasks.append(
                 get_report_files.s(
