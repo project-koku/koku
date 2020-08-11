@@ -34,7 +34,7 @@ class ProviderAuthentication(models.Model):
 
     uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
 
-    credentials = JSONField(null=False, default=dict)
+    credentials = JSONField(null=False, default=dict, unique=True)
 
 
 class ProviderBillingSource(models.Model):
@@ -45,7 +45,7 @@ class ProviderBillingSource(models.Model):
 
     uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
 
-    data_source = JSONField(null=False, default=dict)
+    data_source = JSONField(null=False, default=dict, unique=True)
 
 
 class Provider(models.Model):

@@ -29,6 +29,7 @@ from nise.__main__ import run
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
+from api.provider.models import ProviderBillingSource
 from api.utils import DateHelper
 from masu.config import Config
 from masu.processor.report_processor import ReportProcessor
@@ -96,11 +97,12 @@ class NiseDataLoader:
         provider_type = Provider.PROVIDER_OCP
         credentials = {"provider_resource_name": cluster_id}
         with override_settings(AUTO_DATA_INGEST=False):
+            ocp_billing_source, _ = ProviderBillingSource.objects.get_or_create(data_source={})
             provider = baker.make(
                 "Provider",
                 type=provider_type,
                 authentication__credentials=credentials,
-                billing_source__data_source={},
+                billing_source=ocp_billing_source,
                 customer=customer,
             )
         template, static_data_path = self.prepare_template(provider_type, static_data_file)
