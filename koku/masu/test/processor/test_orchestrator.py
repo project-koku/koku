@@ -193,6 +193,7 @@ class OrchestratorTest(MasuTestCase):
 
         self.assertEqual(results, [])
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.record_report_status", return_value=True)
     @patch("masu.processor.orchestrator.chord", return_value=True)
     @patch("masu.processor.orchestrator.ReportDownloader.download_manifest", return_value={})
