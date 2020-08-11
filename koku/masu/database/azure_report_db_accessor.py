@@ -161,8 +161,6 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
                     AzureCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
                         markup_cost=(F("pretax_cost") * markup)
                     )
-            else:
-                AzureCostEntryLineItemDailySummary.objects.update(markup_cost=(F("pretax_cost") * markup))
 
     def get_bill_query_before_date(self, date, provider_uuid=None):
         """Get the cost entry bill objects with billing period before provided date."""

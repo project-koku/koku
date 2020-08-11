@@ -18,8 +18,8 @@
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.models import Provider
-from api.report.ocp_aws.query_handler import OCPAWSReportQueryHandler
-from api.report.ocp_aws.serializers import OCPAWSQueryParamSerializer
+from api.report.aws.openshift.query_handler import OCPAWSReportQueryHandler
+from api.report.aws.openshift.serializers import OCPAWSQueryParamSerializer
 from api.report.view import ReportView
 from reporting.models import OCPAWSTagsSummary
 

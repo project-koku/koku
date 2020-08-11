@@ -19,7 +19,7 @@ import logging
 
 from api.models import Provider
 from api.report.all.openshift.provider_map import OCPAllProviderMap
-from api.report.ocp_aws.query_handler import OCPInfrastructureReportQueryHandlerBase
+from api.report.aws.openshift.query_handler import OCPInfrastructureReportQueryHandlerBase
 from api.report.queries import is_grouped_or_filtered_by_project
 
 LOG = logging.getLogger(__name__)

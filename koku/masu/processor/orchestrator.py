@@ -17,15 +17,22 @@
 """Report Processing Orchestrator."""
 import logging
 
+from celery import chord
+
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.account_label import AccountLabel
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
+from masu.external.report_downloader import ReportDownloader
+from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.tasks import get_report_files
+from masu.processor.tasks import record_all_manifest_files
+from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
+from masu.processor.worker_cache import WorkerCache
 from masu.providers.status import ProviderStatus
 
 LOG = logging.getLogger(__name__)
@@ -50,6 +57,7 @@ class Orchestrator:
 
         """
         self._accounts, self._polling_accounts = self.get_accounts(billing_source, provider_uuid)
+        self.worker_cache = WorkerCache()
 
     @staticmethod
     def get_accounts(billing_source=None, provider_uuid=None):
@@ -108,6 +116,84 @@ class Orchestrator:
 
         return DateAccessor().get_billing_months(number_of_months)
 
+    def start_manifest_processing(
+        self, customer_name, authentication, billing_source, provider_type, schema_name, provider_uuid, report_month
+    ):
+        """
+        Start processing an account's manifest for the specified report_month.
+
+        Args:
+            (String) customer_name - customer name
+            (String) authentication - authentication object
+            (String) billing_source - report storage location
+            (String) schema_name - db tenant
+            (String) provider_uuid - provider unique identifier
+            (Date)   report_month - month to get latest manifest
+
+        Returns:
+            ({}) Dictionary containing the following keys:
+                manifest_id - (String): Manifest ID for ReportManifestDBAccessor
+                assembly_id - (String): UUID identifying report file
+                compression - (String): Report compression format
+                files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
+        """
+        downloader = ReportDownloader(
+            customer_name=customer_name,
+            access_credential=authentication,
+            report_source=billing_source,
+            provider_type=provider_type,
+            provider_uuid=provider_uuid,
+            report_name=None,
+        )
+        manifest = downloader.download_manifest(report_month)
+
+        if manifest:
+            LOG.info("Saving all manifest file names.")
+            record_all_manifest_files(
+                manifest["manifest_id"], [report.get("local_file") for report in manifest.get("files", [])]
+            )
+
+        LOG.info(f"Found Manifests: {str(manifest)}")
+        report_files = manifest.get("files", [])
+        report_tasks = []
+        for report_file_dict in report_files:
+            local_file = report_file_dict.get("local_file")
+            report_file = report_file_dict.get("key")
+
+            # Check if report file is complete or in progress.
+            if record_report_status(manifest["manifest_id"], local_file, "no_request"):
+                LOG.info(f"{local_file} was already processed")
+                continue
+
+            cache_key = f"{provider_uuid}:{report_file}"
+            if self.worker_cache.task_is_running(cache_key):
+                LOG.info(f"{local_file} process is in progress")
+                continue
+
+            report_context = manifest.copy()
+            report_context["current_file"] = report_file
+            report_context["local_file"] = local_file
+            report_context["key"] = report_file
+
+            report_tasks.append(
+                get_report_files.s(
+                    customer_name,
+                    authentication,
+                    billing_source,
+                    provider_type,
+                    schema_name,
+                    provider_uuid,
+                    report_month,
+                    report_context,
+                )
+            )
+            LOG.info("Download queued - schema_name: %s.", schema_name)
+
+        if report_tasks:
+            async_id = chord(report_tasks, summarize_reports.s())()
+            LOG.info(f"Manifest Processing Async ID: {async_id}")
+        return manifest
+
     def prepare(self):
         """
         Prepare a processing request for each account.
@@ -136,11 +222,18 @@ class Orchestrator:
                         provider_uuid,
                     )
                     account["report_month"] = month
-                    async_result = (get_report_files.s(**account) | summarize_reports.s()).apply_async()
-
-                    LOG.info(
-                        "Download queued - schema_name: %s, Task ID: %s", account.get("schema_name"), str(async_result)
-                    )
+                    try:
+                        self.start_manifest_processing(**account)
+                    except ReportDownloaderError as err:
+                        LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
+                        continue
+                    except Exception as err:
+                        # Broad exception catching is important here because any errors thrown can
+                        # block all subsequent account processing.
+                        LOG.error(
+                            f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}."
+                        )
+                        continue
 
                     # update labels
                     labeler = AccountLabel(

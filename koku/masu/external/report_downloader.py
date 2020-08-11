@@ -44,26 +44,22 @@ class ReportDownloader:
 
     def __init__(
         self,
-        task,
         customer_name,
         access_credential,
         report_source,
         provider_type,
         provider_uuid,
-        cache_key,
         report_name=None,
         account=None,
         request_id="no_request_id",
     ):
         """Set the downloader based on the backend cloud provider."""
-        self.task = task
         self.customer_name = customer_name
         self.credential = access_credential
         self.cur_source = report_source
         self.report_name = report_name
         self.provider_type = provider_type
         self.provider_uuid = provider_uuid
-        self.cache_key = cache_key
         self.request_id = request_id
         self.account = account
         if self.account is None:
@@ -93,73 +89,61 @@ class ReportDownloader:
         """
         if self.provider_type == Provider.PROVIDER_AWS:
             return AWSReportDownloader(
-                task=self.task,
                 customer_name=self.customer_name,
                 auth_credential=self.credential,
                 bucket=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
                 request_id=self.request_id,
                 account=self.account,
             )
         if self.provider_type == Provider.PROVIDER_AWS_LOCAL:
             return AWSLocalReportDownloader(
-                task=self.task,
                 customer_name=self.customer_name,
                 auth_credential=self.credential,
                 bucket=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
                 request_id=self.request_id,
                 account=self.account,
             )
         if self.provider_type == Provider.PROVIDER_AZURE:
             return AzureReportDownloader(
-                task=self.task,
                 customer_name=self.customer_name,
                 auth_credential=self.credential,
                 billing_source=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
                 request_id=self.request_id,
                 account=self.account,
             )
         if self.provider_type == Provider.PROVIDER_AZURE_LOCAL:
             return AzureLocalReportDownloader(
-                task=self.task,
                 customer_name=self.customer_name,
                 auth_credential=self.credential,
                 billing_source=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
                 request_id=self.request_id,
                 account=self.account,
             )
         if self.provider_type == Provider.PROVIDER_OCP:
             return OCPReportDownloader(
-                task=self.task,
                 customer_name=self.customer_name,
                 auth_credential=self.credential,
                 bucket=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
                 request_id=self.request_id,
                 account=self.account,
             )
         if self.provider_type == Provider.PROVIDER_GCP:
             return GCPReportDownloader(
-                task=self.task,
                 customer_name=self.customer_name,
                 auth_credential=self.credential,
                 billing_source=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
                 request_id=self.request_id,
                 account=self.account,
             )
@@ -199,7 +183,15 @@ class ReportDownloader:
             return report_record.filter(last_completed_datetime__isnull=False).exists()
         return False
 
-    def download_report(self, date_time):
+    def download_manifest(self, date):
+        """
+        Download current manifest description for date.
+
+        """
+        report_context = self._downloader.get_manifest_context_for_date(date)
+        return report_context
+
+    def download_report(self, report_context):
         """
         Download CUR for a given date.
 
@@ -210,33 +202,32 @@ class ReportDownloader:
             ([{}]) List of dictionaries containing file path and compression.
 
         """
+        date_time = report_context.get("date")
         msg = f"Attempting to get {self.provider_type,} manifest for {str(date_time)}..."
         LOG.info(log_json(self.request_id, msg, self.context))
-        report_context = self._downloader.get_report_context_for_date(date_time)
+
         manifest_id = report_context.get("manifest_id")
-        reports = report_context.get("files", [])
-        cur_reports = []
-        for report in reports:
-            report_dictionary = {}
-            local_file_name = self._downloader.get_local_file_for_report(report)
+        report = report_context.get("current_file")
 
-            if self.is_report_processed(local_file_name, manifest_id):
-                msg = f"File has already been processed: {local_file_name}. Skipping..."
-                LOG.info(log_json(self.request_id, msg, self.context))
-                continue
-            with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
-                stored_etag = stats_recorder.get_etag()
-                file_name, etag = self._downloader.download_file(
-                    report, stored_etag, manifest_id=manifest_id, start_date=date_time
-                )
-                stats_recorder.update(etag=etag)
+        report_dictionary = {}
+        local_file_name = self._downloader.get_local_file_for_report(report)
 
-            report_dictionary["file"] = file_name
-            report_dictionary["compression"] = report_context.get("compression")
-            report_dictionary["start_date"] = date_time
-            report_dictionary["assembly_id"] = report_context.get("assembly_id")
-            report_dictionary["manifest_id"] = manifest_id
-            report_dictionary["provider_uuid"] = self.provider_uuid
+        if self.is_report_processed(local_file_name, manifest_id):
+            LOG.info(f"File has already been processed: {local_file_name}. Skipping...")
+            return report_dictionary
 
-            cur_reports.append(report_dictionary)
-        return cur_reports
+        with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
+            stored_etag = stats_recorder.get_etag()
+            file_name, etag = self._downloader.download_file(
+                report, stored_etag, manifest_id=manifest_id, start_date=date_time
+            )
+            stats_recorder.update(etag=etag)
+
+        report_dictionary["file"] = file_name
+        report_dictionary["compression"] = report_context.get("compression")
+        report_dictionary["start_date"] = date_time
+        report_dictionary["assembly_id"] = report_context.get("assembly_id")
+        report_dictionary["manifest_id"] = manifest_id
+        report_dictionary["provider_uuid"] = self.provider_uuid
+
+        return report_dictionary

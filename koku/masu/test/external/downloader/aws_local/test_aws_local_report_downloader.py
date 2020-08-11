@@ -22,7 +22,6 @@ import shutil
 import tempfile
 from datetime import datetime
 from tarfile import TarFile
-from unittest.mock import Mock
 from unittest.mock import patch
 
 from faker import Faker
@@ -73,25 +72,21 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         mytar = TarFile.open("./koku/masu/test/data/test_local_bucket.tar.gz")
         mytar.extractall(path=self.fake_bucket_name)
         os.makedirs(DATA_DIR, exist_ok=True)
-        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()), return_value={}))
+
         self.report_downloader = ReportDownloader(
-            task=self.mock_task,
             customer_name=self.fake_customer_name,
             access_credential=self.fake_auth_credential,
             report_source=self.fake_bucket_name,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
             provider_uuid=self.aws_provider_uuid,
-            cache_key=self.fake.word(),
         )
 
         self.aws_local_report_downloader = AWSLocalReportDownloader(
             **{
-                "task": self.mock_task,
                 "customer_name": self.fake_customer_name,
                 "auth_credential": self.fake_auth_credential,
                 "bucket": self.fake_bucket_name,
                 "provider_uuid": self.aws_provider_uuid,
-                "cache_key": self.fake.word(),
             }
         )
 
@@ -104,7 +99,13 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         """Test to verify that basic report downloading works."""
         test_report_date = datetime(year=2018, month=8, day=7)
         with patch.object(DateAccessor, "today", return_value=test_report_date):
-            self.report_downloader.download_report(test_report_date)
+            report_context = {
+                "date": test_report_date.date(),
+                "manifest_id": 1,
+                "comporession": "GZIP",
+                "current_file": "./koku/masu/test/data/test_local_bucket.tar.gz",
+            }
+            self.report_downloader.download_report(report_context)
         expected_path = "{}/{}/{}".format(DATA_DIR, self.fake_customer_name, "aws-local")
         self.assertTrue(os.path.isdir(expected_path))
 
@@ -112,12 +113,10 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         """Test initializer when report_name is  provided."""
         report_downloader = AWSLocalReportDownloader(
             **{
-                "task": self.mock_task,
                 "customer_name": self.fake_customer_name,
                 "auth_credential": self.fake_auth_credential,
                 "bucket": self.fake_bucket_name,
                 "report_name": "awesome-report",
-                "cache_key": self.fake.word(),
             }
         )
         self.assertEqual(report_downloader.report_name, "awesome-report")
@@ -126,11 +125,9 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         """Test to extract the report and prefix names from a bucket with no prefix."""
         report_downloader = AWSLocalReportDownloader(
             **{
-                "task": self.mock_task,
                 "customer_name": self.fake_customer_name,
                 "auth_credential": self.fake_auth_credential,
                 "bucket": self.fake_bucket_name,
-                "cache_key": self.fake.word(),
             }
         )
         self.assertEqual(report_downloader.report_name, self.fake_report_name)
@@ -144,16 +141,20 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         test_report_date = datetime(year=2018, month=8, day=7)
         with patch.object(DateAccessor, "today", return_value=test_report_date):
             report_downloader = ReportDownloader(
-                self.mock_task,
                 self.fake_customer_name,
                 self.fake_auth_credential,
                 fake_bucket,
                 Provider.PROVIDER_AWS_LOCAL,
                 self.aws_provider_uuid,
-                cache_key=self.fake.word(),
             )
             # Names from test report .gz file
-            report_downloader.download_report(test_report_date)
+            report_context = {
+                "date": test_report_date.date(),
+                "manifest_id": 1,
+                "comporession": "GZIP",
+                "current_file": "./koku/masu/test/data/test_local_bucket.tar.gz",
+            }
+            report_downloader.download_report(report_context)
         expected_path = "{}/{}/{}".format(DATA_DIR, self.fake_customer_name, "aws-local")
         self.assertTrue(os.path.isdir(expected_path))
 
@@ -168,11 +169,9 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         os.makedirs(full_path)
         report_downloader = AWSLocalReportDownloader(
             **{
-                "task": self.mock_task,
                 "customer_name": self.fake_customer_name,
                 "auth_credential": self.fake_auth_credential,
                 "bucket": bucket,
-                "cache_key": self.fake.word(),
             }
         )
         self.assertEqual(report_downloader.report_name, report_name)
@@ -189,11 +188,9 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
 
         report_downloader = AWSLocalReportDownloader(
             **{
-                "task": self.mock_task,
                 "customer_name": self.fake_customer_name,
                 "auth_credential": self.fake_auth_credential,
                 "bucket": bucket,
-                "cache_key": self.fake.word(),
             }
         )
         self.assertIsNone(report_downloader.report_name)
@@ -206,38 +203,15 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         bucket = tempfile.mkdtemp()
         report_downloader = AWSLocalReportDownloader(
             **{
-                "task": self.mock_task,
                 "customer_name": self.fake_customer_name,
                 "auth_credential": self.fake_auth_credential,
                 "bucket": bucket,
-                "cache_key": self.fake.word(),
             }
         )
         self.assertIsNone(report_downloader.report_name)
         self.assertIsNone(report_downloader.report_prefix)
 
         shutil.rmtree(bucket)
-
-    def test_download_missing_month(self):
-        """Test to verify that downloading a non-existant month throws proper exception."""
-        fake_bucket = tempfile.mkdtemp()
-        mytar = TarFile.open("./koku/masu/test/data/test_local_bucket_prefix.tar.gz")
-        mytar.extractall(fake_bucket)
-        test_report_date = datetime(year=2018, month=7, day=7)
-        with patch.object(DateAccessor, "today", return_value=test_report_date):
-            report_downloader = ReportDownloader(
-                self.mock_task,
-                self.fake_customer_name,
-                self.fake_auth_credential,
-                fake_bucket,
-                Provider.PROVIDER_AWS_LOCAL,
-                1,
-                cache_key=self.fake.word(),
-            )
-            # Names from test report .gz file
-            report_downloader.download_report(test_report_date)
-        expected_path = "{}/{}/{}".format(DATA_DIR, self.fake_customer_name, "aws-local")
-        self.assertFalse(os.path.isdir(expected_path))
 
     def test_delete_manifest_file_warning(self):
         """Test that an INFO is logged when removing a manifest file that does not exist."""
@@ -259,3 +233,51 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
             )
             # Re-enable log suppression
             logging.disable(logging.CRITICAL)
+
+    @patch(
+        "masu.external.downloader.aws_local.aws_local_report_downloader.AWSLocalReportDownloader._remove_manifest_file"
+    )
+    @patch("masu.external.downloader.aws_local.aws_local_report_downloader.AWSLocalReportDownloader._get_manifest")
+    def test_get_manifest_context_for_date(self, mock_manifest, mock_delete):
+        """Test that the manifest is read."""
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        auth_credential = fake_arn(service="iam", generate_account_id=True)
+        downloader = AWSLocalReportDownloader(
+            self.fake_customer_name, auth_credential, self.fake_bucket_name, provider_uuid=self.aws_provider_uuid
+        )
+
+        start_str = current_month.strftime(downloader.manifest_date_format)
+        assembly_id = "1234"
+        compression = "GZIP"
+        report_keys = ["file1", "file2"]
+        mock_manifest.return_value = (
+            "",
+            {
+                "assemblyId": assembly_id,
+                "Compression": compression,
+                "reportKeys": report_keys,
+                "billingPeriod": {"start": start_str},
+            },
+        )
+
+        result = downloader.get_manifest_context_for_date(current_month)
+        self.assertEqual(result.get("assembly_id"), assembly_id)
+        self.assertEqual(result.get("compression"), compression)
+        self.assertIsNotNone(result.get("files"))
+
+    @patch(
+        "masu.external.downloader.aws_local.aws_local_report_downloader.AWSLocalReportDownloader._remove_manifest_file"
+    )
+    @patch("masu.external.downloader.aws_local.aws_local_report_downloader.AWSLocalReportDownloader._get_manifest")
+    def test_get_manifest_context_for_date_no_manifest(self, mock_manifest, mock_delete):
+        """Test that the manifest is read."""
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        auth_credential = fake_arn(service="iam", generate_account_id=True)
+        downloader = AWSLocalReportDownloader(
+            self.fake_customer_name, auth_credential, self.fake_bucket_name, provider_uuid=self.aws_provider_uuid
+        )
+
+        mock_manifest.return_value = ("", {"reportKeys": []})
+
+        result = downloader.get_manifest_context_for_date(current_month)
+        self.assertEqual(result, {})

@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the AWS Report views."""
+import copy
 import logging
 
 from django.urls import reverse
@@ -24,6 +25,7 @@ from rest_framework.test import APIClient
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
 from api.report.view import _convert_units
+from api.utils import DateHelper
 from api.utils import UnitConverter
 
 LOG = logging.getLogger(__name__)
@@ -49,6 +51,8 @@ class AWSReportViewTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.client = APIClient()
+        self.dh = DateHelper()
+        self.ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
 
         self.report = {
             "group_by": {"account": ["*"]},
@@ -328,3 +332,149 @@ class AWSReportViewTest(IamTestCase):
         url = reverse("reports-aws-storage") + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_group_by_org_unit_wildcard_costs_reports(self):
+        """Test that grouping by org unit with a wildcard raises a validation error."""
+        qs = "?group_by[org_unit_id]=*"
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_ou_group_by_default_pagination(self):
+        """Test that the default pagination works."""
+        qs = "?group_by[org_unit_id]=R_001&filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month"  # noqa: E501
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response_data = response.json()
+        data = response_data.get("data", [])
+        meta = response_data.get("meta", {})
+        count = meta.get("count", 0)
+
+        self.assertIn("total", meta)
+        self.assertIn("filter", meta)
+        self.assertIn("count", meta)
+
+        for entry in data:
+            org_entities = entry.get("org_entities", [])
+            self.assertEqual(len(org_entities), count)
+
+    def test_ou_group_by_filter_limit_offset_pagination(self):
+        """Test that the ranked group pagination works."""
+        limit = 1
+        offset = 0
+
+        qs = f"?group_by[org_unit_id]=R_001&filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[limit]={limit}&filter[offset]={offset}"  # noqa: E501
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response_data = response.json()
+        data = response_data.get("data", [])
+        meta = response_data.get("meta", {})
+        count = meta.get("count", 0)
+
+        self.assertIn("total", meta)
+        self.assertIn("filter", meta)
+        self.assertIn("count", meta)
+
+        for entry in data:
+            org_entities = entry.get("org_entities", [])
+            if limit + offset > count:
+                self.assertEqual(len(org_entities), max((count - offset), 0))
+            else:
+                self.assertEqual(len(org_entities), limit)
+
+    def test_ou_group_by_filter_limit_high_offset_pagination(self):
+        """Test that high offset pagination works."""
+        limit = 1
+        offset = 10
+
+        qs = f"?group_by[org_unit_id]=R_001&filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[limit]={limit}&filter[offset]={offset}"  # noqa: E501
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response_data = response.json()
+        data = response_data.get("data", [])
+        meta = response_data.get("meta", {})
+        count = meta.get("count", 0)
+
+        self.assertIn("total", meta)
+        self.assertIn("filter", meta)
+        self.assertIn("count", meta)
+
+        for entry in data:
+            org_entities = entry.get("org_entities", [])
+            if limit + offset > count:
+                self.assertEqual(len(org_entities), max((count - offset), 0))
+            else:
+                self.assertEqual(len(org_entities), limit)
+
+    def test_group_by_org_unit_order_by_cost_asc(self):
+        """Test that ordering by cost=asc works as expected"""
+        qs = "?group_by[org_unit_id]=R_001&order_by[cost]=asc"
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        data = response.data.get("data", [])
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Now we need to loop through the results and make sure that
+        # the org units are in asc order according to cost
+        for entry in data:
+            org_entities = entry.get("org_entities", [])
+            sorted_org_entities = copy.deepcopy(org_entities)
+            sorted_org_entities.sort(key=lambda e: e["values"][0]["cost"]["total"]["value"], reverse=False)
+            self.assertEqual(org_entities, sorted_org_entities)
+
+    def test_group_by_org_unit_order_by_cost_desc(self):
+        """Test that ordering by cost=descworks as expected"""
+        qs = "?group_by[org_unit_id]=R_001&order_by[cost]=desc"
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        data = response.data.get("data")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Now we need to loop through the results and make sure that
+        # the org units are in desc order according to cost
+        for entry in data:
+            org_entities = entry.get("org_entities", [])
+            sorted_org_entities = copy.deepcopy(org_entities)
+            sorted_org_entities.sort(key=lambda e: e["values"][0]["cost"]["total"]["value"], reverse=True)
+            self.assertEqual(org_entities, sorted_org_entities)
+
+    def test_multiple_and_group_by_org_unit_bad_request(self):
+        """Test that grouping by org unit on non costs reports raises a validation error."""
+        qs = "?group_by[org_unit_id]=R_001&group_by[org_unit_id]=OU_001"
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_multiple_mixed_group_by_org_unit_bad_request(self):
+        """Test that grouping by org unit on non costs reports raises a validation error."""
+        qs = "?group_by[org_unit_id]=R_001&group_by[or:org_unit_id]=OU_001"
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_group_by_org_unit_or_wildcard_bad_request(self):
+        """Test that grouping by org unit on non costs reports raises a validation error."""
+        qs = "?group_by[or:org_unit_id]=*"
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_group_by_org_unit_id_and_wildcard_region(self):
+        """Test multiple group by with org unit id and region."""
+        # The ui team uses these to populate graphs
+        qs = "?group_by[or:org_unit_id]=R_001&group_by[region]=*"
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_group_by_org_unit_id_and_wildcard_account(self):
+        """Test multiple group by with org unit id and account."""
+        qs = "?group_by[or:org_unit_id]=R_001&group_by[account]=*"
+        # The ui team uses these to populate graphs
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

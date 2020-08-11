@@ -73,10 +73,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             # mock_storage_client = mock_storage.Client.return_value
             # mock_storage_client.lookup_bucket.return_value = {}
             downloader = GCPReportDownloader(
-                task=Mock(request=Mock(id=str(FAKE.uuid4()), return_value={})),
-                customer_name=customer_name,
-                billing_source=billing_source,
-                provider_uuid=provider_uuid,
+                customer_name=customer_name, billing_source=billing_source, provider_uuid=provider_uuid
             )
         return downloader
 
@@ -85,9 +82,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Assert GCPReportDownloader raises error when bucket is not reachable."""
         mock_provider.return_value.cost_usage_source_is_reachable.side_effect = ValidationError
         with self.assertRaises(GCPReportDownloaderError):
-            GCPReportDownloader(
-                Mock(request=Mock(id=str(FAKE.uuid4()), return_value={})), FAKE.name(), {"bucket": FAKE.slug()}
-            )
+            GCPReportDownloader(FAKE.name(), {"bucket": FAKE.slug()})
 
     def test_init_reachable_bucket_is_okay(self):
         """Assert GCPReportDownloader initializes with expected values."""
@@ -97,91 +92,10 @@ class GCPReportDownloaderTest(MasuTestCase):
         with patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider"), patch(
             "masu.external.downloader.gcp.gcp_report_downloader.storage"
         ) as mock_storage:
-            downloader = GCPReportDownloader(
-                Mock(request=Mock(id=str(FAKE.uuid4()), return_value={})), customer_name, billing_source
-            )
+            downloader = GCPReportDownloader(customer_name, billing_source)
             mock_storage.Client.return_value.lookup_bucket.assert_called_with(bucket_name)
         self.assertEqual(downloader.customer_name, customer_name.replace(" ", "_"))
         self.assertEqual(downloader.bucket_name, bucket_name)
-
-    def test_get_report_context_for_date_creates_manifest_with_files(self):
-        """Assert get_report_context_for_date returns a "report" dict if files are found."""
-        start_date = datetime(2019, 9, 1)
-        assembly_id = FAKE.uuid4()
-        file_count = 10
-        file_names = [FAKE.file_name() for _ in range(file_count)]
-        manifest = {
-            "assembly_id": assembly_id,
-            "start_date": start_date,
-            "compression": UNCOMPRESSED,
-            "file_names": file_names,
-        }
-        manifest_id = FAKE.pyint()
-        downloader = self.create_gcp_downloader_with_mock_gcp_storage()
-        with patch.object(downloader, "_generate_monthly_pseudo_manifest") as mock_generate_manifest, patch.object(
-            downloader, "check_if_manifest_should_be_downloaded"
-        ) as mock_check, patch.object(downloader, "_get_existing_manifest_db_id") as mock_get_manifest, patch.object(
-            downloader, "_process_manifest_db_record"
-        ) as mock_process:
-            mock_generate_manifest.return_value = manifest
-            mock_check.return_value = True
-            mock_process.return_value = manifest_id
-            result = downloader.get_report_context_for_date(start_date)
-            mock_generate_manifest.assert_called_with(start_date)
-            mock_check.assert_called_with(assembly_id)
-            mock_get_manifest.assert_not_called()
-            mock_process.assert_called_with(assembly_id, start_date, file_count)
-
-        expected_result = {
-            "manifest_id": manifest_id,
-            "assembly_id": assembly_id,
-            "compression": UNCOMPRESSED,
-            "files": file_names,
-        }
-        self.assertEqual(result, expected_result)
-
-    def test_get_report_context_for_date_empty_if_already_processed(self):
-        """Assert get_report_context_for_date creates returns {} if already processed."""
-        start_date = Mock()
-        downloader = self.create_gcp_downloader_with_mock_gcp_storage()
-        with patch.object(downloader, "_generate_monthly_pseudo_manifest") as mock_generate_manifest, patch.object(
-            downloader, "check_if_manifest_should_be_downloaded"
-        ) as mock_check, patch.object(downloader, "_get_existing_manifest_db_id") as mock_get_manifest:
-            mock_manifest = mock_generate_manifest.return_value
-            mock_check.return_value = False
-            result = downloader.get_report_context_for_date(start_date)
-            mock_generate_manifest.assert_called_with(start_date)
-            mock_check.assert_called_with(mock_manifest["assembly_id"])
-            mock_get_manifest.assert_called_with(mock_manifest["assembly_id"])
-        self.assertEqual(result, {})
-
-    def test_get_report_context_for_date_empty_if_no_files(self):
-        """Assert get_report_context_for_date returns {} if no files are found."""
-        start_date = datetime(2019, 9, 1)
-        assembly_id = FAKE.uuid4()
-        manifest = {
-            "assembly_id": assembly_id,
-            "start_date": start_date,
-            "compression": UNCOMPRESSED,
-            "file_names": [],
-        }
-        manifest_id = FAKE.pyint()
-
-        downloader = self.create_gcp_downloader_with_mock_gcp_storage()
-        with patch.object(downloader, "_generate_monthly_pseudo_manifest") as mock_generate_manifest, patch.object(
-            downloader, "check_if_manifest_should_be_downloaded"
-        ) as mock_check, patch.object(downloader, "_get_existing_manifest_db_id") as mock_get_manifest, patch.object(
-            downloader, "_process_manifest_db_record"
-        ) as mock_process:
-            mock_generate_manifest.return_value = manifest
-            mock_check.return_value = True
-            mock_process.return_value = manifest_id
-            result = downloader.get_report_context_for_date(start_date)
-            mock_generate_manifest.assert_called_with(start_date)
-            mock_check.assert_called_with(assembly_id)
-            mock_get_manifest.assert_not_called()
-            mock_process.assert_not_called()
-        self.assertEqual(result, {})
 
     def test_generate_monthly_pseudo_manifest(self):
         """Assert _generate_monthly_pseudo_manifest returns a manifest-like dict."""
@@ -376,3 +290,41 @@ class GCPReportDownloaderTest(MasuTestCase):
         self.assertTrue(actual_local_file_path.startswith(directory_path))
         self.assertTrue(actual_local_file_path.endswith(expected_file_name))
         self.assertNotIn(key, actual_local_file_path)
+
+    def test_get_manifest_context_for_date_with_files(self):
+        """Assert get_report_context_for_date returns a "report" dict if files are found."""
+        start_date = datetime(2019, 9, 1)
+        assembly_id = FAKE.uuid4()
+        file_count = 10
+        file_names = [FAKE.file_name() for _ in range(file_count)]
+        manifest = {
+            "assembly_id": assembly_id,
+            "start_date": start_date,
+            "compression": UNCOMPRESSED,
+            "file_names": file_names,
+        }
+        manifest_id = FAKE.pyint()
+        downloader = self.create_gcp_downloader_with_mock_gcp_storage()
+        with patch.object(downloader, "_generate_monthly_pseudo_manifest") as mock_generate_manifest, patch.object(
+            downloader, "_get_existing_manifest_db_id"
+        ) as mock_get_manifest, patch.object(downloader, "_process_manifest_db_record") as mock_process:
+            mock_generate_manifest.return_value = manifest
+            mock_process.return_value = manifest_id
+
+            result = downloader.get_manifest_context_for_date(start_date)
+            mock_generate_manifest.assert_called_with(start_date)
+            mock_get_manifest.assert_not_called()
+            mock_process.assert_called_with(assembly_id, start_date, file_count)
+
+        self.assertEqual(result.get("assembly_id"), assembly_id)
+        self.assertEqual(result.get("compression"), UNCOMPRESSED)
+        self.assertIsNotNone(result.get("files"))
+
+    def test_get_report_context_for_date_empty_if_already_processed(self):
+        """Assert get_report_context_for_date creates returns {} if already processed."""
+        start_date = Mock()
+        downloader = self.create_gcp_downloader_with_mock_gcp_storage()
+        with patch.object(downloader, "_generate_monthly_pseudo_manifest") as mock_generate_manifest:
+            result = downloader.get_manifest_context_for_date(start_date)
+            mock_generate_manifest.assert_called_with(start_date)
+        self.assertEqual(result, {})
