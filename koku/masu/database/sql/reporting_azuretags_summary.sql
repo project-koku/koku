@@ -40,7 +40,7 @@ data2(key, values) AS (SELECT data.key, array_agg(DISTINCT data.value) from data
    RETURNING value, id AS values_id
    )
 
-INSERT INTO {{schema | sqlsafe}}.reporting_azuretags_summary_values (azuretagssummary_id, azuretagsvalues_id)
+INSERT INTO {{schema | sqlsafe}}.reporting_azuretags_summary_values_mtm (azuretagssummary_id, azuretagsvalues_id)
 SELECT DISTINCT ins1.key_id, ins2.values_id
 FROM data d
 INNER JOIN ins1 ON d.key = ins1.key

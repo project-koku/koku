@@ -324,10 +324,9 @@ class TagQueryHandler(QueryHandler):
                 if type_filter and source.get("type") not in type_filter_array:
                     continue
                 tag_values_query = source.get("db_values").objects
-                exclusion = self._get_exclusions("key")
-                t_keys = list(tag_values_query.filter(self.query_filter))
-                t_tup = self._value_filter_dict(t_keys)
-                converted = self._convert_to_dict(t_tup)
+                tag_keys = list(tag_values_query.filter(self.query_filter))
+                tag_tup = self._value_filter_dict(tag_keys)
+                converted = self._convert_to_dict(tag_tup)
                 if type_filter and source.get("type"):
                     self.append_to_final_data_with_type(final_data, converted, source)
                 else:
@@ -351,6 +350,19 @@ class TagQueryHandler(QueryHandler):
             else:
                 tag_map[tag.get("key")] = tag
         return tag_map
+
+    def _value_filter_dict(self, t_keys):
+        values_list = []
+        for obj in t_keys:
+            values_list.append(obj.value)
+        return [(self.key, values_list)]
+
+    def _get_tag_key_tuple(self, t_keys, tag_keys_query):
+        t_tup = []
+        for tag in t_keys:
+            t_vals = list(tag_keys_query.get(key=tag[0]).values.values_list("value", flat=True))
+            t_tup.append((tag[0], t_vals))
+        return t_tup
 
     @staticmethod
     def _get_dictionary_for_key(dictionary_list, key):

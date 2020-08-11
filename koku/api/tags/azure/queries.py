@@ -43,7 +43,12 @@ class AzureTagQueryHandler(TagQueryHandler):
     ]
     SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["subscription_guid"]
     FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
-    FILTER_MAP.update({"subscription_guid": {"field": "subscription_guid", "operation": "icontains"}})
+    FILTER_MAP.update(
+        {
+            "subscription_guid": {"field": "subscription_guid", "operation": "icontains"},
+            "value": {"field": "value", "operation": "icontains", "composition_key": "value_filter"},
+        }
+    )
 
     def __init__(self, parameters):
         """Establish Azure report query handler.
