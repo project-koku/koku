@@ -393,17 +393,17 @@ class SourcesSerializerTests(IamTestCase):
         }
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             instance = serializer.create(source)
-        self.assertEqual(instance.billing_source.get("bucket"), "first-bucket")
+        self.assertEqual(instance.billing_source.get("data_source", {}).get("bucket"), "first-bucket")
 
         serializer = SourcesSerializer(context=self.request_context)
-        validated = {"billing_source": {"bucket": "second-bucket"}}
+        validated = {"billing_source": {"data_source": {"bucket": "second-bucket"}}}
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             with patch("sources.api.serializers.ServerProxy") as mock_client:
                 mock_sources_client = MockSourcesClient("http://mock-soures-client")
                 mock_client.return_value.__enter__.return_value = mock_sources_client
                 instance2 = serializer.update(instance, validated)
 
-        self.assertEqual(instance2.billing_source.get("bucket"), "second-bucket")
+        self.assertEqual(instance2.billing_source.get("data_source", {}).get("bucket"), "second-bucket")
 
     def test_validate_billing_source(self, _):
         """Test to validate that the billing source dictionary is valid."""

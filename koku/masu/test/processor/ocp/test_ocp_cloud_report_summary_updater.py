@@ -100,7 +100,8 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
-            cluster_id = provider_accessor.get_authentication()
+            credentials = provider_accessor.get_authentication()
+        cluster_id = credentials.get("provider_resource_name")
         mock_map.return_value = {self.ocp_test_provider_uuid: (self.aws_provider_uuid, Provider.PROVIDER_AWS)}
         updater = OCPCloudReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
         updater.update_summary_tables(start_date_str, end_date_str)

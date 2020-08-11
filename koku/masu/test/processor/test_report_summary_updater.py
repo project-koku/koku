@@ -152,9 +152,11 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
     def test_bad_provider(self):
         """Test that an unimplemented provider throws an error."""
-        self.unknown_auth = ProviderAuthentication.objects.create(provider_resource_name="unknown")
+        credentials = {"credentials": {"provider_resource_name": "unknown"}}
+        self.unknown_auth = ProviderAuthentication.objects.create(credentials=credentials)
         self.unknown_auth.save()
-        self.unknown_billing_source = ProviderBillingSource.objects.create(bucket="unknown")
+        data_source = {"data_source": {"bucket": "unknown"}}
+        self.unknown_billing_source = ProviderBillingSource.objects.create(data_source=data_source)
         self.unknown_billing_source.save()
 
         with patch("masu.celery.tasks.check_report_updates"):
