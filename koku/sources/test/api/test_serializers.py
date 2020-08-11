@@ -337,8 +337,8 @@ class SourcesSerializerTests(IamTestCase):
                 self.fail("test_create_via_admin_serializer failed")
 
         source_data["name"] = "test2"
-        source_data["authentication"]["resource_name"] = "arn:aws::foo:bar2"
-        source_data["billing_source"]["bucket"] = "/tmp/mybucket"
+        source_data["authentication"] = {"credentials": {"resource_name": "arn:aws::foo:bar2"}}
+        source_data["billing_source"] = {"data_source": {"bucket": "/tmp/mybucket"}}
         serializer = AdminSourcesSerializer(data=source_data, context=context)
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             if serializer.is_valid(raise_exception=True):

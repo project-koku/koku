@@ -65,10 +65,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         LOG.debug("Connecting to local service provider...")
         prefix, name = self._extract_names(bucket)
 
-        if report_name:
-            self.report_name = report_name
-        else:
-            self.report_name = name
+        self.report_name = report_name if report_name else name
         self.report_prefix = prefix
 
         msg = f"Found report name: {self.report_name}, report prefix: {self.report_prefix}"

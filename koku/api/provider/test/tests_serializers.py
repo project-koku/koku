@@ -197,6 +197,7 @@ class ProviderSerializerTest(IamTestCase):
             "name": "test_provider",
             "type": Provider.PROVIDER_OCP.lower(),
             "authentication": {"credentials": {"provider_resource_name": cluster_id}},
+            "billing_source": {},
         }
 
         instance = None
@@ -595,8 +596,8 @@ class AdminProviderSerializerTest(IamTestCase):
         provider = {
             "name": "test_provider",
             "type": Provider.PROVIDER_AWS.lower(),
-            "authentication": {"provider_resource_name": iam_arn},
-            "billing_source": {"bucket": bucket_name},
+            "authentication": {"credentials": {"provider_resource_name": iam_arn}},
+            "billing_source": {"data_source": {"bucket": bucket_name}},
         }
 
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):

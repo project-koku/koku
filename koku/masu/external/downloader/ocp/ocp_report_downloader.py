@@ -123,9 +123,12 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         self.customer_name = customer_name.replace(" ", "_")
         self.report_name = report_name
-        self.cluster_id = credentials.get("provider_resource_name")
         self.temp_dir = None
         self.data_source = data_source
+        if isinstance(credentials, dict):
+            self.cluster_id = credentials.get("provider_resource_name")
+        else:
+            self.cluster_id = credentials
         self.context["cluster_id"] = self.cluster_id
 
     def _get_manifest(self, date_time):
