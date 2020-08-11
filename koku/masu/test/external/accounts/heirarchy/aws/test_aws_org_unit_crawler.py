@@ -296,6 +296,13 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         with schema_context(self.schema):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 3)
+        # simulate an org unit getting into a deleted state and ensure that the crawler
+        # nullifies the deleted_timestamp
+        with schema_context(self.schema):
+            ou_to_update = AWSOrganizationalUnit.objects.filter(org_unit_id="R_001")
+            ou_to_update.update(deleted_timestamp=unit_crawler._date_accessor.today())
+        updated_ou = unit_crawler._save_aws_org_method(root_ou, "unit_path", 0, root_account)
+        self.assertEqual(updated_ou.deleted_timestamp, None)
 
     def test_build_account_alias_map(self):
         """Test function that builds account alias map."""
@@ -404,3 +411,43 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         # today
         structure_today = unit_crawler._compute_org_structure_interval(today)
         self.assertEqual(len(structure_today), expected_today_count)
+
+    @patch("masu.util.aws.common.get_assume_role_session")
+    @patch("masu.external.accounts.hierarchy.aws.aws_org_unit_crawler.AWSOrgUnitCrawler._crawl_accounts_per_id")
+    def test_no_delete_on_exceptions(self, mock_crawl, mock_session):
+        """Test that when things go wrong we don't delete."""
+        mock_crawl.side_effect = Exception()
+        mock_session.client = MagicMock()
+        account_side_effect = []
+        paginator_side_effect = []
+        paginator_dict = {
+            "r-0": {
+                "OrganizationalUnits": [
+                    {"Id": "ou-0", "Arn": "arn-0", "Name": "Big_Org_0"},
+                    {"Id": "ou-1", "Arn": "arn-1", "Name": "Big_Org_1"},
+                    {"Id": "ou-2", "Arn": "arn-2", "Name": "Big_Org_2"},
+                ]
+            },
+            "ou-0": {"OrganizationalUnits": [{"Id": "sou-0", "Arn": "arn-0", "Name": "Sub_Org_0"}]},
+            "ou-1": {"OrganizationalUnits": []},
+            "ou-2": {"OrganizationalUnits": []},
+            "sou-0": {"OrganizationalUnits": []},
+        }
+        ou_ids = ["r-0", "ou-0", "ou-1", "ou-2", "sou-0"]
+        for ou_id in ou_ids:
+            parent_acts = _generate_act_for_parent_side_effect(self.schema, ou_id)
+            account_side_effect.extend(parent_acts)
+            paginator = MagicMock()
+            paginator.paginate(ParentId=ou_id).build_full_result.return_value = paginator_dict[ou_id]
+            paginator_side_effect.append(paginator)
+        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler._init_session()
+        unit_crawler._client.list_roots.return_value = {"Roots": [{"Id": "r-0", "Arn": "arn-0", "Name": "root_0"}]}
+        unit_crawler._client.list_accounts_for_parent.side_effect = account_side_effect
+        unit_crawler._client.get_paginator.side_effect = paginator_side_effect
+        with patch(
+            "masu.external.accounts.hierarchy.aws.aws_org_unit_crawler.AWSOrgUnitCrawler._mark_nodes_deleted"
+        ) as mock_deleted:
+            unit_crawler.crawl_account_hierarchy()
+            self.assertEqual(True, unit_crawler.errors_raised)
+            self.assertEqual(False, mock_deleted.called)
