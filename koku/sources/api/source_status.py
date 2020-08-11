@@ -51,37 +51,22 @@ class SourceStatus:
     def sources_response(self):
         return self.sources_client.build_source_status(self.status())
 
-    def determine_status(self, provider, source_authentication, source_billing_source):
+    def determine_status(self, provider_type, source_authentication, source_billing_source):
         """Check cloud configuration status."""
-        interface = ProviderAccessor(provider)
+        interface = ProviderAccessor(provider_type)
         error_obj = None
         try:
             interface.cost_usage_source_ready(source_authentication, source_billing_source)
         except ValidationError as validation_error:
             error_obj = validation_error
-
         return error_obj
 
     def status(self):
         """Find the source's availability status."""
-        # Get the source billing_source, whether it's named bucket
-        if self.source.billing_source.get("bucket"):
-            source_billing_source = self.source.billing_source.get("bucket")
-        elif self.source.billing_source.get("data_source"):
-            source_billing_source = self.source.billing_source.get("data_source")
-        else:
-            source_billing_source = {}
-        # Get the source authentication
-        if self.source.authentication.get("resource_name"):
-            source_authentication = self.source.authentication.get("resource_name")
-        elif self.source.authentication.get("credentials"):
-            source_authentication = self.source.authentication.get("credentials")
-        else:
-            source_authentication = {}
-        provider = self.source.source_type
-
-        status_obj = self.determine_status(provider, source_authentication, source_billing_source)
-        return status_obj
+        source_billing_source = self.source.billing_source.get("data_source") or {}
+        source_authentication = self.source.authentication.get("credentials") or {}
+        provider_type = self.source.source_type
+        return self.determine_status(provider_type, source_authentication, source_billing_source)
 
     def push_status(self):
         """Push status_msg to platform sources."""
@@ -118,7 +103,7 @@ def _deliver_status(request, status_obj):
         raise status.HTTP_405_METHOD_NOT_ALLOWED
 
 
-@never_cache  # noqa: C901
+@never_cache
 @api_view(http_method_names=["GET", "POST"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))

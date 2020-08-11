@@ -46,8 +46,9 @@ class OCPProvider(ProviderInterface):
         """Return name of the provider."""
         return Provider.PROVIDER_OCP
 
-    def cost_usage_source_is_reachable(self, cluster_id, data_source):
+    def cost_usage_source_is_reachable(self, credential, data_source):
         """Verify that the cost usage source exists and is reachable."""
+        cluster_id = credential.get("provider_resource_name")
         if not cluster_id or len(cluster_id) == 0:
             key = "authentication.provider_resource_name"
             message = "Provider resource name is a required parameter for OCP."

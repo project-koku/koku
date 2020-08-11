@@ -143,18 +143,18 @@ class AWSProvider(ProviderInterface):
             message = ProviderErrors.AWS_MISSING_RESOURCE_NAME_MESSAGE
             raise serializers.ValidationError(error_obj(key, message))
 
+        storage_resource_name = data_source.get("bucket")
+        if not storage_resource_name or storage_resource_name.isspace():
+            key = ProviderErrors.AWS_BUCKET_MISSING
+            message = ProviderErrors.AWS_BUCKET_MISSING_MESSAGE
+            raise serializers.ValidationError(error_obj(key, message))
+
         creds = _get_sts_access(credential_name)
         # if any values in creds are None, the dict won't be empty
         if bool({k: v for k, v in creds.items() if not v}):
             key = ProviderErrors.AWS_RESOURCE_NAME_UNREACHABLE
             internal_message = f"Unable to access account resources with ARN {credential_name}."
             raise serializers.ValidationError(error_obj(key, internal_message))
-
-        storage_resource_name = data_source.get("bucket")
-        if not storage_resource_name or storage_resource_name.isspace():
-            key = ProviderErrors.AWS_BUCKET_MISSING
-            message = ProviderErrors.AWS_BUCKET_MISSING_MESSAGE
-            raise serializers.ValidationError(error_obj(key, message))
 
         s3_exists = _check_s3_access(storage_resource_name, creds)
         if not s3_exists:

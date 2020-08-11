@@ -47,7 +47,7 @@ class SourcesHTTPClientTest(TestCase):
         self.name = "Test Source"
         self.application_type = 2
         self.source_id = 1
-        self.authentication = {"provider_resource_name": "testauth"}
+        self.authentication = "testauth"
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_get_source_details(self):
@@ -197,7 +197,7 @@ class SourcesHTTPClientTest(TestCase):
                 json={"password": self.authentication},
             )
             response = client.get_aws_role_arn()
-            self.assertEqual(response, self.authentication)
+            self.assertEqual(response, {"provider_resource_name": self.authentication})
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_get_aws_role_arn_no_auth(self):

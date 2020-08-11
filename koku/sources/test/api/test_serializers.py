@@ -268,21 +268,21 @@ class SourcesSerializerTests(IamTestCase):
         """Test the updating aws billing_source."""
         serializer = SourcesSerializer(context=self.request_context)
         test_bucket = "some-new-bucket"
-        validated_data = {"billing_source": {"bucket": test_bucket}}
+        validated_data = {"billing_source": {"data_source": {"bucket": test_bucket}}}
         with patch("sources.api.serializers.ServerProxy") as mock_client:
             with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
                 mock_sources_client = MockSourcesClient("http://mock-soures-client")
                 mock_client.return_value.__enter__.return_value = mock_sources_client
                 instance = serializer.update(self.aws_obj, validated_data)
 
-        self.assertIn("bucket", instance.billing_source.keys())
-        self.assertEqual(test_bucket, instance.billing_source.get("bucket"))
+        self.assertIn("data_source", instance.billing_source.keys())
+        self.assertEqual(test_bucket, instance.billing_source.get("data_source").get("bucket"))
 
     def test_aws_source_billing_source_update_missing_bucket(self, _):
         """Test the updating aws billing_source."""
         serializer = SourcesSerializer(context=self.request_context)
         test_bucket = None
-        validated_data = {"billing_source": {"bucket": test_bucket}}
+        validated_data = {"billing_source": {"data_source": {"bucket": test_bucket}}}
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.aws_obj, validated_data)
 
@@ -293,7 +293,7 @@ class SourcesSerializerTests(IamTestCase):
         test_bucket = "test-bucket"
         serializer = SourcesSerializer(context=self.request_context)
         test_bucket = None
-        validated_data = {"billing_source": {"bucket": test_bucket}}
+        validated_data = {"billing_source": {"data_source": {"bucket": test_bucket}}}
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.aws_obj, validated_data)
 
@@ -302,17 +302,17 @@ class SourcesSerializerTests(IamTestCase):
         with patch("sources.api.serializers.ServerProxy") as mock_client:
             mock_client.side_effect = ConnectionRefusedError
             with self.assertRaises(SourcesDependencyError):
-                validated_data = {"billing_source": {"bucket": "some-new-bucket"}}
+                validated_data = {"billing_source": {"data_source": {"bucket": "some-new-bucket"}}}
                 serializer.update(self.aws_obj, validated_data)
 
             mock_client.side_effect = gaierror
             with self.assertRaises(SourcesDependencyError):
-                validated_data = {"billing_source": {"bucket": "some-new-bucket"}}
+                validated_data = {"billing_source": {"data_source": {"bucket": "some-new-bucket"}}}
                 serializer.update(self.aws_obj, validated_data)
 
         # catch ProtocolError
         with self.assertRaises(SourcesDependencyError):
-            validated_data = {"billing_source": {"bucket": "some-new-bucket"}}
+            validated_data = {"billing_source": {"data_source": {"bucket": "some-new-bucket"}}}
             serializer.update(self.aws_obj, validated_data)
 
     def test_create_via_admin_serializer(self, _):
@@ -320,8 +320,8 @@ class SourcesSerializerTests(IamTestCase):
         source_data = {
             "name": "test1",
             "source_type": "AWS",
-            "authentication": {"resource_name": "arn:aws::foo:bar"},
-            "billing_source": {"bucket": "/tmp/s3bucket"},
+            "authentication": {"credentials": {"resource_name": "arn:aws::foo:bar"}},
+            "billing_source": {"data_source": {"bucket": "/tmp/s3bucket"}},
         }
         mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
         context = {"request": mock_request}
@@ -355,8 +355,8 @@ class SourcesSerializerTests(IamTestCase):
         source_data = {
             "name": "test",
             "source_type": "BAD",
-            "authentication": {"resource_name": "arn:aws::foo:bar"},
-            "billing_source": {"bucket": "/tmp/s3bucket"},
+            "authentication": {"credentials": {"resource_name": "arn:aws::foo:bar"}},
+            "billing_source": {"data_source": {"bucket": "/tmp/s3bucket"}},
         }
         mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
         context = {"request": mock_request}
@@ -383,8 +383,10 @@ class SourcesSerializerTests(IamTestCase):
             "source_id": 10,
             "name": "ProviderAWS",
             "source_type": "AWS",
-            "authentication": {"resource_name": "arn:aws:iam::111111111111:role/CostManagement"},
-            "billing_source": {"bucket": "first-bucket"},
+            "authentication": {
+                "credentials": {"provider_resource_name": "arn:aws:iam::111111111111:role/CostManagement"}
+            },
+            "billing_source": {"data_source": {"bucket": "first-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
             "account_id": "acct10001",
             "offset": 10,

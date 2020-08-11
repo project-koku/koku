@@ -99,7 +99,7 @@ class ProviderBuilder:
             return provider_fn(authentication)
 
     def _build_provider_bucket(self, billing_source):
-        if billing_source.get("data_source"):
+        if billing_source.get("data_source") and isinstance(billing_source.get("data_source"), dict):
             billing = {"data_source": billing_source.get("data_source")}
         else:
             raise ProviderBuilderError("Missing bucket")
