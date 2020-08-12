@@ -156,7 +156,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest["reportKeys"] = [report_name]
         manifest["Compression"] = UNCOMPRESSED
 
-        return manifest
+        return manifest, blob.last_modified
 
     def get_manifest_context_for_date(self, date):
         """
@@ -175,7 +175,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest_dict = {}
         report_dict = {}
-        manifest = self._get_manifest(date)
+        manifest, manifest_timestamp = self._get_manifest(date)
         if manifest == {}:
             return report_dict
 
@@ -183,7 +183,10 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         if manifest_dict:
             manifest_id = self._process_manifest_db_record(
-                manifest_dict.get("assembly_id"), manifest_dict.get("billing_start"), manifest_dict.get("num_of_files")
+                manifest_dict.get("assembly_id"),
+                manifest_dict.get("billing_start"),
+                manifest_dict.get("num_of_files"),
+                manifest_timestamp,
             )
 
             report_dict["manifest_id"] = manifest_id
