@@ -83,8 +83,7 @@ class OrchestratorTest(MasuTestCase):
     def test_initializer(self, mock_inspect):
         """Test to init."""
         orchestrator = Orchestrator()
-        provider_count = Provider.objects.count()
-
+        provider_count = Provider.objects.filter(active=True).count()
         if len(orchestrator._accounts) != provider_count:
             self.fail("Unexpected number of test accounts")
 
@@ -196,12 +195,9 @@ class OrchestratorTest(MasuTestCase):
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.AccountLabel", spec=True)
-    @patch("masu.processor.orchestrator.ProviderStatus", spec=True)
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", side_effect=ReportDownloaderError)
-    def test_prepare_w_downloader_error(self, mock_task, mock_accessor, mock_labeler, mock_inspect):
+    def test_prepare_w_downloader_error(self, mock_task, mock_labeler, mock_inspect):
         """Test that Orchestrator.prepare() handles downloader errors."""
-        mock_accessor().is_valid.return_value = True
-        mock_accessor().is_backing_off.return_value = False
 
         orchestrator = Orchestrator()
         orchestrator.prepare()
@@ -210,12 +206,9 @@ class OrchestratorTest(MasuTestCase):
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.AccountLabel", spec=True)
-    @patch("masu.processor.orchestrator.ProviderStatus", spec=True)
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", side_effect=Exception)
-    def test_prepare_w_exception(self, mock_task, mock_accessor, mock_labeler, mock_inspect):
+    def test_prepare_w_exception(self, mock_task, mock_labeler, mock_inspect):
         """Test that Orchestrator.prepare() handles broad exceptions."""
-        mock_accessor().is_valid.return_value = True
-        mock_accessor().is_backing_off.return_value = False
 
         orchestrator = Orchestrator()
         orchestrator.prepare()
@@ -224,39 +217,19 @@ class OrchestratorTest(MasuTestCase):
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.AccountLabel", spec=True)
-    @patch("masu.processor.orchestrator.ProviderStatus", spec=True)
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=True)
-    def test_prepare_w_status_valid(self, mock_task, mock_accessor, mock_labeler, mock_inspect):
-        """Test that Orchestrator.prepare() works when status is valid."""
+    def test_prepare_w_manifest_processing_successful(self, mock_task, mock_labeler, mock_inspect):
+        """Test that Orchestrator.prepare() works when manifest processing is successful."""
         mock_labeler().get_label_details.return_value = (True, True)
 
-        mock_accessor().is_valid.return_value = True
-        mock_accessor().is_backing_off.return_value = False
-
         orchestrator = Orchestrator()
         orchestrator.prepare()
-        mock_task.assert_called()
+        mock_labeler.assert_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.orchestrator.ProviderStatus", spec=True)
     @patch("masu.processor.orchestrator.get_report_files.apply_async", return_value=True)
-    def test_prepare_w_status_invalid(self, mock_task, mock_accessor, mock_inspect):
-        """Test that Orchestrator.prepare() is skipped when status is invalid."""
-        mock_accessor.is_valid.return_value = False
-        mock_accessor.is_backing_off.return_value = False
-
-        orchestrator = Orchestrator()
-        orchestrator.prepare()
-        mock_task.assert_not_called()
-
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.orchestrator.ProviderStatus", spec=True)
-    @patch("masu.processor.orchestrator.get_report_files.apply_async", return_value=True)
-    def test_prepare_w_status_backoff(self, mock_task, mock_accessor, mock_inspect):
-        """Test that Orchestrator.prepare() is skipped when backing off."""
-        mock_accessor.is_valid.return_value = False
-        mock_accessor.is_backing_off.return_value = True
-
+    def test_prepare_w_no_manifest_found(self, mock_task, mock_inspect):
+        """Test that Orchestrator.prepare() is skipped when no manifest is found."""
         orchestrator = Orchestrator()
         orchestrator.prepare()
         mock_task.assert_not_called()
