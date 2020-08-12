@@ -283,12 +283,26 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         with schema_context(self.schema):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 3)
+
+    def test_org_unit_deleted_state(self):
+        """Test that an org unit that is in a deleted state is fixed when it is found again."""
+        unit_crawler = AWSOrgUnitCrawler(self.account)
+        with schema_context(self.schema):
+            AWSAccountAlias.objects.create(account_id="A_001", account_alias="Root Account")
+        unit_crawler._build_accout_alias_map()
+        unit_crawler._structure_yesterday = {}
+        root_ou = {"Id": "R_001", "Name": "root"}
+        root_account = {"Id": "A_001", "Name": "Root Account"}
+        unit_crawler._save_aws_org_method(root_ou, "unit_path", 0, root_account)
         # simulate an org unit getting into a deleted state and ensure that the crawler
         # nullifies the deleted_timestamp
         with schema_context(self.schema):
             ou_to_update = AWSOrganizationalUnit.objects.filter(org_unit_id="R_001")
             ou_to_update.update(deleted_timestamp=unit_crawler._date_accessor.today())
         updated_ou = unit_crawler._save_aws_org_method(root_ou, "unit_path", 0, root_account)
+        with schema_context(self.schema):
+            cur_count = AWSOrganizationalUnit.objects.count()
+            self.assertEqual(cur_count, 1)
         self.assertEqual(updated_ou.deleted_timestamp, None)
 
     def test_build_account_alias_map(self):
