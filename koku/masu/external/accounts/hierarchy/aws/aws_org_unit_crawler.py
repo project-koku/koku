@@ -256,7 +256,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
                     )
                 )
             elif org_unit.deleted_timestamp is not None:
-                LOG.warn(
+                LOG.warning(
                     "Org unit {} was found with a deleted_timestamp for account"
                     " with provider_uuid={} and account_id={}. Setting deleted_timestamp to null!".format(
                         org_unit.org_unit_id, self.account.get("provider_uuid"), self.account_id
