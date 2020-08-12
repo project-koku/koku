@@ -482,10 +482,8 @@ class AWSReportViewTest(IamTestCase):
     def test_order_by_delta(self):
         """Test that the order_by delta with pagination does not error."""
         qs_list = [
-            "?filter[limit]=5&filter[offset]=0&order_by[delta]=asc",
             "?filter[limit]=5&filter[offset]=0&order_by[delta]=asc&delta=usage",
             "?order_by[delta]=asc&delta=usage",
-            "?order_by[delta]=asc",
         ]
         for qs in qs_list:
             url = reverse("reports-aws-instance-type") + qs
@@ -514,3 +512,11 @@ class AWSReportViewTest(IamTestCase):
                         else:
                             previous_delta = current_delta
             self.assertTrue(compared_deltas)
+
+    def test_order_by_delta_no_delta(self):
+        """Test that the order_by delta with no delta passed in triggers 400."""
+        qs_list = ["?filter[limit]=5&filter[offset]=0&order_by[delta]=asc", "?order_by[delta]=asc"]
+        for qs in qs_list:
+            url = reverse("reports-aws-instance-type") + qs
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

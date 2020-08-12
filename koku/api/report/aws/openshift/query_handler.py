@@ -61,13 +61,6 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                     account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
                 )
 
-            # Set default delta if one was not passed in.
-            if self.order_field == "delta":
-                if self._delta is None:
-                    delta_keys = list(self._mapper.report_type_map.get("delta_key").keys())
-                    if delta_keys:
-                        self._delta = delta_keys[0]
-
             if self._limit and query_data:
                 rank_orders = []
                 if self.order_field == "delta":

@@ -1034,10 +1034,8 @@ class OCPAWSReportViewTest(IamTestCase):
         url = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
         params_list = [
-            {"filter[limit]": limit, "filter[offset]": offset, "order_by[delta]": "asc"},
             {"filter[limit]": limit, "filter[offset]": offset, "order_by[delta]": "asc", "delta": "usage"},
             {"order_by[delta]": "asc", "delta": "usage"},
-            {"order_by[delta]": "asc"},
         ]
 
         for params in params_list:
@@ -1067,3 +1065,19 @@ class OCPAWSReportViewTest(IamTestCase):
                         else:
                             previous_delta = current_delta
             self.assertTrue(compared_deltas)
+
+    def test_order_by_delta_no_delta(self):
+        """Test that the order_by delta with no delta passed in triggers 400."""
+        limit = 5
+        offset = 0
+        url = reverse("reports-openshift-aws-instance-type")
+        client = APIClient()
+        params_list = [
+            {"filter[limit]": limit, "filter[offset]": offset, "order_by[delta]": "asc"},
+            {"order_by[delta]": "asc"},
+        ]
+
+        for params in params_list:
+            url = url + "?" + urlencode(params, quote_via=quote_plus)
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

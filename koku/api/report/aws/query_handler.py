@@ -524,11 +524,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
             query_sum = self._build_sum(query, annotations)
             # Set default delta if one was not passed in.
-            if self.order_field == "delta":
-                if self._delta is None:
-                    delta_keys = list(self._mapper.report_type_map.get("delta_key").keys())
-                    if delta_keys:
-                        self._delta = delta_keys[0]
 
             if not org_unit_applied:
                 if self._limit and query_data:
