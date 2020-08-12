@@ -579,6 +579,7 @@ class OCPReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             current_total = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start.date())
+                .filter(usage_end__lte=self.dh.today.date())
                 .aggregate(
                     total=Sum(
                         Coalesce(
@@ -617,6 +618,7 @@ class OCPReportViewTest(IamTestCase):
 
             current_totals = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start.date())
+                .filter(usage_end__lte=self.dh.today.date())
                 .annotate(**{"date": TruncDayString("usage_start")})
                 .values(*["date"])
                 .annotate(
@@ -655,7 +657,7 @@ class OCPReportViewTest(IamTestCase):
 
             prev_totals = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=last_month_start.date())
-                .filter(usage_start__lt=this_month_start.date())
+                .filter(usage_end__lte=self.dh.last_month_end.date())
                 .annotate(**{"date": TruncDayString("usage_start")})
                 .values(*["date"])
                 .annotate(
@@ -1005,12 +1007,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=false"
-        query_params = self.mocked_query_params(url, OCPTagView)
-        handler = OCPTagQueryHandler(query_params)
-        tag_keys = handler.get_tag_keys()
-        tag_keys.sort(reverse=True)
-        filter_key = tag_keys[0]
+        filter_key = "environment"
 
         with tenant_context(self.tenant):
             labels = (
@@ -1024,6 +1021,7 @@ class OCPReportViewTest(IamTestCase):
 
             totals = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
+                .filter(usage_end__lte=self.dh.today.date())
                 .filter(**{f"pod_labels__{filter_key}": filter_value})
                 .aggregate(
                     **{
@@ -1066,12 +1064,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_costs_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=false"
-        query_params = self.mocked_query_params(url, OCPTagView)
-        handler = OCPTagQueryHandler(query_params)
-        tag_keys = handler.get_tag_keys()
-        tag_keys.sort(reverse=True)
-        filter_key = tag_keys[0]
+        filter_key = "environment"
         with tenant_context(self.tenant):
             labels = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
@@ -1079,12 +1072,15 @@ class OCPReportViewTest(IamTestCase):
                 .values(*["pod_labels"])
                 .all()
             )
+
             label_of_interest = labels[0]
             filter_value = label_of_interest.get("pod_labels", {}).get(filter_key)
 
             totals = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
+                .filter(usage_end__lte=self.dh.today.date())
                 .filter(**{f"pod_labels__{filter_key}": filter_value})
+                .filter(data_source="Pod")
                 .aggregate(
                     cost=Sum(
                         Coalesce(
@@ -1137,15 +1133,11 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
-        url = "?filter[type]=pod&filter[enabled]=false"
-        query_params = self.mocked_query_params(url, OCPTagView)
-        handler = OCPTagQueryHandler(query_params)
-        tag_keys = handler.get_tag_keys()
-        filter_key = tag_keys[0]
+        filter_key = "environment"
 
         with tenant_context(self.tenant):
             totals = OCPUsageLineItemDailySummary.objects.filter(
-                usage_start__gte=self.ten_days_ago.date(), pod_labels__has_key=filter_key
+                usage_start__gte=self.ten_days_ago.date(), usage_end__lte=self.dh.today.date(), data_source="Pod"
             ).aggregate(
                 **{
                     "usage": Sum("pod_usage_cpu_core_hours"),
@@ -1191,11 +1183,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
-        url = "?filter[type]=pod&filter[enabled]=false"
-        query_params = self.mocked_query_params(url, OCPTagView)
-        handler = OCPTagQueryHandler(query_params)
-        tag_keys = handler.get_tag_keys()
-        group_by_key = tag_keys[0]
+        group_by_key = "environment"
 
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -1633,11 +1621,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_and_tag_filter(self):
         """Test the filter[and:tag:] param in the view."""
-        url = "?filter[type]=pod&filter[time_scope_value]=-1&filter[enabled]=false"
-        query_params = self.mocked_query_params(url, OCPTagView)
-        handler = OCPTagQueryHandler(query_params)
-        tag_keys = handler.get_tag_keys()
-        filter_key = tag_keys[0]
+        filter_key = "environment"
 
         with tenant_context(self.tenant):
             labels = (
@@ -1666,11 +1650,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_and_tag_group_by(self):
         """Test the group_by[and:tag:] param in the view."""
-        url = "?filter[type]=pod&filter[time_scope_value]=-1&filter[enabled]=false"
-        query_params = self.mocked_query_params(url, OCPTagView)
-        handler = OCPTagQueryHandler(query_params)
-        tag_keys = handler.get_tag_keys()
-        group_by_key = tag_keys[0]
+        group_by_key = "environment"
 
         with tenant_context(self.tenant):
             labels = (

@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test utilities."""
+import logging
 import os
 import pkgutil
 import shutil
@@ -35,6 +36,8 @@ from masu.processor.report_processor import ReportProcessor
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_summary_tables
+
+LOG = logging.getLogger(__name__)
 
 
 class NiseDataLoader:
@@ -62,10 +65,11 @@ class NiseDataLoader:
         prev_month_start = start_date - relativedelta(months=1)
         prev_month_end = end_date - relativedelta(months=1)
 
-        return [
+        test_dates = [
             (prev_month_start, prev_month_end, self.dh.last_month_start),
             (start_date, end_date, self.dh.this_month_start),
         ]
+        return test_dates
 
     def prepare_template(self, provider_type, static_data_file):
         """Prepare the Jinja template for static data."""
@@ -107,6 +111,8 @@ class NiseDataLoader:
             "static_report_file": static_data_path,
             "insights_upload": self.nise_data_path,
             "ocp_cluster_id": cluster_id,
+            "days_per_month": 4,
+            "log_level": 3,
         }
         base_path = f"{self.nise_data_path}/{cluster_id}"
 
@@ -119,13 +125,18 @@ class NiseDataLoader:
                 num_total_files=3,
             )
             with open(static_data_path, "w") as f:
-                f.write(template.render(start_date=start_date, end_date=end_date))
+                rendered = template.render(start_date=start_date, end_date=end_date)
+                f.write(rendered)
 
             run(provider_type.lower(), options)
 
             report_path = self.build_report_path(provider_type, bill_date, base_path)
-            for report in os.scandir(report_path):
-                shutil.move(report.path, f"{base_path}/{report.name}")
+            try:
+                for report in os.scandir(report_path):
+                    shutil.move(report.path, f"{base_path}/{report.name}")
+            except IOError as exc:
+                LOG.error(exc)
+
             for report in [f.path for f in os.scandir(base_path)]:
                 if os.path.isdir(report):
                     continue
@@ -136,11 +147,14 @@ class NiseDataLoader:
                 update_summary_tables(
                     self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
                 )
+            del options["start_date"]
+            del options["end_date"]
+
         update_cost_model_costs(self.schema, provider.uuid, self.dh.last_month_start, self.dh.today)
         refresh_materialized_views(self.schema, provider_type)
         shutil.rmtree(report_path, ignore_errors=True)
 
-    def load_aws_data(self, customer, static_data_file, account_id=None, provider_resource_name=None):
+    def load_aws_data(self, customer, static_data_file, account_id=None, provider_resource_name=None):  # noqa: C901
         """Load AWS data into the database."""
         provider_type = Provider.PROVIDER_AWS_LOCAL
         if account_id is None:
@@ -162,6 +176,8 @@ class NiseDataLoader:
             "static_report_file": static_data_path,
             "aws_report_name": report_name,
             "aws_bucket_name": self.nise_data_path,
+            "days_per_month": 4,
+            "log_level": 3,
         }
         base_path = f"{self.nise_data_path}/{report_name}"
 
@@ -181,18 +197,25 @@ class NiseDataLoader:
             run(nise_provider_type.lower(), options)
 
             report_path = self.build_report_path(provider_type, bill_date, base_path)
-            for report in os.scandir(report_path):
-                if os.path.isdir(report):
-                    for report in [f.path for f in os.scandir(f"{report_path}/{report.name}")]:
-                        if os.path.isdir(report):
-                            continue
-                        elif "manifest" in report.lower():
-                            continue
-                        self.process_report(report, "GZIP", provider_type, provider, manifest)
+            try:
+                for report in os.scandir(report_path):
+                    if os.path.isdir(report):
+                        for report in [f.path for f in os.scandir(f"{report_path}/{report.name}")]:
+                            if os.path.isdir(report):
+                                continue
+                            elif "manifest" in report.lower():
+                                continue
+                            self.process_report(report, "GZIP", provider_type, provider, manifest)
+            except IOError as exc:
+                LOG.error(exc)
+
             with patch("masu.processor.tasks.chain"), patch.object(settings, "AUTO_DATA_INGEST", False):
                 update_summary_tables(
                     self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
                 )
+            del options["start_date"]
+            del options["end_date"]
+
         update_cost_model_costs(self.schema, provider.uuid, self.dh.last_month_start, self.dh.today)
         refresh_materialized_views(self.schema, provider_type)
         shutil.rmtree(base_path, ignore_errors=True)
@@ -226,6 +249,8 @@ class NiseDataLoader:
             "static_report_file": static_data_path,
             "azure_report_name": report_name,
             "azure_container_name": self.nise_data_path,
+            "days_per_month": 4,
+            "log_level": 3,
         }
         base_path = f"{self.nise_data_path}/{report_name}"
 
@@ -242,16 +267,23 @@ class NiseDataLoader:
             run(nise_provider_type.lower(), options)
 
             report_path = self.build_report_path(provider_type, bill_date, base_path)
-            for report in os.scandir(report_path):
-                if os.path.isdir(report):
-                    continue
-                elif "manifest" in report.name.lower():
-                    continue
-                self.process_report(report, "PLAIN", provider_type, provider, manifest)
-            with patch("masu.processor.tasks.chain"), patch.object(settings, "AUTO_DATA_INGEST", False):
-                update_summary_tables(
-                    self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
-                )
+            try:
+                for report in os.scandir(report_path):
+                    if os.path.isdir(report):
+                        continue
+                    elif "manifest" in report.name.lower():
+                        continue
+                    self.process_report(report, "PLAIN", provider_type, provider, manifest)
+                with patch("masu.processor.tasks.chain"), patch.object(settings, "AUTO_DATA_INGEST", False):
+                    update_summary_tables(
+                        self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
+                    )
+            except IOError as exc:
+                LOG.error(exc)
+
+            del options["start_date"]
+            del options["end_date"]
+
         update_cost_model_costs(self.schema, provider.uuid, self.dh.last_month_start, self.dh.today)
         refresh_materialized_views(self.schema, provider_type)
         shutil.rmtree(base_path, ignore_errors=True)
