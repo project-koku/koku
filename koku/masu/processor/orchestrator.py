@@ -33,7 +33,6 @@ from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
 from masu.processor.worker_cache import WorkerCache
-from masu.providers.status import ProviderStatus
 
 LOG = logging.getLogger(__name__)
 
@@ -214,43 +213,33 @@ class Orchestrator:
             provider_uuid = account.get("provider_uuid")
             report_months = self.get_reports(provider_uuid)
             for month in report_months:
-                provider_status = ProviderStatus(provider_uuid)
-                if provider_status.is_valid() and not provider_status.is_backing_off():
-                    LOG.info(
-                        "Getting %s report files for account (provider uuid): %s",
-                        month.strftime("%B %Y"),
-                        provider_uuid,
+                LOG.info(
+                    "Getting %s report files for account (provider uuid): %s", month.strftime("%B %Y"), provider_uuid
+                )
+                account["report_month"] = month
+                try:
+                    self.start_manifest_processing(**account)
+                except ReportDownloaderError as err:
+                    LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
+                    continue
+                except Exception as err:
+                    # Broad exception catching is important here because any errors thrown can
+                    # block all subsequent account processing.
+                    LOG.error(
+                        f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}."
                     )
-                    account["report_month"] = month
-                    try:
-                        self.start_manifest_processing(**account)
-                    except ReportDownloaderError as err:
-                        LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
-                        continue
-                    except Exception as err:
-                        # Broad exception catching is important here because any errors thrown can
-                        # block all subsequent account processing.
-                        LOG.error(
-                            f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}."
-                        )
-                        continue
+                    continue
 
-                    # update labels
-                    labeler = AccountLabel(
-                        auth=account.get("authentication"),
-                        schema=account.get("schema_name"),
-                        provider_type=account.get("provider_type"),
-                    )
-                    account_number, label = labeler.get_label_details()
-                    if account_number:
-                        LOG.info("Account: %s Label: %s updated.", account_number, label)
-                else:
-                    LOG.info(
-                        "Provider skipped: %s Valid: %s Backing off: %s",
-                        account.get("provider_uuid"),
-                        provider_status.is_valid(),
-                        provider_status.is_backing_off(),
-                    )
+                # update labels
+                labeler = AccountLabel(
+                    auth=account.get("authentication"),
+                    schema=account.get("schema_name"),
+                    provider_type=account.get("provider_type"),
+                )
+                account_number, label = labeler.get_label_details()
+                if account_number:
+                    LOG.info("Account: %s Label: %s updated.", account_number, label)
+
         return async_result
 
     def remove_expired_report_data(self, simulate=False, line_items_only=False):
