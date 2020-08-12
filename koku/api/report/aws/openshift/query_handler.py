@@ -61,9 +61,13 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                     account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
                 )
 
-            if self._limit:
-                rank_order = getattr(F(self.order_field), self.order_direction)()
-                rank_by_total = Window(expression=RowNumber(), partition_by=F("date"), order_by=rank_order)
+            if self._limit and query_data:
+                rank_orders = []
+                if self.order_field == "delta":
+                    rank_orders.append(getattr(F(self._delta), self.order_direction)())
+                else:
+                    rank_orders.append(getattr(F(self.order_field), self.order_direction)())
+                rank_by_total = Window(expression=RowNumber(), partition_by=F("date"), order_by=rank_orders)
                 query_data = query_data.annotate(rank=rank_by_total)
                 query_order_by.insert(1, "rank")
                 query_data = self._ranked_list(query_data)

@@ -1026,3 +1026,58 @@ class OCPAWSReportViewTest(IamTestCase):
                 url = url + "?" + urlencode(params, quote_via=quote_plus)
                 response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_order_by_delta(self):
+        """Test that the order_by delta with pagination does not error."""
+        limit = 5
+        offset = 0
+        url = reverse("reports-openshift-aws-instance-type")
+        client = APIClient()
+        params_list = [
+            {"filter[limit]": limit, "filter[offset]": offset, "order_by[delta]": "asc", "delta": "usage"},
+            {"order_by[delta]": "asc", "delta": "usage"},
+        ]
+
+        for params in params_list:
+            url = url + "?" + urlencode(params, quote_via=quote_plus)
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            response_data = response.json()
+            data = response_data.get("data", [])
+            meta = response_data.get("meta", {})
+
+            self.assertIn("total", meta)
+            self.assertIn("filter", meta)
+            self.assertIn("count", meta)
+
+            compared_deltas = False
+            for day in data:
+                previous_delta = None
+                for instance_type in day.get("instance_types", []):
+                    values = instance_type.get("values", [])
+                    if values:
+                        current_delta = values[0].get("delta_value")
+                        if previous_delta:
+                            self.assertLessEqual(previous_delta, current_delta)
+                            compared_deltas = True
+                            previous_delta = current_delta
+                        else:
+                            previous_delta = current_delta
+            self.assertTrue(compared_deltas)
+
+    def test_order_by_delta_no_delta(self):
+        """Test that the order_by delta with no delta passed in triggers 400."""
+        limit = 5
+        offset = 0
+        url = reverse("reports-openshift-aws-instance-type")
+        client = APIClient()
+        params_list = [
+            {"filter[limit]": limit, "filter[offset]": offset, "order_by[delta]": "asc"},
+            {"order_by[delta]": "asc"},
+        ]
+
+        for params in params_list:
+            url = url + "?" + urlencode(params, quote_via=quote_plus)
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
