@@ -79,6 +79,11 @@ SOURCE_PROVIDER_MAP = {
     SOURCES_AZURE_LOCAL_SOURCE_NAME: Provider.PROVIDER_AZURE_LOCAL,
 }
 
+# import debugpy
+# debugpy.listen(("0.0.0.0", 5678))
+# LOG.warning("waiting for attach")
+# debugpy.wait_for_client()
+
 
 class SourcesIntegrationError(ValidationError):
     """Sources Integration error."""

@@ -17,11 +17,13 @@
 """Test the Sources Status HTTP Client."""
 from unittest.mock import create_autospec
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.test.utils import override_settings
 from django.urls import reverse
 from faker import Faker
 from rest_framework import status
+from rest_framework.serializers import ValidationError
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -29,6 +31,7 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import ProviderErrors
+from sources.api.source_status import SourceStatus
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 
@@ -152,13 +155,13 @@ class SourcesStatusTest(IamTestCase):
 
     def test_available(self):
         """Test that availability status is available when cost_usage_source_ready is True."""
+        request = self.request_context.get("request")
         test_matrix = [
             {
                 "name": "New AWS Mock Test Source",
                 "source_type": Provider.PROVIDER_AWS,
                 "authentication": {"credentials": {"provider_resource_name": "fake-iam"}},
                 "billing_source": {"data_source": {"bucket": "my-bucket"}},
-                "koku_uuid": faker.uuid4(),
                 "offset": 1,
             },
             {
@@ -166,20 +169,22 @@ class SourcesStatusTest(IamTestCase):
                 "source_type": Provider.PROVIDER_AZURE,
                 "authentication": {"credentials": {"azure": "creds"}},
                 "billing_source": {"data_source": {"azure": "source"}},
-                "koku_uuid": faker.uuid4(),
                 "offset": 1,
             },
             {
                 "name": "New OCP Mock Test Source",
                 "source_type": Provider.PROVIDER_OCP,
                 "authentication": {"credentials": {"provider_resource_name": "cluster_id"}},
-                "koku_uuid": faker.uuid4(),
                 "offset": 1,
             },
         ]
         for i, test in enumerate(test_matrix):
             with self.subTest(test=test):
                 with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                    provider = Provider.objects.create(
+                        name=test.get("name"), created_by=request.user, customer=request.user.customer, active=True
+                    )
+                    test["koku_uuid"] = str(provider.uuid)
                     url = reverse("source-status")
                     client = APIClient()
                     # Insert a source with ID 1
@@ -187,6 +192,7 @@ class SourcesStatusTest(IamTestCase):
                     response = client.get(url + f"?source_id={i}", **self.headers)
                     actual_source_status = response.data
                     self.assertEquals("available", actual_source_status.get("availability_status"))
+                    self.assertTrue(Provider.objects.get(uuid=provider.uuid).active)
 
     def test_aws_unavailable(self):
         """Test that the API returns status when a source is configured correctly."""
@@ -260,3 +266,76 @@ class SourcesStatusTest(IamTestCase):
             "availability_status_error": "Provider resource name is a required parameter for OCP.",
         }
         self.assertEquals(actual_source_status, expected)
+
+    # TODO double check these new tests
+    def test_post_status_provider_available(self):
+        """Test that the provider active flag is set to true when source is available."""
+        request = self.request_context.get("request")
+        source_id = 1
+        source_name = "New AWS Mock Test Source"
+
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            provider = Provider.objects.create(
+                name=source_name, created_by=request.user, customer=request.user.customer, active=False
+            )
+
+            Sources.objects.create(
+                source_id=1,
+                name=source_name,
+                source_type=Provider.PROVIDER_AWS,
+                authentication={"credentials": {"provider_resource_name": "fake-iam"}},
+                billing_source={"data_source": {"bucket": "my-bucket"}},
+                koku_uuid=str(provider.uuid),
+                offset=1,
+            )
+            status_obj = SourceStatus(request, source_id)
+            status_obj.status()
+
+            self.assertTrue(Provider.objects.get(uuid=provider.uuid).active)
+
+    def test_post_status_provider_unavailable(self):
+        """Test that the provider active flag is set to true when source is unavailable."""
+        request = self.request_context.get("request")
+        source_id = 1
+        source_name = "New AWS Mock Test Source"
+
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", side_effect=ValidationError("test error")):
+            provider = Provider.objects.create(
+                name=source_name, created_by=request.user, customer=request.user.customer, active=True
+            )
+
+            Sources.objects.create(
+                source_id=1,
+                name=source_name,
+                source_type=Provider.PROVIDER_AWS,
+                authentication={"credentials": {"provider_resource_name": "fake-iam"}},
+                billing_source={"data_source": {"bucket": "my-bucket"}},
+                koku_uuid=str(provider.uuid),
+                offset=1,
+            )
+            status_obj = SourceStatus(request, source_id)
+            status_obj.status()
+
+            self.assertFalse(Provider.objects.get(uuid=provider.uuid).active)
+
+    def test_post_status_wrong_provider(self):
+        """Test for logs when provider mismatch is detected while setting status."""
+        request = self.request_context.get("request")
+        source_id = 1
+        source_name = "New AWS Mock Test Source"
+
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            Sources.objects.create(
+                source_id=source_id,
+                name=source_name,
+                source_type=Provider.PROVIDER_AWS,
+                authentication={"credentials": {"provider_resource_name": "fake-iam"}},
+                billing_source={"data_source": {"bucket": "my-bucket"}},
+                koku_uuid=str(uuid4()),
+                offset=1,
+            )
+            status_obj = SourceStatus(request, source_id)
+            with self.assertLogs("sources.api.source_status", level="INFO") as logger:
+                status_obj.status()
+                expected = f"INFO:sources.api.source_status:No provider found for Source ID: {source_id}"
+                self.assertIn(expected, logger.output)
