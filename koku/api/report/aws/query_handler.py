@@ -523,7 +523,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
 
             query_sum = self._build_sum(query, annotations)
-            # Set default delta if one was not passed in.
 
             if self._limit and query_data and not org_unit_applied:
                 rank_orders = []
