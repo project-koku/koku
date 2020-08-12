@@ -478,3 +478,45 @@ class AWSReportViewTest(IamTestCase):
         url = reverse("reports-aws-costs") + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_order_by_delta(self):
+        """Test that the order_by delta with pagination does not error."""
+        qs_list = [
+            "?filter[limit]=5&filter[offset]=0&order_by[delta]=asc&delta=usage",
+            "?order_by[delta]=asc&delta=usage",
+        ]
+        for qs in qs_list:
+            url = reverse("reports-aws-instance-type") + qs
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            response_data = response.json()
+            data = response_data.get("data", [])
+            meta = response_data.get("meta", {})
+
+            self.assertIn("total", meta)
+            self.assertIn("filter", meta)
+            self.assertIn("count", meta)
+
+            compared_deltas = False
+            for day in data:
+                previous_delta = None
+                for instance_type in day.get("instance_types", []):
+                    values = instance_type.get("values", [])
+                    if values:
+                        current_delta = values[0].get("delta_value")
+                        if previous_delta:
+                            self.assertLessEqual(previous_delta, current_delta)
+                            compared_deltas = True
+                            previous_delta = current_delta
+                        else:
+                            previous_delta = current_delta
+            self.assertTrue(compared_deltas)
+
+    def test_order_by_delta_no_delta(self):
+        """Test that the order_by delta with no delta passed in triggers 400."""
+        qs_list = ["?filter[limit]=5&filter[offset]=0&order_by[delta]=asc", "?order_by[delta]=asc"]
+        for qs in qs_list:
+            url = reverse("reports-aws-instance-type") + qs
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

@@ -44,10 +44,8 @@ from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from masu.external.report_downloader import ReportDownloaderError
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
@@ -182,51 +180,6 @@ class GetReportFileTests(MasuTestCase):
                 cache_key=self.fake.word(),
                 report_context={},
             )
-
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor._tasks.download.ProviderStatus.set_error")
-    @patch(
-        "masu.processor._tasks.download.ReportDownloader._set_downloader",
-        side_effect=ReportDownloaderError("only a test"),
-    )
-    def test_get_report_exception_update_status(self, fake_downloader, fake_status, mock_inspect):
-        """Test that status is updated when an exception is raised."""
-        account = fake_arn(service="iam", generate_account_id=True)
-
-        try:
-            _get_report_files(
-                Mock(),
-                customer_name=self.fake.word(),
-                authentication=account,
-                provider_type=Provider.PROVIDER_AWS,
-                report_month=DateHelper().today,
-                provider_uuid=self.aws_provider_uuid,
-                billing_source=self.fake.word(),
-                cache_key=self.fake.word(),
-                report_context={},
-            )
-        except ReportDownloaderError:
-            pass
-        fake_status.assert_called()
-
-    @patch("masu.processor._tasks.download.ProviderStatus.set_status")
-    @patch("masu.processor._tasks.download.ReportDownloader", spec=True)
-    def test_get_report_update_status(self, fake_downloader, fake_status):
-        """Test that status is updated when downloading is complete."""
-        account = fake_arn(service="iam", generate_account_id=True)
-
-        _get_report_files(
-            Mock(),
-            customer_name=self.fake.word(),
-            authentication=account,
-            provider_type=Provider.PROVIDER_AWS,
-            report_month=DateHelper().today,
-            provider_uuid=self.aws_provider_uuid,
-            billing_source=self.fake.word(),
-            cache_key=self.fake.word(),
-            report_context={},
-        )
-        fake_status.assert_called_with(ProviderStatusCode.READY)
 
 
 class ProcessReportFileTests(MasuTestCase):
