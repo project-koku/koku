@@ -102,6 +102,20 @@ class ProviderManagerTest(IamTestCase):
         manager = ProviderManager(provider_uuid)
         self.assertEqual(manager.get_name(), provider_name)
 
+    def test_get_active_status(self):
+        """Can the provider active status be returned."""
+        # Create Provider
+        provider_name = "sample_provider"
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+
+        # Get Provider UUID
+        provider_uuid = provider.uuid
+
+        # Get Provider Manager
+        manager = ProviderManager(provider_uuid)
+        self.assertTrue(manager.get_active_status())
+
     def test_get_providers_queryset_for_customer(self):
         """Verify all providers returned by a customer."""
         # Verify no providers are returned
