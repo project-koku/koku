@@ -264,27 +264,6 @@ class Sources(models.Model):
         )
 
 
-class ProviderStatus(models.Model):
-    """Koku provider status.
-
-    Used for tracking provider status.
-
-    """
-
-    # Provider states used to signal whether the Provider is suitable for
-    # attempting to download and process reports.
-    #
-    # These states are duplicated in masu.database.provider_db_accessor
-    #
-    STATES = ((0, "New"), (1, "Ready"), (33, "Warning"), (98, "Disabled: Error"), (99, "Disabled: Admin"))
-
-    provider = models.ForeignKey("Provider", on_delete=models.CASCADE)
-    status = models.IntegerField(null=False, choices=STATES, default=0)
-    last_message = models.CharField(max_length=256, null=False)
-    timestamp = models.DateTimeField()
-    retries = models.IntegerField(null=False, default=0)
-
-
 class ProviderInfrastructureMap(models.Model):
     """A lookup table for OpenShift providers.
 

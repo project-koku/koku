@@ -226,10 +226,12 @@ class SourcesViewSet(*MIXIN_LIST):
                 manager = ProviderManager(source["uuid"])
             except ProviderManagerError:
                 source["provider_linked"] = False
+                source["active"] = False
                 source["infrastructure"] = "Unknown"
                 source["cost_models"] = []
             else:
                 source["provider_linked"] = True
+                source["active"] = manager.get_active_status()
                 source["infrastructure"] = manager.get_infrastructure_name()
                 connection.set_tenant(tenant)
                 source["cost_models"] = [
@@ -250,10 +252,12 @@ class SourcesViewSet(*MIXIN_LIST):
             manager = ProviderManager(response.data["uuid"])
         except ProviderManagerError:
             response.data["provider_linked"] = False
+            response.data["active"] = False
             response.data["infrastructure"] = "Unknown"
             response.data["cost_models"] = []
         else:
             response.data["provider_linked"] = True
+            response.data["active"] = manager.get_active_status()
             response.data["infrastructure"] = manager.get_infrastructure_name()
             connection.set_tenant(tenant)
             response.data["cost_models"] = [
