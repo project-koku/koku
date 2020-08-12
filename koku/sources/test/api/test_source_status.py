@@ -173,7 +173,6 @@ class SourcesStatusTest(IamTestCase):
                 "name": "New OCP Mock Test Source",
                 "source_type": Provider.PROVIDER_OCP,
                 "authentication": {"credentials": {"provider_resource_name": "cluster_id"}},
-                "billing_source": {"data_source": {}},
                 "koku_uuid": faker.uuid4(),
                 "offset": 1,
             },

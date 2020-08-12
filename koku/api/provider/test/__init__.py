@@ -27,7 +27,6 @@ PROVIDERS = {
         "name": "test_provider",
         "type": Provider.PROVIDER_OCP.lower(),
         "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-1"}},
-        "billing_source": {"data_source": {}},
     },
     Provider.PROVIDER_AWS: {
         "name": "test_provider",
