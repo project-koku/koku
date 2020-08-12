@@ -176,7 +176,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         LOG.info(log_json(self.request_id, msg, self.context))
 
         try:
-            manifest_file, _ = self.download_file(manifest)
+            manifest_file, _, manifest_modified_timestamp = self.download_file(manifest)
         except AWSReportDownloaderNoFileError as err:
             msg = f"Unable to get report manifest. Reason: {str(err)}"
             LOG.info(log_json(self.request_id, msg, self.context))
@@ -186,7 +186,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         with open(manifest_file, "r") as manifest_file_handle:
             manifest_json = json.load(manifest_file_handle)
 
-        return manifest_file, manifest_json
+        return manifest_file, manifest_json, manifest_modified_timestamp
 
     def _remove_manifest_file(self, manifest_file):
         """Clean up the manifest file after extracting information."""
@@ -226,7 +226,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         bucket = s3_resource.Bucket(self.report.get("S3Bucket"))
         files = []
         for s3obj in bucket.objects.all():
-            file_name, _ = self.download_file(s3obj.key)
+            file_name, _, _ = self.download_file(s3obj.key)
             files.append(file_name)
         return files
 
@@ -252,9 +252,12 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         # Make sure the data directory exists
         os.makedirs(directory_path, exist_ok=True)
         s3_etag = None
+        file_creation_date = None
         try:
             s3_file = self.s3_client.get_object(Bucket=self.report.get("S3Bucket"), Key=key)
+            LOG.info(f"S3 FILE key: {str(key)} meta: {str(s3_file)}")
             s3_etag = s3_file.get("ETag")
+            file_creation_date = s3_file.get("LastModified")
         except ClientError as ex:
             if ex.response["Error"]["Code"] == "NoSuchKey":
                 msg = "Unable to find {} in S3 Bucket: {}".format(s3_filename, self.report.get("S3Bucket"))
@@ -278,7 +281,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             )
             utils.remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
 
-        return full_file_path, s3_etag
+        return full_file_path, s3_etag, file_creation_date
 
     def get_manifest_context_for_date(self, date):
         """
@@ -297,14 +300,17 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest_dict = {}
         report_dict = {}
-        manifest_file, manifest = self._get_manifest(date)
+        manifest_file, manifest, manifest_timestamp = self._get_manifest(date)
         if manifest != self.empty_manifest:
             manifest_dict = self._prepare_db_manifest_record(manifest)
         self._remove_manifest_file(manifest_file)
 
         if manifest_dict:
             manifest_id = self._process_manifest_db_record(
-                manifest_dict.get("assembly_id"), manifest_dict.get("billing_start"), manifest_dict.get("num_of_files")
+                manifest_dict.get("assembly_id"),
+                manifest_dict.get("billing_start"),
+                manifest_dict.get("num_of_files"),
+                manifest_timestamp,
             )
 
             report_dict["manifest_id"] = manifest_id

@@ -218,7 +218,7 @@ class ReportDownloader:
 
         with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
             stored_etag = stats_recorder.get_etag()
-            file_name, etag = self._downloader.download_file(
+            file_name, etag, _ = self._downloader.download_file(
                 report, stored_etag, manifest_id=manifest_id, start_date=date_time
             )
             stats_recorder.update(etag=etag)
