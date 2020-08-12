@@ -80,6 +80,19 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
     def setUp(self):
         """Set up test case."""
         super().setUp()
+        self.paginator_dict = {
+            "r-0": {
+                "OrganizationalUnits": [
+                    {"Id": "ou-0", "Arn": "arn-0", "Name": "Big_Org_0"},
+                    {"Id": "ou-1", "Arn": "arn-1", "Name": "Big_Org_1"},
+                    {"Id": "ou-2", "Arn": "arn-2", "Name": "Big_Org_2"},
+                ]
+            },
+            "ou-0": {"OrganizationalUnits": [{"Id": "sou-0", "Arn": "arn-0", "Name": "Sub_Org_0"}]},
+            "ou-1": {"OrganizationalUnits": []},
+            "ou-2": {"OrganizationalUnits": []},
+            "sou-0": {"OrganizationalUnits": []},
+        }
         self.account = {
             "authentication": fake_arn(service="iam", generate_account_id=True),
             "customer_name": CUSTOMER_NAME,
@@ -153,19 +166,6 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
     def test_crawl_account_hierarchy(self, mock_session):
         """Test the crawling for account hierarchy."""
         mock_session.client = MagicMock()
-        paginator_dict = {
-            "r-0": {
-                "OrganizationalUnits": [
-                    {"Id": "ou-0", "Arn": "arn-0", "Name": "Big_Org_0"},
-                    {"Id": "ou-1", "Arn": "arn-1", "Name": "Big_Org_1"},
-                    {"Id": "ou-2", "Arn": "arn-2", "Name": "Big_Org_2"},
-                ]
-            },
-            "ou-0": {"OrganizationalUnits": [{"Id": "sou-0", "Arn": "arn-0", "Name": "Sub_Org_0"}]},
-            "ou-1": {"OrganizationalUnits": []},
-            "ou-2": {"OrganizationalUnits": []},
-            "sou-0": {"OrganizationalUnits": []},
-        }
         account_side_effect = []
         paginator_side_effect = []
         ou_ids = ["r-0", "ou-0", "ou-1", "ou-2", "sou-0"]
@@ -173,7 +173,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             parent_acts = _generate_act_for_parent_side_effect(self.schema, ou_id)
             account_side_effect.extend(parent_acts)
             paginator = MagicMock()
-            paginator.paginate(ParentId=ou_id).build_full_result.return_value = paginator_dict[ou_id]
+            paginator.paginate(ParentId=ou_id).build_full_result.return_value = self.paginator_dict[ou_id]
             paginator_side_effect.append(paginator)
         unit_crawler = AWSOrgUnitCrawler(self.account)
         unit_crawler._init_session()
@@ -235,19 +235,6 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
     def test_crawl_org_for_acts(self, mock_session):
         "Test that if an exception is raised the crawl continues"
         mock_session.client = MagicMock()
-        paginator_dict = {
-            "r-0": {
-                "OrganizationalUnits": [
-                    {"Id": "ou-0", "Arn": "arn-0", "Name": "Big_Org_0"},
-                    {"Id": "ou-1", "Arn": "arn-1", "Name": "Big_Org_1"},
-                    {"Id": "ou-2", "Arn": "arn-2", "Name": "Big_Org_2"},
-                ]
-            },
-            "ou-0": {"OrganizationalUnits": [{"Id": "sou-0", "Arn": "arn-0", "Name": "Sub_Org_0"}]},
-            "ou-1": {"OrganizationalUnits": []},
-            "ou-2": Exception("Error"),
-            "sou-0": {"OrganizationalUnits": []},
-        }
         account_side_effect = []
         paginator_side_effect = []
         ou_ids = ["r-0", "ou-0", "ou-1", "ou-2", "sou-0"]
@@ -255,7 +242,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             parent_acts = _generate_act_for_parent_side_effect(self.schema, ou_id)
             account_side_effect.extend(parent_acts)
             paginator = MagicMock()
-            paginator.paginate(ParentId=ou_id).build_full_result.return_value = paginator_dict[ou_id]
+            paginator.paginate(ParentId=ou_id).build_full_result.return_value = self.paginator_dict[ou_id]
             paginator_side_effect.append(paginator)
         unit_crawler = AWSOrgUnitCrawler(self.account)
         unit_crawler._init_session()
@@ -420,25 +407,12 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         mock_session.client = MagicMock()
         account_side_effect = []
         paginator_side_effect = []
-        paginator_dict = {
-            "r-0": {
-                "OrganizationalUnits": [
-                    {"Id": "ou-0", "Arn": "arn-0", "Name": "Big_Org_0"},
-                    {"Id": "ou-1", "Arn": "arn-1", "Name": "Big_Org_1"},
-                    {"Id": "ou-2", "Arn": "arn-2", "Name": "Big_Org_2"},
-                ]
-            },
-            "ou-0": {"OrganizationalUnits": [{"Id": "sou-0", "Arn": "arn-0", "Name": "Sub_Org_0"}]},
-            "ou-1": {"OrganizationalUnits": []},
-            "ou-2": {"OrganizationalUnits": []},
-            "sou-0": {"OrganizationalUnits": []},
-        }
         ou_ids = ["r-0", "ou-0", "ou-1", "ou-2", "sou-0"]
         for ou_id in ou_ids:
             parent_acts = _generate_act_for_parent_side_effect(self.schema, ou_id)
             account_side_effect.extend(parent_acts)
             paginator = MagicMock()
-            paginator.paginate(ParentId=ou_id).build_full_result.return_value = paginator_dict[ou_id]
+            paginator.paginate(ParentId=ou_id).build_full_result.return_value = self.paginator_dict[ou_id]
             paginator_side_effect.append(paginator)
         unit_crawler = AWSOrgUnitCrawler(self.account)
         unit_crawler._init_session()
