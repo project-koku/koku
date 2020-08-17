@@ -93,7 +93,7 @@ objects:
       referencePolicy:
         type: Source
 
-# Most koku components use the python-36 image.
+# Most koku components use the python-38 image.
 - apiVersion: v1
   kind: ImageStream
   metadata:
