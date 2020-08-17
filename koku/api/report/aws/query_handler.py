@@ -524,9 +524,13 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
             query_sum = self._build_sum(query, annotations)
 
-            if self._limit and not org_unit_applied:
-                rank_order = getattr(F(self.order_field), self.order_direction)()
-                rank_by_total = Window(expression=RowNumber(), partition_by=F("date"), order_by=rank_order)
+            if self._limit and query_data and not org_unit_applied:
+                rank_orders = []
+                if self.order_field == "delta":
+                    rank_orders.append(getattr(F(self._delta), self.order_direction)())
+                else:
+                    rank_orders.append(getattr(F(self.order_field), self.order_direction)())
+                rank_by_total = Window(expression=RowNumber(), partition_by=F("date"), order_by=rank_orders)
                 query_data = query_data.annotate(rank=rank_by_total)
                 query_order_by.insert(1, "rank")
                 query_data = self._ranked_list(query_data)
