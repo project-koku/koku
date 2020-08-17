@@ -16,6 +16,7 @@ CREATE MATERIALIZED VIEW reporting_azure_storage_summary AS(
     FROM reporting_azurecostentrylineitem_daily_summary
     -- Get data for this month or last month
     WHERE service_name LIKE '%Storage%'
+        AND unit_of_measure = 'GB-Mo'
         AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
     GROUP BY usage_start, subscription_guid, service_name
 )
