@@ -704,7 +704,7 @@ def convert_to_parquet(
 
 
 @app.task(name="masu.processor.tasks.remove_stale_tenants", queue_name="remove_stale_tenants")
-def remove_stale_tenants(self):
+def remove_stale_tenants():
     """ Remove stale tenants from the tenant api """
     table_sql = """
     SELECT schema_name
