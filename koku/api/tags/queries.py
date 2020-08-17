@@ -323,7 +323,7 @@ class TagQueryHandler(QueryHandler):
 
     def deduplicate_and_sort(self, data):
         for dikt in data:
-            dikt["values"] = sorted(set(dikt["values"]), reverse=self.order_direction == "asc")
+            dikt["values"] = sorted(set(dikt["values"]), reverse=self.order_direction == "desc")
         return data
 
     @staticmethod
