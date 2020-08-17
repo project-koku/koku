@@ -3,7 +3,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0124_auto_20200806_1943")]
+    dependencies = [("reporting", "0125_azure_unit_normalization")]
 
     operations = [
         migrations.RunSQL(
