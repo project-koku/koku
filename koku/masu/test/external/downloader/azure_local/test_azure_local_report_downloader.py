@@ -104,12 +104,12 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         expected_full_path = "{}/{}/azure/{}/{}".format(
             Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.container_name, self.csv_file_name
         )
-        full_file_path, etag = self.azure_local_report_downloader.download_file(self.csv_key)
+        full_file_path, etag, _ = self.azure_local_report_downloader.download_file(self.csv_key)
         self.assertEqual(full_file_path, expected_full_path)
         self.assertIsNotNone(etag)
 
         # Download a second time, verify etag is returned
-        full_file_path, second_run_etag = self.azure_local_report_downloader.download_file(self.csv_key)
+        full_file_path, second_run_etag, _ = self.azure_local_report_downloader.download_file(self.csv_key)
         self.assertEqual(etag, second_run_etag)
         self.assertEqual(full_file_path, expected_full_path)
 

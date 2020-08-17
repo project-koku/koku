@@ -469,6 +469,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                 "reportKeys": report_keys,
                 "billingPeriod": {"start": start_str},
             },
+            DateAccessor().today(),
         )
 
         result = downloader.get_manifest_context_for_date(current_month)
@@ -487,7 +488,7 @@ class AWSReportDownloaderTest(MasuTestCase):
             self.fake_customer_name, auth_credential, self.fake_bucket_name, provider_uuid=self.aws_provider_uuid
         )
 
-        mock_manifest.return_value = ("", {"reportKeys": []})
+        mock_manifest.return_value = ("", {"reportKeys": []}, DateAccessor().today())
 
         result = downloader.get_manifest_context_for_date(current_month)
         self.assertEqual(result, {})
