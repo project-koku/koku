@@ -16,6 +16,7 @@
 #
 """Test Cache of worker tasks currently running."""
 import logging
+from unittest.mock import patch
 
 from django.core.cache import cache
 from django.test.utils import override_settings
@@ -39,12 +40,14 @@ class WorkerCacheTest(MasuTestCase):
         super().tearDown()
         cache.clear()
 
-    def test_worker_cache(self):
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_worker_cache(self, mock_inspect):
         """Test the worker_cache property."""
         _worker_cache = WorkerCache().worker_cache
         self.assertEqual(_worker_cache, [])
 
-    def test_invalidate_host(self):
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_invalidate_host(self, mock_inspect):
         """Test that a host's cache is invalidated."""
         task_list = [1, 2, 3]
         _cache = WorkerCache()
@@ -57,7 +60,8 @@ class WorkerCacheTest(MasuTestCase):
 
         self.assertEqual(_cache.worker_cache, [])
 
-    def test_add_task_to_cache(self):
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_add_task_to_cache(self, mock_inspect):
         """Test that a single task is added."""
         task_key = "task_key"
         _cache = WorkerCache()
@@ -67,7 +71,8 @@ class WorkerCacheTest(MasuTestCase):
         _cache.add_task_to_cache(task_key)
         self.assertEqual(_cache.worker_cache, [task_key])
 
-    def test_remove_task_from_cache(self):
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_remove_task_from_cache(self, mock_inspect):
         """Test that a task is removed."""
         task_key = "task_key"
         _cache = WorkerCache()
@@ -77,7 +82,8 @@ class WorkerCacheTest(MasuTestCase):
         _cache.remove_task_from_cache(task_key)
         self.assertEqual(_cache.worker_cache, [])
 
-    def test_remove_task_from_cache_value_not_in_cache(self):
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_remove_task_from_cache_value_not_in_cache(self, mock_inspect):
         """Test that a task is removed."""
         task_list = [1, 2, 3, 4]
         _cache = WorkerCache()
@@ -88,12 +94,18 @@ class WorkerCacheTest(MasuTestCase):
         _cache.remove_task_from_cache(5)
         self.assertEqual(_cache.worker_cache, task_list)
 
-    def test_get_all_running_tasks(self):
+    @override_settings(HOSTNAME="kokuworker")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_get_all_running_tasks(self, mock_inspect):
         """Test that multiple hosts' task lists are combined."""
-        second_host = "test"
+
+        second_host = "koku-worker-2-sdfsdff"
         first_host_list = [1, 2, 3]
         second_host_list = [4, 5, 6]
         expected = first_host_list + second_host_list
+
+        mock_worker_list = {"celery@kokuworker": "", f"celery@{second_host}": ""}
+        mock_inspect.reserved.return_value = mock_worker_list
 
         _cache = WorkerCache()
         for task in first_host_list:
@@ -106,16 +118,23 @@ class WorkerCacheTest(MasuTestCase):
 
         self.assertEqual(sorted(_cache.get_all_running_tasks()), sorted(expected))
 
-    def test_task_is_running_true(self):
+    @override_settings(HOSTNAME="kokuworker")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_task_is_running_true(self, mock_inspect):
         """Test that a task is running."""
+        mock_worker_list = {"celery@kokuworker": ""}
+        mock_inspect.reserved.return_value = mock_worker_list
+
         task_list = [1, 2, 3]
+
         _cache = WorkerCache()
         for task in task_list:
             _cache.add_task_to_cache(task)
 
         self.assertTrue(_cache.task_is_running(1))
 
-    def test_task_is_running_false(self):
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_task_is_running_false(self, mock_inspect):
         """Test that a task is not running."""
         task_list = [1, 2, 3]
         _cache = WorkerCache()
@@ -123,3 +142,50 @@ class WorkerCacheTest(MasuTestCase):
             _cache.add_task_to_cache(task)
 
         self.assertFalse(_cache.task_is_running(4))
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_active_worker_property(self, mock_inspect):
+        """Test the active_workers property."""
+        test_matrix = [
+            {"hostname": "celery@kokuworker", "expected_workers": ["kokuworker"]},
+            {"hostname": "kokuworker", "expected_workers": ["kokuworker"]},
+            {"hostname": "kokuworker&63)", "expected_workers": ["kokuworker&63)"]},
+            {"hostname": "koku@worker&63)", "expected_workers": ["worker&63)"]},
+            {"hostname": "", "expected_workers": [""]},
+        ]
+        for test in test_matrix:
+            with self.subTest(test=test):
+                mock_worker_list = {test.get("hostname"): ""}
+                mock_inspect.reserved.return_value = mock_worker_list
+                _cache = WorkerCache()
+                self.assertEqual(_cache.active_workers, test.get("expected_workers"))
+
+    @override_settings(HOSTNAME="kokuworker")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_remove_offline_worker_keys(self, mock_inspect):
+        """Test the remove_offline_worker_keys function."""
+        second_host = "kokuworker2"
+        first_host_list = [1, 2, 3]
+        second_host_list = [4, 5, 6]
+        all_work_list = first_host_list + second_host_list
+
+        mock_worker_list = {"celery@kokuworker": "", f"celery@{second_host}": ""}
+        mock_inspect.reserved.return_value = mock_worker_list
+
+        _cache = WorkerCache()
+        for task in first_host_list:
+            _cache.add_task_to_cache(task)
+
+        with override_settings(HOSTNAME=second_host):
+            _cache = WorkerCache()
+            for task in second_host_list:
+                _cache.add_task_to_cache(task)
+
+        self.assertEqual(sorted(_cache.get_all_running_tasks()), sorted(all_work_list))
+
+        # kokuworker2 goes offline
+        mock_inspect.reset()
+        mock_worker_list = {"celery@kokuworker": ""}
+        mock_inspect.reserved.return_value = mock_worker_list
+        _cache.remove_offline_worker_keys()
+        self.assertEqual(sorted(_cache.get_all_running_tasks()), sorted(first_host_list))

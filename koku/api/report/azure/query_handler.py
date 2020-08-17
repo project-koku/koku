@@ -110,23 +110,23 @@ class AzureReportQueryHandler(ReportQueryHandler):
         """Build the sum results for the query."""
         sum_units = {}
         query_sum = self.initialize_totals()
+
         cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
-        # usage_units_fallback = self._mapper.report_type_map.get('usage_units_fallback')
+        usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
         count_units_fallback = self._mapper.report_type_map.get("count_units_fallback")
+
         if query.exists():
             sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
-            # if self._mapper.usage_units_key:
-            #     units_fallback = self._mapper.report_type_map.get('usage_units_fallback')
-            #     sum_annotations['usage_units'] = Coalesce(self._mapper.usage_units_key,
-            #                                               Value(units_fallback))
+            if self._mapper.usage_units_key:
+                units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
+                sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
             sum_query = query.annotate(**sum_annotations)
 
             units_value = sum_query.values("cost_units").first().get("cost_units", cost_units_fallback)
             sum_units = {"cost_units": units_value}
-            # if self._mapper.usage_units_key:
-            #     units_value = sum_query.values('usage_units').first().get('usage_units',
-            #                                                               usage_units_fallback)
-            #     sum_units['usage_units'] = units_value
+            if self._mapper.usage_units_key:
+                units_value = sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
+                sum_units["usage_units"] = units_value
             if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
                 sum_units["count_units"] = count_units_fallback
 
@@ -135,8 +135,8 @@ class AzureReportQueryHandler(ReportQueryHandler):
             sum_units["cost_units"] = cost_units_fallback
             if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
                 sum_units["count_units"] = count_units_fallback
-            # if self._mapper.report_type_map.get('annotations', {}).get('usage_units'):
-            #     sum_units['usage_units'] = usage_units_fallback
+            if self._mapper.report_type_map.get("annotations", {}).get("usage_units"):
+                sum_units["usage_units"] = usage_units_fallback
             query_sum.update(sum_units)
             self._pack_data_object(query_sum, **self._mapper.PACK_DEFINITIONS)
         return query_sum
@@ -204,9 +204,8 @@ class AzureReportQueryHandler(ReportQueryHandler):
             (dict) The aggregated totals for the query
 
         """
-        q_table = self._mapper.query_table
         query_group_by = ["date"] + self._get_group_by()
-        query = q_table.objects.filter(self.query_filter)
+        query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")

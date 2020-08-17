@@ -44,10 +44,8 @@ from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from masu.external.report_downloader import ReportDownloaderError
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
@@ -164,8 +162,9 @@ class GetReportFileTests(MasuTestCase):
                     statement_found = True
             self.assertTrue(statement_found)
 
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor._tasks.download.ReportDownloader._set_downloader", side_effect=Exception("only a test"))
-    def test_get_report_exception(self, fake_downloader):
+    def test_get_report_task_exception(self, fake_downloader, mock_inspect):
         """Test task."""
         account = fake_arn(service="iam", generate_account_id=True)
 
@@ -181,50 +180,6 @@ class GetReportFileTests(MasuTestCase):
                 cache_key=self.fake.word(),
                 report_context={},
             )
-
-    @patch("masu.processor._tasks.download.ProviderStatus.set_error")
-    @patch(
-        "masu.processor._tasks.download.ReportDownloader._set_downloader",
-        side_effect=ReportDownloaderError("only a test"),
-    )
-    def test_get_report_exception_update_status(self, fake_downloader, fake_status):
-        """Test that status is updated when an exception is raised."""
-        account = fake_arn(service="iam", generate_account_id=True)
-
-        try:
-            _get_report_files(
-                Mock(),
-                customer_name=self.fake.word(),
-                authentication=account,
-                provider_type=Provider.PROVIDER_AWS,
-                report_month=DateHelper().today,
-                provider_uuid=self.aws_provider_uuid,
-                billing_source=self.fake.word(),
-                cache_key=self.fake.word(),
-                report_context={},
-            )
-        except ReportDownloaderError:
-            pass
-        fake_status.assert_called()
-
-    @patch("masu.processor._tasks.download.ProviderStatus.set_status")
-    @patch("masu.processor._tasks.download.ReportDownloader", spec=True)
-    def test_get_report_update_status(self, fake_downloader, fake_status):
-        """Test that status is updated when downloading is complete."""
-        account = fake_arn(service="iam", generate_account_id=True)
-
-        _get_report_files(
-            Mock(),
-            customer_name=self.fake.word(),
-            authentication=account,
-            provider_type=Provider.PROVIDER_AWS,
-            report_month=DateHelper().today,
-            provider_uuid=self.aws_provider_uuid,
-            billing_source=self.fake.word(),
-            cache_key=self.fake.word(),
-            report_context={},
-        )
-        fake_status.assert_called_with(ProviderStatusCode.READY)
 
 
 class ProcessReportFileTests(MasuTestCase):
@@ -382,6 +337,31 @@ class ProcessReportFileTests(MasuTestCase):
         summarize_reports(reports_to_summarize)
         mock_update_summary.delay.assert_called()
 
+    @patch("masu.processor.tasks.update_summary_tables")
+    def test_summarize_reports_processing_list_with_none(self, mock_update_summary):
+        """Test that the summarize_reports task is called when a processing list when a None provided."""
+        mock_update_summary.delay = Mock()
+
+        report_meta = {}
+        report_meta["start_date"] = str(DateHelper().today)
+        report_meta["schema_name"] = self.schema
+        report_meta["provider_type"] = Provider.PROVIDER_OCP
+        report_meta["provider_uuid"] = self.ocp_test_provider_uuid
+        report_meta["manifest_id"] = 1
+        reports_to_summarize = [report_meta, None]
+
+        summarize_reports(reports_to_summarize)
+        mock_update_summary.delay.assert_called()
+
+    @patch("masu.processor.tasks.update_summary_tables")
+    def test_summarize_reports_processing_list_only_none(self, mock_update_summary):
+        """Test that the summarize_reports task is called when a processing list with None provided."""
+        mock_update_summary.delay = Mock()
+        reports_to_summarize = [None, None]
+
+        summarize_reports(reports_to_summarize)
+        mock_update_summary.delay.assert_not_called()
+
 
 class TestProcessorTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
@@ -417,17 +397,26 @@ class TestProcessorTasks(MasuTestCase):
             "report_context": {"current_file": f"/my/{self.test_assembly_id}/koku-1.csv.gz"},
         }
 
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.tasks._get_report_files")
-    @patch("masu.processor.tasks._process_report_file", side_effect=ReportProcessorError("Mocked Error!"))
-    def test_get_report_exception(self, mock_process_files, mock_get_files):
+    @patch("masu.processor.tasks._process_report_file", side_effect=ReportProcessorError("Mocked process error!"))
+    def test_get_report_process_exception(self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove):
         """Test raising processor exception is handled."""
         mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP"}
 
-        # Check that exception is raised
-        with self.assertRaises(ReportProcessorError):
-            # Check that the exception logs an ERROR
-            with self.assertLogs("masu.processor.tasks.get_report_files", level="ERROR"):
-                get_report_files(**self.get_report_args)
+        get_report_files(**self.get_report_args)
+        mock_cache_remove.assert_called()
+
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks._get_report_files", side_effect=Exception("Mocked download error!"))
+    def test_get_report_broad_exception(self, mock_get_files, mock_inspect, mock_cache_remove):
+        """Test raising download broad exception is handled."""
+        mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP"}
+
+        get_report_files(**self.get_report_args)
+        mock_cache_remove.assert_called()
 
     def test_convert_to_parquet(self):
         """Test the convert_to_parquet task."""
