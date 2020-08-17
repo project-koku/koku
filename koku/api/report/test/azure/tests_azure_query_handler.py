@@ -104,9 +104,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
 
-        # FIXME: usage doesn't have units yet. waiting on MSFT
-        # self.assertEqual(total.get('usage', {}).get('value'), current_totals.get('usage'))
-        self.assertEqual(total.get("usage", {}), current_totals.get("usage"))
+        self.assertEqual(total.get("usage", {}).get("value"), current_totals.get("usage"))
         self.assertEqual(total.get("request", {}).get("value"), current_totals.get("request"))
         self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
         self.assertEqual(total.get("limit", {}).get("value"), current_totals.get("limit"))
@@ -1157,3 +1155,28 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertNotEquals(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
+
+    def test_execute_query_annotate(self):
+        """Test that query enters cost unit and usage unit ."""
+        with tenant_context(self.tenant):
+            subscription_guid = AzureCostEntryLineItemDailySummary.objects.filter(
+                usage_start__gte=self.dh.this_month_start
+            ).values("subscription_guid")[0]
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[subscription_guid]={subscription_guid}"  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureInstanceTypeView)
+        handler = AzureReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get("total"))
+        total = query_output.get("total")
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        filters = {**self.this_month_filter, "subscription_guid": subscription_guid}
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        self.assertIsNotNone(total.get("cost"))
+        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+
+        cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
+        for data_item in data:
+            month_val = data_item.get("date")
+            self.assertEqual(month_val, cmonth_str)
