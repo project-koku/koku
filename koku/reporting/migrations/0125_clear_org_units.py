@@ -8,7 +8,12 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunSQL(
             """
+UPDATE reporting_awscostentrylineitem_daily_summary set organizational_unit_id = NULL
+            """
+        ),
+        migrations.RunSQL(
+            """
 DELETE FROM reporting_awsorganizationalunit;
             """
-        )
+        ),
     ]
