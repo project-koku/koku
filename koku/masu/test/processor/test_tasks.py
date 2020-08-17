@@ -1078,6 +1078,6 @@ class TestRemoveStaleTenants(MasuTestCase):
             record.date_created = DateHelper.n_days_ago(self, record.date_created, days)
             record.save()
             before_len = Tenant.objects.count()
-            remove_stale_tenants(self)
+            remove_stale_tenants()
             after_len = Tenant.objects.count()
             self.assertGreater(before_len, after_len)

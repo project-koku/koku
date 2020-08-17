@@ -721,3 +721,5 @@ def remove_stale_tenants():
         cursor.execute(table_sql)
         data = cursor.fetchall()
         Tenant.objects.filter(schema_name__in=[i[0] for i in data]).delete()
+        for name in data:
+            LOG.info(f"Deleted tenant: {name}")
