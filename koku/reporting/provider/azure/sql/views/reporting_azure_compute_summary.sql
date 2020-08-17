@@ -29,6 +29,7 @@ CREATE MATERIALIZED VIEW reporting_azure_compute_summary AS(
         FROM reporting_azurecostentrylineitem_daily_summary
         WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
             AND instance_type IS NOT NULL
+            AND unit_of_measure = 'Hrs'
         GROUP BY usage_start, subscription_guid, instance_type
     ) AS c
     JOIN (
