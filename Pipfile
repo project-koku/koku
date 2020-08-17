@@ -66,4 +66,4 @@ pre-commit = ">=2.0"
 responses = ">=0.10"
 
 [requires]
-python_version = "3.6"
+python_version = "3.8"

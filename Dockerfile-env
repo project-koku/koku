@@ -1,4 +1,4 @@
-FROM centos/python-36-centos7
+FROM centos/python-38-centos7
 ADD Pipfile /opt/app-root/src/Pipfile
 ADD Pipfile.lock /opt/app-root/src/Pipfile.lock
 ENV PIP_DEFAULT_TIMEOUT=100
