@@ -70,11 +70,10 @@
         },
         "azure-storage-blob": {
             "hashes": [
-                "sha256:8a02a33cd28a16963274dc928960642e99ec19cad27166fb386ebcc0f1216706",
-                "sha256:b99ce18c5063b22a988e6e997a491aab6c7c4dd62d1424b4e2b934e6ef104356"
+                "sha256:96a09b2ff234d7623667e1002c916b5b562e5829ea62b4175309f65ab06a03e8",
+                "sha256:f7e7e78e6c629c93da1240a148e02ec7442287558f30cf01e4798be88ff7c8c8"
             ],
-            "index": "pypi",
-            "version": "==12.3.2"
+            "version": "==12.4.0"
         },
         "beautifulsoup4": {
             "hashes": [
@@ -986,11 +985,10 @@
         },
         "azure-storage-blob": {
             "hashes": [
-                "sha256:8a02a33cd28a16963274dc928960642e99ec19cad27166fb386ebcc0f1216706",
-                "sha256:b99ce18c5063b22a988e6e997a491aab6c7c4dd62d1424b4e2b934e6ef104356"
+                "sha256:96a09b2ff234d7623667e1002c916b5b562e5829ea62b4175309f65ab06a03e8",
+                "sha256:f7e7e78e6c629c93da1240a148e02ec7442287558f30cf01e4798be88ff7c8c8"
             ],
-            "index": "pypi",
-            "version": "==12.3.2"
+            "version": "==12.4.0"
         },
         "babel": {
             "hashes": [
