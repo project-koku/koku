@@ -276,7 +276,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     return bills
 
 
-def get_s3_resource():
+def get_s3_resource():  # pragma: no cover
     """
     Obtain the s3 session client
     """
