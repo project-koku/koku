@@ -585,7 +585,7 @@ UPDATE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS li
 SET usage_quantity = sum(li.usage_quantity * su.multiplier),
     unit_of_measure = su.unit_of_measure
 FROM cte_split_units AS su
-    WHERE li.azure_id = su.id
+    WHERE li.azure_id = su.azure_id
 ;
 
 -- First we match OCP storage data to Azure data using a direct
@@ -1013,7 +1013,7 @@ UPDATE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
 SET usage_quantity = sum(li.usage_quantity * su.multiplier),
     unit_of_measure = su.unit_of_measure
 FROM cte_split_units AS su
-    WHERE li.azure_id = su.id
+    WHERE li.azure_id = su.azure_id
 ;
 
 
