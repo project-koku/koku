@@ -233,9 +233,11 @@ CREATE TEMPORARY TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} 
             azure.cost_entry_bill_id,
             azure.cost_entry_product_id,
             azure.meter_id,
+            azure.service_name,
             azure.subscription_guid,
             azure.usage_date,
             azure.usage_quantity,
+            azure.unit_of_measure,
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
@@ -562,6 +564,30 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
 )
 ;
 
+WITH cte_split_units AS (
+    SELECT
+        CASE WHEN split_part(li.unit_of_measure, ' ', 2) != '' AND NOT (li.unit_of_measure = '100 Hours' AND li.service_name='Virtual Machines')
+            THEN  split_part(li.unit_of_measure, ' ', 1)::integer
+            ELSE 1::integer
+            END as multiplier,
+        CASE
+            WHEN split_part(li.unit_of_measure, ' ', 2) = 'Hours'
+                THEN  'Hrs'
+            WHEN split_part(li.unit_of_measure, ' ', 2) = 'GB/Month'
+                THEN  'GB-Mo'
+            WHEN split_part(li.unit_of_measure, ' ', 2) != ''
+                THEN  split_part(li.unit_of_measure, ' ', 2)
+            ELSE li.unit_of_measure
+        END as unit_of_measure
+    FROM reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS li
+)
+UPDATE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS li
+SET usage_quantity = sum(li.usage_quantity * su.multiplier),
+    unit_of_measure = su.unit_of_measure
+FROM cte_split_units AS su
+    WHERE li.azure_id = su.id
+;
+
 -- First we match OCP storage data to Azure data using a direct
 -- resource id match. OCP PVC name -> Azure instance ID.
 CREATE TEMPORARY TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS (
@@ -586,9 +612,11 @@ CREATE TEMPORARY TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}
             azure.cost_entry_bill_id,
             azure.cost_entry_product_id,
             azure.meter_id,
+            azure.service_name,
             azure.subscription_guid,
             azure.usage_date,
             azure.usage_quantity,
+            azure.unit_of_measure,
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
@@ -963,6 +991,32 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
 )
 ;
 
+
+WITH cte_split_units AS (
+    SELECT
+        CASE WHEN split_part(li.unit_of_measure, ' ', 2) != '' AND NOT (li.unit_of_measure = '100 Hours' AND li.service_name='Virtual Machines')
+            THEN  split_part(li.unit_of_measure, ' ', 1)::integer
+            ELSE 1::integer
+            END as multiplier,
+        CASE
+            WHEN split_part(li.unit_of_measure, ' ', 2) = 'Hours'
+                THEN  'Hrs'
+            WHEN split_part(li.unit_of_measure, ' ', 2) = 'GB/Month'
+                THEN  'GB-Mo'
+            WHEN split_part(li.unit_of_measure, ' ', 2) != ''
+                THEN  split_part(li.unit_of_measure, ' ', 2)
+            ELSE li.unit_of_measure
+        END as unit_of_measure
+    FROM reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
+)
+UPDATE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
+SET usage_quantity = sum(li.usage_quantity * su.multiplier),
+    unit_of_measure = su.unit_of_measure
+FROM cte_split_units AS su
+    WHERE li.azure_id = su.id
+;
+
+
 -- The full summary data for Openshift pod<->azure and
 -- Openshift volume<->azure matches are UNIONed together
 -- with a GROUP BY using the azure ID to deduplicate
@@ -1160,7 +1214,7 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         li.pod_cost * {{markup}}::numeric as project_markup_cost,
         ab.provider_id as source_uuid
     FROM reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
-JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
+    JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
         ON li.cost_entry_product_id = p.id
     JOIN {{schema | sqlsafe}}.reporting_azuremeter as m
         ON li.meter_id = m.id
