@@ -376,10 +376,10 @@ class TagQueryHandler(QueryHandler):
         """
         if self.parameters.get("key_only"):
             tag_data = self.get_tag_keys()
-            query_data = sorted(tag_data, reverse=self.order_direction == "desc")
+            query_data = sorted(tag_data, reverse=self.order_direction == "asc")
         else:
             tag_data = self.get_tags()
-            query_data = sorted(tag_data, key=lambda k: k["key"], reverse=self.order_direction == "desc")
+            query_data = sorted(tag_data, key=lambda k: k["key"], reverse=self.order_direction == "asc")
 
         self.query_data = query_data
 
