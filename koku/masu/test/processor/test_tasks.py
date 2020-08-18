@@ -40,6 +40,7 @@ from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.models import Provider
 from api.utils import DateHelper
+from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -1081,3 +1082,4 @@ class TestRemoveStaleTenants(MasuTestCase):
             remove_stale_tenants()
             after_len = Tenant.objects.count()
             self.assertGreater(before_len, after_len)
+            self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)

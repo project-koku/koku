@@ -37,6 +37,7 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.celery import app
+from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -721,5 +722,7 @@ def remove_stale_tenants():
         cursor.execute(table_sql)
         data = cursor.fetchall()
         Tenant.objects.filter(schema_name__in=[i[0] for i in data]).delete()
+        if data:
+            KokuTenantMiddleware.tenant_cache.clear()
         for name in data:
             LOG.info(f"Deleted tenant: {name}")
