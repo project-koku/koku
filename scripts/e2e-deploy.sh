@@ -97,7 +97,7 @@ fi
 
 echo "Setting koku e2e SOURCE_REPOSITORY_REF to \"${TARGET_REF}\"${CURRENT_FLAG}"
 UDT_SRR="$(dirname KOKU_SECRETS)/update_e2e_srr.py"
-$UDT_SRR $TARGET_REF
+$UDT_SRR "${TARGET_REF}"
 
 echo <<EOF
 Building your environment using these settings:
