@@ -233,11 +233,9 @@ CREATE TEMPORARY TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} 
             azure.cost_entry_bill_id,
             azure.cost_entry_product_id,
             azure.meter_id,
-            azure.service_name,
             azure.subscription_guid,
             azure.usage_date,
             azure.usage_quantity,
-            azure.unit_of_measure,
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
@@ -565,21 +563,23 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
 ;
 
 WITH cte_split_units AS (
-    SELECT
-        CASE WHEN split_part(li.unit_of_measure, ' ', 2) != '' AND NOT (li.unit_of_measure = '100 Hours' AND li.service_name='Virtual Machines')
-            THEN  split_part(li.unit_of_measure, ' ', 1)::integer
+    SELECT li.azure_id,
+        CASE WHEN split_part(m.unit_of_measure, ' ', 2) != '' AND NOT (m.unit_of_measure = '100 Hours' AND m.meter_category='Virtual Machines')
+            THEN  split_part(m.unit_of_measure, ' ', 1)::integer
             ELSE 1::integer
             END as multiplier,
         CASE
-            WHEN split_part(li.unit_of_measure, ' ', 2) = 'Hours'
+            WHEN split_part(m.unit_of_measure, ' ', 2) = 'Hours'
                 THEN  'Hrs'
-            WHEN split_part(li.unit_of_measure, ' ', 2) = 'GB/Month'
+            WHEN split_part(m.unit_of_measure, ' ', 2) = 'GB/Month'
                 THEN  'GB-Mo'
-            WHEN split_part(li.unit_of_measure, ' ', 2) != ''
-                THEN  split_part(li.unit_of_measure, ' ', 2)
-            ELSE li.unit_of_measure
+            WHEN split_part(m.unit_of_measure, ' ', 2) != ''
+                THEN  split_part(m.unit_of_measure, ' ', 2)
+            ELSE m.unit_of_measure
         END as unit_of_measure
     FROM reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS li
+    JOIN {{schema | safe}}.reporting_azuremeter AS m
+        ON li.meter_id = m.id
 )
 UPDATE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS li
 SET usage_quantity = sum(li.usage_quantity * su.multiplier),
@@ -612,11 +612,9 @@ CREATE TEMPORARY TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}
             azure.cost_entry_bill_id,
             azure.cost_entry_product_id,
             azure.meter_id,
-            azure.service_name,
             azure.subscription_guid,
             azure.usage_date,
             azure.usage_quantity,
-            azure.unit_of_measure,
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
@@ -993,21 +991,23 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
 
 
 WITH cte_split_units AS (
-    SELECT
-        CASE WHEN split_part(li.unit_of_measure, ' ', 2) != '' AND NOT (li.unit_of_measure = '100 Hours' AND li.service_name='Virtual Machines')
-            THEN  split_part(li.unit_of_measure, ' ', 1)::integer
+    SELECT li.azure_id,
+        CASE WHEN split_part(m.unit_of_measure, ' ', 2) != '' AND NOT (m.unit_of_measure = '100 Hours' AND m.meter_category='Virtual Machines')
+            THEN  split_part(m.unit_of_measure, ' ', 1)::integer
             ELSE 1::integer
             END as multiplier,
         CASE
-            WHEN split_part(li.unit_of_measure, ' ', 2) = 'Hours'
+            WHEN split_part(m.unit_of_measure, ' ', 2) = 'Hours'
                 THEN  'Hrs'
-            WHEN split_part(li.unit_of_measure, ' ', 2) = 'GB/Month'
+            WHEN split_part(m.unit_of_measure, ' ', 2) = 'GB/Month'
                 THEN  'GB-Mo'
-            WHEN split_part(li.unit_of_measure, ' ', 2) != ''
-                THEN  split_part(li.unit_of_measure, ' ', 2)
-            ELSE li.unit_of_measure
+            WHEN split_part(m.unit_of_measure, ' ', 2) != ''
+                THEN  split_part(m.unit_of_measure, ' ', 2)
+            ELSE m.unit_of_measure
         END as unit_of_measure
     FROM reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
+    JOIN {{schema | safe}}.reporting_azuremeter AS m
+        ON li.meter_id = m.id
 )
 UPDATE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
 SET usage_quantity = sum(li.usage_quantity * su.multiplier),
