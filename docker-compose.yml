@@ -165,6 +165,31 @@ services:
     volumes:
       - ./pgadmin_servers.json:/pgadmin4/servers.json
 
+  koku-minio:
+    image: minio/minio:latest
+    container_name: koku_minio
+    environment:
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio123
+    ports:
+      - 9000:9000
+    command: server /data
+    volumes:
+      - ./testing/parquet_data:/data
+
+  koku-create-parquet-bucket:
+    image: minio/mc:latest
+    depends_on:
+      - koku-minio
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host rm local;
+      /usr/bin/mc config host add --quiet --api s3v4 local http://koku_minio:9000 minio minio123;
+      /usr/bin/mc rb --force local/koku-bucket/;
+      /usr/bin/mc mb --quiet local/koku-bucket/;
+      /usr/bin/mc policy set public local/koku-bucket;
+      "
+  
   grafana:
     container_name: koku_grafana
     build:
