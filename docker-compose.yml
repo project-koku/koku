@@ -167,10 +167,10 @@ services:
 
   koku-minio:
     image: minio/minio:latest
-    container_name: koku_minio
+    container_name: kokuminio
     environment:
-      MINIO_ACCESS_KEY: minio
-      MINIO_SECRET_KEY: minio123
+      MINIO_ACCESS_KEY: kokuminioaccess
+      MINIO_SECRET_KEY: kokuminiosecret
     ports:
       - 9000:9000
     command: server /data
@@ -184,12 +184,12 @@ services:
     entrypoint: >
       /bin/sh -c "
       /usr/bin/mc config host rm local;
-      /usr/bin/mc config host add --quiet --api s3v4 local http://koku_minio:9000 minio minio123;
+      /usr/bin/mc config host add --quiet --api s3v4 local http://kokuminio:9000 kokuminioaccess kokuminiosecret;
       /usr/bin/mc rb --force local/koku-bucket/;
       /usr/bin/mc mb --quiet local/koku-bucket/;
       /usr/bin/mc policy set public local/koku-bucket;
       "
-  
+
   grafana:
     container_name: koku_grafana
     build:

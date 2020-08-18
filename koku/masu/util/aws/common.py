@@ -285,7 +285,7 @@ def get_s3_resource():
         aws_secret_access_key=settings.S3_SECRET,
         region_name=settings.S3_REGION,
     )
-    s3_resource = aws_session.resource("s3")
+    s3_resource = aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT)
     return s3_resource
 
 
