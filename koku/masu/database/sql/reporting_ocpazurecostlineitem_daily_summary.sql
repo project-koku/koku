@@ -1128,6 +1128,44 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
 -- number of pods sharing the cost so the values turn out the
 -- same when reported.
 CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uuid | sqlsafe}} AS (
+    WITH cte_split_units_usage AS (
+        SELECT li.azure_id,
+            CASE WHEN split_part(m.unit_of_measure, ' ', 2) != '' AND NOT (m.unit_of_measure = '100 Hours' AND m.meter_category='Virtual Machines')
+                THEN  split_part(m.unit_of_measure, ' ', 1)::integer
+                ELSE 1::integer
+                END as multiplier,
+            CASE
+                WHEN split_part(m.unit_of_measure, ' ', 2) = 'Hours'
+                    THEN  'Hrs'
+                WHEN split_part(m.unit_of_measure, ' ', 2) = 'GB/Month'
+                    THEN  'GB-Mo'
+                WHEN split_part(m.unit_of_measure, ' ', 2) != ''
+                    THEN  split_part(m.unit_of_measure, ' ', 2)
+                ELSE m.unit_of_measure
+            END as unit_of_measure
+        FROM reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS li
+        JOIN {{schema | safe}}.reporting_azuremeter AS m
+            ON li.meter_id = m.id
+    ),
+    cte_split_units_storage AS (
+        SELECT li.azure_id,
+            CASE WHEN split_part(m.unit_of_measure, ' ', 2) != '' AND NOT (m.unit_of_measure = '100 Hours' AND m.meter_category='Virtual Machines')
+                THEN  split_part(m.unit_of_measure, ' ', 1)::integer
+                ELSE 1::integer
+                END as multiplier,
+            CASE
+                WHEN split_part(m.unit_of_measure, ' ', 2) = 'Hours'
+                    THEN  'Hrs'
+                WHEN split_part(m.unit_of_measure, ' ', 2) = 'GB/Month'
+                    THEN  'GB-Mo'
+                WHEN split_part(m.unit_of_measure, ' ', 2) != ''
+                    THEN  split_part(m.unit_of_measure, ' ', 2)
+                ELSE m.unit_of_measure
+            END as unit_of_measure
+        FROM reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
+        JOIN {{schema | safe}}.reporting_azuremeter AS m
+            ON li.meter_id = m.id
+    )
     SELECT li.report_period_id,
         li.cluster_id,
         li.cluster_alias,
@@ -1145,8 +1183,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         max(p.resource_location) as resource_location,
         max(split_part(p.instance_id, '/', 9)) as resource_id,
         max(m.currency) as currency,
-        max(m.unit_of_measure) as unit_of_measure,
-        sum(li.usage_quantity / li.shared_pods) as usage_quantity,
+        max(suu.unit_of_measure) as unit_of_measure,
+        sum((li.usage_quantity * suu.multiplier) / li.shared_pods) as usage_quantity,
         sum(li.pretax_cost / li.shared_pods) as pretax_cost,
         sum(li.pretax_cost / li.shared_pods) * {{markup}}::numeric as markup_cost,
         max(li.offer_id) as offer_id,
@@ -1159,6 +1197,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         ON li.cost_entry_product_id = p.id
     JOIN {{schema | sqlsafe}}.reporting_azuremeter as m
         ON li.meter_id = m.id
+    JOIN cte_split_units_usage as suu
+        ON li.azure_id = suu.azure_id
     LEFT JOIN {{schema | sqlsafe}}.reporting_azurecostentrybill as ab
         ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_date >= {{start_date}}::date
@@ -1194,8 +1234,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         max(p.resource_location) as resource_location,
         max(split_part(p.instance_id, '/', 9)) as resource_id,
         max(m.currency) as currency,
-        max(m.unit_of_measure) as unit_of_measure,
-        sum(li.usage_quantity / li.shared_pods) as usage_quantity,
+        max(sus.unit_of_measure) as unit_of_measure,
+        sum((li.usage_quantity * sus.multiplier) / li.shared_pods) as usage_quantity,
         sum(li.pretax_cost / li.shared_pods) as pretax_cost,
         sum(li.pretax_cost / li.shared_pods) * {{markup}}::numeric as markup_cost,
         max(li.offer_id) as offer_id,
@@ -1208,6 +1248,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         ON li.cost_entry_product_id = p.id
     JOIN {{schema | sqlsafe}}.reporting_azuremeter as m
         ON li.meter_id = m.id
+    JOIN cte_split_units_storage as sus
+        ON li.azure_id = sus.azure_id
     LEFT JOIN reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.azure_id = li.azure_id
     LEFT JOIN {{schema | sqlsafe}}.reporting_azurecostentrybill as ab
