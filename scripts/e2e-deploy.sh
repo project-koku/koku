@@ -70,9 +70,9 @@ OCDEPLOYER=$(which ocdeployer)
 IQE=$(which iqe)
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-        KOKU_SECRETS=$PWD/e2e-secrets.yml
+    KOKU_SECRETS=$PWD/e2e-secrets.yml
 else
-        KOKU_SECRETS=$(dirname $(readlink -f $0))/e2e-secrets.yml
+    KOKU_SECRETS=$(dirname $(readlink -f $0))/e2e-secrets.yml
 fi
 
 ### validation
@@ -86,6 +86,18 @@ function check_var() {
 check_var "REGISTRY_REDHAT_IO_SECRETS"
 check_var "E2E_REPO"
 check_var "OPENSHIFT_API_URL"
+
+TARGET_REF=${1:-master}
+CURRENT_FLAG=""
+if [[ ( "${TARGET_REF}" == "CURRENT" ) || ( "${TARGET_REF}" == "current" ) ]]
+then
+    TARGET_REF=$(git rev-parse HEAD)
+    CURRENT_FLAG=" (current HEAD)"
+fi
+
+echo "Setting koku e2e SOURCE_REPOSITORY_REF to \"${TARGET_REF}\"${CURRENT_FLAG}"
+UDT_SRR="$(dirname KOKU_SECRETS)/update_e2e_srr.py"
+$UDT_SRR $TARGET_REF
 
 echo <<EOF
 Building your environment using these settings:
