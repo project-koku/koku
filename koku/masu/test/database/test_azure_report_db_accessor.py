@@ -251,24 +251,32 @@ class AzureReportDBAccessorTest(MasuTestCase):
             sum_azure_cost = li_table.objects.aggregate(Sum("pretax_cost"))["pretax_cost__sum"]
 
         with schema_context(self.schema):
-            sum_cost = summary_table.objects.all().aggregate(Sum("pretax_cost"))["pretax_cost__sum"]
-            sum_project_cost = project_table.objects.all().aggregate(Sum("pretax_cost"))["pretax_cost__sum"]
-            self.assertNotEqual(sum_cost, 0)
-            self.assertAlmostEqual(sum_cost, sum_project_cost, 4)
-            self.assertLessEqual(sum_cost, sum_azure_cost)
+            # These names are defined in the `azure_static_data.yml` used by Nise to populate the Azure data
+            namespaces = ["kube-system", "openshift", "banking", "mobile", "news-site", "weather"]
+            for namespace in namespaces:
+                with self.subTest(namespace=namespace):
+                    sum_cost = summary_table.objects.filter(namespace__contains=[namespace]).aggregate(
+                        Sum("pretax_cost")
+                    )["pretax_cost__sum"]
+                    sum_project_cost = project_table.objects.filter(namespace=namespace).aggregate(Sum("pretax_cost"))[
+                        "pretax_cost__sum"
+                    ]
+                    self.assertNotEqual(sum_cost, 0)
+                    self.assertAlmostEqual(sum_cost, sum_project_cost, 4)
+                    self.assertLessEqual(sum_cost, sum_azure_cost)
 
         with schema_context(self.schema):
             sum_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pretax_cost"))[
                 "pretax_cost__sum"
+            ]
+            sum_markup_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("markup_cost"))[
+                "markup_cost__sum"
             ]
             sum_project_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pretax_cost"))[
                 "pretax_cost__sum"
             ]
             sum_pod_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pod_cost"))[
                 "pod_cost__sum"
-            ]
-            sum_markup_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("markup_cost"))[
-                "markup_cost__sum"
             ]
             sum_markup_cost_project = project_table.objects.filter(cluster_id=cluster_id).aggregate(
                 Sum("markup_cost")
@@ -278,7 +286,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
             )["project_markup_cost__sum"]
 
             self.assertLessEqual(sum_cost, sum_azure_cost)
-            self.assertAlmostEqual(sum_cost, sum_project_cost, 4)
             self.assertAlmostEqual(sum_markup_cost, sum_cost * markup_value, 4)
-            self.assertAlmostEqual(sum_markup_cost_project, sum_cost * markup_value, 4)
+            self.assertAlmostEqual(sum_markup_cost_project, sum_project_cost * markup_value, 4)
             self.assertAlmostEqual(sum_project_markup_cost_project, sum_pod_cost * markup_value, 4)
