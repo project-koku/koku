@@ -255,7 +255,6 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         file_creation_date = None
         try:
             s3_file = self.s3_client.get_object(Bucket=self.report.get("S3Bucket"), Key=key)
-            LOG.info(f"S3 FILE key: {str(key)} meta: {str(s3_file)}")
             s3_etag = s3_file.get("ETag")
             file_creation_date = s3_file.get("LastModified")
         except ClientError as ex:
