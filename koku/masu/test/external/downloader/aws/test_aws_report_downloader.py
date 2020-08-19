@@ -492,3 +492,22 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         result = downloader.get_manifest_context_for_date(current_month)
         self.assertEqual(result, {})
+
+    @patch("masu.external.downloader.aws.aws_report_downloader.boto3.resource")
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
+    def test_get_manifest(self, mock_download_file, mock_boto_resource):
+        """Test _get_manifest method."""
+        mock_datetime = DateAccessor().today()
+        mock_file_name = "testfile"
+        mock_download_file.return_value = (mock_file_name, None, mock_datetime)
+        fake_manifest_dict = {"foo": "bar"}
+        with patch("masu.external.downloader.aws.aws_report_downloader.open"):
+            with patch(
+                "masu.external.downloader.aws.aws_report_downloader.json.load", return_value=fake_manifest_dict
+            ):
+                manifest_file, manifest_json, manifest_modified_timestamp = self.aws_report_downloader._get_manifest(
+                    mock_datetime
+                )
+                self.assertEqual(manifest_file, mock_file_name)
+                self.assertEqual(manifest_json, fake_manifest_dict)
+                self.assertEqual(manifest_modified_timestamp, mock_datetime)
