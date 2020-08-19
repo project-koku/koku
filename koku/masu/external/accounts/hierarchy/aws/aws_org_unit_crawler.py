@@ -50,6 +50,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         self._account_alias_map = None
         self._structure_yesterday = None
         self.account_id = None
+        self.errors_raised = False
 
     @transaction.atomic
     def crawl_account_hierarchy(self):
@@ -72,7 +73,8 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 )
             )
             self._crawl_org_for_accounts(root_ou, root_ou.get("Id"), level=0)
-            self._mark_nodes_deleted()
+            if not self.errors_raised:
+                self._mark_nodes_deleted()
         except ParamValidationError as param_error:
             LOG.warn(msg=error_message)
             LOG.warn(param_error)
@@ -102,7 +104,6 @@ class AWSOrgUnitCrawler(AccountCrawler):
         # Save entry for current OU
         self._save_aws_org_method(ou, prefix, level)
         try:
-
             # process accounts for this org unit
             self._crawl_accounts_per_id(ou, prefix, level)
             level = level + 1
@@ -119,6 +120,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 self._crawl_org_for_accounts(sub_ou, new_prefix, level)
 
         except Exception:
+            self.errors_raised = True
             LOG.exception(
                 "Failure processing org_unit_id: {} for account with account schema: {},"
                 " provider_uuid: {}, and account_id: {}".format(
@@ -239,7 +241,6 @@ class AWSOrgUnitCrawler(AccountCrawler):
             # Remove key since we have seen it
             lookup_key = self._create_lookup_key(unit_id, account_id)
             self._structure_yesterday.pop(lookup_key, None)
-
             if created:
                 # only log it was saved if was created to reduce logging on everyday calls
                 LOG.info(
@@ -254,6 +255,15 @@ class AWSOrgUnitCrawler(AccountCrawler):
                         level,
                     )
                 )
+            elif org_unit.deleted_timestamp is not None:
+                LOG.warning(
+                    "Org unit {} was found with a deleted_timestamp for account"
+                    " with provider_uuid={} and account_id={}. Setting deleted_timestamp to null!".format(
+                        org_unit.org_unit_id, self.account.get("provider_uuid"), self.account_id
+                    )
+                )
+                org_unit.deleted_timestamp = None
+                org_unit.save()
             return org_unit
 
     def _delete_aws_account(self, account_id):
