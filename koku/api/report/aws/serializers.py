@@ -96,6 +96,24 @@ class QueryParamSerializer(ParamSerializer):
         super().__init__(*args, **kwargs)
         self._init_tagged_fields(filter=FilterSerializer, group_by=GroupBySerializer, order_by=OrderBySerializer)
 
+    def validate(self, data):
+        """Validate incoming data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if field inputs are invalid
+
+        """
+        super().validate(data)
+        error = {}
+        if "delta" in data.get("order_by", {}) and "delta" not in data:
+            error["order_by"] = _("Cannot order by delta without a delta param")
+            raise serializers.ValidationError(error)
+        return data
+
     def validate_group_by(self, value):
         """Validate incoming group_by data.
 

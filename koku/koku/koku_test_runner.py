@@ -46,6 +46,7 @@ class KokuTestRunner(DiscoverRunner):
 
     account = "10001"
     schema = f"acct{account}"
+    settings.HOSTNAME = "koku-worker-10-abcdef"
 
     def setup_databases(self, **kwargs):
         """Set up database tenant schema."""

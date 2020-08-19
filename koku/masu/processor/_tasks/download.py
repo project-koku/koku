@@ -21,13 +21,11 @@ from celery.utils.log import get_task_logger
 import masu.prometheus_stats as worker_stats
 from api.common import log_json
 from masu.config import Config
-from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.worker_cache import WorkerCache
-from masu.providers.status import ProviderStatus
 
 LOG = get_task_logger(__name__)
 
@@ -101,10 +99,6 @@ def _get_report_files(
         worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
         WorkerCache().remove_task_from_cache(cache_key)
         LOG.error(log_json(request_id, str(err), context))
-        with ProviderStatus(provider_uuid) as status:
-            status.set_error(error=err)
         raise err
 
-    with ProviderStatus(provider_uuid) as status:
-        status.set_status(ProviderStatusCode.READY)
     return report
