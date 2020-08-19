@@ -104,7 +104,7 @@ class OCPAzureQueryHandlerTestNoData(IamTestCase):
             "cost": "USD",
             "infrastructure": "USD",
             "supplementary": "USD",
-            "usage": "Instance Type Placeholder",
+            "usage": "GB-Mo",
             "count": "instances",
         }
         has_total_list = ["cost", "infrastructure", "supplementary"]
@@ -153,7 +153,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filt = {"service_name__contains": "Storage"}
+        filt = {"service_name__contains": "Storage", "unit_of_measure__exact": "GB-Mo"}
         filt.update(self.ten_day_filter)
         current_totals = self.get_totals_by_time_scope(aggregates, filt)
         total = query_output.get("total")
@@ -169,7 +169,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filters = {**self.ten_day_filter, "instance_type__isnull": False}
+        filters = {**self.ten_day_filter, "instance_type__isnull": False, "unit_of_measure__exact": "Hrs"}
         current_totals = self.get_totals_by_time_scope(aggregates, filters)
         total = query_output.get("total")
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
