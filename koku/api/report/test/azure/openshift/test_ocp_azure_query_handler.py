@@ -104,7 +104,7 @@ class OCPAzureQueryHandlerTestNoData(IamTestCase):
             "cost": "USD",
             "infrastructure": "USD",
             "supplementary": "USD",
-            "usage": "GB-Mo",
+            "usage": "Hrs",
             "count": "instances",
         }
         has_total_list = ["cost", "infrastructure", "supplementary"]
