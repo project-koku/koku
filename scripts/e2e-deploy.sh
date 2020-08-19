@@ -199,3 +199,6 @@ ${OC} expose service koku --generator="route/v1" --name=koku
 ${OC} expose service koku-masu --generator="route/v1" --name=masu
 
 echo "Deployment completed successfully."
+
+echo "Resetting koku e2e SOURCE_REPOSITORY_REF to \"master\""
+$UDT_SRR "master"
