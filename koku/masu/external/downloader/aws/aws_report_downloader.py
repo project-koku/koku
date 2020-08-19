@@ -180,7 +180,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         except AWSReportDownloaderNoFileError as err:
             msg = f"Unable to get report manifest. Reason: {str(err)}"
             LOG.info(log_json(self.request_id, msg, self.context))
-            return "", self.empty_manifest
+            return "", self.empty_manifest, None
 
         manifest_json = None
         with open(manifest_file, "r") as manifest_file_handle:
