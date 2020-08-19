@@ -54,3 +54,4 @@ with open(TARGET_FILE, "rt+") as koku_yaml:
     koku_yaml.seek(0)
     koku_yaml.write(SRR.sub(repl, buff))
     koku_yaml.flush()
+    koku_yaml.truncate()

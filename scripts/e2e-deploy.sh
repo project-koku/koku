@@ -55,6 +55,23 @@ function handle_errors() {
     exit 1
 }
 
+if [[ ( "$1" == "-h" )  || ( "$1" == "--help" )  || ( "$1" == "-help" ) ]]
+then
+    cat <<EOF
+
+Usage:  $(basename "$0") [git-ref-or-branch-name]
+
+If no argument is passed, then the default branch will be used (master).
+If a ref or branch name is passed, then it MUST exist on the remote. The
+script will give you a change to exit and push, if needed.
+
+A special token of CURRENT can also be used to grab your current ref. Again,
+the ref MUST exist on the remote.
+
+EOF
+    exit 0
+fi
+
 ### login info
 OCP_USER=developer
 OCP_PASSWORD=developer
@@ -87,6 +104,7 @@ check_var "REGISTRY_REDHAT_IO_SECRETS"
 check_var "E2E_REPO"
 check_var "OPENSHIFT_API_URL"
 
+# Handle git ref
 TARGET_REF=${1:-master}
 CURRENT_FLAG=""
 if [[ ( "${TARGET_REF}" == "CURRENT" ) || ( "${TARGET_REF}" == "current" ) ]]
@@ -95,11 +113,27 @@ then
     CURRENT_FLAG=" (current HEAD)"
 fi
 
+if [[ "${TARGET_REF}" != "master" ]]
+then
+    cat <<EOF
+************************
+WARNING:
+
+This deploy will use ${TARGET_REF} for the koku SOURCE_REPOSITORY_REF.
+This ref MUST exist on the remote in order to be successful.
+
+Press <enter> to continue or CTRL+C to exit.
+************************
+EOF
+    read JUNK
+fi
+
 echo "Setting koku e2e SOURCE_REPOSITORY_REF to \"${TARGET_REF}\"${CURRENT_FLAG}"
-UDT_SRR="$(dirname KOKU_SECRETS)/update_e2e_srr.py"
+UDT_SRR="$(dirname ${KOKU_SECRETS})/update_e2e_srr.py"
 $UDT_SRR "${TARGET_REF}"
 
-echo <<EOF
+
+cat <<EOF
 Building your environment using these settings:
 
     OPENSHIFT_API_URL=${OPENSHIFT_API_URL}
@@ -200,5 +234,9 @@ ${OC} expose service koku-masu --generator="route/v1" --name=masu
 
 echo "Deployment completed successfully."
 
-echo "Resetting koku e2e SOURCE_REPOSITORY_REF to \"master\""
-$UDT_SRR "master"
+# Reset git ref, if necessary
+if [[ "${TARGET_REF}" != "master" ]]
+then
+    echo "Resetting koku e2e SOURCE_REPOSITORY_REF to \"master\""
+    $UDT_SRR "master"
+fi
