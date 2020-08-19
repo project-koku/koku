@@ -251,6 +251,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             sum_azure_cost = li_table.objects.aggregate(Sum("pretax_cost"))["pretax_cost__sum"]
 
         with schema_context(self.schema):
+            # These names are defined in the `azure_static_data.yml` used by Nise to populate the Azure data
             namespaces = ["kube-system", "openshift", "banking", "mobile", "news-site", "weather"]
             for namespace in namespaces:
                 with self.subTest(namespace=namespace):
