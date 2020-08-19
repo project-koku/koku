@@ -4,7 +4,7 @@ generators:
       start_date: {{ start_date }}
       end_date: {{ end_date }}
       processor_arch: 64-bit
-      resource_id: 55555555
+      resource_id: i-55555555
       product_sku: VEAJHRNKTJZQ
       region: us-east-1a
       tags:
@@ -21,7 +21,7 @@ generators:
       start_date: {{ start_date }}
       end_date: {{ end_date }}
       processor_arch: 64-bit
-      resource_id: 55555556
+      resource_id: i-55555556
       product_sku: VEAJHRNKTJAA
       region: us-east-1a
       tags:
@@ -39,7 +39,7 @@ generators:
       start_date: {{ start_date }}
       end_date: {{ end_date }}
       processor_arch: 64-bit
-      resource_id: 55555557
+      resource_id: i-55555557
       product_sku: VEAJHRNKTJAB
       region: us-east-1a
       tags:
@@ -57,7 +57,7 @@ generators:
       start_date: {{ start_date }}
       end_date: {{ end_date }}
       processor_arch: 64-bit
-      resource_id: 55555558
+      resource_id: i-55555558
       product_sku: VEAJHRNKTJAC
       region: us-east-1a
       tags:
@@ -82,7 +82,7 @@ generators:
       start_date: {{ start_date }}
       end_date: {{ end_date }}
       product_sku: VEAJHRNBBBBA
-      resource_id: 12345671
+      resource_id: vol-12345671
       amount: 10
       rate: 0.01
       tags:
@@ -91,7 +91,7 @@ generators:
       start_date: {{ start_date }}
       end_date: {{ end_date }}
       product_sku: VEAJHRNBBBBB
-      resource_id: 12345672
+      resource_id: vol-12345672
       amount: 10
       rate: 0.01
       tags:
@@ -100,7 +100,7 @@ generators:
       start_date: {{ start_date }}
       end_date: {{ end_date }}
       product_sku: VEAJHRNBBBBC
-      resource_id: 12345673
+      resource_id: vol-12345673
       amount: 10
       rate: 0.01
       tags:
@@ -109,7 +109,7 @@ generators:
       start_date: {{ start_date }}
       end_date: {{ end_date }}
       product_sku: VEAJHRNBBBBD
-      resource_id: 12345674
+      resource_id: vol-12345674
       amount: 10
       rate: 0.01
       tags:
@@ -180,7 +180,6 @@ generators:
   - DataTransferGenerator:
       start_date: {{ start_date }}
       end_date: {{ end_date }}
-      resource_id: ''
       product_sku: AERJHRNCCCCC
       product_code: AmazonDynamoDB
       product_name: Amazon DynamoDB
@@ -189,7 +188,6 @@ generators:
   - DataTransferGenerator:
       start_date: {{ start_date }}
       end_date: {{ end_date }}
-      resource_id: ''
       product_sku: AERJHRNCCCCD
       product_code: AmazonDynamoDB
       product_name: Amazon DynamoDB
@@ -198,7 +196,6 @@ generators:
   - DataTransferGenerator:
       start_date: {{ start_date }}
       end_date: {{ end_date }}
-      resource_id: ''
       product_sku: AERJHRNCCCCE
       product_code: AmazonDynamoDB
       product_name: Amazon DynamoDB

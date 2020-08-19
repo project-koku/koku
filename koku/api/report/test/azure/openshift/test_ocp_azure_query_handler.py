@@ -602,7 +602,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
-
         path = reverse("reports-openshift-azure-costs")
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*&delta=cost"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView, path)

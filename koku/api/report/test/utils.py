@@ -125,8 +125,7 @@ class NiseDataLoader:
                 num_total_files=3,
             )
             with open(static_data_path, "w") as f:
-                rendered = template.render(start_date=start_date, end_date=end_date)
-                f.write(rendered)
+                f.write(template.render(start_date=start_date, end_date=end_date))
 
             run(provider_type.lower(), options)
 

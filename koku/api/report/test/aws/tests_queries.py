@@ -28,6 +28,7 @@ from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Func
+from django.db.models import Q
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
@@ -102,9 +103,12 @@ class AWSReportQueryTest(IamTestCase):
                 .first()
                 .get("availability_zone")
             )
-            self.availability_zone_count = AWSCostEntryLineItemDailySummary.objects.aggregate(
-                Count("availability_zone", distinct=True)
-            ).get("availability_zone__count")
+            self.availability_zone_count = (
+                AWSCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
+                .filter(usage_end__lte=self.dh.today)
+                .aggregate(Count("availability_zone", distinct=True))
+                .get("availability_zone__count")
+            )
             self.region = AWSCostEntryLineItemDailySummary.objects.values("region").distinct().first().get("region")
             self.region_count = AWSCostEntryLineItemDailySummary.objects.aggregate(Count("region", distinct=True)).get(
                 "region__count"
@@ -483,16 +487,20 @@ class AWSReportQueryTest(IamTestCase):
 
         with tenant_context(self.tenant):
             expected_counts = (
-                AWSCostEntryLineItemDailySummary.objects.filter(
-                    instance_type__isnull=False, usage_start__gte=self.dh.this_month_start
+                AWSComputeSummary.objects.filter(
+                    instance_type__isnull=False,
+                    usage_start__gte=self.dh.this_month_start,
+                    usage_end__lte=self.dh.today,
                 )
                 .values(**annotations)
                 .distinct()
             )
 
             total_count = (
-                AWSCostEntryLineItemDailySummary.objects.filter(
-                    instance_type__isnull=False, usage_start__gte=self.dh.this_month_start
+                AWSComputeSummary.objects.filter(
+                    instance_type__isnull=False,
+                    usage_start__gte=self.dh.this_month_start,
+                    usage_end__lte=self.dh.today,
                 )
                 .values(**{"resource_id": Func(F("resource_ids"), function="unnest")})
                 .distinct()
@@ -840,18 +848,22 @@ class AWSReportQueryTest(IamTestCase):
 
         # fetch the expected sums from the DB.
         with tenant_context(self.tenant):
-            curr = AWSCostEntryLineItemDailySummary.objects.filter(
-                usage_start__gte=dh.this_month_start,
-                usage_end__lte=dh.this_month_end,
-                account_alias__account_alias=self.account_alias,
-            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+            curr = AWSCostSummaryByAccount.objects.filter(
+                usage_start__gte=dh.this_month_start, usage_end__lte=dh.today
+            ).filter(
+                Q(account_alias__account_alias__icontains=self.account_alias)
+                | Q(usage_account_id__icontains=self.account_alias)
+            )
+            curr = curr.aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
             current_total = Decimal(curr.get("value"))
 
-            prev = AWSCostEntryLineItemDailySummary.objects.filter(
-                usage_start__gte=dh.last_month_start,
-                usage_end__lte=dh.last_month_end,
-                account_alias__account_alias=self.account_alias,
-            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+            prev = AWSCostSummaryByAccount.objects.filter(
+                usage_start__gte=dh.last_month_start, usage_end__lte=dh.today.replace(month=self.dh.today.month - 1)
+            ).filter(
+                Q(account_alias__account_alias__icontains=self.account_alias)
+                | Q(usage_account_id__icontains=self.account_alias)
+            )
+            prev = prev.aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
             prev_total = Decimal(prev.get("value"))
 
         expected_delta_value = Decimal(current_total - prev_total)

@@ -764,9 +764,12 @@ class AWSReportProcessorTest(MasuTestCase):
 
         self.assertIsNotNone(pricing_id)
 
+        term = self.row.get("pricing/term", None)
+        unit = self.row.get("pricing/unit", None)
+
         with schema_context(self.schema):
             query = self.accessor._get_db_obj_query(table_name)
-            id_in_db = query.order_by("-id").first().id
+            id_in_db = query.filter(term=term, unit=unit).order_by("-id").first().id
             self.assertEqual(pricing_id, id_in_db)
 
     def test_create_cost_entry_pricing_already_processed(self):
