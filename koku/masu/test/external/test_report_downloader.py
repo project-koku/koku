@@ -22,6 +22,7 @@ from faker import Faker
 from model_bakery import baker
 
 from api.models import Provider
+from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
@@ -195,7 +196,7 @@ class ReportDownloaderTest(MasuTestCase):
         compression = "GZIP"
         mock_date = FAKE.date()
         mock_full_file_path = "/full/path/to/file.csv"
-        mock_dl.return_value = (mock_full_file_path, "fake_etag")
+        mock_dl.return_value = (mock_full_file_path, "fake_etag", DateAccessor().today())
 
         report_context = {
             "date": mock_date,
