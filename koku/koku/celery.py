@@ -10,6 +10,7 @@ from celery import Task
 from celery.schedules import crontab
 from celery.signals import celeryd_after_setup
 from django.conf import settings
+from kombu.exceptions import OperationalError
 
 from koku import sentry  # noqa: F401
 from koku.env import ENVIRONMENT
@@ -160,3 +161,28 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
     while not check_migrations():
         LOGGER.warning("Migrations not done. Sleeping")
         time.sleep(5)
+
+
+def is_task_currently_running(task_name, check_args=None):
+    """Check if a specific task with optional args is currently running."""
+    try:
+        active_dict = CELERY_INSPECT.active()
+    except OperationalError:
+        LOGGER.warning("Cannot connect to RabbitMQ.")
+        return False
+    active_tasks = []
+    for task_list in active_dict.values():
+        active_tasks.extend(task_list)
+    for active_task in active_tasks:
+        if active_task.get("name") == task_name:
+            if check_args:
+                task_args = set(active_task.get("args", []))
+                check_args = set(check_args)
+                if task_args >= check_args:
+                    # All of our check args are in the task's arg list
+                    return True
+            else:
+                # No check args, we're just checking for the task name
+                return True
+    # The task isn't running
+    return False
