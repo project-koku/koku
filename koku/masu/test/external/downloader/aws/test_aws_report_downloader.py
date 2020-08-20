@@ -478,9 +478,8 @@ class AWSReportDownloaderTest(MasuTestCase):
         result = downloader.get_manifest_context_for_date(current_month)
         self.assertEqual(result, {})
 
-    @patch("masu.external.downloader.aws.aws_report_downloader.boto3.resource")
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
-    def test_get_manifest(self, mock_download_file, mock_boto_resource):
+    def test_get_manifest(self, mock_download_file):
         """Test _get_manifest method."""
         mock_datetime = DateAccessor().today()
         mock_file_name = "testfile"
@@ -497,9 +496,8 @@ class AWSReportDownloaderTest(MasuTestCase):
                 self.assertEqual(manifest_json, fake_manifest_dict)
                 self.assertEqual(manifest_modified_timestamp, mock_datetime)
 
-    @patch("masu.external.downloader.aws.aws_report_downloader.boto3.resource")
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
-    def test_get_manifest_file_not_found(self, mock_download_file, mock_boto_resource):
+    def test_get_manifest_file_not_found(self, mock_download_file):
         """Test _get_manifest method when file is not found."""
         mock_datetime = DateAccessor().today()
         mock_download_file.side_effect = AWSReportDownloaderNoFileError("fake error")
