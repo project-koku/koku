@@ -723,6 +723,7 @@ def remove_stale_tenants():
         data = cursor.fetchall()
         Tenant.objects.filter(schema_name__in=[i[0] for i in data]).delete()
         if data:
-            KokuTenantMiddleware.tenant_cache.clear()
+            with KokuTenantMiddleware.tenant_lock:
+                KokuTenantMiddleware.tenant_cache.clear()
         for name in data:
             LOG.info(f"Deleted tenant: {name}")
