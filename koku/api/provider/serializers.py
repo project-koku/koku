@@ -118,14 +118,6 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
         model = ProviderBillingSource
         fields = ("uuid", "data_source")
 
-    def validate(self, data):
-        """Validate billing source."""
-        if not data.get("data_source"):
-            data["data_source"] = data.get("data_source", {})
-        if (data.get("bucket") or data.get("bucket") == "") and not data.get("data_source"):
-            data["data_source"] = {"bucket": data.get("bucket")}
-        return data
-
 
 class AWSBillingSourceSerializer(ProviderBillingSourceSerializer):
     """AWS billing source serializer."""
@@ -150,7 +142,7 @@ class AzureBillingSourceSerializer(ProviderBillingSourceSerializer):
 class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
     """GCP billing source serializer."""
 
-    def validate(self, data_source):
+    def validate_data_source(self, data_source):
         """Validate data_source field."""
         key = "provider.data_source"
         fields = ["bucket"]
@@ -168,7 +160,7 @@ class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
 class OCPBillingSourceSerializer(ProviderBillingSourceSerializer):
     """OCP billing source serializer."""
 
-    data_source = serializers.JSONField(allow_null=True, required=False)
+    data_source = serializers.JSONField(allow_null=False, required=False)
 
 
 # Registry of authentication serializers.
@@ -250,7 +242,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             )()
             self.fields["billing_source"] = BILLING_SOURCE_SERIALIZERS.get(
                 Provider.PROVIDER_CASE_MAPPING.get(provider_type)
-            )()
+            )(default={"data_source": {}})
         else:
             self.fields["authentication"] = ProviderAuthenticationSerializer()
             self.fields["billing_source"] = ProviderBillingSourceSerializer()

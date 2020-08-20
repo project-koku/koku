@@ -320,7 +320,7 @@ class SourcesSerializerTests(IamTestCase):
         source_data = {
             "name": "test1",
             "source_type": "AWS",
-            "authentication": {"credentials": {"resource_name": "arn:aws::foo:bar"}},
+            "authentication": {"credentials": {"provider_resource_name": "arn:aws::foo:bar"}},
             "billing_source": {"data_source": {"bucket": "/tmp/s3bucket"}},
         }
         mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
@@ -337,7 +337,7 @@ class SourcesSerializerTests(IamTestCase):
                 self.fail("test_create_via_admin_serializer failed")
 
         source_data["name"] = "test2"
-        source_data["authentication"] = {"credentials": {"resource_name": "arn:aws::foo:bar2"}}
+        source_data["authentication"] = {"credentials": {"provider_resource_name": "arn:aws::foo:bar2"}}
         source_data["billing_source"] = {"data_source": {"bucket": "/tmp/mybucket"}}
         serializer = AdminSourcesSerializer(data=source_data, context=context)
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):

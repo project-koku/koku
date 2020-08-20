@@ -222,26 +222,13 @@ class ProviderSerializerTest(IamTestCase):
                 with self.assertRaises(serializers.ValidationError):
                     serializer.save()
 
-    def test_create_provider_with_exception(self):
-        """Test creating a provider with a provider exception."""
-        iam_arn = "arn:aws:s3:::my_s3_bucket"
-        bucket_name = "my_s3_bucket"
-        provider = {
-            "name": "test_provider",
-            "type": Provider.PROVIDER_AWS,
-            "authentication": {"credentials": {"provider_resource_name": iam_arn}},
-            "billing_source": {"data_source": {"bucket": bucket_name}},
-        }
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", side_effect=serializers.ValidationError):
-            ProviderSerializer(data=provider, context=self.request_context)
-
     def test_create_provider_with_credentials_and_data_source(self):
         """Test creating a provider with data_source field instead of bucket."""
         provider = {
             "name": "test_provider",
             "type": Provider.PROVIDER_AWS.lower(),
-            "authentication": {"credentials": {"one": "two", "three": "four"}},
-            "billing_source": {"data_source": {"foo": "bar"}},
+            "authentication": {"credentials": {"provider_resource_name": "four"}},
+            "billing_source": {"data_source": {"bucket": "bar"}},
         }
         instance = None
 
@@ -262,8 +249,8 @@ class ProviderSerializerTest(IamTestCase):
         provider = {
             "name": "test_provider",
             "type": Provider.PROVIDER_AWS.lower(),
-            "authentication": {"credentials": {"one": "two", "three": "four"}, "provider_resource_name": iam_arn},
-            "billing_source": {"data_source": {"foo": "bar"}},
+            "authentication": {"credentials": {"provider_resource_name": "four"}, "provider_resource_name": iam_arn},
+            "billing_source": {"data_source": {"bucket": "bar"}},
         }
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
@@ -282,8 +269,8 @@ class ProviderSerializerTest(IamTestCase):
         provider = {
             "name": "test_provider",
             "type": Provider.PROVIDER_AWS.lower(),
-            "authentication": {"credentials": {"one": "two", "three": "four"}},
-            "billing_source": {"data_source": {"foo": "bar"}, "bucket": bucket_name},
+            "authentication": {"credentials": {"provider_resource_name": "four"}},
+            "billing_source": {"data_source": {"bucket": "bar"}, "bucket": bucket_name},
         }
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
@@ -465,7 +452,10 @@ class ProviderSerializerTest(IamTestCase):
             serializer.is_valid(raise_exception=True)
 
         self.assertEqual(e.exception.status_code, 400)
-        self.assertEqual(str(e.exception.detail["billing_source"]["data_source.bucket"][0]), "This field is required.")
+        self.assertEqual(
+            str(e.exception.detail["billing_source"]["data_source"]["provider.data_source"][0]),
+            "One or more required fields is invalid/missing. Required fields are ['bucket']",
+        )
 
     def test_create_gcp_provider_validate_report_prefix_too_long(self):
         """Test the data_source.report_prefix validation for GCP provider."""
@@ -488,7 +478,7 @@ class ProviderSerializerTest(IamTestCase):
 
         self.assertEqual(e.exception.status_code, 400)
         self.assertEqual(
-            str(e.exception.detail["billing_source"]["data_source.report_prefix"][0]),
+            str(e.exception.detail["billing_source"]["data_source"]["data_source.report_prefix"][0]),
             f"Ensure this field has no more than {REPORT_PREFIX_MAX_LENGTH} characters.",
         )
 
@@ -556,8 +546,8 @@ class ProviderSerializerTest(IamTestCase):
         provider = {
             "name": "test_provider",
             "type": Provider.PROVIDER_AWS.lower(),
-            "authentication": {"credentials": {"one": "two", "three": "four"}},
-            "billing_source": {"data_source": {"foo": "bar"}},
+            "authentication": {"credentials": {"provider_resource_name": "four"}},
+            "billing_source": {"data_source": {"bucket": "bar"}},
         }
         instance = None
 
