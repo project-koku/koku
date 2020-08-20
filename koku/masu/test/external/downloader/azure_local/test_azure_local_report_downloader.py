@@ -126,3 +126,17 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
             self.report_downloader.download_report(report_context)
             expected_path = "{}/{}/{}".format(DATA_DIR, self.customer_name, "azure")
             self.assertTrue(os.path.isdir(expected_path))
+
+    def test_get_manifest(self):
+        """Test _get_manifest method."""
+        mock_datetime = datetime.datetime(day=2, month=8, year=2019)
+
+        manifest_json, _ = self.azure_local_report_downloader._get_manifest(
+            mock_datetime
+        )
+
+        self.assertTrue("assemblyId" in manifest_json.keys())
+        self.assertTrue("billingPeriod" in manifest_json.keys())
+        self.assertTrue("reportKeys" in manifest_json.keys())
+        self.assertTrue("reportKeys" in manifest_json.keys())
+        self.assertTrue("Compression" in manifest_json.keys())

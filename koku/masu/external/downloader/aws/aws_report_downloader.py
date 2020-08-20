@@ -214,22 +214,6 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_date_range = utils.month_date_range(date_time)
         return "{}/{}/{}".format(self.report.get("S3Prefix"), self.report_name, report_date_range)
 
-    def download_bucket(self):
-        """
-        Bulk Download all files in an s3 bucket.
-
-        Returns:
-            (List) List of filenames downloaded.
-
-        """
-        s3_resource = boto3.resource("s3")
-        bucket = s3_resource.Bucket(self.report.get("S3Bucket"))
-        files = []
-        for s3obj in bucket.objects.all():
-            file_name, _, _ = self.download_file(s3obj.key)
-            files.append(file_name)
-        return files
-
     def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download an S3 object to file.

@@ -190,21 +190,6 @@ class AWSReportDownloaderTest(MasuTestCase):
         """Remove test generated data."""
         shutil.rmtree(DATA_DIR, ignore_errors=True)
 
-    @patch("masu.external.downloader.aws.aws_report_downloader.boto3.resource")
-    @patch(
-        "masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file",
-        return_value=("mock_file_name", None),
-    )
-    def test_download_bucket(self, mock_boto_resource, mock_download_file):
-        """Test download bucket method."""
-        mock_resource = Mock()
-        mock_bucket = Mock()
-        mock_bucket.objects.all.return_value = []
-        mock_resource.Bucket.return_value = mock_bucket
-        out = self.aws_report_downloader.download_bucket()
-        expected_files = []
-        self.assertEqual(out, expected_files)
-
     @patch("masu.external.report_downloader.ReportStatsDBAccessor")
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSessionDownloadError)
     def test_download_report_missing_bucket(self, mock_stats, fake_session):
