@@ -97,7 +97,7 @@ objects:
 - apiVersion: v1
   kind: ImageStream
   metadata:
-    name: ubi7-python38
+    name: ocp-python-image
     namespace: ${NAMESPACE}
   spec:
     dockerImageRepository: registry.redhat.io/ubi7/python-38
