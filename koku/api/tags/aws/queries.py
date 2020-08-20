@@ -36,10 +36,7 @@ class AWSTagQueryHandler(TagQueryHandler):
     SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["account"]
     FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
     FILTER_MAP.update(
-        {
-            "account": {"field": "accounts", "operation": "icontains", "composition_key": "account_filter"},
-            "value": {"field": "value", "operation": "icontains", "composition_key": "value_filter"},
-        }
+        {"account": {"field": "accounts", "operation": "icontains", "composition_key": "account_filter"}}
     )
 
     def __init__(self, parameters):

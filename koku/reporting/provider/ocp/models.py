@@ -307,6 +307,15 @@ class OCPUsageLineItemDailySummary(models.Model):
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
+class OCPTagsValues(models.Model):
+    class Meta:
+        """Meta for OCPUsageTagValues."""
+
+        db_table = "reporting_ocptags_values"
+
+    value = models.CharField(max_length=253, unique=True)
+
+
 class OCPUsagePodLabelSummary(models.Model):
     """A collection of all current existing tag key and values."""
 
@@ -320,6 +329,7 @@ class OCPUsagePodLabelSummary(models.Model):
 
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
+    values_mtm = models.ManyToManyField(OCPTagsValues)
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
     namespace = ArrayField(models.CharField(max_length=253))
 
@@ -427,6 +437,7 @@ class OCPStorageVolumeLabelSummary(models.Model):
 
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
+    values_mtm = models.ManyToManyField(OCPTagsValues)
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
     namespace = ArrayField(models.CharField(max_length=253))
 

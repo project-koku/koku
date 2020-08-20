@@ -24,6 +24,7 @@ from api.tags.aws.openshift.view import OCPAWSTagView
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
 from reporting.models import OCPAWSTagsSummary
+from reporting.provider.aws.openshift.models import OCPAWSTagsValues
 
 
 class OCPAWSTagQueryHandlerTest(IamTestCase):
@@ -138,3 +139,57 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
         result = handler.get_tag_keys()
         self.assertEqual(sorted(result), sorted(tag_keys))
+
+    def test_execute_query_for_key_filter(self):
+        """Test that the execute query runs properly with key query."""
+        key = "version"
+        url = f"?filter[key]={key}"
+        query_params = self.mocked_query_params(url, OCPAWSTagView)
+        handler = OCPAWSTagQueryHandler(query_params)
+        with tenant_context(self.tenant):
+            tags = OCPAWSTagsSummary.objects.filter(key__contains="version").values("values").distinct().all()
+            tag_values = tags[0].get("values")
+        expected = [{"key": key, "values": tag_values[::-1]}]
+        result = handler.get_tags()
+        self.assertEqual(result, expected)
+
+    def test_execute_query_for_value_filter(self):
+        """Test that the execute query runs properly with value query."""
+        key = "version"
+        value = "prod"
+        url = f"?filter[value]={value}"
+        query_params = self.mocked_query_params(url, OCPAWSTagView)
+        handler = OCPAWSTagQueryHandler(query_params)
+        handler.key = key
+        with tenant_context(self.tenant):
+            tags = (
+                OCPAWSTagsValues.objects.filter(ocpawstagssummary__key__exact="version", value="prod")
+                .values("value")
+                .distinct()
+                .all()
+            )
+            tag_values = [tag.get("value") for tag in tags]
+        expected = [{"key": key, "values": tag_values[::-1]}]
+        result = handler.get_tag_values()
+        self.assertEqual(result, expected)
+
+    def test_execute_query_for_value_filter_partial_match(self):
+        """Test that the execute query runs properly with value query."""
+        key = "version"
+        value = "a"
+        url = f"/version/?filter[value]={value}"
+        query_params = self.mocked_query_params(url, OCPAWSTagView)
+        # the mocked query parameters dont include the key from the url so it needs to be added
+        query_params.kwargs = {"key": key}
+        handler = OCPAWSTagQueryHandler(query_params)
+        with tenant_context(self.tenant):
+            tags = (
+                OCPAWSTagsValues.objects.filter(ocpawstagssummary__key__exact=key, value__icontains=value)
+                .values("value")
+                .distinct()
+                .all()
+            )
+            tag_values = [tag.get("value") for tag in tags]
+        expected = [{"key": key, "values": sorted(tag_values)[::-1]}]
+        result = handler.get_tag_values()
+        self.assertEqual(result, expected)

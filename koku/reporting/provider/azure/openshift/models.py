@@ -187,6 +187,15 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
+class OCPAzureTagsValues(models.Model):
+    class Meta:
+        """Meta for OCPAzureTagsValues."""
+
+        db_table = "reporting_ocpazuretags_values"
+
+    value = models.CharField(max_length=253, unique=True)
+
+
 class OCPAzureTagsSummary(models.Model):
     """A collection of all current existing tag key and values."""
 
@@ -200,6 +209,7 @@ class OCPAzureTagsSummary(models.Model):
 
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
+    values_mtm = models.ManyToManyField(OCPAzureTagsValues)
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
     subscription_guid = ArrayField(models.CharField(max_length=50))
     namespace = ArrayField(models.CharField(max_length=253, null=False))

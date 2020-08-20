@@ -66,7 +66,7 @@ class TagQueryHandler(QueryHandler):
     SUPPORTED_FILTERS = ["key", "value"]
     FILTER_MAP = {
         "key": {"field": "key", "operation": "icontains", "composition_key": "key_filter"},
-        "value": {"field": "values__value", "operation": "icontains", "composition_key": "value_filter"},
+        "value": {"field": "value", "operation": "icontains", "composition_key": "value_filter"},
     }
 
     dh = DateHelper()
@@ -346,6 +346,9 @@ class TagQueryHandler(QueryHandler):
                 if type_filter and source.get("type") not in type_filter_array:
                     continue
                 tag_values_query = source.get("db_values").objects
+                # annotations = source.get("annotations")
+                # if annotations:
+                #     tag_values_query = tag_values_query.annotate(**annotations)
                 tag_keys = list(tag_values_query.filter(self.query_filter))
                 tag_tup = self._value_filter_dict(tag_keys)
                 converted = self._convert_to_dict(tag_tup)
@@ -353,6 +356,7 @@ class TagQueryHandler(QueryHandler):
                     self.append_to_final_data_with_type(final_data, converted, source)
                 else:
                     self.append_to_final_data_without_type(final_data, converted)
+        self.deduplicate_and_sort(final_data)
         return final_data
 
     def deduplicate_and_sort(self, data):

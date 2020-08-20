@@ -18,10 +18,13 @@
 from copy import deepcopy
 
 from api.models import Provider
+from api.query_filter import QueryFilter
+from api.query_filter import QueryFilterCollection
 from api.report.aws.openshift.provider_map import OCPAWSProviderMap
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
 from reporting.models import OCPAWSTagsSummary
+from reporting.provider.aws.openshift.models import OCPAWSTagsValues
 
 # from api.utils import merge_dicts
 
@@ -30,7 +33,13 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
     """Handles tag queries and responses for OCP-on-AWS."""
 
     provider = Provider.OCP_AWS
-    data_sources = [{"db_table": OCPAWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
+    data_sources = [
+        {
+            "db_table": OCPAWSTagsSummary,
+            "db_column_period": "cost_entry_bill__billing_period",
+            "db_values": OCPAWSTagsValues,
+        }
+    ]
     SUPPORTED_FILTERS = AWSTagQueryHandler.SUPPORTED_FILTERS + OCPTagQueryHandler.SUPPORTED_FILTERS
     FILTER_MAP = deepcopy(AWSTagQueryHandler.FILTER_MAP)
     FILTER_MAP.update(OCPTagQueryHandler.FILTER_MAP)
@@ -55,3 +64,12 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
 
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
+
+    def _get_key_filter(self):
+        """Add new `exact` QueryFilter that filters on the key name."""
+        filters = QueryFilterCollection()
+        if self.parameters.get_filter("value"):
+            filters.add(QueryFilter(field="ocpawstagssummary__key", operation="exact", parameter=self.key))
+        else:
+            filters.add(QueryFilter(field="key", operation="exact", parameter=self.key))
+        return self.query_filter & filters.compose()
