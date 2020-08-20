@@ -200,8 +200,10 @@ ${OC} policy add-role-to-user system:image-puller system:serviceaccount:${DEPLOY
 # build failures and elect to not continue the deploy when prompted.
 echo "Creating builds in project ${BUILDFACTORY_PROJECT}"
 if [[ ${DEPLOY_HCCM_OPTIONAL} ]]; then
+    echo "Building HCCM and HCCM-OPTIONAL"
     ${OCDEPLOYER} deploy -s hccm,hccm-optional -t buildfactory ${BUILDFACTORY_PROJECT} || true
 else
+    echo "Building HCCM only"
     ${OCDEPLOYER} deploy -s hccm -t buildfactory ${BUILDFACTORY_PROJECT} || true
 fi
 
