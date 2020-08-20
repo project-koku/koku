@@ -58,14 +58,6 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
     uuid = serializers.UUIDField(read_only=True)
     credentials = serializers.JSONField(allow_null=False, required=True)
 
-    def validate(self, data):
-        """Validate authentication parameters."""
-        if not data.get("credentials"):
-            data["credentials"] = data.get("credentials", {})
-        if data.get("provider_resource_name") and not data.get("credentials"):
-            data["credentials"] = {"provider_resource_name": data.get("provider_resource_name")}
-        return data
-
     class Meta:
         """Metadata for the serializer."""
 
@@ -75,6 +67,12 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
 
 class AWSAuthenticationSerializer(ProviderAuthenticationSerializer):
     """AWS auth serializer."""
+
+    def validate_credentials(self, creds):
+        """Validate credentials field."""
+        key = "provider.credentials"
+        fields = ["provider_resource_name"]
+        return validate_field(creds, fields, key)
 
 
 class AzureAuthenticationSerializer(ProviderAuthenticationSerializer):
@@ -101,12 +99,18 @@ class GCPAuthenticationSerializer(ProviderAuthenticationSerializer):
 class OCPAuthenticationSerializer(ProviderAuthenticationSerializer):
     """OCP auth serializer."""
 
+    def validate_credentials(self, creds):
+        """Validate credentials field."""
+        key = "provider.credentials"
+        fields = ["provider_resource_name"]
+        return validate_field(creds, fields, key)
+
 
 class ProviderBillingSourceSerializer(serializers.ModelSerializer):
     """Serializer for the Provider Billing Source model."""
 
     uuid = serializers.UUIDField(read_only=True)
-    data_source = serializers.JSONField(allow_null=False, required=False)
+    data_source = serializers.JSONField(allow_null=False, required=True)
 
     class Meta:
         """Metadata for the serializer."""
@@ -126,6 +130,12 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
 class AWSBillingSourceSerializer(ProviderBillingSourceSerializer):
     """AWS billing source serializer."""
 
+    def validate_data_source(self, data_source):
+        """Validate data_source field."""
+        key = "provider.data_source"
+        fields = ["bucket"]
+        return validate_field(data_source, fields, key)
+
 
 class AzureBillingSourceSerializer(ProviderBillingSourceSerializer):
     """Azure billing source serializer."""
@@ -140,14 +150,11 @@ class AzureBillingSourceSerializer(ProviderBillingSourceSerializer):
 class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
     """GCP billing source serializer."""
 
-    def validate(self, data):
+    def validate(self, data_source):
         """Validate data_source field."""
-        data_source = data.get("data_source")
-        bucket = data_source.get("bucket", "")
-        if not bucket:
-            key = "data_source.bucket"
-            message = "This field is required."
-            raise serializers.ValidationError(error_obj(key, message))
+        key = "provider.data_source"
+        fields = ["bucket"]
+        data = validate_field(data_source, fields, key)
 
         report_prefix = data_source.get("report_prefix", "")
         if report_prefix and len(report_prefix) > REPORT_PREFIX_MAX_LENGTH:
@@ -160,6 +167,8 @@ class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
 
 class OCPBillingSourceSerializer(ProviderBillingSourceSerializer):
     """OCP billing source serializer."""
+
+    data_source = serializers.JSONField(allow_null=True, required=False)
 
 
 # Registry of authentication serializers.
@@ -241,7 +250,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             )()
             self.fields["billing_source"] = BILLING_SOURCE_SERIALIZERS.get(
                 Provider.PROVIDER_CASE_MAPPING.get(provider_type)
-            )(default={"data_source": {}})
+            )()
         else:
             self.fields["authentication"] = ProviderAuthenticationSerializer()
             self.fields["billing_source"] = ProviderBillingSourceSerializer()
