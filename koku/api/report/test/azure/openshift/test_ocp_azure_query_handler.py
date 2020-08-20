@@ -125,6 +125,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.dh = DateHelper()
+
+        # Use one of the test-runner created providers
         self.provider = Provider.objects.filter(type=Provider.PROVIDER_OCP).first()
 
         self.this_month_filter = {"usage_start__gte": self.dh.this_month_start}

@@ -290,7 +290,6 @@ class ProviderSerializerTest(IamTestCase):
             "name": "test_provider_one",
             "type": Provider.PROVIDER_OCP.lower(),
             "authentication": {"credentials": {"provider_resource_name": cluster_id}},
-            "billing_source": {"data_source": {}},
         }
 
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
