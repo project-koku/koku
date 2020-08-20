@@ -27,11 +27,9 @@ CREATE MATERIALIZED VIEW reporting_ocp_pod_summary_by_project AS(
         sum(pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
         sum(pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
         max(cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
-        max(total_capacity_cpu_core_hours) as total_capacity_cpu_core_hours,
         sum(pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
         sum(pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
         sum(pod_limit_memory_gigabyte_hours) as pod_limit_memory_gigabyte_hours,
-        max(total_capacity_memory_gigabyte_hours) as total_capacity_memory_gigabyte_hours,
         max(cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
         source_uuid
     FROM reporting_ocpusagelineitem_daily_summary
