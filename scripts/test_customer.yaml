@@ -19,27 +19,18 @@ customer:
       authentication:
         credentials:
           provider_resource_name: my-ocp-cluster-1
-      billing_source:
-        data_source:
-          bucket: ''
     - ocp_on_azure_source:
       source_name: Test OCP on Azure
       source_type: 'OCP'
       authentication:
         credentials:
           provider_resource_name: my-ocp-cluster-2
-      billing_source:
-        data_source:
-          bucket: ''
     - ocp_on_prem_source:
       source_name: Test OCP on Premises
       source_type: 'OCP'
       authentication:
         credentials:
           provider_resource_name: my-ocp-cluster-3
-      billing_source:
-        data_source:
-          bucket: ''
     - azure_source:
       source_name: Test Azure Source
       source_type: 'Azure-local'
