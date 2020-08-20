@@ -58,6 +58,7 @@ from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
+from masu.processor.tasks import TaskRunningError
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_summary_tables
@@ -1060,3 +1061,26 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         for report_file in files_list:
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()
+
+    @patch("masu.processor.tasks.is_task_currently_running")
+    def test_update_cost_model_costs_already_running(self, mock_is_running):
+        """Assert that the task fails and retrys when already running."""
+        mock_is_running.return_value = True
+        start_date = DateHelper().last_month_start
+        end_date = DateHelper().last_month_end
+
+        with self.assertRaises(TaskRunningError):
+            update_cost_model_costs(
+                schema_name=self.schema,
+                provider_uuid=self.ocp_test_provider_uuid,
+                start_date=start_date,
+                end_date=end_date,
+            )
+
+    @patch("masu.processor.tasks.is_task_currently_running")
+    def test_refresh_materialized_views_already_running(self, mock_is_running):
+        """Assert that the task fails and retrys when already running."""
+        mock_is_running.return_value = True
+
+        with self.assertRaises(TaskRunningError):
+            refresh_materialized_views(schema_name=self.schema, provider_type=Provider.PROVIDER_AWS)
