@@ -8,6 +8,14 @@ class Migration(migrations.Migration):
     dependencies = [("api", "0021_delete_providerstatus")]
 
     operations = [
+        migrations.RunSQL(
+            """
+            UPDATE api_provider SET billing_source_id = (SELECT id FROM api_providerbillingsource WHERE bucket IS NULL and data_source = '{}'::jsonb) WHERE billing_source_id = (SELECT id FROM api_providerbillingsource WHERE data_source = '{"bucket": ""}'::jsonb);
+            DELETE FROM api_providerbillingsource WHERE data_source = '{"bucket": ""}'::jsonb;
+            UPDATE api_providerbillingsource SET data_source = jsonb_build_object('bucket', bucket) WHERE data_source = '{}'::jsonb;
+            UPDATE api_providerauthentication SET credentials = jsonb_build_object('provider_resource_name', provider_resource_name) WHERE credentials = '{}'::jsonb;
+            """
+        ),
         migrations.RemoveConstraint(
             model_name="providerauthentication", name="credentials_and_resource_name_both_null"
         ),
