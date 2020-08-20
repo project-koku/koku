@@ -131,9 +131,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         """Test _get_manifest method."""
         mock_datetime = datetime.datetime(day=2, month=8, year=2019)
 
-        manifest_json, _ = self.azure_local_report_downloader._get_manifest(
-            mock_datetime
-        )
+        manifest_json, _ = self.azure_local_report_downloader._get_manifest(mock_datetime)
 
         self.assertTrue("assemblyId" in manifest_json.keys())
         self.assertTrue("billingPeriod" in manifest_json.keys())
