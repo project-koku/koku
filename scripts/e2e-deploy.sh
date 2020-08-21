@@ -92,6 +92,9 @@ else
     KOKU_SECRETS=$(dirname $(readlink -f $0))/e2e-secrets.yml
 fi
 
+UDT_SRR="$(dirname ${KOKU_SECRETS})/update_e2e_srr.py"
+
+
 ### validation
 function check_var() {
     if [ -z ${!1:+x} ]; then
@@ -128,8 +131,7 @@ EOF
     read JUNK
 fi
 
-echo "Setting koku e2e SOURCE_REPOSITORY_REF to \"${TARGET_REF}\"${CURRENT_FLAG}"
-UDT_SRR="$(dirname ${KOKU_SECRETS})/update_e2e_srr.py"
+echo "Setting e2e SOURCE_REPOSITORY_REF to \"${TARGET_REF}\"${CURRENT_FLAG}"
 $UDT_SRR "${TARGET_REF}"
 
 
@@ -239,6 +241,6 @@ echo "Deployment completed successfully."
 # Reset git ref, if necessary
 if [[ "${TARGET_REF}" != "master" ]]
 then
-    echo "Resetting koku e2e SOURCE_REPOSITORY_REF to \"master\""
+    echo "Resetting e2e SOURCE_REPOSITORY_REF to \"master\""
     $UDT_SRR "master"
 fi
