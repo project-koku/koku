@@ -50,6 +50,7 @@ class ProviderSerializerTest(IamTestCase):
                 "name": "test_provider",
                 "type": Provider.PROVIDER_OCP.lower(),
                 "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-1"}},
+                "billing_source": {},
             },
             Provider.PROVIDER_AWS: {
                 "name": "test_provider",
@@ -174,6 +175,7 @@ class ProviderSerializerTest(IamTestCase):
             "name": "test_provider",
             "type": Provider.PROVIDER_OCP.lower(),
             "authentication": {"credentials": {"provider_resource_name": cluster_id}},
+            "billing_source": {},
         }
 
         instance = None
@@ -195,6 +197,7 @@ class ProviderSerializerTest(IamTestCase):
             "name": "test_provider",
             "type": Provider.PROVIDER_OCP.lower(),
             "authentication": {"credentials": {"provider_resource_name": cluster_id}},
+            "billing_source": {},
         }
 
         instance = None
@@ -290,6 +293,7 @@ class ProviderSerializerTest(IamTestCase):
             "name": "test_provider_one",
             "type": Provider.PROVIDER_OCP.lower(),
             "authentication": {"credentials": {"provider_resource_name": cluster_id}},
+            "billing_source": {},
         }
 
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
@@ -412,11 +416,13 @@ class ProviderSerializerTest(IamTestCase):
             "name": "test_provider_1",
             "type": Provider.PROVIDER_OCP.lower(),
             "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-1"}},
+            "billing_source": {},
         }
         p2 = {
             "name": "test_provider_2",
             "type": Provider.PROVIDER_OCP.lower(),
             "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-2"}},
+            "billing_source": {},
         }
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             serializer = ProviderSerializer(data=p1, context=self.request_context)
@@ -429,6 +435,7 @@ class ProviderSerializerTest(IamTestCase):
                     "name": "test_provider_2",
                     "type": Provider.PROVIDER_OCP.lower(),
                     "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-1"}},
+                    "billing_source": {},
                 }
                 with self.assertRaises(ValidationError) as excCtx:
                     serializer = ProviderSerializer(instance, data=d, context=self.request_context)
