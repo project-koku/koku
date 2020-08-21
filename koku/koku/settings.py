@@ -401,6 +401,7 @@ RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
 RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", "5672")
 
 CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
+CELERY_RESULTS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 CELERY_IMPORTS = ("masu.processor.tasks", "masu.celery.tasks", "koku.metrics")
 CELERY_BROKER_POOL_LIMIT = None
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
@@ -415,7 +416,7 @@ CELERY_WORKER_TASK_LOG_FORMAT = (
 S3_BUCKET_NAME = ENVIRONMENT.get_value("S3_BUCKET_NAME", default="koku-reports")
 S3_BUCKET_PATH = ENVIRONMENT.get_value("S3_BUCKET_PATH", default="data_archive")
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
-S3_ENDPOINT = ENVIRONMENT.get_value("S3_ENDPOINT", default="s3.us-east-1.amazonaws.com")
+S3_ENDPOINT = ENVIRONMENT.get_value("S3_ENDPOINT", default="https://s3.us-east-1.amazonaws.com")
 S3_ACCESS_KEY = ENVIRONMENT.get_value("S3_ACCESS_KEY", default=None)
 S3_SECRET = ENVIRONMENT.get_value("S3_SECRET", default=None)
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)

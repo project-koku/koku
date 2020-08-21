@@ -19,7 +19,6 @@ import datetime
 import os.path
 import shutil
 import tempfile
-from unittest.mock import Mock
 from unittest.mock import patch
 
 from faker import Faker
@@ -72,26 +71,22 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         shutil.copy2(test_report, self.csv_key)
 
         os.makedirs(DATA_DIR, exist_ok=True)
-        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()), return_value={}))
+
         self.report_downloader = ReportDownloader(
-            task=self.mock_task,
             customer_name=self.customer_name,
             access_credential=self.fake_auth_credential,
             report_source=self.fake_bucket_name,
             provider_type=Provider.PROVIDER_AZURE_LOCAL,
             provider_uuid=self.azure_provider_uuid,
-            cache_key=self.fake.word(),
         )
 
         self.azure_local_report_downloader = AzureLocalReportDownloader(
             **{
-                "task": self.mock_task,
                 "customer_name": self.customer_name,
                 "auth_credential": self.fake_auth_credential,
                 "billing_source": self.fake_bucket_name,
                 "bucket": self.fake_bucket_name,
                 "provider_uuid": self.azure_provider_uuid,
-                "cache_key": self.fake.word(),
             }
         )
 
@@ -122,6 +117,12 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         """Test the top level Azure-Local download_report."""
         test_report_date = datetime.datetime(year=2019, month=8, day=7)
         with patch.object(DateAccessor, "today", return_value=test_report_date):
-            self.report_downloader.download_report(test_report_date)
+            report_context = {
+                "date": test_report_date.date(),
+                "manifest_id": 1,
+                "comporession": "GZIP",
+                "current_file": "./koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv",
+            }
+            self.report_downloader.download_report(report_context)
             expected_path = "{}/{}/{}".format(DATA_DIR, self.customer_name, "azure")
             self.assertTrue(os.path.isdir(expected_path))

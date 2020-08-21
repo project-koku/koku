@@ -23,19 +23,19 @@ class DownloaderInterface(ABC):
     """Masu interface definition to download cost usage reports."""
 
     @abstractmethod
-    def get_report_context_for_date(self, date_time):
+    def get_manifest_context_for_date(self, date):
         """
-        Get the report context for a provided date.
+        Get the manifest report context for a provided date.
 
         Args:
-            date_time (DateTime): The starting datetime object
+            date (Date): The starting datetime object
 
         Returns:
             ({}) Dictionary containing the following keys:
                 manifest_id - (String): Manifest ID for ReportManifestDBAccessor
                 assembly_id - (String): UUID identifying report file
                 compression - (String): Report compression format
-                files       - ([]): List of report files.
+                files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
 
         """
 

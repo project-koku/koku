@@ -138,3 +138,11 @@ class ReportStatsDBAccessorTest(MasuTestCase):
         self.assertIsNotNone(saver.get_last_completed_datetime())
         saver.delete()
         self.assertEqual(CostUsageReportStatus.objects.count(), initial_count)
+
+    def test_clear_last_started_date(self):
+        """Test convience function for clear last started date."""
+        saver = ReportStatsDBAccessor("myreport", self.manifest_id)
+        saver.log_last_started_datetime()
+        self.assertIsNotNone(saver.get_last_started_datetime())
+        saver.clear_last_started_datetime()
+        self.assertIsNone(saver.get_last_started_datetime())

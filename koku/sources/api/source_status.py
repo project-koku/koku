@@ -28,6 +28,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.settings import api_settings
 
+from api.provider.models import Provider
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
 from sources.sources_http_client import SourcesHTTPClient
@@ -51,13 +52,25 @@ class SourceStatus:
     def sources_response(self):
         return self.sources_client.build_source_status(self.status())
 
+    def _set_provider_active_status(self, active_status):
+        """Set provider active status."""
+        if self.source.koku_uuid:
+            try:
+                provider = Provider.objects.get(uuid=self.source.koku_uuid)
+                provider.active = active_status
+                provider.save()
+            except Provider.DoesNotExist:
+                LOG.info(f"No provider found for Source ID: {self.source.source_id}")
+
     def determine_status(self, provider, source_authentication, source_billing_source):
         """Check cloud configuration status."""
         interface = ProviderAccessor(provider)
         error_obj = None
         try:
             interface.cost_usage_source_ready(source_authentication, source_billing_source)
+            self._set_provider_active_status(True)
         except ValidationError as validation_error:
+            self._set_provider_active_status(False)
             error_obj = validation_error
 
         return error_obj

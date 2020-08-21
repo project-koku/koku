@@ -9,7 +9,6 @@ from celery import Celery
 from celery import Task
 from celery.schedules import crontab
 from celery.signals import celeryd_after_setup
-from celery.signals import worker_shutting_down
 from django.conf import settings
 
 from koku import sentry  # noqa: F401
@@ -49,7 +48,9 @@ LOGGER.info("Database configured.")
 
 # 'app' is the recommended convention from celery docs
 # following this for ease of comparison to reference implementation
-app = LoggingCelery("koku", log="koku.log:TaskRootLogging", broker=settings.CELERY_BROKER_URL)
+app = LoggingCelery(
+    "koku", log="koku.log:TaskRootLogging", backend=settings.CELERY_RESULTS_URL, broker=settings.CELERY_BROKER_URL
+)
 app.config_from_object("django.conf:settings", namespace="CELERY")
 
 LOGGER.info("Celery autodiscover tasks.")
@@ -148,26 +149,14 @@ app.conf.task_routes = {"sources.tasks.*": {"queue": "sources"}}
 
 app.autodiscover_tasks()
 
+CELERY_INSPECT = app.control.inspect()
+
 
 @celeryd_after_setup.connect
-def clear_worker_cache(sender, instance, **kwargs):  # pragma: no cover
-    """Clear WorkerCache after worker is up and running."""
+def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
+    """Wait for migrations to complete before completing worker startup."""
     from .database import check_migrations
-    from masu.processor.worker_cache import WorkerCache
 
     while not check_migrations():
         LOGGER.warning("Migrations not done. Sleeping")
         time.sleep(5)
-    LOGGER.info("Clearing worker task cache.")
-    WorkerCache().invalidate_host()
-
-
-@worker_shutting_down.connect
-def clear_worker_cache_on_shutdown(sender, **kwargs):  # pragma: no cover
-    from masu.processor.worker_cache import WorkerCache
-
-    LOGGER.info("Clearing worker task cache.")
-    try:
-        WorkerCache().invalidate_host()
-    except Exception:
-        LOGGER.info("Cache not cleared on shutdown.")

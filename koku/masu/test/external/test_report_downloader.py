@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the ReportDownloader object."""
-from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -64,7 +63,6 @@ class ReportDownloaderTest(MasuTestCase):
         """Set up each test case."""
         super().setUp()
         self.fake_creds = fake_arn(service="iam", generate_account_id=True)
-        self.mock_task = Mock(request=Mock(id=str(FAKE.uuid4()), return_value={}))
 
     def create_downloader(self, provider_type):
         """
@@ -78,14 +76,12 @@ class ReportDownloaderTest(MasuTestCase):
 
         """
         downloader = ReportDownloader(
-            task=self.mock_task,
             customer_name=FAKE.name(),
             access_credential=self.fake_creds,
             report_source=FAKE.slug(),
             report_name=FAKE.slug(),
             provider_type=provider_type,
             provider_uuid=uuid4(),
-            cache_key=FAKE.word(),
         )
         return downloader
 
@@ -161,7 +157,7 @@ class ReportDownloaderTest(MasuTestCase):
         """Assert ReportDownloaderError is raised when get_reports raises an exception."""
         downloader = self.create_downloader(Provider.PROVIDER_AWS)
         mock_downloader_init.assert_called()
-        with patch.object(AWSReportDownloader, "get_report_context_for_date", side_effect=Exception("some error")):
+        with patch.object(AWSReportDownloader, "download_file", side_effect=Exception("some error")):
             with self.assertRaises(ReportDownloaderError):
                 downloader.get_reports()
 
@@ -189,46 +185,66 @@ class ReportDownloaderTest(MasuTestCase):
         self.assertTrue(downloader.is_report_processed(report_name, manifest_id))
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
-    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.get_local_file_for_report")
-    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.get_report_context_for_date")
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
-    def test_download_reports(self, mock_dl_init, mock_dl_context, mock_dl_local_files, mock_dl_download):
-        """Test download_reports.
-
-        The downloader will be looking for 3 files:
-            file-1.csv.gz: File is done processing -> do not append file
-            file-2.csv.gz: File is not recorded in db -> append file
-            file-3.csv.gz: File is not done processing -> append file
-
-        This test checks that the 2 files are correctly returned.
-
-        """
-        manifest_id = 99
-        report_context = {"files": ["file-1.csv.gz", "file-2.csv.gz", "file-3.csv.gz"], "manifest_id": manifest_id}
-        mock_dl_context.return_value = report_context
-        mock_dl_local_files.side_effect = lambda x: x
-        mock_dl_download.side_effect = lambda x, y, manifest_id, start_date: (x, y)
-
-        baker.make(CostUsageReportManifest, id=manifest_id)
-        baker.make(
-            CostUsageReportStatus,
-            report_name=report_context.get("files")[0],
-            manifest_id=manifest_id,
-            last_completed_datetime=FAKE.date(),
-        )
-        baker.make(
-            CostUsageReportStatus,
-            report_name=report_context.get("files")[2],
-            manifest_id=manifest_id,
-            last_completed_datetime=None,
-        )
-
+    def test_download_reports(self, mock_dl_init, mock_dl):
+        """Test download reports."""
         downloader = self.create_downloader(Provider.PROVIDER_AWS)
+        manifest_id = 99
+        baker.make(CostUsageReportManifest, id=manifest_id)
+        assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
+        compression = "GZIP"
+        mock_date = FAKE.date()
+        mock_full_file_path = "/full/path/to/file.csv"
+        mock_dl.return_value = (mock_full_file_path, "fake_etag")
 
-        with patch("masu.external.report_downloader.ReportStatsDBAccessor", side_effect=MockAccessor):
-            result = downloader.download_report(FAKE.date())
-            result_file_list = [res.get("file") for res in result]
-            self.assertEqual(len(result), 2)
-            self.assertNotIn(report_context.get("files")[0], result_file_list)
-            self.assertIn(report_context.get("files")[1], result_file_list)
-            self.assertIn(report_context.get("files")[2], result_file_list)
+        report_context = {
+            "date": mock_date,
+            "manifest_id": manifest_id,
+            "compression": compression,
+            "assembly_id": assembly_id,
+            "current_file": f"/my/{assembly_id}/koku-1.csv.gz",
+        }
+
+        with patch("masu.external.report_downloader.ReportDownloader.is_report_processed", return_value=False):
+            result = downloader.download_report(report_context)
+            self.assertEqual(result.get("file"), mock_full_file_path)
+            self.assertEqual(result.get("compression"), compression)
+            self.assertEqual(result.get("start_date"), mock_date)
+            self.assertEqual(result.get("assembly_id"), assembly_id)
+            self.assertEqual(result.get("manifest_id"), manifest_id)
+
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
+    def test_download_reports_already_processed(self, mock_dl_init, mock_dl):
+        """Test download reports when report is processed."""
+        downloader = self.create_downloader(Provider.PROVIDER_AWS)
+        manifest_id = 99
+        baker.make(CostUsageReportManifest, id=manifest_id)
+        assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
+        compression = "GZIP"
+        mock_date = FAKE.date()
+        mock_full_file_path = "/full/path/to/file.csv"
+        mock_dl.return_value = (mock_full_file_path, "fake_etag")
+
+        report_context = {
+            "date": mock_date,
+            "manifest_id": manifest_id,
+            "compression": compression,
+            "assembly_id": assembly_id,
+            "current_file": f"/my/{assembly_id}/koku-1.csv.gz",
+        }
+
+        with patch("masu.external.report_downloader.ReportDownloader.is_report_processed", return_value=True):
+            result = downloader.download_report(report_context)
+            self.assertEquals(result, {})
+
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
+    def test_download_manifest(self, mock_dl):
+        """Test download_manifest."""
+        downloader = self.create_downloader(Provider.PROVIDER_AWS)
+        mock_manifest = {"fake": "manifest"}
+        mock_date = FAKE.date()
+
+        with patch.object(AWSReportDownloader, "get_manifest_context_for_date", return_value=mock_manifest):
+            manifest = downloader.download_manifest(mock_date)
+            self.assertEqual(manifest, mock_manifest)

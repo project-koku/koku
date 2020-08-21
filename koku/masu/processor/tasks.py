@@ -27,7 +27,6 @@ from celery.utils.log import get_task_logger
 from dateutil import parser
 from django.conf import settings
 from django.db import connection
-from django.db import transaction
 from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
 
@@ -84,9 +83,49 @@ def record_all_manifest_files(manifest_id, report_files):
             LOG.debug(f"Report {report} has already been recorded.")
 
 
-@app.task(name="masu.processor.tasks.get_report_files", queue_name="download", bind=True)  # noqa: C901
+def record_report_status(manifest_id, file_name, request_id, context={}):
+    """
+    Creates initial report status database entry for new report files.
+
+    If a report has already been downloaded from the ingress service
+    there is a chance that processing has already been complete.  The
+    function returns the last completed date time to determine if the
+    report processing should continue in extract_payload.
+
+    Args:
+        manifest_id (Integer): Manifest Identifier.
+        file_name (String): Report file name
+        request_id (String): Identifier associated with the payload
+        context (Dict): Context for logging (account, etc)
+
+    Returns:
+        DateTime - Last completed date time for a given report file.
+
+    """
+    already_processed = False
+    with ReportStatsDBAccessor(file_name, manifest_id) as db_accessor:
+        already_processed = db_accessor.get_last_completed_datetime()
+        if already_processed:
+            msg = f"Report {file_name} has already been processed."
+            LOG.info(log_json(request_id, msg, context))
+        else:
+            msg = f"Recording stats entry for {file_name}"
+            LOG.info(log_json(request_id, msg, context))
+    return already_processed
+
+
+# pylint: disable=too-many-locals
+@app.task(name="masu.processor.tasks.get_report_files", queue_name="download", bind=True)
 def get_report_files(
-    self, customer_name, authentication, billing_source, provider_type, schema_name, provider_uuid, report_month
+    self,
+    customer_name,
+    authentication,
+    billing_source,
+    provider_type,
+    schema_name,
+    provider_uuid,
+    report_month,
+    report_context,
 ):
     """
     Task to download a Report and process the report.
@@ -107,85 +146,86 @@ def get_report_files(
         None
 
     """
-    worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
-    month = report_month
-    if isinstance(report_month, str):
-        month = parser.parse(report_month)
+    try:
+        worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
+        month = report_month
+        if isinstance(report_month, str):
+            month = parser.parse(report_month)
 
-    cache_key = f"{provider_uuid}:{month}"
-    reports = _get_report_files(
-        self, customer_name, authentication, billing_source, provider_type, provider_uuid, month, cache_key
-    )
+        report_file = report_context.get("key")
+        cache_key = f"{provider_uuid}:{report_file}"
+        WorkerCache().add_task_to_cache(cache_key)
 
-    stmt = (
-        f"Reports to be processed:\n"
-        f" schema_name: {customer_name}\n"
-        f" provider: {provider_type}\n"
-        f" provider_uuid: {provider_uuid}\n"
-    )
-    for report in reports:
-        stmt += " file: " + str(report["file"]) + "\n"
-    LOG.info(stmt[:-1])
-    reports_to_summarize = []
-    start_date = None
-
-    for report_dict in reports:
-        with transaction.atomic():
-            try:
-                manifest_id = report_dict.get("manifest_id")
-                file_name = os.path.basename(report_dict.get("file"))
-                with ReportStatsDBAccessor(file_name, manifest_id) as stats:
-                    started_date = stats.get_last_started_datetime()
-                    completed_date = stats.get_last_completed_datetime()
-
-                # Skip processing if already in progress.
-                if started_date and not completed_date:
-                    expired_start_date = started_date + datetime.timedelta(
-                        hours=Config.REPORT_PROCESSING_TIMEOUT_HOURS
-                    )
-                    if DateAccessor().today_with_timezone("UTC") < expired_start_date:
-                        LOG.info(
-                            "Skipping processing task for %s since it was started at: %s.",
-                            file_name,
-                            str(started_date),
-                        )
-                        continue
-
-                stmt = (
-                    f"Processing starting:\n"
-                    f" schema_name: {customer_name}\n"
-                    f" provider: {provider_type}\n"
-                    f" provider_uuid: {provider_uuid}\n"
-                    f' file: {report_dict.get("file")}'
-                )
-                LOG.info(stmt)
-                if not start_date:
-                    start_date = report_dict.get("start_date")
-                worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
-                _process_report_file(schema_name, provider_type, report_dict)
-                known_manifest_ids = [report.get("manifest_id") for report in reports_to_summarize]
-                if report_dict.get("manifest_id") not in known_manifest_ids:
-                    report_meta = {
-                        "schema_name": schema_name,
-                        "provider_type": provider_type,
-                        "provider_uuid": provider_uuid,
-                        "manifest_id": report_dict.get("manifest_id"),
-                    }
-                    reports_to_summarize.append(report_meta)
-            except (ReportProcessorError, ReportProcessorDBError) as processing_error:
-                worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-                LOG.error(str(processing_error))
-                WorkerCache().remove_task_from_cache(cache_key)
-                raise processing_error
-
-    WorkerCache().remove_task_from_cache(cache_key)
-    if start_date:
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        convert_to_parquet.delay(
-            self.request.id, schema_name[4:], provider_uuid, provider_type, start_date_str, manifest_id
+        report_dict = _get_report_files(
+            self,
+            customer_name,
+            authentication,
+            billing_source,
+            provider_type,
+            provider_uuid,
+            month,
+            cache_key,
+            report_context,
         )
 
-    return reports_to_summarize
+        stmt = (
+            f"Reports to be processed:\n"
+            f" schema_name: {customer_name}\n"
+            f" provider: {provider_type}\n"
+            f" provider_uuid: {provider_uuid}\n"
+        )
+        if report_dict:
+            stmt += f" file: {report_dict['file']}"
+            LOG.info(stmt)
+        else:
+            WorkerCache().remove_task_from_cache(cache_key)
+            return None
+
+        try:
+            stmt = (
+                f"Processing starting:\n"
+                f" schema_name: {customer_name}\n"
+                f" provider: {provider_type}\n"
+                f" provider_uuid: {provider_uuid}\n"
+                f' file: {report_dict.get("file")}'
+            )
+            LOG.info(stmt)
+            worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
+
+            _process_report_file(schema_name, provider_type, report_dict)
+
+            report_meta = {
+                "schema_name": schema_name,
+                "provider_type": provider_type,
+                "provider_uuid": provider_uuid,
+                "manifest_id": report_dict.get("manifest_id"),
+            }
+
+        except (ReportProcessorError, ReportProcessorDBError) as processing_error:
+            worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
+            LOG.error(str(processing_error))
+            WorkerCache().remove_task_from_cache(cache_key)
+            raise processing_error
+
+        WorkerCache().remove_task_from_cache(cache_key)
+        start_date = report_dict.get("start_date")
+        manifest_id = report_dict.get("manifest_id")
+        if start_date:
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            convert_to_parquet.delay(
+                self.request.id,
+                schema_name[4:],
+                provider_uuid,
+                provider_type,
+                start_date_str,
+                manifest_id,
+                [report_context.get("local_file")],
+            )
+        return report_meta
+    except Exception as err:
+        worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
+        LOG.error(str(err))
+        WorkerCache().remove_task_from_cache(cache_key)
 
 
 @app.task(name="masu.processor.tasks.remove_expired_data", queue_name="remove_expired")
@@ -227,25 +267,30 @@ def summarize_reports(reports_to_summarize):
         None
 
     """
-    for report in reports_to_summarize:
+    reports_to_summarize = [report for report in reports_to_summarize if report]
+    reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports_to_summarize}]
+
+    for report in reports_deduplicated:
         # For day-to-day summarization we choose a small window to
         # cover new data from a window of days.
         # This saves us from re-summarizing unchanged data and cuts down
         # on processing time. There are override mechanisms in the
         # Updater classes for when full-month summarization is
         # required.
-        start_date = DateAccessor().today() - datetime.timedelta(days=2)
-        start_date = start_date.strftime("%Y-%m-%d")
-        end_date = DateAccessor().today().strftime("%Y-%m-%d")
-        LOG.info("report to summarize: %s", str(report))
-        update_summary_tables.delay(
-            report.get("schema_name"),
-            report.get("provider_type"),
-            report.get("provider_uuid"),
-            start_date=start_date,
-            end_date=end_date,
-            manifest_id=report.get("manifest_id"),
-        )
+        with ReportManifestDBAccessor() as manifest_accesor:
+            if manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
+                start_date = DateAccessor().today() - datetime.timedelta(days=2)
+                start_date = start_date.strftime("%Y-%m-%d")
+                end_date = DateAccessor().today().strftime("%Y-%m-%d")
+                LOG.info("report to summarize: %s", str(report))
+                update_summary_tables.delay(
+                    report.get("schema_name"),
+                    report.get("provider_type"),
+                    report.get("provider_uuid"),
+                    start_date=start_date,
+                    end_date=end_date,
+                    manifest_id=report.get("manifest_id"),
+                )
 
 
 @app.task(name="masu.processor.tasks.update_summary_tables", queue_name="reporting")
@@ -542,55 +587,15 @@ SELECT s.relname as "table_name",
 
 
 @app.task(  # noqa: C901
-    name="masu.celery.tasks.convert_reports_to_parquet",
-    queue_name="reporting",
-    autoretry_for=(ClientError,),
-    max_retries=10,
-    retry_backoff=10,
-)
-def convert_reports_to_parquet(request_id, reports_to_convert, context={}):
-    """
-    Convert archived CSV data from our S3 bucket for a given provider to Parquet.
-
-    This function chiefly follows the download of a providers data.
-
-    This task is defined to attempt up to 10 retries using exponential backoff
-    starting with a 10-second delay. This is intended to allow graceful handling
-    of temporary AWS S3 connectivity issues because it is relatively important
-    for us to convert the archived data.
-
-    Args:
-        request_id (str): The associated request id (ingress or celery task id)
-        reports_to_convert (list(Dict)): The list of report dictionaries
-        context (dict): A context object for logging
-
-    """
-    if not settings.ENABLE_S3_ARCHIVING:
-        msg = "Skipping convert_reports_to_parquet. S3 archiving feature is disabled."
-        LOG.info(log_json(request_id, msg, context))
-        return
-
-    for report in reports_to_convert:
-        LOG.info("report to convert: %s", str(report))
-        schema_name = report.get("schema_name")
-        provider_uuid = report.get("provider_uuid")
-        provider_type = report.get("provider_type")
-        manifest_id = report.get("manifest_id")
-        start_date = report.get("start_date")
-
-        if start_date and schema_name:
-            account = schema_name[4:]
-            convert_to_parquet.delay(request_id, account, provider_uuid, provider_type, start_date, manifest_id)
-
-
-@app.task(  # noqa: C901
     name="masu.celery.tasks.convert_to_parquet",
     queue_name="reporting",
     autoretry_for=(ClientError,),
     max_retries=10,
     retry_backoff=10,
 )
-def convert_to_parquet(request_id, account, provider_uuid, provider_type, start_date, manifest_id, context={}):
+def convert_to_parquet(
+    request_id, account, provider_uuid, provider_type, start_date, manifest_id, files=[], context={}
+):
     """
     Convert archived CSV data from our S3 bucket for a given provider to Parquet.
 
@@ -649,12 +654,13 @@ def convert_to_parquet(request_id, account, provider_uuid, provider_type, start_
     local_path = f"{Config.TMP_DIR}/{account}/{provider_uuid}"
     s3_parquet_path = get_path_prefix(account, provider_uuid, cost_date, Config.PARQUET_DATA_TYPE)
 
-    file_keys = get_file_keys_from_s3_with_manifest_id(request_id, s3_csv_path, manifest_id, context)
-    files = [os.path.basename(file_key) for file_key in file_keys]
     if not files:
-        msg = "S3 archiving feature is enabled, but no files to process."
-        LOG.info(log_json(request_id, msg, context))
-        return
+        file_keys = get_file_keys_from_s3_with_manifest_id(request_id, s3_csv_path, manifest_id, context)
+        files = [os.path.basename(file_key) for file_key in file_keys]
+        if not files:
+            msg = "S3 archiving feature is enabled, but no files to process."
+            LOG.info(log_json(request_id, msg, context))
+            return
 
     post_processor = None
     # OCP data is daily chunked report files.

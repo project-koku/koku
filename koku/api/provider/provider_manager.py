@@ -73,6 +73,10 @@ class ProviderManager:
         """Get the name of the provider."""
         return self.model.name
 
+    def get_active_status(self):
+        """Get provider active status."""
+        return self.model.active
+
     def get_infrastructure_name(self):
         """Get the name of the infrastructure that the provider is running on."""
         if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
@@ -193,7 +197,6 @@ class ProviderManager:
                 current_user.username, str(self.model)
             )
             raise ProviderManagerError(err_msg)
-        refresh_materialized_views(self.model.customer.schema_name, self.model.type)
 
 
 @receiver(post_delete, sender=Provider)
@@ -231,3 +234,4 @@ def provider_post_delete_callback(*args, **kwargs):
 
         delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
         transaction.on_commit(delete_func)
+    refresh_materialized_views(provider.customer.schema_name, provider.type)

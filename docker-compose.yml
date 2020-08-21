@@ -138,8 +138,6 @@ services:
       - -c
       - autovacuum_vacuum_cost_delay=10
       - -c
-      - idle_in_transaction_session_timeout=30000
-      - -c
       - pg_stat_statements.max=2000
       - -c
       - pg_stat_statements.save=off
@@ -164,6 +162,31 @@ services:
     - "${PGADMIN_PORT-8432}:80"
     volumes:
       - ./pgadmin_servers.json:/pgadmin4/servers.json
+
+  koku-minio:
+    image: minio/minio:latest
+    container_name: kokuminio
+    environment:
+      MINIO_ACCESS_KEY: kokuminioaccess
+      MINIO_SECRET_KEY: kokuminiosecret
+    ports:
+      - 9000:9000
+    command: server /data
+    volumes:
+      - ./testing/parquet_data:/data
+
+  koku-create-parquet-bucket:
+    image: minio/mc:latest
+    depends_on:
+      - koku-minio
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host rm local;
+      /usr/bin/mc config host add --quiet --api s3v4 local http://kokuminio:9000 kokuminioaccess kokuminiosecret;
+      /usr/bin/mc rb --force local/koku-bucket/;
+      /usr/bin/mc mb --quiet local/koku-bucket/;
+      /usr/bin/mc policy set public local/koku-bucket;
+      "
 
   grafana:
     container_name: koku_grafana
@@ -190,7 +213,7 @@ services:
 
   koku-worker:
       container_name: koku_worker
-      hostname: koku_worker
+      hostname: koku-worker-1
       image: koku_base
       working_dir: /koku/koku
       entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
