@@ -160,7 +160,7 @@ class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
 class OCPBillingSourceSerializer(ProviderBillingSourceSerializer):
     """OCP billing source serializer."""
 
-    data_source = serializers.JSONField(allow_null=False, required=False)
+    data_source = serializers.JSONField(required=False, default={})
 
 
 # Registry of authentication serializers.
@@ -242,7 +242,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             )()
             self.fields["billing_source"] = BILLING_SOURCE_SERIALIZERS.get(
                 Provider.PROVIDER_CASE_MAPPING.get(provider_type)
-            )(default={"data_source": {}})
+            )()
         else:
             self.fields["authentication"] = ProviderAuthenticationSerializer()
             self.fields["billing_source"] = ProviderBillingSourceSerializer()
