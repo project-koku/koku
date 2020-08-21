@@ -65,7 +65,7 @@
 </property>
 <property>
     <name>fs.s3a.endpoint</name>
-    <value>http://minio:9000</value>
+    <value>http://koku-minio:9000</value>
 </property>
 <property>
     <name>fs.s3a.path.style.access</name>

@@ -1,6 +1,7 @@
 import os
 
 import prestodb
+import pyarrow.parquet as pq
 
 PRESTO_HOST = os.environ.get("PRESTO_HOST", "localhost")
 PRESTO_USER = os.environ.get("PRESTO_USER", "admin")
@@ -17,7 +18,7 @@ conn = prestodb.dbapi.connect(host="localhost", port=8080, user="admin", catalog
 
 bucket = "koku-bucket"
 account = "10001"
-provider_uuid = "9a37b241-4066-432d-93d7-2aed87a74742"
+provider_uuid = "253d0dad-efe0-46f5-a85f-4c83a6b91749"
 year = "2020"
 month = "08"
 s3_path = f"{bucket}/data/parquet/{account}/{provider_uuid}/{year}/{month}/"
@@ -26,16 +27,11 @@ table_name = f"default.aws_data_{account}_{provider_uuid.replace('-', '_')}"
 
 sql = f"CREATE TABLE IF NOT EXISTS {table_name} ("
 
-aws_columns = []
-column_file = "/Users/curtisd/projects/repos/koku/scripts/columns.txt"
-with open(column_file, "r") as fd:
-    for line in fd:
-        line = line.strip()
-        aws_columns.append(line)
+parquet_file = "full_file_path"
+table = pq.read_table(parquet_file)
+parquet_columns = table.column_names
 
-# aws_columns.sort()
-
-for idx, col in enumerate(aws_columns):
+for idx, col in enumerate(parquet_columns):
     norm_col = col.replace("/", "_").replace(":", "_").lower()
     col_type = "varchar"
     if norm_col in [
@@ -58,21 +54,20 @@ for idx, col in enumerate(aws_columns):
     ]:
         col_type = "timestamp"
     sql += f"{norm_col} {col_type}"
-    if idx < (len(aws_columns) - 1):
+    if idx < (len(parquet_columns) - 1):
         sql += ","
 
-sql += f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET');"
+sql += f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET')"
 
 print(sql)
+cur = conn.cursor()
+cur.execute(sql)
 
-# cur = conn.cursor()
-# cur.execute(sql)
+rows = cur.fetchall()
 
+cur = conn.cursor()
+cur.execute(f"SELECT COUNT(*) FROM {table_name}")
+rows = cur.fetchall()
 
-# cur = conn.cursor()
-# cur.execute(
-#    "SELECT * FROM default.aws_data_10001_022e9fc1-4897-49db-bc9f-1a91e4607b3b_2020_08")
-# rows = cur.fetchall()
-
-# for row in rows:
-#    print(row)
+for row in rows:
+    print(row)

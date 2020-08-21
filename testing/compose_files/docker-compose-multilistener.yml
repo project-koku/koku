@@ -422,4 +422,7 @@ services:
       /usr/bin/mc rb --force local/koku-bucket/;
       /usr/bin/mc mb --quiet local/koku-bucket/;
       /usr/bin/mc policy set public local/koku-bucket;
+      /usr/bin/mc rb --force local/metastore/;
+      /usr/bin/mc mb --quiet local/metastore/;
+      /usr/bin/mc policy set public local/metastore;
       "
