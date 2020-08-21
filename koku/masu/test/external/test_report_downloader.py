@@ -75,15 +75,14 @@ class ReportDownloaderTest(MasuTestCase):
             ReportDownloader instance.
 
         """
-        downloader = ReportDownloader(
+        return ReportDownloader(
             customer_name=FAKE.name(),
-            access_credential=self.fake_creds,
-            report_source=FAKE.slug(),
+            credentials={"role_arn": self.fake_creds},
+            data_source={"data_source": FAKE.slug()},
             report_name=FAKE.slug(),
             provider_type=provider_type,
             provider_uuid=uuid4(),
         )
-        return downloader
 
     def assertDownloaderSetsProviderDownloader(self, provider_type, downloader_class):
         """
