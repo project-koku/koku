@@ -32,6 +32,7 @@ class CostUsageReportManifest(models.Model):
     manifest_updated_datetime = models.DateTimeField(null=True, default=timezone.now)
     # Completed should indicate that our reporting materialzed views have refreshed
     manifest_completed_datetime = models.DateTimeField(null=True)
+    # This timestamp indicates the last time the manifest was modified on the data source's end, not ours. 
     manifest_modified_datetime = models.DateTimeField(null=True)
     billing_period_start_datetime = models.DateTimeField()
     num_total_files = models.IntegerField()
