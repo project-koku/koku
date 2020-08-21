@@ -136,7 +136,7 @@ class ProviderBuilderTest(TestCase):
             self.mock_source.name = new_name
             client.update_provider_from_source(self.mock_source)
 
-    def test_get_authentication_for_provider(self):
+    def test__build_credentials_auth(self):
         """Test to build Koku Provider authentication json obj."""
         test_matrix = [
             {
@@ -159,22 +159,20 @@ class ProviderBuilderTest(TestCase):
 
         for test in test_matrix:
             with self.subTest(test=test):
-                response = client.get_authentication_for_provider(
-                    test.get("provider_type"), test.get("authentication")
-                )
+                response = client._build_credentials_auth(test.get("authentication"))
                 self.assertEqual(response, test.get("expected_response"))
 
-    def test_get_authentication_for_provider_errors(self):
+    def test__build_credentials_auth_errors(self):
         """Test to build Koku Provider authentication json obj with errors."""
         test_matrix = [
             {
                 "provider_type": Provider.PROVIDER_AWS,
-                "authentication": {"credentialz": {"role_arnz": "arn:fake"}},
+                "authentication": {"credentialz": {"role_arn": "arn:fake"}},
                 "expected_response": ProviderBuilderError,
             },
             {
                 "provider_type": Provider.PROVIDER_OCP,
-                "authentication": {"credentialz": {"client_idz": "test-cluster-id"}},
+                "authentication": {"credentialz": "test-cluster-id"},
                 "expected_response": ProviderBuilderError,
             },
             {
@@ -187,7 +185,7 @@ class ProviderBuilderTest(TestCase):
 
         for test in test_matrix:
             with self.assertRaises(test.get("expected_response")):
-                client.get_authentication_for_provider(test.get("provider_type"), test.get("authentication"))
+                client._build_credentials_auth(test.get("authentication"))
 
     def test_get_billing_source_for_provider(self):
         """Test to build Koku Provider billing_source json obj."""

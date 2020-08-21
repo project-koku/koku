@@ -62,15 +62,17 @@ class ProviderBuilder:
         return db_dict
 
     def _build_credentials_auth(self, authentication):
-        if authentication.get("credentials"):
-            auth = {"credentials": authentication.get("credentials")}
+        credentials = authentication.get("credentials")
+        if credentials and isinstance(credentials, dict):
+            auth = {"credentials": credentials}
         else:
             raise ProviderBuilderError("Missing credentials")
         return auth
 
     def _build_provider_data_source(self, billing_source):
-        if billing_source.get("data_source"):
-            billing = {"data_source": billing_source.get("data_source")}
+        data_source = billing_source.get("data_source")
+        if data_source and isinstance(data_source, dict):
+            billing = {"data_source": data_source}
         else:
             raise ProviderBuilderError("Missing data_source")
         return billing
