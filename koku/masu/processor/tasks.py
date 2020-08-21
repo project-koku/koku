@@ -257,7 +257,8 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
     )
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_items_only)
-    refresh_materialized_views.delay(schema_name, provider)
+    if not line_items_only:
+        refresh_materialized_views.delay(schema_name, provider)
 
 
 @app.task(name="masu.processor.tasks.summarize_reports", queue_name="process")
@@ -402,9 +403,12 @@ def update_all_summary_tables(start_date, end_date=None):
     name="masu.processor.tasks.update_cost_model_costs",
     queue_name="reporting",
     autoretry_for=(TaskRunningError,),
-    retry_backoff=10,
+    retry_backoff=True,
+    retry_backoff_max=10,
+    max_retries=100,
+    bind=True,
 )
-def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_date=None, provider_type=None):
+def update_cost_model_costs(self, schema_name, provider_uuid, start_date=None, end_date=None, provider_type=None):
     """Update usage charge information.
 
     Args:
@@ -417,7 +421,12 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
         None
 
     """
-    if is_task_currently_running("masu.processor.tasks.update_cost_model_costs", [schema_name, provider_uuid]):
+    task_id = None
+    if self.request:
+        task_id = self.request.id
+    if is_task_currently_running(
+        "masu.processor.tasks.update_cost_model_costs", task_id, [schema_name, provider_uuid]
+    ):
         msg = f"Already running update_cost_model_costs for {schema_name} and provider {provider_uuid}."
         raise TaskRunningError(msg)
     worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
@@ -438,11 +447,17 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
     name="masu.processor.tasks.refresh_materialized_views",
     queue_name="reporting",
     autoretry_for=(TaskRunningError,),
-    retry_backoff=10,
+    retry_backoff=True,
+    retry_backoff_max=10,
+    max_retries=100,
+    bind=True,
 )
-def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
+def refresh_materialized_views(self, schema_name, provider_type, manifest_id=None):
     """Refresh the database's materialized views for reporting."""
-    if is_task_currently_running("masu.processor.tasks.refresh_materialized_views", [schema_name]):
+    task_id = None
+    if self.request:
+        task_id = self.request.id
+    if is_task_currently_running("masu.processor.tasks.refresh_materialized_views", task_id, [schema_name]):
         msg = f"Already running refresh_materialized_views for {schema_name}."
         raise TaskRunningError(msg)
 
