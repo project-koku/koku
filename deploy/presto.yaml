@@ -1,0 +1,835 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: presto-template
+  annotations:
+    openshift.io/display-name: "Presto"
+    openshift.io/long-description: "This template defines resources needed to deploy and run the Presto."
+    openshift.io/provider-display-name: "Red Hat, Inc."
+labels:
+  app: presto
+  template: presto
+objects:
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: presto-common-config
+  data:
+    initialize_presto.sh: |
+      #!/bin/bash
+      set -ex
+
+      cp -v -L -r -f /presto-etc/* /opt/presto/presto-server/etc/
+
+
+    entrypoint.sh: |
+      #!/bin/bash
+      function importCert() {
+        PEM_FILE=$1
+        PASSWORD=$2
+        KEYSTORE=$3
+        # number of certs in the PEM file
+        CERTS=$(grep 'END CERTIFICATE' $PEM_FILE| wc -l)
+
+        # For every cert in the PEM file, extract it and import into the JKS keystore
+        # awk command: step 1, if line is in the desired cert, print the line
+        #              step 2, increment counter when last line of cert is found
+        for N in $(seq 0 $(($CERTS - 1))); do
+          ALIAS="${PEM_FILE%.*}-$N"
+          cat $PEM_FILE |
+            awk "n==$N { print }; /END CERTIFICATE/ { n++ }" |
+            keytool -noprompt -import -trustcacerts \
+                    -alias $ALIAS -keystore $KEYSTORE -storepass $PASSWORD
+        done
+      }
+      set -e
+
+      # always add the openshift service-ca.crt if it exists
+      if [ -a /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt ]; then
+        echo "Adding /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt to $JAVA_HOME/lib/security/cacerts"
+        importCert /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt changeit $JAVA_HOME/lib/security/cacerts
+      fi
+
+      # add node id to node config
+      NODE_CONFIG="${PRESTO_HOME}/etc/node.properties"
+      # ensure there's a newline between the last item in the config and what we add
+      echo "" >> $NODE_CONFIG
+      if ! grep -q -F 'node.id' "$NODE_CONFIG"; then
+        NODE_ID="node.id=$MY_NODE_ID"
+        echo "Adding $NODE_ID to $NODE_CONFIG"
+        echo "$NODE_ID" >> "$NODE_CONFIG"
+      fi
+
+      # add AWS creds to hive catalog properties
+      HIVE_CATALOG_CONFIG="${PRESTO_HOME}/etc/catalog/hive.properties"
+      # ensure there's a newline between the last item in the config and what we add
+      echo "" >> $HIVE_CATALOG_CONFIG
+      if ! grep -q -F 'hive.s3.aws-access-key' "$HIVE_CATALOG_CONFIG"; then
+        echo "Adding hive.s3.aws-access-key and hive.s3.aws-secret-key to $HIVE_CATALOG_CONFIG"
+        echo "hive.s3.aws-access-key=$AWS_ACCESS_KEY_ID" >> "$HIVE_CATALOG_CONFIG"
+        echo "hive.s3.aws-secret-key=$AWS_SECRET_ACCESS_KEY" >> "$HIVE_CATALOG_CONFIG"
+      fi
+
+      # add UID to /etc/passwd if missing
+      if ! whoami &> /dev/null; then
+          if [ -w /etc/passwd ]; then
+              echo "Adding user ${USER_NAME:-presto} with current UID $(id -u) to /etc/passwd"
+              # Remove existing entry with user first.
+              # cannot use sed -i because we do not have permission to write new
+              # files into /etc
+              sed  "/${USER_NAME:-presto}:x/d" /etc/passwd > /tmp/passwd
+              # add our user with our current user ID into passwd
+              echo "${USER_NAME:-presto}:x:$(id -u):0:${USER_NAME:-presto} user:${HOME}:/sbin/nologin" >> /tmp/passwd
+              # overwrite existing contents with new contents (cannot replace the
+              # file due to permissions)
+              cat /tmp/passwd > /etc/passwd
+              rm /tmp/passwd
+          fi
+      fi
+
+      exec "$@"
+
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: presto-coordinator-config
+    labels:
+      app: presto
+  data:
+    config.properties: |
+      coordinator=true
+      node-scheduler.include-coordinator=true
+      discovery-server.enabled=true
+      http-server.http.port=8080
+      discovery.uri=http://presto:8080
+
+      jmx.rmiserver.port=8081
+      jmx.rmiregistry.port=8081
+      query.max-length=10000000
+    jvm.config: >-
+      -server
+
+      -XX:+UseContainerSupport
+
+      -XX:+UseG1GC
+
+      -XX:+UseGCOverheadLimit
+
+      -XX:InitialRAMPercentage=50.0
+
+      -XX:MaxRAMPercentage=50.0
+
+      -XX:+ExplicitGCInvokesConcurrent
+
+      -XX:+HeapDumpOnOutOfMemoryError
+
+      -XX:HeapDumpPath=/var/presto/logs/heap_dump.bin
+
+      -XX:+ExitOnOutOfMemoryError
+
+      -XX:ErrorFile=/var/presto/logs/java_error%p.log
+
+      -verbose:gc
+
+      -Xloggc:/var/presto/logs/gc.log
+
+      -XX:+PrintGCDetails
+
+      -XX:+PrintGCTimeStamps
+
+      -XX:+PrintGCDateStamps
+
+      -XX:+UseGCLogFileRotation
+
+      -XX:NumberOfGCLogFiles=5
+
+      -XX:GCLogFileSize=3M
+
+      -javaagent:/opt/jmx_exporter/jmx_exporter.jar=8082:/opt/jmx_exporter/config/config.yml
+
+      -Dcom.sun.management.jmxremote
+
+      -Dcom.sun.management.jmxremote.local.only=false
+
+      -Dcom.sun.management.jmxremote.ssl=false
+
+      -Dcom.sun.management.jmxremote.authenticate=false
+
+      -Dcom.sun.management.jmxremote.port=8081
+
+      -Dcom.sun.management.jmxremote.rmi.port=8081
+
+      -Djava.rmi.server.hostname=127.0.0.1
+    log.properties: |
+      com.facebook.presto=INFO
+    node.properties: |
+      node.data-dir=/var/presto/data
+      node.environment=production
+
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: presto-jmx-config
+    labels:
+      app: presto
+  data:
+    config.yml: |-
+      ---
+      lowercaseOutputName: true
+      lowercaseOutputLabelNames: true
+      attrNameSnakeCase: false
+      rules:
+        # capture percentile and set quantile label
+        - pattern: 'presto.plugin.hive<type=(.+), name=hive><>(.+AllTime).P(\d+): (.*)'
+          name: 'presto_hive_$1_$2_seconds'
+          type: GAUGE
+          valueFactor: 0.001
+          labels:
+            quantile: '0.$3'
+        # match non-percentiles
+        - pattern: 'presto.plugin.hive<type=(.+), name=hive><>(.+AllTime.+): (.*)'
+          name: 'presto_hive_$1_$2_seconds'
+          type: GAUGE
+          valueFactor: 0.001
+          # counts
+        - pattern: 'presto.plugin.hive<type=(.+), name=hive><>(.+TotalCount.*): (.*)'
+          name: 'presto_hive_$1_$2_total'
+          type: COUNTER
+        # capture percentile and set quantile label
+        - pattern: 'presto.plugin.hive.s3<type=(.+), name=hive><>(.+AllTime).P(\d+): (.*)'
+          name: 'presto_hive_s3_$1_$2_seconds'
+          type: GAUGE
+          valueFactor: 0.001
+          labels:
+            quantile: '0.$3'
+        # match non-percentiles
+        - pattern: 'presto.plugin.hive.s3<type=(.+), name=hive><>(.+AllTime.+): (.*)'
+          name: 'presto_hive_s3_$1_$2_seconds'
+          type: GAUGE
+          valueFactor: 0.001
+          # counts
+        - pattern: 'presto.plugin.hive.s3<type=(.+), name=hive><>(.+TotalCount.*): (.*)'
+          name: 'presto_hive_s3_$1_$2_total'
+          type: COUNTER
+        # capture percentile and set quantile label
+        - pattern: 'presto.plugin.hive.metastore.thrift<type=(.+), name=hive><>(.+AllTime).P(\d+): (.*)'
+          name: 'presto_hive_metastore_thrift_$1_$2_seconds'
+          type: GAUGE
+          valueFactor: 0.001
+          labels:
+            quantile: '0.$3'
+        # match non-percentiles
+        - pattern: 'presto.plugin.hive.metastore.thrift<type=(.+), name=hive><>(.+AllTime.+): (.*)'
+          name: 'presto_hive_metastore_thrift_$1_$2_count_seconds'
+          type: GAUGE
+          valueFactor: 0.001
+        # counts
+        - pattern: 'presto.plugin.hive.metastore.thrift<type=(.+), name=hive><>(.+TotalCount.*): (.*)'
+          name: 'presto_hive_metastore_thrift_$1_$2_total'
+          type: COUNTER
+        - pattern: 'presto.execution<name=(.+)><>(.+AllTime).P(\d+): (.*)'
+          name: 'presto_execution_$1_$2_seconds'
+          type: GAUGE
+          valueFactor: 0.001
+          labels:
+            quantile: '0.$3'
+        - pattern: 'presto.execution<name=(.+)><>(.+AllTime.+): (.*)'
+          name: 'presto_execution_$1_$2_seconds'
+          type: GAUGE
+          valueFactor: 0.001
+        # counts
+        - pattern: 'presto.execution<name=(.+)><>(.+TotalCount.*): (.*)'
+          name: 'presto_execution_$1_$2_total'
+          type: COUNTER
+        - pattern: 'presto.memory<type=(.*), name=(.*)><>(.+): (.*)'
+          name: 'presto_memory_$1_$2_$3'
+          type: GAUGE
+        - pattern: 'presto.failuredetector<name=HeartbeatFailureDetector><>ActiveCount: (.*)'
+          name: 'presto_heartbeatdetector_activecount'
+          type: GAUGE
+
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: presto-worker-config
+    labels:
+      app: presto
+  data:
+    config.properties: |
+      coordinator=false
+      node-scheduler.include-coordinator=true
+      http-server.http.port=8080
+      discovery.uri=http://presto:8080
+
+      jmx.rmiserver.port=8081
+      jmx.rmiregistry.port=8081
+      query.max-length=10000000
+    jvm.config: >-
+      -server
+
+      -XX:+UseContainerSupport
+
+      -XX:+UseG1GC
+
+      -XX:+UseGCOverheadLimit
+
+      -XX:InitialRAMPercentage=50.0
+
+      -XX:MaxRAMPercentage=50.0
+
+      -XX:+ExplicitGCInvokesConcurrent
+
+      -XX:+HeapDumpOnOutOfMemoryError
+
+      -XX:HeapDumpPath=/var/presto/logs/heap_dump.bin
+
+      -XX:+ExitOnOutOfMemoryError
+
+      -XX:ErrorFile=/var/presto/logs/java_error%p.log
+
+      -verbose:gc
+
+      -Xloggc:/var/presto/logs/gc.log
+
+      -XX:+PrintGCDetails
+
+      -XX:+PrintGCTimeStamps
+
+      -XX:+PrintGCDateStamps
+
+      -XX:+UseGCLogFileRotation
+
+      -XX:NumberOfGCLogFiles=5
+
+      -XX:GCLogFileSize=3M
+
+      -javaagent:/opt/jmx_exporter/jmx_exporter.jar=8082:/opt/jmx_exporter/config/config.yml
+
+      -Dcom.sun.management.jmxremote
+
+      -Dcom.sun.management.jmxremote.local.only=false
+
+      -Dcom.sun.management.jmxremote.ssl=false
+
+      -Dcom.sun.management.jmxremote.authenticate=false
+
+      -Dcom.sun.management.jmxremote.port=8081
+
+      -Dcom.sun.management.jmxremote.rmi.port=8081
+
+      -Djava.rmi.server.hostname=127.0.0.1
+    log.properties: |
+      com.facebook.presto=INFO
+    node.properties: |
+      node.data-dir=/var/presto/data
+      node.environment=production
+
+- kind: Secret
+  apiVersion: v1
+  metadata:
+    name: presto-catalog-config
+    labels:
+      app: presto
+  data:
+    blackhole.properties: Y29ubmVjdG9yLm5hbWU9YmxhY2tob2xlCg==
+    hive.properties: >-
+      Y29ubmVjdG9yLm5hbWU9aGl2ZS1oYWRvb3AyCmhpdmUuYWxsb3ctZHJvcC10YWJsZT10cnVlCmhpdmUuYWxsb3ctcmVuYW1lLXRhYmxlPXRydWUKaGl2ZS5zdG9yYWdlLWZvcm1hdD1PUkMKaGl2ZS5jb21wcmVzc2lvbi1jb2RlYz1TTkFQUFkKaGl2ZS5oZGZzLmF1dGhlbnRpY2F0aW9uLnR5cGU9Tk9ORQpoaXZlLm1ldGFzdG9yZS5hdXRoZW50aWNhdGlvbi50eXBlPU5PTkUKaGl2ZS5jb2xsZWN0LWNvbHVtbi1zdGF0aXN0aWNzLW9uLXdyaXRlPXRydWUKaGl2ZS5tZXRhc3RvcmUudXJpPXRocmlmdDovL2hpdmUtbWV0YXN0b3JlOjkwODMKaGl2ZS5jb25maWcucmVzb3VyY2VzPS9oYWRvb3AtY29uZmlnL2NvcmUtc2l0ZS54bWw=
+    jmx.properties: Y29ubmVjdG9yLm5hbWU9am14Cg==
+    memory.properties: Y29ubmVjdG9yLm5hbWU9bWVtb3J5Cg==
+    tpcds.properties: Y29ubmVjdG9yLm5hbWU9dHBjZHMK
+    tpch.properties: Y29ubmVjdG9yLm5hbWU9dHBjaAo=
+  type: Opaque
+
+- apiVersion: apps/v1
+  kind: StatefulSet
+  metadata:
+    name: presto-coordinator
+    labels:
+      app: presto
+      presto: coordinator
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: presto
+        presto: coordinator
+    template:
+      metadata:
+        labels:
+          app: presto
+          presto: coordinator
+      spec:
+        restartPolicy: Always
+        initContainers:
+          - resources:
+              limits:
+                cpu: 100m
+                memory: 100Mi
+              requests:
+                cpu: 100m
+                memory: 100Mi
+            terminationMessagePath: /dev/termination-log
+            name: copy-presto-config
+            command:
+              - /presto-common/initialize_presto.sh
+            env:
+              - name: MY_NODE_ID
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.uid
+              - name: MY_NODE_NAME
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: spec.nodeName
+              - name: MY_POD_NAME
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.name
+              - name: MY_POD_NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.namespace
+              - name: MY_MEM_REQUEST
+                valueFrom:
+                  resourceFieldRef:
+                    containerName: presto
+                    resource: requests.memory
+                    divisor: '0'
+              - name: MY_MEM_LIMIT
+                valueFrom:
+                  resourceFieldRef:
+                    containerName: presto
+                    resource: limits.memory
+                    divisor: '0'
+              - name: AWS_ACCESS_KEY_ID
+                valueFrom:
+                  secretKeyRef:
+                    name: s3-bucket
+                    key: aws-access-key-id
+              - name: AWS_SECRET_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: s3-bucket
+                    key: aws-secret-access-key
+            imagePullPolicy: Always
+            volumeMounts:
+              - name: presto-etc
+                mountPath: /opt/presto/presto-server/etc
+              - name: presto-coordinator-config
+                mountPath: /presto-etc
+              - name: presto-catalog-config
+                mountPath: /presto-etc/catalog
+              - name: presto-data
+                mountPath: /var/presto/data
+              - name: presto-common-config
+                mountPath: /presto-common
+              - name: hadoop-config
+                mountPath: /hadoop-config
+              - name: hadoop-starting-config
+                mountPath: /hadoop-starting-config
+            terminationMessagePolicy: File
+            image: >-
+              registry.redhat.io/openshift4/ose-metering-presto:v4.4
+        schedulerName: default-scheduler
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - presto
+                topologyKey: kubernetes.io/hostname
+        terminationGracePeriodSeconds: 30
+        containers:
+          - resources:
+              limits:
+                cpu: '2'
+                memory: 2Gi
+              requests:
+                cpu: '1'
+                memory: 1Gi
+            terminationMessagePath: /dev/termination-log
+            name: presto
+            command:
+              - /presto-common/entrypoint.sh
+            env:
+              - name: MY_NODE_ID
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.uid
+              - name: MY_NODE_NAME
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: spec.nodeName
+              - name: MY_POD_NAME
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.name
+              - name: MY_POD_NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.namespace
+              - name: MY_MEM_REQUEST
+                valueFrom:
+                  resourceFieldRef:
+                    containerName: presto
+                    resource: requests.memory
+                    divisor: '0'
+              - name: MY_MEM_LIMIT
+                valueFrom:
+                  resourceFieldRef:
+                    containerName: presto
+                    resource: limits.memory
+                    divisor: '0'
+              - name: AWS_ACCESS_KEY_ID
+                valueFrom:
+                  secretKeyRef:
+                    name: s3-bucket
+                    key: aws-access-key-id
+              - name: AWS_SECRET_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: s3-bucket
+                    key: aws-secret-access-key
+            ports:
+              - name: api
+                containerPort: 8080
+                protocol: TCP
+              - name: metrics
+                containerPort: 8082
+                protocol: TCP
+            imagePullPolicy: Always
+            volumeMounts:
+              - name: presto-etc
+                mountPath: /opt/presto/presto-server/etc
+              - name: presto-common-config
+                mountPath: /presto-common
+              - name: presto-jmx-config
+                mountPath: /opt/jmx_exporter/config
+              - name: presto-data
+                mountPath: /var/presto/data
+              - name: presto-logs
+                mountPath: /var/presto/logs
+              - name: hadoop-config
+                mountPath: /hadoop-config
+              - name: hadoop-starting-config
+                mountPath: /hadoop-starting-config
+            terminationMessagePolicy: File
+            image: >-
+              registry.redhat.io/openshift4/ose-metering-presto:v4.4
+            args:
+              - /opt/presto/presto-server/bin/launcher
+              - run
+        volumes:
+          - name: presto-coordinator-config
+            configMap:
+              name: presto-coordinator-config
+              defaultMode: 420
+          - name: presto-common-config
+            configMap:
+              name: presto-common-config
+              defaultMode: 509
+          - name: presto-catalog-config
+            secret:
+              secretName: presto-catalog-config
+              defaultMode: 420
+          - name: presto-jmx-config
+            configMap:
+              name: presto-jmx-config
+              defaultMode: 420
+          - name: presto-etc
+            emptyDir: {}
+          - name: presto-data
+            emptyDir: {}
+          - name: presto-logs
+            emptyDir: {}
+          - name: hadoop-config
+            emptyDir: {}
+          - name: hadoop-starting-config
+            secret:
+              secretName: hadoop-config
+              defaultMode: 420
+        dnsPolicy: ClusterFirst
+    serviceName: presto-nodes
+
+- apiVersion: apps/v1
+  kind: StatefulSet
+  metadata:
+    name: presto-worker
+    labels:
+      app: presto
+      presto: worker
+  spec:
+    replicas: 0
+    selector:
+      matchLabels:
+        app: presto
+        presto: worker
+    template:
+      metadata:
+        labels:
+          app: presto
+          presto: worker
+      spec:
+        restartPolicy: Always
+        initContainers:
+          - resources:
+              limits:
+                cpu: 100m
+                memory: 100Mi
+              requests:
+                cpu: 100m
+                memory: 100Mi
+            terminationMessagePath: /dev/termination-log
+            name: copy-presto-config
+            command:
+              - /presto-common/initialize_presto.sh
+            env:
+              - name: MY_NODE_ID
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.uid
+              - name: MY_NODE_NAME
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: spec.nodeName
+              - name: MY_POD_NAME
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.name
+              - name: MY_POD_NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.namespace
+              - name: MY_MEM_REQUEST
+                valueFrom:
+                  resourceFieldRef:
+                    containerName: presto
+                    resource: requests.memory
+                    divisor: '0'
+              - name: MY_MEM_LIMIT
+                valueFrom:
+                  resourceFieldRef:
+                    containerName: presto
+                    resource: limits.memory
+                    divisor: '0'
+              - name: AWS_ACCESS_KEY_ID
+                valueFrom:
+                  secretKeyRef:
+                    name: s3-bucket
+                    key: aws-access-key-id
+              - name: AWS_SECRET_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: s3-bucket
+                    key: aws-secret-access-key
+            imagePullPolicy: Always
+            volumeMounts:
+              - name: presto-etc
+                mountPath: /opt/presto/presto-server/etc
+              - name: presto-worker-config
+                mountPath: /presto-etc
+              - name: presto-catalog-config
+                mountPath: /presto-etc/catalog
+              - name: presto-data
+                mountPath: /var/presto/data
+              - name: presto-common-config
+                mountPath: /presto-common
+              - name: hadoop-config
+                mountPath: /hadoop-config
+              - name: hadoop-starting-config
+                mountPath: /hadoop-starting-config
+            terminationMessagePolicy: File
+            image: >-
+              registry.redhat.io/openshift4/ose-metering-presto:v4.4
+        schedulerName: default-scheduler
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - presto
+                topologyKey: kubernetes.io/hostname
+        terminationGracePeriodSeconds: 30
+        containers:
+          - resources:
+              limits:
+                cpu: '2'
+                memory: 2Gi
+              requests:
+                cpu: '1'
+                memory: 1Gi
+            terminationMessagePath: /dev/termination-log
+            name: presto
+            command:
+              - /presto-common/entrypoint.sh
+            env:
+              - name: MY_NODE_ID
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.uid
+              - name: MY_NODE_NAME
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: spec.nodeName
+              - name: MY_POD_NAME
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.name
+              - name: MY_POD_NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.namespace
+              - name: MY_MEM_REQUEST
+                valueFrom:
+                  resourceFieldRef:
+                    containerName: presto
+                    resource: requests.memory
+                    divisor: '0'
+              - name: MY_MEM_LIMIT
+                valueFrom:
+                  resourceFieldRef:
+                    containerName: presto
+                    resource: limits.memory
+                    divisor: '0'
+              - name: AWS_ACCESS_KEY_ID
+                valueFrom:
+                  secretKeyRef:
+                    name: s3-bucket
+                    key: aws-access-key-id
+              - name: AWS_SECRET_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: s3-bucket
+                    key: aws-secret-access-key
+            ports:
+              - name: api
+                containerPort: 8080
+                protocol: TCP
+              - name: metrics
+                containerPort: 8082
+                protocol: TCP
+            imagePullPolicy: Always
+            volumeMounts:
+              - name: presto-etc
+                mountPath: /opt/presto/presto-server/etc
+              - name: presto-common-config
+                mountPath: /presto-common
+              - name: presto-jmx-config
+                mountPath: /opt/jmx_exporter/config
+              - name: presto-data
+                mountPath: /var/presto/data
+              - name: presto-logs
+                mountPath: /var/presto/logs
+              - name: hadoop-config
+                mountPath: /hadoop-config
+              - name: hadoop-starting-config
+                mountPath: /hadoop-starting-config
+            terminationMessagePolicy: File
+            image: >-
+              registry.redhat.io/openshift4/ose-metering-presto:v4.4
+            args:
+              - /opt/presto/presto-server/bin/launcher
+              - run
+        volumes:
+          - name: presto-worker-config
+            configMap:
+              name: presto-worker-config
+              defaultMode: 420
+          - name: presto-common-config
+            configMap:
+              name: presto-common-config
+              defaultMode: 509
+          - name: presto-catalog-config
+            secret:
+              secretName: presto-catalog-config
+              defaultMode: 420
+          - name: presto-jmx-config
+            configMap:
+              name: presto-jmx-config
+              defaultMode: 420
+          - name: presto-etc
+            emptyDir: {}
+          - name: presto-data
+            emptyDir: {}
+          - name: presto-logs
+            emptyDir: {}
+          - name: hadoop-config
+            emptyDir: {}
+          - name: hadoop-starting-config
+            secret:
+              secretName: hadoop-config
+              defaultMode: 420
+        dnsPolicy: ClusterFirst
+    serviceName: presto-nodes
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: presto
+    labels:
+      app: presto
+      presto: coordinator
+      component: presto-coordinator
+  spec:
+    ports:
+    - name: api
+      port: 8080
+    - name: metrics
+      port: 8082
+    selector:
+      app: presto
+      presto: coordinator
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: presto-worker
+    labels:
+      app: presto
+      presto: worker
+      component: presto-coordinator
+  spec:
+    ports:
+    - name: api
+      port: 8080
+    - name: metrics
+      port: 8082
+    selector:
+      app: presto
+      presto: worker
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: presto-nodes
+    labels:
+      app: presto
+  spec:
+    ports:
+    - name: api
+      port: 8080
+    clusterIP: None
+    selector:
+      app: presto

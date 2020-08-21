@@ -584,6 +584,16 @@ docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_vortex_api_tests.sh
 
+docker-metastore-setup:
+	@cp -fr deploy/metastore/ testing/metastore/
+	@cp -fr deploy/hadoop/ testing/hadoop/
+	@sed -i "" 's/s3path/$(shell echo $(or $(s3bucket),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
+	@sed -i "" 's/s3path/$(shell echo $(or $(s3bucket),metastore))/g' testing/metastore/hive-config/hive-site.xml
+
+docker-presto-setup:
+	@cp -fr deploy/presto/ testing/presto/
+	@cp -fr deploy/hadoop/ testing/hadoop/
+	@sed -i "" 's/s3path/$(shell echo $(or $(s3bucket),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
 ### Source targets ###
 ocp-source-from-yaml:
 #parameter validation

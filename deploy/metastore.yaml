@@ -1,0 +1,441 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: hive-metastore-template
+  annotations:
+    openshift.io/display-name: "Hive Metastore"
+    openshift.io/long-description: "This template defines resources needed to deploy and run the Hive metastore."
+    openshift.io/provider-display-name: "Red Hat, Inc."
+labels:
+  app: hive-metastore
+  template: hive-metastore
+objects:
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: hive-config
+  data:
+    hive-site.xml: |
+      <configuration>
+        <property>
+          <name>hive.server2.enable.doAs</name>
+          <value>false</value>
+        </property>
+        <property>
+          <name>hive.server2.use.SSL</name>
+          <value>false</value>
+        </property>
+        <property>
+          <name>hive.server2.authentication</name>
+          <value>NOSASL</value>
+        </property>
+        <property>
+          <name>hive.metastore.metrics.enabled</name>
+          <value>true</value>
+        </property>
+        <property>
+          <name>hive.server2.metrics.enabled</name>
+          <value>true</value>
+        </property>
+        <property>
+          <name>hive.service.metrics.reporter</name>
+          <value>JMX</value>
+        </property>
+        <property>
+          <name>hive.server2.thrift.bind.host</name>
+          <value>0.0.0.0</value>
+        </property>
+        <property>
+          <name>hive.metastore.thrift.bind.host</name>
+          <value>0.0.0.0</value>
+        </property>
+        <property>
+          <name>hive.metastore.uris</name>
+          <value>thrift://hive-metastore:9083</value>
+        </property>
+        <property>
+          <name>javax.jdo.option.ConnectionURL</name>
+          <value>jdbc:derby:;databaseName=/var/lib/hive/data;create=true</value>
+        </property>
+        <property>
+          <name>javax.jdo.option.ConnectionDriverName</name>
+          <value>org.apache.derby.jdbc.EmbeddedDriver</value>
+        </property>
+        <property>
+          <name>datanucleus.schema.autoCreateAll</name>
+          <value>true</value>
+        </property>
+        <property>
+          <name>hive.metastore.schema.verification</name>
+          <value>false</value>
+        </property>
+        <property>
+          <name>hive.default.fileformat</name>
+          <value>orc</value>
+        </property>
+        <property>
+          <name>hive.metastore.warehouse.dir</name>
+          <value>s3a://${S3_PATH}/</value>
+        </property>
+      </configuration>
+
+
+    hive-log4j2.properties: |
+      status = INFO
+      name = HiveLog4j2
+      packages = org.apache.hadoop.hive.ql.log
+
+      # list of properties
+      property.hive.log.level = INFO
+      property.hive.root.logger = console
+      property.hive.log.dir = ${sys:java.io.tmpdir}/${sys:user.name}
+      property.hive.log.file = hive.log
+
+      # list of all appenders
+      appenders = console
+
+      # console appender
+      appender.console.type = Console
+      appender.console.name = console
+      appender.console.target = SYSTEM_ERR
+      appender.console.layout.type = PatternLayout
+      appender.console.layout.pattern = %d{yy/MM/dd HH:mm:ss} [%t]: %p %c{2}: %m%n
+
+      # list of all loggers
+      loggers = NIOServerCnxn, ClientCnxnSocketNIO, DataNucleus, Datastore, JPOX
+
+      logger.NIOServerCnxn.name = org.apache.zookeeper.server.NIOServerCnxn
+      logger.NIOServerCnxn.level = WARN
+
+      logger.ClientCnxnSocketNIO.name = org.apache.zookeeper.ClientCnxnSocketNIO
+      logger.ClientCnxnSocketNIO.level = WARN
+
+      logger.DataNucleus.name = DataNucleus
+      logger.DataNucleus.level = ERROR
+
+      logger.Datastore.name = Datastore
+      logger.Datastore.level = ERROR
+
+      logger.JPOX.name = JPOX
+      logger.JPOX.level = ERROR
+
+      # root logger
+      rootLogger.level = ${sys:hive.log.level}
+      rootLogger.appenderRefs = root
+      rootLogger.appenderRef.root.ref = ${sys:hive.root.logger}
+
+    hive-exec-log4j2.properties: |
+      status = INFO
+      name = HiveLog4j2
+      packages = org.apache.hadoop.hive.ql.log
+
+      # list of properties
+      property.hive.log.level = INFO
+      property.hive.root.logger = console
+      property.hive.log.dir = ${sys:java.io.tmpdir}/${sys:user.name}
+      property.hive.log.file = hive.log
+
+      # list of all appenders
+      appenders = console
+
+      # console appender
+      appender.console.type = Console
+      appender.console.name = console
+      appender.console.target = SYSTEM_ERR
+      appender.console.layout.type = PatternLayout
+      appender.console.layout.pattern = %d{yy/MM/dd HH:mm:ss} [%t]: %p %c{2}: %m%n
+
+      # list of all loggers
+      loggers = NIOServerCnxn, ClientCnxnSocketNIO, DataNucleus, Datastore, JPOX
+
+      logger.NIOServerCnxn.name = org.apache.zookeeper.server.NIOServerCnxn
+      logger.NIOServerCnxn.level = WARN
+
+      logger.ClientCnxnSocketNIO.name = org.apache.zookeeper.ClientCnxnSocketNIO
+      logger.ClientCnxnSocketNIO.level = WARN
+
+      logger.DataNucleus.name = DataNucleus
+      logger.DataNucleus.level = ERROR
+
+      logger.Datastore.name = Datastore
+      logger.Datastore.level = ERROR
+
+      logger.JPOX.name = JPOX
+      logger.JPOX.level = ERROR
+
+      # root logger
+      rootLogger.level = ${sys:hive.log.level}
+      rootLogger.appenderRefs = root
+      rootLogger.appenderRef.root.ref = ${sys:hive.root.logger}
+
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: hive-jmx-config
+    labels:
+      app: hive
+  data:
+    config.yml: |
+      ---
+      lowercaseOutputName: true
+      lowercaseOutputLabelNames: true
+      attrNameSnakeCase: true
+      whitelistObjectNames:
+        - 'metrics:name=active_calls_*'
+        - 'metrics:name=api_*'
+        - 'metrics:name=create_*'
+        - 'metrics:name=delete_*'
+        - 'metrics:name=init_*'
+        - 'metrics:name=exec_*'
+        - 'metrics:name=hs2_*'
+        - 'metrics:name=open_connections'
+        - 'metrics:name=open_operations'
+      rules:
+        - pattern: 'metrics<name=(.*)><>Value'
+          name: hive_$1
+          type: GAUGE
+        - pattern: 'metrics<name=(.*)><>Count'
+          name: hive_$1_count
+          type: GAUGE
+        - pattern: 'metrics<name=(.*)><>(\d+)thPercentile'
+          name: hive_$1
+          type: GAUGE
+          labels:
+            quantile: "0.$2"
+
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: hive-scripts
+  data:
+    entrypoint.sh: |
+      #!/bin/bash
+      function importCert() {
+        PEM_FILE=$1
+        PASSWORD=$2
+        KEYSTORE=$3
+        # number of certs in the PEM file
+        CERTS=$(grep 'END CERTIFICATE' $PEM_FILE| wc -l)
+
+        # For every cert in the PEM file, extract it and import into the JKS keystore
+        # awk command: step 1, if line is in the desired cert, print the line
+        #              step 2, increment counter when last line of cert is found
+        for N in $(seq 0 $(($CERTS - 1))); do
+          ALIAS="${PEM_FILE%.*}-$N"
+          cat $PEM_FILE |
+            awk "n==$N { print }; /END CERTIFICATE/ { n++ }" |
+            keytool -noprompt -import -trustcacerts \
+                    -alias $ALIAS -keystore $KEYSTORE -storepass $PASSWORD
+        done
+      }
+      set -e
+
+      # if the s3-compatible ca bundle is mounted in, add to the root Java truststore.
+      if [ -a /s3-compatible-ca/ca-bundle.crt ]; then
+        echo "Adding /s3-compatible-ca/ca-bundle.crt to $JAVA_HOME/lib/security/cacerts"
+        importCert /s3-compatible-ca/ca-bundle.crt changeit $JAVA_HOME/lib/security/cacerts
+      fi
+      # always add the openshift service-ca.crt if it exists
+      if [ -a /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt ]; then
+        echo "Adding /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt to $JAVA_HOME/lib/security/cacerts"
+        importCert /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt changeit $JAVA_HOME/lib/security/cacerts
+      fi
+
+      # add UID to /etc/passwd if missing
+      if ! whoami &> /dev/null; then
+          if [ -w /etc/passwd ]; then
+              echo "Adding user ${USER_NAME:-hadoop} with current UID $(id -u) to /etc/passwd"
+              # Remove existing entry with user first.
+              # cannot use sed -i because we do not have permission to write new
+              # files into /etc
+              sed  "/${USER_NAME:-hadoop}:x/d" /etc/passwd > /tmp/passwd
+              # add our user with our current user ID into passwd
+              echo "${USER_NAME:-hadoop}:x:$(id -u):0:${USER_NAME:-hadoop} user:${HOME}:/sbin/nologin" >> /tmp/passwd
+              # overwrite existing contents with new contents (cannot replace the
+              # file due to permissions)
+              cat /tmp/passwd > /etc/passwd
+              rm /tmp/passwd
+          fi
+      fi
+
+      # symlink our configuration files to the correct location
+      if [ -f /hadoop-config/core-site.xml ]; then
+        ln -s -f /hadoop-config/core-site.xml /etc/hadoop/core-site.xml
+      else
+        echo "/hadoop-config/core-site.xml doesnt exist, skipping symlink"
+      fi
+      if [ -f /hadoop-config/hdfs-site.xml ]; then
+        ln -s -f /hadoop-config/hdfs-site.xml /etc/hadoop/hdfs-site.xml
+      else
+        echo "/hadoop-config/hdfs-site.xml doesnt exist, skipping symlink"
+      fi
+
+      ln -s -f /hive-config/hive-site.xml $HIVE_HOME/conf/hive-site.xml
+      ln -s -f /hive-config/hive-log4j2.properties $HIVE_HOME/conf/hive-log4j2.properties
+      ln -s -f /hive-config/hive-exec-log4j2.properties $HIVE_HOME/conf/hive-exec-log4j2.properties
+
+      export HADOOP_LOG_DIR="${HADOOP_HOME}/logs"
+      # Set garbage collection settings
+      export GC_SETTINGS="-XX:+UseG1GC -XX:G1HeapRegionSize=32M -XX:+UseGCOverheadLimit -XX:+ExplicitGCInvokesConcurrent -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${HADOOP_LOG_DIR}/heap_dump.bin -XX:+ExitOnOutOfMemoryError -XX:ErrorFile=${HADOOP_LOG_DIR}/java_error%p.log"
+
+      export VM_OPTIONS="$VM_OPTIONS -XX:+UseContainerSupport"
+
+      if [ -n "$JVM_INITIAL_RAM_PERCENTAGE" ]; then
+        VM_OPTIONS="$VM_OPTIONS -XX:InitialRAMPercentage=$JVM_INITIAL_RAM_PERCENTAGE"
+      fi
+      if [ -n "$JVM_MAX_RAM_PERCENTAGE" ]; then
+        VM_OPTIONS="$VM_OPTIONS -XX:MaxRAMPercentage=$JVM_MAX_RAM_PERCENTAGE"
+      fi
+      if [ -n "$JVM_MIN_RAM_PERCENTAGE" ]; then
+        VM_OPTIONS="$VM_OPTIONS -XX:MinRAMPercentage=$JVM_MIN_RAM_PERCENTAGE"
+      fi
+
+      # Set JMX options
+      export JMX_OPTIONS="-javaagent:/opt/jmx_exporter/jmx_exporter.jar=8082:/opt/jmx_exporter/config/config.yml -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.port=8081 -Dcom.sun.management.jmxremote.rmi.port=8081 -Djava.rmi.server.hostname=127.0.0.1"
+
+      # Set garbage collection logs
+      GC_SETTINGS="${GC_SETTINGS} -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:${HADOOP_LOG_DIR}/gc.log"
+      GC_SETTINGS="${GC_SETTINGS} -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=5 -XX:GCLogFileSize=3M"
+
+      export HIVE_LOGLEVEL="${HIVE_LOGLEVEL:-INFO}"
+      export HADOOP_OPTS="${HADOOP_OPTS} ${VM_OPTIONS} ${GC_SETTINGS} ${JMX_OPTIONS}"
+      export HIVE_METASTORE_HADOOP_OPTS=" -Dhive.log.level=${HIVE_LOGLEVEL} "
+      export HIVE_OPTS="${HIVE_OPTS} --hiveconf hive.root.logger=${HIVE_LOGLEVEL},console "
+
+      exec $@
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: hive-metastore
+    labels:
+      app: hive
+      hive: metastore
+  spec:
+    ports:
+    - name: meta
+      port: 9083
+      targetPort: meta
+    - name: metrics
+      port: 8082
+    selector:
+      app: hive
+      hive: metastore
+    sessionAffinity: None
+    type: ClusterIP
+
+- apiVersion: apps/v1
+  kind: StatefulSet
+  metadata:
+    name: hive-metastore
+    labels:
+      app: hive
+      hive: metastore
+  spec:
+    serviceName: hive-metastore
+    replicas: 1
+    updateStrategy:
+      type: RollingUpdate
+    selector:
+      matchLabels:
+        app: hive
+        hive: metastore
+    template:
+      metadata:
+        labels:
+          app: hive
+          hive: metastore
+      spec:
+        containers:
+        - name: metastore
+          command: ["/hive-scripts/entrypoint.sh"]
+          args: ["/opt/hive/bin/hive", "--service", "metastore"]
+          image: >-
+              registry.redhat.io/openshift4/ose-metering-hive:v4.4
+          imagePullPolicy: Always
+          ports:
+          - name: meta
+            containerPort: 9083
+          - containerPort: 8082
+            name: metrics
+          env:
+          - name: HIVE_LOGLEVEL
+            value: INFO
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: s3-bucket
+                key: aws-access-key-id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: s3-bucket
+                key: aws-secret-access-key
+          - name: MY_MEM_REQUEST
+            valueFrom:
+              resourceFieldRef:
+                containerName: metastore
+                resource: requests.memory
+          - name: MY_MEM_LIMIT
+            valueFrom:
+              resourceFieldRef:
+                containerName: metastore
+                resource: limits.memory
+          volumeMounts:
+          - name: hive-config
+            mountPath: /hive-config
+          - name: hive-scripts
+            mountPath: /hive-scripts
+          - name: hive-jmx-config
+            mountPath: /opt/jmx_exporter/config
+          - name: hive-metastore-db-data
+            mountPath: /var/lib/hive
+          - name: namenode-empty
+            mountPath: /hadoop/dfs/name
+          - name: datanode-empty
+            mountPath: /hadoop/dfs/data
+          - name: hadoop-logs
+            mountPath: /opt/hadoop/logs
+          - name: hadoop-config
+            mountPath: /hadoop-config
+          - name: hadoop-starting-config
+            mountPath: /hadoop-starting-config
+          resources:
+              limits:
+                cpu: '1'
+                memory: 1Gi
+              requests:
+                cpu: 500m
+                memory: 650Mi
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - name: hive-config
+          configMap:
+            name: hive-config
+        - name: hive-scripts
+          configMap:
+            name: hive-scripts
+            defaultMode: 0775
+        - name: hive-jmx-config
+          configMap:
+            name: hive-jmx-config
+        - name: namenode-empty
+          emptyDir: {}
+        - name: datanode-empty
+          emptyDir: {}
+        - name: hadoop-logs
+          emptyDir: {}
+        - name: hive-metastore-db-data
+          emptyDir: {}
+        - name: hadoop-config
+          emptyDir: {}
+        - name: hadoop-starting-config
+          secret:
+            secretName: hadoop-config
+            defaultMode: 420
+
+parameters:
+- name: S3_PATH
+  required: true
