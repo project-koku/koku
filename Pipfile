@@ -64,7 +64,7 @@ tblib = ">=1.6"
 coveralls = ">=1.10"
 python-coveralls = ">=2.9"
 model-bakery = ">=1.1"
-koku-nise = "<2.0.3"
+koku-nise = "<2.1"
 pre-commit = ">=2.0"
 responses = ">=0.10"
 
