@@ -1,4 +1,5 @@
 import os
+import sys
 
 import prestodb
 import pyarrow.parquet as pq
@@ -8,26 +9,23 @@ PRESTO_USER = os.environ.get("PRESTO_USER", "admin")
 PRESTO_CATALOG = os.environ.get("PRESTO_CATALOG", "hive")
 PRESTO_SCHEMA = os.environ.get("PRESTO_SCHEMA", "default")
 
+parquet_dir = sys.argv[1]
+
 try:
     PRESTO_PORT = int(os.environ.get("PRESTO_PORT", "8080"))
 except ValueError:
     PRESTO_PORT = 8080
 
+account = parquet_dir.split("/")[-4]
+provider_uuid = parquet_dir.split("/")[-3]
 
-conn = prestodb.dbapi.connect(host="localhost", port=8080, user="admin", catalog="hive", schema="default")
+s3_path = parquet_dir.split("parquet_data/", 1)[1]
 
-bucket = "koku-bucket"
-account = "10001"
-provider_uuid = "253d0dad-efe0-46f5-a85f-4c83a6b91749"
-year = "2020"
-month = "08"
-s3_path = f"{bucket}/data/parquet/{account}/{provider_uuid}/{year}/{month}/"
-
-table_name = f"default.aws_data_{account}_{provider_uuid.replace('-', '_')}"
+table_name = f"default.data_{account}_{provider_uuid.replace('-', '_')}"
 
 sql = f"CREATE TABLE IF NOT EXISTS {table_name} ("
 
-parquet_file = "full_file_path"
+parquet_file = f"{parquet_dir}/{os.listdir(parquet_dir).pop()}"
 table = pq.read_table(parquet_file)
 parquet_columns = table.column_names
 
@@ -60,6 +58,8 @@ for idx, col in enumerate(parquet_columns):
 sql += f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET')"
 
 print(sql)
+
+conn = prestodb.dbapi.connect(host="localhost", port=8080, user="admin", catalog="hive", schema="default")
 cur = conn.cursor()
 cur.execute(sql)
 
