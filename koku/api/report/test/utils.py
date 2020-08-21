@@ -95,7 +95,7 @@ class NiseDataLoader:
     def load_openshift_data(self, customer, static_data_file, cluster_id):
         """Load OpenShift data into the database."""
         provider_type = Provider.PROVIDER_OCP
-        credentials = {"provider_resource_name": cluster_id}
+        credentials = {"cluster_id": cluster_id}
         with override_settings(AUTO_DATA_INGEST=False):
             ocp_billing_source, _ = ProviderBillingSource.objects.get_or_create(data_source={})
             provider = baker.make(
@@ -143,16 +143,16 @@ class NiseDataLoader:
         refresh_materialized_views(self.schema, provider_type)
         shutil.rmtree(report_path, ignore_errors=True)
 
-    def load_aws_data(self, customer, static_data_file, account_id=None, provider_resource_name=None):
+    def load_aws_data(self, customer, static_data_file, account_id=None, role_arn=None):
         """Load AWS data into the database."""
         provider_type = Provider.PROVIDER_AWS_LOCAL
         if account_id is None:
             account_id = "9999999999999"
-        if provider_resource_name is None:
-            provider_resource_name = "arn:aws:iam::999999999999:role/CostManagement"
+        if role_arn is None:
+            role_arn = "arn:aws:iam::999999999999:role/CostManagement"
         nise_provider_type = provider_type.replace("-local", "")
         report_name = "Test"
-        credentials = {"provider_resource_name": provider_resource_name}
+        credentials = {"role_arn": role_arn}
         data_source = {"bucket": "test-bucket"}
         with patch.object(settings, "AUTO_DATA_INGEST", False):
             provider = baker.make(

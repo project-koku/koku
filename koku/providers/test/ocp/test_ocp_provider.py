@@ -32,7 +32,7 @@ class OCPProviderTestCase(TestCase):
 
     def test_cost_usage_source_is_reachable_bucket_provided(self):
         """Verify that the cost usage source is authenticated and created."""
-        credentials = {"provider_resource_name": "my-ocp-cluster-1"}
+        credentials = {"cluster_id": "my-ocp-cluster-1"}
         report_source = "report_location"
 
         provider_interface = OCPProvider()
@@ -42,7 +42,7 @@ class OCPProviderTestCase(TestCase):
 
     def test_cost_usage_source_no_cluster_id(self):
         """Verify that the cost usage source raises error with no cluster_id."""
-        credentials = {"provider_resource_name": None}
+        credentials = {"cluster_id": None}
         report_source = None
 
         provider_interface = OCPProvider()
@@ -52,7 +52,7 @@ class OCPProviderTestCase(TestCase):
 
     def test_cost_usage_source_is_reachable_no_bucket_provided(self):
         """Verify that the cost usage source is not authenticated and created with no bucket provided."""
-        credentials = {"provider_resource_name": "my-ocp-cluster-1"}
+        credentials = {"cluster_id": "my-ocp-cluster-1"}
         report_source = None
 
         provider_interface = OCPProvider()

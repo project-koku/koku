@@ -27,7 +27,6 @@ from api.iam import models as iam_models
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
-from api.provider.test import create_generic_provider
 from api.provider.test import PROVIDERS
 from providers.provider_access import ProviderAccessor
 from sources.api import get_account_from_header
@@ -100,20 +99,6 @@ class SourcesSerializerTests(IamTestCase):
             name=self.aws_name,
         )
         self.aws_obj.save()
-
-    def _create_source_and_provider(self, provider_type, source_id):
-        """Create Provider."""
-        _, provider = create_generic_provider(provider_type, self.headers)
-        source = Sources.objects.get(source_id=source_id)
-        source.source_uuid = provider.uuid
-        authentication = {"credentials": provider.authentication.credentials}
-        if authentication.get("credentials").get("provider_resource_name"):
-            authentication["resource_name"] = authentication["credentials"]["provider_resource_name"]
-        source.authentication = authentication
-        billing_source = {"data_source": provider.billing_source.data_source}
-        source.billing_source = billing_source
-        source.save()
-        return source
 
     def test_azure_source_update_missing_credential(self, _):
         """Test the update azure source with missing credentials."""
@@ -320,7 +305,7 @@ class SourcesSerializerTests(IamTestCase):
         source_data = {
             "name": "test1",
             "source_type": "AWS",
-            "authentication": {"credentials": {"provider_resource_name": "arn:aws::foo:bar"}},
+            "authentication": {"credentials": {"role_arn": "arn:aws::foo:bar"}},
             "billing_source": {"data_source": {"bucket": "/tmp/s3bucket"}},
         }
         mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
@@ -337,7 +322,7 @@ class SourcesSerializerTests(IamTestCase):
                 self.fail("test_create_via_admin_serializer failed")
 
         source_data["name"] = "test2"
-        source_data["authentication"] = {"credentials": {"provider_resource_name": "arn:aws::foo:bar2"}}
+        source_data["authentication"] = {"credentials": {"role_arn": "arn:aws::foo:bar2"}}
         source_data["billing_source"] = {"data_source": {"bucket": "/tmp/mybucket"}}
         serializer = AdminSourcesSerializer(data=source_data, context=context)
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
@@ -355,7 +340,7 @@ class SourcesSerializerTests(IamTestCase):
         source_data = {
             "name": "test",
             "source_type": "BAD",
-            "authentication": {"credentials": {"resource_name": "arn:aws::foo:bar"}},
+            "authentication": {"credentials": {"role_arn": "arn:aws::foo:bar"}},
             "billing_source": {"data_source": {"bucket": "/tmp/s3bucket"}},
         }
         mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
@@ -383,9 +368,7 @@ class SourcesSerializerTests(IamTestCase):
             "source_id": 10,
             "name": "ProviderAWS",
             "source_type": "AWS",
-            "authentication": {
-                "credentials": {"provider_resource_name": "arn:aws:iam::111111111111:role/CostManagement"}
-            },
+            "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
             "billing_source": {"data_source": {"bucket": "first-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
             "account_id": "acct10001",

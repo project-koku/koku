@@ -71,7 +71,7 @@ class AWSAuthenticationSerializer(ProviderAuthenticationSerializer):
     def validate_credentials(self, creds):
         """Validate credentials field."""
         key = "provider.credentials"
-        fields = ["provider_resource_name"]
+        fields = ["role_arn"]
         return validate_field(creds, fields, key)
 
 
@@ -102,7 +102,7 @@ class OCPAuthenticationSerializer(ProviderAuthenticationSerializer):
     def validate_credentials(self, creds):
         """Validate credentials field."""
         key = "provider.credentials"
-        fields = ["provider_resource_name"]
+        fields = ["cluster_id"]
         return validate_field(creds, fields, key)
 
 

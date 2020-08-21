@@ -169,7 +169,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         super().setUp()
         os.makedirs(DATA_DIR, exist_ok=True)
 
-        self.credentials = {"provider_resource_name": self.auth_credential}
+        self.credentials = {"role_arn": self.auth_credential}
         self.data_source = {"bucket": self.fake_bucket_name}
 
         self.report_downloader = ReportDownloader(
@@ -410,7 +410,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         mock_task = Mock(request=Mock(id=str(self.fake.uuid4()), return_value={}))
         account_id = "123456"
         arn = fake_arn(service="iam", generate_account_id=True)
-        credentials = {"provider_resource_name": arn}
+        credentials = {"role_arn": arn}
         report_name = FAKE.word()
         demo_accounts = {account_id: {arn: {"report_name": report_name, "report_prefix": FAKE.word()}}}
         with self.settings(DEMO_ACCOUNTS=demo_accounts):

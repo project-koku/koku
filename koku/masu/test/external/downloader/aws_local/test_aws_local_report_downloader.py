@@ -73,7 +73,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         mytar.extractall(path=self.fake_bucket_name)
         os.makedirs(DATA_DIR, exist_ok=True)
 
-        self.credentials = {"provider_resource_name": self.fake_auth_credential}
+        self.credentials = {"role_arn": self.fake_auth_credential}
         self.data_source = {"bucket": self.fake_bucket_name}
 
         self.report_downloader = ReportDownloader(

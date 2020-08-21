@@ -61,42 +61,12 @@ class ProviderBuilder:
             db_dict = {}
         return db_dict
 
-    def _build_provider_resource_name_auth(self, authentication):
-        if authentication.get("credentials"):
-            auth = {"credentials": authentication.get("credentials")}
-        else:
-            raise ProviderBuilderError("Missing provider_resource_name")
-        return auth
-
     def _build_credentials_auth(self, authentication):
         if authentication.get("credentials"):
             auth = {"credentials": authentication.get("credentials")}
         else:
             raise ProviderBuilderError("Missing credentials")
         return auth
-
-    def _authentication_for_aws(self, authentication):
-        return self._build_provider_resource_name_auth(authentication)
-
-    def _authentication_for_ocp(self, authentication):
-        return self._build_provider_resource_name_auth(authentication)
-
-    def _authentication_for_azure(self, authentication):
-        return self._build_credentials_auth(authentication)
-
-    def get_authentication_for_provider(self, provider_type, authentication):
-        """Build authentication json data for provider type."""
-        provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower())
-        provider_map = {
-            Provider.PROVIDER_AWS: self._authentication_for_aws,
-            Provider.PROVIDER_AWS_LOCAL: self._authentication_for_aws,
-            Provider.PROVIDER_OCP: self._authentication_for_ocp,
-            Provider.PROVIDER_AZURE: self._authentication_for_azure,
-            Provider.PROVIDER_AZURE_LOCAL: self._authentication_for_azure,
-        }
-        provider_fn = provider_map.get(provider_type)
-        if provider_fn:
-            return provider_fn(authentication)
 
     def _build_provider_bucket(self, billing_source):
         if billing_source.get("data_source") and isinstance(billing_source.get("data_source"), dict):
@@ -193,7 +163,7 @@ class ProviderBuilder:
         json_data = {
             "name": source.name,
             "type": provider_type.lower(),
-            "authentication": self.get_authentication_for_provider(provider_type, source.authentication),
+            "authentication": self._build_credentials_auth(source.authentication),
             "billing_source": self.get_billing_source_for_provider(provider_type, source.billing_source),
         }
         connection.set_tenant(tenant)

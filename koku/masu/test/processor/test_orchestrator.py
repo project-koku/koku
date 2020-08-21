@@ -68,7 +68,7 @@ class OrchestratorTest(MasuTestCase):
         self.ocp_data_source = {}
         self.mock_accounts = [
             {
-                "credentials": {"provider_resource_name": fake_arn(service="iam", generate_account_id=True)},
+                "credentials": {"role_arn": fake_arn(service="iam", generate_account_id=True)},
                 "data_source": {"bucket": self.fake.word()},
                 "customer_name": self.fake.word(),
                 "provider_type": Provider.PROVIDER_AWS,

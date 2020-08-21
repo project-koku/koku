@@ -33,17 +33,17 @@ from masu.processor import ALLOWED_COMPRESSIONS
 LOG = logging.getLogger(__name__)
 
 
-def _get_sts_access(provider_resource_name):
+def _get_sts_access(role_arn):
     """Get for sts access."""
     # create an STS client
     sts_client = boto3.client("sts")
 
     credentials = {}
-    error_message = f"Unable to assume role with ARN {provider_resource_name}."
+    error_message = f"Unable to assume role with ARN {role_arn}."
     try:
         # Call the assume_role method of the STSConnection object and pass the role
         # ARN and a role session name.
-        assumed_role = sts_client.assume_role(RoleArn=provider_resource_name, RoleSessionName="AccountCreationSession")
+        assumed_role = sts_client.assume_role(RoleArn=role_arn, RoleSessionName="AccountCreationSession")
         credentials = assumed_role.get("Credentials")
     except ParamValidationError as param_error:
         LOG.warn(msg=error_message)
@@ -137,10 +137,10 @@ class AWSProvider(ProviderInterface):
     def cost_usage_source_is_reachable(self, credentials, data_source):
         """Verify that the S3 bucket exists and is reachable."""
 
-        credential_name = credentials.get("provider_resource_name")
+        credential_name = credentials.get("role_arn")
         if not credential_name or credential_name.isspace():
-            key = ProviderErrors.AWS_MISSING_RESOURCE_NAME
-            message = ProviderErrors.AWS_MISSING_RESOURCE_NAME_MESSAGE
+            key = ProviderErrors.AWS_MISSING_ROLE_ARN
+            message = ProviderErrors.AWS_MISSING_ROLE_ARN_MESSAGE
             raise serializers.ValidationError(error_obj(key, message))
 
         storage_resource_name = data_source.get("bucket")
@@ -152,7 +152,7 @@ class AWSProvider(ProviderInterface):
         creds = _get_sts_access(credential_name)
         # if any values in creds are None, the dict won't be empty
         if bool({k: v for k, v in creds.items() if not v}):
-            key = ProviderErrors.AWS_RESOURCE_NAME_UNREACHABLE
+            key = ProviderErrors.AWS_ROLE_ARN_UNREACHABLE
             internal_message = f"Unable to access account resources with ARN {credential_name}."
             raise serializers.ValidationError(error_obj(key, internal_message))
 

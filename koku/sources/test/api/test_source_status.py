@@ -160,7 +160,7 @@ class SourcesStatusTest(IamTestCase):
             {
                 "name": "New AWS Mock Test Source",
                 "source_type": Provider.PROVIDER_AWS,
-                "authentication": {"credentials": {"provider_resource_name": "fake-iam"}},
+                "authentication": {"credentials": {"role_arn": "fake-iam"}},
                 "billing_source": {"data_source": {"bucket": "my-bucket"}},
                 "offset": 1,
             },
@@ -174,7 +174,7 @@ class SourcesStatusTest(IamTestCase):
             {
                 "name": "New OCP Mock Test Source",
                 "source_type": Provider.PROVIDER_OCP,
-                "authentication": {"credentials": {"provider_resource_name": "cluster_id"}},
+                "authentication": {"credentials": {"cluster_id": "cluster_id"}},
                 "offset": 1,
             },
         ]
@@ -203,7 +203,7 @@ class SourcesStatusTest(IamTestCase):
             source_id=1,
             name="New AWS Mock Test Source",
             source_type=Provider.PROVIDER_AWS,
-            authentication={"credentials": {"provider_resource_name": "fake-iam"}},
+            authentication={"credentials": {"role_arn": "fake-iam"}},
             billing_source={"data_source": {"bucket": "my-bucket"}},
             koku_uuid=faker.uuid4(),
             offset=1,
@@ -212,7 +212,7 @@ class SourcesStatusTest(IamTestCase):
         actual_source_status = response.data
         expected = {
             "availability_status": "unavailable",
-            "availability_status_error": ProviderErrors.AWS_RESOURCE_NAME_UNREACHABLE_MESSAGE,
+            "availability_status_error": ProviderErrors.AWS_ROLE_ARN_UNREACHABLE_MESSAGE,
         }
         self.assertEquals(actual_source_status, expected)
 
@@ -283,7 +283,7 @@ class SourcesStatusTest(IamTestCase):
                 source_id=1,
                 name=source_name,
                 source_type=Provider.PROVIDER_AWS,
-                authentication={"credentials": {"provider_resource_name": "fake-iam"}},
+                authentication={"credentials": {"role_arn": "fake-iam"}},
                 billing_source={"data_source": {"bucket": "my-bucket"}},
                 koku_uuid=str(provider.uuid),
                 offset=1,
@@ -308,7 +308,7 @@ class SourcesStatusTest(IamTestCase):
                 source_id=1,
                 name=source_name,
                 source_type=Provider.PROVIDER_AWS,
-                authentication={"credentials": {"provider_resource_name": "fake-iam"}},
+                authentication={"credentials": {"role_arn": "fake-iam"}},
                 billing_source={"data_source": {"bucket": "my-bucket"}},
                 koku_uuid=str(provider.uuid),
                 offset=1,
@@ -329,7 +329,7 @@ class SourcesStatusTest(IamTestCase):
                 source_id=source_id,
                 name=source_name,
                 source_type=Provider.PROVIDER_AWS,
-                authentication={"credentials": {"provider_resource_name": "fake-iam"}},
+                authentication={"credentials": {"role_arn": "fake-iam"}},
                 billing_source={"data_source": {"bucket": "my-bucket"}},
                 koku_uuid=str(uuid4()),
                 offset=1,

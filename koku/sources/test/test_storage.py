@@ -219,7 +219,7 @@ class SourcesStorageTest(TestCase):
                     1,
                     "AWS Provider",
                     Provider.PROVIDER_AWS,
-                    {"resource_name": "arn:fake"},
+                    {"role_arn": "arn:fake"},
                     {"bucket": "testbucket"},
                     "authheader",
                     1,
@@ -229,14 +229,7 @@ class SourcesStorageTest(TestCase):
             },
             {
                 "provider": MockProvider(
-                    1,
-                    "AWS Provider",
-                    Provider.PROVIDER_AWS,
-                    {"resource_name": "arn:fake"},
-                    None,
-                    "authheader",
-                    1,
-                    False,
+                    1, "AWS Provider", Provider.PROVIDER_AWS, {"role_arn": "arn:fake"}, None, "authheader", 1, False
                 ),
                 "expected_response": {},
             },
@@ -245,7 +238,7 @@ class SourcesStorageTest(TestCase):
                     2,
                     "OCP Provider",
                     Provider.PROVIDER_OCP,
-                    {"resource_name": "my-cluster-id"},
+                    {"role_arn": "my-cluster-id"},
                     {"bucket": ""},
                     "authheader",
                     2,
@@ -258,8 +251,8 @@ class SourcesStorageTest(TestCase):
                     2,
                     "OCP Provider",
                     Provider.PROVIDER_OCP,
-                    {"resource_name": "my-cluster-id"},
-                    {"bucket": ""},
+                    {"cluster_id": "my-cluster-id"},
+                    {},
                     "authheader",
                     2,
                     True,
@@ -268,14 +261,7 @@ class SourcesStorageTest(TestCase):
             },
             {
                 "provider": MockProvider(
-                    2,
-                    None,
-                    Provider.PROVIDER_OCP,
-                    {"resource_name": "my-cluster-id"},
-                    {"bucket": ""},
-                    "authheader",
-                    2,
-                    False,
+                    2, None, Provider.PROVIDER_OCP, {"cluster_id": "my-cluster-id"}, {}, "authheader", 2, False
                 ),
                 "expected_response": {},
             },
@@ -325,7 +311,7 @@ class SourcesStorageTest(TestCase):
             offset=3,
             source_type=Provider.PROVIDER_OCP,
             name="Test OCP Source",
-            authentication={"resource_name": "arn:test"},
+            authentication={"role_arn": "arn:test"},
             billing_source={"bucket": "test-bucket"},
         )
         ocp_obj.save()
@@ -345,7 +331,7 @@ class SourcesStorageTest(TestCase):
             endpoint_id=test_endpoint_id,
             source_type=Provider.PROVIDER_AWS,
             name="Test AWS Source",
-            authentication={"resource_name": "arn:test"},
+            authentication={"role_arn": "arn:test"},
             billing_source={"bucket": "test-bucket"},
         )
         aws_obj.save()
@@ -362,7 +348,7 @@ class SourcesStorageTest(TestCase):
         """Test to add authentication to a source."""
         test_source_id = 3
         test_endpoint_id = 4
-        test_authentication = {"resource_name": "arn:test"}
+        test_authentication = {"role_arn": "arn:test"}
         aws_obj = Sources(
             source_id=test_source_id,
             auth_header=self.test_header,

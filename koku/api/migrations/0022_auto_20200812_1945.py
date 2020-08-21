@@ -33,11 +33,13 @@ class Migration(migrations.Migration):
                             data_source = '{"bucket": ""}'::jsonb
                     )
                 ;
+
                 DELETE
                 FROM
                     api_providerbillingsource
                 WHERE
                     data_source = '{"bucket": ""}'::jsonb;
+
                 UPDATE
                     api_providerbillingsource
                 SET
@@ -45,12 +47,33 @@ class Migration(migrations.Migration):
                 WHERE
                     data_source = '{}'::jsonb
                     AND bucket != '';
+
                 UPDATE
                     api_providerauthentication
                 SET
                     credentials = jsonb_build_object('provider_resource_name', provider_resource_name)
                 WHERE
                     credentials = '{}'::jsonb;
+
+                UPDATE
+                    api_providerauthentication apa
+                SET
+                    credentials = credentials - 'provider_resource_name' || jsonb_build_object('role_arn', credentials->'provider_resource_name')
+                FROM
+                    api_provider ap
+                WHERE
+                    apa.id = ap.authentication_id
+                    AND ap.type = 'AWS';
+
+                UPDATE
+                    api_providerauthentication apa
+                SET
+                    credentials = credentials - 'provider_resource_name' || jsonb_build_object('cluster_id', credentials->'provider_resource_name')
+                FROM
+                    api_provider ap
+                WHERE
+                    apa.id = ap.authentication_id
+                    AND ap.type = 'OCP';
             """
         )
     ]

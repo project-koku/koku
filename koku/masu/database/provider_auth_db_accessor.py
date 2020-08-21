@@ -27,8 +27,8 @@ class ProviderAuthDBAccessor(KokuDBAccess):
         Establish Provider Authentication database connection.
 
         Args:
-            auth_id                      (String) the provider authentication unique database id
-            provider_resource_name       (String) the provider resource name
+            auth_id                      (string) the provider authentication unique database id
+            credentials                  (dict) the credentials dictionary
 
         """
         super().__init__("public")
@@ -91,7 +91,7 @@ class ProviderAuthDBAccessor(KokuDBAccess):
             None
         Returns:
             (dtring): "Provider Resource Name.  i.e. AWS: RoleARN",
-                    example: {"provider_resource_name": "arn:aws:iam::111111111111:role/CostManagement"}
+                    example: {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}
 
         """
         obj = self._get_db_obj_query().first()

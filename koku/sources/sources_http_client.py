@@ -158,7 +158,7 @@ class SourcesHTTPClient:
         source_name = endpoint_response.get("data")[0].get("name")
         return source_name
 
-    def get_aws_role_arn(self):
+    def get_aws_credentials(self):
         """Get the roleARN from Sources Authentication service."""
         endpoint_url = "{}/endpoints?filter[source_id]={}".format(self._base_url, str(self._source_id))
 
@@ -186,7 +186,7 @@ class SourcesHTTPClient:
         authentications_internal_response = r.json()
         password = authentications_internal_response.get("password")
 
-        return {"provider_resource_name": password}
+        return {"role_arn": password}
 
     def get_azure_credentials(self):
         """Get the Azure Credentials from Sources Authentication service."""

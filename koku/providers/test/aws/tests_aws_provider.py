@@ -273,7 +273,7 @@ class AWSProviderTestCase(TestCase):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         try:
-            credentials = {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"}
+            credentials = {"role_arn": "arn:aws:s3:::my_s3_bucket"}
             data_source = {"bucket": "bucket_name"}
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
         except Exception:
@@ -283,7 +283,7 @@ class AWSProviderTestCase(TestCase):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         with self.assertRaises(ValidationError):
-            credentials = {"provider_resource_name": None}
+            credentials = {"role_arn": None}
             data_source = {"bucket": "bucket_name"}
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
 
@@ -295,7 +295,7 @@ class AWSProviderTestCase(TestCase):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         with self.assertRaises(ValidationError):
-            credentials = {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"}
+            credentials = {"role_arn": "arn:aws:s3:::my_s3_bucket"}
             data_source = {"bucket": "bucket_name"}
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
 
@@ -309,7 +309,7 @@ class AWSProviderTestCase(TestCase):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         with self.assertRaises(ValidationError):
-            credentials = {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"}
+            credentials = {"role_arn": "arn:aws:s3:::my_s3_bucket"}
             data_source = {"bucket": None}
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
 
@@ -327,7 +327,7 @@ class AWSProviderTestCase(TestCase):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         with self.assertRaises(ValidationError):
-            credentials = {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"}
+            credentials = {"role_arn": "arn:aws:s3:::my_s3_bucket"}
             data_source = {"bucket": "bucket_name"}
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
 
@@ -345,7 +345,7 @@ class AWSProviderTestCase(TestCase):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         try:
-            credentials = {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"}
+            credentials = {"role_arn": "arn:aws:s3:::my_s3_bucket"}
             data_source = {"bucket": "bucket_name"}
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
         except Exception:

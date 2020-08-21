@@ -152,7 +152,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
     def test_bad_provider(self):
         """Test that an unimplemented provider throws an error."""
-        credentials = {"credentials": {"provider_resource_name": "unknown"}}
+        credentials = {"credentials": {"role_arn": "unknown"}}
         self.unknown_auth = ProviderAuthentication.objects.create(credentials=credentials)
         self.unknown_auth.save()
         data_source = {"data_source": {"bucket": "unknown"}}

@@ -77,7 +77,7 @@ class ReportDownloaderTest(MasuTestCase):
         """
         return ReportDownloader(
             customer_name=FAKE.name(),
-            credentials={"provider_resource_name": self.fake_creds},
+            credentials={"role_arn": self.fake_creds},
             data_source={"data_source": FAKE.slug()},
             report_name=FAKE.slug(),
             provider_type=provider_type,

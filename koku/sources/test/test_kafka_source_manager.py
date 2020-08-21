@@ -57,7 +57,7 @@ class ProviderBuilderTest(TestCase):
         super().setUp()
         self.name = "Test Provider"
         self.provider_type = Provider.PROVIDER_AWS
-        self.authentication = {"credentials": {"provider_resource_name": "testauth"}}
+        self.authentication = {"credentials": {"role_arn": "testauth"}}
         self.billing_source = {"data_source": {"bucket": "testbillingsource"}}
         self.source_uuid = faker.uuid4()
         self.mock_source = MockSourceObject(
@@ -141,13 +141,13 @@ class ProviderBuilderTest(TestCase):
         test_matrix = [
             {
                 "provider_type": Provider.PROVIDER_AWS,
-                "authentication": {"credentials": {"provider_resource_name": "arn:fake"}},
-                "expected_response": {"credentials": {"provider_resource_name": "arn:fake"}},
+                "authentication": {"credentials": {"role_arn": "arn:fake"}},
+                "expected_response": {"credentials": {"role_arn": "arn:fake"}},
             },
             {
                 "provider_type": Provider.PROVIDER_OCP,
-                "authentication": {"credentials": {"provider_resource_name": "test-cluster-id"}},
-                "expected_response": {"credentials": {"provider_resource_name": "test-cluster-id"}},
+                "authentication": {"credentials": {"role_arn": "test-cluster-id"}},
+                "expected_response": {"credentials": {"role_arn": "test-cluster-id"}},
             },
             {
                 "provider_type": Provider.PROVIDER_AZURE,
@@ -169,12 +169,12 @@ class ProviderBuilderTest(TestCase):
         test_matrix = [
             {
                 "provider_type": Provider.PROVIDER_AWS,
-                "authentication": {"resource_namez": "arn:fake"},
+                "authentication": {"credentialz": {"role_arnz": "arn:fake"}},
                 "expected_response": ProviderBuilderError,
             },
             {
                 "provider_type": Provider.PROVIDER_OCP,
-                "authentication": {"resource_namez": "test-cluster-id"},
+                "authentication": {"credentialz": {"client_idz": "test-cluster-id"}},
                 "expected_response": ProviderBuilderError,
             },
             {

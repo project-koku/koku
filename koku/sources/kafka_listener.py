@@ -252,11 +252,11 @@ def get_authentication(source_type, sources_network):
     if source_type == Provider.PROVIDER_OCP:
         source_details = sources_network.get_source_details()
         if source_details.get("source_ref"):
-            credentials = {"provider_resource_name": source_details.get("source_ref")}
+            credentials = {"cluster_id": source_details.get("source_ref")}
         else:
             raise SourcesHTTPClientError("Unable to find Cluster ID")
     elif source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-        credentials = sources_network.get_aws_role_arn()
+        credentials = sources_network.get_aws_credentials()
     elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
         credentials = sources_network.get_azure_credentials()
     else:

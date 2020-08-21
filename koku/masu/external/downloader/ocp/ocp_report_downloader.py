@@ -126,7 +126,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.temp_dir = None
         self.data_source = data_source
         if isinstance(credentials, dict):
-            self.cluster_id = credentials.get("provider_resource_name")
+            self.cluster_id = credentials.get("cluster_id")
         else:
             self.cluster_id = credentials
         self.context["cluster_id"] = self.cluster_id

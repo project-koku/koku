@@ -126,7 +126,7 @@ class ProviderDBAccessor(KokuDBAccess):
             None
         Returns:
             (dict): {"credentials": "Provider Resource Name.  i.e. AWS: RoleARN"},
-                    example: {"provider_resource_name": "arn:aws:iam::111111111111:role/CostManagement"}
+                    example: {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}
 
         """
         return self.provider.authentication.credentials

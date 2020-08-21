@@ -136,20 +136,17 @@ class KokuCustomerOnboarder:
         elif source_type.lower() == "azure":
             source = "azure_source"
 
-        source_resource_name = self.customer.get("sources").get(source).get("authentication").get("resource_name")
         credentials = self.customer.get("sources").get(source).get("authentication").get("credentials", {})
-
-        bucket = self.customer.get("sources").get(source).get("billing_source").get("bucket")
         data_source = self.customer.get("sources").get(source).get("billing_source").get("data_source", {})
 
         billing_sql = """
             SELECT id FROM api_providerbillingsource
-            WHERE bucket = %s
-                AND data_source = %s
+            WHERE data_source = %s
 
         """
-        values = [bucket, json_dumps(data_source)]
+        values = [json_dumps(data_source)]
         cursor.execute(billing_sql, values)
+        billing_id = None
         try:
             billing_id = cursor.fetchone()
             if billing_id:
@@ -160,25 +157,24 @@ class KokuCustomerOnboarder:
             if billing_id is None:
 
                 billing_sql = """
-                    INSERT INTO api_providerbillingsource (uuid, bucket, data_source)
-                    VALUES (%s, %s, %s)
+                    INSERT INTO api_providerbillingsource (uuid, data_source)
+                    VALUES (%s, %s)
                     RETURNING id
                     ;
                 """
-                values = [str(uuid4()), bucket, json_dumps(data_source)]
+                values = [str(uuid4()), json_dumps(data_source)]
                 cursor.execute(billing_sql, values)
                 billing_id = cursor.fetchone()[0]
         conn.commit()
 
         auth_sql = """
             INSERT INTO api_providerauthentication (uuid,
-                                                    provider_resource_name,
                                                     credentials)
-            VALUES (%s, %s, %s)
+            VALUES (%s, %s)
             RETURNING id
             ;
         """
-        values = [str(uuid4()), source_resource_name, json_dumps(credentials)]
+        values = [str(uuid4()), json_dumps(credentials)]
 
         cursor.execute(auth_sql, values)
         auth_id = cursor.fetchone()[0]

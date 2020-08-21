@@ -45,7 +45,7 @@ class AWSLocalProviderTestCase(TestCase):
 
     def test_cost_usage_source_is_reachable(self):
         """Verify that the cost usage source is authenticated and created."""
-        credentials = {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"}
+        credentials = {"role_arn": "arn:aws:s3:::my_s3_bucket"}
         data_source = {"bucket": self.cur_source}
 
         provider_interface = AWSLocalProvider()
@@ -57,7 +57,7 @@ class AWSLocalProviderTestCase(TestCase):
 
     def test_cost_usage_source_is_reachable_no_bucket(self):
         """Verify that the cost usage source is not authenticated and created when no bucket is provided."""
-        credentials = {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"}
+        credentials = {"role_arn": "arn:aws:s3:::my_s3_bucket"}
         data_source = {"bucket": None}
 
         provider_interface = AWSLocalProvider()

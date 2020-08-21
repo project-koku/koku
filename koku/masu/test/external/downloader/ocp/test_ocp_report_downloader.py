@@ -51,7 +51,7 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.fake_customer_name = CUSTOMER_NAME
         self.fake_report_name = "ocp-report"
         self.cluster_id = "my-ocp-cluster-1"
-        self.credentials = {"provider_resource_name": self.cluster_id}
+        self.credentials = {"cluster_id": self.cluster_id}
 
         report_path = "{}/{}/{}".format(REPORTS_DIR, self.cluster_id, "20180901-20181001")
         os.makedirs(report_path, exist_ok=True)

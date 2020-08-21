@@ -69,7 +69,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         super().__init__(**kwargs)
 
-        arn = credentials.get("provider_resource_name")
+        arn = credentials.get("role_arn")
         bucket = data_source.get("bucket")
         if customer_name[4:] in settings.DEMO_ACCOUNTS:
             demo_account = settings.DEMO_ACCOUNTS.get(customer_name[4:])
