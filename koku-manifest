@@ -41,6 +41,7 @@ mgmt_services/cost-mgmt:koku/python-google-resumable-media:0.4.1.pipfile
 mgmt_services/cost-mgmt:koku/python-googleapis-common-protos:1.52.0.pipfile
 mgmt_services/cost-mgmt:koku/python-gunicorn:20.0.4.pipfile
 mgmt_services/cost-mgmt:koku/python-idna:2.10.pipfile
+mgmt_services/cost-mgmt:koku/python-importlib-metadata:1.7.0.pipfile
 mgmt_services/cost-mgmt:koku/python-isodate:0.6.0.pipfile
 mgmt_services/cost-mgmt:koku/python-jinja2:2.11.2.pipfile
 mgmt_services/cost-mgmt:koku/python-jinjasql:0.1.8.pipfile
