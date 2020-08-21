@@ -38,7 +38,7 @@ LOG = logging.getLogger("update_e2e_srr")
 # To be able to replace XXXX with the correct ref
 # reading the yaml and dumping the updated yaml was not used
 # so that the whole file would not be reordered
-REGEX = "^(.*?name: SOURCE_REPOSITORY_REF.*?" + os.linesep + ".*?required: false.*?" + os.linesep + ".*?value: )(.+?)$"
+REGEX = "^(.*?name: SOURCE_REPOSITORY_REF.*?" + os.linesep + ".*?required: .*?" + os.linesep + ".*?value: )(.+?)$"
 SRR = re.compile(REGEX, flags=re.MULTILINE)
 
 
@@ -63,7 +63,11 @@ if __name__ == "__main__":
     except Exception:
         raise Exception(f"Usage: {os.path.basename(sys.argv[0])} <git-ref>")
 
-    YAML_FILES = [os.path.join("hccm", "koku.yaml"), os.path.join("hccm-optional", "celery-flower.yaml")]
+    YAML_FILES = [
+        os.path.join("hccm", "koku.yaml"),
+        os.path.join("hccm-optional", "celery-flower.yaml"),
+        os.path.join("hccm-optional", "rdsexporter.yaml"),
+    ]
 
     for yml_file in YAML_FILES:
         set_srr(yml_file, git_ref)
