@@ -81,6 +81,7 @@ mgmt_services/cost-mgmt:koku/python-sentry-sdk:0.16.5.pipfile
 mgmt_services/cost-mgmt:koku/python-six:1.15.0.pipfile
 mgmt_services/cost-mgmt:koku/python-soupsieve:2.0.1.pipfile
 mgmt_services/cost-mgmt:koku/python-sqlparse:0.3.1.pipfile
+mgmt_services/cost-mgmt:koku/python-typed-ast:1.4.1.pipfile
 mgmt_services/cost-mgmt:koku/python-ujson:3.1.0.pipfile
 mgmt_services/cost-mgmt:koku/python-unicodecsv:0.14.1.pipfile
 mgmt_services/cost-mgmt:koku/python-urllib3:1.25.10.pipfile
