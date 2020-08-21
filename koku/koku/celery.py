@@ -163,7 +163,7 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
         time.sleep(5)
 
 
-def is_task_currently_running(task_name, check_args=None):
+def is_task_currently_running(task_name, task_id, check_args=None):
     """Check if a specific task with optional args is currently running."""
     try:
         active_dict = CELERY_INSPECT.active()
@@ -174,6 +174,9 @@ def is_task_currently_running(task_name, check_args=None):
     for task_list in active_dict.values():
         active_tasks.extend(task_list)
     for active_task in active_tasks:
+        if active_task.get("id") == task_id:
+            # We don't want to count the task doing the is running check
+            continue
         if active_task.get("name") == task_name:
             if check_args:
                 task_args = set(active_task.get("args", []))

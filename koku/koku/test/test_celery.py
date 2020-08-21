@@ -42,13 +42,35 @@ class CeleryTest(IamTestCase):
             ]
         }
 
+        # No task ID
         self.assertTrue(
-            is_task_currently_running("masu.processor.tasks.update_summary_tables", check_args=["acct10001"])
+            is_task_currently_running("masu.processor.tasks.update_summary_tables", None, check_args=["acct10001"])
         )
-        self.assertTrue(is_task_currently_running("masu.processor.tasks.update_summary_tables"))
+        # Different task ID running the check than the listed currently running task
+        self.assertTrue(
+            is_task_currently_running(
+                "masu.processor.tasks.update_summary_tables",
+                "26256b1d-b0d8-4822-ba70-73da82af9543",
+                check_args=["acct10001"],
+            )
+        )
+        # No check args
+        self.assertTrue(is_task_currently_running("masu.processor.tasks.update_summary_tables", None))
 
-        self.assertFalse(is_task_currently_running("update_summary_tables", check_args=["acct10001"]))
+        # The task ID of the currently running task
         self.assertFalse(
-            is_task_currently_running("masu.processor.tasks.update_summary_tables", check_args=["acct10002"])
+            is_task_currently_running(
+                "masu.processor.tasks.update_summary_tables",
+                "26256b1d-b0d8-4822-ba70-73da82af9542",
+                check_args=["acct10001"],
+            )
         )
-        self.assertFalse(is_task_currently_running("masu.processor.tasks.update_cost_model_costs"))
+
+        # An incomplete task name
+        self.assertFalse(is_task_currently_running("update_summary_tables", None, check_args=["acct10001"]))
+        # A different check arg
+        self.assertFalse(
+            is_task_currently_running("masu.processor.tasks.update_summary_tables", None, check_args=["acct10002"])
+        )
+        # A different task
+        self.assertFalse(is_task_currently_running("masu.processor.tasks.update_cost_model_costs", None))
