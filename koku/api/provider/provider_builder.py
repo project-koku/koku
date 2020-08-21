@@ -68,13 +68,6 @@ class ProviderBuilder:
             raise ProviderBuilderError("Missing credentials")
         return auth
 
-    def _build_provider_bucket(self, billing_source):
-        if billing_source.get("data_source") and isinstance(billing_source.get("data_source"), dict):
-            billing = {"data_source": billing_source.get("data_source")}
-        else:
-            raise ProviderBuilderError("Missing bucket")
-        return billing
-
     def _build_provider_data_source(self, billing_source):
         if billing_source.get("data_source"):
             billing = {"data_source": billing_source.get("data_source")}
@@ -82,28 +75,13 @@ class ProviderBuilder:
             raise ProviderBuilderError("Missing data_source")
         return billing
 
-    def _billing_source_for_aws(self, billing_source):
-        return self._build_provider_bucket(billing_source)
-
-    def _billing_source_for_ocp(self, billing_source):
-        return dict()
-
-    def _billing_source_for_azure(self, billing_source):
-        return self._build_provider_data_source(billing_source)
-
     def get_billing_source_for_provider(self, provider_type, billing_source):
         """Build billing source json data for provider type."""
         provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower())
-        provider_map = {
-            Provider.PROVIDER_AWS: self._billing_source_for_aws,
-            Provider.PROVIDER_AWS_LOCAL: self._billing_source_for_aws,
-            Provider.PROVIDER_OCP: self._billing_source_for_ocp,
-            Provider.PROVIDER_AZURE: self._billing_source_for_azure,
-            Provider.PROVIDER_AZURE_LOCAL: self._billing_source_for_azure,
-        }
-        provider_fn = provider_map.get(provider_type)
-        if provider_fn:
-            return provider_fn(billing_source)
+        if provider_type == Provider.PROVIDER_OCP:
+            return {}
+        else:
+            return self._build_provider_data_source(billing_source)
 
     def _create_context(self):
         """Create request context object."""
@@ -137,7 +115,7 @@ class ProviderBuilder:
         json_data = {
             "name": source.name,
             "type": provider_type.lower(),
-            "authentication": self.get_authentication_for_provider(provider_type, source.authentication),
+            "authentication": self._build_credentials_auth(source.authentication),
             "billing_source": self.get_billing_source_for_provider(provider_type, source.billing_source),
         }
         if source.source_uuid:

@@ -32,9 +32,11 @@ customer:
       source_name: Koku source Name
       source_type: One of "AWS", "OCP", or "AZURE"
       authentication:
-        resource_name: AWS Role ARN
+        credentials:
+          role_arn: AWS Role ARN
       billing_source:
-        bucket: AWS S3 Bucket Name
+        data_source:
+          bucket: AWS S3 Bucket Name
 koku:
   host: Koku API Hostname
   port: Koku API Port
