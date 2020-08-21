@@ -456,7 +456,7 @@ def convert_csv_to_parquet(  # noqa: C901
         data_frame = pd.read_csv(tmpfile, converters=converters, **kwargs)
         if post_processor:
             data_frame = post_processor(data_frame)
-        data_frame.to_parquet(output_file)
+        data_frame.to_parquet(output_file, allow_truncated_timestamps=True, coerce_timestamps="ms")
     except Exception as err:
         shutil.rmtree(local_path, ignore_errors=True)
         msg = f"File {csv_filename} could not be written as parquet to temp file {output_file}. Reason: {str(err)}"
