@@ -118,9 +118,9 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         return self.provider.type if self.provider else None
 
-    def get_authentication(self):
+    def get_credentials(self):
         """
-        Return the authentication name information.
+        Return the credential information.
 
         Args:
             None
@@ -131,9 +131,9 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         return self.provider.authentication.credentials
 
-    def get_billing_source(self):
+    def get_data_source(self):
         """
-        Return the billing source usage report source name.
+        Return the data_source information.
 
         Args:
             None
