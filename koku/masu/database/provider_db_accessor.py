@@ -20,6 +20,7 @@ from django.db import transaction
 from api.provider.models import Provider
 from api.provider.models import ProviderInfrastructureMap
 from masu.database.koku_database_access import KokuDBAccess
+from masu.external.date_accessor import DateAccessor
 
 
 class ProviderDBAccessor(KokuDBAccess):
@@ -39,6 +40,7 @@ class ProviderDBAccessor(KokuDBAccess):
         self._auth_id = auth_id
         self._table = Provider
         self._provider = None
+        self.date_accessor = DateAccessor()
 
     @property
     def provider(self):
@@ -251,3 +253,8 @@ class ProviderDBAccessor(KokuDBAccess):
             associated_openshift_providers = Provider.objects.filter(infrastructure=mapping).all()
 
         return associated_openshift_providers
+
+    def set_data_updated_timestamp(self):
+        """Set the data updated timestamp to the current time."""
+        self.provider.data_updated_timestamp = self.date_accessor.today_with_timezone("UTC")
+        self.provider.save()
