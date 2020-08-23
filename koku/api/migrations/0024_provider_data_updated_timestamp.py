@@ -5,7 +5,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0020_sources_out_of_order_delete")]
+    dependencies = [("api", "0023_auto_20200820_2314")]
 
     operations = [
         migrations.AddField(
