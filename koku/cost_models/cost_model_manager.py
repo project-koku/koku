@@ -98,7 +98,7 @@ class CostModelManager:
                 schema_name = provider.customer.schema_name
                 chain(
                     update_cost_model_costs.s(schema_name, provider.uuid, start_date, end_date),
-                    refresh_materialized_views.si(schema_name, provider.type),
+                    refresh_materialized_views.si(schema_name, provider.type, provider_uuid=provider.uuid),
                 ).apply_async()
 
     def update(self, **data):

@@ -140,7 +140,7 @@ class NiseDataLoader:
                     self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
                 )
         update_cost_model_costs(self.schema, provider.uuid, self.dh.last_month_start, self.dh.today)
-        refresh_materialized_views(self.schema, provider_type)
+        refresh_materialized_views(self.schema, provider_type, provider_uuid=provider.uuid)
         shutil.rmtree(report_path, ignore_errors=True)
 
     def load_aws_data(self, customer, static_data_file, account_id=None, role_arn=None):
@@ -199,7 +199,7 @@ class NiseDataLoader:
                     self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
                 )
         update_cost_model_costs(self.schema, provider.uuid, self.dh.last_month_start, self.dh.today)
-        refresh_materialized_views(self.schema, provider_type)
+        refresh_materialized_views(self.schema, provider_type, provider_uuid=provider.uuid)
         shutil.rmtree(base_path, ignore_errors=True)
 
     def load_azure_data(self, customer, static_data_file, credentials=None, data_source=None):
@@ -258,5 +258,5 @@ class NiseDataLoader:
                     self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
                 )
         update_cost_model_costs(self.schema, provider.uuid, self.dh.last_month_start, self.dh.today)
-        refresh_materialized_views(self.schema, provider_type)
+        refresh_materialized_views(self.schema, provider_type, provider_uuid=provider.uuid)
         shutil.rmtree(base_path, ignore_errors=True)

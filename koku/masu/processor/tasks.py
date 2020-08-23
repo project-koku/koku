@@ -38,6 +38,7 @@ from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.celery import app
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
@@ -252,7 +253,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
     )
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_items_only)
-    refresh_materialized_views.delay(schema_name, provider)
+    refresh_materialized_views.delay(schema_name, provider, provider_uuid=provider_uuid)
 
 
 @app.task(name="masu.processor.tasks.summarize_reports", queue_name="process")
@@ -327,7 +328,7 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
     updater.update_summary_tables(start_date, end_date)
 
     if not provider_uuid:
-        refresh_materialized_views.delay(schema_name, provider, manifest_id)
+        refresh_materialized_views.delay(schema_name, provider, manifest_id=manifest_id)
         return
 
     with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
@@ -336,7 +337,7 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
     if cost_model is not None:
         linked_tasks = update_cost_model_costs.s(
             schema_name, provider_uuid, start_date, end_date
-        ) | refresh_materialized_views.si(schema_name, provider, manifest_id)
+        ) | refresh_materialized_views.si(schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id)
     else:
         stmt = (
             f"\n update_cost_model_costs skipped. No cost model available for \n"
@@ -344,7 +345,9 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
             f" provider_uuid: {provider_uuid}"
         )
         LOG.info(stmt)
-        linked_tasks = refresh_materialized_views.s(schema_name, provider, manifest_id)
+        linked_tasks = refresh_materialized_views.s(
+            schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id
+        )
 
     dh = DateHelper(utc=True)
     prev_month_start_day = dh.last_month_start.replace(tzinfo=None)
@@ -422,7 +425,7 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
 
 
 @app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name="reporting")
-def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
+def refresh_materialized_views(schema_name, provider_type, manifest_id=None, provider_uuid=None):
     """Refresh the database's materialized views for reporting."""
     materialized_views = ()
     if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
@@ -450,6 +453,8 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
 
     invalidate_view_cache_for_tenant_and_source_type(schema_name, provider_type)
 
+    if provider_uuid:
+        ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
     if manifest_id:
         # Processing for this monifest should be complete after this step
         with ReportManifestDBAccessor() as manifest_accessor:
