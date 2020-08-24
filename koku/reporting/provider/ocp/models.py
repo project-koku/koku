@@ -178,11 +178,6 @@ class OCPUsageLineItemDaily(models.Model):
 
     cluster_capacity_memory_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
-    # Total capacity represents the sum of all of the customers clusters
-    total_capacity_cpu_core_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    total_capacity_memory_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
     total_seconds = models.IntegerField()
 
     pod_labels = JSONField(null=True)
@@ -258,11 +253,6 @@ class OCPUsageLineItemDailySummary(models.Model):
     cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    # Total capacity represents the sum of all of the customers clusters
-    total_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    total_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     # Volume specific fields
     persistentvolumeclaim = models.CharField(max_length=253, null=True)
@@ -679,10 +669,6 @@ class OCPPodSummary(models.Model):
     pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-    # Total capacity represents the sum of all of the customers clusters
-    total_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    total_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
@@ -741,10 +727,6 @@ class OCPPodSummaryByProject(models.Model):
     pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-    # Total capacity represents the sum of all of the customers clusters
-    total_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    total_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
