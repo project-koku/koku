@@ -24,15 +24,6 @@ CREATE TEMPORARY TABLE ocp_cluster_capacity_{{uuid | sqlsafe}} AS (
             date(cc.interval_start)
 );
 
--- Calculate capacity of all clusters combined for a grand total
-CREATE TEMPORARY TABLE ocp_capacity_{{uuid | sqlsafe}} AS (
-    SELECT cc.usage_start,
-        sum(cc.cluster_capacity_cpu_core_seconds) as total_capacity_cpu_core_seconds,
-        sum(cc.cluster_capacity_memory_byte_seconds) as total_capacity_memory_byte_seconds
-    FROM ocp_cluster_capacity_{{uuid | sqlsafe}} AS cc
-    GROUP BY cc.usage_start
-);
-
 -- Place our query in a temporary table
 CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
     SELECT  li.report_period_id,
@@ -57,8 +48,6 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
         sum(li.node_capacity_memory_byte_seconds) as node_capacity_memory_byte_seconds,
         max(cc.cluster_capacity_cpu_core_seconds) as cluster_capacity_cpu_core_seconds,
         max(cc.cluster_capacity_memory_byte_seconds) as cluster_capacity_memory_byte_seconds,
-        max(oc.total_capacity_cpu_core_seconds) as total_capacity_cpu_core_seconds,
-        max(oc.total_capacity_memory_byte_seconds) as total_capacity_memory_byte_seconds,
         count(ur.interval_start) * 3600 as total_seconds
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem AS li
     JOIN {{schema | sqlsafe}}.reporting_ocpusagereport AS ur
@@ -68,8 +57,6 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
     JOIN ocp_cluster_capacity_{{uuid | sqlsafe}} AS cc
         ON rp.cluster_id = cc.cluster_id
             AND date(ur.interval_start) = cc.usage_start
-    JOIN ocp_capacity_{{uuid | sqlsafe}} AS oc
-        ON date(ur.interval_start) = oc.usage_start
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocpnodelabellineitem AS nli
             ON li.report_id = nli.report_id
                 AND li.node = nli.node
@@ -120,8 +107,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily (
     node_capacity_memory_byte_seconds,
     cluster_capacity_cpu_core_seconds,
     cluster_capacity_memory_byte_seconds,
-    total_capacity_cpu_core_seconds,
-    total_capacity_memory_byte_seconds,
     total_seconds
 )
     SELECT report_period_id,
@@ -146,8 +131,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily (
         node_capacity_memory_byte_seconds,
         cluster_capacity_cpu_core_seconds,
         cluster_capacity_memory_byte_seconds,
-        total_capacity_cpu_core_seconds,
-        total_capacity_memory_byte_seconds,
         total_seconds
     FROM reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}}
 ;

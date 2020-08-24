@@ -170,8 +170,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         daily_capacity = defaultdict(Decimal)
         total_capacity = Decimal(0)
         query_filter = handler.query_filter
-        query_group_by = ["usage_start"]
-        annotations = {"capacity": Max("total_capacity_cpu_core_hours")}
+        query_group_by = ["usage_start", "cluster_id"]
+        annotations = {"capacity": Max("cluster_capacity_cpu_core_hours")}
         cap_key = list(annotations.keys())[0]
 
         q_table = handler._mapper.provider_map.get("tables").get("query")
