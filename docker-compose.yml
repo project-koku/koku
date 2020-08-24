@@ -447,3 +447,8 @@ services:
       - hive-metastore
     depends_on:
       - hive-metastore
+
+networks:
+ default:
+   external:
+     name: koku_default
