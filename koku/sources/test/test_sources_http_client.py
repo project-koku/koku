@@ -169,7 +169,7 @@ class SourcesHTTPClientTest(TestCase):
                 client.get_source_type_name(source_type_id)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_aws_role_arn(self):
+    def test_get_aws_credentials(self):
         """Test to get AWS Role ARN from authentication service."""
         resource_id = 2
         authentication_id = 3
@@ -196,11 +196,11 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=200,
                 json={"password": self.authentication},
             )
-            response = client.get_aws_role_arn()
-            self.assertEqual(response, self.authentication)
+            response = client.get_aws_credentials()
+            self.assertEqual(response, {"role_arn": self.authentication})
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_aws_role_arn_no_auth(self):
+    def test_get_aws_credentials_no_auth(self):
         """Test to get AWS Role ARN from authentication service with auth not ready."""
         resource_id = 2
         authentication_id = 3
@@ -228,10 +228,10 @@ class SourcesHTTPClientTest(TestCase):
                 json={"password": self.authentication},
             )
             with self.assertRaises(SourcesHTTPClientError):
-                client.get_aws_role_arn()
+                client.get_aws_credentials()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_aws_role_arn_no_endpoint(self):
+    def test_get_aws_credentials_no_endpoint(self):
         """Test to get AWS Role ARN from authentication service with no endpoint."""
 
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
@@ -242,10 +242,10 @@ class SourcesHTTPClientTest(TestCase):
                 json={"data": []},
             )
             with self.assertRaises(SourcesHTTPClientError):
-                client.get_aws_role_arn()
+                client.get_aws_credentials()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_aws_role_arn_connection_error(self):
+    def test_get_aws_credentials_connection_error(self):
         """Test to get AWS Role ARN from authentication service with connection errors."""
 
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
@@ -254,7 +254,7 @@ class SourcesHTTPClientTest(TestCase):
                 f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}", exc=RequestException
             )
             with self.assertRaises(SourcesHTTPClientError):
-                client.get_aws_role_arn()
+                client.get_aws_credentials()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_get_azure_credentials(self):
