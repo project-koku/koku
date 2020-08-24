@@ -241,7 +241,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         azure_bills = get_bills_from_provider(self.azure_provider_uuid, self.schema, last_month, today)
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in azure_bills]
-        cluster_id = self.ocp_on_azure_ocp_provider.authentication.provider_resource_name
+        cluster_id = self.ocp_on_azure_ocp_provider.authentication.credentials.get("cluster_id")
 
         self.accessor.populate_ocp_on_azure_cost_daily_summary(last_month, today, cluster_id, bill_ids, markup_value)
 

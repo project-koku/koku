@@ -29,24 +29,24 @@ class ProviderDBAuthAccessorTest(MasuTestCase):
         self.assertTrue(accessor.does_db_entry_exist())
         self.assertEqual(int(auth_id), accessor.get_auth_id())
 
-    def test_initializer_provider_resource_name(self):
-        """Test Initializer with provider resource name."""
-        provider_resource_name = self.ocp_provider_resource_name
-        accessor = ProviderAuthDBAccessor(provider_resource_name=provider_resource_name)
+    def test_initializer_credentials(self):
+        """Test Initializer with credentials."""
+        credentials = self.ocp_provider.authentication.credentials
+        accessor = ProviderAuthDBAccessor(credentials=credentials)
         self.assertTrue(accessor.does_db_entry_exist())
 
-    def test_initializer_auth_id_and_provider_resource_name(self):
-        """Test Initializer with auth_id and provider resource name."""
+    def test_initializer_auth_id_and_credentials(self):
+        """Test Initializer with auth_id and credentials."""
         auth_id = self.ocp_db_auth.id
-        provider_resource_name = self.ocp_provider_resource_name
-        accessor = ProviderAuthDBAccessor(auth_id=auth_id, provider_resource_name=provider_resource_name)
+        credentials = self.ocp_provider.authentication.credentials
+        accessor = ProviderAuthDBAccessor(auth_id=auth_id, credentials=credentials)
         self.assertTrue(accessor.does_db_entry_exist())
         self.assertEqual(int(auth_id), accessor.get_auth_id())
 
     def test_initializer_no_args(self):
         """Test Initializer with no arguments."""
         accessor = ProviderAuthDBAccessor()
-        self.assertTrue(accessor.does_db_entry_exist())
+        self.assertFalse(accessor.does_db_entry_exist())
 
     def test_get_uuid(self):
         """Test uuid getter."""
@@ -54,10 +54,8 @@ class ProviderDBAuthAccessorTest(MasuTestCase):
         accessor = ProviderAuthDBAccessor(auth_id)
         self.assertEqual(self.aws_provider.authentication.uuid, accessor.get_uuid())
 
-    def test_get_get_provider_resource_name(self):
+    def test_get_credentials(self):
         """Test provider name getter."""
         auth_id = self.aws_db_auth.id
         accessor = ProviderAuthDBAccessor(auth_id)
-        self.assertEqual(
-            self.aws_provider.authentication.provider_resource_name, accessor.get_provider_resource_name()
-        )
+        self.assertEqual(self.aws_provider.authentication.credentials, accessor.get_credentials())

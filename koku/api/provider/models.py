@@ -22,7 +22,6 @@ from django.conf import settings
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db import transaction
-from django.db.models.constraints import CheckConstraint
 
 LOG = logging.getLogger(__name__)
 
@@ -35,24 +34,7 @@ class ProviderAuthentication(models.Model):
 
     uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
 
-    # XXX: This field is DEPRECATED
-    # XXX: the credentials field should be used instead.
-    # Ex: AWS ARN for cross-account role access
-    provider_resource_name = models.TextField(null=True, unique=True)
-
-    credentials = JSONField(null=True, default=dict)
-
-    class Meta:
-        """Meta class."""
-
-        # The goal is to ensure that exactly one field is not null.
-        constraints = [
-            # NOT (provider_resource_name IS NULL AND credentials IS NULL)
-            CheckConstraint(
-                check=~models.Q(models.Q(provider_resource_name=None) & models.Q(credentials={})),
-                name="credentials_and_resource_name_both_null",
-            )
-        ]
+    credentials = JSONField(null=False, default=dict)
 
 
 class ProviderBillingSource(models.Model):
@@ -63,23 +45,7 @@ class ProviderBillingSource(models.Model):
 
     uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
 
-    # XXX: This field is DEPRECATED
-    # XXX: the data_source field should be used instead.
-    bucket = models.CharField(max_length=63, null=True)
-
-    data_source = JSONField(null=True, default=dict)
-
-    class Meta:
-        """Meta class."""
-
-        # The goal is to ensure that exactly one field is not null.
-        constraints = [
-            # NOT (bucket IS NULL AND data_source IS NULL)
-            CheckConstraint(
-                check=~models.Q(models.Q(bucket=None) & models.Q(data_source={})),
-                name="bucket_and_data_source_both_null",
-            )
-        ]
+    data_source = JSONField(null=False, default=dict)
 
 
 class Provider(models.Model):

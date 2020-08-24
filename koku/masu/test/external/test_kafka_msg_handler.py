@@ -618,6 +618,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "manifest_id": "1",
             "provider_uuid": uuid.uuid4(),
             "provider_type": "OCP",
+            "cluster_id": "cluster-id",
             "compression": "UNCOMPRESSED",
             "file": "/path/to/file.csv",
             "date": datetime.today(),
