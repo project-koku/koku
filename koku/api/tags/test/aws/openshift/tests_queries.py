@@ -149,7 +149,7 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             tags = OCPAWSTagsSummary.objects.filter(key__contains=key).values("values").distinct().all()
             tag_values = tags[0].get("values")
-        expected = [{"key": key, "values": tag_values}]
+        expected = {"key": key, "values": tag_values}
         result = handler.get_tags()
         self.assertEqual(result[0].get("key"), expected.get("key"))
         self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
@@ -170,7 +170,7 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
                 .all()
             )
             tag_values = [tag.get("value") for tag in tags]
-        expected = [{"key": key, "values": tag_values}]
+        expected = {"key": key, "values": tag_values}
         result = handler.get_tag_values()
         self.assertEqual(result[0].get("key"), expected.get("key"))
         self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
@@ -192,7 +192,7 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
                 .all()
             )
             tag_values = [tag.get("value") for tag in tags]
-        expected = [{"key": key, "values": tag_values}]
+        expected = {"key": key, "values": tag_values}
         result = handler.get_tag_values()
         self.assertEqual(result[0].get("key"), expected.get("key"))
         self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
