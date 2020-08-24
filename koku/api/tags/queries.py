@@ -349,9 +349,6 @@ class TagQueryHandler(QueryHandler):
                 if type_filter and source.get("type") not in type_filter_array:
                     continue
                 tag_values_query = source.get("db_values").objects
-                # annotations = source.get("annotations")
-                # if annotations:
-                #     tag_values_query = tag_values_query.annotate(**annotations)
                 tag_keys = list(tag_values_query.filter(self.query_filter))
                 tag_tup = self._value_filter_dict(tag_keys)
                 converted = self._convert_to_dict(tag_tup)
