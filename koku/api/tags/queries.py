@@ -86,6 +86,7 @@ class TagQueryHandler(QueryHandler):
         if parameters.kwargs.get("key"):
             self.key = parameters.kwargs.get("key")
             self.query_filter = self._get_key_filter()
+        self.default_ordering = {"values": "asc"}
 
     def _get_key_filter(self):
         """Add new `exact` QueryFilter that filters on the key name."""

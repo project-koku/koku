@@ -73,6 +73,10 @@ class ProviderManager:
         """Get the name of the provider."""
         return self.model.name
 
+    def get_active_status(self):
+        """Get provider active status."""
+        return self.model.active
+
     def get_infrastructure_name(self):
         """Get the name of the infrastructure that the provider is running on."""
         if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
@@ -213,7 +217,7 @@ def provider_post_delete_callback(*args, **kwargs):
         billing_count = (
             Provider.objects.exclude(uuid=provider.uuid).filter(billing_source=provider.billing_source).count()
         )
-        if provider.billing_source and billing_count == 0:
+        if billing_count == 0:
             provider.billing_source.delete()
 
     provider_rate_objs = CostModelMap.objects.filter(provider_uuid=provider.uuid)

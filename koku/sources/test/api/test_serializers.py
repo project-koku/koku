@@ -27,7 +27,7 @@ from api.iam import models as iam_models
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
-from api.provider.test import create_generic_provider
+from api.provider.test import PROVIDERS
 from providers.provider_access import ProviderAccessor
 from sources.api import get_account_from_header
 from sources.api import HEADER_X_RH_IDENTITY
@@ -99,20 +99,6 @@ class SourcesSerializerTests(IamTestCase):
             name=self.aws_name,
         )
         self.aws_obj.save()
-
-    def _create_source_and_provider(self, provider_type, source_id):
-        """Create Provider."""
-        _, provider = create_generic_provider(provider_type, self.headers)
-        source = Sources.objects.get(source_id=source_id)
-        source.source_uuid = provider.uuid
-        authentication = {"credentials": provider.authentication.credentials}
-        if authentication.get("credentials").get("provider_resource_name"):
-            authentication["resource_name"] = authentication["credentials"]["provider_resource_name"]
-        source.authentication = authentication
-        billing_source = {"data_source": provider.billing_source.data_source}
-        source.billing_source = billing_source
-        source.save()
-        return source
 
     def test_azure_source_update_missing_credential(self, _):
         """Test the update azure source with missing credentials."""
@@ -267,21 +253,21 @@ class SourcesSerializerTests(IamTestCase):
         """Test the updating aws billing_source."""
         serializer = SourcesSerializer(context=self.request_context)
         test_bucket = "some-new-bucket"
-        validated_data = {"billing_source": {"bucket": test_bucket}}
+        validated_data = {"billing_source": {"data_source": {"bucket": test_bucket}}}
         with patch("sources.api.serializers.ServerProxy") as mock_client:
             with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
                 mock_sources_client = MockSourcesClient("http://mock-soures-client")
                 mock_client.return_value.__enter__.return_value = mock_sources_client
                 instance = serializer.update(self.aws_obj, validated_data)
 
-        self.assertIn("bucket", instance.billing_source.keys())
-        self.assertEqual(test_bucket, instance.billing_source.get("bucket"))
+        self.assertIn("data_source", instance.billing_source.keys())
+        self.assertEqual(test_bucket, instance.billing_source.get("data_source").get("bucket"))
 
     def test_aws_source_billing_source_update_missing_bucket(self, _):
         """Test the updating aws billing_source."""
         serializer = SourcesSerializer(context=self.request_context)
         test_bucket = None
-        validated_data = {"billing_source": {"bucket": test_bucket}}
+        validated_data = {"billing_source": {"data_source": {"bucket": test_bucket}}}
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.aws_obj, validated_data)
 
@@ -292,7 +278,7 @@ class SourcesSerializerTests(IamTestCase):
         test_bucket = "test-bucket"
         serializer = SourcesSerializer(context=self.request_context)
         test_bucket = None
-        validated_data = {"billing_source": {"bucket": test_bucket}}
+        validated_data = {"billing_source": {"data_source": {"bucket": test_bucket}}}
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.aws_obj, validated_data)
 
@@ -301,17 +287,17 @@ class SourcesSerializerTests(IamTestCase):
         with patch("sources.api.serializers.ServerProxy") as mock_client:
             mock_client.side_effect = ConnectionRefusedError
             with self.assertRaises(SourcesDependencyError):
-                validated_data = {"billing_source": {"bucket": "some-new-bucket"}}
+                validated_data = {"billing_source": {"data_source": {"bucket": "some-new-bucket"}}}
                 serializer.update(self.aws_obj, validated_data)
 
             mock_client.side_effect = gaierror
             with self.assertRaises(SourcesDependencyError):
-                validated_data = {"billing_source": {"bucket": "some-new-bucket"}}
+                validated_data = {"billing_source": {"data_source": {"bucket": "some-new-bucket"}}}
                 serializer.update(self.aws_obj, validated_data)
 
         # catch ProtocolError
         with self.assertRaises(SourcesDependencyError):
-            validated_data = {"billing_source": {"bucket": "some-new-bucket"}}
+            validated_data = {"billing_source": {"data_source": {"bucket": "some-new-bucket"}}}
             serializer.update(self.aws_obj, validated_data)
 
     def test_create_via_admin_serializer(self, _):
@@ -319,8 +305,8 @@ class SourcesSerializerTests(IamTestCase):
         source_data = {
             "name": "test1",
             "source_type": "AWS",
-            "authentication": {"resource_name": "arn:aws::foo:bar"},
-            "billing_source": {"bucket": "/tmp/s3bucket"},
+            "authentication": {"credentials": {"role_arn": "arn:aws::foo:bar"}},
+            "billing_source": {"data_source": {"bucket": "/tmp/s3bucket"}},
         }
         mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
         context = {"request": mock_request}
@@ -336,8 +322,8 @@ class SourcesSerializerTests(IamTestCase):
                 self.fail("test_create_via_admin_serializer failed")
 
         source_data["name"] = "test2"
-        source_data["authentication"]["resource_name"] = "arn:aws::foo:bar2"
-        source_data["billing_source"]["bucket"] = "/tmp/mybucket"
+        source_data["authentication"] = {"credentials": {"role_arn": "arn:aws::foo:bar2"}}
+        source_data["billing_source"] = {"data_source": {"bucket": "/tmp/mybucket"}}
         serializer = AdminSourcesSerializer(data=source_data, context=context)
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             if serializer.is_valid(raise_exception=True):
@@ -354,8 +340,8 @@ class SourcesSerializerTests(IamTestCase):
         source_data = {
             "name": "test",
             "source_type": "BAD",
-            "authentication": {"resource_name": "arn:aws::foo:bar"},
-            "billing_source": {"bucket": "/tmp/s3bucket"},
+            "authentication": {"credentials": {"role_arn": "arn:aws::foo:bar"}},
+            "billing_source": {"data_source": {"bucket": "/tmp/s3bucket"}},
         }
         mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
         context = {"request": mock_request}
@@ -382,22 +368,148 @@ class SourcesSerializerTests(IamTestCase):
             "source_id": 10,
             "name": "ProviderAWS",
             "source_type": "AWS",
-            "authentication": {"resource_name": "arn:aws:iam::111111111111:role/CostManagement"},
-            "billing_source": {"bucket": "first-bucket"},
+            "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
+            "billing_source": {"data_source": {"bucket": "first-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
             "account_id": "acct10001",
             "offset": 10,
         }
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             instance = serializer.create(source)
-        self.assertEqual(instance.billing_source.get("bucket"), "first-bucket")
+        self.assertEqual(instance.billing_source.get("data_source", {}).get("bucket"), "first-bucket")
 
         serializer = SourcesSerializer(context=self.request_context)
-        validated = {"billing_source": {"bucket": "second-bucket"}}
+        validated = {"billing_source": {"data_source": {"bucket": "second-bucket"}}}
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             with patch("sources.api.serializers.ServerProxy") as mock_client:
                 mock_sources_client = MockSourcesClient("http://mock-soures-client")
                 mock_client.return_value.__enter__.return_value = mock_sources_client
                 instance2 = serializer.update(instance, validated)
 
-        self.assertEqual(instance2.billing_source.get("bucket"), "second-bucket")
+        self.assertEqual(instance2.billing_source.get("data_source", {}).get("bucket"), "second-bucket")
+
+    def test_validate_billing_source(self, _):
+        """Test to validate that the billing source dictionary is valid."""
+        test_matrix = [
+            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"bucket": "test-bucket"}, "exception": False},
+            {
+                "provider_type": Provider.PROVIDER_AWS,
+                "billing_source": {"data_source": {"bucket": "test-bucket"}},
+                "exception": False,
+            },
+            {
+                "provider_type": Provider.PROVIDER_AZURE,
+                "billing_source": {"data_source": {"resource_group": "foo", "storage_account": "bar"}},
+                "exception": False,
+            },
+            {
+                "provider_type": Provider.PROVIDER_AWS,
+                "billing_source": {"data_source": {"nobucket": "test-bucket"}},
+                "exception": True,
+            },
+            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"nobucket": "test-bucket"}, "exception": True},
+            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"data_source": {}}, "exception": True},
+            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {}, "exception": True},
+            {"provider_type": Provider.PROVIDER_AZURE, "billing_source": {}, "exception": True},
+            {
+                "provider_type": Provider.PROVIDER_AZURE,
+                "billing_source": {"nodata_source": {"resource_group": "foo", "storage_account": "bar"}},
+                "exception": True,
+            },
+            {
+                "provider_type": Provider.PROVIDER_AZURE,
+                "billing_source": {"data_source": {"noresource_group": "foo", "storage_account": "bar"}},
+                "exception": True,
+            },
+            {
+                "provider_type": Provider.PROVIDER_AZURE,
+                "billing_source": {"data_source": {"resource_group": "foo", "nostorage_account": "bar"}},
+                "exception": True,
+            },
+            {
+                "provider_type": Provider.PROVIDER_AZURE,
+                "billing_source": {"data_source": {"resource_group": "foo"}},
+                "exception": True,
+            },
+            {
+                "provider_type": Provider.PROVIDER_AZURE,
+                "billing_source": {"data_source": {"storage_account": "bar"}},
+                "exception": True,
+            },
+        ]
+
+        for test in test_matrix:
+            with self.subTest(test=test):
+                if test.get("exception"):
+                    with self.assertRaises(SourcesStorageError):
+                        SourcesSerializer()._validate_billing_source(
+                            test.get("provider_type"), test.get("billing_source")
+                        )
+                else:
+                    try:
+                        SourcesSerializer()._validate_billing_source(
+                            test.get("provider_type"), test.get("billing_source")
+                        )
+                    except Exception as error:
+                        self.fail(str(error))
+
+    def test_update_aws_billing_source(self, _):
+        """Test to validate that the billing source dictionary is updated."""
+        aws_instance = self.aws_obj
+        aws_instance.billing_source = PROVIDERS[Provider.PROVIDER_AWS].get("billing_source")
+        aws_instance.save()
+        test_matrix = [
+            {
+                "instance": aws_instance,
+                "billing_source": {"bucket": "test-bucket"},
+                "expected": {"data_source": {"bucket": "test-bucket"}},
+            },
+            {
+                "instance": aws_instance,
+                "billing_source": {"data_source": {"bucket": "test-bucket"}},
+                "expected": {"data_source": {"bucket": "test-bucket"}},
+            },
+        ]
+
+        for test in test_matrix:
+            with self.subTest(test=test):
+                try:
+                    new_billing = SourcesSerializer()._update_billing_source(aws_instance, test.get("billing_source"))
+                    self.assertEqual(new_billing, test.get("expected"))
+                except Exception as error:
+                    self.fail(str(error))
+
+    def test_update_azure_billing_source(self, _):
+        """Test to validate that the billing source dictionary is updated."""
+        azure_instance = self.azure_obj
+        azure_instance.billing_source = {
+            "data_source": {"resource_group": "original-1", "storage_account": "original-2"}
+        }
+        azure_instance.save()
+        test_matrix = [
+            {
+                "instance": azure_instance,
+                "billing_source": {"data_source": {"resource_group": "foo", "storage_account": "bar"}},
+                "expected": {"data_source": {"resource_group": "foo", "storage_account": "bar"}},
+            },
+            {
+                "instance": azure_instance,
+                "billing_source": {"data_source": {"resource_group": "foo"}},
+                "expected": {"data_source": {"resource_group": "foo", "storage_account": "original-2"}},
+            },
+            {
+                "instance": azure_instance,
+                "billing_source": {"data_source": {"storage_account": "bar"}},
+                "expected": {"data_source": {"resource_group": "original-1", "storage_account": "bar"}},
+            },
+        ]
+
+        for test in test_matrix:
+            with self.subTest(test=test):
+                try:
+                    new_billing = SourcesSerializer()._update_billing_source(
+                        azure_instance, test.get("billing_source")
+                    )
+                    self.assertEqual(new_billing, test.get("expected"))
+                except Exception as error:
+                    self.fail(str(error))
