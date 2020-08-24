@@ -1084,9 +1084,9 @@ class TestRemoveStaleTenants(MasuTestCase):
             mock_request = self.request_context["request"]
             middleware = KokuTenantMiddleware()
             middleware.get_tenant(Tenant, "localhost", mock_request)
-            self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 1)
+            self.assertNotEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)
             remove_stale_tenants()  # Check that it is not clearing the cache unless removing
-            self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 1)
+            self.assertNotEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)
             record = Customer.objects.get(schema_name=self.schema)
             record.date_created = DateHelper.n_days_ago(self, record.date_created, days)
             record.save()
