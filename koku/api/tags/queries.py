@@ -153,7 +153,7 @@ class TagQueryHandler(QueryHandler):
         end_filter = QueryFilter(field=f"{field_prefix}_start", operation="lte", parameter=end)
         return start_filter, end_filter
 
-    def _get_filter(self, delta=False):
+    def _get_filter(self, delta=False):  # noqa: C901
         """Create dictionary for filter parameters.
 
         Args:
@@ -170,6 +170,8 @@ class TagQueryHandler(QueryHandler):
                 filters.add(query_filter=end_filter)
 
         for filter_key in self.SUPPORTED_FILTERS:
+            if self.parameters.get_filter("value") and filter_key == "enabled":
+                continue
             filter_value = self.parameters.get_filter(filter_key)
             if filter_value and not TagQueryHandler.has_wildcard(filter_value):
                 filter_obj = self.FILTER_MAP.get(filter_key)

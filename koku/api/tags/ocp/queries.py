@@ -90,7 +90,7 @@ class OCPTagQueryHandler(TagQueryHandler):
         if self.parameters.get_filter("value"):
             filters.add(
                 QueryFilter(
-                    field="ocpusagepodlabelsummary__ocpusagepodlabelsummary__key",
+                    field="ocpusagepodlabelsummary__key",
                     operation="exact",
                     parameter=self.key,
                     composition_key="tag_filter",
@@ -98,7 +98,7 @@ class OCPTagQueryHandler(TagQueryHandler):
             )
             filters.add(
                 QueryFilter(
-                    field="ocpstoragevolumesummary__ocpstoragevolumesummary__key",
+                    field="ocpstoragevolumelabelsummary__key",
                     operation="exact",
                     parameter=self.key,
                     composition_key="tag_filter",
