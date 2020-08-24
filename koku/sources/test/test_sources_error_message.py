@@ -30,9 +30,9 @@ class SourcesErrorMessageTest(TestCase):
         """Test AWS error types."""
         test_matrix = [
             {
-                "key": ProviderErrors.AWS_RESOURCE_NAME_UNREACHABLE,
+                "key": ProviderErrors.AWS_ROLE_ARN_UNREACHABLE,
                 "internal_message": "internal resource name message string",
-                "expected_message": ProviderErrors.AWS_RESOURCE_NAME_UNREACHABLE_MESSAGE,
+                "expected_message": ProviderErrors.AWS_ROLE_ARN_UNREACHABLE_MESSAGE,
             },
             {
                 "key": ProviderErrors.AWS_BILLING_SOURCE_NOT_FOUND,
