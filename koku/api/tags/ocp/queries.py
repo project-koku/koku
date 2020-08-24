@@ -85,7 +85,11 @@ class OCPTagQueryHandler(TagQueryHandler):
         super().__init__(parameters)
 
     def _get_key_filter(self):
-        """Add new `exact` QueryFilter that filters on the key name."""
+        """
+        Add new `exact` QueryFilter that filters on the key name.
+        If filtering on value, uses the tags summary table to find the key,
+        has to check both possible tables
+        """
         filters = QueryFilterCollection()
         if self.parameters.get_filter("value"):
             filters.add(

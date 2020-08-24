@@ -328,6 +328,9 @@ class TagQueryHandler(QueryHandler):
         return final_data
 
     def get_tag_values(self):
+        """
+        Gets the values associated with a tag when filtering on a value.
+        """
         type_filter = self.parameters.get_filter("type")
         type_filter_array = []
 

@@ -52,7 +52,10 @@ class AWSTagQueryHandler(TagQueryHandler):
         super().__init__(parameters)
 
     def _get_key_filter(self):
-        """Add new `exact` QueryFilter that filters on the key name."""
+        """
+        Add new `exact` QueryFilter that filters on the key name.
+        If filtering on value, uses the tags summary table to find the key
+        """
         filters = QueryFilterCollection()
         if self.parameters.get_filter("value"):
             filters.add(QueryFilter(field="awstagssummary__key", operation="exact", parameter=self.key))
