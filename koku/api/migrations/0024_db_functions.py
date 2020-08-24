@@ -14,6 +14,6 @@ def apply_create_partition_procedure(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0020_sources_out_of_order_delete")]
+    dependencies = [("api", "0023_auto_20200820_2314")]
 
     operations = [migrations.RunPython(code=apply_create_partition_procedure)]

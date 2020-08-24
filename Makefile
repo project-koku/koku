@@ -500,7 +500,8 @@ oc-delete-e2e: oc-nuke-from-orbit
 ###############################
 
 docker-down:
-	docker-compose down
+	docker-compose down -v
+	$(PREFIX) make clear-testing
 
 docker-down-db:
 	docker-compose rm -s -v -f db
