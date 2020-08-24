@@ -536,7 +536,7 @@
                 "type": "object",
                 "description": "Dictionary containing resource name.",
                 "example": {
-                  "resource_name": "arn"
+                  "role_arn": "arn"
                 }
               },
               "billing_source": {
@@ -574,7 +574,7 @@
                 "type": "object",
                 "description": "Dictionary containing resource name.",
                 "example": {
-                  "resource_name": "arn"
+                  "role_arn": "arn"
                 }
               },
               "billing_source": {

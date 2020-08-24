@@ -62,17 +62,17 @@ class ProviderBillingSourceDBAccessor(KokuDBAccess):
         obj = self._get_db_obj_query().first()
         return str(obj.uuid) if obj else None
 
-    def get_bucket(self):
+    def get_data_source(self):
         """
         Return the cost usage report source name.
 
         Args:
             None
         Returns:
-            (String): "Identifier for cost usage report.  i.e. AWS: S3 Bucket",
-                    example: "my-s3-cur-bucket"
+            (dict): "Identifier for cost usage report.  i.e. AWS: S3 Bucket",
+                    example: {"bucket": "my-s3-cur-bucket"}
 
         """
         obj = self._get_db_obj_query().first()
-        bucket = obj.bucket if obj else None
-        return bucket
+        data_source = obj.data_source if obj else None
+        return data_source

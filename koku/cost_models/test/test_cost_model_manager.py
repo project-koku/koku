@@ -49,13 +49,6 @@ class CostModelManagerTest(IamTestCase):
         self.customer = Customer.objects.get(account_id=self.customer_data["account_id"])
         self.user = User.objects.get(username=self.user_data["username"])
 
-    def tearDown(self):
-        """Clean up database after test case."""
-        with tenant_context(self.tenant):
-            CostModel.objects.all().delete()
-            CostModelMap.objects.all().delete()
-            Provider.objects.all().delete()
-
     def test_create(self):
         """Test creating a cost model."""
         metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
