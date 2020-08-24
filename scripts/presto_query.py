@@ -57,17 +57,28 @@ for idx, col in enumerate(parquet_columns):
 
 sql += f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET')"
 
+print("Presto table create SQL:")
 print(sql)
 
 conn = prestodb.dbapi.connect(host="localhost", port=8080, user="admin", catalog="hive", schema="default")
 cur = conn.cursor()
 cur.execute(sql)
 
+print("\nPresto Line Item Example Query:")
 rows = cur.fetchall()
-
 cur = conn.cursor()
-cur.execute(f"SELECT COUNT(*) FROM {table_name}")
+cur.execute(f"SELECT * FROM {table_name} LIMIT 3")
 rows = cur.fetchall()
+for row in rows:
+    print(row)
 
+print("\nPostgres DB AWS Summary Data Query Example:")
+postgres_conn = prestodb.dbapi.connect(
+    host="localhost", port=8080, user="admin", catalog="postgres", schema=f"acct{account}"
+)
+postgres_cur = postgres_conn.cursor()
+
+postgres_cur.execute("SELECT * FROM reporting_awscostentrylineitem_daily_summary LIMIT 3")
+rows = postgres_cur.fetchall()
 for row in rows:
     print(row)
