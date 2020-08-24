@@ -18,8 +18,6 @@
 from copy import deepcopy
 
 from api.models import Provider
-from api.query_filter import QueryFilter
-from api.query_filter import QueryFilterCollection
 from api.report.aws.openshift.provider_map import OCPAWSProviderMap
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
@@ -48,6 +46,7 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
         {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
         {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
     ]
+    KEY_FILTERS = [{"field": "ocpawstagssummary__key"}]
 
     def __init__(self, parameters):
         """Establish AWS report query handler.
@@ -64,15 +63,3 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
 
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
-
-    def _get_key_filter(self):
-        """
-        Add new `exact` QueryFilter that filters on the key name.
-        If filtering on value, uses the tags summary table to find the key
-        """
-        filters = QueryFilterCollection()
-        if self.parameters.get_filter("value"):
-            filters.add(QueryFilter(field="ocpawstagssummary__key", operation="exact", parameter=self.key))
-        else:
-            filters.add(QueryFilter(field="key", operation="exact", parameter=self.key))
-        return self.query_filter & filters.compose()

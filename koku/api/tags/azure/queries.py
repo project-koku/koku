@@ -19,8 +19,6 @@ import logging
 from copy import deepcopy
 
 from api.models import Provider
-from api.query_filter import QueryFilter
-from api.query_filter import QueryFilterCollection
 from api.report.azure.provider_map import AzureProviderMap
 from api.tags.queries import TagQueryHandler
 from reporting.models import AzureTagsSummary
@@ -44,6 +42,7 @@ class AzureTagQueryHandler(TagQueryHandler):
     SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["subscription_guid"]
     FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
     FILTER_MAP.update({"subscription_guid": {"field": "subscription_guid", "operation": "icontains"}})
+    KEY_FILTERS = [{"field": "azuretagssummary__key"}]
 
     def __init__(self, parameters):
         """Establish Azure report query handler.
@@ -56,15 +55,3 @@ class AzureTagQueryHandler(TagQueryHandler):
             self._mapper = AzureProviderMap(provider=self.provider, report_type=parameters.report_type)
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
-
-    def _get_key_filter(self):
-        """
-        Add new `exact` QueryFilter that filters on the key name.
-        If filtering on value, uses the tags summary table to find the key
-        """
-        filters = QueryFilterCollection()
-        if self.parameters.get_filter("value"):
-            filters.add(QueryFilter(field="azuretagssummary__key", operation="exact", parameter=self.key))
-        else:
-            filters.add(QueryFilter(field="key", operation="exact", parameter=self.key))
-        return self.query_filter & filters.compose()

@@ -89,9 +89,23 @@ class TagQueryHandler(QueryHandler):
         self.default_ordering = {"values": "asc"}
 
     def _get_key_filter(self):
-        """Add new `exact` QueryFilter that filters on the key name."""
+        """
+        Add new `exact` QueryFilter that filters on the key name.
+        If filtering on value, uses the tags summary table to find the key
+        """
         filters = QueryFilterCollection()
-        filters.add(QueryFilter(field="key", operation="exact", parameter=self.key))
+        if self.parameters.get_filter("value"):
+            for something in self.KEY_FILTERS:
+                filters.add(
+                    QueryFilter(
+                        field=something.get("field"),
+                        operation="exact",
+                        parameter=self.key,
+                        composition_key="tag_filter",
+                    )
+                )
+        else:
+            filters.add(QueryFilter(field="key", operation="exact", parameter=self.key))
         return self.query_filter & filters.compose()
 
     def _set_start_and_end_dates(self):

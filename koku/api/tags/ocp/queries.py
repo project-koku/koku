@@ -21,8 +21,6 @@ from django.db.models import Exists
 from django.db.models import OuterRef
 
 from api.models import Provider
-from api.query_filter import QueryFilter
-from api.query_filter import QueryFilterCollection
 from api.report.ocp.provider_map import OCPProviderMap
 from api.tags.queries import TagQueryHandler
 from reporting.models import OCPEnabledTagKeys
@@ -68,6 +66,7 @@ class OCPTagQueryHandler(TagQueryHandler):
             ],
         }
     )
+    KEY_FILTERS = [{"field": "ocpusagepodlabelsummary__key"}, {"field": "ocpstoragevolumelabelsummary__key"}]
 
     def __init__(self, parameters):
         """Establish AWS report query handler.
@@ -83,31 +82,3 @@ class OCPTagQueryHandler(TagQueryHandler):
             parameters.set_filter(**{"enabled": True})
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
-
-    def _get_key_filter(self):
-        """
-        Add new `exact` QueryFilter that filters on the key name.
-        If filtering on value, uses the tags summary table to find the key,
-        has to check both possible tables
-        """
-        filters = QueryFilterCollection()
-        if self.parameters.get_filter("value"):
-            filters.add(
-                QueryFilter(
-                    field="ocpusagepodlabelsummary__key",
-                    operation="exact",
-                    parameter=self.key,
-                    composition_key="tag_filter",
-                )
-            )
-            filters.add(
-                QueryFilter(
-                    field="ocpstoragevolumelabelsummary__key",
-                    operation="exact",
-                    parameter=self.key,
-                    composition_key="tag_filter",
-                )
-            )
-        else:
-            filters.add(QueryFilter(field="key", operation="exact", parameter=self.key))
-        return self.query_filter & filters.compose()

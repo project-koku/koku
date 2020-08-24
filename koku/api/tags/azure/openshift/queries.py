@@ -18,8 +18,6 @@
 from copy import deepcopy
 
 from api.models import Provider
-from api.query_filter import QueryFilter
-from api.query_filter import QueryFilterCollection
 from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
@@ -46,6 +44,7 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
         {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
         {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
     ]
+    KEY_FILTERS = [{"field": "ocpazuretagssummary__key"}]
 
     def __init__(self, parameters):
         """Establish Azure report query handler.
@@ -61,15 +60,3 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
             del self.FILTER_MAP["enabled"]
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
-
-    def _get_key_filter(self):
-        """
-        Add new `exact` QueryFilter that filters on the key name.
-        If filtering on value, uses the tags summary table to find the key
-        """
-        filters = QueryFilterCollection()
-        if self.parameters.get_filter("value"):
-            filters.add(QueryFilter(field="ocpazuretagssummary__key", operation="exact", parameter=self.key))
-        else:
-            filters.add(QueryFilter(field="key", operation="exact", parameter=self.key))
-        return self.query_filter & filters.compose()
