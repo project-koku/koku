@@ -177,8 +177,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             "source_uuid": uuid4(),
             "name": "ProviderAWS",
             "source_type": "AWS",
-            "authentication": {"resource_name": "arn:aws:iam::111111111111:role/CostManagement"},
-            "billing_source": {"bucket": "fake-bucket"},
+            "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
+            "billing_source": {"data_source": {"bucket": "fake-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
             "account_id": "acct10001",
             "offset": 10,
@@ -188,8 +188,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             "source_uuid": uuid4(),
             "name": "ProviderAWS Local",
             "source_type": "AWS-local",
-            "authentication": {"resource_name": "arn:aws:iam::111111111111:role/CostManagement"},
-            "billing_source": {"bucket": "fake-local-bucket"},
+            "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
+            "billing_source": {"data_source": {"bucket": "fake-local-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
             "account_id": "acct10001",
             "offset": 11,
@@ -199,8 +199,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             "source_uuid": uuid4(),
             "name": "ProviderAzure Local",
             "source_type": "Azure-local",
-            "authentication": {"resource_name": "arn:aws:iam::111111111111:role/CostManagement"},
-            "billing_source": {"bucket": "fake-local-bucket"},
+            "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
+            "billing_source": {"data_source": {"bucket": "fake-local-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
             "account_id": "acct10001",
             "offset": 12,
@@ -246,13 +246,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             builder = SourcesProviderCoordinator(source_id, provider.auth_header)
-            builder.create_account(
-                provider.name,
-                provider.source_type,
-                provider.authentication,
-                provider.billing_source,
-                provider.source_uuid,
-            )
+            builder.create_account(provider)
 
         self.assertTrue(Provider.objects.filter(uuid=provider.source_uuid).exists())
         provider = Sources.objects.get(source_id=source_id)
@@ -286,19 +280,14 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         uuid = source.koku_uuid
 
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            builder.update_account(
-                provider.source_uuid,
-                provider.name,
-                provider.source_type,
-                provider.authentication,
-                provider.billing_source,
-            )
+            builder.update_account(source)
 
         self.assertEqual(
-            Provider.objects.get(uuid=uuid).billing_source.bucket, self.aws_source.get("billing_source").get("bucket")
+            Provider.objects.get(uuid=uuid).billing_source.data_source,
+            self.aws_source.get("billing_source").get("data_source"),
         )
 
-        provider.billing_source = {"bucket": "new-bucket"}
+        provider.billing_source = {"data_source": {"bucket": "new-bucket"}}
         provider.koku_uuid = uuid
         provider.pending_update = True
         provider.save()
@@ -309,10 +298,10 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 source_integration.execute_koku_provider_op(msg)
         response = Sources.objects.get(source_id=source_id)
         self.assertEqual(response.pending_update, False)
-        self.assertEqual(response.billing_source, {"bucket": "new-bucket"})
+        self.assertEqual(response.billing_source, {"data_source": {"bucket": "new-bucket"}})
 
         response = Provider.objects.get(uuid=uuid)
-        self.assertEqual(response.billing_source.bucket, "new-bucket")
+        self.assertEqual(response.billing_source.data_source.get("bucket"), "new-bucket")
 
     def test_get_sources_msg_data(self):
         """Test to get sources details from msg."""
@@ -558,7 +547,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(source_obj.name, source_name)
         self.assertEqual(source_obj.source_type, Provider.PROVIDER_AWS)
-        self.assertEqual(source_obj.authentication, {"resource_name": authentication})
+        self.assertEqual(source_obj.authentication, {"credentials": {"role_arn": authentication}})
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_sources_network_info_sync_aws_local(self):
@@ -615,7 +604,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(source_obj.name, source_name)
         self.assertEqual(source_obj.source_type, Provider.PROVIDER_AWS_LOCAL)
-        self.assertEqual(source_obj.authentication, {"resource_name": authentication})
+        self.assertEqual(source_obj.authentication, {"credentials": {"role_arn": authentication}})
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_sources_network_info_sync_ocp(self):
