@@ -1071,10 +1071,22 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
 
 class TestRemoveStaleTenants(MasuTestCase):
+    def setUp(self):
+        """Set up middleware tests."""
+        super().setUp()
+        request = self.request_context["request"]
+        request.path = "/api/v1/tags/aws/"
+
     def test_remove_stale_tenant(self):
         """Test removal of stale tenants that are older than two weeks"""
         days = 14
         with schema_context("public"):
+            mock_request = self.request_context["request"]
+            middleware = KokuTenantMiddleware()
+            middleware.get_tenant(Tenant, "localhost", mock_request)
+            self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 1)
+            remove_stale_tenants()  # Check that it is not clearing the cache unless removing
+            self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 1)
             record = Customer.objects.get(schema_name=self.schema)
             record.date_created = DateHelper.n_days_ago(self, record.date_created, days)
             record.save()
