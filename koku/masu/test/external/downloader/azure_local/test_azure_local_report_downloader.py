@@ -74,8 +74,8 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
 
         self.report_downloader = ReportDownloader(
             customer_name=self.customer_name,
-            access_credential=self.fake_auth_credential,
-            report_source=self.fake_bucket_name,
+            credentials=self.fake_auth_credential,
+            data_source=self.fake_bucket_name,
             provider_type=Provider.PROVIDER_AZURE_LOCAL,
             provider_uuid=self.azure_provider_uuid,
         )
@@ -83,9 +83,9 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         self.azure_local_report_downloader = AzureLocalReportDownloader(
             **{
                 "customer_name": self.customer_name,
-                "auth_credential": self.fake_auth_credential,
-                "billing_source": self.fake_bucket_name,
-                "bucket": self.fake_bucket_name,
+                "credentials": self.fake_auth_credential,
+                "data_source": self.fake_bucket_name,
+                "bucket": self.fake_bucket_name,  # TODO: bucket?
                 "provider_uuid": self.azure_provider_uuid,
             }
         )

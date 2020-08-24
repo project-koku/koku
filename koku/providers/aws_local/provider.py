@@ -34,8 +34,9 @@ class AWSLocalProvider(AWSProvider):
         """Return name of the provider."""
         return Provider.PROVIDER_AWS_LOCAL
 
-    def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
+    def cost_usage_source_is_reachable(self, _, data_source):
         """Verify that the cost usage source exists and is reachable."""
+        storage_resource_name = data_source.get("bucket")
         if not storage_resource_name:
             key = ProviderErrors.AWS_BUCKET_MISSING
             message = ProviderErrors.AWS_BUCKET_MISSING_MESSAGE
