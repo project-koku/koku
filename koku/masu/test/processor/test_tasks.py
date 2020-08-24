@@ -819,6 +819,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.get_manifest_by_id(manifest.id)
             self.assertIsNotNone(manifest.manifest_completed_datetime)
 
+        with ProviderDBAccessor(self.aws_provider_uuid) as accessor:
+            self.assertIsNotNone(accessor.provider.data_updated_timestamp)
+
     def test_refresh_materialized_views_azure(self):
         """Test that materialized views are refreshed."""
         manifest_dict = {
@@ -846,6 +849,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.get_manifest_by_id(manifest.id)
             self.assertIsNotNone(manifest.manifest_completed_datetime)
 
+        with ProviderDBAccessor(self.azure_provider_uuid) as accessor:
+            self.assertIsNotNone(accessor.provider.data_updated_timestamp)
+
     def test_refresh_materialized_views_ocp(self):
         """Test that materialized views are refreshed."""
         manifest_dict = {
@@ -872,6 +878,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(manifest.id)
             self.assertIsNotNone(manifest.manifest_completed_datetime)
+
+        with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
+            self.assertIsNotNone(accessor.provider.data_updated_timestamp)
 
     @patch("masu.processor.tasks.connection")
     def test_vacuum_schema(self, mock_conn):
