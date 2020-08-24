@@ -20,14 +20,14 @@ WITH DATA(key, value, report_period_id, namespace) AS (
     ) l
     GROUP BY l.key, l.value, l.report_period_id, l.namespace
 ),
-data2(key, values) AS (SELECT data.key, array_agg(DISTINCT data.value) from data GROUP BY data.key)
+data2(key, values, namespace) AS (SELECT data.key, array_agg(DISTINCT data.value), namespace from data GROUP BY data.key, data.namespace)
 , ins1 AS (
     INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary (key, report_period_id, namespace, values)
     SELECT DISTINCT data.key as key,
     data.report_period_id as report_period_id,
     data.namespace as namespace,
     data2.values as values
-    FROM data INNER JOIN data2 ON data.key = data2.key
+    FROM data INNER JOIN data2 ON data.key = data2.key AND data.namespace = data2.namespace
     ON CONFLICT (key, report_period_id, namespace) DO UPDATE SET key = EXCLUDED.key
     RETURNING key, id as key_id
     )

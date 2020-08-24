@@ -21,7 +21,7 @@ WITH DATA(key, value, cost_entry_bill_id, accounts, namespace, cluster_id, clust
             ON l.usage_account_id = aa.account_id
     GROUP BY l.key, l.value, l.cost_entry_bill_id, l.namespace, l.cluster_id, l.cluster_alias
 ),
-data2(key, values) AS (SELECT data.key, array_agg(DISTINCT data.value) from data GROUP BY data.key)
+data2(key, values, namespace) AS (SELECT data.key, array_agg(DISTINCT data.value), namespace from data GROUP BY data.key, data.namespace)
 , ins1 AS (
     INSERT INTO {{schema | sqlsafe}}.reporting_ocpawstags_summary (key, cost_entry_bill_id, accounts, namespace, cluster_id, cluster_alias, values)
     SELECT DISTINCT data.key as key,
@@ -31,7 +31,7 @@ data2(key, values) AS (SELECT data.key, array_agg(DISTINCT data.value) from data
     data.cluster_id as cluster_id,
     data.cluster_alias as cluster_alias,
     data2.values as values
-    FROM data INNER JOIN data2 ON data.key = data2.key
+    FROM data INNER JOIN data2 ON data.key = data2.key AND data.namespace = data2.namespace
     ON CONFLICT (key, cost_entry_bill_id, namespace) DO UPDATE SET key = EXCLUDED.key
     RETURNING key, id as key_id
     )
