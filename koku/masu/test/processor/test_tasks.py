@@ -826,7 +826,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "billing_period_start_datetime": DateHelper().today,
             "num_total_files": 2,
             "provider_uuid": self.azure_provider_uuid,
-            "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
         }
 
         with ReportManifestDBAccessor() as manifest_accessor:
@@ -854,7 +853,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "billing_period_start_datetime": DateHelper().today,
             "num_total_files": 2,
             "provider_uuid": self.ocp_provider_uuid,
-            "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
         }
 
         with ReportManifestDBAccessor() as manifest_accessor:
