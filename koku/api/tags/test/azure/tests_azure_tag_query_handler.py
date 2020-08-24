@@ -161,9 +161,10 @@ class AzureTagQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             tags = AzureTagsSummary.objects.filter(key__contains=key).values("values").distinct().all()
             tag_values = tags[0].get("values")
-        expected = [{"key": key, "values": tag_values[::-1]}]
+        expected = [{"key": key, "values": tag_values}]
         result = handler.get_tags()
-        self.assertEqual(result, expected)
+        self.assertEqual(result[0].get("key"), expected.get("key"))
+        self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
 
     def test_get_tag_values_for_value_filter(self):
         """Test that get tag values runs properly with value query."""
@@ -181,9 +182,10 @@ class AzureTagQueryHandlerTest(IamTestCase):
                 .all()
             )
             tag_values = [tag.get("value") for tag in tags]
-        expected = [{"key": key, "values": tag_values[::-1]}]
+        expected = [{"key": key, "values": tag_values}]
         result = handler.get_tag_values()
-        self.assertEqual(result, expected)
+        self.assertEqual(result[0].get("key"), expected.get("key"))
+        self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
 
     def test_get_tag_values_for_value_filter_partial_match(self):
         """Test that the execute query runs properly with value query."""
@@ -202,6 +204,7 @@ class AzureTagQueryHandlerTest(IamTestCase):
                 .all()
             )
             tag_values = [tag.get("value") for tag in tags]
-        expected = [{"key": key, "values": sorted(tag_values)[::-1]}]
+        expected = [{"key": key, "values": tag_values}]
         result = handler.get_tag_values()
-        self.assertEqual(result, expected)
+        self.assertEqual(result[0].get("key"), expected.get("key"))
+        self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
