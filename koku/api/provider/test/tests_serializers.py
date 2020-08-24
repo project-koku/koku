@@ -49,12 +49,13 @@ class ProviderSerializerTest(IamTestCase):
             Provider.PROVIDER_OCP: {
                 "name": "test_provider",
                 "type": Provider.PROVIDER_OCP.lower(),
-                "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-1"}},
+                "authentication": {"credentials": {"cluster_id": "my-ocp-cluster-1"}},
+                "billing_source": {},
             },
             Provider.PROVIDER_AWS: {
                 "name": "test_provider",
                 "type": Provider.PROVIDER_AWS.lower(),
-                "authentication": {"credentials": {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"}},
+                "authentication": {"credentials": {"role_arn": "arn:aws:s3:::my_s3_bucket"}},
                 "billing_source": {"data_source": {"bucket": "my_s3_bucket"}},
             },
             Provider.PROVIDER_AZURE: {
@@ -117,8 +118,8 @@ class ProviderSerializerTest(IamTestCase):
         provider = {
             "name": "test_provider",
             "type": Provider.PROVIDER_AWS.lower(),
-            "authentication": {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"},
-            "billing_source": {"bucket": "my_s3_bucket"},
+            "authentication": {"credentials": {"role_arn": "arn:aws:s3:::my_s3_bucket"}},
+            "billing_source": {"data_source": {"bucket": "my_s3_bucket"}},
         }
         serializer = ProviderSerializer(data=provider)
         if serializer.is_valid(raise_exception=True):
@@ -130,8 +131,8 @@ class ProviderSerializerTest(IamTestCase):
         provider = {
             "name": "test_provider",
             "type": Provider.PROVIDER_AWS.lower(),
-            "authentication": {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"},
-            "billing_source": {"bucket": "my_s3_bucket"},
+            "authentication": {"credentials": {"role_arn": "arn:aws:s3:::my_s3_bucket"}},
+            "billing_source": {"data_source": {"bucket": "my_s3_bucket"}},
         }
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
@@ -151,8 +152,8 @@ class ProviderSerializerTest(IamTestCase):
         provider = {
             "name": "test_provider",
             "type": Provider.PROVIDER_AWS.lower(),
-            "authentication": {"provider_resource_name": iam_arn},
-            "billing_source": {"bucket": bucket_name},
+            "authentication": {"credentials": {"role_arn": iam_arn}},
+            "billing_source": {"data_source": {"bucket": bucket_name}},
         }
         instance = None
 
@@ -173,7 +174,8 @@ class ProviderSerializerTest(IamTestCase):
         provider = {
             "name": "test_provider",
             "type": Provider.PROVIDER_OCP.lower(),
-            "authentication": {"provider_resource_name": cluster_id},
+            "authentication": {"credentials": {"cluster_id": cluster_id}},
+            "billing_source": {},
         }
 
         instance = None
@@ -194,7 +196,8 @@ class ProviderSerializerTest(IamTestCase):
         provider = {
             "name": "test_provider",
             "type": Provider.PROVIDER_OCP.lower(),
-            "authentication": {"provider_resource_name": cluster_id},
+            "authentication": {"credentials": {"cluster_id": cluster_id}},
+            "billing_source": {},
         }
 
         instance = None
@@ -211,7 +214,7 @@ class ProviderSerializerTest(IamTestCase):
 
         # Add Source without provider uuid
         sources = Sources.objects.create(
-            source_id=1, auth_header="testheader", offset=1, authentication={"resource_name": cluster_id}
+            source_id=1, auth_header="testheader", offset=1, authentication={"cluster_id": cluster_id}
         )
         sources.save()
         # Verify ValidationError is raised when another source is added with an existing
@@ -222,26 +225,13 @@ class ProviderSerializerTest(IamTestCase):
                 with self.assertRaises(serializers.ValidationError):
                     serializer.save()
 
-    def test_create_provider_with_exception(self):
-        """Test creating a provider with a provider exception."""
-        iam_arn = "arn:aws:s3:::my_s3_bucket"
-        bucket_name = "my_s3_bucket"
-        provider = {
-            "name": "test_provider",
-            "type": Provider.PROVIDER_AWS,
-            "authentication": {"provider_resource_name": iam_arn},
-            "billing_source": {"bucket": bucket_name},
-        }
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", side_effect=serializers.ValidationError):
-            ProviderSerializer(data=provider, context=self.request_context)
-
     def test_create_provider_with_credentials_and_data_source(self):
         """Test creating a provider with data_source field instead of bucket."""
         provider = {
             "name": "test_provider",
             "type": Provider.PROVIDER_AWS.lower(),
-            "authentication": {"credentials": {"one": "two", "three": "four"}},
-            "billing_source": {"data_source": {"foo": "bar"}},
+            "authentication": {"credentials": {"role_arn": "four"}},
+            "billing_source": {"data_source": {"bucket": "bar"}},
         }
         instance = None
 
@@ -256,14 +246,14 @@ class ProviderSerializerTest(IamTestCase):
         self.assertIsNone(schema_name)
         self.assertFalse("schema_name" in serializer.data["customer"])
 
-    def test_create_provider_with_credentials_and_provider_resource_name(self):
-        """Test creating a provider with credentials and provider_resource_name fields should fail."""
+    def test_create_provider_with_credentials_and_role_arn(self):
+        """Test creating a provider with credentials and role_arn fields should fail."""
         iam_arn = "arn:aws:s3:::my_s3_bucket"
         provider = {
             "name": "test_provider",
             "type": Provider.PROVIDER_AWS.lower(),
-            "authentication": {"credentials": {"one": "two", "three": "four"}, "provider_resource_name": iam_arn},
-            "billing_source": {"data_source": {"foo": "bar"}},
+            "authentication": {"credentials": {"role_arn": "four"}, "role_arn": iam_arn},
+            "billing_source": {"data_source": {"bucket": "bar"}},
         }
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
@@ -282,8 +272,8 @@ class ProviderSerializerTest(IamTestCase):
         provider = {
             "name": "test_provider",
             "type": Provider.PROVIDER_AWS.lower(),
-            "authentication": {"credentials": {"one": "two", "three": "four"}},
-            "billing_source": {"data_source": {"foo": "bar"}, "bucket": bucket_name},
+            "authentication": {"credentials": {"role_arn": "four"}},
+            "billing_source": {"data_source": {"bucket": "bar"}, "bucket": bucket_name},
         }
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
@@ -302,8 +292,8 @@ class ProviderSerializerTest(IamTestCase):
         provider = {
             "name": "test_provider_one",
             "type": Provider.PROVIDER_OCP.lower(),
-            "authentication": {"provider_resource_name": cluster_id},
-            "billing_source": {"bucket": "", "data_source": None},
+            "authentication": {"credentials": {"cluster_id": cluster_id}},
+            "billing_source": {},
         }
 
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
@@ -313,7 +303,7 @@ class ProviderSerializerTest(IamTestCase):
 
         cluster_id = "my-ocp-cluster-2"
         provider["name"] = "test_provider_two"
-        provider["authentication"]["provider_resource_name"] = cluster_id
+        provider["authentication"] = {"credentials": {"cluster_id": cluster_id}}
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             serializer = ProviderSerializer(data=provider, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
@@ -425,12 +415,14 @@ class ProviderSerializerTest(IamTestCase):
         p1 = {
             "name": "test_provider_1",
             "type": Provider.PROVIDER_OCP.lower(),
-            "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-1"}},
+            "authentication": {"credentials": {"cluster_id": "my-ocp-cluster-1"}},
+            "billing_source": {},
         }
         p2 = {
             "name": "test_provider_2",
             "type": Provider.PROVIDER_OCP.lower(),
-            "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-2"}},
+            "authentication": {"credentials": {"cluster_id": "my-ocp-cluster-2"}},
+            "billing_source": {},
         }
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             serializer = ProviderSerializer(data=p1, context=self.request_context)
@@ -442,7 +434,8 @@ class ProviderSerializerTest(IamTestCase):
                 d = {
                     "name": "test_provider_2",
                     "type": Provider.PROVIDER_OCP.lower(),
-                    "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-1"}},
+                    "authentication": {"credentials": {"cluster_id": "my-ocp-cluster-1"}},
+                    "billing_source": {},
                 }
                 with self.assertRaises(ValidationError) as excCtx:
                     serializer = ProviderSerializer(instance, data=d, context=self.request_context)
@@ -465,7 +458,10 @@ class ProviderSerializerTest(IamTestCase):
             serializer.is_valid(raise_exception=True)
 
         self.assertEqual(e.exception.status_code, 400)
-        self.assertEqual(str(e.exception.detail["billing_source"]["data_source.bucket"][0]), "This field is required.")
+        self.assertEqual(
+            str(e.exception.detail["billing_source"]["data_source"]["provider.data_source"][0]),
+            "One or more required fields is invalid/missing. Required fields are ['bucket']",
+        )
 
     def test_create_gcp_provider_validate_report_prefix_too_long(self):
         """Test the data_source.report_prefix validation for GCP provider."""
@@ -488,7 +484,7 @@ class ProviderSerializerTest(IamTestCase):
 
         self.assertEqual(e.exception.status_code, 400)
         self.assertEqual(
-            str(e.exception.detail["billing_source"]["data_source.report_prefix"][0]),
+            str(e.exception.detail["billing_source"]["data_source"]["data_source.report_prefix"][0]),
             f"Ensure this field has no more than {REPORT_PREFIX_MAX_LENGTH} characters.",
         )
 
@@ -517,8 +513,8 @@ class ProviderSerializerTest(IamTestCase):
         provider = {
             "name": "test_provider",
             "type": "Bad",
-            "authentication": {"provider_resource_name": iam_arn},
-            "billing_source": {"bucket": bucket_name},
+            "authentication": {"credentials": {"role_arn": iam_arn}},
+            "billing_source": {"data_source": {"bucket": bucket_name}},
         }
 
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
@@ -556,8 +552,8 @@ class ProviderSerializerTest(IamTestCase):
         provider = {
             "name": "test_provider",
             "type": Provider.PROVIDER_AWS.lower(),
-            "authentication": {"credentials": {"one": "two", "three": "four"}},
-            "billing_source": {"data_source": {"foo": "bar"}},
+            "authentication": {"credentials": {"role_arn": "four"}},
+            "billing_source": {"data_source": {"bucket": "bar"}},
         }
         instance = None
 
@@ -590,8 +586,8 @@ class AdminProviderSerializerTest(IamTestCase):
         provider = {
             "name": "test_provider",
             "type": Provider.PROVIDER_AWS.lower(),
-            "authentication": {"provider_resource_name": iam_arn},
-            "billing_source": {"bucket": bucket_name},
+            "authentication": {"credentials": {"role_arn": iam_arn}},
+            "billing_source": {"data_source": {"bucket": bucket_name}},
         }
 
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):

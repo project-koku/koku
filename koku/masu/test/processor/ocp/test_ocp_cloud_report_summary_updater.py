@@ -61,7 +61,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         start_date = self.dh.today
         end_date = start_date + datetime.timedelta(days=1)
 
-        cluster_id = self.ocp_on_aws_ocp_provider.authentication.provider_resource_name
+        cluster_id = self.ocp_on_aws_ocp_provider.authentication.credentials.get("cluster_id")
         manifest = CostUsageReportManifest.objects.filter(
             provider=self.ocp_on_aws_ocp_provider, billing_period_start_datetime=self.dh.this_month_start
         )
@@ -100,7 +100,8 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
-            cluster_id = provider_accessor.get_authentication()
+            credentials = provider_accessor.get_credentials()
+        cluster_id = credentials.get("cluster_id")
         mock_map.return_value = {self.ocp_test_provider_uuid: (self.aws_provider_uuid, Provider.PROVIDER_AWS)}
         updater = OCPCloudReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
         updater.update_summary_tables(start_date_str, end_date_str)

@@ -19,17 +19,17 @@ class GCPProvider(ProviderInterface):
         """Return name of the provider."""
         return Provider.PROVIDER_GCP
 
-    def cost_usage_source_is_reachable(self, credential_name, data_source):
+    def cost_usage_source_is_reachable(self, credentials, data_source):
         """
         Verify that the GCP bucket exists and is reachable.
 
         Args:
-            credential_name (object): not used; only present for interface compatibility
+            credentials (object): not used; only present for interface compatibility
             data_source (dict): dict containing name of GCP storage bucket
 
         """
         storage_client = storage.Client()
-        bucket = data_source["bucket"]
+        bucket = data_source.get("bucket")
         try:
             bucket_info = storage_client.lookup_bucket(bucket)
             if not bucket_info:
