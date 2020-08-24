@@ -38,26 +38,26 @@ LOG = logging.getLogger(__name__)
 class AzureLocalReportDownloader(AzureReportDownloader):
     """Azure Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
+    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
             customer_name    (String) Name of the customer
-            auth_credential  (Dict) Dictionary containing Azure authentication details.
+            credentials      (Dict) Dictionary containing Azure credentials details.
             report_name      (String) Name of the Cost Usage Report to download (optional)
-            billing_source   (Dict) Dictionary containing Azure Storage blob details.
+            data_source      (Dict) Dictionary containing Azure Storage blob details.
 
         """
         kwargs["is_local"] = True
-        super().__init__(customer_name, auth_credential, billing_source, report_name, **kwargs)
+        super().__init__(customer_name, credentials, data_source, report_name, **kwargs)
 
         self._provider_uuid = kwargs.get("provider_uuid")
         self.customer_name = customer_name.replace(" ", "_")
-        self.export_name = billing_source.get("resource_group").get("export_name")
-        self.directory = billing_source.get("resource_group").get("directory")
-        self.container_name = billing_source.get("storage_account").get("container")
-        self.local_storage = billing_source.get("storage_account").get("local_dir")
+        self.export_name = data_source.get("resource_group").get("export_name")
+        self.directory = data_source.get("resource_group").get("directory")
+        self.container_name = data_source.get("storage_account").get("container")
+        self.local_storage = data_source.get("storage_account").get("local_dir")
 
     def _get_manifest(self, date_time):
         """

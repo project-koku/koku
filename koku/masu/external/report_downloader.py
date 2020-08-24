@@ -45,8 +45,8 @@ class ReportDownloader:
     def __init__(
         self,
         customer_name,
-        access_credential,
-        report_source,
+        credentials,
+        data_source,
         provider_type,
         provider_uuid,
         report_name=None,
@@ -55,8 +55,8 @@ class ReportDownloader:
     ):
         """Set the downloader based on the backend cloud provider."""
         self.customer_name = customer_name
-        self.credential = access_credential
-        self.cur_source = report_source
+        self.credentials = credentials
+        self.data_source = data_source
         self.report_name = report_name
         self.provider_type = provider_type
         self.provider_uuid = provider_uuid
@@ -90,8 +90,8 @@ class ReportDownloader:
         if self.provider_type == Provider.PROVIDER_AWS:
             return AWSReportDownloader(
                 customer_name=self.customer_name,
-                auth_credential=self.credential,
-                bucket=self.cur_source,
+                credentials=self.credentials,
+                data_source=self.data_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
@@ -100,8 +100,8 @@ class ReportDownloader:
         if self.provider_type == Provider.PROVIDER_AWS_LOCAL:
             return AWSLocalReportDownloader(
                 customer_name=self.customer_name,
-                auth_credential=self.credential,
-                bucket=self.cur_source,
+                credentials=self.credentials,
+                data_source=self.data_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
@@ -110,8 +110,8 @@ class ReportDownloader:
         if self.provider_type == Provider.PROVIDER_AZURE:
             return AzureReportDownloader(
                 customer_name=self.customer_name,
-                auth_credential=self.credential,
-                billing_source=self.cur_source,
+                credentials=self.credentials,
+                data_source=self.data_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
@@ -120,8 +120,8 @@ class ReportDownloader:
         if self.provider_type == Provider.PROVIDER_AZURE_LOCAL:
             return AzureLocalReportDownloader(
                 customer_name=self.customer_name,
-                auth_credential=self.credential,
-                billing_source=self.cur_source,
+                credentials=self.credentials,
+                data_source=self.data_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
@@ -130,8 +130,8 @@ class ReportDownloader:
         if self.provider_type == Provider.PROVIDER_OCP:
             return OCPReportDownloader(
                 customer_name=self.customer_name,
-                auth_credential=self.credential,
-                bucket=self.cur_source,
+                credentials=self.credentials,
+                data_source=self.data_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
@@ -140,8 +140,8 @@ class ReportDownloader:
         if self.provider_type == Provider.PROVIDER_GCP:
             return GCPReportDownloader(
                 customer_name=self.customer_name,
-                auth_credential=self.credential,
-                billing_source=self.cur_source,
+                credentials=self.credentials,
+                data_source=self.data_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
@@ -165,7 +165,7 @@ class ReportDownloader:
             current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
             for month in reversed(range(number_of_months)):
                 calculated_month = current_month + relativedelta(months=-month)
-                reports = reports + self.download_report(calculated_month)
+                reports += self.download_report(calculated_month)
         except Exception as err:
             raise ReportDownloaderError(str(err))
         return reports
@@ -188,8 +188,7 @@ class ReportDownloader:
         Download current manifest description for date.
 
         """
-        report_context = self._downloader.get_manifest_context_for_date(date)
-        return report_context
+        return self._downloader.get_manifest_context_for_date(date)
 
     def download_report(self, report_context):
         """
@@ -203,18 +202,17 @@ class ReportDownloader:
 
         """
         date_time = report_context.get("date")
-        msg = f"Attempting to get {self.provider_type,} manifest for {str(date_time)}..."
+        msg = f"Attempting to get {self.provider_type} manifest for {str(date_time)}..."
         LOG.info(log_json(self.request_id, msg, self.context))
 
         manifest_id = report_context.get("manifest_id")
         report = report_context.get("current_file")
 
-        report_dictionary = {}
         local_file_name = self._downloader.get_local_file_for_report(report)
 
         if self.is_report_processed(local_file_name, manifest_id):
             LOG.info(f"File has already been processed: {local_file_name}. Skipping...")
-            return report_dictionary
+            return {}
 
         with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
             stored_etag = stats_recorder.get_etag()
@@ -223,11 +221,11 @@ class ReportDownloader:
             )
             stats_recorder.update(etag=etag)
 
-        report_dictionary["file"] = file_name
-        report_dictionary["compression"] = report_context.get("compression")
-        report_dictionary["start_date"] = date_time
-        report_dictionary["assembly_id"] = report_context.get("assembly_id")
-        report_dictionary["manifest_id"] = manifest_id
-        report_dictionary["provider_uuid"] = self.provider_uuid
-
-        return report_dictionary
+        return {
+            "file": file_name,
+            "compression": report_context.get("compression"),
+            "start_date": date_time,
+            "assembly_id": report_context.get("assembly_id"),
+            "manifest_id": manifest_id,
+            "provider_uuid": self.provider_uuid,
+        }

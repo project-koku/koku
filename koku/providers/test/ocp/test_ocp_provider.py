@@ -32,32 +32,32 @@ class OCPProviderTestCase(TestCase):
 
     def test_cost_usage_source_is_reachable_bucket_provided(self):
         """Verify that the cost usage source is authenticated and created."""
-        cluster_id = "my-ocp-cluster-1"
+        credentials = {"cluster_id": "my-ocp-cluster-1"}
         report_source = "report_location"
 
         provider_interface = OCPProvider()
 
         with self.assertRaises(ValidationError):
-            provider_interface.cost_usage_source_is_reachable(cluster_id, report_source)
+            provider_interface.cost_usage_source_is_reachable(credentials, report_source)
 
     def test_cost_usage_source_no_cluster_id(self):
         """Verify that the cost usage source raises error with no cluster_id."""
-        cluster_id = None
+        credentials = {"cluster_id": None}
         report_source = None
 
         provider_interface = OCPProvider()
 
         with self.assertRaises(ValidationError):
-            provider_interface.cost_usage_source_is_reachable(cluster_id, report_source)
+            provider_interface.cost_usage_source_is_reachable(credentials, report_source)
 
     def test_cost_usage_source_is_reachable_no_bucket_provided(self):
         """Verify that the cost usage source is not authenticated and created with no bucket provided."""
-        cluster_id = "my-ocp-cluster-1"
+        credentials = {"cluster_id": "my-ocp-cluster-1"}
         report_source = None
 
         provider_interface = OCPProvider()
 
         try:
-            provider_interface.cost_usage_source_is_reachable(cluster_id, report_source)
+            provider_interface.cost_usage_source_is_reachable(credentials, report_source)
         except Exception:
             self.fail("Unexpected error ")

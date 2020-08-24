@@ -244,8 +244,8 @@ class InsertAwsOrgTree:
         json_info = {
             "name": "aws_org_tree",
             "source_type": "AWS-local",
-            "authentication": {"resource_name": require_env("AWS_RESOURCE_NAME")},
-            "billing_source": {"bucket": "/tmp/local_bucket_1"},
+            "authentication": {"credentials": {"role_arn": require_env("AWS_RESOURCE_NAME")}},
+            "billing_source": {"data_source": {"bucket": "/tmp/local_bucket_1"}},
         }
         LOG.info("Creating a source with the following information:\n" f"\t{json_info}")
         requests.post(source_url, json=json_info)

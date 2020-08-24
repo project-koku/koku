@@ -43,8 +43,8 @@ class ReportDownloaderBase:
 
         Kwargs:
             customer_name     (String) customer name
-            access_credential (Dict) provider access credentials
-            report_source     (String) cost report source
+            credentials       (Dict) provider access credentials
+            data_source       (Dict) cost report source
             provider_type     (String) cloud provider type
             provider_uuid     (String) cloud provider uuid
             report_name       (String) cost report name
