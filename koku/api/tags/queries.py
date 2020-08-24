@@ -386,13 +386,6 @@ class TagQueryHandler(QueryHandler):
             values_list.append(obj.value)
         return [(self.key, values_list)]
 
-    def _get_tag_key_tuple(self, t_keys, tag_keys_query):
-        t_tup = []
-        for tag in t_keys:
-            t_vals = list(tag_keys_query.get(key=tag[0]).values.values_list("value", flat=True))
-            t_tup.append((tag[0], t_vals))
-        return t_tup
-
     @staticmethod
     def _get_dictionary_for_key(dictionary_list, key):
         """Get dictionary matching key from list of dictionaries."""
