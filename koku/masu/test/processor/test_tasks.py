@@ -389,10 +389,10 @@ class TestProcessorTasks(MasuTestCase):
         self.test_etag = "fake_etag"
         self.get_report_args = {
             "customer_name": self.schema,
-            "authentication": self.aws_provider.authentication.provider_resource_name,
+            "authentication": self.aws_provider.authentication.credentials,
             "provider_type": Provider.PROVIDER_AWS_LOCAL,
             "schema_name": self.schema,
-            "billing_source": self.aws_provider.billing_source.bucket,
+            "billing_source": self.aws_provider.billing_source.data_source,
             "provider_uuid": self.aws_provider_uuid,
             "report_month": DateHelper().today,
             "report_context": {"current_file": f"/my/{self.test_assembly_id}/koku-1.csv.gz"},

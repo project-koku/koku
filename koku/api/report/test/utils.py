@@ -29,6 +29,7 @@ from nise.__main__ import run
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
+from api.provider.models import ProviderBillingSource
 from api.utils import DateHelper
 from masu.config import Config
 from masu.processor.report_processor import ReportProcessor
@@ -94,12 +95,14 @@ class NiseDataLoader:
     def load_openshift_data(self, customer, static_data_file, cluster_id):
         """Load OpenShift data into the database."""
         provider_type = Provider.PROVIDER_OCP
+        credentials = {"cluster_id": cluster_id}
         with override_settings(AUTO_DATA_INGEST=False):
+            ocp_billing_source, _ = ProviderBillingSource.objects.get_or_create(data_source={})
             provider = baker.make(
                 "Provider",
                 type=provider_type,
-                authentication__provider_resource_name=cluster_id,
-                billing_source__bucket="",
+                authentication__credentials=credentials,
+                billing_source=ocp_billing_source,
                 customer=customer,
             )
         template, static_data_path = self.prepare_template(provider_type, static_data_file)
@@ -140,22 +143,24 @@ class NiseDataLoader:
         refresh_materialized_views.s(self.schema, provider_type).apply()
         shutil.rmtree(report_path, ignore_errors=True)
 
-    def load_aws_data(self, customer, static_data_file, account_id=None, provider_resource_name=None):
+    def load_aws_data(self, customer, static_data_file, account_id=None, role_arn=None):
         """Load AWS data into the database."""
         provider_type = Provider.PROVIDER_AWS_LOCAL
         if account_id is None:
             account_id = "9999999999999"
-        if provider_resource_name is None:
-            provider_resource_name = "arn:aws:iam::999999999999:role/CostManagement"
+        if role_arn is None:
+            role_arn = "arn:aws:iam::999999999999:role/CostManagement"
         nise_provider_type = provider_type.replace("-local", "")
         report_name = "Test"
+        credentials = {"role_arn": role_arn}
+        data_source = {"bucket": "test-bucket"}
         with patch.object(settings, "AUTO_DATA_INGEST", False):
             provider = baker.make(
                 "Provider",
                 type=provider_type,
-                authentication__provider_resource_name=provider_resource_name,
+                authentication__credentials=credentials,
+                billing_source__data_source=data_source,
                 customer=customer,
-                billing_source__bucket="test-bucket",
             )
         template, static_data_path = self.prepare_template(provider_type, static_data_file)
         options = {
@@ -218,8 +223,8 @@ class NiseDataLoader:
                 "Provider",
                 type=provider_type,
                 authentication__credentials=credentials,
-                customer=customer,
                 billing_source__data_source=data_source,
+                customer=customer,
             )
         template, static_data_path = self.prepare_template(provider_type, static_data_file)
         options = {

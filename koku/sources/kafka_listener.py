@@ -88,6 +88,21 @@ class SourcesMessageError(ValidationError):
     """Sources Message error."""
 
 
+class SourceDetails:
+    """Sources Details object."""
+
+    def __init__(self, auth_header, source_id):
+        """Constructor."""
+        sources_network = SourcesHTTPClient(auth_header, source_id)
+        details = sources_network.get_source_details()
+        self.name = details.get("name")
+        self.source_type_id = int(details.get("source_type_id"))
+        self.source_uuid = details.get("uid")
+        self.source_type_name = sources_network.get_source_type_name(self.source_type_id)
+        self.endpoint_id = sources_network.get_endpoint_id()
+        self.source_type = SOURCE_PROVIDER_MAP.get(self.source_type_name)
+
+
 def _extract_from_header(headers, header_type):
     """Retrieve information from Kafka Headers."""
     for header in headers:
@@ -226,6 +241,25 @@ def get_sources_msg_data(msg, app_type_id):
     return msg_data
 
 
+def get_authentication(source_type, sources_network):
+    """Get authentication information for a source."""
+    credentials = None
+    if source_type == Provider.PROVIDER_OCP:
+        source_details = sources_network.get_source_details()
+        if source_details.get("source_ref"):
+            credentials = {"cluster_id": source_details.get("source_ref")}
+        else:
+            raise SourcesHTTPClientError("Unable to find Cluster ID")
+    elif source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+        credentials = sources_network.get_aws_credentials()
+    elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+        credentials = sources_network.get_azure_credentials()
+    else:
+        LOG.error(f"Unexpected source type: {source_type}")
+        return credentials
+    return {"credentials": credentials}
+
+
 def save_auth_info(auth_header, source_id):
     """
     Store Sources Authentication information given an Source ID.
@@ -248,32 +282,23 @@ def save_auth_info(auth_header, source_id):
     """
     source_type = storage.get_source_type(source_id)
 
-    if source_type:
-        sources_network = SourcesHTTPClient(auth_header, source_id)
-    else:
+    if not source_type:
         LOG.info(f"Source ID not found for ID: {source_id}")
         return
 
+    sources_network = SourcesHTTPClient(auth_header, source_id)
+
     try:
-        if source_type == Provider.PROVIDER_OCP:
-            source_details = sources_network.get_source_details()
-            if source_details.get("source_ref"):
-                authentication = {"resource_name": source_details.get("source_ref")}
-            else:
-                raise SourcesHTTPClientError("Unable to find Cluster ID")
-        elif source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            authentication = {"resource_name": sources_network.get_aws_role_arn()}
-        elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            authentication = {"credentials": sources_network.get_azure_credentials()}
-        else:
-            LOG.error(f"Unexpected source type: {source_type}")
+        authentication = get_authentication(source_type, sources_network)
+    except SourcesHTTPClientError as error:
+        LOG.info(f"Authentication info not available for Source ID: {source_id}")
+        sources_network.set_source_status(error)
+    else:
+        if not authentication:
             return
         storage.add_provider_sources_auth_info(source_id, authentication)
         storage.clear_update_flag(source_id)
         LOG.info(f"Authentication attached to Source ID: {source_id}")
-    except SourcesHTTPClientError as error:
-        LOG.info(f"Authentication info not available for Source ID: {source_id}")
-        sources_network.set_source_status(str(error))
 
 
 def sources_network_info(source_id, auth_header):
@@ -295,24 +320,16 @@ def sources_network_info(source_id, auth_header):
         None
 
     """
-    sources_network = SourcesHTTPClient(auth_header, source_id)
-    source_details = sources_network.get_source_details()
-    source_name = source_details.get("name")
-    source_type_id = int(source_details.get("source_type_id"))
-    source_uuid = source_details.get("uid")
-    source_type_name = sources_network.get_source_type_name(source_type_id)
-    endpoint_id = sources_network.get_endpoint_id()
-
-    if not endpoint_id and source_type_name != SOURCES_OCP_SOURCE_NAME:
+    src_details = SourceDetails(auth_header, source_id)
+    if not src_details.endpoint_id and src_details.source_type_name != SOURCES_OCP_SOURCE_NAME:
         LOG.warning(f"Unable to find endpoint for Source ID: {source_id}")
         return
 
-    source_type = SOURCE_PROVIDER_MAP.get(source_type_name)
-    if not source_type:
-        LOG.warning(f"Unexpected source type ID: {source_type_id}")
+    if not src_details.source_type:
+        LOG.warning(f"Unexpected source type ID: {src_details.source_type_id}")
         return
 
-    storage.add_provider_sources_network_info(source_id, source_uuid, source_name, source_type, endpoint_id)
+    storage.add_provider_sources_network_info(src_details, source_id)
     save_auth_info(auth_header, source_id)
 
 
@@ -519,25 +536,13 @@ def execute_koku_provider_op(msg):
     try:
         if operation == "create":
             LOG.info(f"Creating Koku Provider for Source ID: {str(provider.source_id)}")
-            instance = account_coordinator.create_account(
-                provider.name,
-                provider.source_type,
-                provider.authentication,
-                provider.billing_source,
-                provider.source_uuid,
-            )
+            instance = account_coordinator.create_account(provider)
             LOG.info(f"Creating provider {instance.uuid} for Source ID: {provider.source_id}")
         elif operation == "update":
-            instance = account_coordinator.update_account(
-                provider.koku_uuid,
-                provider.name,
-                provider.source_type,
-                provider.authentication,
-                provider.billing_source,
-            )
+            instance = account_coordinator.update_account(provider)
             LOG.info(f"Updating provider {instance.uuid} for Source ID: {provider.source_id}")
         elif operation == "destroy":
-            account_coordinator.destroy_account(provider.koku_uuid)
+            account_coordinator.destroy_account(provider)
             LOG.info(f"Destroying provider {provider.koku_uuid} for Source ID: {provider.source_id}")
         else:
             LOG.error(f"unknown operation: {operation}")
