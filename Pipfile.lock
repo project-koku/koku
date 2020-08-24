@@ -1712,11 +1712,10 @@
         },
         "responses": {
             "hashes": [
-                "sha256:cf55b7c89fc77b9ebbc5e5924210b6d0ef437061b80f1273d7e202069e43493c",
-                "sha256:fa125311607ab3e57d8fcc4da20587f041b4485bdfb06dd6bdf19d8b66f870c1"
+                "sha256:17dcd2facb12182ec353b05b424b2e3f52783f0bf3ad6586e098a11ba75fa666",
+                "sha256:789e79e8d04b6338b5018d49663e7c8554492ea1469012572aff064cc7bcf4da"
             ],
-            "index": "pypi",
-            "version": "==0.10.16"
+            "version": "==0.11.0"
         },
         "rsa": {
             "hashes": [
