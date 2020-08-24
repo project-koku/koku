@@ -556,6 +556,8 @@ docker-up-no-build:
 docker-up-min:
 	docker-compose up --build -d db redis koku-server masu-server koku-worker
 
+docker-up-min-presto: docker-presto-up docker-up-min
+
 docker-up-db:
 	docker-compose up -d db
 	@until pg_isready -h $$POSTGRES_SQL_SERVICE_HOST -p $$POSTGRES_SQL_SERVICE_PORT >/dev/null ; do \
@@ -594,6 +596,16 @@ docker-presto-setup:
 	@cp -fr deploy/presto/ testing/presto/
 	@cp -fr deploy/hadoop/ testing/hadoop/
 	@sed -i "" 's/s3path/$(shell echo $(or $(s3bucket),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
+
+docker-presto-cleanup:
+	@rm -fr testing/parquet_data testing/hadoop testing/metastore testing/presto
+
+docker-presto-up: docker-metastore-setup docker-presto-setup
+	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d
+
+docker-presto-down: docker-presto-cleanup
+	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down
+
 ### Source targets ###
 ocp-source-from-yaml:
 #parameter validation
