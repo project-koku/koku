@@ -1,4 +1,4 @@
-WITH DATA(key, value, report_period_id, namespace) AS (
+WITH data(key, value, report_period_id, namespace) AS (
     SELECT l.key,
         l.value,
         l.report_period_id,
@@ -23,13 +23,13 @@ WITH DATA(key, value, report_period_id, namespace) AS (
 data2(key, values, namespace) AS (SELECT data.key, array_agg(DISTINCT data.value), namespace from data GROUP BY data.key, data.namespace)
 , ins1 AS (
     INSERT INTO {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary (key, report_period_id, namespace, values)
-    SELECT DISTINCT data.key as key,
-    data.report_period_id as report_period_id,
-    data.namespace as namespace,
-    data2.values as values
+    SELECT DISTINCT data.key AS key,
+    data.report_period_id AS report_period_id,
+    data.namespace AS namespace,
+    data2.values AS values
     FROM data INNER JOIN data2 ON data.key = data2.key AND data.namespace = data2.namespace
     ON CONFLICT (key, report_period_id, namespace) DO UPDATE SET key = EXCLUDED.key
-    RETURNING key, id as key_id
+    RETURNING key, id AS key_id
     )
 , ins2 AS (
    INSERT INTO {{schema | sqlsafe}}.reporting_ocptags_values (value)

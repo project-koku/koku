@@ -3,7 +3,7 @@ WITH data(key, value, cost_id, subscription_guid) AS (
     SELECT l.key,
         l.value,
         l.cost_entry_bill_id,
-        array_agg(DISTINCT l.subscription_guid) as subscription_guid
+        array_agg(DISTINCT l.subscription_guid) AS subscription_guid
     FROM (
         SELECT key,
             value,
@@ -21,13 +21,13 @@ WITH data(key, value, cost_id, subscription_guid) AS (
     ) l
     GROUP BY l.key, l.value, l.cost_entry_bill_id
 ),
-data2(key, values) AS (SELECT data.key, array_agg(DISTINCT data.value) from data GROUP BY data.key)
+data2(key, values) AS (SELECT data.key, array_agg(DISTINCT data.value) FROM data GROUP BY data.key)
 , ins1 AS (
     INSERT INTO {{schema | sqlsafe}}.reporting_azuretags_summary (key, cost_entry_bill_id, subscription_guid, values)
-    SELECT DISTINCT data.key as key,
-    data.cost_id as cost_entry_bill_id,
-    data.subscription_guid as subscription_guid,
-    data2.values as values
+    SELECT DISTINCT data.key AS key,
+    data.cost_id AS cost_entry_bill_id,
+    data.subscription_guid AS subscription_guid,
+    data2.values AS values
     FROM data INNER JOIN data2 ON data.key = data2.key
     ON CONFLICT (key, cost_entry_bill_id) DO UPDATE SET key=EXCLUDED.key
     RETURNING key, id as key_id

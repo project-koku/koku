@@ -3,7 +3,7 @@ WITH data(key, value, cost_id, account) AS (
         l.key,
         l.value,
         l.cost_entry_bill_id,
-        array_cat(array_agg(DISTINCT l.usage_account_id), array_agg(DISTINCT aa.account_alias)) as accounts
+        array_cat(array_agg(DISTINCT l.usage_account_id), array_agg(DISTINCT aa.account_alias)) AS accounts
     FROM (
         SELECT
             key,
@@ -24,7 +24,7 @@ WITH data(key, value, cost_id, account) AS (
         ON l.usage_account_id = aa.account_id
     GROUP BY l.key, l.value, l.cost_entry_bill_id
 ),
-data2(key, values) AS (SELECT data.key, array_agg(DISTINCT data.value) from data GROUP BY data.key)
+data2(key, values) AS (SELECT data.key, array_agg(DISTINCT data.value) FROM data GROUP BY data.key)
 , ins1 AS (
     INSERT INTO {{schema | sqlsafe}}.reporting_awstags_summary (key, cost_entry_bill_id, accounts, values)
     SELECT DISTINCT data.key as key,
