@@ -80,12 +80,12 @@ if [[ $CHECK != 200 ]];then
 fi
 
 # OpenShift on AWS
-nise report aws --static-report-file "scripts/NISE_ymls/ocp_on_aws/aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$KOKU_PATH/testing/local_providers/aws_local" --start-date "$START_DATE" --end-date "$END_DATE"
-nise report ocp --static-report-file "scripts/NISE_ymls/ocp_on_aws/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE" --end-date "$END_DATE"
+nise report aws --static-report-file "scripts/nise_ymls/ocp_on_aws/aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$KOKU_PATH/testing/local_providers/aws_local" --start-date "$START_DATE" --end-date "$END_DATE"
+nise report ocp --static-report-file "scripts/nise_ymls/ocp_on_aws/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE" --end-date "$END_DATE"
 
 # OpenShift on Azure
-nise report azure --static-report-file "scripts/NISE_ymls/ocp_on_azure/azure_static_data.yml" --azure-container-name "$KOKU_PATH/testing/local_providers/azure_local" --azure-report-name azure-report --start-date "$START_DATE" --end-date "$END_DATE"
-nise report ocp --static-report-file "scripts/NISE_ymls/ocp_on_azure/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE" --end-date "$END_DATE"
+nise report azure --static-report-file "scripts/nise_ymls/ocp_on_azure/azure_static_data.yml" --azure-container-name "$KOKU_PATH/testing/local_providers/azure_local" --azure-report-name azure-report --start-date "$START_DATE" --end-date "$END_DATE"
+nise report ocp --static-report-file "scripts/nise_ymls/ocp_on_azure/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE" --end-date "$END_DATE"
 
 # OpenShift on Prem
 nise report ocp --ocp-cluster-id my-ocp-cluster-3 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE" --end-date "$END_DATE"

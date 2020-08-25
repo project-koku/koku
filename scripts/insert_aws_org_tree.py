@@ -264,7 +264,7 @@ if "__main__" in __name__:
     )
     requests.get(url)
     default_tree_yml = "scripts/aws_org_tree.yml"
-    default_nise_yml = "scripts/NISE_ymls/org_tree_aws_static_data.yml"
+    default_nise_yml = "scripts/nise_ymls/org_tree_aws_static_data.yml"
     default_schema = "acct10001"
     default_db = require_env("DATABASE_NAME")
     default_delta_start = datetime.today().date()
