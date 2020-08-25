@@ -193,21 +193,6 @@ class AWSReportDownloaderTest(MasuTestCase):
         """Remove test generated data."""
         shutil.rmtree(DATA_DIR, ignore_errors=True)
 
-    @patch("masu.external.downloader.aws.aws_report_downloader.boto3.resource")
-    @patch(
-        "masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file",
-        return_value=("mock_file_name", None),
-    )
-    def test_download_bucket(self, mock_boto_resource, mock_download_file):
-        """Test download bucket method."""
-        mock_resource = Mock()
-        mock_bucket = Mock()
-        mock_bucket.objects.all.return_value = []
-        mock_resource.Bucket.return_value = mock_bucket
-        out = self.aws_report_downloader.download_bucket()
-        expected_files = []
-        self.assertEqual(out, expected_files)
-
     @patch("masu.external.report_downloader.ReportStatsDBAccessor")
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSessionDownloadError)
     def test_download_report_missing_bucket(self, mock_stats, fake_session):
@@ -449,6 +434,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                 "reportKeys": report_keys,
                 "billingPeriod": {"start": start_str},
             },
+            DateAccessor().today(),
         )
 
         result = downloader.get_manifest_context_for_date(current_month)
@@ -466,7 +452,38 @@ class AWSReportDownloaderTest(MasuTestCase):
             self.fake_customer_name, self.credentials, self.data_source, provider_uuid=self.aws_provider_uuid
         )
 
-        mock_manifest.return_value = ("", {"reportKeys": []})
+        mock_manifest.return_value = ("", {"reportKeys": []}, DateAccessor().today())
 
         result = downloader.get_manifest_context_for_date(current_month)
         self.assertEqual(result, {})
+
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
+    def test_get_manifest(self, mock_download_file):
+        """Test _get_manifest method."""
+        mock_datetime = DateAccessor().today()
+        mock_file_name = "testfile"
+        mock_download_file.return_value = (mock_file_name, None, mock_datetime)
+        fake_manifest_dict = {"foo": "bar"}
+        with patch("masu.external.downloader.aws.aws_report_downloader.open"):
+            with patch(
+                "masu.external.downloader.aws.aws_report_downloader.json.load", return_value=fake_manifest_dict
+            ):
+                manifest_file, manifest_json, manifest_modified_timestamp = self.aws_report_downloader._get_manifest(
+                    mock_datetime
+                )
+                self.assertEqual(manifest_file, mock_file_name)
+                self.assertEqual(manifest_json, fake_manifest_dict)
+                self.assertEqual(manifest_modified_timestamp, mock_datetime)
+
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
+    def test_get_manifest_file_not_found(self, mock_download_file):
+        """Test _get_manifest method when file is not found."""
+        mock_datetime = DateAccessor().today()
+        mock_download_file.side_effect = AWSReportDownloaderNoFileError("fake error")
+
+        manifest_file, manifest_json, manifest_modified_timestamp = self.aws_report_downloader._get_manifest(
+            mock_datetime
+        )
+        self.assertEqual(manifest_file, "")
+        self.assertEqual(manifest_json, self.aws_report_downloader.empty_manifest)
+        self.assertIsNone(manifest_modified_timestamp)

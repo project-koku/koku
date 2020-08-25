@@ -48,6 +48,7 @@ class MockAzureService:
         self.export_uuid = "9c308505-61d3-487c-a1bb-017956c9170a"
         self.export_file = f"{self.export_name}_{self.export_uuid}.csv"
         self.export_etag = "absdfwef"
+        self.last_modified = DateAccessor().today()
         self.export_key = f"{self.report_path}/{self.export_file}"
         self.bad_test_date = datetime(2019, 7, 15)
         self.bad_month_range = utils.month_date_range(self.bad_test_date)
@@ -65,6 +66,7 @@ class MockAzureService:
 
         class Export:
             name = self.export_file
+            last_modified = self.last_modified
 
         if report_path == self.report_path:
             mock_export = Export()
@@ -80,9 +82,11 @@ class MockAzureService:
 
         class ExportProperties:
             etag = self.export_etag
+            last_modified = self.last_modified
 
         class Export:
             name = self.export_file
+            last_modified = self.last_modified
 
         if key == self.export_key:
             mock_export = ExportProperties()
@@ -152,7 +156,8 @@ class AzureReportDownloaderTest(MasuTestCase):
         """Test that Azure manifest is created."""
         expected_start, expected_end = self.mock_data.month_range.split("-")
 
-        manifest = self.downloader._get_manifest(self.mock_data.test_date)
+        manifest, _ = self.downloader._get_manifest(self.mock_data.test_date)
+
         self.assertEqual(manifest.get("assemblyId"), self.mock_data.export_uuid)
         self.assertEqual(manifest.get("reportKeys"), [self.mock_data.export_file])
         self.assertEqual(manifest.get("Compression"), "PLAIN")
@@ -169,7 +174,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         expected_full_path = "{}/{}/azure/{}/{}".format(
             Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.mock_data.container, self.mock_data.export_file
         )
-        full_file_path, etag = self.downloader.download_file(self.mock_data.export_key)
+        full_file_path, etag, _ = self.downloader.download_file(self.mock_data.export_key)
         self.assertEqual(full_file_path, expected_full_path)
         self.assertEqual(etag, self.mock_data.export_etag)
 
@@ -186,7 +191,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         expected_full_path = "{}/{}/azure/{}/{}".format(
             Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.mock_data.container, self.mock_data.export_file
         )
-        full_file_path, etag = self.downloader.download_file(self.mock_data.export_key, self.mock_data.export_etag)
+        full_file_path, etag, _ = self.downloader.download_file(self.mock_data.export_key, self.mock_data.export_etag)
         self.assertEqual(full_file_path, expected_full_path)
         self.assertEqual(etag, self.mock_data.export_etag)
         mock_download_cost_method._azure_client.download_cost_export.assert_not_called()
@@ -226,12 +231,15 @@ class AzureReportDownloaderTest(MasuTestCase):
         assembly_id = "1234"
         compression = UNCOMPRESSED
         report_keys = ["file1", "file2"]
-        mock_manifest.return_value = {
-            "assemblyId": assembly_id,
-            "Compression": compression,
-            "reportKeys": report_keys,
-            "billingPeriod": {"start": start_str},
-        }
+        mock_manifest.return_value = (
+            {
+                "assemblyId": assembly_id,
+                "Compression": compression,
+                "reportKeys": report_keys,
+                "billingPeriod": {"start": start_str},
+            },
+            DateAccessor().today(),
+        )
         result = self.downloader.get_manifest_context_for_date(current_month)
         self.assertEqual(result.get("assembly_id"), assembly_id)
         self.assertEqual(result.get("compression"), compression)
