@@ -17,6 +17,7 @@
 """Custom Koku Middleware."""
 import binascii
 import logging
+import threading
 from http import HTTPStatus
 from json.decoder import JSONDecodeError
 
@@ -107,6 +108,8 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
     found from the user tied to a request.
     """
 
+    tenant_lock = threading.Lock()
+
     tenant_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
 
     def process_exception(self, request, exception):
@@ -155,7 +158,8 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
             except model.DoesNotExist:
                 tenant = model(schema_name=schema_name)
                 tenant.save()
-            KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
+            with KokuTenantMiddleware.tenant_lock:
+                KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
             LOG.debug(f"Tenant added to cache: {tenant_username}")
         return KokuTenantMiddleware.tenant_cache[tenant_username]
 
