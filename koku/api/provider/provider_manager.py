@@ -30,6 +30,7 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from cost_models.models import CostModelMap
 from masu.processor.tasks import refresh_materialized_views
+from masu.processor.tasks import TaskRunningError
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -239,4 +240,8 @@ def provider_post_delete_callback(*args, **kwargs):
 
         delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
         transaction.on_commit(delete_func)
-    refresh_materialized_views(provider.customer.schema_name, provider.type)
+    try:
+        refresh_materialized_views.s(provider.customer.schema_name, provider.type).apply()
+    except TaskRunningError:
+        # Because this is a sychronous call to refresh, we don't want to wait on retry
+        pass
