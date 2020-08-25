@@ -109,9 +109,6 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         Customer.objects.get_or_create(account_id=account[0], schema_name=account[1])
                 except Exception as err:
                     LOG.warning(err)
-                    import traceback
-
-                    LOG.debug(traceback.print_tb(err.__traceback__))
 
                 if parallel > 1:
                     for index in range(parallel):
