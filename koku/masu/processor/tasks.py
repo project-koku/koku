@@ -428,6 +428,7 @@ def update_cost_model_costs(self, schema_name, provider_uuid, start_date=None, e
         "masu.processor.tasks.update_cost_model_costs", task_id, [schema_name, provider_uuid]
     ):
         msg = f"Already running update_cost_model_costs for {schema_name} and provider {provider_uuid}."
+        # Raising an exception will fail the task and trigger Celery's retry logic
         raise TaskRunningError(msg)
     worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
