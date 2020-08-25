@@ -32,10 +32,12 @@ from tenant_schemas.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
 from api.common import log_json
+from api.iam.models import Tenant
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.celery import app
+from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -705,3 +707,28 @@ def convert_to_parquet(
         msg = f"Failed to convert the following files to parquet:{','.join(failed_conversion)}."
         LOG.warn(log_json(request_id, msg, context))
         return
+
+
+@app.task(name="masu.processor.tasks.remove_stale_tenants", queue_name="remove_stale_tenants")
+def remove_stale_tenants():
+    """ Remove stale tenants from the tenant api """
+    table_sql = """
+    SELECT schema_name
+      FROM api_customer c
+      LEFT
+      JOIN api_provider p
+        ON c.id = p.customer_id
+      LEFT
+      JOIN api_sources s
+        ON p.uuid::text = s.koku_uuid
+     WHERE s.source_id IS null AND c.date_created < now() - INTERVAL '2 weeks';
+        """
+    with connection.cursor() as cursor:
+        cursor.execute(table_sql)
+        data = cursor.fetchall()
+        Tenant.objects.filter(schema_name__in=[i[0] for i in data]).delete()
+        if data:
+            with KokuTenantMiddleware.tenant_lock:
+                KokuTenantMiddleware.tenant_cache.clear()
+        for name in data:
+            LOG.info(f"Deleted tenant: {name}")
