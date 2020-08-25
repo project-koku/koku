@@ -28,9 +28,19 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from sources import storage
 from sources.config import Config
-from sources.storage import SourcesStorageError
 
 faker = Faker()
+
+
+class MockDetails:
+    """Mock details object."""
+
+    def __init__(self, name, source_uuid, source_type, endpoint_id):
+        """Init mock details."""
+        self.name = name
+        self.source_uuid = source_uuid
+        self.source_type = source_type
+        self.endpoint_id = endpoint_id
 
 
 class MockProvider:
@@ -168,9 +178,8 @@ class SourcesStorageTest(TestCase):
         source_type = Provider.PROVIDER_AWS
         endpoint_id = 1
         source_uuid = faker.uuid4()
-        storage.add_provider_sources_network_info(
-            self.test_source_id, source_uuid, test_name, source_type, endpoint_id
-        )
+        mock_details = MockDetails(test_name, source_uuid, source_type, endpoint_id)
+        storage.add_provider_sources_network_info(mock_details, self.test_source_id)
 
         test_source = Sources.objects.get(source_id=self.test_source_id)
         self.assertEqual(test_source.name, test_name)
@@ -183,10 +192,8 @@ class SourcesStorageTest(TestCase):
         try:
             test_name = "My Source Name"
             source_type = Provider.PROVIDER_AWS
-            authentication = "testauth"
-            storage.add_provider_sources_network_info(
-                self.test_source_id + 1, faker.uuid4(), test_name, source_type, authentication
-            )
+            mock_details = MockDetails(test_name, faker.uuid4(), source_type, 1)
+            storage.add_provider_sources_network_info(mock_details, self.test_source_id + 1)
         except Exception as error:
             self.fail(str(error))
 
@@ -212,7 +219,7 @@ class SourcesStorageTest(TestCase):
                     1,
                     "AWS Provider",
                     Provider.PROVIDER_AWS,
-                    {"resource_name": "arn:fake"},
+                    {"role_arn": "arn:fake"},
                     {"bucket": "testbucket"},
                     "authheader",
                     1,
@@ -222,14 +229,7 @@ class SourcesStorageTest(TestCase):
             },
             {
                 "provider": MockProvider(
-                    1,
-                    "AWS Provider",
-                    Provider.PROVIDER_AWS,
-                    {"resource_name": "arn:fake"},
-                    None,
-                    "authheader",
-                    1,
-                    False,
+                    1, "AWS Provider", Provider.PROVIDER_AWS, {"role_arn": "arn:fake"}, None, "authheader", 1, False
                 ),
                 "expected_response": {},
             },
@@ -238,7 +238,7 @@ class SourcesStorageTest(TestCase):
                     2,
                     "OCP Provider",
                     Provider.PROVIDER_OCP,
-                    {"resource_name": "my-cluster-id"},
+                    {"role_arn": "my-cluster-id"},
                     {"bucket": ""},
                     "authheader",
                     2,
@@ -251,8 +251,8 @@ class SourcesStorageTest(TestCase):
                     2,
                     "OCP Provider",
                     Provider.PROVIDER_OCP,
-                    {"resource_name": "my-cluster-id"},
-                    {"bucket": ""},
+                    {"cluster_id": "my-cluster-id"},
+                    {},
                     "authheader",
                     2,
                     True,
@@ -261,14 +261,7 @@ class SourcesStorageTest(TestCase):
             },
             {
                 "provider": MockProvider(
-                    2,
-                    None,
-                    Provider.PROVIDER_OCP,
-                    {"resource_name": "my-cluster-id"},
-                    {"bucket": ""},
-                    "authheader",
-                    2,
-                    False,
+                    2, None, Provider.PROVIDER_OCP, {"cluster_id": "my-cluster-id"}, {}, "authheader", 2, False
                 ),
                 "expected_response": {},
             },
@@ -308,55 +301,6 @@ class SourcesStorageTest(TestCase):
             else:
                 self.assertEqual(response, {})
 
-    def test_validate_billing_source(self):
-        """Test to validate that the billing source dictionary is valid."""
-        test_matrix = [
-            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"bucket": "test-bucket"}, "exception": False},
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"resource_group": "foo", "storage_account": "bar"}},
-                "exception": False,
-            },
-            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"nobucket": "test-bucket"}, "exception": True},
-            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {}, "exception": True},
-            {"provider_type": Provider.PROVIDER_AZURE, "billing_source": {}, "exception": True},
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"nodata_source": {"resource_group": "foo", "storage_account": "bar"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"noresource_group": "foo", "storage_account": "bar"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"resource_group": "foo", "nostorage_account": "bar"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"resource_group": "foo"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"storage_account": "bar"}},
-                "exception": True,
-            },
-        ]
-
-        for test in test_matrix:
-            if test.get("exception"):
-                with self.assertRaises(SourcesStorageError):
-                    storage._validate_billing_source(test.get("provider_type"), test.get("billing_source"))
-            else:
-                try:
-                    storage._validate_billing_source(test.get("provider_type"), test.get("billing_source"))
-                except Exception as error:
-                    self.fail(str(error))
-
     def test_get_source_type(self):
         """Test to source type from source."""
         test_source_id = 3
@@ -367,7 +311,7 @@ class SourcesStorageTest(TestCase):
             offset=3,
             source_type=Provider.PROVIDER_OCP,
             name="Test OCP Source",
-            authentication={"resource_name": "arn:test"},
+            authentication={"role_arn": "arn:test"},
             billing_source={"bucket": "test-bucket"},
         )
         ocp_obj.save()
@@ -387,7 +331,7 @@ class SourcesStorageTest(TestCase):
             endpoint_id=test_endpoint_id,
             source_type=Provider.PROVIDER_AWS,
             name="Test AWS Source",
-            authentication={"resource_name": "arn:test"},
+            authentication={"role_arn": "arn:test"},
             billing_source={"bucket": "test-bucket"},
         )
         aws_obj.save()
@@ -404,7 +348,7 @@ class SourcesStorageTest(TestCase):
         """Test to add authentication to a source."""
         test_source_id = 3
         test_endpoint_id = 4
-        test_authentication = {"resource_name": "arn:test"}
+        test_authentication = {"role_arn": "arn:test"}
         aws_obj = Sources(
             source_id=test_source_id,
             auth_header=self.test_header,

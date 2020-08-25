@@ -118,31 +118,31 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         return self.provider.type if self.provider else None
 
-    def get_authentication(self):
+    def get_credentials(self):
         """
-        Return the authentication name information.
+        Return the credential information.
 
         Args:
             None
         Returns:
-            (String): "Provider Resource Name.  i.e. AWS: RoleARN",
-                    example: "arn:aws:iam::111111111111:role/CostManagement"
+            (dict): {"credentials": "Provider Resource Name.  i.e. AWS: RoleARN"},
+                    example: {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}
 
         """
-        return self.provider.authentication.provider_resource_name
+        return self.provider.authentication.credentials
 
-    def get_billing_source(self):
+    def get_data_source(self):
         """
-        Return the billing source usage report source name.
+        Return the data_source information.
 
         Args:
             None
         Returns:
-            (String): "Identifier for cost usage report.  i.e. AWS: S3 Bucket",
-                    example: "my-s3-cur-bucket"
+            (dict): "Identifier for cost usage report.  i.e. AWS: S3 Bucket",
+                    example: {"bucket": "my-s3-cur-bucket"}
 
         """
-        return self.provider.billing_source.bucket
+        return self.provider.billing_source.data_source
 
     def get_setup_complete(self):
         """
