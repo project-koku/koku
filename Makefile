@@ -499,7 +499,7 @@ oc-delete-e2e: oc-nuke-from-orbit
 ### Docker-compose Commands ###
 ###############################
 
-docker-down:
+docker-down: docker-presto-down
 	docker-compose down
 
 docker-down-db:
