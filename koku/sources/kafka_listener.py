@@ -351,14 +351,6 @@ def cost_mgmt_msg_filter(msg_data):
     else:
         source_id = msg_data.get("source_id")
 
-    sources_network = SourcesHTTPClient(auth_header, source_id=source_id)
-    source_details = sources_network.get_source_details()
-    source_type_id = int(source_details.get("source_type_id"))
-    source_type_name = sources_network.get_source_type_name(source_type_id)
-
-    if source_type_name not in SOURCE_PROVIDER_MAP.keys():
-        LOG.debug(f"Filtering unexpected source type {source_type_name}.")
-        return None
     return msg_data
 
 
