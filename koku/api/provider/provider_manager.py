@@ -238,4 +238,5 @@ def provider_post_delete_callback(*args, **kwargs):
     try:
         refresh_materialized_views.s(provider.customer.schema_name, provider.type).apply()
     except TaskRunningError:
+        # Because this is a sychronous call to refresh, we don't want to wait on retry
         pass
