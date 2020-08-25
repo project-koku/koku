@@ -53,7 +53,7 @@
 </property>
 <property>
     <name>hive.default.fileformat</name>
-    <value>orc</value>
+    <value>Parquet</value>
 </property>
 <property>
     <name>hive.metastore.warehouse.dir</name>
