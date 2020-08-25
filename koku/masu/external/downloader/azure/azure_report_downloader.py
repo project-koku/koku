@@ -156,7 +156,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest["reportKeys"] = [report_name]
         manifest["Compression"] = UNCOMPRESSED
 
-        return manifest
+        return manifest, blob.last_modified
 
     def get_manifest_context_for_date(self, date):
         """
@@ -175,7 +175,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest_dict = {}
         report_dict = {}
-        manifest = self._get_manifest(date)
+        manifest, manifest_timestamp = self._get_manifest(date)
         if manifest == {}:
             return report_dict
 
@@ -183,7 +183,10 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         if manifest_dict:
             manifest_id = self._process_manifest_db_record(
-                manifest_dict.get("assembly_id"), manifest_dict.get("billing_start"), manifest_dict.get("num_of_files")
+                manifest_dict.get("assembly_id"),
+                manifest_dict.get("billing_start"),
+                manifest_dict.get("num_of_files"),
+                manifest_timestamp,
             )
 
             report_dict["manifest_id"] = manifest_id
@@ -227,9 +230,11 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         local_filename = utils.get_local_file_name(key)
         full_file_path = f"{self._get_exports_data_directory()}/{local_filename}"
 
+        file_creation_date = None
         try:
             blob = self._azure_client.get_cost_export_for_key(key, self.container_name)
             etag = blob.etag
+            file_creation_date = blob.last_modified
         except AzureCostReportNotFound as ex:
             msg = f"Error when downloading Azure report for key: {key}. Error {ex}"
             LOG.error(log_json(self.request_id, msg, self.context))
@@ -246,4 +251,4 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
         LOG.info(log_json(self.request_id, msg, self.context))
-        return full_file_path, etag
+        return full_file_path, etag, file_creation_date
