@@ -126,7 +126,7 @@ Within the koku repo there are scripts to automate the creation of a test custom
     - OpenShift running on Azure
     - OpenShift on premises
 
-There is a complementary script to subsequently load test data for each source. The `nise`_ project is used to generate this test data. Nise is a dev dependency of koku, so a working copy of the nise command line tool shoudl be availble after running `pipenv install --dev`. See `.env.example`_ for example values.
+There is a complementary script to subsequently load test data for each source. The `nise`_ project is used to generate this test data. Nise is a dev dependency of koku, so a working copy of the nise command line tool should be available after running `pipenv install --dev`. See `.env.example`_ for example values.
 
     - API_PATH_PREFIX
     - KOKU_API_HOSTNAME
