@@ -500,7 +500,8 @@ oc-delete-e2e: oc-nuke-from-orbit
 ###############################
 
 docker-down: docker-presto-down
-	docker-compose down
+	docker-compose down -v
+	$(PREFIX) make clear-testing
 
 docker-down-db:
 	docker-compose rm -s -v -f db
@@ -525,7 +526,7 @@ docker-test-all:
 
 docker-restart-koku:
 	@if [ -n "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
-         docker-compose restart koku-server ; \
+         docker-compose restart koku-server masu-server koku-worker koku-beat koku-listener ; \
          make _koku-wait ; \
          echo " koku is available" ; \
      else \
@@ -542,7 +543,7 @@ docker-up-koku:
 
 _koku-wait:
 	@echo "Waiting on koku status: "
-	@until ./scripts/check_for_koku_server.sh $${KOKU_API_HOST:-localhost} $$API_PATH_PREFIX $${KOKU_API_PORT:-8000} >/dev/null 2>&1 ; do \
+	@until ./scripts/check_for_koku_server.sh $${KOKU_API_HOST:-localhost} $${API_PATH_PREFIX:-/api/cost-management} $${KOKU_API_PORT:-8000} >/dev/null 2>&1 ; do \
          printf "." ; \
          sleep 1 ; \
      done
@@ -560,7 +561,7 @@ docker-up-min-presto: docker-presto-up docker-up-min
 
 docker-up-db:
 	docker-compose up -d db
-	@until pg_isready -h $$POSTGRES_SQL_SERVICE_HOST -p $$POSTGRES_SQL_SERVICE_PORT >/dev/null ; do \
+	@until pg_isready -h $${POSTGRES_SQL_SERVICE_HOST:-localhost} -p $${POSTGRES_SQL_SERVICE_PORT:-15432} >/dev/null ; do \
 	    printf '.'; \
 	    sleep 0.5 ; \
     done
