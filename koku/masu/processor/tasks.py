@@ -460,6 +460,7 @@ def refresh_materialized_views(self, schema_name, provider_type, manifest_id=Non
         task_id = self.request.id
     if is_task_currently_running("masu.processor.tasks.refresh_materialized_views", task_id, [schema_name]):
         msg = f"Already running refresh_materialized_views for {schema_name}."
+        # Raising an exception will fail the task and trigger Celery's retry logic
         raise TaskRunningError(msg)
 
     materialized_views = ()
