@@ -1007,7 +1007,12 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        filter_key = "environment"
+        url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=false"
+        query_params = self.mocked_query_params(url, OCPTagView)
+        handler = OCPTagQueryHandler(query_params)
+        tag_keys = handler.get_tag_keys()
+        tag_keys.sort(reverse=True)
+        filter_key = tag_keys[0]
 
         with tenant_context(self.tenant):
             labels = (
@@ -1064,7 +1069,13 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_costs_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        filter_key = "environment"
+        url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=false"
+        query_params = self.mocked_query_params(url, OCPTagView)
+        handler = OCPTagQueryHandler(query_params)
+        tag_keys = handler.get_tag_keys()
+        tag_keys.sort(reverse=True)
+        filter_key = tag_keys[0]
+
         with tenant_context(self.tenant):
             labels = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
@@ -1133,7 +1144,11 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
-        filter_key = "environment"
+        url = "?filter[type]=pod&filter[enabled]=false"
+        query_params = self.mocked_query_params(url, OCPTagView)
+        handler = OCPTagQueryHandler(query_params)
+        tag_keys = handler.get_tag_keys()
+        filter_key = tag_keys[0]
 
         with tenant_context(self.tenant):
             totals = OCPUsageLineItemDailySummary.objects.filter(
@@ -1183,7 +1198,11 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
-        group_by_key = "environment"
+        url = "?filter[type]=pod&filter[enabled]=false"
+        query_params = self.mocked_query_params(url, OCPTagView)
+        handler = OCPTagQueryHandler(query_params)
+        tag_keys = handler.get_tag_keys()
+        group_by_key = tag_keys[0]
 
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -1621,7 +1640,11 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_and_tag_filter(self):
         """Test the filter[and:tag:] param in the view."""
-        filter_key = "environment"
+        url = "?filter[type]=pod&filter[time_scope_value]=-1&filter[enabled]=false"
+        query_params = self.mocked_query_params(url, OCPTagView)
+        handler = OCPTagQueryHandler(query_params)
+        tag_keys = handler.get_tag_keys()
+        filter_key = tag_keys[0]
 
         with tenant_context(self.tenant):
             labels = (
@@ -1650,7 +1673,11 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_and_tag_group_by(self):
         """Test the group_by[and:tag:] param in the view."""
-        group_by_key = "environment"
+        url = "?filter[type]=pod&filter[time_scope_value]=-1&filter[enabled]=false"
+        query_params = self.mocked_query_params(url, OCPTagView)
+        handler = OCPTagQueryHandler(query_params)
+        tag_keys = handler.get_tag_keys()
+        group_by_key = tag_keys[0]
 
         with tenant_context(self.tenant):
             labels = (

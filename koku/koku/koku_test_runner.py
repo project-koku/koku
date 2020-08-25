@@ -111,7 +111,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                     LOG.warning(err)
                     import traceback
 
-                    LOG.warning(traceback.print_tb(err.__traceback__))
+                    LOG.debug(traceback.print_tb(err.__traceback__))
 
                 if parallel > 1:
                     for index in range(parallel):

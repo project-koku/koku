@@ -7,7 +7,7 @@ generators:
         - node_name: azure_compute_1
           cpu_cores: 2
           memory_gig: 8
-          resource_id: 99999995
+          resource_id: 55555555-4444-3333-2222-111111111128
           labels: environment:Jupiter
           namespaces:
             - namespace_name: mobile
@@ -51,7 +51,7 @@ generators:
         - node_name: azure_compute_2
           cpu_cores: 2
           memory_gig: 8
-          resource_id: 99999996
+          resource_id: 55555555-4444-3333-2222-111111111127
           labels: environment:qe
           namespaces:
             - namespace_name: banking
@@ -76,7 +76,7 @@ generators:
         - node_name: azure_compute_3
           cpu_cores: 2
           memory_gig: 8
-          resource_id: 99999997
+          resource_id: 55555555-4444-3333-2222-111111111126
           labels: environment:Mars
           namespaces:
             - namespace_name: weather
@@ -101,7 +101,7 @@ generators:
         - node_name: azure_master
           cpu_cores: 2
           memory_gig: 8
-          resource_id: 99999998
+          resource_id: 55555555-4444-3333-2222-111111111125
           labels: environment:Mars
           namespaces:
             - namespace_name: kube-system
