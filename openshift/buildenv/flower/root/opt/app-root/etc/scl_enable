@@ -2,5 +2,5 @@
 #            doing. This file is sourced everytime the shell session is opened.
 # This will make scl collection binaries work out of box.
 unset BASH_ENV PROMPT_COMMAND ENV
-source scl_source enable httpd24 $NODEJS_SCL rh-python36
+source scl_source enable httpd24 $NODEJS_SCL rh-python38
 source /opt/app-root/bin/activate
