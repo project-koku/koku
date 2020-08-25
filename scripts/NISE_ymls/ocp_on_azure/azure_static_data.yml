@@ -1,0 +1,119 @@
+---
+generators:
+  - VMGenerator:
+      start_date: 2019-11-01
+      end_date: 2019-11-30
+      service_name: Virtual Machines
+      meter_id: 55555555-4444-3333-2222-111111111128
+      resource_location: "US East"
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_compute1'
+      tags:
+        version: Mars
+  - VMGenerator:
+      start_date: 2019-11-01
+      end_date: 2019-11-30
+      service_name: Virtual Machines
+      meter_id: 55555555-4444-3333-2222-111111111127
+      resource_location: "US East"
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_compute2'
+      tags:
+        environment: Jupiter
+        version: MilkyWay
+  - VMGenerator:
+      start_date: 2019-11-01
+      end_date: 2019-11-30
+      service_name: Virtual Machines
+      meter_id: 55555555-4444-3333-2222-111111111126
+      resource_location: "US East"
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_compute3'
+      tags:
+        environment: Jupiter
+        version: Andromeda
+  - VMGenerator:
+      start_date: 2019-11-01
+      end_date: 2019-11-30
+      service_name: Virtual Machines
+      meter_id: 55555555-4444-3333-2222-111111111125
+      resource_location: "US East"
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_master'
+      tags:
+        version: Sombrero
+  - StorageGenerator:
+      start_date: 2019-11-01
+      end_date: 2019-11-30
+      meter_id: 55555555-4444-3333-2222-111111111124
+      resource_location: "US North Central"
+      amount: 10
+      rate: 0.05
+      tags:
+        storageclass: Thor
+  - StorageGenerator:
+      start_date: 2019-11-01
+      end_date: 2019-11-30
+      meter_id: 55555555-4444-3333-2222-111111111123
+      resource_location: "US North Central"
+      amount: 10
+      rate: 0.01
+      tags:
+        storageclass: Baldur
+  - StorageGenerator:
+      start_date: 2019-11-01
+      end_date: 2019-11-30
+      meter_id: 55555555-4444-3333-2222-111111111122
+      resource_location: "US North Central"
+      amount: 10
+      rate: 0.01
+      tags:
+        storageclass: Loki
+  - StorageGenerator:
+      start_date: 2019-11-01
+      end_date: 2019-11-30
+      meter_id: 55555555-4444-3333-2222-111111111121
+      resource_location: "US North Central"
+      amount: 10
+      rate: 0.01
+      tags:
+        storageclass: Odin
+  - StorageGenerator:
+      start_date: 2019-11-01
+      end_date: 2019-11-30
+      meter_id: 55555555-4444-3333-2222-111111111120
+      resource_location: "US North Central"
+      amount: 10
+      rate: 0.01
+      tags:
+        storageclass: Tyr
+  - SQLGenerator:
+      start_date: 2019-11-01
+      end_date: 2019-11-30
+      meter_id: 55555555-4444-3333-2222-111111111119
+      resource_location: "US South Central"
+      tags:
+        app: weather
+  - VNGenerator:
+      start_date: 2019-11-01
+      end_date: 2019-11-30
+      tags:
+        app: banking
+  - VNGenerator:
+      start_date: 2019-11-01
+      end_date: 2019-11-30
+      # Marsuct_family: DNS Zone
+      tags:
+        app: mobile
+  - VNGenerator:
+      start_date: 2019-11-01
+      end_date: 2019-11-30
+      tags:
+        app: banking
+  - VNGenerator:
+      start_date: 2019-11-01
+      end_date: 2019-11-30
+      tags:
+        app: weather
+
+# SubscriptionGuid
+accounts:
+  payer: 38f1d748-3ac7-4b7f-a5ae-8b5ff16db82d
+  user:
+    - 38f1d748-3ac7-4b7f-a5ae-8b5ff16db82d

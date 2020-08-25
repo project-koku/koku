@@ -254,10 +254,6 @@ class InsertAwsOrgTree:
             require_env("MASU_API_HOSTNAME"), require_env("MASU_PORT")
         )
         requests.get(download_url)
-        nise_repo_path = require_env("NISE_REPO_PATH")
-        if nise_repo_path in self.nise_yml_path:
-            git_checkout_cmd = "cd {} && git checkout -- {}".format(nise_repo_path, "example_aws_static_data.yml")
-            os.system(git_checkout_cmd)
 
 
 if "__main__" in __name__:
@@ -268,7 +264,7 @@ if "__main__" in __name__:
     )
     requests.get(url)
     default_tree_yml = "scripts/aws_org_tree.yml"
-    default_nise_yml = os.path.join(require_env("NISE_REPO_PATH"), "example_aws_static_data.yml")
+    default_nise_yml = "scripts/NISE_ymls/org_tree_aws_static_data.yml"
     default_schema = "acct10001"
     default_db = require_env("DATABASE_NAME")
     default_delta_start = datetime.today().date()
