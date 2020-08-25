@@ -141,6 +141,12 @@ app.conf.beat_schedule["crawl_account_hierarchy"] = {
     "schedule": crontab(hour=0, minute=0),
 }
 
+# Beat used to remove stale tenant data
+app.conf.beat_schedule["remove_stale_tenants"] = {
+    "task": "masu.processor.tasks.remove_stale_tenants",
+    "schedule": crontab(hour=0, minute=0),
+}
+
 # Celery timeout if broker is unavaiable to avoid blocking indefintely
 app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "interval_step": 0.5, "interval_max": 3}
 
