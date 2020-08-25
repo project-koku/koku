@@ -146,6 +146,7 @@ class ProviderManager:
                 last_process_start_date = None
                 last_process_complete_date = None
                 last_manifest_complete_datetime = None
+                manifest_modified_datetime = None
                 if provider_manifest.manifest_completed_datetime:
                     last_manifest_complete_datetime = provider_manifest.manifest_completed_datetime.strftime(
                         DATE_TIME_FORMAT
