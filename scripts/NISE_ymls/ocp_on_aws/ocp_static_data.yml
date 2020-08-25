@@ -1,8 +1,6 @@
 ---
 generators:
   - OCPGenerator:
-      start_date: 2019-05-01
-      end_date: 2019-07-31
       nodes:
         - node:
           node_name: aws_compute1

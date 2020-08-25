@@ -1,8 +1,6 @@
 ---
 generators:
   - EC2Generator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       processor_arch: 64-bit
       resource_id: 55555555
       product_sku: VEAJHRNKTJZQ
@@ -18,8 +16,6 @@ generators:
         cost: 0.096
         rate: 0.096
   - EC2Generator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       processor_arch: 64-bit
       resource_id: 55555556
       product_sku: VEAJHRNKTJAA
@@ -36,8 +32,6 @@ generators:
         cost: 0.096
         rate: 0.096
   - EC2Generator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       processor_arch: 64-bit
       resource_id: 55555557
       product_sku: VEAJHRNKTJAB
@@ -54,8 +48,6 @@ generators:
         cost: 0.096
         rate: 0.096
   - EC2Generator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       processor_arch: 64-bit
       resource_id: 55555558
       product_sku: VEAJHRNKTJAC
@@ -71,16 +63,12 @@ generators:
         cost: 0.096
         rate: 0.096
   - S3Generator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       product_sku: VEAJHRNAAAAA
       amount: 10
       rate: 0.05
       tags:
         resourceTags/user:storageclass: charlie
   - EBSGenerator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       product_sku: VEAJHRNBBBBA
       resource_id: 12345671
       amount: 10
@@ -88,8 +76,6 @@ generators:
       tags:
         resourceTags/user:storageclass: bravo
   - EBSGenerator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       product_sku: VEAJHRNBBBBB
       resource_id: 12345672
       amount: 10
@@ -97,8 +83,6 @@ generators:
       tags:
         resourceTags/user:storageclass: delta
   - EBSGenerator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       product_sku: VEAJHRNBBBBC
       resource_id: 12345673
       amount: 10
@@ -106,8 +90,6 @@ generators:
       tags:
         resourceTags/user:storageclass: epsilon
   - EBSGenerator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       product_sku: VEAJHRNBBBBD
       resource_id: 12345674
       amount: 10
@@ -115,71 +97,49 @@ generators:
       tags:
         resourceTags/user:storageclass: gamma
   - RDSGenerator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       tags:
         resourceTags/user:app: analytics
   - VPCGenerator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       tags:
         resourceTags/user:app: cost
   - Route53Generator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       # product_family: DNS Zone
       tags:
         resourceTags/user:app: catalog
   - Route53Generator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       product_family: DNS Query
       tags:
         resourceTags/user:app: cost
   - Route53Generator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       product_family: DNS Query
       tags:
         resourceTags/user:app: analytics
   - DataTransferGenerator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       product_sku: VEAJHRNKTJZQ
       resource_id: i-55555555
       tags:
         resourceTags/user:app: analytics
   - DataTransferGenerator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       product_sku: VEAJHRNKTJAA
       resource_id: i-55555556
       tags:
         resourceTags/user:app: cost
   - DataTransferGenerator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       product_sku: VEAJHRNKTJAB
       resource_id: i-55555557
       tags:
         resourceTags/user:app: catalog
   - DataTransferGenerator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       product_sku: VEAJHRNKTJAC
       resource_id: i-55555558
       tags:
         resourceTags/user:app: catalog
   - DataTransferGenerator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       product_sku: VEAJHRNAAAAA
       resource_id: i-55555559
       tags:
         resourceTags/user:app: cost
   - DataTransferGenerator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       resource_id: ''
       product_sku: AERJHRNCCCCC
       product_code: AmazonDynamoDB
@@ -187,8 +147,7 @@ generators:
       tags:
         resourceTags/user:app: catalog
   - DataTransferGenerator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
+      end_date: 2020-08-25
       resource_id: ''
       product_sku: AERJHRNCCCCD
       product_code: AmazonDynamoDB
@@ -196,8 +155,6 @@ generators:
       tags:
         resourceTags/user:app: catalog
   - DataTransferGenerator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       resource_id: ''
       product_sku: AERJHRNCCCCE
       product_code: AmazonDynamoDB
@@ -205,8 +162,6 @@ generators:
       tags:
         resourceTags/user:app: catalog
   - DataTransferGenerator:
-      start_date: 2019-04-01
-      end_date: 2019-07-31
       resource_id: i-55555554
       product_sku: AERJHRNCCCCC
       product_code: AmazonRDS

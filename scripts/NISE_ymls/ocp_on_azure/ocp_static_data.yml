@@ -1,8 +1,6 @@
 ---
 generators:
   - OCPGenerator:
-      start_date: 2019-11-01
-      end_date: 2019-11-30
       nodes:
         - node:
           node_name: azure_compute1
