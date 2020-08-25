@@ -20,8 +20,8 @@ account = parquet_dir.split("/")[-4]
 provider_uuid = parquet_dir.split("/")[-3]
 
 s3_path = parquet_dir.split("parquet_data/", 1)[1]
-
-table_name = f"default.data_{account}_{provider_uuid.replace('-', '_')}"
+schema = f"acct{account}"
+table_name = f"{schema}.data_{account}_{provider_uuid.replace('-', '_')}"
 
 sql = f"CREATE TABLE IF NOT EXISTS {table_name} ("
 
@@ -57,28 +57,35 @@ for idx, col in enumerate(parquet_columns):
 
 sql += f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET')"
 
-print("Presto table create SQL:")
-print(sql)
-
 conn = prestodb.dbapi.connect(host="localhost", port=8080, user="admin", catalog="hive", schema="default")
 cur = conn.cursor()
-cur.execute(sql)
+print("Creating Schema:")
+schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {schema}"
+print(schema_create_sql)
+cur.execute(schema_create_sql)
+rows = cur.fetchall()
+conn.close()
+
+schema_conn = prestodb.dbapi.connect(host="localhost", port=8080, user="admin", catalog="hive", schema=schema)
+schema_cur = conn.cursor()
+print("Presto table create SQL:")
+print(sql)
+schema_cur.execute(sql)
+rows = schema_cur.fetchall()
 
 print("\nPresto Line Item Example Query:")
-rows = cur.fetchall()
-cur = conn.cursor()
-cur.execute(f"SELECT * FROM {table_name} LIMIT 3")
-rows = cur.fetchall()
+schema_cur.execute(f"SELECT * FROM {table_name} LIMIT 3")
+rows = schema_cur.fetchall()
 for row in rows:
     print(row)
+schema_conn.close()
 
 print("\nPostgres DB AWS Summary Data Query Example:")
-postgres_conn = prestodb.dbapi.connect(
-    host="localhost", port=8080, user="admin", catalog="postgres", schema=f"acct{account}"
-)
+postgres_conn = prestodb.dbapi.connect(host="localhost", port=8080, user="admin", catalog="postgres", schema=schema)
 postgres_cur = postgres_conn.cursor()
 
 postgres_cur.execute("SELECT * FROM reporting_awscostentrylineitem_daily_summary LIMIT 3")
 rows = postgres_cur.fetchall()
 for row in rows:
     print(row)
+postgres_conn.close()
