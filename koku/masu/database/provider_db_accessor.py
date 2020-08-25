@@ -256,5 +256,6 @@ class ProviderDBAccessor(KokuDBAccess):
 
     def set_data_updated_timestamp(self):
         """Set the data updated timestamp to the current time."""
-        self.provider.data_updated_timestamp = self.date_accessor.today_with_timezone("UTC")
-        self.provider.save()
+        if self.provider:
+            self.provider.data_updated_timestamp = self.date_accessor.today_with_timezone("UTC")
+            self.provider.save()
