@@ -27,17 +27,20 @@ class AccountLabelTest(MasuTestCase):
 
     def test_initializer(self):
         """Test AccountLabel initializer."""
-        accessor = AccountLabel("roleARN", "acct10001", "AWS")
+        auth = {"role_arn": "roleARN"}
+        accessor = AccountLabel(auth, "acct10001", "AWS")
         self.assertIsInstance(accessor.label, AWSAccountAlias)
 
     def test_initializer_not_supported_provider(self):
         """Test AccountLabel initializer for unsupported provider."""
-        accessor = AccountLabel("roleARN", "acct10001", "unsupported")
+        auth = {"role_arn": "roleARN"}
+        accessor = AccountLabel(auth, "acct10001", "unsupported")
         self.assertIsNone(accessor.label)
 
     def test_get_label_details(self):
         """Test getting label details for supported provider."""
-        accessor = AccountLabel("roleARN", "acct10001", "AWS")
+        auth = {"role_arn": "roleARN"}
+        accessor = AccountLabel(auth, "acct10001", "AWS")
         mock_id = 333
         mock_alias = "three"
         with patch.object(AWSAccountAlias, "update_account_alias", return_value=(mock_id, mock_alias)):
@@ -47,7 +50,8 @@ class AccountLabelTest(MasuTestCase):
 
     def test_get_label_details_unsupported(self):
         """Test getting label details for supported provider."""
-        accessor = AccountLabel("roleARN", "acct10001", "unsupported")
+        auth = {"role_arn": "roleARN"}
+        accessor = AccountLabel(auth, "acct10001", "unsupported")
         account_id, alias = accessor.get_label_details()
         self.assertIsNone(account_id)
         self.assertIsNone(alias)

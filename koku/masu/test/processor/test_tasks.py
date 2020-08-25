@@ -36,18 +36,19 @@ from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
 
 import koku.celery as koku_celery
+from api.iam.models import Customer
+from api.iam.models import Tenant
 from api.models import Provider
 from api.utils import DateHelper
+from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from masu.external.report_downloader import ReportDownloaderError
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
@@ -59,6 +60,7 @@ from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import remove_expired_data
+from masu.processor.tasks import remove_stale_tenants
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
@@ -71,6 +73,10 @@ from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
 from reporting_common.models import CostUsageReportStatus
+
+# from koku.api.utils import DateHelper
+
+LOG = logging.getLogger(__name__)
 
 
 class FakeDownloader(Mock):
@@ -182,51 +188,6 @@ class GetReportFileTests(MasuTestCase):
                 cache_key=self.fake.word(),
                 report_context={},
             )
-
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor._tasks.download.ProviderStatus.set_error")
-    @patch(
-        "masu.processor._tasks.download.ReportDownloader._set_downloader",
-        side_effect=ReportDownloaderError("only a test"),
-    )
-    def test_get_report_exception_update_status(self, fake_downloader, fake_status, mock_inspect):
-        """Test that status is updated when an exception is raised."""
-        account = fake_arn(service="iam", generate_account_id=True)
-
-        try:
-            _get_report_files(
-                Mock(),
-                customer_name=self.fake.word(),
-                authentication=account,
-                provider_type=Provider.PROVIDER_AWS,
-                report_month=DateHelper().today,
-                provider_uuid=self.aws_provider_uuid,
-                billing_source=self.fake.word(),
-                cache_key=self.fake.word(),
-                report_context={},
-            )
-        except ReportDownloaderError:
-            pass
-        fake_status.assert_called()
-
-    @patch("masu.processor._tasks.download.ProviderStatus.set_status")
-    @patch("masu.processor._tasks.download.ReportDownloader", spec=True)
-    def test_get_report_update_status(self, fake_downloader, fake_status):
-        """Test that status is updated when downloading is complete."""
-        account = fake_arn(service="iam", generate_account_id=True)
-
-        _get_report_files(
-            Mock(),
-            customer_name=self.fake.word(),
-            authentication=account,
-            provider_type=Provider.PROVIDER_AWS,
-            report_month=DateHelper().today,
-            provider_uuid=self.aws_provider_uuid,
-            billing_source=self.fake.word(),
-            cache_key=self.fake.word(),
-            report_context={},
-        )
-        fake_status.assert_called_with(ProviderStatusCode.READY)
 
 
 class ProcessReportFileTests(MasuTestCase):
@@ -435,10 +396,10 @@ class TestProcessorTasks(MasuTestCase):
         self.test_etag = "fake_etag"
         self.get_report_args = {
             "customer_name": self.schema,
-            "authentication": self.aws_provider.authentication.provider_resource_name,
+            "authentication": self.aws_provider.authentication.credentials,
             "provider_type": Provider.PROVIDER_AWS_LOCAL,
             "schema_name": self.schema,
-            "billing_source": self.aws_provider.billing_source.bucket,
+            "billing_source": self.aws_provider.billing_source.data_source,
             "provider_uuid": self.aws_provider_uuid,
             "report_month": DateHelper().today,
             "report_context": {"current_file": f"/my/{self.test_assembly_id}/koku-1.csv.gz"},
@@ -1107,3 +1068,30 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         for report_file in files_list:
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()
+
+
+class TestRemoveStaleTenants(MasuTestCase):
+    def setUp(self):
+        """Set up middleware tests."""
+        super().setUp()
+        request = self.request_context["request"]
+        request.path = "/api/v1/tags/aws/"
+
+    def test_remove_stale_tenant(self):
+        """Test removal of stale tenants that are older than two weeks"""
+        days = 14
+        with schema_context("public"):
+            mock_request = self.request_context["request"]
+            middleware = KokuTenantMiddleware()
+            middleware.get_tenant(Tenant, "localhost", mock_request)
+            self.assertNotEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)
+            remove_stale_tenants()  # Check that it is not clearing the cache unless removing
+            self.assertNotEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)
+            record = Customer.objects.get(schema_name=self.schema)
+            record.date_created = DateHelper.n_days_ago(self, record.date_created, days)
+            record.save()
+            before_len = Tenant.objects.count()
+            remove_stale_tenants()
+            after_len = Tenant.objects.count()
+            self.assertGreater(before_len, after_len)
+            self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)

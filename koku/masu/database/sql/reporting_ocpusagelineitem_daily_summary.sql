@@ -44,8 +44,6 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
         sum(li.node_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as node_capacity_memory_gigabyte_hours,
         max(li.cluster_capacity_cpu_core_seconds) / 3600 as cluster_capacity_cpu_core_hours,
         max(li.cluster_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as cluster_capacity_memory_gigabyte_hours,
-        max(li.total_capacity_cpu_core_seconds) / 3600 as total_capacity_cpu_core_hours,
-        max(li.total_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as total_capacity_memory_gigabyte_hours,
         ab.provider_id as source_uuid,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily AS li
@@ -100,8 +98,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     node_capacity_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
-    total_capacity_cpu_core_hours,
-    total_capacity_memory_gigabyte_hours,
     source_uuid,
     infrastructure_usage_cost
 )
@@ -127,8 +123,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         node_capacity_memory_gigabyte_hours,
         cluster_capacity_cpu_core_hours,
         cluster_capacity_memory_gigabyte_hours,
-        total_capacity_cpu_core_hours,
-        total_capacity_memory_gigabyte_hours,
         source_uuid,
         infrastructure_usage_cost
     FROM reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe}}

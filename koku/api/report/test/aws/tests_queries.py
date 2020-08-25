@@ -102,9 +102,12 @@ class AWSReportQueryTest(IamTestCase):
                 .first()
                 .get("availability_zone")
             )
-            self.availability_zone_count = AWSCostEntryLineItemDailySummary.objects.aggregate(
-                Count("availability_zone", distinct=True)
-            ).get("availability_zone__count")
+            self.availability_zone_count_cur_mo = (
+                AWSCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
+                .distinct()
+                .values_list("availability_zone")
+                .count()
+            )
             self.region = AWSCostEntryLineItemDailySummary.objects.values("region").distinct().first().get("region")
             self.region_count = AWSCostEntryLineItemDailySummary.objects.aggregate(Count("region", distinct=True)).get(
                 "region__count"
@@ -688,8 +691,7 @@ class AWSReportQueryTest(IamTestCase):
             month_data = data_item.get("azs")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            # Add 1 to the count for "no-az"
-            self.assertEqual(len(month_data), self.availability_zone_count + 1)
+            self.assertEqual(len(month_data), self.availability_zone_count_cur_mo)
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("az"), str)
                 self.assertIsInstance(month_item.get("values"), list)
