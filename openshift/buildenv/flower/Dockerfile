@@ -1,4 +1,4 @@
-FROM centos/python-36-centos7
+FROM centos/python-38-centos7
 
 EXPOSE 5555
 
@@ -14,8 +14,8 @@ LABEL summary="$SUMMARY" \
       io.k8s.description="$DESCRIPTION" \
       io.k8s.display-name="Flower" \
       io.openshift.expose-services="8080:http" \
-      io.openshift.tags="python,python36,rh-python36,celery" \
-      com.redhat.component="python36-docker" \
+      io.openshift.tags="python,python38,rh-python38,celery" \
+      com.redhat.component="python38-docker" \
       name="masu-flower" \
       version="1" \
       maintainer="Red Hat Hybrid Cloud Cost Management Services"
@@ -37,7 +37,8 @@ COPY . ${APP_ROOT}/src
 # - In order to drop the root user, we have to make some directories world
 #   writable as OpenShift default security model is to run the container
 #   under random UID.
-RUN source scl_source enable rh-python36 && \
+RUN source scl_source enable rh-python38 && \
+    pip install -U pip setuptools wheel virtualenv virtualenv_bin && \
     virtualenv ${APP_ROOT} && \
     chown -R 1001:0 ${APP_ROOT} && \
     fix-permissions ${APP_ROOT} -P && \
