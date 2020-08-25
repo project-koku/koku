@@ -225,7 +225,7 @@ check-manifest:
 	.github/scripts/check_manifest.sh
 
 run-migrations:
-	$(DJANGO_MANAGE) migrate_schemas
+	$(DJANGO_MANAGE) migrate_schemas --executor=parallel
 
 serve:
 	$(DJANGO_MANAGE) runserver
