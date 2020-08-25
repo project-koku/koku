@@ -1,4 +1,4 @@
-FROM registry.redhat.io/ubi7/python-36:latest
+FROM registry.redhat.io/ubi7/python-38:latest
 
 ENV LANG en_US.UTF-8
 
