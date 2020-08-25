@@ -89,18 +89,18 @@ class CostModelDBAccessor(KokuDBAccess):
     def infrastructure_rates(self):
         """Return the rates designated as infrastructure cost."""
         return {
-            key: value.get("tiered_rates").get("Infrastructure")[0].get("value")
+            key: value.get("tiered_rates").get(metric_constants.INFRASTRUCTURE_COST_TYPE)[0].get("value")
             for key, value in self.price_list.items()
-            if "Infrastructure" in value.get("tiered_rates").keys()
+            if metric_constants.INFRASTRUCTURE_COST_TYPE in value.get("tiered_rates").keys()
         }
 
     @property
     def supplementary_rates(self):
         """Return the rates designated as supplementary cost."""
         return {
-            key: value.get("tiered_rates").get("Supplementary")[0].get("value")
+            key: value.get("tiered_rates").get(metric_constants.SUPPLEMENTARY_COST_TYPE)[0].get("value")
             for key, value in self.price_list.items()
-            if "Supplementary" in value.get("tiered_rates").keys()
+            if metric_constants.SUPPLEMENTARY_COST_TYPE in value.get("tiered_rates").keys()
         }
 
     @property
