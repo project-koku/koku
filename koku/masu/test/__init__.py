@@ -39,7 +39,7 @@ class MasuTestCase(IamTestCase):
         self.azure_test_provider_uuid = self.azure_provider_uuid
         self.ocp_test_provider_uuid = self.ocp_provider_uuid
 
-        self.ocp_provider_resource_name = self.ocp_provider.authentication.provider_resource_name
+        self.ocp_cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
 
         self.ocp_db_auth = self.ocp_provider.authentication
         self.aws_db_auth = self.aws_provider.authentication

@@ -27,35 +27,16 @@ class CURAccountsDB(CURAccountsInterface):
     """Provider interface definition."""
 
     @staticmethod
-    def get_authentication(provider):
-        """Return either provider_resource_name or credentials."""
-        if provider.authentication.provider_resource_name:
-            return provider.authentication.provider_resource_name
-        elif provider.authentication.credentials:
-            return provider.authentication.credentials
-        return None
-
-    @staticmethod
-    def get_billing_source(provider):
-        """Return either bucket or data_source."""
-        if provider.billing_source:
-            if provider.billing_source.bucket:
-                return provider.billing_source.bucket
-            elif provider.billing_source.data_source:
-                return provider.billing_source.data_source
-        return None
-
-    def get_account_information(self, provider):
+    def get_account_information(provider):
         """Return account information in dictionary."""
-        account = {
-            "authentication": self.get_authentication(provider),
+        return {
             "customer_name": provider.customer.schema_name,
-            "billing_source": self.get_billing_source(provider),
+            "credentials": provider.authentication.credentials,
+            "data_source": provider.billing_source.data_source,
             "provider_type": provider.type,
             "schema_name": provider.customer.schema_name,
             "provider_uuid": provider.uuid,
         }
-        return account
 
     def get_accounts_from_source(self, provider_uuid=None):
         """
@@ -74,11 +55,12 @@ class CURAccountsDB(CURAccountsInterface):
         with ProviderCollector() as collector:
             all_providers = collector.get_provider_uuid_map()
             provider = all_providers.get(str(provider_uuid))
-            if provider_uuid and provider and provider.active:
-                return [self.get_account_information(provider)]
-            elif provider_uuid and provider and not provider.active:
-                LOG.info(f"Provider {provider.uuid} is not active. Processing suspended...")
-                return []
+            if provider_uuid and provider:
+                if provider.active:
+                    return [self.get_account_information(provider)]
+                else:
+                    LOG.info(f"Provider {provider.uuid} is not active. Processing suspended...")
+                    return []
 
             for _, provider in all_providers.items():
                 if provider.active is False:
