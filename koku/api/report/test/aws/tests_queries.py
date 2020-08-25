@@ -1466,6 +1466,37 @@ class AWSReportQueryTest(IamTestCase):
             multi_cost = multi_handler.execute_query().get("total", {}).get("cost", {}).get("total", {}).get("value")
             self.assertEqual(sum(expected_costs), multi_cost)
 
+    def test_multiple_group_by_alias_change(self):
+        """Test that the data is correctly formatted to id & alias multi org_unit_id group bys"""
+        with tenant_context(self.tenant):
+            # https://issues.redhat.com/browse/COST-478
+            # These group by options format the return to have an s on the group by
+            # for example az is transformed into azs in the data return on the endpoint
+            reformats_data = ["az", "region", "service", "product_family"]
+            no_reformat = ["instance_type", "storage_type", "account"]
+            group_by_options = reformats_data + no_reformat
+            for group_by_option in group_by_options:
+                group_by_url = f"?group_by[org_unit_id]=R_001&group_by[{group_by_option}]=*"
+                params = self.mocked_query_params(group_by_url, AWSCostView, "costs")
+                handler = AWSReportQueryHandler(params)
+                handler.execute_query()
+                passed = False
+                for day in handler.query_data:
+                    for org_entity in day.get("org_entities", []):
+                        if group_by_option in reformats_data:
+                            group_key = group_by_option + "s"
+                            for group in org_entity.get(group_key, []):
+                                for value in group.get("values", []):
+                                    self.assertIsNotNone(value.get("id"))
+                                    self.assertIsNotNone(value.get("alias"))
+                                    passed = True
+                        else:
+                            for value in org_entity.get("values", []):
+                                self.assertIsNotNone(value.get("id"))
+                                self.assertIsNotNone(value.get("alias"))
+                                passed = True
+                self.assertTrue(passed)
+
 
 class AWSReportQueryLogicalAndTest(IamTestCase):
     """Tests the report queries."""
