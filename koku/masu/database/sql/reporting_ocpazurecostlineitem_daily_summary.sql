@@ -206,6 +206,11 @@ CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
 )
 ;
 
+-- no need to wait for commit
+TRUNCATE TABLE matched_tags_{{uuid | sqlsafe}};
+DROP TABLE matched_tags_{{uuid | sqlsafe}};
+
+
 -- First we match OCP pod data to Azure data using a direct
 -- resource id match. This usually means OCP node -> Azure Virutal Machine.
 CREATE TEMPORARY TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS (
@@ -562,6 +567,10 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
 )
 ;
 
+-- no need to wait for commit
+TRUNCATE TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}};
+
 
 -- First we match OCP storage data to Azure data using a direct
 -- resource id match. OCP PVC name -> Azure instance ID.
@@ -899,6 +908,11 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
  )
  ;
 
+-- no need to wait for commit
+TRUNCATE TABLE reporting_azure_special_case_tags_{{uuid | sqlsafe}};
+DROP TABLE reporting_azure_special_case_tags_{{uuid | sqlsafe}};
+
+
 -- Then we match for OpenShift volume data where the volume label key and value
 -- and azure tag key and value match directly
 INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
@@ -963,6 +977,13 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
         ON tm.azure_id = spod.azure_id
 )
 ;
+
+-- no need to wait for commit
+TRUNCATE TABLE reporting_azure_tags_{{uuid | sqlsafe}};
+DROP TABLE reporting_azure_tags_{{uuid | sqlsafe}};
+
+TRUNCATE TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}};
 
 
 -- The full summary data for Openshift pod<->azure and
@@ -1271,6 +1292,14 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
 )
 ;
 
+-- no need to wait for commit
+TRUNCATE TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}};
+
+TRUNCATE TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}};
+
+
 -- Clear out old entries first
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary
 WHERE usage_start >= {{start_date}}
@@ -1342,6 +1371,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary (
         source_uuid
     FROM reporting_ocpazurecostlineitem_daily_summary_{{uuid | sqlsafe}}
 ;
+
+-- no need to wait for commit
+TRUNCATE TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sqlsafe}};
+
 
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary
 WHERE usage_start >= {{start_date}}
@@ -1416,3 +1450,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_su
 ;
 
 DROP INDEX IF EXISTS azure_tags_gin_idx;
+
+-- no need to wait for commit
+TRUNCATE TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uuid | sqlsafe}};

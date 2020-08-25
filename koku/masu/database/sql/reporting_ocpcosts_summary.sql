@@ -78,3 +78,7 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
         AND ods.node = ic.node
         AND ic.pod_labels @> ods.volume_labels
 ;
+
+-- no need to wait for commit
+TRUNCATE TABLE reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}};

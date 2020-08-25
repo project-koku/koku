@@ -120,3 +120,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily (
         public_on_demand_rate
     FROM reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}}
 ;
+
+TRUNCATE TABLE reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}};
+DROP TABLE reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}};

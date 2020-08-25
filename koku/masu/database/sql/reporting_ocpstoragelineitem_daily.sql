@@ -59,6 +59,11 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_{{uuid | sqlsafe}} AS 
 )
 ;
 
+-- no need to wait on commit
+TRUNCATE TABLE volume_nodes_{{uuid | sqlsafe}};
+DROP TABLE volume_nodes_{{uuid | sqlsafe}};
+
+
 -- Clear out old entries first
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily
 WHERE usage_start >= {{start_date}}
@@ -107,3 +112,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily (
         total_seconds
     FROM reporting_ocpstoragelineitem_daily_{{uuid | sqlsafe}}
 ;
+
+-- no need to wait for commit
+TRUNCATE TABLE reporting_ocpstoragelineitem_daily_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocpstoragelineitem_daily_{{uuid | sqlsafe}};
