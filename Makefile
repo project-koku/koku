@@ -509,6 +509,9 @@ docker-down-db:
 docker-logs:
 	docker-compose logs -f koku-server koku-worker masu-server
 
+docker-presto-logs:
+	docker-compose -f ./testing/compose_files/docker-compose-presto.yml logs -f
+
 docker-rabbit:
 	docker-compose up -d rabbit
 
