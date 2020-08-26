@@ -241,7 +241,9 @@ def provider_post_delete_callback(*args, **kwargs):
         delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
         transaction.on_commit(delete_func)
     try:
-        refresh_materialized_views.s(provider.customer.schema_name, provider.type).apply()
+        refresh_materialized_views.s(
+            provider.customer.schema_name, provider.type, provider_uuid=provider.uuid, synchronous=True
+        ).apply()
     except TaskRunningError:
         # Because this is a sychronous call to refresh, we don't want to wait on retry
         pass
