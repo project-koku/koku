@@ -30,7 +30,7 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
 
     provider = Provider.OCP_AWS
     data_sources = [{"db_table": OCPAWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
-    TAGS_VALUES_SOURCE = [{"db_table": OCPAWSTagsValues, "field": "ocpawstagssummary__key"}]
+    TAGS_VALUES_SOURCE = [{"db_table": OCPAWSTagsValues, "fields": ["ocpawstagssummary__key"]}]
     SUPPORTED_FILTERS = AWSTagQueryHandler.SUPPORTED_FILTERS + OCPTagQueryHandler.SUPPORTED_FILTERS
     FILTER_MAP = deepcopy(AWSTagQueryHandler.FILTER_MAP)
     FILTER_MAP.update(OCPTagQueryHandler.FILTER_MAP)

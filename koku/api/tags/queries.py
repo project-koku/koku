@@ -340,11 +340,12 @@ class TagQueryHandler(QueryHandler):
             tag_keys = {}
             for source in self.TAGS_VALUES_SOURCE:
                 vals_filter = QueryFilterCollection()
-                vals_filter.add(
-                    QueryFilter(
-                        field=source.get("field"), operation="exact", parameter=self.key, composition_key="filter_key"
+                for key_field in source.get("fields"):
+                    vals_filter.add(
+                        QueryFilter(
+                            field=key_field, operation="exact", parameter=self.key, composition_key="filter_key"
+                        )
                     )
-                )
                 tag_values_query = source.get("db_table").objects
                 filt = self.query_filter & vals_filter.compose()
                 tag_keys = list(tag_values_query.filter(filt))

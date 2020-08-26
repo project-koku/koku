@@ -29,7 +29,7 @@ class AWSTagQueryHandler(TagQueryHandler):
 
     provider = Provider.PROVIDER_AWS
     data_sources = [{"db_table": AWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
-    TAGS_VALUES_SOURCE = [{"db_table": AWSTagsValues, "field": "awstagssummary__key"}]
+    TAGS_VALUES_SOURCE = [{"db_table": AWSTagsValues, "fields": ["awstagssummary__key"]}]
     SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["account"]
     FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
     FILTER_MAP.update(

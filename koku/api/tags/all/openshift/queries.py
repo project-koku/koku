@@ -41,8 +41,8 @@ class OCPAllTagQueryHandler(TagQueryHandler):
         },
     ]
     TAGS_VALUES_SOURCE = [
-        {"db_table": OCPAzureTagsValues, "field": "ocpazuretagssummary__key"},
-        {"db_table": OCPAWSTagsValues, "field": "ocpawstagssummary__key"},
+        {"db_table": OCPAzureTagsValues, "fields": ["ocpazuretagssummary__key"]},
+        {"db_table": OCPAWSTagsValues, "fields": ["ocpawstagssummary__key"]},
     ]
     SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["account", "cluster"]
     FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)

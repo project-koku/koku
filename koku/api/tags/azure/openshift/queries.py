@@ -30,7 +30,7 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
 
     provider = Provider.OCP_AZURE
     data_sources = [{"db_table": OCPAzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
-    TAGS_VALUES_SOURCE = [{"db_table": OCPAzureTagsValues, "field": "ocpazuretagssummary__key"}]
+    TAGS_VALUES_SOURCE = [{"db_table": OCPAzureTagsValues, "fields": ["ocpazuretagssummary__key"]}]
     SUPPORTED_FILTERS = AzureTagQueryHandler.SUPPORTED_FILTERS + OCPTagQueryHandler.SUPPORTED_FILTERS
     FILTER_MAP = deepcopy(AzureTagQueryHandler.FILTER_MAP)
     FILTER_MAP.update(OCPTagQueryHandler.FILTER_MAP)

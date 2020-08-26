@@ -49,8 +49,7 @@ class OCPTagQueryHandler(TagQueryHandler):
         },
     ]
     TAGS_VALUES_SOURCE = [
-        {"db_table": OCPTagsValues, "field": "ocpusagepodlabelsummary__key"},
-        {"db_table": OCPTagsValues, "field": "ocpstoragevolumelabelsummary__key"},
+        {"db_table": OCPTagsValues, "fields": ["ocpusagepodlabelsummary__key", "ocpstoragevolumelabelsummary__key"]}
     ]
     SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["project", "enabled", "cluster"]
     FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
