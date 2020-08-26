@@ -18,16 +18,16 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: environment:dev|app:catalog|version:prod
+                  labels: label_environment:dev|label_app:catalog|label_version:prod
               volumes:
                 - volume_name: pvc-volume_1
                   storage_class: gp2
                   volume_request_gig: 20
-                  labels: environment:dev|app:catalog|version:prod|storageclass:bravo
+                  labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:bravo
                   volume_claims:
                   - volume_claim_name: pod_name1_data
                     pod_name: pod_name1
-                    labels: environment:dev|app:catalog|version:prod|storageclass:bravo
+                    labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:bravo
                     capacity_gig: 20
             - namespace_name: catalog
               pods:
@@ -37,22 +37,22 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: environment:dev|app:catalog|version:prod
+                  labels: label_environment:dev|label_app:catalog|label_version:prod
               volumes:
                 - volume_name: pvc-volume_2
                   storage_class: gp2
                   volume_request_gig: 20
-                  labels: environment:dev|app:catalog|version:prod|storageclass:delta
+                  labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:delta
                   volume_claims:
                   - volume_claim_name: pod_name2_data
                     pod_name: pod_name2
-                    labels: environment:dev|app:catalog|version:prod|storageclass:delta
+                    labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:delta
                     capacity_gig: 20
         - node_name: aws_compute_2
           cpu_cores: 2
           memory_gig: 8
           resource_id: i-55555556
-          labels: environment:qe
+          labels: label_environment:qe
           namespaces:
             - namespace_name: cost-management
               pods:
@@ -62,22 +62,22 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: environment:qe|app:cost|version:beta
+                  labels: label_environment:qe|label_app:cost|label_version:beta
               volumes:
                 - volume_name: pvc-volume_3
                   storage_class: gp2
                   volume_request_gig: 20
-                  labels: environment:qe|app:cost|version:beta|storageclass:epsilon
+                  labels: label_environment:qe|label_app:cost|label_version:beta|label_storageclass:epsilon
                   volume_claims:
                   - volume_claim_name: pod_name3_data
                     pod_name: pod_name3
-                    labels: environment:qe|app:cost|version:beta|storageclass:epsilon
+                    labels: label_environment:qe|label_app:cost|label_version:beta|label_storageclass:epsilon
                     capacity_gig: 20
         - node_name: aws_compute_3
           cpu_cores: 2
           memory_gig: 8
           resource_id: i-55555557
-          labels: environment:prod
+          labels: label_environment:prod
           namespaces:
             - namespace_name: analytics
               pods:
@@ -87,22 +87,22 @@ generators:
                   cpu_limit: 2
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: environment:prod|app:analytics|version:gamma
+                  labels: label_environment:prod|label_app:analytics|label_version:gamma
               volumes:
                 - volume_name: pvc-volume_4
                   storage_class: gp2
                   volume_request_gig: 20
-                  labels: environment:prod|app:analytics|version:gamma|storageclass:charlie
+                  labels: label_environment:prod|label_app:analytics|label_version:gamma|label_storageclass:charlie
                   volume_claims:
                   - volume_claim_name: pod_name4_data
                     pod_name: pod_name4
-                    labels: environment:prod|app:analytics|version:gamma|storageclass:charlie
+                    labels: label_environment:prod|label_app:analytics|label_version:gamma|label_storageclass:charlie
                     capacity_gig: 20
         - node_name: aws_master
           cpu_cores: 2
           memory_gig: 8
           resource_id: i-55555558
-          labels: environment:prod
+          labels: label_environment:prod
           namespaces:
             - namespace_name: kube-system
               pods:
@@ -112,7 +112,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: environment:prod|app:master|version:master
+                  labels: label_environment:prod|label_app:master|label_version:master
             - namespace_name: openshift
               pods:
                 - pod_name: pod_name6
@@ -121,4 +121,4 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: environment:dev|app:master|version:master
+                  labels: label_environment:dev|label_app:master|label_version:master
