@@ -134,7 +134,6 @@ class OrgQueryHandler(QueryHandler):
             access = self.parameters.get_access(filter_key)
             filt = self.FILTER_MAP.get(filter_key, [])
             if access and filt:
-                filt = self.FILTER_MAP.get(filter_key)
                 filt["operation"] = "in"
                 q_filter = QueryFilter(parameter=access, **filt)
                 filters.add(q_filter)
