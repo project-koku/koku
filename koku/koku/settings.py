@@ -445,4 +445,4 @@ try:
 except JSONDecodeError:
     pass
 
-OPENSHIFT_DOC_VERSION = "4.5"
+OPENSHIFT_DOC_VERSION = ENVIRONMENT.get_value("OPENSHIFT_DOC_VERSION", default="4.5")
