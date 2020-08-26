@@ -390,8 +390,3 @@ services:
     image: prom/pushgateway
     ports:
       - 9091:9091
-
-networks:
- default:
-   external:
-     name: koku_default
