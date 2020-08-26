@@ -716,11 +716,13 @@ def convert_to_parquet(
     for csv_filename in files:
         kwargs = {}
         parquet_path = s3_parquet_path
+        parquet_report_type = None
         if provider_type == Provider.PROVIDER_OCP:
             for report_type in REPORT_TYPES.keys():
                 if report_type in csv_filename:
                     parquet_path = f"{s3_parquet_path}/{report_type}"
                     kwargs["report_type"] = report_type
+                    parquet_report_type = report_type
                     break
         converters = get_column_converters(provider_type, **kwargs)
         result = convert_csv_to_parquet(
@@ -733,6 +735,7 @@ def convert_to_parquet(
             converters,
             post_processor,
             context,
+            parquet_report_type,
         )
         if not result:
             failed_conversion.append(csv_filename)

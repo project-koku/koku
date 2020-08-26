@@ -35,7 +35,8 @@ from masu.config import Config
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
 from masu.util.ocp.common import process_openshift_datetime
-from masu.util.ocp.common import process_openshift_labels
+
+# from masu.util.ocp.common import process_openshift_labels
 
 LOG = logging.getLogger(__name__)
 
@@ -194,7 +195,7 @@ def get_column_converters(provider_type, **kwargs):
             "report_period_end": process_openshift_datetime,
             "interval_start": process_openshift_datetime,
             "interval_end": process_openshift_datetime,
-            "node_labels": process_openshift_labels,
+            # "node_labels": process_openshift_labels,
             "pod_usage_cpu_core_seconds": safe_float,
             "pod_request_cpu_core_seconds": safe_float,
             "pod_limit_cpu_core_seconds": safe_float,
@@ -205,13 +206,13 @@ def get_column_converters(provider_type, **kwargs):
             "node_capacity_cpu_core_seconds": safe_float,
             "node_capacity_memory_bytes": safe_float,
             "node_capacity_memory_byte_seconds": safe_float,
-            "pod_labels": process_openshift_labels,
+            # "pod_labels": process_openshift_labels,
             "persistentvolumeclaim_capacity_bytes": safe_float,
             "persistentvolumeclaim_capacity_byte_seconds": safe_float,
             "volume_request_storage_byte_seconds": safe_float,
             "persistentvolumeclaim_usage_byte_seconds": safe_float,
-            "persistentvolume_labels": process_openshift_labels,
-            "persistentvolumeclaim_labels": process_openshift_labels,
+            # "persistentvolume_labels": process_openshift_labels,
+            # "persistentvolumeclaim_labels": process_openshift_labels,
         }
     return converters
 
