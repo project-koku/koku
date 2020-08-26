@@ -45,28 +45,27 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {"reportKeys": []}
 
-    def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
+    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
             customer_name    (String) Name of the customer
-            auth_credential  (String) Authentication credential for S3 bucket (RoleARN)
+            credentials      (Dict) credentials credential for S3 bucket (RoleARN)
             report_name      (String) Name of the Cost Usage Report to download (optional)
-            bucket           (String) Name of the S3 bucket containing the CUR
+            data_source      (Dict) Name of the S3 bucket containing the CUR
 
         """
         super().__init__(**kwargs)
+
+        bucket = data_source.get("bucket")
 
         self.customer_name = customer_name.replace(" ", "_")
 
         LOG.debug("Connecting to local service provider...")
         prefix, name = self._extract_names(bucket)
 
-        if report_name:
-            self.report_name = report_name
-        else:
-            self.report_name = name
+        self.report_name = report_name if report_name else name
         self.report_prefix = prefix
 
         msg = f"Found report name: {self.report_name}, report prefix: {self.report_prefix}"
@@ -77,7 +76,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.base_path = bucket
         self.bucket_path = bucket
         self.bucket = bucket.replace("/", "_")
-        self.credential = auth_credential
+        self.credential = credentials
 
     @property
     def manifest_date_format(self):
@@ -126,7 +125,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest = "{}/{}-Manifest.json".format(self._get_report_path(date_time), self.report_name)
 
         try:
-            manifest_file, _ = self.download_file(manifest)
+            manifest_file, _, manifest_modified_timestamp = self.download_file(manifest)
         except AWSReportDownloaderNoFileError as err:
             msg = f"Unable to get report manifest. Reason: {str(err)}"
             LOG.info(log_json(self.request_id, msg, self.context))
@@ -136,7 +135,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         with open(manifest_file, "r") as manifest_file_handle:
             manifest_json = json.load(manifest_file_handle)
 
-        return manifest_file, manifest_json
+        return manifest_file, manifest_json, manifest_modified_timestamp
 
     def get_manifest_context_for_date(self, date):
         """
@@ -155,14 +154,17 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest_dict = {}
         report_dict = {}
-        manifest_file, manifest = self._get_manifest(date)
+        manifest_file, manifest, manifest_timestamp = self._get_manifest(date)
         if manifest != self.empty_manifest:
             manifest_dict = self._prepare_db_manifest_record(manifest)
         self._remove_manifest_file(manifest_file)
 
         if manifest_dict:
             manifest_id = self._process_manifest_db_record(
-                manifest_dict.get("assembly_id"), manifest_dict.get("billing_start"), manifest_dict.get("num_of_files")
+                manifest_dict.get("assembly_id"),
+                manifest_dict.get("billing_start"),
+                manifest_dict.get("num_of_files"),
+                manifest_timestamp,
             )
 
             report_dict["manifest_id"] = manifest_id
@@ -232,10 +234,12 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         s3_etag_hasher.update(bytes(local_s3_filename, "utf-8"))
         s3_etag = s3_etag_hasher.hexdigest()
 
+        file_creation_date = None
         if s3_etag != stored_etag or not os.path.isfile(full_file_path):
             msg = f"Downloading {key} to {full_file_path}"
             LOG.info(log_json(self.request_id, msg, self.context))
             shutil.copy2(key, full_file_path)
+            file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
             # Push to S3
 
             s3_csv_path = get_path_prefix(self.account, self._provider_uuid, start_date, Config.CSV_DATA_TYPE)
@@ -243,7 +247,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 self.request_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context
             )
             utils.remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
-        return full_file_path, s3_etag
+        return full_file_path, s3_etag, file_creation_date
 
     def get_local_file_for_report(self, report):
         """Get full path for local report file."""

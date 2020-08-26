@@ -34,8 +34,8 @@ class ProviderBillingSourceDBAccessorTest(MasuTestCase):
         accessor = ProviderBillingSourceDBAccessor(billing_source_id)
         self.assertEqual(str(self.aws_billing_source.uuid), accessor.get_uuid())
 
-    def test_get_provider_resource_name(self):
+    def test_get_data_source(self):
         """Test provider name getter."""
         billing_source_id = self.aws_billing_source.id
         accessor = ProviderBillingSourceDBAccessor(billing_source_id)
-        self.assertEqual(self.aws_billing_source.bucket, accessor.get_bucket())
+        self.assertEqual(self.aws_billing_source.data_source, accessor.get_data_source())

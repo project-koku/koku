@@ -2,92 +2,210 @@
 -- optionally filter AWS and OCP data by provider/source
 -- Ex aws_where_clause: 'AND cost_entry_bill_id IN (1, 2, 3)'
 -- Ex ocp_where_clause: "AND cluster_id = 'abcd-1234`"
+CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
+    WITH cte_unnested_aws_tags AS (
+        SELECT tags.*,
+            b.billing_period_start
+        FROM (
+            SELECT key,
+                value,
+                cost_entry_bill_id
+            FROM {{schema | sqlsafe}}.reporting_awstags_summary AS ts,
+                unnest(ts.values) AS values(value)
+        ) AS tags
+        JOIN {{schema | sqlsafe}}.reporting_awscostentrybill AS b
+            ON tags.cost_entry_bill_id = b.id
+        {% if bill_ids %}
+        WHERE b.id IN (
+            {%- for bill_id in bill_ids -%}
+            {{bill_id}}{% if not loop.last %},{% endif %}
+            {%- endfor -%}
+        )
+        {% endif %}
+    ),
+    cte_unnested_ocp_pod_tags AS (
+        SELECT tags.*,
+            rp.report_period_start,
+            rp.cluster_id,
+            rp.cluster_alias
+        FROM (
+            SELECT key,
+                value,
+                report_period_id
+            FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS ts,
+                unnest(ts.values) AS values(value)
+        ) AS tags
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
+            ON tags.report_period_id = rp.id
+        -- Filter out tags that aren't enabled
+        JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
+            ON lower(enabled_tags.key) = lower(tags.key)
+        {% if cluster_id %}
+        WHERE rp.cluster_id = {{cluster_id}}
+        {% endif %}
+    ),
+    cte_unnested_ocp_volume_tags AS (
+        SELECT tags.*,
+            rp.report_period_start,
+            rp.cluster_id,
+            rp.cluster_alias
+        FROM (
+            SELECT key,
+                value,
+                report_period_id
+            FROM {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary AS ts,
+                unnest(ts.values) AS values(value)
+        ) AS tags
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
+            ON tags.report_period_id = rp.id
+        -- Filter out tags that aren't enabled
+        JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
+            ON lower(enabled_tags.key) = lower(tags.key)
+        {% if cluster_id %}
+        WHERE rp.cluster_id = {{cluster_id}}
+        {% endif %}
+    )
+    SELECT jsonb_build_object(key, value) as tag,
+        cost_entry_bill_id,
+        report_period_id
+    FROM (
+        SELECT aws.key,
+            aws.value,
+            aws.cost_entry_bill_id,
+            ocp.report_period_id
+        FROM cte_unnested_aws_tags AS aws
+        JOIN cte_unnested_ocp_pod_tags AS ocp
+            ON lower(aws.key) = lower(ocp.key)
+                AND lower(aws.value) = lower(ocp.value)
+                AND aws.billing_period_start = ocp.report_period_start
+
+        UNION
+
+        SELECT aws.key,
+            aws.value,
+            aws.cost_entry_bill_id,
+            ocp.report_period_id
+        FROM cte_unnested_aws_tags AS aws
+        JOIN cte_unnested_ocp_volume_tags AS ocp
+            ON lower(aws.key) = lower(ocp.key)
+                AND lower(aws.value) = lower(ocp.value)
+                AND aws.billing_period_start = ocp.report_period_start
+    ) AS matches
+)
+;
 
 -- We use a LATERAL JOIN here to get the JSON tags split out into key, value
 -- columns. We reference this split multiple times so we put it in a
 -- TEMPORARY TABLE for re-use
 CREATE TEMPORARY TABLE reporting_aws_tags_{{uuid | sqlsafe}} AS (
-    SELECT aws.*,
-        LOWER(key) as key,
-        LOWER(value) as value
-        FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws,
-            jsonb_each_text(aws.tags) labels
-        WHERE aws.usage_start >= {{start_date}}::date
-            AND aws.usage_start <= {{end_date}}::date
+    SELECT aws.*
+    FROM (
+        SELECT aws.*,
+            lower(aws.tags::text)::jsonb as lower_tags,
+            row_number() OVER (PARTITION BY aws.id ORDER BY aws.id) as row_number
+            FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws
+            JOIN matched_tags_{{uuid | sqlsafe}} as tag
+                ON aws.cost_entry_bill_id = tag.cost_entry_bill_id
+                    AND aws.tags @> tag.tag
+            WHERE aws.usage_start >= {{start_date}}::date
+                AND aws.usage_start <= {{end_date}}::date
+                --aws_where_clause
+                {% if bill_ids %}
+                AND aws.cost_entry_bill_id IN (
+                    {%- for bill_id in bill_ids -%}
+                    {{bill_id}}{% if not loop.last %},{% endif %}
+                    {%- endfor -%}
+                )
+                {% endif %}
+    ) AS aws
+    WHERE aws.row_number = 1
+)
+;
+
+DROP INDEX IF EXISTS aws_tags_gin_idx
+;
+CREATE INDEX aws_tags_gin_idx ON reporting_aws_tags_{{uuid | sqlsafe}} USING GIN (lower_tags)
+;
+
+CREATE TEMPORARY TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}} AS (
+    WITH cte_tag_options AS (
+        SELECT jsonb_build_object(key, value) as tag,
+            lower(key) as key,
+            lower(value) as value,
+            cost_entry_bill_id
+        FROM (
+            SELECT key,
+                value,
+                ts.cost_entry_bill_id
+            FROM {{schema | sqlsafe}}.reporting_awstags_summary AS ts,
+                unnest(values) AS values(value)
             --aws_where_clause
             {% if bill_ids %}
-            AND cost_entry_bill_id IN (
+            WHERE ts.cost_entry_bill_id IN (
                 {%- for bill_id in bill_ids -%}
                 {{bill_id}}{% if not loop.last %},{% endif %}
                 {%- endfor -%}
             )
             {% endif %}
+        ) AS keyval
+        WHERE lower(key) IN ('openshift_cluster', 'openshift_node', 'openshift_project')
+    )
+    SELECT aws.*,
+        lower(tag.key) as key,
+        lower(tag.value) as value
+    FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws
+    JOIN cte_tag_options as tag
+            ON aws.cost_entry_bill_id = tag.cost_entry_bill_id
+                AND aws.tags @> tag.tag
+    WHERE aws.usage_start >= {{start_date}}::date
+        AND aws.usage_start <= {{end_date}}::date
+        --aws_where_clause
+        {% if bill_ids %}
+        AND aws.cost_entry_bill_id IN (
+            {%- for bill_id in bill_ids -%}
+            {{bill_id}}{% if not loop.last %},{% endif %}
+            {%- endfor -%}
+        )
+        {% endif %}
 )
 ;
 
--- We use a LATERAL JOIN here to get the JSON tags split out into key, value
--- columns. We reference this split multiple times so we put it in a
--- TEMPORARY TABLE for re-use
 CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
-    SELECT ocp.*
-    FROM (
-        SELECT ocp.*,
-            LOWER(key) as key,
-            LOWER(value) as value
-        FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
-            jsonb_each_text(ocp.persistentvolume_labels) labels
-        WHERE ocp.usage_start >= {{start_date}}::date
-            AND ocp.usage_start <= {{end_date}}::date
-            --ocp_where_clause
-            {% if cluster_id %}
-            AND cluster_id = {{cluster_id}}
-            {% endif %}
-
-        UNION ALL
-
-        SELECT ocp.*,
-            LOWER(key) as key,
-            LOWER(value) as value
-        FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
-            jsonb_each_text(ocp.persistentvolumeclaim_labels) labels
-        WHERE ocp.usage_start >= {{start_date}}::date
-            AND ocp.usage_start <= {{end_date}}::date
-            --ocp_where_clause
-            {% if cluster_id %}
-            AND cluster_id = {{cluster_id}}
-            {% endif %}
-    ) AS ocp
-    INNER JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
-        ON LOWER(enabled_tags.key) = ocp.key
+    SELECT ocp.*,
+        lower(tag.tag::text)::jsonb as tag
+    FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
+    JOIN matched_tags_{{uuid | sqlsafe}} AS tag
+        ON ocp.report_period_id = tag.report_period_id
+            AND ocp.persistentvolumeclaim_labels @> tag.tag
+    WHERE ocp.usage_start >= {{start_date}}::date
+        AND ocp.usage_start <= {{end_date}}::date
+        --ocp_where_clause
+        {% if cluster_id %}
+        AND cluster_id = {{cluster_id}}
+        {% endif %}
 )
 ;
 
--- We use a LATERAL JOIN here to get the JSON tags split out into key, value
--- columns. We reference this split multiple times so we put it in a
--- TEMPORARY TABLE for re-use
 CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
-    SELECT ocp.*
-    FROM (
-        SELECT ocp.*,
-            LOWER(key) as key,
-            LOWER(value) as value
-        FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp,
-            jsonb_each_text(ocp.pod_labels) labels
-        WHERE ocp.usage_start >= {{start_date}}::date
-            AND ocp.usage_start <= {{end_date}}::date
-            --ocp_where_clause
-            {% if cluster_id %}
-            AND cluster_id = {{cluster_id}}
-            {% endif %}
-    ) AS ocp
-    INNER JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
-        ON LOWER(enabled_tags.key) = ocp.key
+    SELECT ocp.*,
+        lower(tag.tag::text)::jsonb as tag
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
+    JOIN matched_tags_{{uuid | sqlsafe}} AS tag
+        ON ocp.report_period_id = tag.report_period_id
+            AND ocp.pod_labels @> tag.tag
+    WHERE ocp.usage_start >= {{start_date}}::date
+        AND ocp.usage_start <= {{end_date}}::date
+        --ocp_where_clause
+        {% if cluster_id %}
+        AND cluster_id = {{cluster_id}}
+        {% endif %}
 )
 ;
+
 
 -- First we match OCP pod data to AWS data using a direct
 -- resource id match. This usually means OCP node -> AWS EC2 instance ID.
-CREATE TEMPORARY TABLE reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}} AS (
+CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS (
     WITH cte_resource_id_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
@@ -153,118 +271,26 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}} 
             AND cluster_id = {{cluster_id}}
             {% endif %}
     ),
-    cte_number_of_shared_projects AS (
+    cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects
-        FROM cte_resource_id_matched
-        GROUP BY aws_id
-    ),
-    cte_number_of_shared_pods AS (
-        SELECT aws_id,
+            count(DISTINCT namespace) as shared_projects,
             count(DISTINCT pod) as shared_pods
         FROM cte_resource_id_matched
         GROUP BY aws_id
     )
     SELECT rm.*,
         (rm.pod_usage_cpu_core_seconds / rm.node_capacity_cpu_core_seconds) * rm.unblended_cost as pod_cost,
-        sp.shared_projects,
-        spod.shared_pods
+        shared.shared_projects,
+        shared.shared_pods
     FROM cte_resource_id_matched AS rm
-    JOIN cte_number_of_shared_projects AS sp
-        ON rm.aws_id = sp.aws_id
-    JOIN cte_number_of_shared_pods AS spod
-        ON rm.aws_id = spod.aws_id
-
-)
-;
-
--- Next we match where the pod label key and value
--- and AWS tag key and value match directly
-CREATE TEMPORARY TABLE reporting_ocp_aws_direct_tag_matched_{{uuid | sqlsafe}} AS (
-    WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
-            ocp.report_period_id,
-            ocp.cluster_id,
-            ocp.cluster_alias,
-            ocp.namespace,
-            ocp.pod,
-            ocp.node,
-            ocp.pod_labels,
-            ocp.pod_usage_cpu_core_seconds,
-            ocp.pod_request_cpu_core_seconds,
-            ocp.pod_limit_cpu_core_seconds,
-            ocp.pod_usage_memory_byte_seconds,
-            ocp.pod_request_memory_byte_seconds,
-            ocp.node_capacity_cpu_cores,
-            ocp.node_capacity_cpu_core_seconds,
-            ocp.node_capacity_memory_bytes,
-            ocp.node_capacity_memory_byte_seconds,
-            ocp.cluster_capacity_cpu_core_seconds,
-            ocp.cluster_capacity_memory_byte_seconds,
-            aws.id AS aws_id,
-            aws.cost_entry_bill_id,
-            aws.cost_entry_product_id,
-            aws.cost_entry_pricing_id,
-            aws.cost_entry_reservation_id,
-            aws.line_item_type,
-            aws.usage_account_id,
-            aws.usage_start,
-            aws.usage_end,
-            aws.product_code,
-            aws.usage_type,
-            aws.operation,
-            aws.availability_zone,
-            aws.resource_id,
-            aws.usage_amount,
-            aws.normalization_factor,
-            aws.normalized_usage_amount,
-            aws.currency_code,
-            aws.unblended_rate,
-            aws.unblended_cost,
-            aws.blended_rate,
-            aws.blended_cost,
-            aws.public_on_demand_cost,
-            aws.public_on_demand_rate,
-            aws.tax_type,
-            aws.tags
-        FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
-        JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
-            ON aws.key = ocp.key
-                AND aws.value = ocp.value
-                AND aws.usage_start = ocp.usage_start
-        LEFT JOIN reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}} AS rm
-            ON rm.aws_id = aws.id
-        WHERE aws.usage_start >= {{start_date}}::date
-            AND aws.usage_start <= {{end_date}}::date
-            AND rm.aws_id IS NULL
-    ),
-    cte_number_of_shared_projects AS (
-        SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects
-        FROM cte_tag_matched
-        GROUP BY aws_id
-    ),
-    cte_number_of_shared_pods AS (
-        SELECT aws_id,
-            count(DISTINCT pod) as shared_pods
-        FROM cte_tag_matched
-        GROUP BY aws_id
-    )
-    SELECT tm.*,
-        tm.unblended_cost / spod.shared_pods as pod_cost,
-        sp.shared_projects,
-        spod.shared_pods
-    FROM cte_tag_matched AS tm
-    JOIN cte_number_of_shared_projects AS sp
-        ON tm.aws_id = sp.aws_id
-    JOIN cte_number_of_shared_pods AS spod
-        ON tm.aws_id = spod.aws_id
+    JOIN cte_number_of_shared AS shared
+        ON rm.aws_id = shared.aws_id
 )
 ;
 
 -- Next we match where the AWS tag is the special openshift_project key
 -- and the value matches an OpenShift project name
-CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_project_tag_matched_{{uuid | sqlsafe}} AS (
+INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
@@ -311,47 +337,37 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_project_tag_matched_{{uuid | 
             aws.public_on_demand_rate,
             aws.tax_type,
             aws.tags
-        FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
-        JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
-            ON aws.key = 'openshift_project' AND aws.value = ocp.namespace
+        FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
+            ON aws.key = 'openshift_project' AND aws.value = lower(ocp.namespace)
                 AND aws.usage_start = ocp.usage_start
-        LEFT JOIN reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}} AS rm
+        -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.id
-        LEFT JOIN reporting_ocp_aws_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
-            ON dtm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
             AND rm.aws_id IS NULL
-            AND dtm.aws_id IS NULL
-
     ),
-    cte_number_of_shared_projects AS (
+    cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects
-        FROM cte_tag_matched
-        GROUP BY aws_id
-    ),
-    cte_number_of_shared_pods AS (
-        SELECT aws_id,
+            count(DISTINCT namespace) as shared_projects,
             count(DISTINCT pod) as shared_pods
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / spod.shared_pods as pod_cost,
-        sp.shared_projects,
-        spod.shared_pods
+        tm.unblended_cost / shared.shared_pods as pod_cost,
+        shared.shared_projects,
+        shared.shared_pods
     FROM cte_tag_matched AS tm
-    JOIN cte_number_of_shared_projects AS sp
-        ON tm.aws_id = sp.aws_id
-    JOIN cte_number_of_shared_pods AS spod
-        ON tm.aws_id = spod.aws_id
+    JOIN cte_number_of_shared AS shared
+        ON tm.aws_id = shared.aws_id
 )
 ;
 
 -- Next we match where the AWS tag is the special openshift_node key
 -- and the value matches an OpenShift node name
-CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_node_tag_matched_{{uuid | sqlsafe}} AS (
+INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
@@ -398,50 +414,115 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_node_tag_matched_{{uuid | sql
             aws.public_on_demand_rate,
             aws.tax_type,
             aws.tags
-        FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
-        JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
-            ON aws.key = 'openshift_node' AND aws.value = ocp.node
+        FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
+            ON aws.key = 'openshift_node' AND aws.value = lower(ocp.node)
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}} AS rm
+        LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.id
-        LEFT JOIN reporting_ocp_aws_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
-            ON dtm.aws_id = aws.id
-        LEFT JOIN reporting_ocp_aws_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
-            ON ptm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
             AND rm.aws_id IS NULL
-            AND dtm.aws_id IS NULL
-            AND ptm.aws_id IS NULL
     ),
-    cte_number_of_shared_projects AS (
+    cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects
-        FROM cte_tag_matched
-        GROUP BY aws_id
-    ),
-    cte_number_of_shared_pods AS (
-        SELECT aws_id,
+            count(DISTINCT namespace) as shared_projects,
             count(DISTINCT pod) as shared_pods
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / spod.shared_pods as pod_cost,
-        sp.shared_projects,
-        spod.shared_pods
+        tm.unblended_cost / shared.shared_pods as pod_cost,
+        shared.shared_projects,
+        shared.shared_pods
     FROM cte_tag_matched AS tm
-    JOIN cte_number_of_shared_projects AS sp
-        ON tm.aws_id = sp.aws_id
-    JOIN cte_number_of_shared_pods AS spod
-        ON tm.aws_id = spod.aws_id
+    JOIN cte_number_of_shared AS shared
+        ON tm.aws_id = shared.aws_id
 )
 ;
 
 -- Next we match where the AWS tag is the special openshift_cluster key
 -- and the value matches an OpenShift cluster name
-CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_cluster_tag_matched_{{uuid | sqlsafe}} AS (
+ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
+    WITH cte_tag_matched AS (
+        SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
+            ocp.cluster_id,
+            ocp.cluster_alias,
+            ocp.namespace,
+            ocp.pod,
+            ocp.node,
+            ocp.pod_labels,
+            ocp.pod_usage_cpu_core_seconds,
+            ocp.pod_request_cpu_core_seconds,
+            ocp.pod_limit_cpu_core_seconds,
+            ocp.pod_usage_memory_byte_seconds,
+            ocp.pod_request_memory_byte_seconds,
+            ocp.node_capacity_cpu_cores,
+            ocp.node_capacity_cpu_core_seconds,
+            ocp.node_capacity_memory_bytes,
+            ocp.node_capacity_memory_byte_seconds,
+            ocp.cluster_capacity_cpu_core_seconds,
+            ocp.cluster_capacity_memory_byte_seconds,
+            aws.id AS aws_id,
+            aws.cost_entry_bill_id,
+            aws.cost_entry_product_id,
+            aws.cost_entry_pricing_id,
+            aws.cost_entry_reservation_id,
+            aws.line_item_type,
+            aws.usage_account_id,
+            aws.usage_start,
+            aws.usage_end,
+            aws.product_code,
+            aws.usage_type,
+            aws.operation,
+            aws.availability_zone,
+            aws.resource_id,
+            aws.usage_amount,
+            aws.normalization_factor,
+            aws.normalized_usage_amount,
+            aws.currency_code,
+            aws.unblended_rate,
+            aws.unblended_cost,
+            aws.blended_rate,
+            aws.blended_cost,
+            aws.public_on_demand_cost,
+            aws.public_on_demand_rate,
+            aws.tax_type,
+            aws.tags
+        FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
+            ON (aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_id)
+                OR aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_alias))
+                AND aws.usage_start = ocp.usage_start
+        -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
+            ON rm.aws_id = aws.id
+        WHERE aws.usage_start >= {{start_date}}::date
+            AND aws.usage_start <= {{end_date}}::date
+            AND rm.aws_id IS NULL
+    ),
+    cte_number_of_shared AS (
+        SELECT aws_id,
+            count(DISTINCT namespace) as shared_projects,
+            count(DISTINCT pod) as shared_pods
+        FROM cte_tag_matched
+        GROUP BY aws_id
+    )
+    SELECT tm.*,
+        tm.unblended_cost / shared.shared_pods as pod_cost,
+        shared.shared_projects,
+        shared.shared_pods
+    FROM cte_tag_matched AS tm
+    JOIN cte_number_of_shared AS shared
+        ON tm.aws_id = shared.aws_id
+)
+;
+
+-- Next we match where the pod label key and value
+-- and AWS tag key and value match directly
+ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
@@ -490,79 +571,256 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_cluster_tag_matched_{{uuid | 
             aws.tags
         FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
-            ON (aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_id
-                OR aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_alias)
+            ON aws.lower_tags @> ocp.tag
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}} AS rm
+        LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.id
-        LEFT JOIN reporting_ocp_aws_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
-            ON dtm.aws_id = aws.id
-        LEFT JOIN reporting_ocp_aws_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
-            ON ptm.aws_id = aws.id
-        LEFT JOIN reporting_ocp_aws_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
-            ON ntm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
             AND rm.aws_id IS NULL
-            AND dtm.aws_id IS NULL
-            AND ptm.aws_id IS NULL
-            AND ntm.aws_id IS NULL
     ),
-    cte_number_of_shared_projects AS (
+    cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects
-        FROM cte_tag_matched
-        GROUP BY aws_id
-    ),
-    cte_number_of_shared_pods AS (
-        SELECT aws_id,
+            count(DISTINCT namespace) as shared_projects,
             count(DISTINCT pod) as shared_pods
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / spod.shared_pods as pod_cost,
-        sp.shared_projects,
-        spod.shared_pods
+        tm.unblended_cost / shared.shared_pods as pod_cost,
+        shared.shared_projects,
+        shared.shared_pods
     FROM cte_tag_matched AS tm
-    JOIN cte_number_of_shared_projects AS sp
-        ON tm.aws_id = sp.aws_id
-    JOIN cte_number_of_shared_pods AS spod
-        ON tm.aws_id = spod.aws_id
+    JOIN cte_number_of_shared AS shared
+        ON tm.aws_id = shared.aws_id
 )
 ;
 
--- We UNION the various matches into a table holding all of the
--- OpenShift pod data matches for easier use.
-CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS (
-    SELECT *
-    FROM reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}}
 
-    UNION
+-- First we match where the AWS tag is the special openshift_project key
+-- and the value matches an OpenShift project name
+CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS (
+    WITH cte_tag_matched AS (
+        SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
+            ocp.cluster_id,
+            ocp.cluster_alias,
+            ocp.namespace,
+            ocp.pod,
+            ocp.node,
+            ocp.persistentvolumeclaim,
+            ocp.persistentvolume,
+            ocp.storageclass,
+            ocp.persistentvolumeclaim_capacity_bytes,
+            ocp.persistentvolumeclaim_capacity_byte_seconds,
+            ocp.volume_request_storage_byte_seconds,
+            ocp.persistentvolumeclaim_usage_byte_seconds,
+            ocp.persistentvolume_labels,
+            ocp.persistentvolumeclaim_labels,
+            aws.id AS aws_id,
+            aws.cost_entry_bill_id,
+            aws.cost_entry_product_id,
+            aws.cost_entry_pricing_id,
+            aws.cost_entry_reservation_id,
+            aws.line_item_type,
+            aws.usage_account_id,
+            aws.usage_start,
+            aws.usage_end,
+            aws.product_code,
+            aws.usage_type,
+            aws.operation,
+            aws.availability_zone,
+            aws.resource_id,
+            aws.usage_amount,
+            aws.normalization_factor,
+            aws.normalized_usage_amount,
+            aws.currency_code,
+            aws.unblended_rate,
+            aws.unblended_cost,
+            aws.blended_rate,
+            aws.blended_cost,
+            aws.public_on_demand_cost,
+            aws.public_on_demand_rate,
+            aws.tax_type,
+            aws.tags
+        FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
+        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
+            ON aws.key = 'openshift_project' AND aws.value = lower(ocp.namespace)
+                AND aws.usage_start = ocp.usage_start
+        WHERE aws.usage_start >= {{start_date}}::date
+            AND aws.usage_start <= {{end_date}}::date
 
-    SELECT *
-    FROM reporting_ocp_aws_direct_tag_matched_{{uuid | sqlsafe}}
+    ),
+    cte_number_of_shared AS (
+        SELECT aws_id,
+            count(DISTINCT namespace) as shared_projects,
+            count(DISTINCT pod) as shared_pods
+        FROM cte_tag_matched
+        GROUP BY aws_id
+    )
+    SELECT tm.*,
+        tm.unblended_cost / shared.shared_pods as pod_cost,
+        shared.shared_projects,
+        shared.shared_pods
+    FROM cte_tag_matched AS tm
+    JOIN cte_number_of_shared AS shared
+        ON tm.aws_id = shared.aws_id
+)
+;
 
-    UNION
+-- Next we match where the AWS tag is the special openshift_node key
+-- and the value matches an OpenShift node name
+INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
+    WITH cte_tag_matched AS (
+        SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
+            ocp.cluster_id,
+            ocp.cluster_alias,
+            ocp.namespace,
+            ocp.pod,
+            ocp.node,
+            ocp.persistentvolumeclaim,
+            ocp.persistentvolume,
+            ocp.storageclass,
+            ocp.persistentvolumeclaim_capacity_bytes,
+            ocp.persistentvolumeclaim_capacity_byte_seconds,
+            ocp.volume_request_storage_byte_seconds,
+            ocp.persistentvolumeclaim_usage_byte_seconds,
+            ocp.persistentvolume_labels,
+            ocp.persistentvolumeclaim_labels,
+            aws.id AS aws_id,
+            aws.cost_entry_bill_id,
+            aws.cost_entry_product_id,
+            aws.cost_entry_pricing_id,
+            aws.cost_entry_reservation_id,
+            aws.line_item_type,
+            aws.usage_account_id,
+            aws.usage_start,
+            aws.usage_end,
+            aws.product_code,
+            aws.usage_type,
+            aws.operation,
+            aws.availability_zone,
+            aws.resource_id,
+            aws.usage_amount,
+            aws.normalization_factor,
+            aws.normalized_usage_amount,
+            aws.currency_code,
+            aws.unblended_rate,
+            aws.unblended_cost,
+            aws.blended_rate,
+            aws.blended_cost,
+            aws.public_on_demand_cost,
+            aws.public_on_demand_rate,
+            aws.tax_type,
+            aws.tags
+        FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
+        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
+            ON aws.key = 'openshift_node' AND aws.value = lower(ocp.node)
+                AND aws.usage_start = ocp.usage_start
+        -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
+            ON rm.aws_id = aws.id
+        WHERE aws.usage_start >= {{start_date}}::date
+            AND aws.usage_start <= {{end_date}}::date
+            AND rm.aws_id IS NULL
+    ),
+    cte_number_of_shared AS (
+        SELECT aws_id,
+            count(DISTINCT namespace) as shared_projects,
+            count(DISTINCT pod) as shared_pods
+        FROM cte_tag_matched
+        GROUP BY aws_id
+    )
+    SELECT tm.*,
+        tm.unblended_cost / shared.shared_pods as pod_cost,
+        shared.shared_projects,
+        shared.shared_pods
+    FROM cte_tag_matched AS tm
+    JOIN cte_number_of_shared AS shared
+        ON tm.aws_id = shared.aws_id
+)
+;
 
-    SELECT *
-    FROM reporting_ocp_aws_openshift_project_tag_matched_{{uuid | sqlsafe}}
-
-    UNION
-
-    SELECT *
-    FROM reporting_ocp_aws_openshift_node_tag_matched_{{uuid | sqlsafe}}
-
-    UNION
-
-    SELECT *
-    FROM reporting_ocp_aws_openshift_cluster_tag_matched_{{uuid | sqlsafe}}
-);
+-- Next we match where the AWS tag is the special openshift_cluster key
+-- and the value matches an OpenShift cluster name
+ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
+    WITH cte_tag_matched AS (
+        SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
+            ocp.cluster_id,
+            ocp.cluster_alias,
+            ocp.namespace,
+            ocp.pod,
+            ocp.node,
+            ocp.persistentvolumeclaim,
+            ocp.persistentvolume,
+            ocp.storageclass,
+            ocp.persistentvolumeclaim_capacity_bytes,
+            ocp.persistentvolumeclaim_capacity_byte_seconds,
+            ocp.volume_request_storage_byte_seconds,
+            ocp.persistentvolumeclaim_usage_byte_seconds,
+            ocp.persistentvolume_labels,
+            ocp.persistentvolumeclaim_labels,
+            aws.id AS aws_id,
+            aws.cost_entry_bill_id,
+            aws.cost_entry_product_id,
+            aws.cost_entry_pricing_id,
+            aws.cost_entry_reservation_id,
+            aws.line_item_type,
+            aws.usage_account_id,
+            aws.usage_start,
+            aws.usage_end,
+            aws.product_code,
+            aws.usage_type,
+            aws.operation,
+            aws.availability_zone,
+            aws.resource_id,
+            aws.usage_amount,
+            aws.normalization_factor,
+            aws.normalized_usage_amount,
+            aws.currency_code,
+            aws.unblended_rate,
+            aws.unblended_cost,
+            aws.blended_rate,
+            aws.blended_cost,
+            aws.public_on_demand_cost,
+            aws.public_on_demand_rate,
+            aws.tax_type,
+            aws.tags
+        FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
+        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
+            ON (aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_id)
+                OR aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_alias))
+                AND aws.usage_start = ocp.usage_start
+        -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
+            ON rm.aws_id = aws.id
+        WHERE aws.usage_start >= {{start_date}}::date
+            AND aws.usage_start <= {{end_date}}::date
+            AND rm.aws_id IS NULL
+    ),
+    cte_number_of_shared AS (
+        SELECT aws_id,
+            count(DISTINCT namespace) as shared_projects,
+            count(DISTINCT pod) as shared_pods
+        FROM cte_tag_matched
+        GROUP BY aws_id
+    )
+    SELECT tm.*,
+        tm.unblended_cost / shared.shared_pods as pod_cost,
+        shared.shared_projects,
+        shared.shared_pods
+    FROM cte_tag_matched AS tm
+    JOIN cte_number_of_shared AS shared
+        ON tm.aws_id = shared.aws_id
+)
+;
 
 -- Then we match for OpenShift volume data where the volume label key and value
 -- and AWS tag key and value match directly
-CREATE TEMPORARY TABLE reporting_ocp_aws_storage_direct_tag_matched_{{uuid | sqlsafe}} AS (
+ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
@@ -608,311 +866,32 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_storage_direct_tag_matched_{{uuid | sql
             aws.tags
         FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
-            ON aws.key = ocp.key
-                AND aws.value = ocp.value
-                AND aws.usage_start = ocp.usage_start
-        WHERE aws.usage_start >= {{start_date}}::date
-            AND aws.usage_start <= {{end_date}}::date
-    ),
-    cte_number_of_shared_projects AS (
-        SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects
-        FROM cte_tag_matched
-        GROUP BY aws_id
-    ),
-    cte_number_of_shared_pods AS (
-        SELECT aws_id,
-            count(DISTINCT pod) as shared_pods
-        FROM cte_tag_matched
-        GROUP BY aws_id
-    )
-    SELECT tm.*,
-        tm.unblended_cost / spod.shared_pods as pod_cost,
-        sp.shared_projects,
-        spod.shared_pods
-    FROM cte_tag_matched AS tm
-    JOIN cte_number_of_shared_projects AS sp
-        ON tm.aws_id = sp.aws_id
-    JOIN cte_number_of_shared_pods AS spod
-        ON tm.aws_id = spod.aws_id
-)
-;
-
--- Then we match where the AWS tag is the special openshift_project key
--- and the value matches an OpenShift project name
-CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_project_tag_matched_{{uuid | sqlsafe}} AS (
-    WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
-            ocp.report_period_id,
-            ocp.cluster_id,
-            ocp.cluster_alias,
-            ocp.namespace,
-            ocp.pod,
-            ocp.node,
-            ocp.persistentvolumeclaim,
-            ocp.persistentvolume,
-            ocp.storageclass,
-            ocp.persistentvolumeclaim_capacity_bytes,
-            ocp.persistentvolumeclaim_capacity_byte_seconds,
-            ocp.volume_request_storage_byte_seconds,
-            ocp.persistentvolumeclaim_usage_byte_seconds,
-            ocp.persistentvolume_labels,
-            ocp.persistentvolumeclaim_labels,
-            aws.id AS aws_id,
-            aws.cost_entry_bill_id,
-            aws.cost_entry_product_id,
-            aws.cost_entry_pricing_id,
-            aws.cost_entry_reservation_id,
-            aws.line_item_type,
-            aws.usage_account_id,
-            aws.usage_start,
-            aws.usage_end,
-            aws.product_code,
-            aws.usage_type,
-            aws.operation,
-            aws.availability_zone,
-            aws.resource_id,
-            aws.usage_amount,
-            aws.normalization_factor,
-            aws.normalized_usage_amount,
-            aws.currency_code,
-            aws.unblended_rate,
-            aws.unblended_cost,
-            aws.blended_rate,
-            aws.blended_cost,
-            aws.public_on_demand_cost,
-            aws.public_on_demand_rate,
-            aws.tax_type,
-            aws.tags
-        FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
-        JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
-            ON aws.key = 'openshift_project' AND aws.value = ocp.namespace
-                AND aws.usage_start = ocp.usage_start
-        LEFT JOIN reporting_ocp_aws_storage_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
-            ON dtm.aws_id = aws.id
-        WHERE aws.usage_start >= {{start_date}}::date
-            AND aws.usage_start <= {{end_date}}::date
-            AND dtm.aws_id IS NULL
-
-    ),
-    cte_number_of_shared_projects AS (
-        SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects
-        FROM cte_tag_matched
-        GROUP BY aws_id
-    ),
-    cte_number_of_shared_pods AS (
-        SELECT aws_id,
-            count(DISTINCT pod) as shared_pods
-        FROM cte_tag_matched
-        GROUP BY aws_id
-    )
-    SELECT tm.*,
-        tm.unblended_cost / spod.shared_pods as pod_cost,
-        sp.shared_projects,
-        spod.shared_pods
-    FROM cte_tag_matched AS tm
-    JOIN cte_number_of_shared_projects AS sp
-        ON tm.aws_id = sp.aws_id
-    JOIN cte_number_of_shared_pods AS spod
-        ON tm.aws_id = spod.aws_id
-)
-;
-
--- Next we match where the AWS tag is the special openshift_node key
--- and the value matches an OpenShift node name
-CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_node_tag_matched_{{uuid | sqlsafe}} AS (
-    WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
-            ocp.report_period_id,
-            ocp.cluster_id,
-            ocp.cluster_alias,
-            ocp.namespace,
-            ocp.pod,
-            ocp.node,
-            ocp.persistentvolumeclaim,
-            ocp.persistentvolume,
-            ocp.storageclass,
-            ocp.persistentvolumeclaim_capacity_bytes,
-            ocp.persistentvolumeclaim_capacity_byte_seconds,
-            ocp.volume_request_storage_byte_seconds,
-            ocp.persistentvolumeclaim_usage_byte_seconds,
-            ocp.persistentvolume_labels,
-            ocp.persistentvolumeclaim_labels,
-            aws.id AS aws_id,
-            aws.cost_entry_bill_id,
-            aws.cost_entry_product_id,
-            aws.cost_entry_pricing_id,
-            aws.cost_entry_reservation_id,
-            aws.line_item_type,
-            aws.usage_account_id,
-            aws.usage_start,
-            aws.usage_end,
-            aws.product_code,
-            aws.usage_type,
-            aws.operation,
-            aws.availability_zone,
-            aws.resource_id,
-            aws.usage_amount,
-            aws.normalization_factor,
-            aws.normalized_usage_amount,
-            aws.currency_code,
-            aws.unblended_rate,
-            aws.unblended_cost,
-            aws.blended_rate,
-            aws.blended_cost,
-            aws.public_on_demand_cost,
-            aws.public_on_demand_rate,
-            aws.tax_type,
-            aws.tags
-        FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
-        JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
-            ON aws.key = 'openshift_node' AND aws.value = ocp.node
+            ON aws.lower_tags @> ocp.tag
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_aws_storage_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
-            ON dtm.aws_id = aws.id
-        LEFT JOIN reporting_ocp_aws_storage_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
-            ON ptm.aws_id = aws.id
+        LEFT JOIN reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
+            ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
-            AND dtm.aws_id IS NULL
-            AND ptm.aws_id IS NULL
+            AND rm.aws_id IS NULL
     ),
-    cte_number_of_shared_projects AS (
+    cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects
-        FROM cte_tag_matched
-        GROUP BY aws_id
-    ),
-    cte_number_of_shared_pods AS (
-        SELECT aws_id,
+            count(DISTINCT namespace) as shared_projects,
             count(DISTINCT pod) as shared_pods
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / spod.shared_pods as pod_cost,
-        sp.shared_projects,
-        spod.shared_pods
+        tm.unblended_cost / shared.shared_pods as pod_cost,
+        shared.shared_projects,
+        shared.shared_pods
     FROM cte_tag_matched AS tm
-    JOIN cte_number_of_shared_projects AS sp
-        ON tm.aws_id = sp.aws_id
-    JOIN cte_number_of_shared_pods AS spod
-        ON tm.aws_id = spod.aws_id
+    JOIN cte_number_of_shared AS shared
+        ON tm.aws_id = shared.aws_id
 )
 ;
 
--- Next we match where the AWS tag is the special openshift_cluster key
--- and the value matches an OpenShift cluster name
-CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_cluster_tag_matched_{{uuid | sqlsafe}} AS (
-    WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
-            ocp.report_period_id,
-            ocp.cluster_id,
-            ocp.cluster_alias,
-            ocp.namespace,
-            ocp.pod,
-            ocp.node,
-            ocp.persistentvolumeclaim,
-            ocp.persistentvolume,
-            ocp.storageclass,
-            ocp.persistentvolumeclaim_capacity_bytes,
-            ocp.persistentvolumeclaim_capacity_byte_seconds,
-            ocp.volume_request_storage_byte_seconds,
-            ocp.persistentvolumeclaim_usage_byte_seconds,
-            ocp.persistentvolume_labels,
-            ocp.persistentvolumeclaim_labels,
-            aws.id AS aws_id,
-            aws.cost_entry_bill_id,
-            aws.cost_entry_product_id,
-            aws.cost_entry_pricing_id,
-            aws.cost_entry_reservation_id,
-            aws.line_item_type,
-            aws.usage_account_id,
-            aws.usage_start,
-            aws.usage_end,
-            aws.product_code,
-            aws.usage_type,
-            aws.operation,
-            aws.availability_zone,
-            aws.resource_id,
-            aws.usage_amount,
-            aws.normalization_factor,
-            aws.normalized_usage_amount,
-            aws.currency_code,
-            aws.unblended_rate,
-            aws.unblended_cost,
-            aws.blended_rate,
-            aws.blended_cost,
-            aws.public_on_demand_cost,
-            aws.public_on_demand_rate,
-            aws.tax_type,
-            aws.tags
-        FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
-        JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
-            ON (aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_id
-                OR aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_alias)
-                AND aws.usage_start = ocp.usage_start
-        -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_aws_storage_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
-            ON dtm.aws_id = aws.id
-        LEFT JOIN reporting_ocp_aws_storage_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
-            ON ptm.aws_id = aws.id
-        LEFT JOIN reporting_ocp_aws_storage_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
-            ON ntm.aws_id = aws.id
-        WHERE aws.usage_start >= {{start_date}}::date
-            AND aws.usage_start <= {{end_date}}::date
-            AND dtm.aws_id IS NULL
-            AND ptm.aws_id IS NULL
-            AND ntm.aws_id IS NULL
-    ),
-    cte_number_of_shared_projects AS (
-        SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects
-        FROM cte_tag_matched
-        GROUP BY aws_id
-    ),
-    cte_number_of_shared_pods AS (
-        SELECT aws_id,
-            count(DISTINCT pod) as shared_pods
-        FROM cte_tag_matched
-        GROUP BY aws_id
-    )
-    SELECT tm.*,
-        tm.unblended_cost / spod.shared_pods as pod_cost,
-        sp.shared_projects,
-        spod.shared_pods
-    FROM cte_tag_matched AS tm
-    JOIN cte_number_of_shared_projects AS sp
-        ON tm.aws_id = sp.aws_id
-    JOIN cte_number_of_shared_pods AS spod
-        ON tm.aws_id = spod.aws_id
-)
-;
-
--- We UNION the various matches into a table holding all of the
--- OpenShift volume data matches for easier use.
-CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS (
-    SELECT *
-    FROM reporting_ocp_aws_storage_direct_tag_matched_{{uuid | sqlsafe}}
-
-    UNION
-
-
-    SELECT *
-    FROM reporting_ocp_aws_storage_openshift_project_tag_matched_{{uuid | sqlsafe}}
-
-    UNION
-
-    SELECT *
-    FROM reporting_ocp_aws_storage_openshift_node_tag_matched_{{uuid | sqlsafe}}
-
-    UNION
-
-    SELECT *
-    FROM reporting_ocp_aws_storage_openshift_cluster_tag_matched_{{uuid | sqlsafe}}
-);
 
 -- The full summary data for Openshift pod<->AWS and
 -- Openshift volume<->AWS matches are UNIONed together
@@ -1310,3 +1289,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
         project_markup_cost,
         source_uuid
     FROM reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}}
+;
+
+DROP INDEX IF EXISTS aws_tags_gin_idx;

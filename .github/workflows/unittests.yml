@@ -1,7 +1,10 @@
 name: Unit Tests
 
 on:
-  push
+  pull_request:
+  push:
+    branches:
+      - master
 
 jobs:
   build:
@@ -10,7 +13,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.6, 3.8]
+        python-version: [3.8]
 
     services:
       postgres:

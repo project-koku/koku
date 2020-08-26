@@ -276,7 +276,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     return bills
 
 
-def get_s3_resource():
+def get_s3_resource():  # pragma: no cover
     """
     Obtain the s3 session client
     """
@@ -285,7 +285,7 @@ def get_s3_resource():
         aws_secret_access_key=settings.S3_SECRET,
         region_name=settings.S3_REGION,
     )
-    s3_resource = aws_session.resource("s3")
+    s3_resource = aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT)
     return s3_resource
 
 
@@ -456,7 +456,7 @@ def convert_csv_to_parquet(  # noqa: C901
         data_frame = pd.read_csv(tmpfile, converters=converters, **kwargs)
         if post_processor:
             data_frame = post_processor(data_frame)
-        data_frame.to_parquet(output_file)
+        data_frame.to_parquet(output_file, allow_truncated_timestamps=True, coerce_timestamps="ms")
     except Exception as err:
         shutil.rmtree(local_path, ignore_errors=True)
         msg = f"File {csv_filename} could not be written as parquet to temp file {output_file}. Reason: {str(err)}"

@@ -90,7 +90,8 @@ class SourcesSerializer(serializers.ModelSerializer):
     def _validate_billing_source(self, provider_type, billing_source):
         """Validate billing source parameters."""
         if provider_type == Provider.PROVIDER_AWS:
-            if not billing_source.get("bucket"):
+            # TODO: Remove `and not billing_source.get("bucket")` if UI is updated to send "data_source" field
+            if not billing_source.get("data_source", {}).get("bucket") and not billing_source.get("bucket"):
                 raise SourcesStorageError("Missing AWS bucket.")
         elif provider_type == Provider.PROVIDER_AZURE:
             data_source = billing_source.get("data_source")
@@ -111,6 +112,11 @@ class SourcesSerializer(serializers.ModelSerializer):
                 billing_copy.update(billing_source.get("data_source"))
                 billing_source["data_source"] = billing_copy
         self._validate_billing_source(instance.source_type, billing_source)
+        # This if statement can also be removed if UI is updated to send "data_source" field
+        if instance.source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL) and not billing_source.get(
+            "data_source"
+        ):
+            billing_source = {"data_source": billing_source}
         return billing_source
 
     def _update_authentication(self, instance, authentication):
@@ -192,9 +198,7 @@ class AdminSourcesSerializer(SourcesSerializer):
         manager = ProviderBuilder(auth_header)
         validated_data["auth_header"] = auth_header
         source = Sources.objects.create(**validated_data)
-        provider = manager.create_provider(
-            source.name, source.source_type, source.authentication, source.billing_source, source.source_uuid
-        )
+        provider = manager.create_provider_from_source(source)
         source.koku_uuid = provider.uuid
         source.save()
         LOG.info("Admin created Source and Provider.")

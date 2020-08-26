@@ -22,6 +22,7 @@ from faker import Faker
 from model_bakery import baker
 
 from api.models import Provider
+from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
@@ -75,15 +76,14 @@ class ReportDownloaderTest(MasuTestCase):
             ReportDownloader instance.
 
         """
-        downloader = ReportDownloader(
+        return ReportDownloader(
             customer_name=FAKE.name(),
-            access_credential=self.fake_creds,
-            report_source=FAKE.slug(),
+            credentials={"role_arn": self.fake_creds},
+            data_source={"data_source": FAKE.slug()},
             report_name=FAKE.slug(),
             provider_type=provider_type,
             provider_uuid=uuid4(),
         )
-        return downloader
 
     def assertDownloaderSetsProviderDownloader(self, provider_type, downloader_class):
         """
@@ -195,7 +195,7 @@ class ReportDownloaderTest(MasuTestCase):
         compression = "GZIP"
         mock_date = FAKE.date()
         mock_full_file_path = "/full/path/to/file.csv"
-        mock_dl.return_value = (mock_full_file_path, "fake_etag")
+        mock_dl.return_value = (mock_full_file_path, "fake_etag", DateAccessor().today())
 
         report_context = {
             "date": mock_date,
@@ -236,7 +236,7 @@ class ReportDownloaderTest(MasuTestCase):
 
         with patch("masu.external.report_downloader.ReportDownloader.is_report_processed", return_value=True):
             result = downloader.download_report(report_context)
-            self.assertEquals(result, [])
+            self.assertEquals(result, {})
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
     def test_download_manifest(self, mock_dl):

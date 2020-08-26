@@ -32,10 +32,13 @@ from tenant_schemas.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
 from api.common import log_json
+from api.iam.models import Tenant
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.celery import app
+from koku.celery import is_task_currently_running
+from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -66,6 +69,10 @@ from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 
 LOG = get_task_logger(__name__)
+
+
+class TaskRunningError(Exception):
+    """Task is already running."""
 
 
 def record_all_manifest_files(manifest_id, report_files):
@@ -146,79 +153,86 @@ def get_report_files(
         None
 
     """
-    worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
-    month = report_month
-    if isinstance(report_month, str):
-        month = parser.parse(report_month)
-
-    cache_key = f"{provider_uuid}:{month.date()}"
-    WorkerCache().add_task_to_cache(cache_key)
-
-    report_dict = _get_report_files(
-        self,
-        customer_name,
-        authentication,
-        billing_source,
-        provider_type,
-        provider_uuid,
-        month,
-        cache_key,
-        report_context,
-    )
-
-    stmt = (
-        f"Reports to be processed:\n"
-        f" schema_name: {customer_name}\n"
-        f" provider: {provider_type}\n"
-        f" provider_uuid: {provider_uuid}\n"
-    )
-    if report_dict:
-        stmt += f" file: {report_dict['file']}"
-        LOG.info(stmt)
-    else:
-        return None
-
     try:
+        worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
+        month = report_month
+        if isinstance(report_month, str):
+            month = parser.parse(report_month)
+
+        report_file = report_context.get("key")
+        cache_key = f"{provider_uuid}:{report_file}"
+        WorkerCache().add_task_to_cache(cache_key)
+
+        report_dict = _get_report_files(
+            self,
+            customer_name,
+            authentication,
+            billing_source,
+            provider_type,
+            provider_uuid,
+            month,
+            cache_key,
+            report_context,
+        )
+
         stmt = (
-            f"Processing starting:\n"
+            f"Reports to be processed:\n"
             f" schema_name: {customer_name}\n"
             f" provider: {provider_type}\n"
             f" provider_uuid: {provider_uuid}\n"
-            f' file: {report_dict.get("file")}'
         )
-        LOG.info(stmt)
-        worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
+        if report_dict:
+            stmt += f" file: {report_dict['file']}"
+            LOG.info(stmt)
+        else:
+            WorkerCache().remove_task_from_cache(cache_key)
+            return None
 
-        _process_report_file(schema_name, provider_type, report_dict)
+        try:
+            stmt = (
+                f"Processing starting:\n"
+                f" schema_name: {customer_name}\n"
+                f" provider: {provider_type}\n"
+                f" provider_uuid: {provider_uuid}\n"
+                f' file: {report_dict.get("file")}'
+            )
+            LOG.info(stmt)
+            worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
 
-        report_meta = {
-            "schema_name": schema_name,
-            "provider_type": provider_type,
-            "provider_uuid": provider_uuid,
-            "manifest_id": report_dict.get("manifest_id"),
-        }
+            _process_report_file(schema_name, provider_type, report_dict)
 
-    except (ReportProcessorError, ReportProcessorDBError) as processing_error:
-        worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-        LOG.error(str(processing_error))
+            report_meta = {
+                "schema_name": schema_name,
+                "provider_type": provider_type,
+                "provider_uuid": provider_uuid,
+                "manifest_id": report_dict.get("manifest_id"),
+            }
+
+        except (ReportProcessorError, ReportProcessorDBError) as processing_error:
+            worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
+            LOG.error(str(processing_error))
+            WorkerCache().remove_task_from_cache(cache_key)
+            raise processing_error
+
         WorkerCache().remove_task_from_cache(cache_key)
-        raise processing_error
-
-    WorkerCache().remove_task_from_cache(cache_key)
-    start_date = report_dict.get("start_date")
-    manifest_id = report_dict.get("manifest_id")
-    if start_date:
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        convert_to_parquet.delay(
-            self.request.id,
-            schema_name[4:],
-            provider_uuid,
-            provider_type,
-            start_date_str,
-            manifest_id,
-            [report_context.get("local_file")],
-        )
-    return report_meta
+        start_date = report_dict.get("start_date")
+        manifest_id = report_dict.get("manifest_id")
+        if start_date:
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            convert_to_parquet.delay(
+                self.request.id,
+                schema_name[4:],
+                provider_uuid,
+                provider_type,
+                start_date_str,
+                manifest_id,
+                [report_context.get("local_file")],
+            )
+        return report_meta
+    except Exception as err:
+        worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
+        LOG.error(str(err))
+        WorkerCache().remove_task_from_cache(cache_key)
 
 
 @app.task(name="masu.processor.tasks.remove_expired_data", queue_name="remove_expired")
@@ -245,7 +259,8 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
     )
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_items_only)
-    refresh_materialized_views.delay(schema_name, provider)
+    if not line_items_only:
+        refresh_materialized_views.delay(schema_name, provider)
 
 
 @app.task(name="masu.processor.tasks.summarize_reports", queue_name="process")
@@ -260,6 +275,7 @@ def summarize_reports(reports_to_summarize):
         None
 
     """
+    reports_to_summarize = [report for report in reports_to_summarize if report]
     reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports_to_summarize}]
 
     for report in reports_deduplicated:
@@ -385,8 +401,16 @@ def update_all_summary_tables(start_date, end_date=None):
         LOG.error("Unable to get accounts. Error: %s", str(error))
 
 
-@app.task(name="masu.processor.tasks.update_cost_model_costs", queue_name="reporting")
-def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_date=None, provider_type=None):
+@app.task(
+    name="masu.processor.tasks.update_cost_model_costs",
+    queue_name="reporting",
+    autoretry_for=(TaskRunningError,),
+    retry_backoff=True,
+    retry_backoff_max=10,
+    max_retries=100,
+    bind=True,
+)
+def update_cost_model_costs(self, schema_name, provider_uuid, start_date=None, end_date=None, provider_type=None):
     """Update usage charge information.
 
     Args:
@@ -399,6 +423,15 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
         None
 
     """
+    task_id = None
+    if self.request:
+        task_id = self.request.id
+    if is_task_currently_running(
+        "masu.processor.tasks.update_cost_model_costs", task_id, [schema_name, provider_uuid]
+    ):
+        msg = f"Already running update_cost_model_costs for {schema_name} and provider {provider_uuid}."
+        # Raising an exception will fail the task and trigger Celery's retry logic
+        raise TaskRunningError(msg)
     worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
     stmt = (
@@ -413,9 +446,29 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
         updater.update_cost_model_costs(start_date, end_date)
 
 
-@app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name="reporting")
-def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
+@app.task(
+    name="masu.processor.tasks.refresh_materialized_views",
+    queue_name="reporting",
+    autoretry_for=(TaskRunningError,),
+    retry_backoff=True,
+    retry_backoff_max=10,
+    max_retries=100,
+    bind=True,
+)
+def refresh_materialized_views(
+    self, schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False
+):
     """Refresh the database's materialized views for reporting."""
+    task_id = None
+    if self.request:
+        task_id = self.request.id
+    if not synchronous and is_task_currently_running(
+        "masu.processor.tasks.refresh_materialized_views", task_id, [schema_name]
+    ):
+        msg = f"Already running refresh_materialized_views for {schema_name}."
+        # Raising an exception will fail the task and trigger Celery's retry logic
+        raise TaskRunningError(msg)
+
     materialized_views = ()
     if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
         materialized_views = (
@@ -692,3 +745,28 @@ def convert_to_parquet(
         msg = f"Failed to convert the following files to parquet:{','.join(failed_conversion)}."
         LOG.warn(log_json(request_id, msg, context))
         return
+
+
+@app.task(name="masu.processor.tasks.remove_stale_tenants", queue_name="remove_stale_tenants")
+def remove_stale_tenants():
+    """ Remove stale tenants from the tenant api """
+    table_sql = """
+    SELECT schema_name
+      FROM api_customer c
+      LEFT
+      JOIN api_provider p
+        ON c.id = p.customer_id
+      LEFT
+      JOIN api_sources s
+        ON p.uuid::text = s.koku_uuid
+     WHERE s.source_id IS null AND c.date_created < now() - INTERVAL '2 weeks';
+        """
+    with connection.cursor() as cursor:
+        cursor.execute(table_sql)
+        data = cursor.fetchall()
+        Tenant.objects.filter(schema_name__in=[i[0] for i in data]).delete()
+        if data:
+            with KokuTenantMiddleware.tenant_lock:
+                KokuTenantMiddleware.tenant_cache.clear()
+        for name in data:
+            LOG.info(f"Deleted tenant: {name}")

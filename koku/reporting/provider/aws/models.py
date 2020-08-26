@@ -127,6 +127,7 @@ class AWSCostEntryLineItemDaily(models.Model):
             models.Index(fields=["usage_start"], name="usage_start_idx"),
             models.Index(fields=["product_code"], name="product_code_idx"),
             models.Index(fields=["usage_account_id"], name="usage_account_id_idx"),
+            models.Index(fields=["resource_id"], name="resource_id_idx"),
             GinIndex(fields=["tags"], name="aws_cost_entry"),
             GinIndex(fields=["product_code"], name="aws_cost_pcode_like", opclasses=["gin_trgm_ops"]),
         ]
@@ -175,6 +176,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
         """Meta for AWSCostEntryLineItemDailySummary."""
 
         db_table = "reporting_awscostentrylineitem_daily_summary"
+        managed = False
 
         indexes = [
             models.Index(fields=["usage_start"], name="summary_usage_start_idx"),

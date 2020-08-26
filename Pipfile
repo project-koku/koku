@@ -44,6 +44,7 @@ kafka-python = ">=2.0.1"
 cachetools = ">=4.1.0"
 pyarrow = ">=0.17.1"
 kombu = ">=4.6.10"
+importlib-metadata = "*"
 
 [dev-packages]
 astroid = ">=2.3"
@@ -61,9 +62,9 @@ tblib = ">=1.6"
 coveralls = ">=1.10"
 python-coveralls = ">=2.9"
 model-bakery = ">=1.1"
-koku-nise = "<2.0.3"
+koku-nise = "<2.1"
 pre-commit = ">=2.0"
 responses = ">=0.10"
 
 [requires]
-python_version = "3.6"
+python_version = "3.8"

@@ -138,8 +138,6 @@ services:
       - -c
       - autovacuum_vacuum_cost_delay=10
       - -c
-      - idle_in_transaction_session_timeout=30000
-      - -c
       - pg_stat_statements.max=2000
       - -c
       - pg_stat_statements.save=off
@@ -148,11 +146,32 @@ services:
       - -c
       - track_activity_query_size=2048
       - -c
+      - track_functions=pl
+      - -c
       - log_min_error_statement=error
       - -c
       - log_min_duration_statement=2000
       - -c
-      - track_functions=pl
+      - logging_collector=on
+      # Log line prefix (this matches RDS):
+      #   %t = timestamp without milliseconds
+      #   %r = remote host name/ip and remote port
+      #   %u = user name
+      #   %d = database name
+      #   %p = process id (postgres backend)
+      - -c
+      - "log_line_prefix=%t:%r:%u@%d:[%p]:"
+      # Change mod to all to log all statements including SELECT
+      - -c
+      - log_statement=mod
+      # Uncomment this to get duration information on all statements, whether
+      # the statement is logged or not.
+      # - -c
+      # - log_duration=true
+      # Uncomment this parameter to get statistics details in the logs
+      # This will really increase the log file size
+      # - -c
+      # - log_statement_stats=true
 
   pgadmin:
     container_name: pgAdmin
@@ -371,3 +390,8 @@ services:
     image: prom/pushgateway
     ports:
       - 9091:9091
+
+networks:
+ default:
+   external:
+     name: koku_default

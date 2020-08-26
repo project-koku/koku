@@ -2,10 +2,6 @@
 
 # This script assumes you have the nise command installed in your environment
 # See: https://pypi.org/project/koku-nise/
-# It also assumes you have the Nise git repository cloned locally with its example files:
-# See: https://github.com/project-koku/nise
-# Once a local copy of the repo is available set it's path using the
-# NISE_REPO_PATH environment variable
 
 # Assumes environment variables have been set:
 #   - POSTGRES_SQL_SERVICE_PORT
@@ -44,7 +40,6 @@ function check_var() {
 
 check_var KOKU_API_HOSTNAME
 check_var MASU_API_HOSTNAME
-check_var NISE_REPO_PATH
 
 KOKU_API=$KOKU_API_HOSTNAME
 MASU_API=$MASU_API_HOSTNAME
@@ -84,25 +79,13 @@ if [[ $CHECK != 200 ]];then
     exit 0
 fi
 
-# Set our date ranges
-sed -i'.example'  -e "s/2019-04-01/$START_DATE/g" -e "s/2019-07-31/$END_DATE/g" "$NISE_REPO_PATH/examples/ocp_on_aws/aws_static_data.yml"
-sed -i'.example' -e "s/2019-05-01/$START_DATE/g" -e "s/2019-07-31/$END_DATE/g" "$NISE_REPO_PATH/examples/ocp_on_aws/ocp_static_data.yml"
-sed -i'.example' -e "s/2019-11-01/$START_DATE/g" -e "s/2019-11-30/$END_DATE/g" "$NISE_REPO_PATH/examples/ocp_on_azure/azure_static_data.yml"
-sed -i'.example' -e "s/2019-11-01/$START_DATE/g" -e "s/2019-11-30/$END_DATE/g" "$NISE_REPO_PATH/examples/ocp_on_azure/ocp_static_data.yml"
-
-for X in "ocp_on_aws/aws" "ocp_on_aws/ocp" "ocp_on_azure/azure" "ocp_on_azure/ocp"; do
-    if [[ -f "$NISE_REPO_PATH/examples/${X}_static_data.yml.example" ]]; then
-        rm "$NISE_REPO_PATH/examples/${X}_static_data.yml.example"
-    fi
-done
-
 # OpenShift on AWS
-nise report aws --static-report-file "$NISE_REPO_PATH/examples/ocp_on_aws/aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$KOKU_PATH/testing/local_providers/aws_local" --start-date "$START_DATE"
-nise report ocp --static-report-file "$NISE_REPO_PATH/examples/ocp_on_aws/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE"
+nise report aws --static-report-file "scripts/nise_ymls/ocp_on_aws/aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$KOKU_PATH/testing/local_providers/aws_local" --start-date "$START_DATE" --end-date "$END_DATE"
+nise report ocp --static-report-file "scripts/nise_ymls/ocp_on_aws/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE" --end-date "$END_DATE"
 
 # OpenShift on Azure
-nise report azure --static-report-file "$NISE_REPO_PATH/examples/ocp_on_azure/azure_static_data.yml" --azure-container-name "$KOKU_PATH/testing/local_providers/azure_local" --azure-report-name azure-report --start-date "$START_DATE"
-nise report ocp --static-report-file "$NISE_REPO_PATH/examples/ocp_on_azure/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE"
+nise report azure --static-report-file "scripts/nise_ymls/ocp_on_azure/azure_static_data.yml" --azure-container-name "$KOKU_PATH/testing/local_providers/azure_local" --azure-report-name azure-report --start-date "$START_DATE" --end-date "$END_DATE"
+nise report ocp --static-report-file "scripts/nise_ymls/ocp_on_azure/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE" --end-date "$END_DATE"
 
 # OpenShift on Prem
 nise report ocp --ocp-cluster-id my-ocp-cluster-3 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE" --end-date "$END_DATE"
@@ -144,13 +127,6 @@ curl --header "Content-Type: application/json" \
   --request POST \
   --data '{"schema": "acct10001","action": "create","tag_keys": ["environment", "app", "version", "storageclass"]}' \
   http://$MASU_API$API_PATH_PREFIX/v1/enabled_tags/
-
-
-cd "$NISE_REPO_PATH"
-git checkout -- "$NISE_REPO_PATH/examples/ocp_on_aws/aws_static_data.yml"
-git checkout -- "$NISE_REPO_PATH/examples/ocp_on_aws/ocp_static_data.yml"
-git checkout -- "$NISE_REPO_PATH/examples/ocp_on_azure/azure_static_data.yml"
-git checkout -- "$NISE_REPO_PATH/examples/ocp_on_azure/ocp_static_data.yml"
 
 if [[ $USE_OC == 1 ]]; then
     WORKER_POD="${KOKU_WORKER_POD_NAME:-koku-worker-0}"

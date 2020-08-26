@@ -177,8 +177,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             "source_uuid": uuid4(),
             "name": "ProviderAWS",
             "source_type": "AWS",
-            "authentication": {"resource_name": "arn:aws:iam::111111111111:role/CostManagement"},
-            "billing_source": {"bucket": "fake-bucket"},
+            "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
+            "billing_source": {"data_source": {"bucket": "fake-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
             "account_id": "acct10001",
             "offset": 10,
@@ -188,8 +188,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             "source_uuid": uuid4(),
             "name": "ProviderAWS Local",
             "source_type": "AWS-local",
-            "authentication": {"resource_name": "arn:aws:iam::111111111111:role/CostManagement"},
-            "billing_source": {"bucket": "fake-local-bucket"},
+            "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
+            "billing_source": {"data_source": {"bucket": "fake-local-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
             "account_id": "acct10001",
             "offset": 11,
@@ -199,8 +199,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             "source_uuid": uuid4(),
             "name": "ProviderAzure Local",
             "source_type": "Azure-local",
-            "authentication": {"resource_name": "arn:aws:iam::111111111111:role/CostManagement"},
-            "billing_source": {"bucket": "fake-local-bucket"},
+            "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
+            "billing_source": {"data_source": {"bucket": "fake-local-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
             "account_id": "acct10001",
             "offset": 12,
@@ -246,13 +246,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             builder = SourcesProviderCoordinator(source_id, provider.auth_header)
-            builder.create_account(
-                provider.name,
-                provider.source_type,
-                provider.authentication,
-                provider.billing_source,
-                provider.source_uuid,
-            )
+            builder.create_account(provider)
 
         self.assertTrue(Provider.objects.filter(uuid=provider.source_uuid).exists())
         provider = Sources.objects.get(source_id=source_id)
@@ -286,19 +280,14 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         uuid = source.koku_uuid
 
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            builder.update_account(
-                provider.source_uuid,
-                provider.name,
-                provider.source_type,
-                provider.authentication,
-                provider.billing_source,
-            )
+            builder.update_account(source)
 
         self.assertEqual(
-            Provider.objects.get(uuid=uuid).billing_source.bucket, self.aws_source.get("billing_source").get("bucket")
+            Provider.objects.get(uuid=uuid).billing_source.data_source,
+            self.aws_source.get("billing_source").get("data_source"),
         )
 
-        provider.billing_source = {"bucket": "new-bucket"}
+        provider.billing_source = {"data_source": {"bucket": "new-bucket"}}
         provider.koku_uuid = uuid
         provider.pending_update = True
         provider.save()
@@ -309,10 +298,10 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 source_integration.execute_koku_provider_op(msg)
         response = Sources.objects.get(source_id=source_id)
         self.assertEqual(response.pending_update, False)
-        self.assertEqual(response.billing_source, {"bucket": "new-bucket"})
+        self.assertEqual(response.billing_source, {"data_source": {"bucket": "new-bucket"}})
 
         response = Provider.objects.get(uuid=uuid)
-        self.assertEqual(response.billing_source.bucket, "new-bucket")
+        self.assertEqual(response.billing_source.data_source.get("bucket"), "new-bucket")
 
     def test_get_sources_msg_data(self):
         """Test to get sources details from msg."""
@@ -558,7 +547,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(source_obj.name, source_name)
         self.assertEqual(source_obj.source_type, Provider.PROVIDER_AWS)
-        self.assertEqual(source_obj.authentication, {"resource_name": authentication})
+        self.assertEqual(source_obj.authentication, {"credentials": {"role_arn": authentication}})
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_sources_network_info_sync_aws_local(self):
@@ -615,7 +604,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(source_obj.name, source_name)
         self.assertEqual(source_obj.source_type, Provider.PROVIDER_AWS_LOCAL)
-        self.assertEqual(source_obj.authentication, {"resource_name": authentication})
+        self.assertEqual(source_obj.authentication, {"credentials": {"role_arn": authentication}})
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_sources_network_info_sync_ocp(self):
@@ -870,19 +859,16 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         def _expected_application_create(msg_data, test, source_network_info_mock):
             source_name = test.get("source_name")
             query_results = Sources.objects.filter(source_id=msg_data.get("source_id"))
-            if source_name == "amazon":
+            if source_name in ["amazon", "ocp"]:
                 self.assertTrue(query_results.exists())
                 self.assertEqual(query_results.first().auth_header, msg_data.get("auth_header"))
                 source_network_info_mock.assert_called()
-            else:
-                self.assertFalse(query_results.exists())
-                source_network_info_mock.assert_not_called()
 
         test_matrix = [
             {
                 "event": source_integration.KAFKA_APPLICATION_CREATE,
                 "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
-                "source_name": "ansible-tower",
+                "source_name": "ocp",
                 "expected_fn": _expected_application_create,
             },
             {
@@ -900,8 +886,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                     test.get("expected_fn")(msg_data, test, mock_sources_network_info)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_process_message_application_create_source_not_found(self):
-        """Test the process_message function."""
+    def test_process_message_application_unsupported_source_type(self):
+        """Test the process_message function with an unsupported source type."""
         test_application_id = 2
 
         test = {
@@ -909,8 +895,12 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
         }
         msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
-        with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError("NOT FOUND TEST")):
-            self.assertIsNone(process_message(test_application_id, msg_data))
+        with patch.object(
+            SourcesHTTPClient, "get_source_details", return_value={"name": "my ansible", "source_type_id": 2}
+        ):
+            with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="ansible-tower"):
+                with patch.object(SourcesHTTPClient, "get_endpoint_id", return_value=1):
+                    self.assertIsNone(process_message(test_application_id, msg_data))
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     @patch("sources.kafka_listener.sources_network_info", returns=None)

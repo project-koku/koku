@@ -9,8 +9,8 @@ from celery import Celery
 from celery import Task
 from celery.schedules import crontab
 from celery.signals import celeryd_after_setup
-from celery.signals import worker_shutting_down
 from django.conf import settings
+from kombu.exceptions import OperationalError
 
 from koku import sentry  # noqa: F401
 from koku.env import ENVIRONMENT
@@ -142,6 +142,12 @@ app.conf.beat_schedule["crawl_account_hierarchy"] = {
     "schedule": crontab(hour=0, minute=0),
 }
 
+# Beat used to remove stale tenant data
+app.conf.beat_schedule["remove_stale_tenants"] = {
+    "task": "masu.processor.tasks.remove_stale_tenants",
+    "schedule": crontab(hour=0, minute=0),
+}
+
 # Celery timeout if broker is unavaiable to avoid blocking indefintely
 app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "interval_step": 0.5, "interval_max": 3}
 
@@ -150,26 +156,42 @@ app.conf.task_routes = {"sources.tasks.*": {"queue": "sources"}}
 
 app.autodiscover_tasks()
 
+CELERY_INSPECT = app.control.inspect()
+
 
 @celeryd_after_setup.connect
-def clear_worker_cache(sender, instance, **kwargs):  # pragma: no cover
-    """Clear WorkerCache after worker is up and running."""
+def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
+    """Wait for migrations to complete before completing worker startup."""
     from .database import check_migrations
-    from masu.processor.worker_cache import WorkerCache
 
     while not check_migrations():
         LOGGER.warning("Migrations not done. Sleeping")
         time.sleep(5)
-    LOGGER.info("Clearing worker task cache.")
-    WorkerCache().invalidate_host()
 
 
-@worker_shutting_down.connect
-def clear_worker_cache_on_shutdown(sender, **kwargs):  # pragma: no cover
-    from masu.processor.worker_cache import WorkerCache
-
-    LOGGER.info("Clearing worker task cache.")
+def is_task_currently_running(task_name, task_id, check_args=None):
+    """Check if a specific task with optional args is currently running."""
     try:
-        WorkerCache().invalidate_host()
-    except Exception:
-        LOGGER.info("Cache not cleared on shutdown.")
+        active_dict = CELERY_INSPECT.active()
+    except OperationalError:
+        LOGGER.warning("Cannot connect to RabbitMQ.")
+        return False
+    active_tasks = []
+    for task_list in active_dict.values():
+        active_tasks.extend(task_list)
+    for active_task in active_tasks:
+        if active_task.get("id") == task_id:
+            # We don't want to count the task doing the is running check
+            continue
+        if active_task.get("name") == task_name:
+            if check_args:
+                task_args = set(active_task.get("args", []))
+                check_args = set(check_args)
+                if task_args >= check_args:
+                    # All of our check args are in the task's arg list
+                    return True
+            else:
+                # No check args, we're just checking for the task name
+                return True
+    # The task isn't running
+    return False

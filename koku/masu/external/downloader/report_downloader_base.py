@@ -43,8 +43,8 @@ class ReportDownloaderBase:
 
         Kwargs:
             customer_name     (String) customer name
-            access_credential (Dict) provider access credentials
-            report_source     (String) cost report source
+            credentials       (Dict) provider access credentials
+            data_source       (Dict) cost report source
             provider_type     (String) cloud provider type
             provider_uuid     (String) cloud provider uuid
             report_name       (String) cost report name
@@ -69,7 +69,7 @@ class ReportDownloaderBase:
                 manifest_id = manifest.id
         return manifest_id
 
-    def _process_manifest_db_record(self, assembly_id, billing_start, num_of_files):
+    def _process_manifest_db_record(self, assembly_id, billing_start, num_of_files, manifest_modified_datetime):
         """Insert or update the manifest DB record."""
         LOG.info("Inserting/updating manifest in database for assembly_id: %s", assembly_id)
 
@@ -84,6 +84,7 @@ class ReportDownloaderBase:
                     "billing_period_start_datetime": billing_start,
                     "num_total_files": num_of_files,
                     "provider_uuid": self._provider_uuid,
+                    "manifest_modified_datetime": manifest_modified_datetime,
                 }
                 try:
                     manifest_entry = manifest_accessor.add(**manifest_dict)
