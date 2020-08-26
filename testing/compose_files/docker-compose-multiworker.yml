@@ -846,3 +846,8 @@ services:
         - db
       depends_on:
         - koku-base
+
+networks:
+ default:
+   external:
+     name: koku_default
