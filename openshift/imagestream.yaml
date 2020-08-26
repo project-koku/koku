@@ -25,13 +25,13 @@ objects:
     name: postgresql
     namespace: ${NAMESPACE}
   spec:
-    dockerImageRepository: registry.redhat.io/rhscl/postgresql-10-rhel7
+    dockerImageRepository: registry.redhat.io/rhscl/postgresql-12-rhel7
     lookupPolicy:
       local: false
     tags:
     - from:
         kind: DockerImage
-        name: rhscl/postgresql-10-rhel7
+        name: rhscl/postgresql-12-rhel7
         resourceVersion: latest
       name: latest
       referencePolicy:
@@ -93,21 +93,21 @@ objects:
       referencePolicy:
         type: Source
 
-# Most koku components use the python-36 image.
+# Most koku components use the python-38 image.
 - apiVersion: v1
   kind: ImageStream
   metadata:
-    name: ubi7-python36
+    name: ocp-python-image
     namespace: ${NAMESPACE}
   spec:
-    dockerImageRepository: registry.redhat.io/ubi7/python-36
+    dockerImageRepository: registry.redhat.io/ubi7/python-38
     lookupPolicy:
       local: false
     tags:
     - annotations: null
       from:
         kind: DockerImage
-        name: registry.redhat.io/ubi7/python-36:latest
+        name: registry.redhat.io/ubi7/python-38:latest
       name: latest
       referencePolicy:
         type: Source

@@ -33,4 +33,4 @@ esac
 
 # run flower
 BROKER="amqp://${RABBITMQ_HOST:-localhost}:5672//"
-PYTHONPATH=. scl enable rh-python36 -- flower --broker=${BROKER} ${AUTH_PARAMS}
+PYTHONPATH=. scl enable rh-python38 -- flower --broker=${BROKER} ${AUTH_PARAMS}
