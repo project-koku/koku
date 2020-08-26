@@ -67,7 +67,7 @@ pip install -U "pip==19.3.1"
 
 if [[ ! -z "$UPGRADE_PIP_TO_LATEST" ]]; then
   echo "---> Upgrading pip to latest version ..."
-  pip install -U pip setuptools wheel
+  pip install -U pip setuptools wheel virtualenv virtualenv_bin
 fi
 
 if [[ ! -z "$ENABLE_PIPENV" ]]; then

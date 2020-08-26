@@ -74,7 +74,7 @@ objects:
             - /bin/bash
             - -c
             - >
-              PYTHONPATH=./koku scl enable rh-python36 --
+              PYTHONPATH=./koku scl enable rh-python38 --
               celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
           env:
             - name: DATABASE_USER

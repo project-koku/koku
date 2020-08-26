@@ -458,12 +458,16 @@ def update_cost_model_costs(self, schema_name, provider_uuid, start_date=None, e
     max_retries=100,
     bind=True,
 )
-def refresh_materialized_views(self, schema_name, provider_type, manifest_id=None, provider_uuid=None):
+def refresh_materialized_views(
+    self, schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False
+):
     """Refresh the database's materialized views for reporting."""
     task_id = None
     if self.request:
         task_id = self.request.id
-    if is_task_currently_running("masu.processor.tasks.refresh_materialized_views", task_id, [schema_name]):
+    if not synchronous and is_task_currently_running(
+        "masu.processor.tasks.refresh_materialized_views", task_id, [schema_name]
+    ):
         msg = f"Already running refresh_materialized_views for {schema_name}."
         # Raising an exception will fail the task and trigger Celery's retry logic
         raise TaskRunningError(msg)
