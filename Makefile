@@ -499,9 +499,11 @@ oc-delete-e2e: oc-nuke-from-orbit
 ### Docker-compose Commands ###
 ###############################
 
-docker-down: docker-presto-down
+docker-down:
 	docker-compose down -v
 	$(PREFIX) make clear-testing
+	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down
+	@rm -fr testing/parquet_data testing/hadoop testing/metastore testing/presto
 
 docker-down-db:
 	docker-compose rm -s -v -f db
@@ -558,7 +560,7 @@ docker-up-no-build:
 	docker-compose up -d
 
 docker-up-min:
-	docker-compose up --build -d db redis koku-server masu-server koku-worker
+	docker-compose up -d db redis koku-server masu-server koku-worker
 
 docker-up-min-presto: docker-presto-up docker-up-min
 

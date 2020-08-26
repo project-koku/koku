@@ -34,6 +34,7 @@ from api.common import log_json
 from api.models import Provider
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.util import common as utils
 
 LOG = logging.getLogger(__name__)
@@ -476,6 +477,10 @@ def convert_csv_to_parquet(  # noqa: C901
         LOG.warn(log_json(request_id, msg, context))
         return False
 
+    account = s3_csv_path.split("/")[-4]
+    provider_uuid = s3_csv_path.split("/")[-3]
+    processor = AWSReportParquetProcessor(manifest_id, account, s3_parquet_path, provider_uuid, output_file)
+    processor.create_table()
     shutil.rmtree(local_path, ignore_errors=True)
     return True
 

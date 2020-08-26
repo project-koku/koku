@@ -248,6 +248,9 @@ services:
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
         - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
         - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - PRESTO_HOST=${PRESTO_HOST-presto}
+        - PRESTO_PORT=${PRESTO_PORT-8080}
+
       privileged: true
       volumes:
         - '.:/koku'
