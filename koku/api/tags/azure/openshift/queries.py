@@ -29,13 +29,8 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
     """Handles tag queries and responses for OCP-on-Azure."""
 
     provider = Provider.OCP_AZURE
-    data_sources = [
-        {
-            "db_table": OCPAzureTagsSummary,
-            "db_column_period": "cost_entry_bill__billing_period",
-            "db_values": OCPAzureTagsValues,
-        }
-    ]
+    data_sources = [{"db_table": OCPAzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
+    TAGS_VALUES_SOURCE = [{"db_table": OCPAzureTagsValues, "field": "ocpazuretagssummary__key"}]
     SUPPORTED_FILTERS = AzureTagQueryHandler.SUPPORTED_FILTERS + OCPTagQueryHandler.SUPPORTED_FILTERS
     FILTER_MAP = deepcopy(AzureTagQueryHandler.FILTER_MAP)
     FILTER_MAP.update(OCPTagQueryHandler.FILTER_MAP)
@@ -44,7 +39,6 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
         {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
         {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
     ]
-    KEY_FILTERS = [{"field": "ocpazuretagssummary__key"}]
 
     def __init__(self, parameters):
         """Establish Azure report query handler.

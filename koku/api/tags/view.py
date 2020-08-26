@@ -66,6 +66,11 @@ class TagView(ReportView):
             error = {"details": "Invalid query parameter 'key_only'."}
             raise ValidationError(error)
 
+        if not key and params.get_filter("value"):
+            LOG.debug("Invalid query parameter 'value'.")
+            error = {"details": "Invalid query parameter 'value'."}
+            raise ValidationError(error)
+
         handler = self.query_handler(params)
         output = handler.execute_query()
         if key:

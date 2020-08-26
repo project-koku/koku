@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP-on-All Tag Query Handling."""
+from copy import deepcopy
+
 from django.db.models import F
 
 from api.models import Provider
@@ -22,6 +24,8 @@ from api.report.all.openshift.provider_map import OCPAllProviderMap
 from api.tags.queries import TagQueryHandler
 from reporting.models import OCPAWSTagsSummary
 from reporting.models import OCPAzureTagsSummary
+from reporting.provider.aws.openshift.models import OCPAWSTagsValues
+from reporting.provider.azure.openshift.models import OCPAzureTagsValues
 
 
 class OCPAllTagQueryHandler(TagQueryHandler):
@@ -36,14 +40,21 @@ class OCPAllTagQueryHandler(TagQueryHandler):
             "annotations": {"accounts": F("subscription_guid")},
         },
     ]
-    SUPPORTED_FILTERS = ["account", "cluster"]
-    FILTER_MAP = {
-        "account": {"field": "accounts", "operation": "icontains", "composition_key": "account_filter"},
-        "cluster": [
-            {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
-            {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
-        ],
-    }
+    TAGS_VALUES_SOURCE = [
+        {"db_table": OCPAzureTagsValues, "field": "ocpazuretagssummary__key"},
+        {"db_table": OCPAWSTagsValues, "field": "ocpawstagssummary__key"},
+    ]
+    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["account", "cluster"]
+    FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
+    FILTER_MAP.update(
+        {
+            "account": {"field": "accounts", "operation": "icontains", "composition_key": "account_filter"},
+            "cluster": [
+                {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
+                {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
+            ],
+        }
+    )
 
     def __init__(self, parameters):
         """Establish OCP on All infrastructure tag query handler.

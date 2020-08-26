@@ -28,15 +28,13 @@ class AWSTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for AWS."""
 
     provider = Provider.PROVIDER_AWS
-    data_sources = [
-        {"db_table": AWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period", "db_values": AWSTagsValues}
-    ]
+    data_sources = [{"db_table": AWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
+    TAGS_VALUES_SOURCE = [{"db_table": AWSTagsValues, "field": "awstagssummary__key"}]
     SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["account"]
     FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
     FILTER_MAP.update(
         {"account": {"field": "accounts", "operation": "icontains", "composition_key": "account_filter"}}
     )
-    KEY_FILTERS = [{"field": "awstagssummary__key"}]
 
     def __init__(self, parameters):
         """Establish AWS report query handler.

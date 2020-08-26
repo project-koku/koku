@@ -40,15 +40,17 @@ class OCPTagQueryHandler(TagQueryHandler):
             "db_column_period": "report_period__report_period",
             "type": "pod",
             "annotations": {"enabled": Exists(enabled)},
-            "db_values": OCPTagsValues,
         },
         {
             "db_table": OCPStorageVolumeLabelSummary,
             "db_column_period": "report_period__report_period",
             "type": "storage",
             "annotations": {"enabled": Exists(enabled)},
-            "db_values": OCPTagsValues,
         },
+    ]
+    TAGS_VALUES_SOURCE = [
+        {"db_table": OCPTagsValues, "field": "ocpusagepodlabelsummary__key"},
+        {"db_table": OCPTagsValues, "field": "ocpstoragevolumelabelsummary__key"},
     ]
     SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["project", "enabled", "cluster"]
     FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
@@ -66,7 +68,6 @@ class OCPTagQueryHandler(TagQueryHandler):
             ],
         }
     )
-    KEY_FILTERS = [{"field": "ocpusagepodlabelsummary__key"}, {"field": "ocpstoragevolumelabelsummary__key"}]
 
     def __init__(self, parameters):
         """Establish AWS report query handler.

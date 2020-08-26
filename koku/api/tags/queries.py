@@ -85,7 +85,8 @@ class TagQueryHandler(QueryHandler):
         self.query_filter = self._get_filter()
         if parameters.kwargs.get("key"):
             self.key = parameters.kwargs.get("key")
-            self.query_filter = self._get_key_filter()
+            if not self.parameters.get_filter("value"):
+                self.query_filter = self._get_key_filter()
         self.default_ordering = {"values": "asc"}
 
     def _get_key_filter(self):
@@ -94,18 +95,7 @@ class TagQueryHandler(QueryHandler):
         If filtering on value, uses the tags summary table to find the key
         """
         filters = QueryFilterCollection()
-        if self.parameters.get_filter("value"):
-            for something in self.KEY_FILTERS:
-                filters.add(
-                    QueryFilter(
-                        field=something.get("field"),
-                        operation="exact",
-                        parameter=self.key,
-                        composition_key="tag_filter",
-                    )
-                )
-        else:
-            filters.add(QueryFilter(field="key", operation="exact", parameter=self.key))
+        filters.add(QueryFilter(field="key", operation="exact", parameter=self.key))
         return self.query_filter & filters.compose()
 
     def _set_start_and_end_dates(self):
@@ -345,34 +335,22 @@ class TagQueryHandler(QueryHandler):
         """
         Gets the values associated with a tag when filtering on a value.
         """
-        type_filter = self.parameters.get_filter("type")
-        type_filter_array = []
-
-        # Sort the data_sources so that those with a "type" go first
-        sources = sorted(self.data_sources, key=lambda dikt: dikt.get("type", ""), reverse=True)
-
-        if type_filter and type_filter == "*":
-            for source in sources:
-                source_type = source.get("type")
-                if source_type:
-                    type_filter_array.append(source_type)
-        elif type_filter:
-            type_filter_array.append(type_filter)
-
         final_data = []
         with tenant_context(self.tenant):
             tag_keys = {}
-            for source in sources:
-                if type_filter and source.get("type") not in type_filter_array:
-                    continue
-                tag_values_query = source.get("db_values").objects
-                tag_keys = list(tag_values_query.filter(self.query_filter))
+            for source in self.TAGS_VALUES_SOURCE:
+                vals_filter = QueryFilterCollection()
+                vals_filter.add(
+                    QueryFilter(
+                        field=source.get("field"), operation="exact", parameter=self.key, composition_key="filter_key"
+                    )
+                )
+                tag_values_query = source.get("db_table").objects
+                filt = self.query_filter & vals_filter.compose()
+                tag_keys = list(tag_values_query.filter(filt))
                 tag_tup = self._value_filter_dict(tag_keys)
                 converted = self._convert_to_dict(tag_tup)
-                if type_filter and source.get("type"):
-                    self.append_to_final_data_with_type(final_data, converted, source)
-                else:
-                    self.append_to_final_data_without_type(final_data, converted)
+                self.append_to_final_data_without_type(final_data, converted)
         self.deduplicate_and_sort(final_data)
         return final_data
 

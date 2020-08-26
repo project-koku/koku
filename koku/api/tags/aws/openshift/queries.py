@@ -24,20 +24,13 @@ from api.tags.ocp.queries import OCPTagQueryHandler
 from reporting.models import OCPAWSTagsSummary
 from reporting.provider.aws.openshift.models import OCPAWSTagsValues
 
-# from api.utils import merge_dicts
-
 
 class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
     """Handles tag queries and responses for OCP-on-AWS."""
 
     provider = Provider.OCP_AWS
-    data_sources = [
-        {
-            "db_table": OCPAWSTagsSummary,
-            "db_column_period": "cost_entry_bill__billing_period",
-            "db_values": OCPAWSTagsValues,
-        }
-    ]
+    data_sources = [{"db_table": OCPAWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
+    TAGS_VALUES_SOURCE = [{"db_table": OCPAWSTagsValues, "field": "ocpawstagssummary__key"}]
     SUPPORTED_FILTERS = AWSTagQueryHandler.SUPPORTED_FILTERS + OCPTagQueryHandler.SUPPORTED_FILTERS
     FILTER_MAP = deepcopy(AWSTagQueryHandler.FILTER_MAP)
     FILTER_MAP.update(OCPTagQueryHandler.FILTER_MAP)
@@ -46,7 +39,6 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
         {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
         {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
     ]
-    KEY_FILTERS = [{"field": "ocpawstagssummary__key"}]
 
     def __init__(self, parameters):
         """Establish AWS report query handler.
