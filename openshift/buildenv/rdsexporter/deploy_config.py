@@ -26,7 +26,7 @@ APP_ROOT = os.environ.get("APP_ROOT")
 CONFIG = os.environ.get("RDS_EXPORTER_CONFIG")
 
 if APP_ROOT and CONFIG:
-    FILENAME = f"{APP_ROOT}/etc/config.yml"
+    FILENAME = os.path.join(APP_ROOT, "etc", "config.yml")
     with open(FILENAME, "w") as fh:
         yaml.safe_dump(json.loads(CONFIG), fh, default_flow_style=False)
 else:

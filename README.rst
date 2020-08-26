@@ -16,7 +16,7 @@ To submit an issue please visit https://issues.redhat.com/projects/COST/
 Getting Started
 ===============
 
-This project is developed using Python 3.6. Make sure you have at least this version installed.
+This project is developed using Python 3.8. Make sure you have at least this version installed.
 
 Prerequisites
 -------------
@@ -197,7 +197,7 @@ Once you have logged into the server, you will be taken straight to the main das
 
 The Query Statistics panel is cumulative. The remaining panels are ephemeral.
 
-Information about PostgreSQL statistics can be found here: https://www.postgresql.org/docs/10/monitoring-stats.html
+Information about PostgreSQL statistics can be found here: https://www.postgresql.org/docs/12/monitoring-stats.html
 
 Information about Grafana dashboards can be found here: https://grafana.com/docs/grafana/latest/features/dashboard/dashboards/
 
@@ -253,6 +253,14 @@ If you want to interact with the Postgres database from a GUI:
  3. In the login screen, the default login email is `postgres`
 
 Side note: The `pgadmin_servers.json` file uses [pgadmin servers.json syntax](https://www.pgadmin.org/docs/pgadmin4/development/import_export_servers.html#json-format)
+
+
+Partitioned Tables
+------------------
+
+The koku project is now making use of partitioned tables with PostgreSQL 12. Currently, there are only a limited number of modules supporting table partitoning with Django. For this reason, the partitioned tables are being unmanaged by Django models.
+
+There is a stored procedure that helps create table partitions on-the-fly during masu data processing. This procedure is called :code:`create_date_partitons` and is in the :code:`public` schema. It is designed to scan a table for partition range start values and compare them against a tracking table of table partitions. For any range start not present in the table, a table partition will be created. This allows for partition creation for any uncovered range, past, present, or future. See :code:`db_functions/create_date_partitions.sql` for the code and parameter documentation.
 
 Contributing
 =============

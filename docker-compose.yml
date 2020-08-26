@@ -146,11 +146,32 @@ services:
       - -c
       - track_activity_query_size=2048
       - -c
+      - track_functions=pl
+      - -c
       - log_min_error_statement=error
       - -c
       - log_min_duration_statement=2000
       - -c
-      - track_functions=pl
+      - logging_collector=on
+      # Log line prefix (this matches RDS):
+      #   %t = timestamp without milliseconds
+      #   %r = remote host name/ip and remote port
+      #   %u = user name
+      #   %d = database name
+      #   %p = process id (postgres backend)
+      - -c
+      - "log_line_prefix=%t:%r:%u@%d:[%p]:"
+      # Change mod to all to log all statements including SELECT
+      - -c
+      - log_statement=mod
+      # Uncomment this to get duration information on all statements, whether
+      # the statement is logged or not.
+      # - -c
+      # - log_duration=true
+      # Uncomment this parameter to get statistics details in the logs
+      # This will really increase the log file size
+      # - -c
+      # - log_statement_stats=true
 
   pgadmin:
     container_name: pgAdmin
@@ -162,31 +183,6 @@ services:
     - "${PGADMIN_PORT-8432}:80"
     volumes:
       - ./pgadmin_servers.json:/pgadmin4/servers.json
-
-  koku-minio:
-    image: minio/minio:latest
-    container_name: kokuminio
-    environment:
-      MINIO_ACCESS_KEY: kokuminioaccess
-      MINIO_SECRET_KEY: kokuminiosecret
-    ports:
-      - 9000:9000
-    command: server /data
-    volumes:
-      - ./testing/parquet_data:/data
-
-  koku-create-parquet-bucket:
-    image: minio/mc:latest
-    depends_on:
-      - koku-minio
-    entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc config host rm local;
-      /usr/bin/mc config host add --quiet --api s3v4 local http://kokuminio:9000 kokuminioaccess kokuminiosecret;
-      /usr/bin/mc rb --force local/koku-bucket/;
-      /usr/bin/mc mb --quiet local/koku-bucket/;
-      /usr/bin/mc policy set public local/koku-bucket;
-      "
 
   grafana:
     container_name: koku_grafana
@@ -394,3 +390,8 @@ services:
     image: prom/pushgateway
     ports:
       - 9091:9091
+
+networks:
+ default:
+   external:
+     name: koku_default

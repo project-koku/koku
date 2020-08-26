@@ -30,6 +30,7 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from cost_models.models import CostModelMap
 from masu.processor.tasks import refresh_materialized_views
+from masu.processor.tasks import TaskRunningError
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -149,6 +150,10 @@ class ProviderManager:
                     last_manifest_complete_datetime = provider_manifest.manifest_completed_datetime.strftime(
                         DATE_TIME_FORMAT
                     )
+                if provider_manifest.manifest_modified_datetime:
+                    manifest_modified_datetime = provider_manifest.manifest_modified_datetime.strftime(
+                        DATE_TIME_FORMAT
+                    )
                 if report_status and report_status.last_started_datetime:
                     last_process_start_date = report_status.last_started_datetime.strftime(DATE_TIME_FORMAT)
                 if report_status and report_status.last_completed_datetime:
@@ -156,6 +161,7 @@ class ProviderManager:
                 status["last_process_start_date"] = last_process_start_date
                 status["last_process_complete_date"] = last_process_complete_date
                 status["last_manifest_complete_date"] = last_manifest_complete_datetime
+                status["manifest_modified_datetime"] = manifest_modified_datetime
                 schema_stats = self._get_tenant_provider_stats(provider_manifest.provider, tenant, month)
                 status["summary_data_creation_datetime"] = schema_stats.get("summary_data_creation_datetime")
                 status["summary_data_updated_datetime"] = schema_stats.get("summary_data_updated_datetime")
@@ -234,4 +240,10 @@ def provider_post_delete_callback(*args, **kwargs):
 
         delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
         transaction.on_commit(delete_func)
-    refresh_materialized_views(provider.customer.schema_name, provider.type)
+    try:
+        refresh_materialized_views.s(
+            provider.customer.schema_name, provider.type, provider_uuid=provider.uuid, synchronous=True
+        ).apply()
+    except TaskRunningError:
+        # Because this is a sychronous call to refresh, we don't want to wait on retry
+        pass
