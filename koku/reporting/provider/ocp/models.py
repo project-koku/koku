@@ -91,25 +91,25 @@ class OCPUsageLineItem(models.Model):
     # Another node identifier used to tie the node to an EC2 instance
     resource_id = models.CharField(max_length=253, null=True)
 
-    pod_usage_cpu_core_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_usage_cpu_core_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_request_cpu_core_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_request_cpu_core_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_limit_cpu_core_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_limit_cpu_core_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_usage_memory_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_usage_memory_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_request_memory_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_request_memory_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_limit_memory_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_limit_memory_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    node_capacity_cpu_cores = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    node_capacity_cpu_cores = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    node_capacity_cpu_core_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    node_capacity_cpu_core_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    node_capacity_memory_bytes = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    node_capacity_memory_bytes = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    node_capacity_memory_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    node_capacity_memory_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
     pod_labels = JSONField(null=True)
 
@@ -154,29 +154,29 @@ class OCPUsageLineItemDaily(models.Model):
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
 
-    pod_usage_cpu_core_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_usage_cpu_core_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_request_cpu_core_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_request_cpu_core_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_limit_cpu_core_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_limit_cpu_core_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_usage_memory_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_usage_memory_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_request_memory_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_request_memory_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_limit_memory_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_limit_memory_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    node_capacity_cpu_cores = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    node_capacity_cpu_cores = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    node_capacity_cpu_core_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    node_capacity_cpu_core_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    node_capacity_memory_bytes = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    node_capacity_memory_bytes = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    node_capacity_memory_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    node_capacity_memory_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    cluster_capacity_cpu_core_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    cluster_capacity_cpu_core_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    cluster_capacity_memory_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    cluster_capacity_memory_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
     total_seconds = models.IntegerField()
 
@@ -232,29 +232,29 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     pod_labels = JSONField(null=True)
 
-    pod_usage_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_usage_cpu_core_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_request_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_request_cpu_core_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_limit_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_limit_cpu_core_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    node_capacity_cpu_cores = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    node_capacity_cpu_cores = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    node_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    node_capacity_cpu_core_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    node_capacity_memory_gigabytes = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    node_capacity_memory_gigabytes = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    node_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    node_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
     # Volume specific fields
     persistentvolumeclaim = models.CharField(max_length=253, null=True)
@@ -265,13 +265,13 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     volume_labels = JSONField(null=True)
 
-    persistentvolumeclaim_capacity_gigabyte = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    persistentvolumeclaim_capacity_gigabyte = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    volume_request_storage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    volume_request_storage_gigabyte_months = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
     # Cost fields
 
@@ -351,13 +351,13 @@ class OCPStorageLineItem(models.Model):
 
     storageclass = models.CharField(max_length=50, null=True)
 
-    persistentvolumeclaim_capacity_bytes = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    persistentvolumeclaim_capacity_bytes = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    persistentvolumeclaim_capacity_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    persistentvolumeclaim_capacity_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    volume_request_storage_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    volume_request_storage_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    persistentvolumeclaim_usage_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    persistentvolumeclaim_usage_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
     persistentvolume_labels = JSONField(null=True)
     persistentvolumeclaim_labels = JSONField(null=True)
@@ -402,13 +402,13 @@ class OCPStorageLineItemDaily(models.Model):
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
 
-    persistentvolumeclaim_capacity_bytes = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    persistentvolumeclaim_capacity_bytes = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    persistentvolumeclaim_capacity_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    persistentvolumeclaim_capacity_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    volume_request_storage_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    volume_request_storage_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    persistentvolumeclaim_usage_byte_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    persistentvolumeclaim_usage_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
     total_seconds = models.IntegerField()
 
@@ -658,21 +658,21 @@ class OCPPodSummary(models.Model):
 
     supplementary_usage_cost = JSONField(null=True)
 
-    pod_usage_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_usage_cpu_core_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_request_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_request_cpu_core_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_limit_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_limit_cpu_core_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -716,21 +716,21 @@ class OCPPodSummaryByProject(models.Model):
 
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_usage_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_usage_cpu_core_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_request_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_request_cpu_core_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_limit_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_limit_cpu_core_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -772,11 +772,11 @@ class OCPVolumeSummary(models.Model):
 
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    volume_request_storage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    volume_request_storage_gigabyte_months = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -820,10 +820,10 @@ class OCPVolumeSummaryByProject(models.Model):
 
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    volume_request_storage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    volume_request_storage_gigabyte_months = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
