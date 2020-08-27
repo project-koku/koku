@@ -15,10 +15,12 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database accessor for OCP rate data."""
+import copy
 import logging
 
 from tenant_schemas.utils import schema_context
 
+from api.metrics import constants as metric_constants
 from cost_models.models import CostModel
 from masu.database.koku_database_access import KokuDBAccess
 
@@ -54,29 +56,50 @@ class CostModelDBAccessor(KokuDBAccess):
         metric_rate_map = {}
         price_list = None
         if self.cost_model:
-            price_list = self.cost_model.rates
+            price_list = copy.deepcopy(self.cost_model.rates)
         if not price_list:
             return {}
         for rate in price_list:
-            metric_rate_map[rate.get("metric", {}).get("name")] = rate
+            metric_name = rate.get("metric", {}).get("name")
+            metric_cost_type = rate.pop("cost_type", None)
+            if not metric_cost_type:
+                for default_metric in metric_constants.COST_MODEL_METRIC_MAP:
+                    if metric_name == default_metric.get("metric"):
+                        metric_cost_type = default_metric.get("default_cost_type")
+            if metric_name in metric_rate_map.keys():
+                metric_mapping = metric_rate_map.get(metric_name)
+                if metric_cost_type in metric_mapping.get("tiered_rates", {}).keys():
+                    current_tiered_mapping = metric_mapping.get("tiered_rates", {}).get(metric_cost_type)
+                    new_tiered_rate = rate.get("tiered_rates")
+                    current_value = float(current_tiered_mapping[0].get("value"))
+                    value_to_add = float(new_tiered_rate[0].get("value"))
+                    current_tiered_mapping[0]["value"] = current_value + value_to_add
+                    metric_rate_map[metric_name] = metric_mapping
+                else:
+                    new_tiered_rate = rate.get("tiered_rates")
+                    current_tiered_mapping = metric_mapping.get("tiered_rates", {})[metric_cost_type] = new_tiered_rate
+            else:
+                format_tiered_rates = {f"{metric_cost_type}": rate.get("tiered_rates")}
+                rate["tiered_rates"] = format_tiered_rates
+                metric_rate_map[metric_name] = rate
         return metric_rate_map
 
     @property
     def infrastructure_rates(self):
         """Return the rates designated as infrastructure cost."""
         return {
-            key: value.get("tiered_rates")[0].get("value")
+            key: value.get("tiered_rates").get(metric_constants.INFRASTRUCTURE_COST_TYPE)[0].get("value")
             for key, value in self.price_list.items()
-            if value.get("cost_type") == "Infrastructure"
+            if metric_constants.INFRASTRUCTURE_COST_TYPE in value.get("tiered_rates").keys()
         }
 
     @property
     def supplementary_rates(self):
-        """Return the rates designated as infrastructure cost."""
+        """Return the rates designated as supplementary cost."""
         return {
-            key: value.get("tiered_rates")[0].get("value")
+            key: value.get("tiered_rates").get(metric_constants.SUPPLEMENTARY_COST_TYPE)[0].get("value")
             for key, value in self.price_list.items()
-            if value.get("cost_type") == "Supplementary"
+            if metric_constants.SUPPLEMENTARY_COST_TYPE in value.get("tiered_rates").keys()
         }
 
     @property
