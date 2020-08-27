@@ -125,7 +125,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 annotations[q_param] = F(db_field)
         return annotations
 
-    def format_sub_org_results(self, query_data_results, query_data, sub_orgs_dict):
+    def format_sub_org_results(self, query_data_results, query_data, sub_orgs_dict):  # noqa: C901
         """
         Add the sub_orgs into the overall results if grouping by org unit.
 
@@ -138,12 +138,19 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (list) the overall query data results
         """
         # loop through original query data
+        group_by_format_keys = [key + "s" for key in self.parameters.parameters.get("group_by").keys()]
         for each_day in query_data:
             accounts = each_day.get("accounts", [])
             # rename id/alias and add type
             for account in accounts:
                 account["id"] = account.pop("account")
                 account["type"] = "account"
+                if group_by_format_keys:
+                    for format_key in group_by_format_keys:
+                        for group in account.get(format_key, []):
+                            for value in group.get("values", []):
+                                value["id"] = value.pop("account")
+                                value["alias"] = value.pop("account_alias")
                 for value in account.get("values", []):
                     value["id"] = value.pop("account")
                     value["alias"] = value.pop("account_alias")
