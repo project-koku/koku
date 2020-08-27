@@ -56,10 +56,9 @@ class CostModelDBAccessor(KokuDBAccess):
         metric_rate_map = {}
         price_list = None
         if self.cost_model:
-            price_list = self.cost_model.rates
+            price_list = copy.deepcopy(self.cost_model.rates)
         if not price_list:
             return {}
-        price_list = copy.deepcopy(price_list)
         for rate in price_list:
             metric_name = rate.get("metric", {}).get("name")
             metric_cost_type = rate.pop("cost_type", None)
