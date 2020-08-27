@@ -515,8 +515,8 @@ def vacuum_schema(schema_name):
 # At this time, no table parameter will be lowered past the known production engine
 # setting of 0.2 by default. However this function's settings can be overridden via the
 # AUTOVACUUM_TUNING environment variable. See below.
-@app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name="reporting")  # noqa: C901
-def autovacuum_tune_schema(schema_name):
+@app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name="reporting")
+def autovacuum_tune_schema(schema_name):  # noqa: C901
     """Set the autovacuum table settings based on table size for the specified schema."""
     table_sql = """
 SELECT s.relname as "table_name",
@@ -611,14 +611,14 @@ SELECT s.relname as "table_name",
     LOG.info(f"Altered autovacuum_vacuum_scale_factor on {alter_count} tables")
 
 
-@app.task(  # noqa: C901
+@app.task(
     name="masu.celery.tasks.convert_to_parquet",
     queue_name="reporting",
     autoretry_for=(ClientError,),
     max_retries=10,
     retry_backoff=10,
 )
-def convert_to_parquet(
+def convert_to_parquet(  # noqa: C901
     request_id, account, provider_uuid, provider_type, start_date, manifest_id, files=[], context={}
 ):
     """
