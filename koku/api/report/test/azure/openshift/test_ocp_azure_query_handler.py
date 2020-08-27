@@ -130,8 +130,14 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.provider = Provider.objects.filter(type=Provider.PROVIDER_OCP).first()
 
         self.this_month_filter = {"usage_start__gte": self.dh.this_month_start}
-        self.ten_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 9)}
-        self.thirty_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 29)}
+        self.ten_day_filter = {
+            "usage_start__gte": self.dh.n_days_ago(self.dh.today, 9),
+            "usage_end__lte": self.dh.today,
+        }
+        self.thirty_day_filter = {
+            "usage_start__gte": self.dh.n_days_ago(self.dh.today, 29),
+            "usage_end__lte": self.dh.today,
+        }
         self.last_month_filter = {
             "usage_start__gte": self.dh.last_month_start,
             "usage_end__lte": self.dh.last_month_end,
@@ -154,7 +160,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filt = {"service_name__contains": "Storage", "unit_of_measure__exact": "GB-Mo"}
+        filt = {"service_name__icontains": "Storage", "unit_of_measure__exact": "GB-Mo"}
         filt.update(self.ten_day_filter)
         current_totals = self.get_totals_by_time_scope(aggregates, filt)
         total = query_output.get("total")
