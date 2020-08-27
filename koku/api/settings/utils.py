@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Utilities for Settings."""
+from koku.settings import OPENSHIFT_DOC_VERSION
 
 SETTINGS_PREFIX = "api.settings"
 OPENSHIFT_SETTINGS_PREFIX = f"{SETTINGS_PREFIX}.openshift"
@@ -54,19 +55,31 @@ def create_subform(name, title, fields):
     return subform
 
 
-def create_plain_text(name, label):
+def create_plain_text_with_doc(name, label, doc_link):
     """
     Create a plain text field for the settings.
 
     Args:
         (String) name - unique name for switch.
         (String) label - Display text.
+        (Dict) doc_link - documentation props.
 
     Returns:
         [Dict] - plain text component.
     """
-    plain_text = {"component": "plain-text", "name": name, "label": label}
+    plain_text = {"component": "plain-text-with-links", "text": label, "linkProps": [doc_link], "name": name}
     return plain_text
+
+
+def generate_doc_link(path):
+    """
+    Generate cost management link to a given path.
+
+    Args:
+        (String) path - path to the documentation.
+    """
+    prefix = f"https://access.redhat.com/documentation/en-us/openshift_container_platform/{OPENSHIFT_DOC_VERSION}/html"
+    return f"{prefix}/{path}"
 
 
 def create_switch(name, label, state):
