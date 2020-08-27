@@ -21,7 +21,7 @@ from masu.processor.report_parquet_processor_base import ReportParquetProcessorB
 class OCPReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
         ocp_table_name = (
-            f"acct{account}.source_{provider_uuid.replace('-', '_')}_type{report_type}_manifest_{manifest_id}"
+            f"acct{account}.source_{provider_uuid.replace('-', '_')}_type_{report_type}_manifest_{manifest_id}"
         )
         numeric_columns = [
             "pod_usage_cpu_core_seconds",
