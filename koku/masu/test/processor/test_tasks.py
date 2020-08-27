@@ -655,13 +655,14 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date.date())
         self.assertEqual(result_end_date, expected_end_date.date())
 
+    @patch("masu.processor.tasks.WorkerCache")
     @patch("masu.processor.tasks.CostModelDBAccessor")
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.refresh_materialized_views")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_summary_tables_ocp(
-        self, mock_cost_model, mock_charge_info, mock_view, mock_chain, mock_task_cost_model
+        self, mock_cost_model, mock_charge_info, mock_view, mock_chain, mock_task_cost_model, mock_cache
     ):
         """Test that the summary table task runs."""
         infrastructure_rates = {
@@ -798,7 +799,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_update.delay.assert_called_with(ANY, ANY, ANY, str(start_date), ANY)
 
-    def test_refresh_materialized_views_aws(self):
+    @patch("masu.processor.tasks.WorkerCache")
+    def test_refresh_materialized_views_aws(self, mock_cache):
         """Test that materialized views are refreshed."""
         manifest_dict = {
             "assembly_id": "12345",
@@ -823,7 +825,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.get_manifest_by_id(manifest.id)
             self.assertIsNotNone(manifest.manifest_completed_datetime)
 
-    def test_refresh_materialized_views_azure(self):
+    @patch("masu.processor.tasks.WorkerCache")
+    def test_refresh_materialized_views_azure(self, mock_cache):
         """Test that materialized views are refreshed."""
         manifest_dict = {
             "assembly_id": "12345",
@@ -848,7 +851,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.get_manifest_by_id(manifest.id)
             self.assertIsNotNone(manifest.manifest_completed_datetime)
 
-    def test_refresh_materialized_views_ocp(self):
+    @patch("masu.processor.tasks.WorkerCache")
+    def test_refresh_materialized_views_ocp(self, mock_cache):
         """Test that materialized views are refreshed."""
         manifest_dict = {
             "assembly_id": "12345",
