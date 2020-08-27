@@ -35,6 +35,7 @@ from api.models import Provider
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
+from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util import common as utils
 
@@ -492,6 +493,9 @@ def convert_csv_to_parquet(  # noqa: C901
             processor = OCPReportParquetProcessor(
                 manifest_id, account, s3_parquet_path, provider_uuid, output_file, report_type
             )
+        elif provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            processor = AzureReportParquetProcessor(manifest_id, account, s3_parquet_path, provider_uuid, output_file)
+
         processor.create_table()
     shutil.rmtree(local_path, ignore_errors=True)
     return True
