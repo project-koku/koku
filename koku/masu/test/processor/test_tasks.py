@@ -698,7 +698,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             self.assertNotEqual(daily_query.count(), initial_daily_count)
 
         update_cost_model_costs(
-            schema_name=self.schema, provider_uuid=provider_ocp_uuid, start_date=start_date, end_date=end_date
+            schema_name=self.schema,
+            provider_uuid=provider_ocp_uuid,
+            start_date=start_date,
+            end_date=end_date,
+            synchronous=True,
         )
 
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
@@ -813,7 +817,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.add(**manifest_dict)
             manifest.save()
 
-        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
+        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id, synchronous=True)
 
         views_to_check = [view for view in AWS_MATERIALIZED_VIEWS if "Cost" in view._meta.db_table]
 
@@ -839,7 +843,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.add(**manifest_dict)
             manifest.save()
 
-        refresh_materialized_views(self.schema, Provider.PROVIDER_AZURE, manifest_id=manifest.id)
+        refresh_materialized_views(self.schema, Provider.PROVIDER_AZURE, manifest_id=manifest.id, synchronous=True)
 
         views_to_check = [view for view in AZURE_MATERIALIZED_VIEWS if "Cost" in view._meta.db_table]
 
@@ -865,7 +869,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.add(**manifest_dict)
             manifest.save()
 
-        refresh_materialized_views(self.schema, Provider.PROVIDER_OCP, manifest_id=manifest.id)
+        refresh_materialized_views(self.schema, Provider.PROVIDER_OCP, manifest_id=manifest.id, synchronous=True)
 
         views_to_check = [view for view in OCP_MATERIALIZED_VIEWS if "Cost" in view._meta.db_table]
 
