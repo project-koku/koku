@@ -398,7 +398,9 @@ def update_all_summary_tables(start_date, end_date=None):
 
 
 @app.task(name="masu.processor.tasks.update_cost_model_costs", queue_name="reporting")
-def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_date=None, provider_type=None):
+def update_cost_model_costs(
+    schema_name, provider_uuid, start_date=None, end_date=None, provider_type=None, synchronous=False
+):
     """Update usage charge information.
 
     Args:
@@ -413,10 +415,11 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
     """
     task_name = "masu.processor.tasks.update_cost_model_costs"
     cache_args = [schema_name, provider_uuid]
-    worker_cache = WorkerCache()
-    while worker_cache.single_task_is_running(task_name, cache_args):
-        time.sleep(5)
-    worker_cache.lock_single_task(task_name, cache_args, timeout=300)
+    if not synchronous:
+        worker_cache = WorkerCache()
+        while worker_cache.single_task_is_running(task_name, cache_args):
+            time.sleep(5)
+        worker_cache.lock_single_task(task_name, cache_args, timeout=300)
 
     worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
@@ -431,7 +434,8 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
     if updater:
         updater.update_cost_model_costs(start_date, end_date)
 
-    worker_cache.release_single_task(task_name, cache_args)
+    if not synchronous:
+        worker_cache.release_single_task(task_name, cache_args)
 
 
 @app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name="reporting")
@@ -439,8 +443,8 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None, pro
     """Refresh the database's materialized views for reporting."""
     task_name = "masu.processor.tasks.refresh_materialized_views"
     cache_args = [schema_name]
-    worker_cache = WorkerCache()
     if not synchronous:
+        worker_cache = WorkerCache()
         while worker_cache.single_task_is_running(task_name, cache_args):
             time.sleep(5)
 
