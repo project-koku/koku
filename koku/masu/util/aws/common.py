@@ -528,8 +528,10 @@ class AwsArn:
             arn (str): Amazon Resource Name
 
         """
+        match = False
         self.arn = arn
-        match = self.arn_regex.match(arn)
+        if arn:
+            match = self.arn_regex.match(arn)
 
         if not match:
             raise SyntaxError(f"Invalid ARN: {arn}")
