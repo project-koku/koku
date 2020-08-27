@@ -247,20 +247,29 @@ class CostModelViewTests(IamTestCase):
         self.assertEqual(rates[0].get("tiered_rates", [])[0].get("value"), new_value)
         self.assertEqual(rates[0].get("metric", {}).get("name"), self.ocp_metric)
 
-    def test_update_cost_model_failure(self):
+    def test_update_cost_model_allows_duplicate(self):
         """Test that we update fails with metric type duplication."""
         # Cost model already exists for self.fake_data as part of setUp
 
         # Add another entry with tiered rates for this metric
         rates = self.fake_data["rates"]
-        rates.append(rates[0])
+        rate = rates[0]
+        expected_metric_name = rate.get("metric", {}).get("name")
+        self.assertIsNotNone(expected_metric_name)
+        rates.append(rate)
 
         # Make sure the update with duplicate rate information fails
         client = APIClient()
         url = reverse("cost-models-detail", kwargs={"uuid": self.fake_data_cost_model_uuid})
         with patch("cost_models.cost_model_manager.chain"):
             response = client.put(url, self.fake_data, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        result_rates = response.data.get("rates", [])
+        result_metric_count = 0
+        for result_rate in result_rates:
+            if result_rate.get("metric", {}).get("name") == expected_metric_name:
+                result_metric_count += 1
+        self.assertGreater(result_metric_count, 1)
 
     def test_patch_failure(self):
         """Test that PATCH throws exception."""
