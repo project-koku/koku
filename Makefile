@@ -225,7 +225,7 @@ check-manifest:
 	.github/scripts/check_manifest.sh
 
 run-migrations:
-	$(DJANGO_MANAGE) migrate_schemas
+	$(DJANGO_MANAGE) migrate_schemas --executor=parallel
 
 serve:
 	$(DJANGO_MANAGE) runserver
@@ -321,7 +321,7 @@ oc-create-flower:
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
 	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-imagestream: OC_OBJECT := 'is/centos is/python-36-centos7 is/postgresql'
+oc-create-imagestream: OC_OBJECT := 'is/centos is/python-38-centos7 is/postgresql'
 oc-create-imagestream: OC_PARAMETER_FILE := imagestream.env
 oc-create-imagestream: OC_TEMPLATE_FILE := imagestream.yaml
 oc-create-imagestream: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
@@ -499,14 +499,18 @@ oc-delete-e2e: oc-nuke-from-orbit
 ### Docker-compose Commands ###
 ###############################
 
-docker-down:
-	docker-compose down
+docker-down: docker-presto-down
+	docker-compose down -v
+	$(PREFIX) make clear-testing
 
 docker-down-db:
 	docker-compose rm -s -v -f db
 
 docker-logs:
 	docker-compose logs -f koku-server koku-worker masu-server
+
+docker-presto-logs:
+	docker-compose -f ./testing/compose_files/docker-compose-presto.yml logs -f
 
 docker-rabbit:
 	docker-compose up -d rabbit
@@ -525,7 +529,7 @@ docker-test-all:
 
 docker-restart-koku:
 	@if [ -n "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
-         docker-compose restart koku-server ; \
+         docker-compose restart koku-server masu-server koku-worker koku-beat koku-listener ; \
          make _koku-wait ; \
          echo " koku is available" ; \
      else \
@@ -542,7 +546,7 @@ docker-up-koku:
 
 _koku-wait:
 	@echo "Waiting on koku status: "
-	@until ./scripts/check_for_koku_server.sh $${KOKU_API_HOST:-localhost} $$API_PATH_PREFIX $${KOKU_API_PORT:-8000} >/dev/null 2>&1 ; do \
+	@until ./scripts/check_for_koku_server.sh $${KOKU_API_HOST:-localhost} $${API_PATH_PREFIX:-/api/cost-management} $${KOKU_API_PORT:-8000} >/dev/null 2>&1 ; do \
          printf "." ; \
          sleep 1 ; \
      done
@@ -556,9 +560,11 @@ docker-up-no-build:
 docker-up-min:
 	docker-compose up --build -d db redis koku-server masu-server koku-worker
 
+docker-up-min-presto: docker-presto-up docker-up-min
+
 docker-up-db:
 	docker-compose up -d db
-	@until pg_isready -h $$POSTGRES_SQL_SERVICE_HOST -p $$POSTGRES_SQL_SERVICE_PORT >/dev/null ; do \
+	@until pg_isready -h $${POSTGRES_SQL_SERVICE_HOST:-localhost} -p $${POSTGRES_SQL_SERVICE_PORT:-15432} >/dev/null ; do \
 	    printf '.'; \
 	    sleep 0.5 ; \
     done
@@ -583,6 +589,26 @@ docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 
 docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_vortex_api_tests.sh
+
+docker-metastore-setup:
+	@cp -fr deploy/metastore/ testing/metastore/
+	@cp -fr deploy/hadoop/ testing/hadoop/
+	@sed -i "" 's/s3path/$(shell echo $(or $(s3bucket),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
+	@sed -i "" 's/s3path/$(shell echo $(or $(s3bucket),metastore))/g' testing/metastore/hive-config/hive-site.xml
+
+docker-presto-setup:
+	@cp -fr deploy/presto/ testing/presto/
+	@cp -fr deploy/hadoop/ testing/hadoop/
+	@sed -i "" 's/s3path/$(shell echo $(or $(s3bucket),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
+
+docker-presto-cleanup:
+	@rm -fr testing/parquet_data testing/hadoop testing/metastore testing/presto
+
+docker-presto-up: docker-metastore-setup docker-presto-setup
+	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d
+
+docker-presto-down: docker-presto-cleanup
+	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down
 
 ### Source targets ###
 ocp-source-from-yaml:

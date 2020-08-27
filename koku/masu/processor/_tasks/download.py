@@ -86,8 +86,8 @@ def _get_report_files(
     try:
         downloader = ReportDownloader(
             customer_name=customer_name,
-            access_credential=authentication,
-            report_source=billing_source,
+            credentials=authentication,
+            data_source=billing_source,
             provider_type=provider_type,
             provider_uuid=provider_uuid,
             report_name=None,

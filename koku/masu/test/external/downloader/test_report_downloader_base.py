@@ -107,7 +107,9 @@ class ReportDownloaderBaseTest(MasuTestCase):
         """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
         mock_get_manifest.side_effect = [None, self.manifest]
         with patch.object(ReportManifestDBAccessor, "add", side_effect=IntegrityError):
-            manifest_id = self.downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2)
+            manifest_id = self.downloader._process_manifest_db_record(
+                self.assembly_id, self.billing_start, 2, DateAccessor().today()
+            )
         self.assertEqual(manifest_id, self.manifest.id)
 
     @patch.object(ReportManifestDBAccessor, "get_manifest")
@@ -117,4 +119,4 @@ class ReportDownloaderBaseTest(MasuTestCase):
         with patch.object(ReportManifestDBAccessor, "add", side_effect=IntegrityError):
             downloader = ReportDownloaderBase(provider_uuid=self.unkown_test_provider_uuid, cache_key=self.cache_key)
             with self.assertRaises(IntegrityError):
-                downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2)
+                downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2, DateAccessor().today())

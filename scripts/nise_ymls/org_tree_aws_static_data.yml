@@ -1,0 +1,62 @@
+accounts:
+  payer: 9999999999999
+  user:
+  - 9999999999999
+  - '9999999999990'
+  - '9999999999991'
+  - '9999999999992'
+  - '9999999999993'
+  - '9999999999994'
+  - '9999999999995'
+generators:
+- EC2Generator:
+    instance_type:
+      cost: 1.0
+      family: General Purpose
+      inst_type: m5.large
+      memory: 8 GiB
+      rate: 0.5
+      storage: EBS Only
+      vcpu: 2
+    processor_arch: 32-bit
+    product_sku: VEAJHRNKTJZQ
+    region: us-east-1a
+    resource_id: 55555555
+    start_date: last_month
+    tags:
+      resourceTags/user:environment: dev
+      resourceTags/user:version: alpha
+- EC2Generator:
+    end_date: 10
+    instance_type:
+      cost: 1.0
+      family: General Purpose
+      inst_type: m5.large
+      memory: 8 GiB
+      rate: 0.5
+      storage: EBS Only
+      vcpu: 2
+    processor_arch: 32-bit
+    product_sku: VEAJHRNKTJZA
+    region: us-east-1a
+    resource_id: 55555556
+    start_date: last_month
+    tags:
+      resourceTags/user:environment: dev
+      resourceTags/user:version: alpha
+- RDSGenerator:
+    instance_type:
+      cost: 1.0
+      family: Memory Optimized
+      inst_type: db.t3.medium
+      memory: 4 GiB
+      rate: 0.5
+      storage: EBS Only
+      vcpu: 2
+    processor_arch: 64-bit
+    product_sku: VEAJHRNKTJZB
+    region: us-west-1a
+    resource_id: 99995555
+    start_date: last_month
+    tags:
+      resourceTags/user:openshift_node: ocp-nod

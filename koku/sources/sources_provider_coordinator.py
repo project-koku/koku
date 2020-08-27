@@ -44,32 +44,28 @@ class SourcesProviderCoordinator:
         self._identity_header = header
         self._provider_builder = ProviderBuilder(self._identity_header)
 
-    def create_account(self, name, provider_type, authentication, billing_source, source_uuid=None):
+    def create_account(self, source):
         """Call to create provider."""
         try:
-            provider = self._provider_builder.create_provider(
-                name, provider_type, authentication, billing_source, source_uuid
-            )
+            provider = self._provider_builder.create_provider_from_source(source)
             add_provider_koku_uuid(self._source_id, provider.uuid)
         except ProviderBuilderError as provider_err:
             raise SourcesProviderCoordinatorError(str(provider_err))
         return provider
 
-    def update_account(self, provider_uuid, name, provider_type, authentication, billing_source):
+    def update_account(self, source):
         """Call to update provider."""
         try:
-            provider = self._provider_builder.update_provider(
-                provider_uuid, name, provider_type, authentication, billing_source
-            )
+            provider = self._provider_builder.update_provider_from_source(source)
             clear_update_flag(self._source_id)
         except ProviderBuilderError as provider_err:
             raise SourcesProviderCoordinatorError(str(provider_err))
         return provider
 
-    def destroy_account(self, provider_uuid):
+    def destroy_account(self, source):
         """Call to destroy provider."""
         try:
-            self._provider_builder.destroy_provider(provider_uuid)
+            self._provider_builder.destroy_provider(source.koku_uuid)
             destroy_source_event(self._source_id)
         except ProviderBuilderError as provider_err:
             LOG.error(f"Failed to remove provider. Error: {str(provider_err)}")

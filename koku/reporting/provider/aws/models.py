@@ -176,6 +176,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
         """Meta for AWSCostEntryLineItemDailySummary."""
 
         db_table = "reporting_awscostentrylineitem_daily_summary"
+        managed = False
 
         indexes = [
             models.Index(fields=["usage_start"], name="summary_usage_start_idx"),

@@ -46,7 +46,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         """Set up a test with database objects."""
         super().setUp()
         self.provider = self.ocp_provider
-        self.cluster_id = self.ocp_provider_resource_name
+        self.cluster_id = self.ocp_cluster_id
         self.updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
 
     def test_normalize_tier(self):

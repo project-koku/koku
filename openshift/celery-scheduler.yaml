@@ -55,7 +55,7 @@ objects:
             - /bin/bash
             - -c
             - >
-              PYTHONPATH=./koku scl enable rh-python36 --
+              PYTHONPATH=./koku scl enable rh-python38 --
               celery -A koku beat -l $LOG_LEVEL
           env:
             - name: DATABASE_USER

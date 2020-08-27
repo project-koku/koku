@@ -74,8 +74,8 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
 
         self.report_downloader = ReportDownloader(
             customer_name=self.customer_name,
-            access_credential=self.fake_auth_credential,
-            report_source=self.fake_bucket_name,
+            credentials=self.fake_auth_credential,
+            data_source=self.fake_bucket_name,
             provider_type=Provider.PROVIDER_AZURE_LOCAL,
             provider_uuid=self.azure_provider_uuid,
         )
@@ -83,9 +83,9 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         self.azure_local_report_downloader = AzureLocalReportDownloader(
             **{
                 "customer_name": self.customer_name,
-                "auth_credential": self.fake_auth_credential,
-                "billing_source": self.fake_bucket_name,
-                "bucket": self.fake_bucket_name,
+                "credentials": self.fake_auth_credential,
+                "data_source": self.fake_bucket_name,
+                "bucket": self.fake_bucket_name,  # TODO: bucket?
                 "provider_uuid": self.azure_provider_uuid,
             }
         )
@@ -104,12 +104,12 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         expected_full_path = "{}/{}/azure/{}/{}".format(
             Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.container_name, self.csv_file_name
         )
-        full_file_path, etag = self.azure_local_report_downloader.download_file(self.csv_key)
+        full_file_path, etag, _ = self.azure_local_report_downloader.download_file(self.csv_key)
         self.assertEqual(full_file_path, expected_full_path)
         self.assertIsNotNone(etag)
 
         # Download a second time, verify etag is returned
-        full_file_path, second_run_etag = self.azure_local_report_downloader.download_file(self.csv_key)
+        full_file_path, second_run_etag, _ = self.azure_local_report_downloader.download_file(self.csv_key)
         self.assertEqual(etag, second_run_etag)
         self.assertEqual(full_file_path, expected_full_path)
 
@@ -126,3 +126,15 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
             self.report_downloader.download_report(report_context)
             expected_path = "{}/{}/{}".format(DATA_DIR, self.customer_name, "azure")
             self.assertTrue(os.path.isdir(expected_path))
+
+    def test_get_manifest(self):
+        """Test _get_manifest method."""
+        mock_datetime = datetime.datetime(day=2, month=8, year=2019)
+
+        manifest_json, _ = self.azure_local_report_downloader._get_manifest(mock_datetime)
+
+        self.assertTrue("assemblyId" in manifest_json.keys())
+        self.assertTrue("billingPeriod" in manifest_json.keys())
+        self.assertTrue("reportKeys" in manifest_json.keys())
+        self.assertTrue("reportKeys" in manifest_json.keys())
+        self.assertTrue("Compression" in manifest_json.keys())

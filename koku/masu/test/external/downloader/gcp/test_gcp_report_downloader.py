@@ -73,7 +73,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             # mock_storage_client = mock_storage.Client.return_value
             # mock_storage_client.lookup_bucket.return_value = {}
             downloader = GCPReportDownloader(
-                customer_name=customer_name, billing_source=billing_source, provider_uuid=provider_uuid
+                customer_name=customer_name, data_source=billing_source, provider_uuid=provider_uuid
             )
         return downloader
 
@@ -88,11 +88,11 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Assert GCPReportDownloader initializes with expected values."""
         customer_name = FAKE.name()
         bucket_name = FAKE.slug()
-        billing_source = {"bucket": bucket_name}
+        data_source = {"bucket": bucket_name}
         with patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider"), patch(
             "masu.external.downloader.gcp.gcp_report_downloader.storage"
         ) as mock_storage:
-            downloader = GCPReportDownloader(customer_name, billing_source)
+            downloader = GCPReportDownloader(customer_name, data_source)
             mock_storage.Client.return_value.lookup_bucket.assert_called_with(bucket_name)
         self.assertEqual(downloader.customer_name, customer_name.replace(" ", "_"))
         self.assertEqual(downloader.bucket_name, bucket_name)

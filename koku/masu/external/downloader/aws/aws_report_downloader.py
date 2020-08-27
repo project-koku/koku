@@ -22,7 +22,6 @@ import os
 import shutil
 import struct
 
-import boto3
 from botocore.exceptions import ClientError
 from django.conf import settings
 
@@ -56,30 +55,32 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {"reportKeys": []}
 
-    def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
+    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
             customer_name    (String) Name of the customer
-            auth_credential  (String) Authentication credential for S3 bucket (RoleARN)
+            credentials   (Dict) credentials credential for S3 bucket (RoleARN)
             report_name      (String) Name of the Cost Usage Report to download (optional)
             bucket           (String) Name of the S3 bucket containing the CUR
 
         """
         super().__init__(**kwargs)
 
+        arn = credentials.get("role_arn")
+        bucket = data_source.get("bucket")
         if customer_name[4:] in settings.DEMO_ACCOUNTS:
             demo_account = settings.DEMO_ACCOUNTS.get(customer_name[4:])
             LOG.info(f"Info found for demo account {customer_name[4:]} = {demo_account}.")
-            if auth_credential in demo_account:
-                demo_info = demo_account.get(auth_credential)
+            if arn in demo_account:
+                demo_info = demo_account.get(arn)
                 self.customer_name = customer_name.replace(" ", "_")
                 self._provider_uuid = kwargs.get("provider_uuid")
                 self.report_name = demo_info.get("report_name")
                 self.report = {"S3Bucket": bucket, "S3Prefix": demo_info.get("report_prefix"), "Compression": "GZIP"}
                 self.bucket = bucket
-                session = utils.get_assume_role_session(utils.AwsArn(auth_credential), "MasuDownloaderSession")
+                session = utils.get_assume_role_session(utils.AwsArn(arn), "MasuDownloaderSession")
                 self.s3_client = session.client("s3")
                 return
 
@@ -87,7 +88,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self._provider_uuid = kwargs.get("provider_uuid")
 
         LOG.debug("Connecting to AWS...")
-        session = utils.get_assume_role_session(utils.AwsArn(auth_credential), "MasuDownloaderSession")
+        session = utils.get_assume_role_session(utils.AwsArn(arn), "MasuDownloaderSession")
         self.cur = session.client("cur")
 
         # fetch details about the report from the cloud provider
@@ -176,17 +177,17 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         LOG.info(log_json(self.request_id, msg, self.context))
 
         try:
-            manifest_file, _ = self.download_file(manifest)
+            manifest_file, _, manifest_modified_timestamp = self.download_file(manifest)
         except AWSReportDownloaderNoFileError as err:
             msg = f"Unable to get report manifest. Reason: {str(err)}"
             LOG.info(log_json(self.request_id, msg, self.context))
-            return "", self.empty_manifest
+            return "", self.empty_manifest, None
 
         manifest_json = None
         with open(manifest_file, "r") as manifest_file_handle:
             manifest_json = json.load(manifest_file_handle)
 
-        return manifest_file, manifest_json
+        return manifest_file, manifest_json, manifest_modified_timestamp
 
     def _remove_manifest_file(self, manifest_file):
         """Clean up the manifest file after extracting information."""
@@ -214,22 +215,6 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_date_range = utils.month_date_range(date_time)
         return "{}/{}/{}".format(self.report.get("S3Prefix"), self.report_name, report_date_range)
 
-    def download_bucket(self):
-        """
-        Bulk Download all files in an s3 bucket.
-
-        Returns:
-            (List) List of filenames downloaded.
-
-        """
-        s3_resource = boto3.resource("s3")
-        bucket = s3_resource.Bucket(self.report.get("S3Bucket"))
-        files = []
-        for s3obj in bucket.objects.all():
-            file_name, _ = self.download_file(s3obj.key)
-            files.append(file_name)
-        return files
-
     def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download an S3 object to file.
@@ -252,9 +237,11 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         # Make sure the data directory exists
         os.makedirs(directory_path, exist_ok=True)
         s3_etag = None
+        file_creation_date = None
         try:
             s3_file = self.s3_client.get_object(Bucket=self.report.get("S3Bucket"), Key=key)
             s3_etag = s3_file.get("ETag")
+            file_creation_date = s3_file.get("LastModified")
         except ClientError as ex:
             if ex.response["Error"]["Code"] == "NoSuchKey":
                 msg = "Unable to find {} in S3 Bucket: {}".format(s3_filename, self.report.get("S3Bucket"))
@@ -278,7 +265,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             )
             utils.remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
 
-        return full_file_path, s3_etag
+        return full_file_path, s3_etag, file_creation_date
 
     def get_manifest_context_for_date(self, date):
         """
@@ -297,14 +284,17 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest_dict = {}
         report_dict = {}
-        manifest_file, manifest = self._get_manifest(date)
+        manifest_file, manifest, manifest_timestamp = self._get_manifest(date)
         if manifest != self.empty_manifest:
             manifest_dict = self._prepare_db_manifest_record(manifest)
         self._remove_manifest_file(manifest_file)
 
         if manifest_dict:
             manifest_id = self._process_manifest_db_record(
-                manifest_dict.get("assembly_id"), manifest_dict.get("billing_start"), manifest_dict.get("num_of_files")
+                manifest_dict.get("assembly_id"),
+                manifest_dict.get("billing_start"),
+                manifest_dict.get("num_of_files"),
+                manifest_timestamp,
             )
 
             report_dict["manifest_id"] = manifest_id

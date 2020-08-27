@@ -26,12 +26,12 @@ PROVIDERS = {
     Provider.PROVIDER_OCP: {
         "name": "test_provider",
         "type": Provider.PROVIDER_OCP.lower(),
-        "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-1"}},
+        "authentication": {"credentials": {"cluster_id": "my-ocp-cluster-1"}},
     },
     Provider.PROVIDER_AWS: {
         "name": "test_provider",
         "type": Provider.PROVIDER_AWS.lower(),
-        "authentication": {"credentials": {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"}},
+        "authentication": {"credentials": {"role_arn": "arn:aws:s3:::my_s3_bucket"}},
         "billing_source": {"data_source": {"bucket": "my_s3_bucket"}},
     },
     Provider.PROVIDER_AZURE: {
@@ -63,7 +63,7 @@ PROVIDERS = {
     "oCp": {
         "name": "test_provider",
         "type": "oCp".lower(),
-        "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-1"}},
+        "authentication": {"credentials": {"cluster_id": "my-ocp-cluster-1"}},
     },
 }
 

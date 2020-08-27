@@ -141,4 +141,4 @@ def collect_metrics(self):
         push_to_gateway(settings.PROMETHEUS_PUSHGATEWAY, job="koku.metrics.collect_metrics", registry=REGISTRY)
     except OSError as exc:
         LOG.error("Problem reaching pushgateway: %s", exc)
-        self.update_state(state="FAILURE", meta={"result": exc, "traceback": exc.__traceback__})
+        self.update_state(state="FAILURE", meta={"result": str(exc), "traceback": str(exc.__traceback__)})

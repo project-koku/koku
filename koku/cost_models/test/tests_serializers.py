@@ -26,7 +26,6 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.provider.models import Provider
-from api.provider.serializers import ProviderSerializer
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from cost_models.serializers import CostModelSerializer
@@ -42,14 +41,7 @@ class CostModelSerializerTest(IamTestCase):
         """Set up the tests."""
         super().setUp()
 
-        provider_data = {
-            "name": "test_provider",
-            "type": Provider.PROVIDER_OCP.lower(),
-            "authentication": {"provider_resource_name": self.fake.word()},
-        }
-        serializer = ProviderSerializer(data=provider_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            self.provider = serializer.save()
+        self.provider = Provider.objects.filter(type=Provider.PROVIDER_OCP).first()
 
         ocp_metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         ocp_source_type = Provider.PROVIDER_OCP

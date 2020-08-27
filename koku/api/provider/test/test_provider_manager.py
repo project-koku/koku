@@ -165,10 +165,10 @@ class ProviderManagerTest(IamTestCase):
         iniitial_auth_count = ProviderAuthentication.objects.count()
         initial_billing_count = ProviderBillingSource.objects.count()
 
-        provider_authentication = ProviderAuthentication.objects.create(
-            provider_resource_name="arn:aws:iam::2:role/mg"
-        )
-        provider_billing = ProviderBillingSource.objects.create(bucket="my_s3_bucket")
+        credentials = {"role_arn": "arn:aws:iam::2:role/mg"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
+        data_source = {"bucket": "my_s3_bucket"}
+        provider_billing = ProviderBillingSource.objects.create(data_source=data_source)
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(
                 name="awsprovidername",
@@ -228,14 +228,15 @@ class ProviderManagerTest(IamTestCase):
     def test_remove_aws_auth_billing_remain(self):
         """Remove aws provider."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(
-            provider_resource_name="arn:aws:iam::2:role/mg"
-        )
+        credentials = {"role_arn": "arn:aws:iam::2:role/mg"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
+
         expected_auth_count = ProviderAuthentication.objects.count()
-        provider_authentication2 = ProviderAuthentication.objects.create(
-            provider_resource_name="arn:aws:iam::3:role/mg"
-        )
-        provider_billing = ProviderBillingSource.objects.create(bucket="my_s3_bucket")
+        credentials = {"role_arn": "arn:aws:iam::3:role/mg"}
+        provider_authentication2 = ProviderAuthentication.objects.create(credentials=credentials)
+
+        data_source = {"bucket": "my_s3_bucket"}
+        provider_billing = ProviderBillingSource.objects.create(data_source=data_source)
         expected_billing_count = ProviderBillingSource.objects.count()
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(
@@ -276,7 +277,8 @@ class ProviderManagerTest(IamTestCase):
     def test_remove_ocp(self):
         """Remove ocp provider."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        credentials = {"cluster_id": "cluster_id_1001"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(
                 name="ocpprovidername",
@@ -318,7 +320,8 @@ class ProviderManagerTest(IamTestCase):
     def test_remove_ocp_added_via_sources(self):
         """Remove ocp provider added via sources."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        credentials = {"cluster_id": "cluster_id_1001"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(
                 name="ocpprovidername",
@@ -340,7 +343,8 @@ class ProviderManagerTest(IamTestCase):
     def test_direct_remove_ocp_added_via_sources(self):
         """Remove ocp provider added via sources directly."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        credentials = {"cluster_id": "cluster_id_1001"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(
                 name="ocpprovidername",
@@ -361,7 +365,8 @@ class ProviderManagerTest(IamTestCase):
     def test_update_ocp_added_via_sources(self):
         """Raise error on update to ocp provider added via sources."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        credentials = {"cluster_id": "cluster_id_1001"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(
                 name="ocpprovidername",
@@ -382,7 +387,8 @@ class ProviderManagerTest(IamTestCase):
     def test_update_ocp_not_added_via_sources(self):
         """Return None on update to ocp provider not added via sources."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        credentials = {"cluster_id": "cluster_id_1001"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(
                 name="ocpprovidername",
@@ -425,7 +431,8 @@ class ProviderManagerTest(IamTestCase):
     def test_provider_statistics_no_report_data(self):
         """Test that the provider statistics method returns no report stats with no report data."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        credentials = {"cluster_id": "cluster_id_1001"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(
                 name="ocpprovidername",
@@ -443,7 +450,8 @@ class ProviderManagerTest(IamTestCase):
 
     def test_ocp_on_aws_infrastructure_type(self):
         """Test that the provider infrastructure returns AWS when running on AWS."""
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        credentials = {"cluster_id": "cluster_id_1001"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
         aws_provider = Provider.objects.filter(type="AWS-local").first()
         infrastructure = ProviderInfrastructureMap.objects.create(
             infrastructure_type=Provider.PROVIDER_AWS, infrastructure_provider=aws_provider
@@ -465,7 +473,8 @@ class ProviderManagerTest(IamTestCase):
 
     def test_ocp_on_azure_infrastructure_type(self):
         """Test that the provider infrastructure returns Azure when running on Azure."""
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1002")
+        credentials = {"cluster_id": "cluster_id_1002"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
         azure_provider = Provider.objects.filter(type="Azure-local").first()
         infrastructure = ProviderInfrastructureMap.objects.create(
             infrastructure_type=Provider.PROVIDER_AZURE, infrastructure_provider=azure_provider
@@ -487,7 +496,8 @@ class ProviderManagerTest(IamTestCase):
 
     def test_ocp_infrastructure_type(self):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        credentials = {"cluster_id": "cluster_id_1001"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(
                 name="ocpprovidername",
@@ -504,7 +514,8 @@ class ProviderManagerTest(IamTestCase):
 
     def test_ocp_infrastructure_type_error(self):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        credentials = {"cluster_id": "cluster_id_1001"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(
                 name="ocpprovidername",
@@ -523,10 +534,10 @@ class ProviderManagerTest(IamTestCase):
     def test_remove_not_removeable(self, _):
         """Test error raised if user without capability tries to remove a provider."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(
-            provider_resource_name="arn:aws:iam::2:role/mg"
-        )
-        provider_billing = ProviderBillingSource.objects.create(bucket="my_s3_bucket")
+        credentials = {"role_arn": "arn:aws:iam::2:role/mg"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
+        data_source = {"bucket": "my_s3_bucket"}
+        provider_billing = ProviderBillingSource.objects.create(data_source=data_source)
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(
                 name="awsprovidername",

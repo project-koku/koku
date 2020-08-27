@@ -102,9 +102,12 @@ class AWSReportQueryTest(IamTestCase):
                 .first()
                 .get("availability_zone")
             )
-            self.availability_zone_count = AWSCostEntryLineItemDailySummary.objects.aggregate(
-                Count("availability_zone", distinct=True)
-            ).get("availability_zone__count")
+            self.availability_zone_count_cur_mo = (
+                AWSCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
+                .distinct()
+                .values_list("availability_zone")
+                .count()
+            )
             self.region = AWSCostEntryLineItemDailySummary.objects.values("region").distinct().first().get("region")
             self.region_count = AWSCostEntryLineItemDailySummary.objects.aggregate(Count("region", distinct=True)).get(
                 "region__count"
@@ -688,8 +691,7 @@ class AWSReportQueryTest(IamTestCase):
             month_data = data_item.get("azs")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            # Add 1 to the count for "no-az"
-            self.assertEqual(len(month_data), self.availability_zone_count + 1)
+            self.assertEqual(len(month_data), self.availability_zone_count_cur_mo)
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("az"), str)
                 self.assertIsInstance(month_item.get("values"), list)
@@ -1463,6 +1465,37 @@ class AWSReportQueryTest(IamTestCase):
             multi_handler = AWSReportQueryHandler(multi_params)
             multi_cost = multi_handler.execute_query().get("total", {}).get("cost", {}).get("total", {}).get("value")
             self.assertEqual(sum(expected_costs), multi_cost)
+
+    def test_multiple_group_by_alias_change(self):
+        """Test that the data is correctly formatted to id & alias multi org_unit_id group bys"""
+        with tenant_context(self.tenant):
+            # https://issues.redhat.com/browse/COST-478
+            # These group by options format the return to have an s on the group by
+            # for example az is transformed into azs in the data return on the endpoint
+            reformats_data = ["az", "region", "service", "product_family"]
+            no_reformat = ["instance_type", "storage_type", "account"]
+            group_by_options = reformats_data + no_reformat
+            for group_by_option in group_by_options:
+                group_by_url = f"?group_by[org_unit_id]=R_001&group_by[{group_by_option}]=*"
+                params = self.mocked_query_params(group_by_url, AWSCostView, "costs")
+                handler = AWSReportQueryHandler(params)
+                handler.execute_query()
+                passed = False
+                for day in handler.query_data:
+                    for org_entity in day.get("org_entities", []):
+                        if group_by_option in reformats_data:
+                            group_key = group_by_option + "s"
+                            for group in org_entity.get(group_key, []):
+                                for value in group.get("values", []):
+                                    self.assertIsNotNone(value.get("id"))
+                                    self.assertIsNotNone(value.get("alias"))
+                                    passed = True
+                        else:
+                            for value in org_entity.get("values", []):
+                                self.assertIsNotNone(value.get("id"))
+                                self.assertIsNotNone(value.get("alias"))
+                                passed = True
+                self.assertTrue(passed)
 
 
 class AWSReportQueryLogicalAndTest(IamTestCase):

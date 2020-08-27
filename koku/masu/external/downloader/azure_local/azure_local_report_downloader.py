@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Azure-Local Report Downloader."""
+import datetime
 import hashlib
 import logging
 import os
@@ -37,26 +38,26 @@ LOG = logging.getLogger(__name__)
 class AzureLocalReportDownloader(AzureReportDownloader):
     """Azure Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
+    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
             customer_name    (String) Name of the customer
-            auth_credential  (Dict) Dictionary containing Azure authentication details.
+            credentials      (Dict) Dictionary containing Azure credentials details.
             report_name      (String) Name of the Cost Usage Report to download (optional)
-            billing_source   (Dict) Dictionary containing Azure Storage blob details.
+            data_source      (Dict) Dictionary containing Azure Storage blob details.
 
         """
         kwargs["is_local"] = True
-        super().__init__(customer_name, auth_credential, billing_source, report_name, **kwargs)
+        super().__init__(customer_name, credentials, data_source, report_name, **kwargs)
 
         self._provider_uuid = kwargs.get("provider_uuid")
         self.customer_name = customer_name.replace(" ", "_")
-        self.export_name = billing_source.get("resource_group").get("export_name")
-        self.directory = billing_source.get("resource_group").get("directory")
-        self.container_name = billing_source.get("storage_account").get("container")
-        self.local_storage = billing_source.get("storage_account").get("local_dir")
+        self.export_name = data_source.get("resource_group").get("export_name")
+        self.directory = data_source.get("resource_group").get("directory")
+        self.container_name = data_source.get("storage_account").get("container")
+        self.local_storage = data_source.get("storage_account").get("local_dir")
 
     def _get_manifest(self, date_time):
         """
@@ -79,10 +80,13 @@ class AzureLocalReportDownloader(AzureReportDownloader):
             LOG.error(log_json(self.request_id, msg, self.context))
             return manifest
 
+        manifest_modified_timestamp = None
         report_names = os.listdir(local_path)
         sorted_by_modified_date = sorted(report_names, key=lambda file: os.path.getmtime(f"{local_path}/{file}"))
         if sorted_by_modified_date:
             report_name = report_names[0]  # First item on list is most recent
+            full_file_path = f"{local_path}/{report_name}"
+            manifest_modified_timestamp = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
         try:
             manifest["assemblyId"] = extract_uuids_from_string(report_name).pop()
@@ -98,7 +102,7 @@ class AzureLocalReportDownloader(AzureReportDownloader):
         manifest["reportKeys"] = [f"{local_path}/{report_name}"]
         manifest["Compression"] = UNCOMPRESSED
 
-        return manifest
+        return manifest, manifest_modified_timestamp
 
     def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
@@ -118,10 +122,12 @@ class AzureLocalReportDownloader(AzureReportDownloader):
         etag_hasher.update(bytes(local_filename, "utf-8"))
         etag = etag_hasher.hexdigest()
 
+        file_creation_date = None
         if etag != stored_etag:
             msg = f"Downloading {key} to {full_file_path}"
             LOG.info(log_json(self.request_id, msg, self.context))
             shutil.copy2(key, full_file_path)
+            file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
             # Push to S3
             s3_csv_path = get_path_prefix(self.account, self._provider_uuid, start_date, Config.CSV_DATA_TYPE)
             copy_local_report_file_to_s3_bucket(
@@ -129,4 +135,4 @@ class AzureLocalReportDownloader(AzureReportDownloader):
             )
         msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
         LOG.info(log_json(self.request_id, msg, self.context))
-        return full_file_path, etag
+        return full_file_path, etag, file_creation_date

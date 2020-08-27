@@ -19,6 +19,7 @@ CREATE MATERIALIZED VIEW reporting_ocpazure_compute_summary AS(
     FROM reporting_ocpazurecostlineitem_daily_summary
     WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
         AND instance_type IS NOT NULL
+        AND unit_of_measure = 'Hrs'
     GROUP BY usage_start, cluster_id, subscription_guid, instance_type, resource_id
 )
 WITH DATA

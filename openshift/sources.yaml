@@ -316,7 +316,7 @@ objects:
             - /bin/bash
             - -c
             - >
-              PYTHONPATH=. scl enable rh-python36 --
+              PYTHONPATH=. scl enable rh-python38 --
               python koku/manage.py sources
           readinessProbe:
             httpGet:

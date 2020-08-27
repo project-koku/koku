@@ -24,11 +24,11 @@ class ProviderErrors:
     INVALID_SOURCE_TYPE = "source_type"
     DUPLICATE_AUTH = "source.duplicate"
 
-    AWS_NO_REPORT_FOUND = "authentication.provider_resource_name.noreportfound"
+    AWS_NO_REPORT_FOUND = "authentication.role_arn.noreportfound"
     AWS_REPORT_CONFIG = "aws.report.configuration"
     AWS_COMPRESSION_REPORT_CONFIG = "aws.report.compression.configuration"
-    AWS_MISSING_RESOURCE_NAME = "authentication.resource_name.missing"
-    AWS_RESOURCE_NAME_UNREACHABLE = "authentication.resource_name.unreachable"
+    AWS_MISSING_ROLE_ARN = "authentication.role_arn.missing"
+    AWS_ROLE_ARN_UNREACHABLE = "authentication.role_arn.unreachable"
     AWS_BUCKET_MISSING = "billing_source.bucket.missing"
     AWS_BILLING_SOURCE_NOT_FOUND = "billing_source.bucket.notfound"
 
@@ -42,8 +42,8 @@ class ProviderErrors:
     # MESSAGES
     INVALID_SOURCE_TYPE_MESSAGE = "The given source type is not supported."
 
-    AWS_MISSING_RESOURCE_NAME_MESSAGE = "Provider resource name is a required parameter for AWS and must not be blank."
-    AWS_RESOURCE_NAME_UNREACHABLE_MESSAGE = (
+    AWS_MISSING_ROLE_ARN_MESSAGE = "Role ARN is a required parameter for AWS and must not be blank."
+    AWS_ROLE_ARN_UNREACHABLE_MESSAGE = (
         "The role ARN was entered incorrectly for this source. "
         "Edit your AWS source and verify the name of your ARN."
     )

@@ -40,7 +40,7 @@ class ProviderInterface(ABC):
         pass
 
     @abstractmethod
-    def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
+    def cost_usage_source_is_reachable(self, credentials, data_source):
         """
         Verify that the cost usage report source is reachable by Koku.
 
@@ -48,10 +48,10 @@ class ProviderInterface(ABC):
         connectivity check is to be done.
 
         Args:
-            credential (String): Provider Resource Name
+            credentials (dict): credentials dictionary
                                  example: AWS - RoleARN
                                           arn:aws:iam::589175555555:role/CostManagement
-            source_name (String): Identifier of the cost usage report source
+            data_source (dict): Identifier of the cost usage report source
                                   example: AWS - S3 Bucket
 
         Returns:

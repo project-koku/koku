@@ -49,15 +49,15 @@ class AzureReportDownloaderNoFileError(Exception):
 class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """Azure Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
+    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
             customer_name    (String) Name of the customer
-            auth_credential  (Dict) Dictionary containing Azure authentication details.
+            credentials      (Dict) Dictionary containing Azure credentials details.
             report_name      (String) Name of the Cost Usage Report to download (optional)
-            billing_source   (Dict) Dictionary containing Azure Storage blob details.
+            data_source      (Dict) Dictionary containing Azure Storage blob details.
 
         """
         super().__init__(**kwargs)
@@ -65,20 +65,20 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if customer_name[4:] in settings.DEMO_ACCOUNTS:
             demo_account = settings.DEMO_ACCOUNTS.get(customer_name[4:])
             LOG.info(f"Info found for demo account {customer_name[4:]} = {demo_account}.")
-            if auth_credential.get("client_id") in demo_account:
-                demo_info = demo_account.get(auth_credential.get("client_id"))
+            if credentials.get("client_id") in demo_account:
+                demo_info = demo_account.get(credentials.get("client_id"))
                 self.customer_name = customer_name.replace(" ", "_")
                 self._provider_uuid = kwargs.get("provider_uuid")
                 self.container_name = demo_info.get("container_name")
                 self.directory = demo_info.get("report_prefix")
                 self.export_name = demo_info.get("report_name")
-                self._azure_client = self._get_azure_client(auth_credential, billing_source)
+                self._azure_client = self._get_azure_client(credentials, data_source)
                 return
 
         self._provider_uuid = kwargs.get("provider_uuid")
         self.customer_name = customer_name.replace(" ", "_")
         if not kwargs.get("is_local"):
-            self._azure_client = self._get_azure_client(auth_credential, billing_source)
+            self._azure_client = self._get_azure_client(credentials, data_source)
             export_reports = self._azure_client.describe_cost_management_exports()
             export_report = export_reports[0] if export_reports else {}
 
@@ -87,13 +87,13 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.directory = export_report.get("directory")
 
     @staticmethod
-    def _get_azure_client(credentials, billing_source):
+    def _get_azure_client(credentials, data_source):
         subscription_id = credentials.get("subscription_id")
         tenant_id = credentials.get("tenant_id")
         client_id = credentials.get("client_id")
         client_secret = credentials.get("client_secret")
-        resource_group_name = billing_source.get("resource_group")
-        storage_account_name = billing_source.get("storage_account")
+        resource_group_name = data_source.get("resource_group")
+        storage_account_name = data_source.get("storage_account")
 
         service = AzureService(
             tenant_id, client_id, client_secret, resource_group_name, storage_account_name, subscription_id
@@ -156,7 +156,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest["reportKeys"] = [report_name]
         manifest["Compression"] = UNCOMPRESSED
 
-        return manifest
+        return manifest, blob.last_modified
 
     def get_manifest_context_for_date(self, date):
         """
@@ -175,7 +175,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest_dict = {}
         report_dict = {}
-        manifest = self._get_manifest(date)
+        manifest, manifest_timestamp = self._get_manifest(date)
         if manifest == {}:
             return report_dict
 
@@ -183,7 +183,10 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         if manifest_dict:
             manifest_id = self._process_manifest_db_record(
-                manifest_dict.get("assembly_id"), manifest_dict.get("billing_start"), manifest_dict.get("num_of_files")
+                manifest_dict.get("assembly_id"),
+                manifest_dict.get("billing_start"),
+                manifest_dict.get("num_of_files"),
+                manifest_timestamp,
             )
 
             report_dict["manifest_id"] = manifest_id
@@ -227,9 +230,11 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         local_filename = utils.get_local_file_name(key)
         full_file_path = f"{self._get_exports_data_directory()}/{local_filename}"
 
+        file_creation_date = None
         try:
             blob = self._azure_client.get_cost_export_for_key(key, self.container_name)
             etag = blob.etag
+            file_creation_date = blob.last_modified
         except AzureCostReportNotFound as ex:
             msg = f"Error when downloading Azure report for key: {key}. Error {ex}"
             LOG.error(log_json(self.request_id, msg, self.context))
@@ -246,4 +251,4 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
         LOG.info(log_json(self.request_id, msg, self.context))
-        return full_file_path, etag
+        return full_file_path, etag, file_creation_date
