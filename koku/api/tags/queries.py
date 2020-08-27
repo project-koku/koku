@@ -419,7 +419,16 @@ class TagQueryHandler(QueryHandler):
             query_data = sorted(tag_data, reverse=self.order_direction == "desc")
         elif self.parameters.get_filter("value"):
             tag_data = self.get_tag_values()
-            query_data = sorted(tag_data, key=lambda k: k["key"], reverse=self.order_direction == "desc")
+            # This is sorted by values that start with the filter first, then values that contain the filter
+            # based on a discussion with UX
+            vals = tag_data[0].get("values")
+
+            tag_data[0]["values"] = sorted(
+                vals,
+                key=lambda k: (not k.lower().startswith(self.parameters.get_filter("value")[0].lower()), k.lower()),
+                reverse=self.order_direction == "desc",
+            )
+            query_data = tag_data
         else:
             tag_data = self.get_tags()
             query_data = sorted(tag_data, key=lambda k: k["key"], reverse=self.order_direction == "desc")
