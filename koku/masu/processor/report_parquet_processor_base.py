@@ -46,7 +46,7 @@ class ReportParquetProcessorBase:
         self._date_columns = date_columns
         self._table_name = table_name
 
-    def _execute_sql(self, sql, schema_name):
+    def _execute_sql(self, sql, schema_name):  # pragma: no cover
         """Execute presto SQL."""
         conn = prestodb.dbapi.connect(
             host=settings.PRESTO_HOST, port=settings.PRESTO_PORT, user="admin", catalog="hive", schema=schema_name

@@ -425,8 +425,8 @@ S3_SECRET = ENVIRONMENT.get_value("S3_SECRET", default=None)
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 
 # Presto Settings
-PRESTO_HOST = ENVIRONMENT.get_value("PRESTO_HOST")
-PRESTO_PORT = ENVIRONMENT.get_value("PRESTO_PORT")
+PRESTO_HOST = ENVIRONMENT.get_value("PRESTO_HOST", default=None)
+PRESTO_PORT = ENVIRONMENT.get_value("PRESTO_PORT", default=None)
 
 # Time to wait between cold storage retrieval for data export. Default is 3 hours
 COLD_STORAGE_RETRIVAL_WAIT_TIME = int(os.getenv("COLD_STORAGE_RETRIVAL_WAIT_TIME", default="10800"))

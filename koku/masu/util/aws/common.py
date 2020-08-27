@@ -400,6 +400,25 @@ def aws_post_processor(data_frame):
     return data_frame
 
 
+def create_parquet_table(account, provider_uuid, manifest_id, s3_parquet_path, output_file, report_type):
+    """Create parquet table."""
+    provider = None
+    with ProviderDBAccessor(provider_uuid) as provider_accessor:
+        provider = provider_accessor.get_provider()
+
+    if provider:
+        if provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+            processor = AWSReportParquetProcessor(manifest_id, account, s3_parquet_path, provider_uuid, output_file)
+        elif provider.type in (Provider.PROVIDER_OCP,):
+            processor = OCPReportParquetProcessor(
+                manifest_id, account, s3_parquet_path, provider_uuid, output_file, report_type
+            )
+        elif provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            processor = AzureReportParquetProcessor(manifest_id, account, s3_parquet_path, provider_uuid, output_file)
+
+        processor.create_table()
+
+
 def convert_csv_to_parquet(  # noqa: C901
     request_id,
     s3_csv_path,
@@ -480,23 +499,10 @@ def convert_csv_to_parquet(  # noqa: C901
         LOG.warn(log_json(request_id, msg, context))
         return False
 
-    account = s3_csv_path.split("/")[-4]
-    provider_uuid = s3_csv_path.split("/")[-3]
-    provider = None
-    with ProviderDBAccessor(provider_uuid) as provider_accessor:
-        provider = provider_accessor.get_provider()
+    create_parquet_table(
+        context.get("account"), context.get("provider_uuid"), manifest_id, s3_parquet_path, output_file, report_type
+    )
 
-    if provider:
-        if provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            processor = AWSReportParquetProcessor(manifest_id, account, s3_parquet_path, provider_uuid, output_file)
-        elif provider.type in (Provider.PROVIDER_OCP,):
-            processor = OCPReportParquetProcessor(
-                manifest_id, account, s3_parquet_path, provider_uuid, output_file, report_type
-            )
-        elif provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            processor = AzureReportParquetProcessor(manifest_id, account, s3_parquet_path, provider_uuid, output_file)
-
-        processor.create_table()
     shutil.rmtree(local_path, ignore_errors=True)
     return True
 
