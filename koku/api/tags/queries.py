@@ -422,7 +422,6 @@ class TagQueryHandler(QueryHandler):
             # This is sorted by values that start with the filter first, then values that contain the filter
             # based on a discussion with UX
             vals = tag_data[0].get("values")
-
             tag_data[0]["values"] = sorted(
                 vals,
                 key=lambda k: (not k.lower().startswith(self.parameters.get_filter("value")[0].lower()), k.lower()),
