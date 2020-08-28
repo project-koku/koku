@@ -26,6 +26,7 @@ from pathlib import Path
 import boto3
 import pandas as pd
 from botocore.exceptions import ClientError
+from botocore.exceptions import EndpointConnectionError
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from tenant_schemas.utils import schema_context
@@ -309,7 +310,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
         if manifest_id:
             put_value["Metadata"] = {"ManifestId": str(manifest_id)}
         upload.put(**put_value)
-    except ClientError as err:
+    except (EndpointConnectionError, ClientError) as err:
         msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
         LOG.info(log_json(request_id, msg, context))
     return upload
@@ -348,7 +349,7 @@ def get_file_keys_from_s3_with_manifest_id(request_id, s3_path, manifest_id, con
                 key = existing_object.key
                 if manifest == manifest_id_str:
                     keys.append(key)
-        except ClientError as err:
+        except (EndpointConnectionError, ClientError) as err:
             msg = f"Unable to find data in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
             LOG.info(log_json(request_id, msg, context))
     return keys
@@ -378,7 +379,7 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
             if removed:
                 msg = f"Removed files from s3 bucket {settings.S3_BUCKET_NAME}: {','.join(removed)}."
                 LOG.info(log_json(request_id, msg, context))
-        except ClientError as err:
+        except (EndpointConnectionError, ClientError) as err:
             msg = f"Unable to remove data in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
             LOG.info(log_json(request_id, msg, context))
     return removed

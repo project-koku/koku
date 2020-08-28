@@ -502,8 +502,6 @@ oc-delete-e2e: oc-nuke-from-orbit
 docker-down:
 	docker-compose down -v
 	$(PREFIX) make clear-testing
-	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down
-	@rm -fr testing/parquet_data testing/hadoop testing/metastore testing/presto
 
 docker-down-db:
 	docker-compose rm -s -v -f db

@@ -48,13 +48,13 @@ class ReportParquetProcessorBase:
 
     def _execute_sql(self, sql, schema_name):  # pragma: no cover
         """Execute presto SQL."""
-        conn = prestodb.dbapi.connect(
+        with prestodb.dbapi.connect(
             host=settings.PRESTO_HOST, port=settings.PRESTO_PORT, user="admin", catalog="hive", schema=schema_name
-        )
-        cur = conn.cursor()
-        cur.execute(sql)
-        cur.fetchall()
-        conn.close()
+        ) as conn:
+            cur = conn.cursor()
+            cur.execute(sql)
+            rows = cur.fetchall()
+            LOG.info(f"_execute_sql rows: {str(rows)}. Type: {type(rows)}")
 
     def _create_schema(self,):
         """Create presto schema."""
