@@ -22,6 +22,8 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
 from reporting.models import AzureCostEntryLineItemDailySummary
+from reporting.models import AzureTagsSummary
+from reporting.provider.azure.models import AzureTagsValues
 
 
 class AzureTagQueryHandlerTest(IamTestCase):
@@ -149,3 +151,60 @@ class AzureTagQueryHandlerTest(IamTestCase):
 
         result = handler.get_tag_keys(filters=False)
         self.assertEqual(sorted(result), sorted(list(tag_keys)))
+
+    def test_get_tags_for_key_filter(self):
+        """Test that get tags runs properly with key query."""
+        key = "version"
+        url = f"?filter[key]={key}"
+        query_params = self.mocked_query_params(url, AzureTagView)
+        handler = AzureTagQueryHandler(query_params)
+        with tenant_context(self.tenant):
+            tags = AzureTagsSummary.objects.filter(key__contains=key).values("values").distinct().all()
+            tag_values = tags[0].get("values")
+        expected = {"key": key, "values": tag_values}
+        result = handler.get_tags()
+        self.assertEqual(result[0].get("key"), expected.get("key"))
+        self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
+
+    def test_get_tag_values_for_value_filter(self):
+        """Test that get tag values runs properly with value query."""
+        key = "version"
+        value = "Andromeda"
+        url = f"?filter[value]={value}"
+        query_params = self.mocked_query_params(url, AzureTagView)
+        handler = AzureTagQueryHandler(query_params)
+        handler.key = key
+        with tenant_context(self.tenant):
+            tags = (
+                AzureTagsValues.objects.filter(azuretagssummary__key__exact=key, value=value)
+                .values("value")
+                .distinct()
+                .all()
+            )
+            tag_values = [tag.get("value") for tag in tags]
+        expected = {"key": key, "values": tag_values}
+        result = handler.get_tag_values()
+        self.assertEqual(result[0].get("key"), expected.get("key"))
+        self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
+
+    def test_get_tag_values_for_value_filter_partial_match(self):
+        """Test that the execute query runs properly with value query."""
+        key = "version"
+        value = "a"
+        url = f"/version/?filter[value]={value}"
+        query_params = self.mocked_query_params(url, AzureTagView)
+        # the mocked query parameters dont include the key from the url so it needs to be added
+        query_params.kwargs = {"key": key}
+        handler = AzureTagQueryHandler(query_params)
+        with tenant_context(self.tenant):
+            tags = (
+                AzureTagsValues.objects.filter(azuretagssummary__key__exact=key, value__icontains=value)
+                .values("value")
+                .distinct()
+                .all()
+            )
+            tag_values = [tag.get("value") for tag in tags]
+        expected = {"key": key, "values": tag_values}
+        result = handler.get_tag_values()
+        self.assertEqual(result[0].get("key"), expected.get("key"))
+        self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))

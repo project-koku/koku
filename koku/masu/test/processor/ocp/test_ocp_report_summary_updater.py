@@ -72,7 +72,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
             "provider_uuid": self.ocp_provider_uuid,
         }
 
-        self.cluster_id = self.ocp_provider_resource_name
+        self.cluster_id = self.ocp_cluster_id
         self.manifest = CostUsageReportManifest.objects.filter(
             provider_id=self.ocp_provider_uuid, billing_period_start_datetime=self.dh.this_month_start
         ).first()

@@ -13,9 +13,9 @@ class GCPLocalProvider(GCPProvider):
         """Return name of the provider."""
         return Provider.PROVIDER_GCP_LOCAL
 
-    def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
+    def cost_usage_source_is_reachable(self, credentials, data_source):
         """Verify that GCP local bucket name is given."""
-        if not storage_resource_name:
+        if not data_source:
             key = "bucket"
             message = "Bucket is a required parameter for GCP."
             raise serializers.ValidationError(error_obj(key, message))

@@ -100,7 +100,7 @@ objects:
                 key: app-module
         from:
           kind: ImageStreamTag
-          name: ubi7-python36:latest
+          name: ocp-python-image:latest
           namespace: ${NAMESPACE}
     triggers:
     - type: ConfigChange

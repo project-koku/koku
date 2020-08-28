@@ -72,7 +72,7 @@ objects:
             - /bin/bash
             - -c
             - >
-              PYTHONPATH=. scl enable rh-python36 --
+              PYTHONPATH=. scl enable rh-python38 --
               celery-prometheus-exporter --enable-events --broker=amqp://${RABBITMQ_HOST}:5672// --verbose
           env:
             - name: RABBITMQ_HOST

@@ -26,7 +26,6 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.provider.models import Provider
-from api.provider.serializers import ProviderSerializer
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from cost_models.serializers import CostModelSerializer
@@ -42,14 +41,7 @@ class CostModelSerializerTest(IamTestCase):
         """Set up the tests."""
         super().setUp()
 
-        provider_data = {
-            "name": "test_provider",
-            "type": Provider.PROVIDER_OCP.lower(),
-            "authentication": {"provider_resource_name": self.fake.word()},
-        }
-        serializer = ProviderSerializer(data=provider_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            self.provider = serializer.save()
+        self.provider = Provider.objects.filter(type=Provider.PROVIDER_OCP).first()
 
         ocp_metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         ocp_source_type = Provider.PROVIDER_OCP
@@ -369,17 +361,22 @@ class CostModelSerializerTest(IamTestCase):
             self.assertIsNotNone(response.get("label_measurement"))
             self.assertIsNotNone(response.get("label_metric"))
 
-    def test_check_for_duplicate_metrics(self):
+    def test_validate_rates_allows_duplicate_metric(self):
         """Check that duplicate rate types for a metric are rejected."""
         rate = self.ocp_data["rates"][0]
+        expected_metric_name = rate.get("metric", {}).get("name")
+        expected_metric_count = 2
+        self.assertIsNotNone(expected_metric_name)
         # Add another tiered rate entry for the same metric
         self.ocp_data["rates"].append(rate)
-        # Make sure we don't allow two tiered rate entries in rates
-        # for the same metric
+        result_metric_count = 0
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data)
-            with self.assertRaises(serializers.ValidationError):
-                serializer._check_for_duplicate_metrics(self.ocp_data["rates"])
+            valid_rates = serializer.validate_rates(self.ocp_data["rates"])
+            for valid_rate in valid_rates:
+                if valid_rate.get("metric", {}).get("name") == expected_metric_name:
+                    result_metric_count += 1
+        self.assertEqual(expected_metric_count, result_metric_count)
 
     def test_rate_cost_type_valid(self):
         """Test that a valid cost type is accepted."""

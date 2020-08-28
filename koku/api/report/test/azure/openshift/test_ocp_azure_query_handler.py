@@ -31,7 +31,6 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Provider
-from api.provider.test import create_generic_provider
 from api.query_filter import QueryFilter
 from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
 from api.report.azure.openshift.view import OCPAzureCostView
@@ -104,7 +103,7 @@ class OCPAzureQueryHandlerTestNoData(IamTestCase):
             "cost": "USD",
             "infrastructure": "USD",
             "supplementary": "USD",
-            "usage": "Instance Type Placeholder",
+            "usage": "Hrs",
             "count": "instances",
         }
         has_total_list = ["cost", "infrastructure", "supplementary"]
@@ -126,7 +125,9 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.dh = DateHelper()
-        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.request_context)
+
+        # Use one of the test-runner created providers
+        self.provider = Provider.objects.filter(type=Provider.PROVIDER_OCP).first()
 
         self.this_month_filter = {"usage_start__gte": self.dh.this_month_start}
         self.ten_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 9)}
@@ -153,7 +154,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filt = {"service_name__contains": "Storage"}
+        filt = {"service_name__contains": "Storage", "unit_of_measure__exact": "GB-Mo"}
         filt.update(self.ten_day_filter)
         current_totals = self.get_totals_by_time_scope(aggregates, filt)
         total = query_output.get("total")
@@ -169,7 +170,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filters = {**self.ten_day_filter, "instance_type__isnull": False}
+        filters = {**self.ten_day_filter, "instance_type__isnull": False, "unit_of_measure__exact": "Hrs"}
         current_totals = self.get_totals_by_time_scope(aggregates, filters)
         total = query_output.get("total")
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))

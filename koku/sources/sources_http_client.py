@@ -158,7 +158,7 @@ class SourcesHTTPClient:
         source_name = endpoint_response.get("data")[0].get("name")
         return source_name
 
-    def get_aws_role_arn(self):
+    def get_aws_credentials(self):
         """Get the roleARN from Sources Authentication service."""
         endpoint_url = "{}/endpoints?filter[source_id]={}".format(self._base_url, str(self._source_id))
 
@@ -186,7 +186,7 @@ class SourcesHTTPClient:
         authentications_internal_response = r.json()
         password = authentications_internal_response.get("password")
 
-        return password
+        return {"role_arn": password}
 
     def get_azure_credentials(self):
         """Get the Azure Credentials from Sources Authentication service."""
@@ -220,12 +220,11 @@ class SourcesHTTPClient:
         authentications_internal_response = r.json()
         password = authentications_internal_response.get("password")
 
-        azure_credentials = {
+        return {
             "client_id": data_dict.get("username"),
             "client_secret": password,
             "tenant_id": data_dict.get("extra").get("azure").get("tenant_id"),
         }
-        return azure_credentials
 
     def build_source_status(self, error_obj):
         """
@@ -254,8 +253,7 @@ class SourcesHTTPClient:
             error_obj = ""
 
         user_facing_string = SourcesErrorMessage(error_obj).display(self._source_id)
-        json_data = {"availability_status": status, "availability_status_error": user_facing_string}
-        return json_data
+        return {"availability_status": status, "availability_status_error": user_facing_string}
 
     def build_status_header(self):
         """Build org-admin header for internal status delivery."""

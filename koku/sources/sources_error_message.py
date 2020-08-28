@@ -48,7 +48,7 @@ class SourcesErrorMessage:
 
     def aws_client_errors(self, message):
         """AWS client error messages."""
-        return ProviderErrors.AWS_RESOURCE_NAME_UNREACHABLE_MESSAGE
+        return ProviderErrors.AWS_ROLE_ARN_UNREACHABLE_MESSAGE
 
     def aws_no_billing_source(self, message):
         """AWS no bucket message."""
@@ -62,7 +62,7 @@ class SourcesErrorMessage:
         """Return function to get user facing string."""
         ui_function_map = {
             ProviderErrors.AZURE_CLIENT_ERROR: self.azure_client_errors,
-            ProviderErrors.AWS_RESOURCE_NAME_UNREACHABLE: self.aws_client_errors,
+            ProviderErrors.AWS_ROLE_ARN_UNREACHABLE: self.aws_client_errors,
             ProviderErrors.AWS_BILLING_SOURCE_NOT_FOUND: self.aws_no_billing_source,
             ProviderErrors.AWS_COMPRESSION_REPORT_CONFIG: self.aws_invalid_report_compression,
         }

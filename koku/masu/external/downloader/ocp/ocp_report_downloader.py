@@ -106,15 +106,15 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
 class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """OCP Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
+    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
         """
         Initializer.
 
         Args:
             customer_name    (String) Name of the customer
-            auth_credential  (String) OpenShift cluster ID
+            credentials      (Dict) Credentials containing OpenShift cluster ID
             report_name      (String) Name of the Cost Usage Report to download (optional)
-            bucket           (String) Not used for OCP
+            data_source      (Dict) Not used for OCP
 
         """
         super().__init__(**kwargs)
@@ -123,9 +123,12 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         self.customer_name = customer_name.replace(" ", "_")
         self.report_name = report_name
-        self.cluster_id = auth_credential
         self.temp_dir = None
-        self.bucket = bucket
+        self.data_source = data_source
+        if isinstance(credentials, dict):
+            self.cluster_id = credentials.get("cluster_id")
+        else:
+            self.cluster_id = credentials
         self.context["cluster_id"] = self.cluster_id
 
     def _get_manifest(self, date_time):
@@ -241,10 +244,12 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         etag_hasher.update(bytes(local_filename, "utf-8"))
         ocp_etag = etag_hasher.hexdigest()
 
+        file_creation_date = None
         if ocp_etag != stored_etag or not os.path.isfile(full_file_path):
             msg = f"Downloading {key} to {full_file_path}"
             LOG.info(log_json(self.request_id, msg, self.context))
             shutil.move(key, full_file_path)
+            file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
         create_daily_archives(
             self.request_id,
@@ -256,7 +261,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             start_date,
             self.context,
         )
-        return full_file_path, ocp_etag
+        return full_file_path, ocp_etag, file_creation_date
 
     def get_local_file_for_report(self, report):
         """Get full path for local report file."""
@@ -269,6 +274,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         date_range = utils.month_date_range(manifest.get("date"))
         billing_str = date_range.split("-")[0]
         billing_start = datetime.datetime.strptime(billing_str, "%Y%m%d")
-
+        manifest_timestamp = manifest.get("date")
         num_of_files = len(manifest.get("files", []))
-        return self._process_manifest_db_record(assembly_id, billing_start, num_of_files)
+
+        return self._process_manifest_db_record(assembly_id, billing_start, num_of_files, manifest_timestamp)

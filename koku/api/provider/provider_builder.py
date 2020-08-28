@@ -61,82 +61,29 @@ class ProviderBuilder:
             db_dict = {}
         return db_dict
 
-    def _build_provider_resource_name_auth(self, authentication):
-        if authentication.get("resource_name"):
-            auth = {"provider_resource_name": authentication.get("resource_name")}
-        else:
-            raise ProviderBuilderError("Missing provider_resource_name")
-        return auth
-
     def _build_credentials_auth(self, authentication):
-        if authentication.get("credentials"):
-            auth = {"credentials": authentication.get("credentials")}
+        credentials = authentication.get("credentials")
+        if credentials and isinstance(credentials, dict):
+            auth = {"credentials": credentials}
         else:
             raise ProviderBuilderError("Missing credentials")
         return auth
 
-    def _authentication_for_aws(self, authentication):
-        return self._build_provider_resource_name_auth(authentication)
-
-    def _authentication_for_ocp(self, authentication):
-        return self._build_provider_resource_name_auth(authentication)
-
-    def _authentication_for_azure(self, authentication):
-        return self._build_credentials_auth(authentication)
-
-    def get_authentication_for_provider(self, provider_type, authentication):
-        """Build authentication json data for provider type."""
-        provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower())
-        provider_map = {
-            Provider.PROVIDER_AWS: self._authentication_for_aws,
-            Provider.PROVIDER_AWS_LOCAL: self._authentication_for_aws,
-            Provider.PROVIDER_OCP: self._authentication_for_ocp,
-            Provider.PROVIDER_AZURE: self._authentication_for_azure,
-            Provider.PROVIDER_AZURE_LOCAL: self._authentication_for_azure,
-        }
-        provider_fn = provider_map.get(provider_type)
-        if provider_fn:
-            return provider_fn(authentication)
-
-    def _build_provider_bucket(self, billing_source):
-        if billing_source.get("bucket") is not None:
-            billing = {"bucket": billing_source.get("bucket")}
-        else:
-            raise ProviderBuilderError("Missing bucket")
-        return billing
-
     def _build_provider_data_source(self, billing_source):
-        if billing_source.get("data_source"):
-            billing = {"data_source": billing_source.get("data_source")}
+        data_source = billing_source.get("data_source")
+        if data_source and isinstance(data_source, dict):
+            billing = {"data_source": data_source}
         else:
             raise ProviderBuilderError("Missing data_source")
         return billing
 
-    def _billing_source_for_aws(self, billing_source):
-        return self._build_provider_bucket(billing_source)
-
-    def _billing_source_for_ocp(self, billing_source):
-        if not billing_source:
-            billing_source = {}
-        billing_source["bucket"] = ""
-        return self._build_provider_bucket(billing_source)
-
-    def _billing_source_for_azure(self, billing_source):
-        return self._build_provider_data_source(billing_source)
-
     def get_billing_source_for_provider(self, provider_type, billing_source):
         """Build billing source json data for provider type."""
         provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower())
-        provider_map = {
-            Provider.PROVIDER_AWS: self._billing_source_for_aws,
-            Provider.PROVIDER_AWS_LOCAL: self._billing_source_for_aws,
-            Provider.PROVIDER_OCP: self._billing_source_for_ocp,
-            Provider.PROVIDER_AZURE: self._billing_source_for_azure,
-            Provider.PROVIDER_AZURE_LOCAL: self._billing_source_for_azure,
-        }
-        provider_fn = provider_map.get(provider_type)
-        if provider_fn:
-            return provider_fn(billing_source)
+        if provider_type == Provider.PROVIDER_OCP:
+            return {}
+        else:
+            return self._build_provider_data_source(billing_source)
 
     def _create_context(self):
         """Create request context object."""
@@ -161,19 +108,20 @@ class ProviderBuilder:
         context = {"user": user, "customer": customer}
         return context, customer, user
 
-    def create_provider(self, name, provider_type, authentication, billing_source, source_uuid=None):
+    def create_provider_from_source(self, source):
         """Call to create provider."""
         connection.set_schema_to_public()
-        context, customer, user = self._create_context()
+        context, customer, _ = self._create_context()
         tenant = Tenant.objects.get(schema_name=customer.schema_name)
+        provider_type = source.source_type
         json_data = {
-            "name": name,
+            "name": source.name,
             "type": provider_type.lower(),
-            "authentication": self.get_authentication_for_provider(provider_type, authentication),
-            "billing_source": self.get_billing_source_for_provider(provider_type, billing_source),
+            "authentication": self._build_credentials_auth(source.authentication),
+            "billing_source": self.get_billing_source_for_provider(provider_type, source.billing_source),
         }
-        if source_uuid:
-            json_data["uuid"] = str(source_uuid)
+        if source.source_uuid:
+            json_data["uuid"] = str(source.source_uuid)
 
         connection.set_tenant(tenant)
         serializer = ProviderSerializer(data=json_data, context=context)
@@ -186,19 +134,20 @@ class ProviderBuilder:
         connection.set_schema_to_public()
         return instance
 
-    def update_provider(self, provider_uuid, name, provider_type, authentication, billing_source):
+    def update_provider_from_source(self, source):
         """Call to update provider."""
         connection.set_schema_to_public()
         context, customer, _ = self._create_context()
         tenant = Tenant.objects.get(schema_name=customer.schema_name)
+        provider_type = source.source_type
         json_data = {
-            "name": name,
+            "name": source.name,
             "type": provider_type.lower(),
-            "authentication": self.get_authentication_for_provider(provider_type, authentication),
-            "billing_source": self.get_billing_source_for_provider(provider_type, billing_source),
+            "authentication": self._build_credentials_auth(source.authentication),
+            "billing_source": self.get_billing_source_for_provider(provider_type, source.billing_source),
         }
         connection.set_tenant(tenant)
-        instance = Provider.objects.get(uuid=provider_uuid)
+        instance = Provider.objects.get(uuid=source.koku_uuid)
         serializer = ProviderSerializer(instance=instance, data=json_data, partial=False, context=context)
         serializer.is_valid(raise_exception=True)
         serializer.save()

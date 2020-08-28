@@ -36,24 +36,24 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     https://cloud.google.com/billing/docs/how-to/export-data-file
     """
 
-    def __init__(self, customer_name, billing_source, **kwargs):
+    def __init__(self, customer_name, data_source, **kwargs):
         """
         Constructor.
 
         Args:
             customer_name  (str): Name of the customer
-            billing_source (dict): dict containing name of GCP storage bucket
+            data_source    (dict): dict containing name of GCP storage bucket
 
         """
         super().__init__(**kwargs)
 
-        self.bucket_name = billing_source["bucket"]
-        self.report_prefix = billing_source.get("report_prefix", "")
+        self.bucket_name = data_source.get("bucket")
+        self.report_prefix = data_source.get("report_prefix", "")
         self.customer_name = customer_name.replace(" ", "_")
         self._provider_uuid = kwargs.get("provider_uuid")
 
         try:
-            GCPProvider().cost_usage_source_is_reachable(None, billing_source)
+            GCPProvider().cost_usage_source_is_reachable(None, data_source)
             self._storage_client = storage.Client()
             self._bucket_info = self._storage_client.lookup_bucket(self.bucket_name)
         except ValidationError as ex:

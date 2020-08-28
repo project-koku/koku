@@ -18,6 +18,7 @@
 import datetime
 import json
 import os
+import time
 from decimal import Decimal
 from decimal import InvalidOperation
 
@@ -32,10 +33,12 @@ from tenant_schemas.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
 from api.common import log_json
+from api.iam.models import Tenant
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.celery import app
+from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -252,7 +255,8 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
     )
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_items_only)
-    refresh_materialized_views.delay(schema_name, provider)
+    if not line_items_only:
+        refresh_materialized_views.delay(schema_name, provider)
 
 
 @app.task(name="masu.processor.tasks.summarize_reports", queue_name="process")
@@ -394,7 +398,9 @@ def update_all_summary_tables(start_date, end_date=None):
 
 
 @app.task(name="masu.processor.tasks.update_cost_model_costs", queue_name="reporting")
-def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_date=None, provider_type=None):
+def update_cost_model_costs(
+    schema_name, provider_uuid, start_date=None, end_date=None, provider_type=None, synchronous=False
+):
     """Update usage charge information.
 
     Args:
@@ -407,6 +413,14 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
         None
 
     """
+    task_name = "masu.processor.tasks.update_cost_model_costs"
+    cache_args = [schema_name, provider_uuid, start_date, end_date]
+    if not synchronous:
+        worker_cache = WorkerCache()
+        while worker_cache.single_task_is_running(task_name, cache_args):
+            time.sleep(5)
+        worker_cache.lock_single_task(task_name, cache_args, timeout=300)
+
     worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
     stmt = (
@@ -420,10 +434,21 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
     if updater:
         updater.update_cost_model_costs(start_date, end_date)
 
+    if not synchronous:
+        worker_cache.release_single_task(task_name, cache_args)
+
 
 @app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name="reporting")
-def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
+def refresh_materialized_views(schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False):
     """Refresh the database's materialized views for reporting."""
+    task_name = "masu.processor.tasks.refresh_materialized_views"
+    cache_args = [schema_name]
+    if not synchronous:
+        worker_cache = WorkerCache()
+        while worker_cache.single_task_is_running(task_name, cache_args):
+            time.sleep(5)
+
+        worker_cache.lock_single_task(task_name, cache_args)
     materialized_views = ()
     if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
         materialized_views = (
@@ -455,6 +480,9 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(manifest_id)
             manifest_accessor.mark_manifest_as_completed(manifest)
+
+    if not synchronous:
+        worker_cache.release_single_task(task_name, cache_args)
 
 
 @app.task(name="masu.processor.tasks.vacuum_schema", queue_name="reporting")
@@ -490,8 +518,8 @@ def vacuum_schema(schema_name):
 # At this time, no table parameter will be lowered past the known production engine
 # setting of 0.2 by default. However this function's settings can be overridden via the
 # AUTOVACUUM_TUNING environment variable. See below.
-@app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name="reporting")  # noqa: C901
-def autovacuum_tune_schema(schema_name):
+@app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name="reporting")
+def autovacuum_tune_schema(schema_name):  # noqa: C901
     """Set the autovacuum table settings based on table size for the specified schema."""
     table_sql = """
 SELECT s.relname as "table_name",
@@ -586,14 +614,14 @@ SELECT s.relname as "table_name",
     LOG.info(f"Altered autovacuum_vacuum_scale_factor on {alter_count} tables")
 
 
-@app.task(  # noqa: C901
+@app.task(
     name="masu.celery.tasks.convert_to_parquet",
     queue_name="reporting",
     autoretry_for=(ClientError,),
     max_retries=10,
     retry_backoff=10,
 )
-def convert_to_parquet(
+def convert_to_parquet(  # noqa: C901
     request_id, account, provider_uuid, provider_type, start_date, manifest_id, files=[], context={}
 ):
     """
@@ -700,3 +728,28 @@ def convert_to_parquet(
         msg = f"Failed to convert the following files to parquet:{','.join(failed_conversion)}."
         LOG.warn(log_json(request_id, msg, context))
         return
+
+
+@app.task(name="masu.processor.tasks.remove_stale_tenants", queue_name="remove_stale_tenants")
+def remove_stale_tenants():
+    """ Remove stale tenants from the tenant api """
+    table_sql = """
+    SELECT schema_name
+      FROM api_customer c
+      LEFT
+      JOIN api_provider p
+        ON c.id = p.customer_id
+      LEFT
+      JOIN api_sources s
+        ON p.uuid::text = s.koku_uuid
+     WHERE s.source_id IS null AND c.date_created < now() - INTERVAL '2 weeks';
+        """
+    with connection.cursor() as cursor:
+        cursor.execute(table_sql)
+        data = cursor.fetchall()
+        Tenant.objects.filter(schema_name__in=[i[0] for i in data]).delete()
+        if data:
+            with KokuTenantMiddleware.tenant_lock:
+                KokuTenantMiddleware.tenant_cache.clear()
+        for name in data:
+            LOG.info(f"Deleted tenant: {name}")

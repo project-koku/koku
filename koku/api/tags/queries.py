@@ -63,8 +63,11 @@ class TagQueryHandler(QueryHandler):
 
     provider = "TAGS"
     data_sources = []
-    SUPPORTED_FILTERS = []
-    FILTER_MAP = {}
+    SUPPORTED_FILTERS = ["key", "value"]
+    FILTER_MAP = {
+        "key": {"field": "key", "operation": "icontains", "composition_key": "key_filter"},
+        "value": {"field": "value", "operation": "icontains", "composition_key": "value_filter"},
+    }
 
     dh = DateHelper()
 
@@ -82,10 +85,15 @@ class TagQueryHandler(QueryHandler):
         self.query_filter = self._get_filter()
         if parameters.kwargs.get("key"):
             self.key = parameters.kwargs.get("key")
-            self.query_filter = self._get_key_filter()
+            if not self.parameters.get_filter("value"):
+                self.query_filter = self._get_key_filter()
+        self.default_ordering = {"values": "asc"}
 
     def _get_key_filter(self):
-        """Add new `exact` QueryFilter that filters on the key name."""
+        """
+        Add new `exact` QueryFilter that filters on the key name.
+        If filtering on value, uses the tags summary table to find the key
+        """
         filters = QueryFilterCollection()
         filters.add(QueryFilter(field="key", operation="exact", parameter=self.key))
         return self.query_filter & filters.compose()
@@ -150,7 +158,7 @@ class TagQueryHandler(QueryHandler):
         end_filter = QueryFilter(field=f"{field_prefix}_start", operation="lte", parameter=end)
         return start_filter, end_filter
 
-    def _get_filter(self, delta=False):
+    def _get_filter(self, delta=False):  # noqa: C901
         """Create dictionary for filter parameters.
 
         Args:
@@ -160,12 +168,15 @@ class TagQueryHandler(QueryHandler):
 
         """
         filters = QueryFilterCollection()
-        for source in self.data_sources:
-            start_filter, end_filter = self._get_time_based_filters(source, delta)
-            filters.add(query_filter=start_filter)
-            filters.add(query_filter=end_filter)
+        if not self.parameters.get_filter("value"):
+            for source in self.data_sources:
+                start_filter, end_filter = self._get_time_based_filters(source, delta)
+                filters.add(query_filter=start_filter)
+                filters.add(query_filter=end_filter)
 
         for filter_key in self.SUPPORTED_FILTERS:
+            if self.parameters.get_filter("value") and filter_key == "enabled":
+                continue
             filter_value = self.parameters.get_filter(filter_key)
             if filter_value and not TagQueryHandler.has_wildcard(filter_value):
                 filter_obj = self.FILTER_MAP.get(filter_key)
@@ -266,7 +277,6 @@ class TagQueryHandler(QueryHandler):
 
     def get_tags(self):
         """Get a list of tags and values to validate filters.
-
         Return a list of dictionaries containing the tag keys.
         If OCP, these dicationaries will return as:
             [
@@ -321,6 +331,30 @@ class TagQueryHandler(QueryHandler):
         self.deduplicate_and_sort(final_data)
         return final_data
 
+    def get_tag_values(self):
+        """
+        Gets the values associated with a tag when filtering on a value.
+        """
+        final_data = []
+        with tenant_context(self.tenant):
+            tag_keys = {}
+            for source in self.TAGS_VALUES_SOURCE:
+                vals_filter = QueryFilterCollection()
+                for key_field in source.get("fields"):
+                    vals_filter.add(
+                        QueryFilter(
+                            field=key_field, operation="exact", parameter=self.key, composition_key="filter_key"
+                        )
+                    )
+                tag_values_query = source.get("db_table").objects
+                filt = self.query_filter & vals_filter.compose()
+                tag_keys = list(tag_values_query.filter(filt))
+                tag_tup = self._value_filter_dict(tag_keys)
+                converted = self._convert_to_dict(tag_tup)
+                self.append_to_final_data_without_type(final_data, converted)
+        self.deduplicate_and_sort(final_data)
+        return final_data
+
     def deduplicate_and_sort(self, data):
         for dikt in data:
             dikt["values"] = sorted(set(dikt["values"]), reverse=self.order_direction == "desc")
@@ -338,6 +372,12 @@ class TagQueryHandler(QueryHandler):
             else:
                 tag_map[tag.get("key")] = tag
         return tag_map
+
+    def _value_filter_dict(self, t_keys):
+        values_list = []
+        for obj in t_keys:
+            values_list.append(obj.value)
+        return [(self.key, values_list)]
 
     @staticmethod
     def _get_dictionary_for_key(dictionary_list, key):
@@ -377,6 +417,17 @@ class TagQueryHandler(QueryHandler):
         if self.parameters.get("key_only"):
             tag_data = self.get_tag_keys()
             query_data = sorted(tag_data, reverse=self.order_direction == "desc")
+        elif self.parameters.get_filter("value"):
+            tag_data = self.get_tag_values()
+            # This is sorted by values that start with the filter first, then values that contain the filter
+            # based on a discussion with UX
+            vals = tag_data[0].get("values")
+            tag_data[0]["values"] = sorted(
+                vals,
+                key=lambda k: (not k.lower().startswith(self.parameters.get_filter("value")[0].lower()), k.lower()),
+                reverse=self.order_direction == "desc",
+            )
+            query_data = tag_data
         else:
             tag_data = self.get_tags()
             query_data = sorted(tag_data, key=lambda k: k["key"], reverse=self.order_direction == "desc")

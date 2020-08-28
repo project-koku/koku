@@ -149,6 +149,10 @@ class ProviderManager:
                     last_manifest_complete_datetime = provider_manifest.manifest_completed_datetime.strftime(
                         DATE_TIME_FORMAT
                     )
+                if provider_manifest.manifest_modified_datetime:
+                    manifest_modified_datetime = provider_manifest.manifest_modified_datetime.strftime(
+                        DATE_TIME_FORMAT
+                    )
                 if report_status and report_status.last_started_datetime:
                     last_process_start_date = report_status.last_started_datetime.strftime(DATE_TIME_FORMAT)
                 if report_status and report_status.last_completed_datetime:
@@ -156,6 +160,7 @@ class ProviderManager:
                 status["last_process_start_date"] = last_process_start_date
                 status["last_process_complete_date"] = last_process_complete_date
                 status["last_manifest_complete_date"] = last_manifest_complete_datetime
+                status["manifest_modified_datetime"] = manifest_modified_datetime
                 schema_stats = self._get_tenant_provider_stats(provider_manifest.provider, tenant, month)
                 status["summary_data_creation_datetime"] = schema_stats.get("summary_data_creation_datetime")
                 status["summary_data_updated_datetime"] = schema_stats.get("summary_data_updated_datetime")
@@ -217,7 +222,7 @@ def provider_post_delete_callback(*args, **kwargs):
         billing_count = (
             Provider.objects.exclude(uuid=provider.uuid).filter(billing_source=provider.billing_source).count()
         )
-        if provider.billing_source and billing_count == 0:
+        if billing_count == 0:
             provider.billing_source.delete()
 
     provider_rate_objs = CostModelMap.objects.filter(provider_uuid=provider.uuid)
@@ -234,4 +239,7 @@ def provider_post_delete_callback(*args, **kwargs):
 
         delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
         transaction.on_commit(delete_func)
-    refresh_materialized_views(provider.customer.schema_name, provider.type)
+
+    refresh_materialized_views.s(
+        provider.customer.schema_name, provider.type, provider_uuid=provider.uuid, synchronous=True
+    ).apply()

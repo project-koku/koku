@@ -8,46 +8,29 @@ customer:
       source_name: Test AWS Source
       source_type: 'AWS-local'
       authentication:
-        resource_name: arn:aws:iam::111111111111:role/CostManagement
         credentials:
-          resource_name: arn:aws:iam::111111111111:role/CostManagement
+          role_arn: arn:aws:iam::111111111111:role/CostManagement
       billing_source:
-        bucket: /tmp/local_bucket
         data_source:
           bucket: /tmp/local_bucket
     - ocp_on_aws_source:
       source_name: Test OCP on AWS
       source_type: 'OCP'
       authentication:
-        resource_name: my-ocp-cluster-1
         credentials:
-          resource_name: my-ocp-cluster-1
-      billing_source:
-        bucket: ''
-        data_source:
-          bucket: ''
+          cluster_id: my-ocp-cluster-1
     - ocp_on_azure_source:
       source_name: Test OCP on Azure
       source_type: 'OCP'
       authentication:
-        resource_name: my-ocp-cluster-2
         credentials:
-          resource_name: my-ocp-cluster-2
-      billing_source:
-        bucket: ''
-        data_source:
-          bucket: ''
+          cluster_id: my-ocp-cluster-2
     - ocp_on_prem_source:
       source_name: Test OCP on Premises
       source_type: 'OCP'
       authentication:
-        resource_name: my-ocp-cluster-3
         credentials:
-          resource_name: my-ocp-cluster-3
-      billing_source:
-        bucket: ''
-        data_source:
-          bucket: ''
+          cluster_id: my-ocp-cluster-3
     - azure_source:
       source_name: Test Azure Source
       source_type: 'Azure-local'

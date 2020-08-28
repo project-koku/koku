@@ -23,8 +23,9 @@ from api.common import error_obj
 from api.provider.models import Provider
 from api.query_params import QueryParameters
 from api.settings.utils import create_dual_list_select
-from api.settings.utils import create_plain_text
+from api.settings.utils import create_plain_text_with_doc
 from api.settings.utils import create_subform
+from api.settings.utils import generate_doc_link
 from api.settings.utils import OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
@@ -78,8 +79,12 @@ class OpenShiftSettings:
         tag_key_text_name = f"{OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX}.form-text"
         tag_key_text_context = (
             "Enable your OpenShift label names to be used as tag keys for report grouping and filtering."
+            + "<link>Learn more</link>"
         )
-        tag_key_text = create_plain_text(tag_key_text_name, tag_key_text_context)
+        doc_link = dict(
+            href=generate_doc_link("managing_cost_data_using_tagging/configuring_tags_and_labels_in_cost_management")
+        )
+        tag_key_text = create_plain_text_with_doc(tag_key_text_name, tag_key_text_context, doc_link)
         available, enabled = self._obtain_tag_keys()
         avail_objs = [{"value": tag_key, "label": tag_key} for tag_key in available]
         dual_list_options = {

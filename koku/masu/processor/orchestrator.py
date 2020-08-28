@@ -116,15 +116,15 @@ class Orchestrator:
         return DateAccessor().get_billing_months(number_of_months)
 
     def start_manifest_processing(
-        self, customer_name, authentication, billing_source, provider_type, schema_name, provider_uuid, report_month
+        self, customer_name, credentials, data_source, provider_type, schema_name, provider_uuid, report_month
     ):
         """
         Start processing an account's manifest for the specified report_month.
 
         Args:
             (String) customer_name - customer name
-            (String) authentication - authentication object
-            (String) billing_source - report storage location
+            (String) credentials - credentials object
+            (String) data_source - report storage location
             (String) schema_name - db tenant
             (String) provider_uuid - provider unique identifier
             (Date)   report_month - month to get latest manifest
@@ -138,8 +138,8 @@ class Orchestrator:
         """
         downloader = ReportDownloader(
             customer_name=customer_name,
-            access_credential=authentication,
-            report_source=billing_source,
+            credentials=credentials,
+            data_source=data_source,
             provider_type=provider_type,
             provider_uuid=provider_uuid,
             report_name=None,
@@ -177,8 +177,8 @@ class Orchestrator:
             report_tasks.append(
                 get_report_files.s(
                     customer_name,
-                    authentication,
-                    billing_source,
+                    credentials,
+                    data_source,
                     provider_type,
                     schema_name,
                     provider_uuid,
@@ -232,7 +232,7 @@ class Orchestrator:
 
                 # update labels
                 labeler = AccountLabel(
-                    auth=account.get("authentication"),
+                    auth=account.get("credentials"),
                     schema=account.get("schema_name"),
                     provider_type=account.get("provider_type"),
                 )
