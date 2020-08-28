@@ -339,23 +339,6 @@ class CostModelSerializer(serializers.Serializer):
         """Return API display metadata."""
         return self.metric_map.get(source_type, {}).get(metric)
 
-    def _check_for_duplicate_metrics(self, rates):
-        """Check for duplicate metric/rate combinations within a cost model."""
-        rate_type_by_metric = defaultdict(dict)
-        for rate in rates:
-            metric = rate.get("metric", {}).get("name")
-            for key in rate:
-                if key in RateSerializer.RATE_TYPES:
-                    if key in rate_type_by_metric[metric]:
-                        rate_type_by_metric[metric][key] += 1
-                    else:
-                        rate_type_by_metric[metric][key] = 1
-        for metric in rate_type_by_metric:
-            for rate_type, count in rate_type_by_metric[metric].items():
-                if count > 1:
-                    err_msg = f"Duplicate {rate_type} entry found for {metric}"
-                    raise serializers.ValidationError(err_msg)
-
     def validate_source_uuids(self, source_uuids):
         """Check that uuids in source_uuids are valid identifiers."""
         valid_uuids = []
@@ -372,7 +355,6 @@ class CostModelSerializer(serializers.Serializer):
 
     def validate_rates(self, rates):
         """Run validation for rates."""
-        self._check_for_duplicate_metrics(rates)
         validated_rates = []
         for rate in rates:
             serializer = RateSerializer(data=rate)

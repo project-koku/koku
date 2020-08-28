@@ -9,9 +9,9 @@
             "unit": "USD",
             "value": 0.0070000000,
             "usage_start": null,
-            "usage_end": null,
-            "cost_type": "Supplementary"
-        }]
+            "usage_end": null
+        }],
+        "cost_type": "Supplementary"
     },
     {
         "metric": {"name": "cpu_core_request_per_hour"},
@@ -19,9 +19,9 @@
             "unit": "USD",
             "value": 0.2000000000,
             "usage_start": null,
-            "usage_end": null,
-            "cost_type": "Supplementary"
-        }]
+            "usage_end": null
+        }],
+        "cost_type": "Supplementary"
     },
     {
         "metric": {"name": "memory_gb_usage_per_hour"},
@@ -29,9 +29,9 @@
             "unit": "USD",
             "value": 0.0090000000,
             "usage_start": null,
-            "usage_end": null,
-            "cost_type": "Supplementary"
-        }]
+            "usage_end": null
+        }],
+        "cost_type": "Supplementary"
     },
     {
         "metric": {"name": "memory_gb_request_per_hour"},
@@ -39,9 +39,9 @@
             "unit": "USD",
             "value": 0.0500000000,
             "usage_start": null,
-            "usage_end": null,
-            "cost_type": "Supplementary"
-        }]
+            "usage_end": null
+        }],
+        "cost_type": "Supplementary"
     },
     {
         "metric": {"name": "storage_gb_usage_per_month"},
@@ -49,9 +49,9 @@
             "unit": "USD",
             "value": 0.01,
             "usage_start": null,
-            "usage_end": null,
-            "cost_type": "Supplementary"
-        }]
+            "usage_end": null
+        }],
+        "cost_type": "Supplementary"
     },
     {
         "metric": {"name": "storage_gb_request_per_month"},
@@ -59,9 +59,9 @@
             "unit": "USD",
             "value": 0.01,
             "usage_start": null,
-            "usage_end": null,
-            "cost_type": "Supplementary"
-        }]
+            "usage_end": null
+        }],
+        "cost_type": "Supplementary"
     },
     {
         "metric": {"name": "node_cost_per_month"},
@@ -69,9 +69,9 @@
             "unit": "USD",
             "value": 1000.0,
             "usage_start": null,
-            "usage_end": null,
-            "cost_type": "Infrastructure"
-        }]
+            "usage_end": null
+        }],
+        "cost_type": "Infrastructure"
     },
     {
         "metric": {"name": "cluster_cost_per_month"},
@@ -79,9 +79,9 @@
             "unit": "USD",
             "value": 10000.0,
             "usage_start": null,
-            "usage_end": null,
-            "cost_type": "Infrastructure"
-        }]
+            "usage_end": null
+        }],
+        "cost_type": "Infrastructure"
     }
     ]
 }
