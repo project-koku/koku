@@ -476,6 +476,21 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
             return res
 
+    def _set_access_filters(self, access, filt, filters):
+        """
+        Sets the access filters to ensure RBAC restrictions given the users access,
+        the current filter and the filter collection
+        Args:
+            access (list) the list containing the users relevant access
+            filt (list or dict) contains the filters that need
+            filters (QueryFilterCollection) the filter collection to add the new filters to
+        returns:
+            None
+        """
+        if not isinstance(filt, list) and filt["field"] == "organizational_unit__org_unit_path":
+            filt["field"] = "organizational_unit__org_unit_id"
+        super()._set_access_filters(access, filt, filters)
+
     def total_sum(self, sum1, sum2):  # noqa: C901
         """
         Given two sums, add the values of identical keys.
