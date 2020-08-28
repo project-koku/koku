@@ -15,10 +15,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS Tag Query Handling."""
+from copy import deepcopy
+
 from api.models import Provider
 from api.report.aws.provider_map import AWSProviderMap
 from api.tags.queries import TagQueryHandler
 from reporting.models import AWSTagsSummary
+from reporting.provider.aws.models import AWSTagsValues
 
 
 class AWSTagQueryHandler(TagQueryHandler):
@@ -26,8 +29,12 @@ class AWSTagQueryHandler(TagQueryHandler):
 
     provider = Provider.PROVIDER_AWS
     data_sources = [{"db_table": AWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
-    SUPPORTED_FILTERS = ["account"]
-    FILTER_MAP = {"account": {"field": "accounts", "operation": "icontains", "composition_key": "account_filter"}}
+    TAGS_VALUES_SOURCE = [{"db_table": AWSTagsValues, "fields": ["awstagssummary__key"]}]
+    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["account"]
+    FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
+    FILTER_MAP.update(
+        {"account": {"field": "accounts", "operation": "icontains", "composition_key": "account_filter"}}
+    )
 
     def __init__(self, parameters):
         """Establish AWS report query handler.
