@@ -193,6 +193,15 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
+class OCPAWSTagsValues(models.Model):
+    class Meta:
+        """Meta for OCPAWSTagsValues."""
+
+        db_table = "reporting_ocpawstags_values"
+
+    value = models.CharField(max_length=253, unique=True)
+
+
 class OCPAWSTagsSummary(models.Model):
     """A collection of all current existing tag key and values."""
 
@@ -206,6 +215,7 @@ class OCPAWSTagsSummary(models.Model):
 
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
+    values_mtm = models.ManyToManyField(OCPAWSTagsValues)
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE)
     accounts = ArrayField(models.CharField(max_length=63))
     namespace = ArrayField(models.CharField(max_length=253))
