@@ -54,7 +54,7 @@ class ReportParquetProcessorBase:
             cur = conn.cursor()
             cur.execute(sql)
             rows = cur.fetchall()
-            LOG.info(f"_execute_sql rows: {str(rows)}. Type: {type(rows)}")
+            LOG.debug(f"_execute_sql rows: {str(rows)}. Type: {type(rows)}")
 
     def _create_schema(self,):
         """Create presto schema."""
