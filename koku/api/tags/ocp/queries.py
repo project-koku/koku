@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP Tag Query Handling."""
+from copy import deepcopy
+
 from django.db.models import Exists
 from django.db.models import OuterRef
 
@@ -24,6 +26,7 @@ from api.tags.queries import TagQueryHandler
 from reporting.models import OCPEnabledTagKeys
 from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsagePodLabelSummary
+from reporting.provider.ocp.models import OCPTagsValues
 
 
 class OCPTagQueryHandler(TagQueryHandler):
@@ -45,15 +48,25 @@ class OCPTagQueryHandler(TagQueryHandler):
             "annotations": {"enabled": Exists(enabled)},
         },
     ]
-    SUPPORTED_FILTERS = ["project", "enabled", "cluster"]
-    FILTER_MAP = {
-        "project": {"field": "namespace", "operation": "icontains"},
-        "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
-        "cluster": [
-            {"field": "report_period__cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
-            {"field": "report_period__cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
-        ],
-    }
+    TAGS_VALUES_SOURCE = [
+        {"db_table": OCPTagsValues, "fields": ["ocpusagepodlabelsummary__key", "ocpstoragevolumelabelsummary__key"]}
+    ]
+    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["project", "enabled", "cluster"]
+    FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
+    FILTER_MAP.update(
+        {
+            "project": {"field": "namespace", "operation": "icontains"},
+            "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+            "cluster": [
+                {"field": "report_period__cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
+                {
+                    "field": "report_period__cluster_alias",
+                    "operation": "icontains",
+                    "composition_key": "cluster_filter",
+                },
+            ],
+        }
+    )
 
     def __init__(self, parameters):
         """Establish AWS report query handler.

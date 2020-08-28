@@ -284,6 +284,15 @@ class AWSAccountAlias(models.Model):
         return f"{{ id : {self.id}, account_id : {self.account_id}, account_alias : {self.account_alias} }}"
 
 
+class AWSTagsValues(models.Model):
+    class Meta:
+        """Meta for AWSTagsValues."""
+
+        db_table = "reporting_awstags_values"
+
+    value = models.CharField(max_length=253, unique=True)
+
+
 class AWSTagsSummary(models.Model):
     """A collection of all current existing tag key and values."""
 
@@ -297,6 +306,7 @@ class AWSTagsSummary(models.Model):
 
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
+    values_mtm = models.ManyToManyField(AWSTagsValues)
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE)
     accounts = ArrayField(models.CharField(max_length=63))
 
