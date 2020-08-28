@@ -21,7 +21,7 @@ from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProc
 from masu.test import MasuTestCase
 
 
-class AWSReportProcessorTest(MasuTestCase):
+class AWSReportProcessorParquetTest(MasuTestCase):
     """Test cases for the AWSReportParquetProcessor."""
 
     def setUp(self):

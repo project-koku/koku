@@ -21,7 +21,7 @@ from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProc
 from masu.test import MasuTestCase
 
 
-class OCPReportProcessorTest(MasuTestCase):
+class OCPReportProcessorParquetTest(MasuTestCase):
     """Test cases for the OCPReportParquetProcessor."""
 
     def setUp(self):
