@@ -20,6 +20,7 @@ import logging
 import os
 import shutil
 import tempfile
+import time
 from datetime import date
 from datetime import timedelta
 from decimal import Decimal
@@ -30,6 +31,7 @@ from uuid import uuid4
 
 import faker
 from dateutil import relativedelta
+from django.core.cache import caches
 from django.db.models import Max
 from django.db.models import Min
 from django.db.utils import IntegrityError
@@ -66,6 +68,7 @@ from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_summary_tables
 from masu.processor.tasks import vacuum_schema
+from masu.processor.worker_cache import create_single_task_cache_key
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.test.external.downloader.aws import fake_arn
@@ -880,6 +883,91 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(manifest.id)
             self.assertIsNotNone(manifest.manifest_completed_datetime)
+
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_cost_model_costs_throttled(self, mock_inspect, mock_lock, mock_release):
+        """Test that refresh materialized views runs with cache lock."""
+
+        def single_task_is_running(self, task_name, task_args=None):
+            """Check for a single task key in the cache."""
+            cache = caches["worker"]
+            cache_str = create_single_task_cache_key(task_name, task_args)
+            return True if cache.get(cache_str) else False
+
+        def lock_single_task(self, task_name, task_args=None, timeout=None):
+            """Add a cache entry for a single task to lock a specific task."""
+            cache = caches["worker"]
+            cache_str = create_single_task_cache_key(task_name, task_args)
+            cache.add(cache_str, "true", 3)
+
+        mock_lock.side_effect = lock_single_task
+
+        start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
+        end_date = DateHelper().today
+        expected_start_date = start_date.strftime("%Y-%m-%d")
+        expected_end_date = end_date.strftime("%Y-%m-%d")
+        task_name = "masu.processor.tasks.update_cost_model_costs"
+        cache_args = [self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date]
+
+        manifest_dict = {
+            "assembly_id": "12345",
+            "billing_period_start_datetime": DateHelper().today,
+            "num_total_files": 2,
+            "provider_uuid": self.aws_provider_uuid,
+        }
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.add(**manifest_dict)
+            manifest.save()
+
+        update_cost_model_costs.s(self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date).apply()
+        self.assertTrue(single_task_is_running(task_name, cache_args))
+        # Let the cache entry expire
+        time.sleep(3)
+        self.assertFalse(single_task_is_running(task_name, cache_args))
+
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_refresh_materialized_views_throttled(self, mock_inspect, mock_lock, mock_release):
+        """Test that refresh materialized views runs with cache lock."""
+
+        def single_task_is_running(self, task_name, task_args=None):
+            """Check for a single task key in the cache."""
+            cache = caches["worker"]
+            cache_str = create_single_task_cache_key(task_name, task_args)
+            return True if cache.get(cache_str) else False
+
+        def lock_single_task(self, task_name, task_args=None, timeout=None):
+            """Add a cache entry for a single task to lock a specific task."""
+            cache = caches["worker"]
+            cache_str = create_single_task_cache_key(task_name, task_args)
+            cache.add(cache_str, "true", 3)
+
+        # mock_cache.return_value.single_task_is_running.side_effect = single_task_is_running
+        mock_lock.side_effect = lock_single_task
+
+        task_name = "masu.processor.tasks.refresh_materialized_views"
+        cache_args = [self.schema]
+
+        manifest_dict = {
+            "assembly_id": "12345",
+            "billing_period_start_datetime": DateHelper().today,
+            "num_total_files": 2,
+            "provider_uuid": self.aws_provider_uuid,
+        }
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.add(**manifest_dict)
+            manifest.save()
+
+        refresh_materialized_views.s(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id).apply()
+        self.assertTrue(single_task_is_running(task_name, cache_args))
+        # Let the cache entry expire
+        time.sleep(3)
+        self.assertFalse(single_task_is_running(task_name, cache_args))
 
     @patch("masu.processor.tasks.connection")
     def test_vacuum_schema(self, mock_conn):
