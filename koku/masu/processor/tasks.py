@@ -414,7 +414,7 @@ def update_cost_model_costs(
 
     """
     task_name = "masu.processor.tasks.update_cost_model_costs"
-    cache_args = [schema_name, provider_uuid]
+    cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:
         worker_cache = WorkerCache()
         while worker_cache.single_task_is_running(task_name, cache_args):
@@ -449,7 +449,6 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None, pro
             time.sleep(5)
 
         worker_cache.lock_single_task(task_name, cache_args)
-
     materialized_views = ()
     if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
         materialized_views = (
