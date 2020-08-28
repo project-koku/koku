@@ -15,12 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP-on-AWS Tag Query Handling."""
+from copy import deepcopy
+
 from api.models import Provider
 from api.report.aws.openshift.provider_map import OCPAWSProviderMap
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
-from api.utils import merge_dicts
 from reporting.models import OCPAWSTagsSummary
+from reporting.provider.aws.openshift.models import OCPAWSTagsValues
 
 
 class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
@@ -28,8 +30,10 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
 
     provider = Provider.OCP_AWS
     data_sources = [{"db_table": OCPAWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
+    TAGS_VALUES_SOURCE = [{"db_table": OCPAWSTagsValues, "fields": ["ocpawstagssummary__key"]}]
     SUPPORTED_FILTERS = AWSTagQueryHandler.SUPPORTED_FILTERS + OCPTagQueryHandler.SUPPORTED_FILTERS
-    FILTER_MAP = merge_dicts(AWSTagQueryHandler.FILTER_MAP, OCPTagQueryHandler.FILTER_MAP)
+    FILTER_MAP = deepcopy(AWSTagQueryHandler.FILTER_MAP)
+    FILTER_MAP.update(OCPTagQueryHandler.FILTER_MAP)
     # override cluster since we are getting it from a different table and field(s)
     FILTER_MAP["cluster"] = [
         {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
