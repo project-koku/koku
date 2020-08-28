@@ -23,7 +23,17 @@ from django.core.cache import caches
 
 from koku.celery import CELERY_INSPECT
 
+TASK_CACHE_EXPIRE = 30
 LOG = logging.getLogger(__name__)
+
+
+def create_single_task_cache_key(task_name, task_args=None):
+    """Create the cache key for a single task with optional task args."""
+    cache_str = task_name
+    if task_args:
+        cache_str += ":"
+        cache_str += ":".join(task_args)
+    return cache_str
 
 
 class WorkerCache:
@@ -139,3 +149,22 @@ class WorkerCache:
         """Check if a task is in the cache."""
         task_list = self.get_all_running_tasks()
         return True if task_key in task_list else False
+
+    def single_task_is_running(self, task_name, task_args=None):
+        """Check for a single task key in the cache."""
+        cache_str = create_single_task_cache_key(task_name, task_args)
+        return True if self.cache.get(cache_str) else False
+
+    def lock_single_task(self, task_name, task_args=None, timeout=None):
+        """Add a cache entry for a single task to lock a specific task."""
+        cache_str = create_single_task_cache_key(task_name, task_args)
+        # Expire the cache so we don't infinite loop waiting
+        if timeout:
+            self.cache.add(cache_str, "true", timeout)
+        else:
+            self.cache.add(cache_str, "true", TASK_CACHE_EXPIRE)
+
+    def release_single_task(self, task_name, task_args=None):
+        """Delete the cache entry for a single task."""
+        cache_str = create_single_task_cache_key(task_name, task_args)
+        self.cache.delete(cache_str)
