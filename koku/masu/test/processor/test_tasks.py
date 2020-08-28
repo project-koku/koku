@@ -655,7 +655,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date.date())
         self.assertEqual(result_end_date, expected_end_date.date())
 
-    @patch("masu.processor.tasks.WorkerCache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.tasks.CostModelDBAccessor")
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.refresh_materialized_views")
@@ -803,7 +803,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_update.delay.assert_called_with(ANY, ANY, ANY, str(start_date), ANY)
 
-    @patch("masu.processor.tasks.WorkerCache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_refresh_materialized_views_aws(self, mock_cache):
         """Test that materialized views are refreshed."""
         manifest_dict = {
@@ -817,7 +817,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.add(**manifest_dict)
             manifest.save()
 
-        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id, synchronous=True)
+        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
 
         views_to_check = [view for view in AWS_MATERIALIZED_VIEWS if "Cost" in view._meta.db_table]
 
@@ -829,7 +829,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.get_manifest_by_id(manifest.id)
             self.assertIsNotNone(manifest.manifest_completed_datetime)
 
-    @patch("masu.processor.tasks.WorkerCache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_refresh_materialized_views_azure(self, mock_cache):
         """Test that materialized views are refreshed."""
         manifest_dict = {
@@ -843,7 +843,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.add(**manifest_dict)
             manifest.save()
 
-        refresh_materialized_views(self.schema, Provider.PROVIDER_AZURE, manifest_id=manifest.id, synchronous=True)
+        refresh_materialized_views(self.schema, Provider.PROVIDER_AZURE, manifest_id=manifest.id)
 
         views_to_check = [view for view in AZURE_MATERIALIZED_VIEWS if "Cost" in view._meta.db_table]
 
@@ -855,7 +855,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.get_manifest_by_id(manifest.id)
             self.assertIsNotNone(manifest.manifest_completed_datetime)
 
-    @patch("masu.processor.tasks.WorkerCache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_refresh_materialized_views_ocp(self, mock_cache):
         """Test that materialized views are refreshed."""
         manifest_dict = {
@@ -869,7 +869,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.add(**manifest_dict)
             manifest.save()
 
-        refresh_materialized_views(self.schema, Provider.PROVIDER_OCP, manifest_id=manifest.id, synchronous=True)
+        refresh_materialized_views(self.schema, Provider.PROVIDER_OCP, manifest_id=manifest.id)
 
         views_to_check = [view for view in OCP_MATERIALIZED_VIEWS if "Cost" in view._meta.db_table]
 
