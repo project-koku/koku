@@ -62,6 +62,31 @@ def remove_expired_data(simulate=False, line_items_only=False):
     orchestrator.remove_expired_report_data(simulate, line_items_only)
 
 
+def deleted_archived_with_prefix(s3_bucket_name, prefix):
+    """
+    Delete data from archive with given prefix.
+
+    Args:
+        s3_bucket_name (str): The s3 bucket name
+        prefix (str): The prefix for deletion
+    """
+    s3_resource = get_s3_resource()
+    s3_bucket = s3_resource.Bucket(s3_bucket_name)
+    object_keys = [{"Key": s3_object.key} for s3_object in s3_bucket.objects.filter(Prefix=prefix)]
+    batch_size = 1000  # AWS S3 delete API limits to 1000 objects per request.
+    for batch_number in range(math.ceil(len(object_keys) / batch_size)):
+        batch_start = batch_size * batch_number
+        batch_end = batch_start + batch_size
+        object_keys_batch = object_keys[batch_start:batch_end]
+        s3_bucket.delete_objects(Delete={"Objects": object_keys_batch})
+
+    remaining_objects = list(s3_bucket.objects.filter(Prefix=prefix))
+    if remaining_objects:
+        LOG.warning(
+            "Found %s objects after attempting to delete all objects with prefix %s", len(remaining_objects), prefix
+        )
+
+
 @app.task(
     name="masu.celery.tasks.delete_archived_data",
     queue_name="delete_archived_data",
@@ -108,44 +133,22 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
     if not settings.ENABLE_S3_ARCHIVING:
         LOG.info("Skipping delete_archived_data. Upload feature is disabled.")
         return
+    else:
+        message = f"Deleting S3 data for {provider_type} provider {provider_uuid} in account {schema_name}."
+        LOG.info(message)
 
     # We need to normalize capitalization and "-local" dev providers.
     account = schema_name[4:]
+
     path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.CSV_DATA_TYPE}"
     prefix = f"{path_prefix}/{account}/{provider_uuid}/"
-    LOG.info("attempting to delete our archived data in S3 under %s", prefix)
-
-    s3_resource = get_s3_resource()
-    s3_bucket = s3_resource.Bucket(settings.S3_BUCKET_NAME)
-    object_keys = [{"Key": s3_object.key} for s3_object in s3_bucket.objects.filter(Prefix=prefix)]
-    batch_size = 1000  # AWS S3 delete API limits to 1000 objects per request.
-    for batch_number in range(math.ceil(len(object_keys) / batch_size)):
-        batch_start = batch_size * batch_number
-        batch_end = batch_start + batch_size
-        object_keys_batch = object_keys[batch_start:batch_end]
-        s3_bucket.delete_objects(Delete={"Objects": object_keys_batch})
-
-    remaining_objects = list(s3_bucket.objects.filter(Prefix=prefix))
-    if remaining_objects:
-        LOG.warning(
-            "Found %s objects after attempting to delete all objects with prefix %s", len(remaining_objects), prefix
-        )
+    LOG.info("Attempting to delete our archived data in S3 under %s", prefix)
+    deleted_archived_with_prefix(settings.S3_BUCKET_NAME, prefix)
 
     path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
     prefix = f"{path_prefix}/{account}/{provider_uuid}/"
-    object_keys = [{"Key": s3_object.key} for s3_object in s3_bucket.objects.filter(Prefix=prefix)]
-    batch_size = 1000  # AWS S3 delete API limits to 1000 objects per request.
-    for batch_number in range(math.ceil(len(object_keys) / batch_size)):
-        batch_start = batch_size * batch_number
-        batch_end = batch_start + batch_size
-        object_keys_batch = object_keys[batch_start:batch_end]
-        s3_bucket.delete_objects(Delete={"Objects": object_keys_batch})
-
-    remaining_objects = list(s3_bucket.objects.filter(Prefix=prefix))
-    if remaining_objects:
-        LOG.warning(
-            "Found %s objects after attempting to delete all objects with prefix %s", len(remaining_objects), prefix
-        )
+    LOG.info("Attempting to delete our archived data in S3 under %s", prefix)
+    deleted_archived_with_prefix(settings.S3_BUCKET_NAME, prefix)
 
 
 @app.task(
