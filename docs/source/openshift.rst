@@ -20,42 +20,10 @@ Developing Koku using OpenShift requires prerequisite knowledge and workstation 
 - `Kubernetes`_
 - `Docker`_
 
-When ready, your workstation should be able to run containers and deploy `OpenShift`_, either using `minishift`_ or an alternative installer.
+When ready, your workstation should be able to run containers and deploy `OpenShift`_, either using `crc`_ or an alternative installer.
 
 Local Development
 =================
-
-Minishift (OKD 3.11)
---------------------
-
-The recommended way to deploy a local OpenShift 3.x installation on Linux for Koku development is to use `minishift`_. This runs an OpenShift cluster inside of a VM.
-
-Installing and configuring `minishift`_ is outside the scope of this document.  Please refer to the `minishift`_ documentation for details.
-
-In order to access RHEL images for building Koku, you must configure `Red Hat Registry Authentication`_:
-
-For username/password, you can use the minishift's ``redhat-registry-login``
-addon:
-
-::
-    minishift addons enable redhat-registry-login
-    minishift addons apply redhat-registry-login --addon-env REGISTRY_USERNAME=${USERNAME} --addon-env REGISTRY_PASSWORD=${PASSWORD}
-
-
-For token-based authentication, you will need to configure the secret manually
-in your project:
-
-::
-    # this extracts the nested object from the file distributed by https://access.redhat.com/terms-based-registry
-    cat /path/to/registry-pull-secret.yaml | \
-             python -c 'import yaml, sys; print(yaml.safe_load(sys.stdin).get("data").get(".dockerconfigjson"))' | \
-             base64 -d | \
-             oc create secret generic registry-redhat-io-secret \
-                                    --from-file=.dockerconfigjson=/dev/stdin \
-                                    -n myproject \
-                                    --type=kubernetes.io/dockerconfigjson
-    oc secrets link default registry-redhat-io-secret -n myproject --for=pull
-    oc secrets link builder registry-redhat-io-secret -n myproject
 
 CodeReady Containers (OKD 4.x)
 ------------------------------
@@ -65,10 +33,9 @@ Installing and configuring `crc`_ is outside the scope of this document.  Please
 
 In order to access RHEL images for building Koku, you must configure `Red Hat Registry Authentication`_.
 
-
 Running locally in OpenShift using e2e-deploy
 ---------------------------------------------
-The script ``scripts/e2e-deploy.sh`` handles setup and configuration of `crc`_ or OKD 3.11, including `Red Hat Registry Authentication`_. To use the script, complete the following steps.
+The script ``scripts/e2e-deploy.sh`` handles setup and configuration of `crc`_, including `Red Hat Registry Authentication`_. To use the script, complete the following steps.
 
 1. First, make sure that you have cloned and followed the setup instructions of the following repos::
 
@@ -122,18 +89,6 @@ Service Dependencies
 - RabbitMQ: the message bus is required for report polling and processing.
 
 - Redis: the key-value store is required for caching credentials from an external authentication service.
-
-OpenShift Templates
-^^^^^^^^^^^^^^^^^^^
-
-OpenShift templates are provided for all service resources. Each template includes parameters to enable customization to the target environment.
-
-The ``Makefile`` targets include scripting to dynamically pass parameter values into the OpenShift templates. A developer may define parameter values by placing a parameter file into the ``koku.git/openshift/parameters`` directory.
-
-Examples of parameter files are provided in the ``koku.git/openshift/parameters/examples`` directory.
-
-The ``Makefile`` scripting applies parameter values only to matching templates based on matching the filenames of each file. For example, parameters defined in ``koku-api.env`` are applied *only* to the ``koku-api.yaml`` template. As a result, common parameters like ``NAMESPACE`` must be defined consistently within *each* parameter file.
-
 
 General Platform information
 ============================
