@@ -18,11 +18,15 @@
 import argparse
 import json
 import sys
-import urllib.request  # Using urllib because that's included in any python distro
+
+import requests
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--status-url", dest="status_url", metavar="URL", required=True, help="Application status URL")
+parser.add_argument("--status-url", dest="status_url", metavar="URL", required=False, help="Application status URL")
+parser.add_argument(
+    "--file", dest="filename", metavar="FILE", required=False, help='File to read (use "-" for stdin)', default="-"
+)
 parser.add_argument(
     "--path",
     dest="path",
@@ -35,9 +39,24 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-resp = urllib.request.urlopen(args.status_url)
-content = resp.read()
-app_status = json.loads(content.decode("utf8"))
+if args.status_url:
+    resp = requests.get(args.status_url)
+    if resp.status_code != 200:
+        raise Exception(f"Server did not responde with 200! ({resp.status_code})")
+
+    app_status = resp.json()
+else:
+    if args.filename == "-":
+        jfile = sys.stdin
+    else:
+        jfile = open(args.filename, "rt")
+
+    content = jfile.read()
+    if jfile != sys.stdin:
+        jfile.close()
+    app_status = json.loads(content)
+
+
 paths = args.path.split(";")
 
 for path in paths:
