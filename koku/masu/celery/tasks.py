@@ -131,6 +131,22 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
             "Found %s objects after attempting to delete all objects with prefix %s", len(remaining_objects), prefix
         )
 
+    path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
+    prefix = f"{path_prefix}/{account}/{provider_uuid}/"
+    object_keys = [{"Key": s3_object.key} for s3_object in s3_bucket.objects.filter(Prefix=prefix)]
+    batch_size = 1000  # AWS S3 delete API limits to 1000 objects per request.
+    for batch_number in range(math.ceil(len(object_keys) / batch_size)):
+        batch_start = batch_size * batch_number
+        batch_end = batch_start + batch_size
+        object_keys_batch = object_keys[batch_start:batch_end]
+        s3_bucket.delete_objects(Delete={"Objects": object_keys_batch})
+
+    remaining_objects = list(s3_bucket.objects.filter(Prefix=prefix))
+    if remaining_objects:
+        LOG.warning(
+            "Found %s objects after attempting to delete all objects with prefix %s", len(remaining_objects), prefix
+        )
+
 
 @app.task(
     name="masu.celery.tasks.sync_data_to_customer",
