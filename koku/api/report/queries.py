@@ -84,6 +84,11 @@ class ReportQueryHandler(QueryHandler):
         self.query_filter = self._get_filter()
 
     @property
+    def query_table_access_keys(self):
+        """Return the access keys specific for selecting the query table."""
+        return set(self.parameters.get("access", {}).keys())
+
+    @property
     def query_table_group_by_keys(self):
         """Return the group by keys specific for selecting the query table."""
         return set(self.parameters.get("group_by", {}).keys())
@@ -111,7 +116,9 @@ class ReportQueryHandler(QueryHandler):
         ):
             return query_table
 
-        key_tuple = tuple(sorted(self.query_table_filter_keys.union(self.query_table_group_by_keys)))
+        key_tuple = tuple(
+            sorted(self.query_table_filter_keys.union(self.query_table_group_by_keys, self.query_table_access_keys))
+        )
         if key_tuple:
             report_group = key_tuple
 
@@ -180,6 +187,7 @@ class ReportQueryHandler(QueryHandler):
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
         for q_param, filt in fields.items():
+            access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
             filter_ = self.parameters.get_filter(q_param, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
@@ -194,6 +202,8 @@ class ReportQueryHandler(QueryHandler):
                     for item in list_:
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
+            if access:
+                self._set_access_filters(access, filt, filters)
 
         # Update filters with tag filters
         filters = self._set_tag_filters(filters)
@@ -210,6 +220,27 @@ class ReportQueryHandler(QueryHandler):
             composed_filters = composed_filters & multi_field_or_composed_filters
         LOG.debug(f"_get_search_filter: {composed_filters}")
         return composed_filters
+
+    def _set_access_filters(self, access, filt, filters):
+        """
+        Sets the access filters to ensure RBAC restrictions given the users access,
+        the current filter and the filter collection
+        Args:
+            access (list) the list containing the users relevant access
+            filt (list or dict) contains the filters that need
+            filters (QueryFilterCollection) the filter collection to add the new filters to
+        returns:
+            None
+        """
+        if isinstance(filt, list):
+            for _filt in filt:
+                _filt["operation"] = "in"
+                q_filter = QueryFilter(parameter=access, **_filt)
+                filters.add(q_filter)
+        else:
+            filt["operation"] = "in"
+            q_filter = QueryFilter(parameter=access, **filt)
+            filters.add(q_filter)
 
     def _set_or_filters(self):
         """Create a composed filter collection of ORed filters.
@@ -495,6 +526,8 @@ class ReportQueryHandler(QueryHandler):
     def _initialize_response_output(self, parameters):
         """Initialize output response object."""
         output = copy.deepcopy(parameters.parameters)
+        # remove access from the output
+        output.pop("access")
         output.update(parameters.display_parameters)
 
         return output

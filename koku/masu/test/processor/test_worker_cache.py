@@ -189,3 +189,17 @@ class WorkerCacheTest(MasuTestCase):
         mock_inspect.reserved.return_value = mock_worker_list
         _cache.remove_offline_worker_keys()
         self.assertEqual(sorted(_cache.get_all_running_tasks()), sorted(first_host_list))
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_single_task_caching(self, mock_inspect):
+        """Test that single task cache creates and deletes a cache entry."""
+        cache = WorkerCache()
+
+        task_name = "test_task"
+        task_args = ["schema1", "OCP"]
+
+        self.assertFalse(cache.single_task_is_running(task_name, task_args))
+        cache.lock_single_task(task_name, task_args)
+        self.assertTrue(cache.single_task_is_running(task_name, task_args))
+        cache.release_single_task(task_name, task_args)
+        self.assertFalse(cache.single_task_is_running(task_name, task_args))

@@ -144,3 +144,7 @@ INSERT INTO {{schema | safe}}.reporting_azurecostentrylineitem_daily_summary (
         markup_cost
     FROM reporting_azurecostentrylineitem_daily_summary_{{uuid | sqlsafe}}
 ;
+
+-- no need to wait for commit
+TRUNCATE TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | sqlsafe}};
+DROP TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | sqlsafe}};
