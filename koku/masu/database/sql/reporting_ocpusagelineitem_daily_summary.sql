@@ -139,3 +139,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         infrastructure_usage_cost
     FROM reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe}}
 ;
+
+-- no need to wait on commit
+TRUNCATE TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe}};
