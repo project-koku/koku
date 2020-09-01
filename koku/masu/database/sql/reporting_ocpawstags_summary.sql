@@ -14,26 +14,26 @@ WITH cte_tag_value AS (
 ),
 cte_values_agg AS (
     SELECT key,
-    array_agg(DISTINCT value) as values,
-    cost_entry_bill_id,
-    usage_account_id,
-    max(account_alias_id) as account_alias_id,
-    max(cluster_id) as cluster_id,
-    max(cluster_alias) as cluster_alias,
-    namespace
+        array_agg(DISTINCT value) as values,
+        cost_entry_bill_id,
+        usage_account_id,
+        max(account_alias_id) as account_alias_id,
+        max(cluster_id) as cluster_id,
+        max(cluster_alias) as cluster_alias,
+        namespace
     FROM cte_tag_value
     GROUP BY key, cost_entry_bill_id, usage_account_id, namespace
 )
 , ins1 AS (
     INSERT INTO {{schema | sqlsafe}}.reporting_ocpawstags_summary (key, cost_entry_bill_id, usage_account_id, account_alias_id, namespace, cluster_id, cluster_alias, values)
     SELECT key,
-    cost_entry_bill_id,
-    usage_account_id,
-    account_alias_id,
-    namespace,
-    cluster_id,
-    cluster_alias,
-    values
+        cost_entry_bill_id,
+        usage_account_id,
+        account_alias_id,
+        namespace,
+        cluster_id,
+        cluster_alias,
+        values
     FROM cte_values_agg
     ON CONFLICT (key, cost_entry_bill_id, usage_account_id, namespace) DO UPDATE SET key = EXCLUDED.key
     RETURNING key, id as key_id
