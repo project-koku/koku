@@ -16,11 +16,11 @@
 """View for organizations."""
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
-from rest_framework.response import Response
 from rest_framework.views import APIView
 from tenant_schemas.utils import tenant_context
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.pagination import ListPaginator
 from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
 from api.query_params import get_tenant
 from cost_models.models import CostModel
@@ -56,17 +56,53 @@ class ResourceTypeView(APIView):
             ocp_project_count = OCPCostSummaryByProject.objects.values("namespace").distinct().count()
             cost_model_count = CostModel.objects.count()
 
-            data = {
-                "aws_account_count": aws_account_count,
-                "aws_org_unit_count": aws_org_unit_count,
-                "azure_sub_guid_count": azure_sub_guid_count,
-                "ocp_cluster_count": ocp_cluster_count,
-                "ocp_node_count": ocp_node_count,
-                "ocp_project_count": ocp_project_count,
-                "cost_model_count": cost_model_count,
+            aws_account_dict = {
+                "value": "aws.account",
+                "path": "/api/cost-management/v1/resource-types/aws-accounts/",
+                "count": aws_account_count,
             }
+            aws_org_unit_dict = {
+                "value": "aws.organizational_unit",
+                "path": "/api/cost-management/v1/resource-types/aws-organizational-units/",
+                "count": aws_org_unit_count,
+            }
+            azure_sub_guid_dict = {
+                "value": "azure.subscription_guid",
+                "path": "/api/cost-management/v1/resource-types/azure-subscription-guids/",
+                "count": azure_sub_guid_count,
+            }
+            ocp_cluster_dict = {
+                "value": "openshift.cluster",
+                "path": "/api/cost-management/v1/resource-types/openshift-clusters/",
+                "count": ocp_cluster_count,
+            }
+            ocp_node_dict = {
+                "value": "openshift.node",
+                "path": "/api/cost-management/v1/resource-types/openshift-nodes/",
+                "count": ocp_node_count,
+            }
+            ocp_project_dict = {
+                "value": "openshift.project",
+                "path": "/api/cost-management/v1/resource-types/openshift-projects/",
+                "count": ocp_project_count,
+            }
+            cost_model_dict = {
+                "value": "rate",
+                "path": "/api/cost-management/v1/resource-types/rates/",
+                "count": cost_model_count,
+            }
+            data = [
+                aws_account_dict,
+                aws_org_unit_dict,
+                azure_sub_guid_dict,
+                ocp_cluster_dict,
+                ocp_node_dict,
+                ocp_project_dict,
+                cost_model_dict,
+            ]
+            paginator = ListPaginator(data, request)
 
-            return Response(data)
+            return paginator.get_paginated_response(data)
 
         """
         {
