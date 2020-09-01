@@ -196,9 +196,11 @@ class TagQueryHandler(QueryHandler):
             if access and filt:
                 if isinstance(filt, list):
                     for fil in filt:
+                        fil["operation"] = "in"
                         q_filter = QueryFilter(parameter=access, **fil)
                         filters.add(q_filter)
                 else:
+                    filt["operation"] = "in"
                     q_filter = QueryFilter(parameter=access, **filt)
                     filters.add(q_filter)
 
