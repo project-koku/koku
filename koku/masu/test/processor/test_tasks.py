@@ -1176,6 +1176,8 @@ class TestRemoveStaleTenants(MasuTestCase):
     def test_remove_stale_tenant(self):
         """Test removal of stale tenants that are older than two weeks"""
         days = 14
+        initial_date_updated = self.customer.date_updated
+        self.assertIsNotNone(initial_date_updated)
         with schema_context("public"):
             mock_request = self.request_context["request"]
             middleware = KokuTenantMiddleware()
@@ -1191,3 +1193,4 @@ class TestRemoveStaleTenants(MasuTestCase):
             after_len = Tenant.objects.count()
             self.assertGreater(before_len, after_len)
             self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)
+        self.assertGreater(self.customer.date_updated, initial_date_updated)
