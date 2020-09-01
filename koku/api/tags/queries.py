@@ -194,15 +194,7 @@ class TagQueryHandler(QueryHandler):
             access = self.parameters.get_access(filter_key)
             filt = self.FILTER_MAP.get(filter_key)
             if access and filt:
-                if isinstance(filt, list):
-                    for fil in filt:
-                        fil["operation"] = "in"
-                        q_filter = QueryFilter(parameter=access, **fil)
-                        filters.add(q_filter)
-                else:
-                    filt["operation"] = "in"
-                    q_filter = QueryFilter(parameter=access, **filt)
-                    filters.add(q_filter)
+                self.set_access_filters(access, filt, filters)
 
         # Update filters that specifiy and or or in the query parameter
         and_composed_filters = self._set_operator_specified_filters("and")
