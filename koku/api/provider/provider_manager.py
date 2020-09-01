@@ -28,6 +28,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider
 from api.provider.models import Sources
+from api.utils import DateHelper
 from cost_models.models import CostModelMap
 from masu.processor.tasks import refresh_materialized_views
 from reporting.provider.aws.models import AWSCostEntryBill
@@ -232,6 +233,10 @@ def provider_post_delete_callback(*args, **kwargs):
     if not provider.customer:
         LOG.warning("Provider %s has no Customer; we cannot call delete_archived_data.", provider.uuid)
         return
+
+    customer = provider.customer
+    customer.date_updated = DateHelper().now_utc
+    customer.save()
 
     if settings.ENABLE_S3_ARCHIVING:
         # Local import of task function to avoid potential import cycle.
