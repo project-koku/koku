@@ -117,45 +117,11 @@ help:
 	@echo "  docker-iqe-vortex-tests              run vortex tests"
 	@echo ""
 	@echo "--- Commands using an OpenShift Cluster ---"
-	@echo "  oc-clean                              stop openshift cluster & remove local config data"
-	@echo "  oc-create-all                         create all application pods"
-	@echo "  oc-create-celery-exporter             create the Celery Prometheus exporter pod"
-	@echo "  oc-create-celery-scheduler            create the Celery scheduler pod"
-	@echo "  oc-create-celery-worker               create the Celery worker pod"
-	@echo "  oc-create-configmap                   create the ConfigMaps"
-	@echo "  oc-create-database                    create the PostgreSQL DB pod"
-	@echo "  oc-create-flower                      create the Celery Flower pod"
-	@echo "  oc-create-imagestream                 create ImageStreams"
-	@echo "  oc-create-koku-api                    create the Koku API pod"
-	@echo "  oc-create-koku-auth-cache             create the Redis pod for auth caching"
-	@echo "  oc-create-listener                    create Masu Listener pod (deprecated)"
-	@echo "  oc-create-masu                        create Masu pod (deprecated)"
-	@echo "  oc-create-rabbitmq                    create RabbitMQ pod"
-	@echo "  oc-create-route                       create routes for Koku APIs"
-	@echo "  oc-create-secret                      create Secrets"
-	@echo "  oc-create-worker                      create Celery worker pod"
-	@echo "  oc-delete-all                         delete most Openshift objects without a cluster restart"
-	@echo "  oc-delete-celery-worker               delete the Celery worker pod"
-	@echo "  oc-delete-configmap                   delete the ConfigMaps"
-	@echo "  oc-delete-database                    delete the PostgreSQL DB pod"
-	@echo "  oc-delete-flower                      delete the Celery Flower pod"
-	@echo "  oc-delete-imagestream                 delete ImageStreams"
-	@echo "  oc-delete-koku-api                    delete the Koku API pod"
-	@echo "  oc-delete-koku-auth-cache             delete the Redis pod for auth caching"
-	@echo "  oc-delete-listener                    delete Masu Listener pod (deprecated)"
-	@echo "  oc-delete-masu                        delete Masu pod (deprecated)"
-	@echo "  oc-delete-rabbitmq                    delete RabbitMQ pod"
-	@echo "  oc-delete-secret                      delete Secrets"
-	@echo "  oc-delete-worker                      delete Celery worker pod"
-	@echo "  oc-down                               stop app & openshift cluster"
 	@echo "  oc-forward-ports                      port forward the DB to localhost"
 	@echo "  oc-login-dev                          login to an openshift cluster as 'developer'"
 	@echo "  oc-reinit                             remove existing app and restart app in initialized openshift cluster"
 	@echo "  oc-run-migrations                     run Django migrations in the Openshift DB"
 	@echo "  oc-stop-forwarding-ports              stop port forwarding the DB to localhost"
-	@echo "  oc-up                                 initialize an openshift cluster"
-	@echo "  oc-up-all                             run app in openshift cluster"
-	@echo "  oc-up-db                              run Postgres in an openshift cluster"
 	@echo ""
 	@echo "--- Create Sources ---"
 	@echo "  ocp-source-from-yaml                  Create ocp source using a yaml file."
@@ -230,13 +196,6 @@ run-migrations:
 serve:
 	$(DJANGO_MANAGE) runserver
 
-# FIXME: (deprecated) this will be removed after masu is fully merged.
-serve-masu:
-	FLASK_APP=masu \
-	FLASK_ENV=development \
-	MASU_SECRET_KEY='t@@ m4nY 53Cr3tZ' \
-	flask run
-
 shell:
 	$(DJANGO_MANAGE) shell
 
@@ -254,211 +213,6 @@ superuser:
 # Commands using OpenShift Cluster #
 ####################################
 
-oc-clean: oc-down
-	$(PREFIX) rm -rf $(OC_DATA_DIR)
-
-oc-create-all: oc-create-database oc-create-rabbitmq oc-create-koku-auth-cache oc-create-koku-api oc-create-masu oc-create-celery-exporter oc-create-celery-scheduler oc-create-celery-worker oc-create-flower oc-create-listener
-
-oc-create-celery-exporter: OC_OBJECT := dc/$(NAME)-celery-exporter
-oc-create-celery-exporter: OC_PARAMETER_FILE := celery-exporter.env
-oc-create-celery-exporter: OC_TEMPLATE_FILE := celery-exporter.yaml
-oc-create-celery-exporter: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
-oc-create-celery-exporter:
-	$(OC_PARAMS) $(MAKE) oc-create-imagestream
-	$(OC_PARAMS) $(MAKE) oc-create-configmap
-	$(OC_PARAMS) $(MAKE) oc-create-secret
-	$(OC_PARAMS) $(MAKE) __oc-apply-object
-	$(OC_PARAMS) $(MAKE) __oc-create-object
-
-oc-create-celery-scheduler: OC_OBJECT := 'bc/$(NAME)-scheduler dc/$(NAME)-scheduler'
-oc-create-celery-scheduler: OC_PARAMETER_FILE := celery-scheduler.env
-oc-create-celery-scheduler: OC_TEMPLATE_FILE := celery-scheduler.yaml
-oc-create-celery-scheduler: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
-oc-create-celery-scheduler:
-	$(OC_PARAMS) $(MAKE) oc-create-imagestream
-	$(OC_PARAMS) $(MAKE) oc-create-configmap
-	$(OC_PARAMS) $(MAKE) oc-create-secret
-	$(OC_PARAMS) $(MAKE) __oc-apply-object
-	$(OC_PARAMS) $(MAKE) __oc-create-object
-
-oc-create-celery-worker: OC_OBJECT := 'sts/$(NAME)-worker'
-oc-create-celery-worker: OC_PARAMETER_FILE := celery-worker.env
-oc-create-celery-worker: OC_TEMPLATE_FILE := celery-worker.yaml
-oc-create-celery-worker: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
-oc-create-celery-worker:
-	$(OC_PARAMS) $(MAKE) oc-create-imagestream
-	$(OC_PARAMS) $(MAKE) oc-create-configmap
-	$(OC_PARAMS) $(MAKE) oc-create-secret
-	$(OC_PARAMS) $(MAKE) __oc-apply-object
-	$(OC_PARAMS) $(MAKE) __oc-create-object
-
-oc-create-configmap: OC_OBJECT := 'configmap -l app=$(NAME)'
-oc-create-configmap: OC_PARAMETER_FILE := configmap.env
-oc-create-configmap: OC_TEMPLATE_FILE := configmap.yaml
-oc-create-configmap: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
-oc-create-configmap:
-	$(OC_PARAMS) $(MAKE) __oc-create-object
-
-oc-create-database: OC_OBJECT := 'bc/$(NAME)-db dc/$(NAME)-db'
-oc-create-database: OC_PARAMETER_FILE := $(NAME)-database.env
-oc-create-database: OC_TEMPLATE_FILE := $(NAME)-database.yaml
-oc-create-database: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
-oc-create-database:
-	$(OC_PARAMS) $(MAKE) oc-create-imagestream
-	$(OC_PARAMS) $(MAKE) oc-create-configmap
-	$(OC_PARAMS) $(MAKE) oc-create-secret
-	$(OC_PARAMS) $(MAKE) __oc-apply-object
-	$(OC_PARAMS) $(MAKE) __oc-create-object
-
-oc-create-flower: OC_OBJECT := 'bc/$(NAME)-flower dc/$(NAME)-flower'
-oc-create-flower: OC_PARAMETER_FILE := celery-flower.env
-oc-create-flower: OC_TEMPLATE_FILE := celery-flower.yaml
-oc-create-flower: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
-oc-create-flower:
-	$(OC_PARAMS) $(MAKE) oc-create-imagestream
-	$(OC_PARAMS) $(MAKE) oc-create-configmap
-	$(OC_PARAMS) $(MAKE) oc-create-secret
-	$(OC_PARAMS) $(MAKE) __oc-apply-object
-	$(OC_PARAMS) $(MAKE) __oc-create-object
-
-oc-create-imagestream: OC_OBJECT := 'is/centos is/python-38-centos7 is/postgresql'
-oc-create-imagestream: OC_PARAMETER_FILE := imagestream.env
-oc-create-imagestream: OC_TEMPLATE_FILE := imagestream.yaml
-oc-create-imagestream: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
-oc-create-imagestream:
-	$(OC_PARAMS) $(MAKE) __oc-apply-object
-	$(OC_PARAMS) $(MAKE) __oc-create-object
-
-oc-create-koku-api: OC_OBJECT := 'bc/$(NAME) dc/$(NAME)'
-oc-create-koku-api: OC_PARAMETER_FILE := $(NAME).env
-oc-create-koku-api: OC_TEMPLATE_FILE := $(NAME).yaml
-oc-create-koku-api: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
-oc-create-koku-api:
-	$(OC_PARAMS) $(MAKE) oc-create-imagestream
-	$(OC_PARAMS) $(MAKE) oc-create-configmap
-	$(OC_PARAMS) $(MAKE) oc-create-secret
-	$(OC_PARAMS) $(MAKE) __oc-apply-object
-	$(OC_PARAMS) $(MAKE) __oc-create-object
-
-oc-create-koku-auth-cache: OC_OBJECT := 'dc/$(NAME)-redis'
-oc-create-koku-auth-cache: OC_PARAMETER_FILE := $(NAME)-auth-cache.env
-oc-create-koku-auth-cache: OC_TEMPLATE_FILE := $(NAME)-auth-cache.yaml
-oc-create-koku-auth-cache: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
-oc-create-koku-auth-cache:
-	$(OC_PARAMS) $(MAKE) oc-create-imagestream
-	$(OC_PARAMS) $(MAKE) oc-create-configmap
-	$(OC_PARAMS) $(MAKE) oc-create-secret
-	$(OC_PARAMS) $(MAKE) __oc-apply-object
-	$(OC_PARAMS) $(MAKE) __oc-create-object
-
-oc-create-listener: OC_OBJECT := 'sts/$(NAME)-listener'
-oc-create-listener: OC_PARAMETER_FILE := masu-listener.env
-oc-create-listener: OC_TEMPLATE_FILE := masu-listener.yaml
-oc-create-listener: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
-oc-create-listener:
-	$(OC_PARAMS) $(MAKE) oc-create-imagestream
-	$(OC_PARAMS) $(MAKE) oc-create-configmap
-	$(OC_PARAMS) $(MAKE) oc-create-secret
-	$(OC_PARAMS) $(MAKE) __oc-apply-object
-	$(OC_PARAMS) $(MAKE) __oc-create-object
-
-oc-create-masu: OC_OBJECT := 'bc/$(NAME)-masu dc/$(NAME)-masu'
-oc-create-masu: OC_PARAMETER_FILE := masu.env
-oc-create-masu: OC_TEMPLATE_FILE := masu.yaml
-oc-create-masu: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
-oc-create-masu:
-	$(OC_PARAMS) $(MAKE) oc-create-imagestream
-	$(OC_PARAMS) $(MAKE) oc-create-configmap
-	$(OC_PARAMS) $(MAKE) oc-create-secret
-	$(OC_PARAMS) $(MAKE) __oc-apply-object
-	$(OC_PARAMS) $(MAKE) __oc-create-object
-
-oc-create-sources: OC_OBJECT := 'bc/$(NAME)-sources dc/$(NAME)-sources'
-oc-create-sources: OC_PARAMETER_FILE := sources.env
-oc-create-sources: OC_TEMPLATE_FILE := sources.yaml
-oc-create-sources: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
-oc-create-sources:
-	$(OC_PARAMS) $(MAKE) oc-create-imagestream
-	$(OC_PARAMS) $(MAKE) oc-create-configmap
-	$(OC_PARAMS) $(MAKE) oc-create-secret
-	$(OC_PARAMS) $(MAKE) __oc-apply-object
-	$(OC_PARAMS) $(MAKE) __oc-create-object
-
-oc-create-rabbitmq: OC_OBJECT := statefulsets/rabbitmq
-oc-create-rabbitmq: OC_PARAMETER_FILE := rabbitmq.env
-oc-create-rabbitmq: OC_TEMPLATE_FILE := rabbitmq.yaml
-oc-create-rabbitmq: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
-oc-create-rabbitmq:
-	$(OC_PARAMS) $(MAKE) __oc-apply-object
-	$(OC_PARAMS) $(MAKE) __oc-create-object
-
-oc-create-route: OC_OBJECT := 'route/koku route/koku-masu'
-oc-create-route: OC_PARAMETER_FILE := route.env
-oc-create-route: OC_TEMPLATE_FILE := route.yaml
-oc-create-route: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
-oc-create-route:
-	$(OC_PARAMS) $(MAKE) __oc-apply-object
-	$(OC_PARAMS) $(MAKE) __oc-create-object
-
-oc-create-secret: OC_OBJECT := 'secret -l app=$(NAME)'
-oc-create-secret: OC_PARAMETER_FILE := secret.env
-oc-create-secret: OC_TEMPLATE_FILE := secret.yaml
-oc-create-secret: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
-oc-create-secret:
-	$(OC_PARAMS) $(MAKE) __oc-create-object
-
-oc-delete-all:
-	oc delete all -l app=koku
-
-# it's the only way to be sure...
-oc-nuke-from-orbit:
-	oc delete all,configmap,secret,pvc -l app=koku
-
-oc-delete-celery-exporter:
-	oc delete all -n $(NAMESPACE) -l template=koku-celery-exporter
-
-oc-delete-celery-scheduler:
-	oc delete all -n $(NAMESPACE) -l template=koku-celery-scheduler
-
-oc-delete-celery-worker:
-	oc delete all -n $(NAMESPACE) -l template=koku-celery-worker
-
-oc-delete-configmap:
-	oc delete configmap -n $(NAMESPACE) -l template=koku-configmap
-
-oc-delete-database:
-	oc delete all -n $(NAMESPACE) -l template=koku-database
-
-oc-delete-flower:
-	oc delete all -n $(NAMESPACE) -l template=koku-celery-flower
-
-oc-delete-imagestream:
-	oc delete all -n $(NAMESPACE) -l template=koku-imagestream
-
-oc-delete-koku-api:
-	oc delete all -n $(NAMESPACE) -l template=koku
-
-oc-delete-koku-auth-cache:
-	oc delete all -n $(NAMESPACE) -l template=koku-auth-cache
-
-oc-delete-listener:
-	oc delete all -n $(NAMESPACE) -l template=koku-masu-listener
-
-oc-delete-masu:
-	oc delete all -n $(NAMESPACE) -l template=koku-masu
-
-oc-delete-rabbitmq:
-	oc delete all -n $(NAMESPACE) -l template=rabbitmq
-
-oc-delete-route:
-	oc delete all -n $(NAMESPACE) -l template=koku-route
-
-oc-delete-secret:
-	oc delete secret -n $(NAMESPACE) -l template=koku-secret
-
-oc-down:
-	oc cluster down
-
 oc-forward-ports: oc-stop-forwarding-ports
 	@oc port-forward $$(oc get pods -o jsonpath='{.items[?(.status.phase=="Running")].metadata.name}' -l name=koku-db) 15432:5432 >/dev/null 2>&1 &
 
@@ -470,8 +224,6 @@ oc-make-migrations: oc-forward-ports
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 	$(MAKE) oc-stop-forwarding-ports
 
-oc-reinit: oc-delete-all oc-create-koku
-
 oc-run-migrations: oc-forward-ports
 	sleep 1
 	$(DJANGO_MANAGE) migrate_schemas
@@ -480,19 +232,7 @@ oc-run-migrations: oc-forward-ports
 oc-stop-forwarding-ports:
 	@kill -HUP $$(ps -eo pid,command | grep "oc port-forward" | grep -v grep | awk '{print $$1}') 2>/dev/null || true
 
-oc-up:
-	oc cluster up \
-		--image=$(OC_SOURCE) \
-		--version=$(OC_VERSION) \
-		--host-data-dir=$(OC_DATA_DIR) \
-		--use-existing-config=true
-	sleep 60
-
-oc-up-all: oc-up oc-create-koku
-
-oc-up-db: oc-up oc-create-db
-
-oc-delete-e2e: oc-nuke-from-orbit
+oc-delete-e2e:
 	oc delete project/hccm project/buildfactory project/secrets
 
 ###############################
@@ -758,49 +498,3 @@ restore-local-db-dir:
 	    echo "NOTE :: There is no pg_data.bak dir to restore from." ; \
 	fi
 	@cd - >/dev/null
-
-
-########################
-### Internal targets ###
-########################
-
-__oc-create-project:
-	@if [[ ! $$(oc get -o name project/$(NAMESPACE) 2>/dev/null) ]]; then \
-		oc new-project $(NAMESPACE) ;\
-	fi
-
-# if object doesn't already exist,
-# create it from the provided template and parameters
-__oc-create-object: __oc-create-project
-	@if [[ $$(oc get -o name $(OC_OBJECT) 2>&1) == '' ]] || \
-	[[ $$(oc get -o name $(OC_OBJECT) 2>&1 | grep 'not found') ]]; then \
-		if [ -f $(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) ]; then \
-			oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
-				--param-file=$(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) \
-			| oc create --save-config=True -n $(NAMESPACE) -f - 2>&1 || /usr/bin/true ;\
-		else \
-			oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
-				$(foreach PARAM, $(OC_PARAMETERS), -p $(PARAM)) \
-			| oc create --save-config=True -n $(NAMESPACE) -f - 2>&1 || /usr/bin/true ;\
-		fi ;\
-	fi
-
-__oc-apply-object: __oc-create-project
-	@if [[ $$(oc get -o name $(OC_OBJECT)) != '' ]] || \
-	[[ $$(oc get -o name $(OC_OBJECT) 2>&1 | grep -v 'not found') ]]; then \
-		echo "WARNING: Resources matching 'oc get $(OC_OBJECT)' exists. Updating template. Skipping object creation." ;\
-		if [ -f $(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) ]; then \
-			bash -c "oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
-				--param-file=$(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) \
-			| tee >(oc apply -n $(NAMESPACE) -f -) >(oc replace -f -) || /usr/bin/true" ;\
-		else \
-			bash -c "oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
-				$(foreach PARAM, $(OC_PARAMETERS), -p $(PARAM)) \
-			| tee >(oc apply -n $(NAMESPACE) -f -) >(oc replace -f -) || /usr/bin/true" ;\
-		fi ;\
-	fi
-
-#
-# Phony targets
-#
-.PHONY: docs __oc-create-object __oc-create-project __oc-apply-object

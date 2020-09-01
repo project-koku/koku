@@ -144,11 +144,8 @@ class TestCeleryTasks(MasuTestCase):
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.get_s3_resource")
-    def test_delete_archived_data_success(self, mock_resource):
+    def test_deleted_archived_with_prefix_success(self, mock_resource):
         """Test that delete_archived_data correctly interacts with AWS S3."""
-        schema_name = "acct10001"
-        provider_type = Provider.PROVIDER_AWS
-        provider_uuid = "00000000-0000-0000-0000-000000000001"
         expected_prefix = "data/csv/10001/00000000-0000-0000-0000-000000000001/"
 
         # Generate enough fake objects to expect calling the S3 delete api twice.
@@ -160,13 +157,24 @@ class TestCeleryTasks(MasuTestCase):
         mock_bucket.objects.filter.side_effect = [bucket_objects, bucket_objects[:1]]
 
         with self.assertLogs("masu.celery.tasks", "WARNING") as captured_logs:
-            tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
+            tasks.deleted_archived_with_prefix(mock_bucket, expected_prefix)
         mock_resource.assert_called()
         mock_bucket.delete_objects.assert_has_calls(
             [call(Delete={"Objects": expected_keys[:1000]}), call(Delete={"Objects": expected_keys[1000:]})]
         )
         mock_bucket.objects.filter.assert_has_calls([call(Prefix=expected_prefix), call(Prefix=expected_prefix)])
         self.assertIn("Found 1 objects after attempting", captured_logs.output[-1])
+
+    @override_settings(ENABLE_S3_ARCHIVING=True)
+    @patch("masu.celery.tasks.deleted_archived_with_prefix")
+    def test_delete_archived_data_success(self, mock_delete):
+        """Test that delete_archived_data correctly interacts with AWS S3."""
+        schema_name = "acct10001"
+        provider_type = Provider.PROVIDER_AWS
+        provider_uuid = "00000000-0000-0000-0000-000000000001"
+
+        tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
+        mock_delete.assert_called()
 
     @override_settings(ENABLE_S3_ARCHIVING=False)
     def test_delete_archived_data_archiving_false(self):
