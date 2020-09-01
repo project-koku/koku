@@ -151,8 +151,10 @@ class NiseDataLoader:
             del options["start_date"]
             del options["end_date"]
 
-        update_cost_model_costs(self.schema, provider.uuid, self.dh.last_month_start, self.dh.today)
-        refresh_materialized_views.s(self.schema, provider_type).apply()
+        update_cost_model_costs.s(
+            self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
+        ).apply()
+        refresh_materialized_views.s(self.schema, provider_type, synchronous=True).apply()
         shutil.rmtree(report_path, ignore_errors=True)
 
     def load_aws_data(self, customer, static_data_file, account_id=None, role_arn=None):  # noqa: C901
@@ -219,8 +221,10 @@ class NiseDataLoader:
             del options["start_date"]
             del options["end_date"]
 
-        update_cost_model_costs(self.schema, provider.uuid, self.dh.last_month_start, self.dh.today)
-        refresh_materialized_views.s(self.schema, provider_type).apply()
+        update_cost_model_costs.s(
+            self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
+        ).apply()
+        refresh_materialized_views.s(self.schema, provider_type, synchronous=True).apply()
         shutil.rmtree(base_path, ignore_errors=True)
 
     def load_azure_data(self, customer, static_data_file, credentials=None, data_source=None):
@@ -287,6 +291,8 @@ class NiseDataLoader:
             del options["start_date"]
             del options["end_date"]
 
-        update_cost_model_costs(self.schema, provider.uuid, self.dh.last_month_start, self.dh.today)
-        refresh_materialized_views.s(self.schema, provider_type).apply()
+        update_cost_model_costs.s(
+            self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
+        ).apply()
+        refresh_materialized_views.s(self.schema, provider_type, synchronous=True).apply()
         shutil.rmtree(base_path, ignore_errors=True)

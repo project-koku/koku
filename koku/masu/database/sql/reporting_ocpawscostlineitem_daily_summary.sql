@@ -203,6 +203,11 @@ CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
 ;
 
 
+-- no need to wait for commit
+TRUNCATE TABLE matched_tags_{{uuid | sqlsafe}};
+DROP TABLE matched_tags_{{uuid | sqlsafe}};
+
+
 -- First we match OCP pod data to AWS data using a direct
 -- resource id match. This usually means OCP node -> AWS EC2 instance ID.
 CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS (
@@ -597,6 +602,10 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
 )
 ;
 
+-- no need to wait for commit
+TRUNCATE TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}};
+
 
 -- First we match where the AWS tag is the special openshift_project key
 -- and the value matches an OpenShift project name
@@ -818,6 +827,11 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
 )
 ;
 
+-- no need to wait for commit
+TRUNCATE TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}};
+DROP TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}};
+
+
 -- Then we match for OpenShift volume data where the volume label key and value
 -- and AWS tag key and value match directly
  INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
@@ -891,6 +905,13 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
         ON tm.aws_id = shared.aws_id
 )
 ;
+
+-- no need to wait for commit
+TRUNCATE TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}};
+
+TRUNCATE TABLE reporting_aws_tags_{{uuid | sqlsafe}};
+DROP TABLE reporting_aws_tags_{{uuid | sqlsafe}};
 
 
 -- The full summary data for Openshift pod<->AWS and
@@ -1135,6 +1156,14 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
 )
 ;
 
+-- no need to wait for commit
+TRUNCATE TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}};
+
+TRUNCATE TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}};
+
+
 -- Clear out old entries first
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary
 WHERE usage_start >= {{start_date}}
@@ -1212,6 +1241,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
         source_uuid
     FROM reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}}
 ;
+
+-- no need to wait for commit
+TRUNCATE TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}};
+
 
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary
 WHERE usage_start >= {{start_date}}
@@ -1292,3 +1326,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
 ;
 
 DROP INDEX IF EXISTS aws_tags_gin_idx;
+
+-- no need to wait for commit
+TRUNCATE TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}};

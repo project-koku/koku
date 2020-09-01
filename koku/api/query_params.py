@@ -86,7 +86,7 @@ class QueryParameters:
 
         self._validate()  # sets self.parameters
 
-        for item in ["filter", "group_by", "order_by"]:
+        for item in ["filter", "group_by", "order_by", "access"]:
             if item not in self.parameters:
                 self.parameters[item] = OrderedDict()
 
@@ -195,7 +195,7 @@ class QueryParameters:
             items = set(group_by.get(filter_key))
             result = get_replacement_result(items, access_list, raise_exception)
             if result:
-                self.parameters["group_by"][filter_key] = result
+                self.parameters["access"][filter_key] = result
                 access_filter_applied = True
 
         if not access_filter_applied:
@@ -203,9 +203,9 @@ class QueryParameters:
                 items = set(self.get_filter(filter_key))
                 result = get_replacement_result(items, access_list, raise_exception)
                 if result:
-                    self.parameters["filter"][filter_key] = result
+                    self.parameters["access"][filter_key] = result
             elif access_list:
-                self.parameters["filter"][filter_key] = access_list
+                self.parameters["access"][filter_key] = access_list
 
     def _set_access_ocp_all(self, provider, filter_key, access_key, raise_exception=True):
         """Alter query parameters based on user access."""
@@ -350,6 +350,10 @@ class QueryParameters:
             return self.parameters.get(item, default)
         return default
 
+    def get_access(self, filt, default=None):
+        """Get an access parameter."""
+        return self.get("access", OrderedDict()).get(filt, default)
+
     def get_filter(self, filt, default=None):
         """Get a filter parameter."""
         return self.get("filter", OrderedDict()).get(filt, default)
@@ -374,15 +378,15 @@ def get_replacement_result(param_res_list, access_list, raise_exception=True):
         return access_list
     if not (access_list or raise_exception):
         return list(param_res_list)
-    intersection = param_res_list & set(access_list)
-    if not intersection:
+    access_difference = param_res_list.difference(set(access_list))
+    if access_difference:
         LOG.warning(
             "User does not have permissions for the requested params: %s. Current access: %s.",
             param_res_list,
             access_list,
         )
         raise PermissionDenied()
-    return list(intersection)
+    return param_res_list
 
 
 def get_tenant(user):
