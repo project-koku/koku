@@ -285,8 +285,9 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest_dict = {}
         report_dict = {}
         manifest_file, manifest, manifest_timestamp = self._get_manifest(date)
-        if manifest != self.empty_manifest:
-            manifest_dict = self._prepare_db_manifest_record(manifest)
+        if manifest == self.empty_manifest:
+            return report_dict
+        manifest_dict = self._prepare_db_manifest_record(manifest)
         self._remove_manifest_file(manifest_file)
 
         if manifest_dict:
