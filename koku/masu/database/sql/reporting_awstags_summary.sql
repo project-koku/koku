@@ -22,7 +22,7 @@ cte_values_agg AS (
         usage_account_id,
         aa.id as account_alias_id
     FROM cte_tag_value AS tv
-    JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
+    LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON tv.usage_account_id = aa.account_id
     GROUP BY key, cost_entry_bill_id, usage_account_id, aa.id
 )
