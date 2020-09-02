@@ -48,7 +48,14 @@ class OCPAllTagQueryHandler(TagQueryHandler):
     FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
     FILTER_MAP.update(
         {
-            "account": {"field": "accounts", "operation": "icontains", "composition_key": "account_filter"},
+            "account": [
+                {
+                    "field": "account_alias__account_alias",
+                    "operation": "icontains",
+                    "composition_key": "account_filter",
+                },
+                {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
+            ],
             "cluster": [
                 {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
                 {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
