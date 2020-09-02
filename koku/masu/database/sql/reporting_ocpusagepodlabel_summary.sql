@@ -13,7 +13,7 @@ WITH cte_tag_value(key, value, report_period_id, namespace) AS (
     {%- endfor -%}
     )
     {% endif %}
-    GROUP BY l.key, l.value, l.report_period_id, l.namespace
+    GROUP BY key, value, li.report_period_id, li.namespace
 ),
 cte_values_agg AS (
     SELECT key,
