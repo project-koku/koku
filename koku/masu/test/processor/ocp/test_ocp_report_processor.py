@@ -695,3 +695,74 @@ class OCPReportProcessorTest(MasuTestCase):
         with schema_context(self.schema):
             node_label_after_count = table.objects.count()
         self.assertGreater(node_label_after_count, node_label_before_count)
+
+    def test_process_usage_and_storage_with_invalid_data(self):
+        """Test that processing succeeds when rows are missing data."""
+        pod_report = f"{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1-invalid.csv"
+        storage_report = f"{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_storage-invalid.csv"
+
+        pod_data = []
+        storage_data = []
+        with open(self.test_report_path) as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                row["node"] = None
+                pod_data.append(row)
+
+        header = pod_data[0].keys()
+        with open(pod_report, "w") as f:
+            writer = csv.DictWriter(f, fieldnames=header)
+            writer.writeheader()
+            writer.writerows(pod_data)
+
+        with open(self.storage_report_path) as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                row["persistentvolume"] = None
+                storage_data.append(row)
+
+        header = storage_data[0].keys()
+        with open(storage_report, "w") as f:
+            writer = csv.DictWriter(f, fieldnames=header)
+            writer.writeheader()
+            writer.writerows(storage_data)
+
+        storage_processor = OCPReportProcessor(
+            schema_name="acct10001",
+            report_path=storage_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.ocp_provider_uuid,
+        )
+
+        report_db = self.accessor
+        table_name = OCP_REPORT_TABLE_MAP["storage_line_item"]
+        report_schema = report_db.report_schema
+        table = getattr(report_schema, table_name)
+        with schema_context(self.schema):
+            storage_before_count = table.objects.count()
+
+        storage_processor.process()
+
+        with schema_context(self.schema):
+            storage_after_count = table.objects.count()
+        self.assertEqual(storage_after_count, storage_before_count)
+
+        processor = OCPReportProcessor(
+            schema_name="acct10001",
+            report_path=pod_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.ocp_provider_uuid,
+        )
+
+        report_db = self.accessor
+        table_name = OCP_REPORT_TABLE_MAP["line_item"]
+        report_schema = report_db.report_schema
+        table = getattr(report_schema, table_name)
+        with schema_context(self.schema):
+            before_count = table.objects.count()
+
+        processor.process()
+
+        with schema_context(self.schema):
+            after_count = table.objects.count()
+        self.assertEqual(after_count, before_count)
