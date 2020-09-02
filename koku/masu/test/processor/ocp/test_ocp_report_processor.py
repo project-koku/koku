@@ -99,6 +99,10 @@ class OCPReportProcessorTest(MasuTestCase):
             reader = csv.DictReader(f)
             cls.row = next(reader)
 
+        with open(cls.storage_report_path, "r") as f:
+            reader = csv.DictReader(f)
+            cls.storage_row = next(reader)
+
     def setUp(self):
         """Set up the test class."""
         super().setUp()
@@ -436,10 +440,10 @@ class OCPReportProcessorTest(MasuTestCase):
         """Test that line item data is returned properly."""
         cluster_id = "12345"
         report_period_id = self.ocp_processor._processor._create_report_period(
-            self.row, cluster_id, self.accessor, self.cluster_alias
+            self.storage_row, cluster_id, self.accessor, self.cluster_alias
         )
-        report_id = self.ocp_processor._processor._create_report(self.row, report_period_id, self.accessor)
-        row = copy.deepcopy(self.row)
+        report_id = self.ocp_processor._processor._create_report(self.storage_row, report_period_id, self.accessor)
+        row = copy.deepcopy(self.storage_row)
         row["persistentvolume_labels"] = ""
         row["persistentvolumeclaim_labels"] = ""
         storage_processor = OCPReportProcessor(
@@ -473,11 +477,12 @@ class OCPReportProcessorTest(MasuTestCase):
         )
         with OCPReportDBAccessor(self.schema) as accessor:
             report_period_id = storage_processor._processor._create_report_period(
-                self.row, cluster_id, accessor, self.cluster_alias
+                self.storage_row, cluster_id, accessor, self.cluster_alias
             )
-            report_id = storage_processor._processor._create_report(self.row, report_period_id, accessor)
-            row = copy.deepcopy(self.row)
-            del row["pod_labels"]
+            report_id = storage_processor._processor._create_report(self.storage_row, report_period_id, accessor)
+            row = copy.deepcopy(self.storage_row)
+            del row["persistentvolume_labels"]
+            del row["persistentvolumeclaim_labels"]
 
             storage_processor._processor._create_usage_report_line_item(row, report_period_id, report_id, accessor)
 
