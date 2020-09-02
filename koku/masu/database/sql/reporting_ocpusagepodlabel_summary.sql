@@ -1,46 +1,48 @@
-WITH data(key, value, report_period_id, namespace) AS (
-    SELECT l.key,
-        l.value,
-        l.report_period_id,
-        array_agg(DISTINCT l.namespace)
-    FROM (
-        SELECT key,
-            value,
-            li.report_period_id,
-            li.namespace
-        FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily AS li,
-            jsonb_each_text(li.pod_labels) labels
-        {% if report_periods %}
-        WHERE li.report_period_id IN (
-        {%- for report_period_id in report_period_ids -%}
-        {{report_period_id}}{% if not loop.last %},{% endif %}
-        {%- endfor -%}
-        )
-        {% endif %}
-    ) l
-    GROUP BY l.key, l.value, l.report_period_id, l.namespace
+WITH cte_tag_value(key, value, report_period_id, namespace) AS (
+
+    SELECT key,
+        value,
+        li.report_period_id,
+        li.namespace
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily AS li,
+        jsonb_each_text(li.pod_labels) labels
+    {% if report_periods %}
+    WHERE li.report_period_id IN (
+    {%- for report_period_id in report_period_ids -%}
+    {{report_period_id}}{% if not loop.last %},{% endif %}
+    {%- endfor -%}
+    )
+    {% endif %}
+    GROUP BY key, value, li.report_period_id, li.namespace
 ),
-data2(key, values, namespace) AS (SELECT data.key, array_agg(DISTINCT data.value), namespace from data GROUP BY data.key, data.namespace)
+cte_values_agg AS (
+    SELECT key,
+        array_agg(DISTINCT value) as values,
+        report_period_id,
+        namespace
+    FROM cte_tag_value
+    GROUP BY key, report_period_id, namespace
+)
 , ins1 AS (
     INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary (key, report_period_id, namespace, values)
-    SELECT DISTINCT data.key AS key,
-    data.report_period_id AS report_period_id,
-    data.namespace AS namespace,
-    data2.values AS values
-    FROM data INNER JOIN data2 ON data.key = data2.key AND data.namespace = data2.namespace
-    ON CONFLICT (key, report_period_id, namespace) DO UPDATE SET key = EXCLUDED.key
+    SELECT key,
+        report_period_id,
+        namespace,
+        values
+    FROM cte_values_agg
+    ON CONFLICT (key, report_period_id, namespace) DO UPDATE SET values=EXCLUDED.values
     RETURNING key, id AS key_id
     )
 , ins2 AS (
    INSERT INTO {{schema | sqlsafe}}.reporting_ocptags_values (value)
    SELECT DISTINCT d.value
-   FROM data d
+   FROM cte_tag_value d
    ON CONFLICT (value) DO UPDATE SET value=EXCLUDED.value
    RETURNING value, id AS values_id
     )
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary_values_mtm (ocpusagepodlabelsummary_id, ocptagsvalues_id)
 SELECT DISTINCT ins1.key_id, ins2.values_id
-FROM data d
+FROM cte_tag_value d
 INNER JOIN ins1 ON d.key = ins1.key
 INNER JOIN ins2 ON d.value = ins2.value
 ON CONFLICT (ocpusagepodlabelsummary_id, ocptagsvalues_id) DO NOTHING
