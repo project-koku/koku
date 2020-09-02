@@ -2,6 +2,7 @@
 import os
 
 from django.db import migrations
+from django.db import models
 
 from koku import migration_sql_helpers as msh
 
@@ -14,6 +15,9 @@ def apply_partitioned_table_triggers(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0131_auto_20200827_1253")]
+    dependencies = [("reporting", "0135_auto_20200902_1808")]
 
-    operations = [migrations.RunPython(code=apply_partitioned_table_triggers)]
+    operations = [
+        migrations.AddField(model_name="partitionedtable", name="active", field=models.BooleanField(default=True)),
+        migrations.RunPython(code=apply_partitioned_table_triggers),
+    ]
