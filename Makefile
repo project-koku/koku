@@ -83,6 +83,7 @@ help:
 	@echo "  manifest                              create/update manifest for product security"
 	@echo "  check-manifest                        check that the manifest is up to date"
 	@echo "  remove-db                             remove local directory $(TOPDIR)/pg_data"
+	@echo "  remove-test-db                        remove the django test db"
 	@echo "  reset-db-statistics                   clear the pg_stat_statements statistics"
 	@echo "  run-migrations                        run migrations against database"
 	@echo "  serve                                 run the Django app on localhost"
@@ -176,8 +177,8 @@ remove-test-db:
                                          -p $$POSTGRES_SQL_SERVICE_PORT \
                                          -d $$DATABASE_NAME \
                                          -U $$DATABASE_USER \
-                                         -c "DROP DATABASE test_postgres;" >/dev/null
-	@echo "Test DB has been removed."
+                                         -c "DROP DATABASE test_$$DATABASE_NAME;" >/dev/null
+	@echo "Test DB (test_$$DATABASE_NAME) has been removed."
 
 reset-db-statistics:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
