@@ -38,7 +38,6 @@ from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
 
 import koku.celery as koku_celery
-from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.models import Provider
 from api.utils import DateHelper
@@ -1185,12 +1184,10 @@ class TestRemoveStaleTenants(MasuTestCase):
             self.assertNotEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)
             remove_stale_tenants()  # Check that it is not clearing the cache unless removing
             self.assertNotEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)
-            record = Customer.objects.get(schema_name=self.schema)
-            record.date_created = DateHelper.n_days_ago(self, record.date_created, days)
-            record.save()
+            self.customer.date_updated = DateHelper().n_days_ago(self.customer.date_updated, days)
+            self.customer.save()
             before_len = Tenant.objects.count()
             remove_stale_tenants()
             after_len = Tenant.objects.count()
             self.assertGreater(before_len, after_len)
             self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)
-        self.assertGreater(self.customer.date_updated, initial_date_updated)
