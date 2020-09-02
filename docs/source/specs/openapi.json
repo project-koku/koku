@@ -3047,6 +3047,12 @@
                             "$ref": "#/components/schemas/Rate"
                         }
                     },
+                    "tag_rates": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TagRate"
+                        }
+                    },
                     "markup": {
                         "$ref": "#/components/schemas/Markup"
                     }
@@ -3088,6 +3094,12 @@
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/Rate"
+                        }
+                    },
+                    "tag_rates": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TagRate"
                         }
                     }
                 },
@@ -3604,6 +3616,64 @@
                                 "usage_start": 0,
                                 "usage_end": 10
                             }
+                        }]
+                    }
+                }
+            },
+            "TagRate": {
+                "required": [
+                    "metric"
+                ],
+                "properties": {
+                    "tag_key": {
+                        "type": "string",
+                        "enum": ["key_one"]
+                    },
+                    "cost_type": {
+                        "type": "string",
+                        "enum": [
+                            "Infrastructure",
+                            "Supplementary"
+                        ]
+                    },
+                    "tag_values": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "tag_value": {
+                                    "type": "string"
+                                },
+                                "usage": {
+                                    "type": "object"
+                                },
+                                "unit": {
+                                    "type": "string",
+                                    "enum": [
+                                        "USD"
+                                    ]
+                                },
+                                "value": {
+                                    "type": "string"
+                                },
+                                "description": {
+                                    "type": "string"
+                                },
+                                "default": {
+                                    "type": "boolean"
+                                }
+                            }
+                        },
+                        "example": [{
+                            "tag_value": "dev",
+                            "unit": "USD",
+                            "usage": {
+                                "unit": "USD",
+                                "usage_start": 0,
+                                "usage_end": 10
+                            },
+                            "value": 0.2,
+                            "description": "Developers",
+                            "default": true
                         }]
                     }
                 }

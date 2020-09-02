@@ -59,6 +59,8 @@ class CostModel(models.Model):
 
     markup = JSONField(encoder=DjangoJSONEncoder, default=dict)
 
+    tag_rates = JSONField(default=dict)
+
 
 class CostModelAudit(models.Model):
     """A collection of rates used to calculate cost against resource usage data."""
@@ -89,6 +91,8 @@ class CostModelAudit(models.Model):
     rates = JSONField(default=dict)
 
     markup = JSONField(encoder=DjangoJSONEncoder, default=dict)
+
+    tag_rates = JSONField(default=dict)
 
 
 class CostModelMap(models.Model):

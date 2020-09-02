@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Cost Model serializers."""
+import logging
 import random
 from decimal import Decimal
 
@@ -30,6 +31,38 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from cost_models.serializers import CostModelSerializer
 from cost_models.serializers import UUIDKeyRelatedField
+
+LOG = logging.getLogger(__name__)
+
+
+def format_tag_value(**kwarg_dict):
+    """Returns a tag_value."""
+    return {
+        "tag_value": kwarg_dict.get("tag_value", "value_one"),
+        "unit": kwarg_dict.get("unit", "USD"),
+        "usage": {
+            "unit": kwarg_dict.get("unit", "USD"),
+            "usage_end": kwarg_dict.get("usage_end", None),
+            "usage_start": kwarg_dict.get("usage_start", None),
+        },
+        "value": kwarg_dict.get("value", 0.2),
+        "description": kwarg_dict.get("description", ""),
+        "default": kwarg_dict.get("default", False),
+    }
+
+
+def format_tag_rate(tag_key="key_one", cost_type="Supplementary", tag_values=None):
+    """Returns a tag_rate."""
+    final_tag_values = []
+    if tag_values:
+        for tag_value_kwarg in tag_values:
+            final_tag_values.append(format_tag_value(**tag_value_kwarg))
+    else:
+        if tag_values == []:
+            final_tag_values = tag_values
+        else:
+            final_tag_values = [format_tag_value(**{})]
+    return {"tag_key": tag_key, "cost_type": cost_type, "tag_values": final_tag_values}
 
 
 class CostModelSerializerTest(IamTestCase):
@@ -53,6 +86,14 @@ class CostModelSerializerTest(IamTestCase):
             "providers": [{"uuid": self.provider.uuid, "name": self.provider.name}],
             "markup": {"value": 10, "unit": "percent"},
             "rates": [{"metric": {"name": ocp_metric}, "tiered_rates": tiered_rates}],
+        }
+        self.tag_model = {
+            "name": "Test Cost Model",
+            "description": "Test",
+            "source_type": Provider.PROVIDER_OCP,
+            "providers": [{"uuid": self.provider.uuid, "name": self.provider.name}],
+            "markup": {"value": 10, "unit": "percent"},
+            "tag_rates": None,
         }
 
     def tearDown(self):
@@ -417,3 +458,130 @@ class CostModelSerializerTest(IamTestCase):
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
+
+    def test_error_on_duplicate_tag_value(self):
+        """Test that duplicate tag values for same key is rejected."""
+        tag_rate = format_tag_rate()
+        self.tag_model["tag_rates"] = [tag_rate, tag_rate]
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.tag_model)
+            with self.assertRaises(serializers.ValidationError):
+                self.assertFalse(serializer.is_valid(raise_exception=True))
+        result_err_msg = serializer.errors["tag_rates"][0]
+        expected_err_msg = "Tag rates with the same tag_key & cost_type can not contain the same tag_value."
+        self.assertEqual(result_err_msg, expected_err_msg)
+
+    def test_error_on_multiple_tag_values_marked_as_default(self):
+        """Test that multiple default set to true fails."""
+        tag_values_kwargs = [{"default": True}, {"tag_value": "value_two", "value": 0.3, "default": True}]
+        self.tag_model["tag_rates"] = [format_tag_rate(tag_values=tag_values_kwargs)]
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.tag_model)
+            with self.assertRaises(serializers.ValidationError):
+                self.assertFalse(serializer.is_valid(raise_exception=True))
+        result_err_msg = serializer.errors["tag_rates"][0]["tag_values"][0]
+        expected_err_msg = "Only one tag_value per tag_key can be marked as a default."
+        self.assertEqual(result_err_msg, expected_err_msg)
+
+    def test_tag_rates_error_on_negitive_tag_value(self):
+        """Test that a negivite value in the tag value fails."""
+        tag_values_kwargs = [{"value": -0.2}]
+        self.tag_model["tag_rates"] = [format_tag_rate(tag_values=tag_values_kwargs)]
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.tag_model)
+            with self.assertRaises(serializers.ValidationError):
+                self.assertFalse(serializer.is_valid(raise_exception=True))
+        result_err_msg = serializer.errors["tag_rates"][0]["tag_values"]["value"][0]
+        expected_err_msg = "A tag rate value must be positive."
+        self.assertEqual(result_err_msg, expected_err_msg)
+
+    def test_tag_rates_error_on_negitive_usage_start(self):
+        """Test that a negivite usage_start for tag_rates fails."""
+        tag_values_kwargs = [{"usage_start": -5}]
+        self.tag_model["tag_rates"] = [format_tag_rate(tag_values=tag_values_kwargs)]
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.tag_model)
+            with self.assertRaises(serializers.ValidationError):
+                self.assertFalse(serializer.is_valid(raise_exception=True))
+        result_err_msg = serializer.errors["tag_rates"][0]["tag_values"]["usage"][0]
+        expected_err_msg = "A tag rate usage_start must be positive."
+        self.assertEqual(result_err_msg, expected_err_msg)
+
+    def test_tag_rates_error_on_negitive_usage_end(self):
+        """Test that a negivite usage_end for tag_rates fails."""
+        tag_values_kwargs = [{"usage_end": -5}]
+        self.tag_model["tag_rates"] = [format_tag_rate(tag_values=tag_values_kwargs)]
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.tag_model)
+            with self.assertRaises(serializers.ValidationError):
+                self.assertFalse(serializer.is_valid(raise_exception=True))
+        result_err_msg = serializer.errors["tag_rates"][0]["tag_values"]["usage"][0]
+        expected_err_msg = "A tag rate usage_end must be positive."
+        self.assertEqual(result_err_msg, expected_err_msg)
+
+    def test_tag_rates_error_on_usage_start_greater_than_usage_end(self):
+        """Test that usage_start greater than a usage end fails"""
+        tag_values_kwargs = [{"usage_start": 10, "usage_end": 2}]
+        self.tag_model["tag_rates"] = [format_tag_rate(tag_values=tag_values_kwargs)]
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.tag_model)
+            with self.assertRaises(serializers.ValidationError):
+                self.assertFalse(serializer.is_valid(raise_exception=True))
+        result_err_msg = serializer.errors["tag_rates"][0]["tag_values"]["usage"][0]
+        expected_err_msg = "A tag rate usage_start must be less than usage_end."
+        self.assertEqual(result_err_msg, expected_err_msg)
+
+    def test_error_on_empty_list_for_tag_values(self):
+        """Test that tag_values can not be an empty list."""
+        self.tag_model["tag_rates"] = [format_tag_rate(tag_values=[])]
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.tag_model)
+            with self.assertRaises(serializers.ValidationError):
+                self.assertFalse(serializer.is_valid(raise_exception=True))
+        result_err_msg = serializer.errors["tag_rates"][0]["tag_values"][0]
+        expected_err_msg = "A tag_values can not be an empty list."
+        self.assertEqual(result_err_msg, expected_err_msg)
+
+    def test_tag_key_can_be_multiple_cost_types(self):
+        """Test that tag keys can be multiple cost types."""
+        value_kwargs = [{"value": 0.1, "default": True, "usage_start": 1, "usage_end": 10}]
+        tag_rates_list = []
+        cost_types = ["Infrastructure", "Supplementary"]
+        for cost_type in cost_types:
+            tag_rates_list.append(format_tag_rate(cost_type=cost_type, tag_values=value_kwargs))
+        self.tag_model["tag_rates"] = tag_rates_list
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.tag_model)
+            self.assertTrue(serializer.is_valid(raise_exception=True))
+            serializer.save()
+            data = serializer.data
+        tag_rates = data.get("tag_rates", [])
+        self.assertEqual(len(tag_rates), 2)
+        for tag_rate in tag_rates:
+            # Check cost types
+            result_cost_type = tag_rate["cost_type"]
+            self.assertIn(result_cost_type, cost_types)
+            cost_types.remove(result_cost_type)
+            # Check that to_representation is working
+            tag_value = tag_rate["tag_values"][0]
+            decimals = [tag_value["value"], tag_value["usage"]["usage_start"], tag_value["usage"]["usage_end"]]
+            for expected_decimal in decimals:
+                self.assertIsInstance(expected_decimal, Decimal)
+
+    def test_multiple_tag_values(self):
+        """Test that tag keys can be multiple cost types."""
+        value_kwargs = [
+            {"tag_value": "value_one", "value": 0.1, "default": True},
+            {"tag_value": "value_two", "value": 0.2},
+        ]
+        self.tag_model["tag_rates"] = [format_tag_rate(tag_values=value_kwargs)]
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.tag_model)
+            self.assertTrue(serializer.is_valid(raise_exception=True))
+            serializer.save()
+            data = serializer.data
+        tag_rates = data.get("tag_rates", [])
+        self.assertEqual(len(tag_rates), 1)
+        tag_rate = tag_rates[0]
+        tag_values = tag_rate["tag_values"]
+        self.assertEqual(len(tag_values), 2)

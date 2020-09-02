@@ -83,5 +83,24 @@
         }],
         "cost_type": "Infrastructure"
     }
+    ],
+    "tag_rates": [
+        {
+            "tag_key": "tag_one",
+            "cost_type": "Supplementary",
+            "tag_values": [
+                {
+                    "tag_value": "value_one",
+                    "unit": "USD",
+                    "usage": {
+                        "unit": "USD",
+                        "usage_end": null,
+                        "usage_start": null},
+                    "value": 0.2,
+                    "description": "",
+                    "default": false
+                }
+            ]
+        }
     ]
 }

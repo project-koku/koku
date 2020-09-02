@@ -102,6 +102,88 @@ class TieredRateSerializer(serializers.Serializer):
             return data
 
 
+class TagRateValueSerializer(serializers.Serializer):
+    """Serializer for the Tag Values."""
+
+    DECIMALS = ("value", "usage_start", "usage_end")
+
+    tag_value = serializers.CharField()
+    unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
+    usage = serializers.DictField(required=False)
+    value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
+    description = serializers.CharField(allow_blank=True)
+    default = serializers.BooleanField()
+
+    def validate_value(self, value):
+        """Check that value is a positive value."""
+        if value <= 0:
+            raise serializers.ValidationError("A tag rate value must be positive.")
+
+        return str(value)
+
+    def validate_usage(self, usage):
+        """Check that usage_start is a positive value."""
+        usage_start = usage.get("usage_start")
+        usage_end = usage.get("usage_end")
+        if usage_start and usage_start < 0:
+            raise serializers.ValidationError("A tag rate usage_start must be positive.")
+        if usage_end and usage_end <= 0:
+            raise serializers.ValidationError("A tag rate usage_end must be positive.")
+        if usage_start is not None and usage_end is not None:
+            if Decimal(usage_start) >= Decimal(usage_end):
+                raise serializers.ValidationError("A tag rate usage_start must be less than usage_end.")
+        return usage
+
+
+class TagRateSerializer(serializers.Serializer):
+    """Serializer for Tag Rate."""
+
+    tag_key = serializers.CharField()
+    cost_type = serializers.ChoiceField(choices=metric_constants.COST_TYPE_CHOICES)
+    tag_values = serializers.ListField()
+
+    def validate_tag_values(self, tag_values):
+        """Run validation for tag_values"""
+        if tag_values == []:
+            err_msg = "A tag_values can not be an empty list."
+            raise serializers.ValidationError(err_msg)
+        validated_rates = []
+        true_defaults = []
+        for tag_value in tag_values:
+            serializer = TagRateValueSerializer(data=tag_value)
+            serializer.is_valid(raise_exception=True)
+            is_default = tag_value.get("default")
+            if is_default in [True, "true", "True"]:
+                true_defaults.append(is_default)
+            validated_rates.append(serializer.validated_data)
+        if len(true_defaults) > 1:
+            err_msg = "Only one tag_value per tag_key can be marked as a default."
+            raise serializers.ValidationError(err_msg)
+        return validated_rates
+
+    @staticmethod
+    def _convert_to_decimal(tag_value):
+        for decimal_key in TagRateValueSerializer.DECIMALS:
+            if decimal_key in tag_value:
+                value = tag_value.get(decimal_key)
+                if value:
+                    tag_value[decimal_key] = Decimal(value)
+            usage = tag_value.get("usage", {})
+            if decimal_key in usage:
+                value = usage.get(decimal_key)
+                if value:
+                    usage[decimal_key] = Decimal(value)
+        return tag_value
+
+    def to_representation(self, data):
+        """Convert certain fields to decimals."""
+        tag_values = data.get("tag_values")
+        for tag_value in tag_values:
+            TagRateSerializer._convert_to_decimal(tag_value)
+        data["tag_values"] = tag_values
+        return data
+
+
 class RateSerializer(serializers.Serializer):
     """Rate Serializer."""
 
@@ -294,6 +376,8 @@ class CostModelSerializer(serializers.Serializer):
 
     rates = RateSerializer(required=False, many=True)
 
+    tag_rates = TagRateSerializer(required=False, many=True)
+
     markup = MarkupSerializer(required=False)
 
     @property
@@ -359,6 +443,30 @@ class CostModelSerializer(serializers.Serializer):
         for rate in rates:
             serializer = RateSerializer(data=rate)
             serializer.is_valid(raise_exception=True)
+            validated_rates.append(serializer.validated_data)
+        return validated_rates
+
+    def validate_tag_rates(self, tag_rates):
+        """Run validation for rates."""
+        validated_rates = []
+        tag_rate_mapping = {}
+        for rate in tag_rates:
+            serializer = TagRateSerializer(data=rate)
+            serializer.is_valid(raise_exception=True)
+            tag_key = rate.get("tag_key")
+            cost_type = rate.get("cost_type")
+            values = [value.get("tag_value") for value in rate.get("tag_values")]
+            current_mapping_values = tag_rate_mapping.get(tag_key, {}).get(cost_type, {})
+            if current_mapping_values:
+                intersect = set(current_mapping_values) & set(values)
+                if bool(intersect):
+                    err_msg = "Tag rates with the same tag_key & cost_type can not contain the same tag_value."
+                    raise serializers.ValidationError(err_msg)
+                else:
+                    new_values = current_mapping_values + values
+                    tag_rate_mapping[tag_key] = {cost_type: new_values}
+            else:
+                tag_rate_mapping[tag_key] = {cost_type: values}
             validated_rates.append(serializer.validated_data)
         return validated_rates
 
