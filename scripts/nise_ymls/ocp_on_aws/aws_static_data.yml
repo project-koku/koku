@@ -147,7 +147,6 @@ generators:
       tags:
         resourceTags/user:app: catalog
   - DataTransferGenerator:
-      end_date: 2020-08-25
       resource_id: ''
       product_sku: AERJHRNCCCCD
       product_code: AmazonDynamoDB
