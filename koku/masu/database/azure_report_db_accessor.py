@@ -262,7 +262,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             } - self.get_partition_start_dates(existing_partitions):
                 tmplpart = existing_partitions[0]
                 partition_name = f"{tmplpart.partition_of_table_name}_{needed_partition.strftime('%Y_%m')}"
-                # Successfully creating this new record will also create the partition
+                # Successfully creating a new record will also create the partition
                 newpart_vals = dict(
                     schema_name=tmplpart.schema_name,
                     table_name=partition_name,
@@ -280,6 +280,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
                     defaults=newpart_vals, schema_name=tmplpart.schema_name, table_name=partition_name
                 )
                 if created:
+                    LOG.info(f"Created a new parttiion for {tmplpart.partition_of_table_name} : {partition_name}")
                     existing_partitions.append(newpart)
 
         return existing_partitions
