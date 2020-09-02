@@ -371,7 +371,7 @@ class ReportQueryHandlerTest(IamTestCase):
                 QueryFilter(field="usage_account_id", operation="in", composition_key="account_filter"),
             ]
         )
-        rqh._set_access_filters(access, filt, filters)
+        rqh.set_access_filters(access, filt, filters)
         self.assertIsInstance(filters, QueryFilterCollection)
         assertSameQ(filters.compose(), expected.compose())
 
@@ -395,7 +395,7 @@ class ReportQueryHandlerTest(IamTestCase):
                 QueryFilter(field="account_alias__account_alias", operation="in", composition_key="account_filter")
             ]
         )
-        rqh._set_access_filters(access, filt, filters)
+        rqh.set_access_filters(access, filt, filters)
         self.assertIsInstance(filters, QueryFilterCollection)
         assertSameQ(filters.compose(), expected.compose())
 

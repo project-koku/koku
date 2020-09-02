@@ -30,10 +30,9 @@ CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
             SELECT key,
                 value,
                 report_period_id,
-                project
+                namespace
             FROM {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS ts,
-                unnest(ts.values) AS values(value),
-                unnest(ts.namespace) AS namespaces(project)
+                unnest(ts.values) AS values(value)
         ) AS tags
         JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
             ON tags.report_period_id = rp.id
@@ -53,10 +52,9 @@ CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
             SELECT key,
                 value,
                 report_period_id,
-                project
+                namespace
             FROM {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary AS ts,
-                unnest(ts.values) AS values(value),
-                unnest(ts.namespace) AS namespaces(project)
+                unnest(ts.values) AS values(value)
         ) AS tags
         JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
             ON tags.report_period_id = rp.id
