@@ -171,6 +171,14 @@ make-migrations:
 remove-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data
 
+remove-test-db:
+	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
+                                         -p $$POSTGRES_SQL_SERVICE_PORT \
+                                         -d $$DATABASE_NAME \
+                                         -U $$DATABASE_USER \
+                                         -c "DROP DATABASE test_postgres;" >/dev/null
+	@echo "Test DB has been removed."
+
 reset-db-statistics:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
                                          -p $$POSTGRES_SQL_SERVICE_PORT \
