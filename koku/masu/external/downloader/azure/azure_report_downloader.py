@@ -139,7 +139,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         except AzureCostReportNotFound as ex:
             msg = f"Unable to find manifest. Error: {str(ex)}"
             LOG.info(log_json(self.request_id, msg, self.context))
-            return manifest
+            return manifest, None
         report_name = blob.name
 
         try:
