@@ -314,6 +314,11 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
 
         """
         data = self._get_data_for_table(row, self.table_name._meta.db_table)
+
+        # Skip invalid rows
+        if not all([data.get("namespace"), data.get("pod"), data.get("node")]):
+            return
+
         pod_label_str = ""
         if "pod_labels" in data:
             pod_label_str = data.pop("pod_labels")
@@ -381,6 +386,10 @@ class OCPStorageProcessor(OCPReportProcessorBase):
 
         """
         data = self._get_data_for_table(row, self.table_name._meta.db_table)
+
+        # Skip invalid rows
+        if not all([data.get("namespace"), data.get("persistentvolume")]):
+            return
 
         persistentvolume_labels_str = ""
         if "persistentvolume_labels" in data:
