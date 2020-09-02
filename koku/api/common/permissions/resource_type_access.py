@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Defines the Settings Access Permissions class."""
+"""Defines the Resource Type Access Permissions class."""
 from rest_framework import permissions
 
 
