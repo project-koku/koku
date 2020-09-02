@@ -70,25 +70,8 @@ BEGIN
         END IF;
     END IF;
 
-    action_stmt = 'CREATE TABLE ' ||
-                    quote_ident(schema) || '.' || quote_ident(table_partition) ||
-                    ' PARTITION OF ' ||
-                    quote_ident(schema) || '.' || quote_ident(partitioned_table);
-    IF ( _default )
-    THEN
-        action_stmt = action_stmt ||
-                    ' DEFAULT ; ';
-    ELSE
-        action_stmt = action_stmt ||
-                    ' FOR VALUES FROM (' ||
-                    quote_literal(date_from) ||
-                    '::date) TO (' ||
-                    quote_literal(end_date) ||
-                    '::date); ';
-    END IF;
-    EXECUTE action_stmt;
-
-    -- log the new partition
+    -- Successful insertion of this row will create a new partition
+    -- via a trigger on <schema>.partitioned_tables
     action_stmt = 'INSERT INTO ' || quote_ident(schema) || '."partitioned_tables" ( ' ||
                           '"schema_name", "table_name", "partition_of_table_name", ' ||
                           '"partition_type", "partition_col", "partition_parameters" ' ||
@@ -107,7 +90,9 @@ BEGIN
                     'JOIN pg_attribute a ' ||
                       'ON a.attrelid = p.partrelid ' ||
                      'AND a.attnum = any(string_to_array(p.partattrs::text, '' '')::smallint[]) ' ||
-                   'WHERE p.partrelid = ' || quote_literal(schema || '.'::text || partitioned_table) || '::regclass ;';
+                   'WHERE p.partrelid = ' ||
+                   quote_literal(schema || '.'::text || partitioned_table) || '::regclass ' ||
+                   'ON CONFLICT ( schema_name, table_name ) DO NOTHING ;';
     EXECUTE action_stmt;
 
     IF ( _commit = true )

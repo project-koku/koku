@@ -61,6 +61,7 @@ class ProcessedAzureReport:
         self.bills = {}
         self.products = {}
         self.meters = {}
+        self.partitions = set()
         self.line_items = []
 
     def remove_processed_rows(self):
@@ -233,7 +234,6 @@ class AzureReportProcessor(ReportProcessorBase):
             (str): The DB id of the product object
 
         """
-        table_name = AzureMeter
         meter_id = row.get("MeterId")
 
         key = (meter_id,)
@@ -244,14 +244,15 @@ class AzureReportProcessor(ReportProcessorBase):
         if key in self.existing_meter_map:
             return self.existing_meter_map[key]
 
-        data = self._get_data_for_table(row, table_name._meta.db_table)
+        data = self._get_data_for_table(row, AzureMeter._meta.db_table)
         value_set = set(data.values())
         if value_set == {""}:
             return
         data["provider_id"] = self._provider_uuid
-        meter_id = report_db_accessor.insert_on_conflict_do_nothing(table_name, data, conflict_columns=["meter_id"])
-        self.processed_report.meters[key] = meter_id
-        return meter_id
+        az_meter = AzureMeter.objects.get_or_create(defaults=data, meter_id=meter_id)
+        meter_pk = az_meter.id
+        self.processed_report.meters[key] = meter_pk
+        return meter_pk
 
     def _create_cost_entry_line_item(self, row, bill_id, product_id, meter_id, report_db_accesor):
         """Create a cost entry line item object.
