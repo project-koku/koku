@@ -74,8 +74,8 @@ BEGIN
     -- via a trigger on <schema>.partitioned_tables
     action_stmt = 'INSERT INTO ' || quote_ident(schema) || '."partitioned_tables" ( ' ||
                           '"schema_name", "table_name", "partition_of_table_name", ' ||
-                          '"partition_type", "partition_col", "partition_parameters" ' ||
-                  ') ' ||
+                          '"partition_type", "partition_col", "partition_parameters", ' ||
+                          '"active") ' ||
                   'SELECT ' || quote_literal(schema) || ', ' ||
                                quote_literal(table_partition) || ', ' ||
                                quote_literal(partitioned_table) || ', ' ||
@@ -85,7 +85,8 @@ BEGIN
                                    '''default'', false, ' ||
                                    '''from'', ' || quote_literal(date_from::text) || ', ' ||
                                    '''to'', ' || quote_literal(end_date::text) ||
-                               ') ' ||
+                               '), ' ||
+                               'true ' ||
                     'FROM pg_partitioned_table p ' ||
                     'JOIN pg_attribute a ' ||
                       'ON a.attrelid = p.partrelid ' ||

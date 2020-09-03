@@ -365,9 +365,9 @@ class ReportDBAccessorBase(KokuDBAccess):
 
     def get_partition_start_dates(self, partitions):
         exist_partition_start_dates = {
-            datetime.date(*(int(d) for d in r.partition_parameters["from"].split("-")))
-            for r in partitions
-            if not r.partition_parameters["default"]
+            datetime.strptime(p.partition_parameters["from"], "%Y-%m-%d").date()
+            for p in partitions
+            if not p.partition_parameters["default"]
         }
 
         return exist_partition_start_dates
@@ -389,8 +389,8 @@ class ReportDBAccessorBase(KokuDBAccess):
                     partition_col=tmplpart.partition_col,
                     partition_parameters={
                         "default": False,
-                        "from": needed_partition,
-                        "to": needed_partition + relativedelta(months=1),
+                        "from": str(needed_partition),
+                        "to": str(needed_partition + relativedelta(months=1)),
                     },
                     active=True,
                 )
@@ -399,6 +399,3 @@ class ReportDBAccessorBase(KokuDBAccess):
                 )
                 if created:
                     LOG.info(f"Created a new parttiion for {tmplpart.partition_of_table_name} : {partition_name}")
-                    existing_partitions.append(newpart)
-
-        return existing_partitions

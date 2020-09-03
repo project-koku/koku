@@ -19,5 +19,18 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(model_name="partitionedtable", name="active", field=models.BooleanField(default=True)),
+        migrations.RunSQL(
+            """
+UPDATE partitioned_tables
+   SET active = true
+ WHERE active is null;
+        """
+        ),
+        migrations.RunSQL(
+            """
+ALTER TABLE partitioned_tables
+      ALTER COLUMN active SET DEFAULT true;
+        """
+        ),
         migrations.RunPython(code=apply_partitioned_table_triggers),
     ]
