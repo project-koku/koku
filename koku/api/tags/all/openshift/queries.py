@@ -17,7 +17,9 @@
 """OCP-on-All Tag Query Handling."""
 from copy import deepcopy
 
+from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import Value
 
 from api.models import Provider
 from api.report.all.openshift.provider_map import OCPAllProviderMap
@@ -37,7 +39,10 @@ class OCPAllTagQueryHandler(TagQueryHandler):
         {
             "db_table": OCPAzureTagsSummary,
             "db_column_period": "cost_entry_bill__billing_period",
-            "annotations": {"accounts": F("subscription_guid")},
+            "annotations": {
+                "usage_account_id": F("subscription_guid"),
+                "account_alias__account_alias": Value(0, output_field=DecimalField()),
+            },
         },
     ]
     TAGS_VALUES_SOURCE = [
