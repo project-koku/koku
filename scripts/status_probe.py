@@ -94,7 +94,7 @@ else:
     if content:
         try:
             app_status = json.loads(content)
-        except Exception as e:
+        except (IOError, OSError, json.JSONDecodeError) as e:
             LOG.error(f"{e.__class__.__name__}: Cannot parse json: {e}")
             sys.exit(-1)
     else:
