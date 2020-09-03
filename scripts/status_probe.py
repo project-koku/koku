@@ -77,7 +77,7 @@ else:
         fname = args.filename
         try:
             jfile = open(args.filename, "rt")
-        except Exception as e:
+        except (IOError, OSError) as e:
             LOG.error(f"{e.__class__.__name__}: Cannot open file {fname}: {e}")
             sys.exit(-1)
 
