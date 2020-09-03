@@ -203,7 +203,7 @@ class ReportQueryHandler(QueryHandler):
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
             if access:
-                self._set_access_filters(access, filt, filters)
+                self.set_access_filters(access, filt, filters)
 
         # Update filters with tag filters
         filters = self._set_tag_filters(filters)
@@ -220,27 +220,6 @@ class ReportQueryHandler(QueryHandler):
             composed_filters = composed_filters & multi_field_or_composed_filters
         LOG.debug(f"_get_search_filter: {composed_filters}")
         return composed_filters
-
-    def _set_access_filters(self, access, filt, filters):
-        """
-        Sets the access filters to ensure RBAC restrictions given the users access,
-        the current filter and the filter collection
-        Args:
-            access (list) the list containing the users relevant access
-            filt (list or dict) contains the filters that need
-            filters (QueryFilterCollection) the filter collection to add the new filters to
-        returns:
-            None
-        """
-        if isinstance(filt, list):
-            for _filt in filt:
-                _filt["operation"] = "in"
-                q_filter = QueryFilter(parameter=access, **_filt)
-                filters.add(q_filter)
-        else:
-            filt["operation"] = "in"
-            q_filter = QueryFilter(parameter=access, **filt)
-            filters.add(q_filter)
 
     def _set_or_filters(self):
         """Create a composed filter collection of ORed filters.
