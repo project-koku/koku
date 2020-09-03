@@ -368,6 +368,8 @@ class AzureReportProcessor(ReportProcessorBase):
         self.processed_report.remove_processed_rows()
 
     def _save_to_db(self, temp_table, report_db):
+        # Create any needed partitions
         existing_partitions = report_db.get_existing_partitions(AzureCostEntryLineItemDailySummary)
         report_db.add_partitions(existing_partitions, self.processed_report.requested_partition_start_dates)
+        # Save batch to DB
         super()._save_to_db(temp_table, report_db)

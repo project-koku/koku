@@ -17,15 +17,19 @@
 """Database accessor for report data."""
 import logging
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from decimal import InvalidOperation
 
 import django.apps
+from dateutil.relativedelta import relativedelta
 from django.db import connection
+from django.db import transaction
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
+from reporting.models import PartitionedTable
 from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
@@ -343,3 +347,57 @@ class ReportDBAccessorBase(KokuDBAccess):
             cursor.db.set_schema(self.schema)
             cursor.execute(sql, params=bind_params)
         LOG.info("Finished updating %s.", table)
+
+    def get_existing_partitions(self, table):
+        if isinstance(table, str):
+            table_name = table
+        else:
+            # assume model
+            table_name = table._meta.db_table
+
+        with schema_context(self.schema):
+            with transaction.atomic():  # Make sure this does *not* open a lingering transaction at the driver
+                existing_partitions = PartitionedTable.objects.filter(
+                    schema_name=self.schema, partition_of_table_name=table_name, partition_type=PartitionedTable.RANGE
+                ).all()
+
+        return existing_partitions
+
+    def get_partition_start_dates(self, partitions):
+        exist_partition_start_dates = {
+            datetime.date(*(int(d) for d in r.partition_parameters["from"].split("-")))
+            for r in partitions
+            if not r.partition_parameters["default"]
+        }
+
+        return exist_partition_start_dates
+
+    def add_partitions(self, existing_partitions, requested_partition_start_dates):
+        with schema_context(self.schema):
+            for needed_partition in {
+                r.replace(day=1) for r in requested_partition_start_dates
+            } - self.get_partition_start_dates(existing_partitions):
+                tmplpart = existing_partitions[0]
+                partition_name = f"{tmplpart.partition_of_table_name}_{needed_partition.strftime('%Y_%m')}"
+                # Successfully creating a new record will also create the partition
+                newpart_vals = dict(
+                    schema_name=tmplpart.schema_name,
+                    table_name=partition_name,
+                    partition_of_table_name=tmplpart.partition_of_table_name,
+                    partition_type=tmplpart.partition_type,
+                    partition_col=tmplpart.partition_col,
+                    partition_parameters={
+                        "default": False,
+                        "from": needed_partition,
+                        "to": needed_partition + relativedelta(months=1),
+                    },
+                    active=True,
+                )
+                newpart, created = PartitionedTable.objects.get_or_create(
+                    defaults=newpart_vals, schema_name=tmplpart.schema_name, table_name=partition_name
+                )
+                if created:
+                    LOG.info(f"Created a new parttiion for {tmplpart.partition_of_table_name} : {partition_name}")
+                    existing_partitions.append(newpart)
+
+        return existing_partitions

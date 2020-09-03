@@ -21,8 +21,6 @@ import uuid
 from datetime import datetime
 
 from dateutil.parser import parse
-from dateutil.relativedelta import relativedelta
-from django.db import transaction
 from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
@@ -31,7 +29,6 @@ from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
-from reporting.models import PartitionedTable
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDaily
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
@@ -230,57 +227,3 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         agg_sql_params = {"schema": self.schema}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
-
-    def get_existing_partitions(self, table):
-        if isinstance(table, str):
-            table_name = table
-        else:
-            # assume model
-            table_name = table._meta.db_table
-
-        with schema_context(self.schema):
-            with transaction.atomic():
-                existing_partitions = PartitionedTable.objects.filter(
-                    schema_name=self.schema, partition_of_table_name=table_name, partition_type=PartitionedTable.RANGE
-                ).all()
-
-        return existing_partitions
-
-    def get_partition_start_dates(self, partitions):
-        exist_partition_start_dates = {
-            datetime.date(*(int(d) for d in r.partition_parameters["from"].split("-")))
-            for r in partitions
-            if not r.partition_parameters["default"]
-        }
-
-        return exist_partition_start_dates
-
-    def add_partitions(self, existing_partitions, requested_partition_start_dates):
-        with schema_context(self.schema):
-            for needed_partition in {
-                r.replace(day=1) for r in requested_partition_start_dates
-            } - self.get_partition_start_dates(existing_partitions):
-                tmplpart = existing_partitions[0]
-                partition_name = f"{tmplpart.partition_of_table_name}_{needed_partition.strftime('%Y_%m')}"
-                # Successfully creating a new record will also create the partition
-                newpart_vals = dict(
-                    schema_name=tmplpart.schema_name,
-                    table_name=partition_name,
-                    partition_of_table_name=tmplpart.partition_of_table_name,
-                    partition_type=tmplpart.partition_type,
-                    partition_col=tmplpart.partition_col,
-                    partition_parameters={
-                        "default": False,
-                        "from": needed_partition,
-                        "to": needed_partition + relativedelta(months=1),
-                    },
-                    active=True,
-                )
-                newpart, created = PartitionedTable.objects.get_or_create(
-                    defaults=newpart_vals, schema_name=tmplpart.schema_name, table_name=partition_name
-                )
-                if created:
-                    LOG.info(f"Created a new parttiion for {tmplpart.partition_of_table_name} : {partition_name}")
-                    existing_partitions.append(newpart)
-
-        return existing_partitions
