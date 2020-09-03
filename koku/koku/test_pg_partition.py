@@ -4,11 +4,23 @@ from . import pg_partition as ppart
 from api.iam.test.iam_test_case import IamTestCase
 
 
+def _execute(sql, params=None):
+    cur = conn.cursor()
+    cur.execute(sql, params)
+    return cur
+
+
 class TestPGPartition(IamTestCase):
+    @classmethod
+    def setUpClass(cls):
+        _execute("SET log_min_messages = NOTICE;")
+
+    @classmethod
+    def tearDownClass(cls):
+        _execute("SET log_min_messages = WARNING;")
+
     def execute(self, sql, params=None):
-        cur = conn.cursor()
-        cur.execute(sql, params)
-        return cur
+        return _execute(sql, params)
 
     def _clean_test(self):
         sql = """
@@ -46,6 +58,114 @@ create table public.__pg_part_fk_test (
     id serial primary key,
     data text not null
 );
+"""
+        self.execute(sql)
+
+        sql = """
+CREATE OR REPLACE FUNCTION public.trfn_manage_date_range_partition() RETURNS TRIGGER AS $$
+DECLARE
+    alter_stmt text = '';
+    action_stmt text = '';
+    alter_msg text = '';
+    action_msg text = '';
+    table_name text = '';
+BEGIN
+    IF ( TG_OP = 'DELETE' )
+    THEN
+        alter_stmt = 'ALTER TABLE ' ||
+                     quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
+                     ' DETACH PARTITION ' ||
+                     quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name) ||
+                     ' ;';
+        action_stmt = 'DROP TABLE IF EXISTS ' ||
+                      quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name) || ' ;';
+        table_name = quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name);
+        alter_msg = 'DROP PARTITION ' || quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name);
+    ELSIF ( TG_OP = 'UPDATE' )
+    THEN
+        alter_stmt = 'ALTER TABLE ' ||
+                    quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
+                    ' DETACH PARTITION ' ||
+                    quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name)
+                    || ' ;';
+        action_stmt = 'ALTER TABLE ' ||
+                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
+                        ' ATTACH PARTITION ' ||
+                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name) || ' ';
+        IF ( (NEW.partition_parameters->>'default')::boolean )
+        THEN
+            alter_stmt = alter_stmt || 'DEFAULT ;';
+            action_msg = 'DEFAULT';
+        ELSE
+            alter_stmt = alter_stmt || 'FOR VALUES FROM ( ' ||
+                         quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
+                         quote_literal(NEW.partition_parameters->>'to') || '::date ) ;';
+            action_msg = 'FOR VALUES FROM ( ' ||
+                         quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
+                         quote_literal(NEW.partition_parameters->>'to') || '::date )';
+        END IF;
+
+        table_name = quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name);
+        action_msg = 'UPDATE PARTITION ' || quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.table_name) ||
+                     ' ' || action_msg;
+    ELSIF ( TG_OP = 'INSERT' )
+    THEN
+        action_stmt = 'CREATE TABLE IF NOT EXISTS ' ||
+                      quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.table_name) || ' ' ||
+                      'PARTITION OF ' ||
+                      quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name) || ' ';
+        IF ( (NEW.partition_parameters->>'default')::boolean )
+        THEN
+            action_stmt = action_stmt || 'DEFAULT ;';
+            action_msg = 'DEFAULT';
+        ELSE
+            action_stmt = action_stmt || 'FOR VALUES FROM ( ' ||
+                          quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
+                          quote_literal(NEW.partition_parameters->>'to') || '::date ) ;';
+            action_msg = 'FOR VALUES FROM ( ' ||
+                         quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
+                         quote_literal(NEW.partition_parameters->>'to') || '::date )';
+        END IF;
+        action_msg = 'CREATE PARTITION ' || quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.table_name) ||
+                     ' ' || action_msg;
+        table_name = quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name);
+    ELSE
+        RAISE EXCEPTION 'Unhandled trigger operation %', TG_OP;
+    END IF;
+
+    IF ( alter_stmt != '' )
+    THEN
+        IF ( alter_msg != '' )
+        THEN
+            RAISE NOTICE 'ALTER TABLE % : %', table_name, alter_msg;
+        END IF;
+
+        EXECUTE alter_stmt;
+    END IF;
+
+    IF ( action_stmt != '' )
+    THEN
+        IF ( action_msg != '' )
+        THEN
+            RAISE NOTICE 'ALTER TABLE % : %', table_name, action_msg;
+        END IF;
+
+        EXECUTE action_stmt;
+    END IF;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+"""
+        self.execute(sql)
+
+        sql = """
+CREATE TRIGGER tr_manage_date_range_partition
+ AFTER INSERT
+    OR DELETE
+    OR UPDATE OF partition_parameters
+    ON public.partitioned_tables
+   FOR EACH ROW EXECUTE FUNCTION public.trfn_manage_date_range_partition();
 """
         self.execute(sql)
 
