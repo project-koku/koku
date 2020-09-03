@@ -24,7 +24,7 @@ from api.iam.test.iam_test_case import IamTestCase
 
 
 class ResourceTypesViewTest(IamTestCase):
-    """Tests the report view."""
+    """Tests the resource types view."""
 
     ENDPOINTS_RTYPE = ["resource-types"]
     ENDPOINTS_AWS = ["aws-accounts", "aws-organizational-units"]
@@ -32,7 +32,7 @@ class ResourceTypesViewTest(IamTestCase):
     ENDPOINTS_OPENSHIFT = ["openshift-clusters", " openshift-nodes", "openshift-projects"]
     ENDPOINTS_COST = ["rates"]
     ENDPOINTS = (
-        ENDPOINTS_RTYPE
+        ENDPOINTS_RTYPE  # Remainder will be added once endpoints are created
         # + ENDPOINTS_AWS
         # + ENDPOINTS_AZURE
         # + ENDPOINTS_OPENSHIFT
@@ -51,7 +51,6 @@ class ResourceTypesViewTest(IamTestCase):
             with self.subTest(endpoint=endpoint):
                 url = reverse(endpoint)
                 response = self.client.get(url, **self.headers)
-                print("Does it enter?")
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 json_result = response.json()
                 self.assertIsNotNone(json_result.get("data"))
@@ -70,10 +69,3 @@ class ResourceTypesViewTest(IamTestCase):
                 self.assertIsNotNone(json_result.get("data"))
                 self.assertIsInstance(json_result.get("data"), list)
                 self.assertTrue(len(json_result.get("data")) > 0)
-
-    def get_resource_types(self):
-        """Request resource types from API."""
-        url = reverse("resource-types")
-        client = APIClient()
-        response = client.get(url, **self.headers)
-        return response
