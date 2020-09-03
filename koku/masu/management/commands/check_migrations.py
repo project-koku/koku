@@ -31,3 +31,5 @@ class Command(BaseCommand):
 
         if check_migrations():
             self.stdout.write("True")
+        else:
+            self.stdout.write("False")
