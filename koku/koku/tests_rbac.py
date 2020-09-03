@@ -247,7 +247,7 @@ class RbacServiceTest(TestCase):
         read_access = {"read": []}
         expected = {
             "provider": rw_access,
-            "rate": rw_access,
+            "cost_model": rw_access,
             "aws.account": read_access,
             "aws.organizational_unit": read_access,
             "azure.subscription_guid": read_access,
@@ -265,7 +265,7 @@ class RbacServiceTest(TestCase):
         read_access = {"read": []}
         expected = {
             "provider": rw_access,
-            "rate": rw_access,
+            "cost_model": rw_access,
             "aws.account": read_access,
             "aws.organizational_unit": read_access,
             "azure.subscription_guid": read_access,
@@ -283,7 +283,7 @@ class RbacServiceTest(TestCase):
         read_access = {"read": ["1", "3"]}
         expected = {
             "provider": rw_access,
-            "rate": rw_access,
+            "cost_model": rw_access,
             "aws.account": read_access,
             "aws.organizational_unit": read_access,
             "azure.subscription_guid": read_access,
@@ -303,7 +303,7 @@ class RbacServiceTest(TestCase):
         read_access = {"read": ["2"]}
         expected = {
             "provider": rw_access,
-            "rate": rw_access,
+            "cost_model": rw_access,
             "aws.account": read_access,
             "aws.organizational_unit": read_access,
             "azure.subscription_guid": read_access,
@@ -324,7 +324,7 @@ class RbacServiceTest(TestCase):
         no_access = {"read": []}
         expected = {
             "provider": op_access,
-            "rate": no_rw_access,
+            "cost_model": no_rw_access,
             "aws.account": no_access,
             "aws.organizational_unit": no_access,
             "azure.subscription_guid": no_access,
@@ -338,7 +338,7 @@ class RbacServiceTest(TestCase):
         """Test apply with mixed condition."""
         processed_acls = {
             "provider": [{"operation": "*", "resources": ["*"]}],
-            "rate": [{"operation": "*", "resources": ["*"]}],
+            "cost_model": [{"operation": "*", "resources": ["*"]}],
             "aws.account": [{"operation": "read", "resources": ["myaccount"]}],
         }
         res_access = _apply_access(processed_acls)
@@ -347,7 +347,7 @@ class RbacServiceTest(TestCase):
         no_access = {"read": []}
         expected = {
             "provider": rw_access,
-            "rate": rw_access,
+            "cost_model": rw_access,
             "aws.account": op_access,
             "aws.organizational_unit": no_access,
             "azure.subscription_guid": no_access,
@@ -376,7 +376,7 @@ class RbacServiceTest(TestCase):
         access = rbac.get_access_for_user(mock_user)
         expected = {
             "provider": {"write": [], "read": []},
-            "rate": {"write": [], "read": []},
+            "cost_model": {"write": [], "read": []},
             "aws.account": {"read": ["123456"]},
             "aws.organizational_unit": {"read": []},
             "azure.subscription_guid": {"read": []},
