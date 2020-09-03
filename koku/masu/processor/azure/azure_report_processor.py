@@ -25,6 +25,8 @@ import pytz
 import ujson as json
 from dateutil import parser
 from django.conf import settings
+from django.db import connection
+from django.db import transaction
 
 from masu.config import Config
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -172,9 +174,11 @@ class AzureReportProcessor(ReportProcessorBase):
         data["provider_id"] = self._provider_uuid
         data["billing_period_start"] = datetime.strftime(start_date_utc, "%Y-%m-%d %H:%M%z")
         data["billing_period_end"] = datetime.strftime(end_date_utc, "%Y-%m-%d %H:%M%z")
-        bill, _ = AzureCostEntryBill.objects.get_or_create(
-            defaults=data, billing_period_start=data["billing_period_start"], provider_id=self._provider_uuid
-        )
+        with transaction.atomic():
+            connection.set_schema(self._schema)
+            bill, _ = AzureCostEntryBill.objects.get_or_create(
+                defaults=data, billing_period_start=data["billing_period_start"], provider_id=self._provider_uuid
+            )
         bill_id = bill.id
 
         self.processed_report.bills[key] = bill_id
@@ -217,13 +221,15 @@ class AzureReportProcessor(ReportProcessorBase):
             return
         data["instance_type"] = instance_type
         data["provider_id"] = self._provider_uuid
-        product, _ = AzureCostEntryProductService.objects.get_or_create(
-            defaults=data,
-            instance_id=instance_id,
-            instance_type=instance_type,
-            service_name=service_name,
-            service_tier=service_tier,
-        )
+        with transaction.atomic():
+            connection.set_schema(self._schema)
+            product, _ = AzureCostEntryProductService.objects.get_or_create(
+                defaults=data,
+                instance_id=instance_id,
+                instance_type=instance_type,
+                service_name=service_name,
+                service_tier=service_tier,
+            )
         product_id = product.id
         self.processed_report.products[key] = product_id
         return product_id
@@ -253,7 +259,9 @@ class AzureReportProcessor(ReportProcessorBase):
         if value_set == {""}:
             return
         data["provider_id"] = self._provider_uuid
-        az_meter, _ = AzureMeter.objects.get_or_create(defaults=data, meter_id=meter_id)
+        with transaction.atomic():
+            connection.set_schema(self._schema)
+            az_meter, _ = AzureMeter.objects.get_or_create(defaults=data, meter_id=meter_id)
         meter_pk = az_meter.id
         self.processed_report.meters[key] = meter_pk
         return meter_pk

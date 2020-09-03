@@ -355,11 +355,11 @@ class ReportDBAccessorBase(KokuDBAccess):
             # assume model
             table_name = table._meta.db_table
 
-        with schema_context(self.schema):
-            with transaction.atomic():  # Make sure this does *not* open a lingering transaction at the driver
-                existing_partitions = PartitionedTable.objects.filter(
-                    schema_name=self.schema, partition_of_table_name=table_name, partition_type=PartitionedTable.RANGE
-                ).all()
+        with transaction.atomic():  # Make sure this does *not* open a lingering transaction at the driver
+            connection.set_schema(self.schema)
+            existing_partitions = PartitionedTable.objects.filter(
+                schema_name=self.schema, partition_of_table_name=table_name, partition_type=PartitionedTable.RANGE
+            ).all()
 
         return existing_partitions
 
@@ -373,7 +373,8 @@ class ReportDBAccessorBase(KokuDBAccess):
         return exist_partition_start_dates
 
     def add_partitions(self, existing_partitions, requested_partition_start_dates):
-        with schema_context(self.schema):
+        with transaction.atomic():
+            connection.set_schema(self.schema)
             for needed_partition in {
                 r.replace(day=1) for r in requested_partition_start_dates
             } - self.get_partition_start_dates(existing_partitions):
