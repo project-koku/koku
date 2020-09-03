@@ -84,7 +84,7 @@ else:
     LOG.debug(f"Reading status from {fname}")
     try:
         content = jfile.read()
-    except Exception as e:
+    except (IOError, OSError) as e:
         LOG.error(f"{e.__class__.__name__}: Cannot read file {fname}: {e}")
         sys.exit(-1)
 
