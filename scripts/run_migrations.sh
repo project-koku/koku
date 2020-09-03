@@ -2,7 +2,7 @@
 
 RESULT=$(scl enable rh-python38 "${APP_HOME}/manage.py check_migrations")
 
-if [ "$RESULT" = "False" ]; then
+if [ "$RESULT" = "True" ]; then
     echo "Migration already executed."
 else
     scl enable rh-python38 "${APP_HOME}/manage.py migrate_schemas --noinput"
