@@ -32,7 +32,7 @@ cte_values_agg AS (
         cluster_alias,
         values
     FROM cte_values_agg
-    ON CONFLICT (key, cost_entry_bill_id, subscription_guid, namespace) DO UPDATE SET key = EXCLUDED.key
+    ON CONFLICT (key, cost_entry_bill_id, subscription_guid, namespace) DO UPDATE SET values=EXCLUDED.values
     RETURNING key, id AS key_id
     )
 , ins2 AS (

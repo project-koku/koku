@@ -190,10 +190,10 @@ class OCPTagsViewTest(IamTestCase):
         """Test that appropriate tag values are returned when data is restricted by namespace."""
         with tenant_context(self.tenant):
             banking_storage_tags = (
-                OCPStorageVolumeLabelSummary.objects.filter(namespace=["banking"]).values("key").distinct().all()
+                OCPStorageVolumeLabelSummary.objects.filter(namespace="banking").values("key").distinct().all()
             )
             banking_usage_tags = (
-                OCPUsagePodLabelSummary.objects.filter(namespace=["banking"]).values("key").distinct().all()
+                OCPUsagePodLabelSummary.objects.filter(namespace="banking").values("key").distinct().all()
             )
             tag_keys = [tag.get("key") for tag in banking_storage_tags] + [
                 tag.get("key") for tag in banking_usage_tags
