@@ -300,7 +300,7 @@ class AWSTagsSummary(models.Model):
         """Meta for OCPUsageTagSummary."""
 
         db_table = "reporting_awstags_summary"
-        unique_together = ("key", "cost_entry_bill")
+        unique_together = ("key", "cost_entry_bill", "usage_account_id")
 
     id = models.BigAutoField(primary_key=True)
 
@@ -308,7 +308,8 @@ class AWSTagsSummary(models.Model):
     values = ArrayField(models.CharField(max_length=253))
     values_mtm = models.ManyToManyField(AWSTagsValues)
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE)
-    accounts = ArrayField(models.CharField(max_length=63))
+    usage_account_id = models.CharField(max_length=50, null=True)
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
 
 
 # Materialized Views for UI Reporting
