@@ -48,6 +48,7 @@ create table if not exists public.partitioned_tables
     partition_type text not null,
     partition_col text not null,
     partition_parameters jsonb not null,
+    active boolean not null default true,
     constraint table_partition_pkey primary key (schema_name, table_name)
 );
 """
