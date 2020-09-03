@@ -22,11 +22,6 @@ from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
 
-# from api.report.view import _find_unit
-# from api.report.view import get_paginator
-
-# from api.iam.test.iam_test_case import RbacPermissions
-
 
 class ResourceTypesViewTest(IamTestCase):
     """Tests the report view."""
@@ -75,3 +70,10 @@ class ResourceTypesViewTest(IamTestCase):
                 self.assertIsNotNone(json_result.get("data"))
                 self.assertIsInstance(json_result.get("data"), list)
                 self.assertTrue(len(json_result.get("data")) > 0)
+
+    def get_resource_types(self):
+        """Request resource types from API."""
+        url = reverse("resource-types")
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        return response
