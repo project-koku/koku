@@ -7,6 +7,11 @@ APP_PORT="${KOKU_SERVICE_PORT:-'8080'}"
 TARGET_DEFAULT="http://${APP_NAME}.${APP_NAMESPACE}.svc.cluster.local:${APP_PORT}"
 TARGET="${2:-$TARGET_DEFAULT}"
 COMMIT=$(scl enable rh-python38 "${STATUS_PROBE} --status-url ${TARGET}${API_PATH_PREFIX}/v1/status/ --path commit")
+# Fallback
+if [[ -z "$COMMIT" ]]
+then
+    COMMIT=$(curl -s -GET ${TARGET}${API_PATH_PREFIX}/v1/status/ | "${STATUS_PROBE} --path commit
+fi
 
 echo "COMMIT=$COMMIT"
 echo "OPENSHIFT_BUILD_COMMIT=$OPENSHIFT_BUILD_COMMIT"
