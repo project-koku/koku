@@ -22,23 +22,18 @@ from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
 
-# from api.report.view import _find_unit
-# from api.report.view import get_paginator
-
-# from api.iam.test.iam_test_case import RbacPermissions
-
 
 class ResourceTypesViewTest(IamTestCase):
     """Tests the report view."""
 
     ENDPOINTS_RTYPE = ["resource-types"]
-    ENDPOINTS_AWS = ["aws-accounts", "aws-organizational-units"]
+    ENDPOINTS_AWS = ["aws-accounts"]  # , "aws-organizational-units"]
     ENDPOINTS_AZURE = ["azure-subscription-guids"]
     ENDPOINTS_OPENSHIFT = ["openshift-clusters", " openshift-nodes", "openshift-projects"]
     ENDPOINTS_COST = ["rates"]
     ENDPOINTS = (
         ENDPOINTS_RTYPE
-        # + ENDPOINTS_AWS
+        + ENDPOINTS_AWS
         # + ENDPOINTS_AZURE
         # + ENDPOINTS_OPENSHIFT
         # + ENDPOINTS_COST

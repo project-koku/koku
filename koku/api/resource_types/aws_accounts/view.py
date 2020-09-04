@@ -26,7 +26,7 @@ from api.query_params import get_tenant
 from reporting.provider.aws.models import AWSCostSummaryByAccount
 
 
-class AWSAccountRTView(APIView):
+class AWSAccountView(APIView):
     """API GET view for resource-types API."""
 
     permission_classes = [ResourceTypeAccessPermission]
