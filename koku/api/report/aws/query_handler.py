@@ -523,6 +523,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             LOG.debug(f"Using query table: {query_table}")
             tag_results = None
             query = query_table.objects.filter(self.query_filter)
+            LOG.debug("Query: %s", query.query)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
@@ -554,7 +555,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     rank_orders.append(getattr(F(self.order_field), self.order_direction)())
                 rank_by_total = Window(expression=RowNumber(), partition_by=F("date"), order_by=rank_orders)
                 query_data = query_data.annotate(rank=rank_by_total)
-                query_order_by.insert(1, "rank")
+                query_order_by.append("rank")
                 query_data = self._ranked_list(query_data)
 
             if self._delta:

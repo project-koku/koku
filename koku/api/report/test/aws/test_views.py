@@ -503,12 +503,12 @@ class AWSReportViewTest(IamTestCase):
                 for day in data:
                     previous_delta = None
                     for instance_type in day.get("instance_types", []):
-                        with self.subTest(day=day.get("date"), instance=instance_type):
+                        with self.subTest(data=day):
                             values = instance_type.get("values", [])
                             if values:
                                 current_delta = values[0].get("delta_value")
                                 if previous_delta:
-                                    self.assertGreaterEqual(previous_delta, current_delta)
+                                    self.assertLessEqual(previous_delta, current_delta)
                                     compared_deltas = True
                                     previous_delta = current_delta
                                 else:

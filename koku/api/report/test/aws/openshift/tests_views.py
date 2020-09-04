@@ -1061,7 +1061,7 @@ class OCPAWSReportViewTest(IamTestCase):
                             if values:
                                 current_delta = values[0].get("delta_value")
                                 if previous_delta:
-                                    self.assertGreaterEqual(previous_delta, current_delta)
+                                    self.assertLessEqual(previous_delta, current_delta)
                                     compared_deltas = True
                                     previous_delta = current_delta
                                 else:
