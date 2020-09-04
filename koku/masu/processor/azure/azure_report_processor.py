@@ -25,7 +25,6 @@ import pytz
 import ujson as json
 from dateutil import parser
 from django.conf import settings
-from django.db import connection
 from django.db import transaction
 
 from masu.config import Config
@@ -175,11 +174,9 @@ class AzureReportProcessor(ReportProcessorBase):
         data["billing_period_start"] = datetime.strftime(start_date_utc, "%Y-%m-%d %H:%M%z")
         data["billing_period_end"] = datetime.strftime(end_date_utc, "%Y-%m-%d %H:%M%z")
         with transaction.atomic():
-            connection.set_schema(self._schema)
-            bill, _ = AzureCostEntryBill.objects.get_or_create(
-                defaults=data, billing_period_start=data["billing_period_start"], provider_id=self._provider_uuid
+            bill_id = report_db_accessor.insert_on_conflict_do_nothing(
+                AzureCostEntryBill, data, conflict_columns=["billing_period_start", "provider_id"]
             )
-        bill_id = bill.id
 
         self.processed_report.bills[key] = bill_id
 
@@ -222,15 +219,11 @@ class AzureReportProcessor(ReportProcessorBase):
         data["instance_type"] = instance_type
         data["provider_id"] = self._provider_uuid
         with transaction.atomic():
-            connection.set_schema(self._schema)
-            product, _ = AzureCostEntryProductService.objects.get_or_create(
-                defaults=data,
-                instance_id=instance_id,
-                instance_type=instance_type,
-                service_name=service_name,
-                service_tier=service_tier,
+            product_id = report_db_accessor.insert_on_conflict_do_nothing(
+                AzureCostEntryProductService,
+                data,
+                conflict_columns=["instance_id", "instance_type", "service_tier", "service_name"],
             )
-        product_id = product.id
         self.processed_report.products[key] = product_id
         return product_id
 
@@ -260,9 +253,9 @@ class AzureReportProcessor(ReportProcessorBase):
             return
         data["provider_id"] = self._provider_uuid
         with transaction.atomic():
-            connection.set_schema(self._schema)
-            az_meter, _ = AzureMeter.objects.get_or_create(defaults=data, meter_id=meter_id)
-        meter_pk = az_meter.id
+            meter_pk = report_db_accessor.insert_on_conflict_do_nothing(
+                AzureMeter, data, conflict_columns=["meter_id"]
+            )
         self.processed_report.meters[key] = meter_pk
         return meter_pk
 
