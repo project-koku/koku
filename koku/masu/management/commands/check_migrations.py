@@ -14,21 +14,22 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Defines the Resource Type Access Permissions class."""
-from rest_framework import permissions
+import logging
+
+from django.core.management.base import BaseCommand
+
+from koku.database import check_migrations
+
+LOG = logging.getLogger(__name__)
 
 
-class ResourceTypeAccessPermission(permissions.BasePermission):
-    """Determines if a user can view resource-type data."""
+class Command(BaseCommand):
+    help = "Check if migrations need to be run"
 
-    resource_type = "resource_type"
+    def handle(self, *args, **options):
+        """Run our database check_migratons function."""
 
-    def has_permission(self, request, view):
-        """Check permission to view resource-type data."""
-        if request.user.admin:
-            return True
-
-        if request.method in permissions.SAFE_METHODS:
-            return True
-
-        return False
+        if check_migrations():
+            self.stdout.write("True")
+        else:
+            self.stdout.write("False")
