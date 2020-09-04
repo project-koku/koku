@@ -88,6 +88,7 @@ class AWSReportQueryTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         self.dh = DateHelper()
+        self.ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
         super().setUp()
         with tenant_context(self.tenant):
             self.accounts = AWSCostEntryLineItemDailySummary.objects.values("usage_account_id").distinct()
@@ -1295,9 +1296,8 @@ class AWSReportQueryTest(IamTestCase):
                 data = handler.execute_query()
                 # grab the accounts and sub_ous and compare with the expected results
                 path = self.ou_to_account_subou_map.get(org_unit).get("org_unit_path")
-                ten_days_ago = self.dh.n_days_ago(self.dh.today, 10)
                 expected = AWSCostEntryLineItemDailySummary.objects.filter(
-                    usage_start__gte=ten_days_ago,
+                    usage_start__gte=self.ten_days_ago,
                     usage_end__lte=self.dh.today,
                     organizational_unit__org_unit_path__icontains=path,
                 ).aggregate(
@@ -1343,9 +1343,8 @@ class AWSReportQueryTest(IamTestCase):
                 # Since the or: is suppose to do the union of a OU_001 & OU_002 then
                 # we can the expected cost to include both as well as the expected_accounts_and_sub_ous
                 path = self.ou_to_account_subou_map.get(org_unit).get("org_unit_path")
-                ten_days_ago = self.dh.n_days_ago(self.dh.today, 10)
                 expected = AWSCostEntryLineItemDailySummary.objects.filter(
-                    usage_start__gte=ten_days_ago,
+                    usage_start__gte=self.ten_days_ago,
                     usage_end__lte=self.dh.today,
                     organizational_unit__org_unit_path__icontains=path,
                 ).aggregate(
@@ -1357,7 +1356,8 @@ class AWSReportQueryTest(IamTestCase):
                     }
                 )
                 cost_total = expected.get("cost_total")
-                self.assertIsNotNone(cost_total)
+                with self.subTest(org=org_unit):
+                    self.assertIsNotNone(cost_total)
                 expected_cost_total.append(cost_total)
                 # Figure out expected accounts & sub orgs
                 sub_orgs = self.ou_to_account_subou_map.get(org_unit).get("org_units")
@@ -1385,9 +1385,8 @@ class AWSReportQueryTest(IamTestCase):
             handler = AWSReportQueryHandler(query_params)
             org_data = handler.execute_query()
             # grab the expected totals
-            ten_days_ago = self.dh.n_days_ago(self.dh.today, 10)
             expected = AWSCostEntryLineItemDailySummary.objects.filter(
-                usage_start__gte=ten_days_ago,
+                usage_start__gte=self.ten_days_ago,
                 usage_end__lte=self.dh.today,
                 organizational_unit__org_unit_path__icontains=org_unit,
             ).aggregate(
