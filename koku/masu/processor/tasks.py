@@ -741,10 +741,8 @@ def remove_stale_tenants():
     table_sql = """
         SELECT schema_name
         FROM api_customer c
-        LEFT JOIN api_provider p
-            ON c.id = p.customer_id
         LEFT JOIN api_sources s
-            ON p.uuid::text = s.koku_uuid
+            ON c.account_id = s.account_id
         WHERE s.source_id IS null
             AND c.date_updated < now() - INTERVAL '2 weeks'
         ;
