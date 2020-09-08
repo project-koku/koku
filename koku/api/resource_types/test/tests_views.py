@@ -27,7 +27,7 @@ class ResourceTypesViewTest(IamTestCase):
     """Tests the report view."""
 
     ENDPOINTS_RTYPE = ["resource-types"]
-    ENDPOINTS_AWS = ["aws-accounts"]  # , "aws-organizational-units"]
+    ENDPOINTS_AWS = ["aws-accounts", "aws-organizational-units"]
     ENDPOINTS_AZURE = ["azure-subscription-guids"]
     ENDPOINTS_OPENSHIFT = ["openshift-clusters", " openshift-nodes", "openshift-projects"]
     ENDPOINTS_COST = ["rates"]
