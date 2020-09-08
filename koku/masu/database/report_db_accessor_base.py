@@ -398,6 +398,4 @@ class ReportDBAccessorBase(KokuDBAccess):
                     defaults=newpart_vals, schema_name=tmplpart.schema_name, table_name=partition_name
                 )
                 if created:
-                    LOG.info(
-                        f"Created a new parttiion for {newpart.partition_of_table_name} : {newpart.partition_name}"
-                    )
+                    LOG.info(f"Created a new parttiion for {newpart.partition_of_table_name} : {newpart.table_name}")
