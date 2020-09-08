@@ -793,7 +793,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, end_date, manifest_id)
         mock_chain.assert_called_once_with(
             update_cost_model_costs.s(self.schema, provider_aws_uuid, expected_start_date, expected_end_date)
-            | refresh_materialized_views.si(self.schema, provider, manifest_id)
+            | refresh_materialized_views.si(
+                self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id
+            )
             | remove_expired_data.si(self.schema, provider, False, provider_aws_uuid, True)
         )
 
@@ -819,7 +821,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.add(**manifest_dict)
             manifest.save()
 
-        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
+        refresh_materialized_views(
+            self.schema, Provider.PROVIDER_AWS, provider_uuid=self.aws_provider_uuid, manifest_id=manifest.id
+        )
 
         views_to_check = [view for view in AWS_MATERIALIZED_VIEWS if "Cost" in view._meta.db_table]
 
@@ -831,6 +835,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.get_manifest_by_id(manifest.id)
             self.assertIsNotNone(manifest.manifest_completed_datetime)
 
+        with ProviderDBAccessor(self.aws_provider_uuid) as accessor:
+            self.assertIsNotNone(accessor.provider.data_updated_timestamp)
+
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_refresh_materialized_views_azure(self, mock_cache):
         """Test that materialized views are refreshed."""
@@ -838,14 +845,16 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "assembly_id": "12345",
             "billing_period_start_datetime": DateHelper().today,
             "num_total_files": 2,
-            "provider_uuid": self.aws_provider_uuid,
+            "provider_uuid": self.azure_provider_uuid,
         }
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.add(**manifest_dict)
             manifest.save()
 
-        refresh_materialized_views(self.schema, Provider.PROVIDER_AZURE, manifest_id=manifest.id)
+        refresh_materialized_views(
+            self.schema, Provider.PROVIDER_AZURE, provider_uuid=self.azure_provider_uuid, manifest_id=manifest.id
+        )
 
         views_to_check = [view for view in AZURE_MATERIALIZED_VIEWS if "Cost" in view._meta.db_table]
 
@@ -857,6 +866,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.get_manifest_by_id(manifest.id)
             self.assertIsNotNone(manifest.manifest_completed_datetime)
 
+        with ProviderDBAccessor(self.azure_provider_uuid) as accessor:
+            self.assertIsNotNone(accessor.provider.data_updated_timestamp)
+
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_refresh_materialized_views_ocp(self, mock_cache):
         """Test that materialized views are refreshed."""
@@ -864,14 +876,16 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "assembly_id": "12345",
             "billing_period_start_datetime": DateHelper().today,
             "num_total_files": 2,
-            "provider_uuid": self.aws_provider_uuid,
+            "provider_uuid": self.ocp_provider_uuid,
         }
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.add(**manifest_dict)
             manifest.save()
 
-        refresh_materialized_views(self.schema, Provider.PROVIDER_OCP, manifest_id=manifest.id)
+        refresh_materialized_views(
+            self.schema, Provider.PROVIDER_OCP, provider_uuid=self.ocp_provider_uuid, manifest_id=manifest.id
+        )
 
         views_to_check = [view for view in OCP_MATERIALIZED_VIEWS if "Cost" in view._meta.db_table]
 
@@ -882,6 +896,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(manifest.id)
             self.assertIsNotNone(manifest.manifest_completed_datetime)
+
+        with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
+            self.assertIsNotNone(accessor.provider.data_updated_timestamp)
 
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
