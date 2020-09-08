@@ -20,6 +20,6 @@ def apply_public_function_updates(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0026_provider_data_updated_timestamp")]
+    dependencies = [("api", "0027_customer_date_updated")]
 
     operations = [migrations.RunPython(code=apply_public_function_updates)]
