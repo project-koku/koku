@@ -3642,7 +3642,7 @@
                     },
                     "tag_rates": {
                         "required": [
-                            "metric"
+                            "tag_key"
                         ],
                         "properties": {
                             "tag_key": {

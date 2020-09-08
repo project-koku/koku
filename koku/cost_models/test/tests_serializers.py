@@ -459,20 +459,6 @@ class CostModelSerializerTest(IamTestCase):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
 
-    # # FIXME:
-    # def test_error_on_duplicate_tag_value(self):
-    #     """Test that duplicate tag values for same key is rejected."""
-    #     tag_rate = format_tag_rate()
-    #     self.basic_model["rates"][0]["tag_rates"] = [tag_rate, tag_rate]
-    #     with tenant_context(self.tenant):
-    #         serializer = CostModelSerializer(data=self.basic_model)
-    #         with self.assertRaises(serializers.ValidationError):
-    #             self.assertFalse(serializer.is_valid(raise_exception=True))
-    #     print(serializer.errors)
-    #     result_err_msg = serializer.errors["tag_rates"][0]
-    #     expected_err_msg = "Tag rates with the same tag_key & cost_type can not contain the same tag_value."
-    #     self.assertEqual(result_err_msg, expected_err_msg)
-
     def test_error_on_multiple_tag_values_marked_as_default(self):
         """Test that multiple default set to true fails."""
         tag_values_kwargs = [{"default": True}, {"tag_value": "value_two", "value": 0.3, "default": True}]
@@ -576,7 +562,6 @@ class CostModelSerializerTest(IamTestCase):
                 for expected_decimal in decimals:
                     self.assertIsInstance(expected_decimal, Decimal)
 
-    # FIXME:
     def test_multiple_tag_values(self):
         """Test that tag keys can be multiple cost types."""
         value_kwargs = [

@@ -459,30 +459,6 @@ class CostModelSerializer(serializers.Serializer):
             validated_rates.append(serializer.validated_data)
         return validated_rates
 
-    # def validate_tag_rates(self, tag_rates):
-    #     """Run validation for rates."""
-    #     validated_rates = []
-    #     tag_rate_mapping = {}
-    #     for rate in tag_rates:
-    #         serializer = TagRateSerializer(data=rate)
-    #         serializer.is_valid(raise_exception=True)
-    #         tag_key = rate.get("tag_key")
-    #         cost_type = rate.get("cost_type")
-    #         values = [value.get("tag_value") for value in rate.get("tag_values")]
-    #         current_mapping_values = tag_rate_mapping.get(tag_key, {}).get(cost_type, {})
-    #         if current_mapping_values:
-    #             intersect = set(current_mapping_values) & set(values)
-    #             if bool(intersect):
-    #                 err_msg = "Tag rates with the same tag_key & cost_type can not contain the same tag_value."
-    #                 raise serializers.ValidationError(err_msg)
-    #             else:
-    #                 new_values = current_mapping_values + values
-    #                 tag_rate_mapping[tag_key] = {cost_type: new_values}
-    #         else:
-    #             tag_rate_mapping[tag_key] = {cost_type: values}
-    #         validated_rates.append(serializer.validated_data)
-    #     return validated_rates
-
     def create(self, validated_data):
         """Create the cost model object in the database."""
         source_uuids = validated_data.pop("source_uuids", [])
