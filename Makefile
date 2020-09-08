@@ -83,6 +83,7 @@ help:
 	@echo "  manifest                              create/update manifest for product security"
 	@echo "  check-manifest                        check that the manifest is up to date"
 	@echo "  remove-db                             remove local directory $(TOPDIR)/pg_data"
+	@echo "  remove-test-db                        remove the django test db"
 	@echo "  reset-db-statistics                   clear the pg_stat_statements statistics"
 	@echo "  run-migrations                        run migrations against database"
 	@echo "  serve                                 run the Django app on localhost"
@@ -170,6 +171,14 @@ make-migrations:
 
 remove-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data
+
+remove-test-db:
+	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
+                                         -p $$POSTGRES_SQL_SERVICE_PORT \
+                                         -d $$DATABASE_NAME \
+                                         -U $$DATABASE_USER \
+                                         -c "DROP DATABASE test_$$DATABASE_NAME;" >/dev/null
+	@echo "Test DB (test_$$DATABASE_NAME) has been removed."
 
 reset-db-statistics:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
@@ -380,8 +389,7 @@ ifndef bucket
 	$(error param bucket is not set)
 endif
 	(printenv AWS_RESOURCE_NAME > /dev/null 2>&1) || (echo 'AWS_RESOURCE_NAME is not set in .env' && exit 1)
-	curl -d '{"name": "$(aws_name)", "source_type": "AWS", "authentication": {"resource_name": "${AWS_RESOURCE_NAME}"}, "billing_source": {"bucket": "$(bucket)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
-
+	curl -d '{"name": "$(aws_name)", "source_type": "AWS", "authentication": {"credentials": {"role_arn":"${AWS_RESOURCE_NAME}"}}, "billing_source": {"data_source": {"bucket": "$(bucket)"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
 
 ###################################################
 #  This section is for larger data volume testing

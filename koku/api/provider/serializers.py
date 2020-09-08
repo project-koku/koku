@@ -29,6 +29,7 @@ from api.iam.serializers import UserSerializer
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
+from api.utils import DateHelper
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import ProviderErrors
 
@@ -309,6 +310,10 @@ class ProviderSerializer(serializers.ModelSerializer):
         provider.active = True
 
         provider.save()
+
+        customer.date_updated = DateHelper().now_utc
+        customer.save()
+
         return provider
 
     def update(self, instance, validated_data):
@@ -357,6 +362,10 @@ class ProviderSerializer(serializers.ModelSerializer):
             instance.active = True
 
             instance.save()
+
+            customer.date_updated = DateHelper().now_utc
+            customer.save()
+
             return instance
 
 
