@@ -13,24 +13,25 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""View for organizations."""
+"""View for AWS accounts."""
+from django.db.models import F
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
-from rest_framework.views import APIView
+from rest_framework import generics
 
 from api.common import CACHE_RH_IDENTITY_HEADER
-from api.common.pagination import ListPaginator
 from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
+from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.aws.models import AWSCostSummaryByAccount
 
 
-class AWSAccountView(APIView):
-    """API GET view for resource-types API."""
+class AWSAccountView(generics.ListAPIView):
+    """API GET list view for AWS accounts."""
 
+    queryset = AWSCostSummaryByAccount.objects.annotate(**{"value": F("usage_account_id")}).values("value").distinct()
+    serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
-    def get(self, request, **kwargs):
-        data = AWSCostSummaryByAccount.objects.values("usage_account_id").distinct()
-        paginator = ListPaginator(data, request)
-        return paginator.get_paginated_response(data)
+    def list(self, request):
+        return super().list(request)
