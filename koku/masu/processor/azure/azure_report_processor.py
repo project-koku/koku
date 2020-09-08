@@ -23,7 +23,6 @@ from os import remove
 import ciso8601
 import pytz
 import ujson as json
-from dateutil import parser
 from django.conf import settings
 from django.db import transaction
 
@@ -155,7 +154,7 @@ class AzureReportProcessor(ReportProcessorBase):
         """
         row_date = row.get("UsageDateTime")
 
-        report_date_range = utils.month_date_range(parser.parse(row_date))
+        report_date_range = utils.month_date_range(ciso8601.parse_datetime(row_date))
         start_date, end_date = report_date_range.split("-")
 
         start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
@@ -323,9 +322,11 @@ class AzureReportProcessor(ReportProcessorBase):
                     li_usage_dt = row.get("UsageDateTime")
                     if li_usage_dt:
                         try:
-                            li_usage_dt = parser.parse(li_usage_dt).date().replace(day=1)
-                        except Exception:
-                            pass
+                            li_usage_dt = ciso8601.parse_datetime(li_usage_dt).date().replace(day=1)
+                        except (ValueError, TypeError):
+                            pass  # This is just gathering requested partition start values
+                            # If it's invalid, then it's OK to omit storing that value
+                            # as it only pertains to a requested partition.
                         else:
                             if li_usage_dt not in self.processed_report.requested_partitions:
                                 self.processed_report.requested_partitions.add(li_usage_dt)

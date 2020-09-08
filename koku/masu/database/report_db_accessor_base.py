@@ -17,10 +17,10 @@
 """Database accessor for report data."""
 import logging
 import uuid
-from datetime import datetime
 from decimal import Decimal
 from decimal import InvalidOperation
 
+import ciso8601
 import django.apps
 from dateutil.relativedelta import relativedelta
 from django.db import connection
@@ -365,7 +365,7 @@ class ReportDBAccessorBase(KokuDBAccess):
 
     def get_partition_start_dates(self, partitions):
         exist_partition_start_dates = {
-            datetime.strptime(p.partition_parameters["from"], "%Y-%m-%d").date()
+            ciso8601.parse_datetime(p.partition_parameters["from"]).date()
             for p in partitions
             if not p.partition_parameters["default"]
         }
@@ -398,4 +398,6 @@ class ReportDBAccessorBase(KokuDBAccess):
                     defaults=newpart_vals, schema_name=tmplpart.schema_name, table_name=partition_name
                 )
                 if created:
-                    LOG.info(f"Created a new parttiion for {tmplpart.partition_of_table_name} : {partition_name}")
+                    LOG.info(
+                        f"Created a new parttiion for {newpart.partition_of_table_name} : {newpart.partition_name}"
+                    )
