@@ -29,6 +29,7 @@ class Customer(models.Model):
     """
 
     date_created = models.DateTimeField(auto_now_add=True)
+    date_updated = models.DateTimeField(auto_now_add=True)
     uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
     account_id = models.CharField(max_length=150, blank=False, null=True, unique=True)
     schema_name = models.TextField(unique=True, null=False, default="public")
