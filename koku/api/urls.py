@@ -277,7 +277,7 @@ urlpatterns = [
     path(
         "resource-types/aws-organizational-units/",
         AWSOrganizationalUnitView.as_view(),
-        name="aws-organizational-untis",
+        name="aws-organizational-units",
     ),
 ]
 urlpatterns += ROUTER.urls
