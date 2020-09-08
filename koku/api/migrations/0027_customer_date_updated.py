@@ -6,7 +6,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0025_db_functions")]
+    dependencies = [("api", "0026_provider_data_updated_timestamp")]
 
     operations = [
         migrations.AddField(
