@@ -203,7 +203,7 @@ class OCPAzureTagsSummary(models.Model):
         """Meta for AzureTagsSummary."""
 
         db_table = "reporting_ocpazuretags_summary"
-        unique_together = ("key", "cost_entry_bill", "namespace")
+        unique_together = ("key", "cost_entry_bill", "subscription_guid", "namespace")
 
     id = models.BigAutoField(primary_key=True)
 
@@ -211,8 +211,8 @@ class OCPAzureTagsSummary(models.Model):
     values = ArrayField(models.CharField(max_length=253))
     values_mtm = models.ManyToManyField(OCPAzureTagsValues)
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
-    subscription_guid = ArrayField(models.CharField(max_length=50))
-    namespace = ArrayField(models.CharField(max_length=253, null=False))
+    subscription_guid = models.TextField(null=True)
+    namespace = models.CharField(max_length=253, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
     cluster_alias = models.CharField(max_length=256, null=True)
 

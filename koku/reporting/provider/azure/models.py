@@ -170,7 +170,7 @@ class AzureTagsSummary(models.Model):
         """Meta for AzureTagsSummary."""
 
         db_table = "reporting_azuretags_summary"
-        unique_together = ("key", "cost_entry_bill")
+        unique_together = ("key", "cost_entry_bill", "subscription_guid")
 
     id = models.BigAutoField(primary_key=True)
 
@@ -178,7 +178,7 @@ class AzureTagsSummary(models.Model):
     values = ArrayField(models.CharField(max_length=253))
     values_mtm = models.ManyToManyField(AzureTagsValues)
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
-    subscription_guid = ArrayField(models.CharField(max_length=50))
+    subscription_guid = models.TextField(null=True)
 
 
 # Materialized Views for UI Reporting
