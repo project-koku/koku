@@ -23,6 +23,7 @@ from rest_framework.routers import DefaultRouter
 from api.views import AWSAccountView
 from api.views import AWSCostView
 from api.views import AWSInstanceTypeView
+from api.views import AWSOrganizationalUnitView
 from api.views import AWSOrgView
 from api.views import AWSStorageView
 from api.views import AWSTagView
@@ -273,5 +274,10 @@ urlpatterns = [
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
+    path(
+        "resource-types/aws-organizational-units/",
+        AWSOrganizationalUnitView.as_view(),
+        name="aws-organizational-untis",
+    ),
 ]
 urlpatterns += ROUTER.urls
