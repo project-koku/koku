@@ -288,5 +288,5 @@ class CostModelManagerTest(IamTestCase):
             manager.update_provider_uuids(provider_uuids=[])
             mock_chain.assert_called_once_with(
                 mock_update.s(self.schema_name, provider_uuid, start_date, end_date),
-                mock_refresh.si(self.schema_name, provider.type),
+                mock_refresh.si(self.schema_name, provider.type, provider_uuid=provider_uuid),
             )
