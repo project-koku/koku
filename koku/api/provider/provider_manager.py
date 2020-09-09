@@ -28,6 +28,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider
 from api.provider.models import Sources
+from api.utils import DateHelper
 from cost_models.models import CostModelMap
 from masu.processor.tasks import refresh_materialized_views
 from reporting.provider.aws.models import AWSCostEntryBill
@@ -121,8 +122,10 @@ class ProviderManager:
         months = []
         for month in manifest_months_query[:2]:
             months.append(month.billing_period_start_datetime)
+        data_updated_date = self.model.data_updated_timestamp
+        data_updated_date = data_updated_date.strftime(DATE_TIME_FORMAT) if data_updated_date else data_updated_date
+        provider_stats = {"data_updated_date": data_updated_date}
 
-        provider_stats = {}
         for month in sorted(months, reverse=True):
             stats_key = str(month.date())
             provider_stats[stats_key] = []
@@ -162,10 +165,6 @@ class ProviderManager:
                 status["last_process_complete_date"] = last_process_complete_date
                 status["last_manifest_complete_date"] = last_manifest_complete_datetime
                 status["manifest_modified_datetime"] = manifest_modified_datetime
-                schema_stats = self._get_tenant_provider_stats(provider_manifest.provider, tenant, month)
-                status["summary_data_creation_datetime"] = schema_stats.get("summary_data_creation_datetime")
-                status["summary_data_updated_datetime"] = schema_stats.get("summary_data_updated_datetime")
-                status["derived_cost_datetime"] = schema_stats.get("derived_cost_datetime")
                 month_stats.append(status)
 
             provider_stats[stats_key] = month_stats
@@ -233,6 +232,10 @@ def provider_post_delete_callback(*args, **kwargs):
     if not provider.customer:
         LOG.warning("Provider %s has no Customer; we cannot call delete_archived_data.", provider.uuid)
         return
+
+    customer = provider.customer
+    customer.date_updated = DateHelper().now_utc
+    customer.save()
 
     if settings.ENABLE_S3_ARCHIVING:
         # Local import of task function to avoid potential import cycle.

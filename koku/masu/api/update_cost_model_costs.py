@@ -62,7 +62,7 @@ def update_cost_model_costs(request):
     LOG.info("Calling update_cost_model_costs async task.")
     async_result = chain(
         cost_task.s(schema_name, provider_uuid, start_date, end_date),
-        refresh_materialized_views.si(schema_name, provider.type),
+        refresh_materialized_views.si(schema_name, provider.type, provider_uuid=provider_uuid),
     ).apply_async()
 
     return Response({"Update Cost Model Cost Task ID": str(async_result)})
