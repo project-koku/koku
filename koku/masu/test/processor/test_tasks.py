@@ -526,7 +526,6 @@ class TestProcessorTasks(MasuTestCase):
                             "OCP",
                             "2020-01-01T12:00:00",
                             "manifest_id",
-                            "csv_file",
                         )
 
 
