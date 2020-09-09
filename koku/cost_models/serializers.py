@@ -389,8 +389,6 @@ class CostModelSerializer(serializers.Serializer):
 
     rates = RateSerializer(required=False, many=True)
 
-    # tag_rates = TagRateSerializer(required=False, many=True)
-
     markup = MarkupSerializer(required=False)
 
     @property
