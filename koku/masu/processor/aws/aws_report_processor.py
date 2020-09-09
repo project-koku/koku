@@ -372,8 +372,8 @@ class AWSReportProcessor(ReportProcessorBase):
         """
         table_name = AWSCostEntryPricing
 
-        term = row.get("pricing/term", "None")
-        unit = row.get("pricing/unit", "None")
+        term = row.get("pricing/term") or "None"
+        unit = row.get("pricing/unit") or "None"
 
         key = f"{term}-{unit}"
         if key in self.processed_report.pricing:
