@@ -16,7 +16,6 @@
 #
 """Test the AWS Report views."""
 import copy
-import logging
 
 from django.urls import reverse
 from rest_framework import status
@@ -27,8 +26,6 @@ from api.iam.test.iam_test_case import RbacPermissions
 from api.report.view import _convert_units
 from api.utils import DateHelper
 from api.utils import UnitConverter
-
-LOG = logging.getLogger(__name__)
 
 
 def _calculate_accounts_and_subous(data):
@@ -479,41 +476,69 @@ class AWSReportViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_order_by_delta(self):
+    def test_order_by_delta_w_limit(self):
+        """Test that the order_by delta with pagination and limit does not error."""
+        qs = "?filter[limit]=5&filter[offset]=0&order_by[delta]=asc&delta=usage"
+        url = reverse("reports-aws-instance-type") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response_data = response.json()
+        data = response_data.get("data", [])
+        meta = response_data.get("meta", {})
+
+        self.assertIn("total", meta)
+        self.assertIn("filter", meta)
+        self.assertIn("count", meta)
+
+        compared_deltas = False
+        for day in data:
+            previous_delta = None
+            for instance_type in day.get("instance_types", []):
+                with self.subTest(data=day):
+                    values = instance_type.get("values", [])
+                    if values:
+                        # see: koku.api.report.aws.query_handler.execute_query(), line 87
+                        current_delta = values[0].get("usage").get("value")
+                        if previous_delta is not None:
+                            self.assertLessEqual(previous_delta, current_delta)
+                            compared_deltas = True
+                            previous_delta = current_delta
+                        else:
+                            previous_delta = current_delta
+        self.assertTrue(compared_deltas)
+
+    def test_order_by_delta_wo_limit(self):
         """Test that the order_by delta with pagination does not error."""
-        qs_list = [
-            "?filter[limit]=5&filter[offset]=0&order_by[delta]=asc&delta=usage",
-            "?order_by[delta]=asc&delta=usage",
-        ]
-        for qs in qs_list:
-            with self.subTest(params=qs):
-                url = reverse("reports-aws-instance-type") + qs
-                response = self.client.get(url, **self.headers)
-                self.assertEqual(response.status_code, status.HTTP_200_OK)
+        qs = "?order_by[delta]=asc&delta=usage"
+        url = reverse("reports-aws-instance-type") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-                response_data = response.json()
-                data = response_data.get("data", [])
-                meta = response_data.get("meta", {})
+        response_data = response.json()
+        data = response_data.get("data", [])
+        meta = response_data.get("meta", {})
 
-                self.assertIn("total", meta)
-                self.assertIn("filter", meta)
-                self.assertIn("count", meta)
+        self.assertIn("total", meta)
+        self.assertIn("filter", meta)
+        self.assertIn("count", meta)
 
-                compared_deltas = False
-                for day in data:
-                    previous_delta = None
-                    for instance_type in day.get("instance_types", []):
-                        with self.subTest(data=day):
-                            values = instance_type.get("values", [])
-                            if values:
-                                current_delta = values[0].get("delta_value")
-                                if previous_delta:
-                                    self.assertLessEqual(previous_delta, current_delta)
-                                    compared_deltas = True
-                                    previous_delta = current_delta
-                                else:
-                                    previous_delta = current_delta
-                self.assertTrue(compared_deltas)
+        compared_deltas = False
+        for day in data:
+            previous_delta = None
+            for instance_type in day.get("instance_types", []):
+                with self.subTest(data=day):
+                    values = instance_type.get("values", [])
+                    if values:
+                        # see: koku.api.report.aws.query_handler.execute_query(), line 87
+                        current_delta = values[0].get("delta_value")
+                        if previous_delta is not None:
+                            self.assertLessEqual(previous_delta, current_delta)
+                            compared_deltas = True
+                            previous_delta = current_delta
+                        else:
+                            previous_delta = current_delta
+        self.assertTrue(compared_deltas)
 
     def test_order_by_delta_no_delta(self):
         """Test that the order_by delta with no delta passed in triggers 400."""

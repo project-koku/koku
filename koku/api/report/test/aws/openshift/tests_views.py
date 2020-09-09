@@ -1027,46 +1027,70 @@ class OCPAWSReportViewTest(IamTestCase):
                 response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_order_by_delta(self):
-        """Test that the order_by delta with pagination does not error."""
-        limit = 5
-        offset = 0
-        url = reverse("reports-openshift-aws-instance-type")
-        client = APIClient()
-        params_list = [
-            {"filter[limit]": limit, "filter[offset]": offset, "order_by[delta]": "asc", "delta": "usage"},
-            {"order_by[delta]": "asc", "delta": "usage"},
-        ]
+    def test_order_by_delta_w_limit(self):
+        """Test that the order_by delta with pagination and limit does not error."""
+        qs = "?filter[limit]=5&filter[offset]=0&order_by[delta]=asc&delta=usage"
+        url = reverse("reports-openshift-aws-instance-type") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        for params in params_list:
-            with self.subTest(params=params):
-                url = url + "?" + urlencode(params, quote_via=quote_plus)
-                response = client.get(url, **self.headers)
-                self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response_data = response.json()
+        data = response_data.get("data", [])
+        meta = response_data.get("meta", {})
 
-                response_data = response.json()
-                data = response_data.get("data", [])
-                meta = response_data.get("meta", {})
+        self.assertIn("total", meta)
+        self.assertIn("filter", meta)
+        self.assertIn("count", meta)
 
-                self.assertIn("total", meta)
-                self.assertIn("filter", meta)
-                self.assertIn("count", meta)
+        compared_deltas = False
+        for day in data:
+            previous_delta = None
+            for instance_type in day.get("instance_types", []):
+                with self.subTest(data=day):
+                    values = instance_type.get("values", [])
+                    if values:
+                        # see: koku.api.report.aws.query_handler.execute_query(), line 87
+                        current_delta = values[0].get("usage").get("value")
+                        if previous_delta is not None:
+                            self.assertLessEqual(previous_delta, current_delta)
+                            compared_deltas = True
+                            previous_delta = current_delta
+                        else:
+                            previous_delta = current_delta
+        self.assertTrue(compared_deltas)
 
-                compared_deltas = False
-                for day in data:
-                    previous_delta = None
-                    for instance_type in day.get("instance_types", []):
-                        with self.subTest(day=day.get("date"), instance=instance_type):
-                            values = instance_type.get("values", [])
-                            if values:
-                                current_delta = values[0].get("delta_value")
-                                if previous_delta:
-                                    self.assertLessEqual(previous_delta, current_delta)
-                                    compared_deltas = True
-                                    previous_delta = current_delta
-                                else:
-                                    previous_delta = current_delta
-                self.assertTrue(compared_deltas)
+    def test_order_by_delta_wo_limit(self):
+        """Test that order_by delta does not error."""
+        qs = "?order_by[delta]=asc&delta=usage"
+        url = reverse("reports-openshift-aws-instance-type") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response_data = response.json()
+        data = response_data.get("data", [])
+        meta = response_data.get("meta", {})
+
+        self.assertIn("total", meta)
+        self.assertIn("filter", meta)
+        self.assertIn("count", meta)
+
+        compared_deltas = False
+        for day in data:
+            previous_delta = None
+            for instance_type in day.get("instance_types", []):
+                with self.subTest(data=day):
+                    values = instance_type.get("values", [])
+                    if values:
+                        # see: koku.api.report.aws.openshift.query_handler.execute_query(), line 87
+                        current_delta = values[0].get("delta_value")
+                        self.assertIsNotNone(current_delta)
+                        if previous_delta is not None:
+                            self.assertLessEqual(previous_delta, current_delta)
+                            compared_deltas = True
+                            previous_delta = current_delta
+                        else:
+                            previous_delta = current_delta
+        self.assertTrue(compared_deltas)
 
     def test_order_by_delta_no_delta(self):
         """Test that the order_by delta with no delta passed in triggers 400."""
