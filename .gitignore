@@ -128,7 +128,7 @@ scripts/aws_pricing/
 pgadmin_servers.json
 
 # Testing
-testing/
+# testing/
 
 # Local OpenShift folders
 openshift.local.clusterup/
