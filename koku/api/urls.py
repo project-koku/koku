@@ -30,6 +30,7 @@ from api.views import AWSTagView
 from api.views import AzureCostView
 from api.views import AzureInstanceTypeView
 from api.views import AzureStorageView
+from api.views import AzureSubscriptionGuidView
 from api.views import AzureTagView
 from api.views import cloud_accounts
 from api.views import DataExportRequestViewSet
@@ -278,6 +279,11 @@ urlpatterns = [
         "resource-types/aws-organizational-units/",
         AWSOrganizationalUnitView.as_view(),
         name="aws-organizational-units",
+    ),
+    path(
+        "resource-types/azure-subscription-guids/",
+        AzureSubscriptionGuidView.as_view(),
+        name="azure-subscription-guids",
     ),
 ]
 urlpatterns += ROUTER.urls
