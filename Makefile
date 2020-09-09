@@ -248,7 +248,7 @@ oc-delete-e2e:
 ### Docker-compose Commands ###
 ###############################
 
-docker-down: docker-presto-down
+docker-down:
 	docker-compose down -v
 	$(PREFIX) make clear-testing
 
@@ -342,13 +342,16 @@ docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 docker-metastore-setup:
 	@cp -fr deploy/metastore/ testing/metastore/
 	@cp -fr deploy/hadoop/ testing/hadoop/
-	@sed -i "" 's/s3path/$(shell echo $(or $(s3bucket),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
-	@sed -i "" 's/s3path/$(shell echo $(or $(s3bucket),metastore))/g' testing/metastore/hive-config/hive-site.xml
+	@sed -i "" 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
+	@sed -i "" 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/metastore/hive-config/hive-site.xml
+	@sed -i "" 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' testing/metastore/hive-config/hive-site.xml
+	@sed -i "" 's/s3access/$(shell echo $(or $(S3_ACCESS_KEY),localhost))/g' testing/metastore/hive-config/hive-site.xml
+	@sed -i "" 's/s3secret/$(shell echo $(or $(S3_SECRET),localhost))/g' testing/metastore/hive-config/hive-site.xml
 
 docker-presto-setup:
 	@cp -fr deploy/presto/ testing/presto/
 	@cp -fr deploy/hadoop/ testing/hadoop/
-	@sed -i "" 's/s3path/$(shell echo $(or $(s3bucket),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
+	@sed -i "" 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
 
 docker-presto-cleanup:
 	@rm -fr testing/parquet_data testing/hadoop testing/metastore testing/presto
@@ -386,8 +389,7 @@ ifndef bucket
 	$(error param bucket is not set)
 endif
 	(printenv AWS_RESOURCE_NAME > /dev/null 2>&1) || (echo 'AWS_RESOURCE_NAME is not set in .env' && exit 1)
-	curl -d '{"name": "$(aws_name)", "source_type": "AWS", "authentication": {"resource_name": "${AWS_RESOURCE_NAME}"}, "billing_source": {"bucket": "$(bucket)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
-
+	curl -d '{"name": "$(aws_name)", "source_type": "AWS", "authentication": {"credentials": {"role_arn":"${AWS_RESOURCE_NAME}"}}, "billing_source": {"data_source": {"bucket": "$(bucket)"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
 
 ###################################################
 #  This section is for larger data volume testing
