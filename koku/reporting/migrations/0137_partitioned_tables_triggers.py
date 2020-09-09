@@ -15,7 +15,7 @@ def apply_partitioned_table_triggers(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0028_public_function_update"), ("reporting", "0135_auto_20200902_1808")]
+    dependencies = [("api", "0028_public_function_update"), ("reporting", "0136_auto_20200909_1400")]
 
     operations = [
         migrations.AddField(model_name="partitionedtable", name="active", field=models.BooleanField(default=True)),
