@@ -153,11 +153,12 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
                 user = User.objects.get(username=tenant_username)
                 customer = user.customer
                 schema_name = customer.schema_name
-            try:
-                tenant = model.objects.get(schema_name=schema_name)
-            except model.DoesNotExist:
-                tenant = model(schema_name=schema_name)
-                tenant.save()
+
+            tenant, created = model.objects.get_or_create(schema_name=schema_name)
+            if created:
+                msg = f"Created tenant {schema_name}"
+                LOG.info(msg)
+
             with KokuTenantMiddleware.tenant_lock:
                 KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
             LOG.debug(f"Tenant added to cache: {tenant_username}")

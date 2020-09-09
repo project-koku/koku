@@ -65,7 +65,7 @@
 </property>
 <property>
     <name>fs.s3a.endpoint</name>
-    <value>http://koku-minio:9000</value>
+    <value>s3endpoint</value>
 </property>
 <property>
     <name>fs.s3a.path.style.access</name>
@@ -73,19 +73,19 @@
 </property>
 <property>
     <name>fs.s3a.access.key</name>
-    <value>kokuminioaccess</value>
+    <value>s3access</value>
 </property>
 <property>
     <name>fs.s3a.secret.key</name>
-    <value>kokuminiosecret</value>
+    <value>s3secret</value>
 </property>
 <property>
     <name>fs.s3a.awsAccessKeyId</name>
-    <value>kokuminioaccess</value>
+    <value>s3access</value>
 </property>
 <property>
     <name>fs.s3a.awsSecretAccessKey</name>
-    <value>kokuminiosecret</value>
+    <value>s3secret</value>
 </property>
 <property>
     <name>fs.s3a.connection.ssl.enabled</name>
