@@ -57,7 +57,7 @@ class OCPAWSCostLineItemDailySummary(models.Model):
 
     pod = ArrayField(models.CharField(max_length=253, null=False))
 
-    node = models.CharField(max_length=253, null=False)
+    node = models.CharField(max_length=253, null=True)
 
     resource_id = models.CharField(max_length=253, null=True)
 
@@ -145,7 +145,7 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     pod = models.CharField(max_length=253, null=True)
 
-    node = models.CharField(max_length=253, null=False)
+    node = models.CharField(max_length=253, null=True)
 
     pod_labels = JSONField(null=True)
 
