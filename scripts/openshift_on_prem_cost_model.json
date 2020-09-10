@@ -82,6 +82,24 @@
             "usage_end": null
         }],
         "cost_type": "Infrastructure"
+    },
+    {
+        "metric": {"name": "cluster_cost_per_month"},
+        "tag_rates": [{
+                "tag_key": "tag_one",
+                "tag_values": [{
+                        "tag_value": "value_one",
+                        "unit": "USD",
+                        "usage": {
+                            "unit": "USD",
+                            "usage_end": null,
+                            "usage_start": null},
+                        "value": 0.2,
+                        "description": "",
+                        "default": false
+                    }]
+            }],
+        "cost_type": "Infrastructure"
     }
     ]
 }

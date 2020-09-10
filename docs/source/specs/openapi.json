@@ -3044,7 +3044,10 @@
                     "rates": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/Rate"
+                            "oneOf": [
+                                {"$ref": "#/components/schemas/TieredRate"},
+                                {"$ref": "#/components/schemas/TagRate"}
+                            ]
                         }
                     },
                     "markup": {
@@ -3087,7 +3090,10 @@
                     "rates": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/Rate"
+                            "oneOf": [
+                                {"$ref": "#/components/schemas/TieredRate"},
+                                {"$ref": "#/components/schemas/TagRate"}
+                            ]
                         }
                     }
                 },
@@ -3553,7 +3559,7 @@
                     }
                 ]
             },
-            "Rate": {
+            "TieredRate": {
                 "required": [
                     "metric"
                 ],
@@ -3605,6 +3611,85 @@
                                 "usage_end": 10
                             }
                         }]
+                    }
+                }
+            },
+            "TagRate": {
+                "required": [
+                    "metric"
+                ],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "83ee048e-3c1d-43ef-b945-108225ae52f4",
+                        "readOnly": true
+                    },
+                    "metric": {
+                        "type": "object",
+                        "example": {
+                            "name": "cpu_core_per_hour",
+                            "unit": "core-hours",
+                            "display_name": "Compute usage Rate"
+                        }
+                    },
+                    "cost_type": {
+                        "type": "string",
+                        "enum": [
+                            "Infrastructure",
+                            "Supplementary"
+                        ]
+                    },
+                    "tag_rates": {
+                        "required": [
+                            "tag_key"
+                        ],
+                        "properties": {
+                            "tag_key": {
+                                "type": "string",
+                                "enum": ["key_one"]
+                            },
+                            "tag_values": {
+                                "type": "array",
+                                "items": {
+                                    "properties": {
+                                        "tag_value": {
+                                            "type": "string"
+                                        },
+                                        "usage": {
+                                            "type": "object"
+                                        },
+                                        "unit": {
+                                            "type": "string",
+                                            "enum": [
+                                                "USD"
+                                            ]
+                                        },
+                                        "value": {
+                                            "type": "string"
+                                        },
+                                        "description": {
+                                            "type": "string"
+                                        },
+                                        "default": {
+                                            "type": "boolean"
+                                        }
+                                    }
+                                },
+                                "example": [{
+                                    "tag_value": "dev",
+                                    "unit": "USD",
+                                    "usage": {
+                                        "unit": "USD",
+                                        "usage_start": 0,
+                                        "usage_end": 10
+                                    },
+                                    "value": 0.2,
+                                    "description": "Developers",
+                                    "default": true
+                                }]
+                            }
+                        }
                     }
                 }
             },
