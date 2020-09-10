@@ -234,6 +234,41 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
 
+    def populate_line_item_daily_summary_table_from_parquet(self, start_date, end_date, source_uuid, manifest_id):
+        """Populate the daily aggregated summary of line items table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_awscostentrylineitem_daily_summary.sql")
+        summary_sql = summary_sql.decode("utf-8")
+        table_name = f"source_{str(source_uuid).replace('-', '_')}_manifest_{manifest_id}"
+        uuid_str = str(uuid.uuid4()).replace("-", "_")
+        summary_sql_params = {
+            "uuid": uuid_str,
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "table": table_name,
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        LOG.info(f"Summary SQL: {str(summary_sql)}")
+        self._execute_presto_raw_sql_query(summary_sql, self.schema)
+
+        insert_sql = pkgutil.get_data(
+            "masu.database", "presto_sql/reporting_awscostentrylineitem_daily_summary_insert.sql"
+        )
+        insert_sql = insert_sql.decode("utf-8")
+        insert_sql_params = {"uuid": uuid_str, "schema": self.schema}
+        insert_sql, summary_sql_params = self.jinja_sql.prepare_query(insert_sql, insert_sql_params)
+        LOG.info(f"Insert SQL: {str(insert_sql)}")
+        self._execute_presto_raw_sql_query(insert_sql, self.schema)
+
     def mark_bill_as_finalized(self, bill_id):
         """Mark a bill in the database as finalized."""
         table_name = AWSCostEntryBill

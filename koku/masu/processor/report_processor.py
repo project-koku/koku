@@ -27,6 +27,8 @@ from masu.processor.azure.azure_report_processor import AzureReportProcessor
 from masu.processor.gcp.gcp_report_processor import GCPReportProcessor
 from masu.processor.ocp.ocp_report_processor import OCPReportProcessor
 
+# from django.conf import settings
+# from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 
 LOG = logging.getLogger(__name__)
 
@@ -71,6 +73,14 @@ class ReportProcessor:
             (Object) : Provider-specific report processor
 
         """
+        # if settings.ENABLE_PARQUET_PROCESSING:
+        #    return ParquetReportProcessor(
+        #        schema_name=self.schema_name,
+        #        report_path=self.report_path,
+        #        compression=self.compression,
+        #        provider_uuid=self.provider_uuid,
+        #        manifest_id=self.manifest_id,
+        #    )
         if self.provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             return AWSReportProcessor(
                 schema_name=self.schema_name,
