@@ -20,6 +20,7 @@ from django.views.decorators.cache import cache_page
 from django.views.generic.base import RedirectView
 from rest_framework.routers import DefaultRouter
 
+from api.views import AWSAccountView
 from api.views import AWSCostView
 from api.views import AWSInstanceTypeView
 from api.views import AWSOrgView
@@ -271,5 +272,6 @@ urlpatterns = [
     path("settings", RedirectView.as_view(pattern_name="settings"), name="settings-redirect"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
+    path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
 ]
 urlpatterns += ROUTER.urls
