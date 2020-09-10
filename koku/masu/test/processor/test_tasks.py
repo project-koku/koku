@@ -515,6 +515,14 @@ class TestProcessorTasks(MasuTestCase):
                             "csv_file",
                         )
 
+        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.tasks.get_path_prefix"):
+                with patch("masu.processor.tasks.get_file_keys_from_s3_with_manifest_id", return_value=[]):
+                    with patch("masu.processor.tasks.convert_csv_to_parquet"):
+                        convert_to_parquet(
+                            "request_id", "account", "provider_uuid", "OCP", "2020-01-01T12:00:00", "manifest_id"
+                        )
+
 
 class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
