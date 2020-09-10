@@ -442,14 +442,14 @@ class TestProcessorTasks(MasuTestCase):
                 for expected in expected_logs:
                     self.assertIn(expected, " ".join(logger.output))
 
-        expected = "Skipping convert_to_parquet. S3 archiving feature is disabled."
+        expected = "Skipping convert_to_parquet. Parquet processing is disabled."
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             convert_to_parquet(
                 "request_id", "account", "provider_uuid", "provider_type", "start_date", "manifest_id", "csv_file"
             )
             self.assertIn(expected, " ".join(logger.output))
 
-        expected = "S3 archiving feature is enabled, but no start_date was given for processing."
+        expected = "Parquet processing is enabled, but no start_date was given for processing."
         with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
             with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
                 convert_to_parquet(
@@ -457,7 +457,7 @@ class TestProcessorTasks(MasuTestCase):
                 )
                 self.assertIn(expected, " ".join(logger.output))
 
-        expected = "S3 archiving feature is enabled, but the start_date was not a valid date string ISO 8601 format."
+        expected = "Parquet processing is enabled, but the start_date was not a valid date string ISO 8601 format."
         with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
             with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
                 convert_to_parquet(
@@ -513,6 +513,14 @@ class TestProcessorTasks(MasuTestCase):
                             "2020-01-01T12:00:00",
                             "manifest_id",
                             "csv_file",
+                        )
+
+        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.tasks.get_path_prefix"):
+                with patch("masu.processor.tasks.get_file_keys_from_s3_with_manifest_id", return_value=[]):
+                    with patch("masu.processor.tasks.convert_csv_to_parquet"):
+                        convert_to_parquet(
+                            "request_id", "account", "provider_uuid", "OCP", "2020-01-01T12:00:00", "manifest_id"
                         )
 
 

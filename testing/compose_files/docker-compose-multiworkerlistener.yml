@@ -189,6 +189,7 @@ services:
         - prometheus_multiproc_dir=/tmp
         - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
         - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+        - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING-False}
         - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
         - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
         - S3_ENDPOINT
@@ -249,6 +250,7 @@ services:
         - prometheus_multiproc_dir=/tmp
         - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
         - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+        - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING-False}
         - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
         - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
         - S3_ENDPOINT
@@ -312,6 +314,7 @@ services:
         - INITIAL_INGEST_NUM_MONTHS=1
         - PYTHONPATH=/koku/koku
         - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+        - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING-False}
         - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
         - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
         - S3_ENDPOINT
@@ -358,6 +361,7 @@ services:
         - INITIAL_INGEST_NUM_MONTHS=1
         - PYTHONPATH=/koku/koku
         - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+        - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING-False}
         - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
         - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
         - S3_ENDPOINT
