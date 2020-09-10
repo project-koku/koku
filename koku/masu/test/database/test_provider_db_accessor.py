@@ -19,6 +19,7 @@ from api.provider.models import Provider
 from api.provider.models import ProviderInfrastructureMap
 from masu.database.customer_db_accessor import CustomerDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 
 
@@ -168,3 +169,9 @@ class ProviderDBAccessorTest(MasuTestCase):
 
         self.assertEqual(len(providers), 1)
         self.assertEqual(providers[0].uuid, self.ocp_on_aws_ocp_provider.uuid)
+
+    def test_set_data_updated_timestamp(self):
+        """Test that the data updated timestamp is updated."""
+        now = DateAccessor().today_with_timezone("UTC")
+        ProviderDBAccessor(self.aws_provider_uuid).set_data_updated_timestamp()
+        self.assertGreater(ProviderDBAccessor(self.aws_provider_uuid).provider.data_updated_timestamp, now)
