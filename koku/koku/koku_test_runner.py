@@ -30,7 +30,7 @@ from api.models import Customer
 from api.models import Tenant
 from api.report.test.utils import NiseDataLoader
 from koku.env import ENVIRONMENT
-from masu.util.aws.insert_aws_org_tree import InsertOrgTreeDjangoORM
+from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
 from reporting.models import OCPEnabledTagKeys
 
 GITHUB_ACTIONS = ENVIRONMENT.bool("GITHUB_ACTIONS", default=False)
@@ -96,7 +96,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                     data_loader = NiseDataLoader(KokuTestRunner.schema)
                     # grab the dates to get the start date
                     dates = data_loader.dates
-                    org_tree_obj = InsertOrgTreeDjangoORM(
+                    org_tree_obj = InsertAwsOrgTree(
                         schema=KokuTestRunner.schema, tree_yaml="scripts/aws_org_tree.yml", start_date=dates[0][0]
                     )
                     org_tree_obj.insert_tree()
