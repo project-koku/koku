@@ -373,29 +373,35 @@ class ReportDBAccessorBase(KokuDBAccess):
         return exist_partition_start_dates
 
     def add_partitions(self, existing_partitions, requested_partition_start_dates):
+        tmplpart = existing_partitions[0]
+        for needed_partition in {
+            r.replace(day=1) for r in requested_partition_start_dates
+        } - self.get_partition_start_dates(existing_partitions):
+            # This *should* always work as there should always be a default partition
+            partition_name = f"{tmplpart.partition_of_table_name}_{needed_partition.strftime('%Y_%m')}"
+            # Successfully creating a new record will also create the partition
+            newpart_vals = dict(
+                schema_name=tmplpart.schema_name,
+                table_name=partition_name,
+                partition_of_table_name=tmplpart.partition_of_table_name,
+                partition_type=tmplpart.partition_type,
+                partition_col=tmplpart.partition_col,
+                partition_parameters={
+                    "default": False,
+                    "from": str(needed_partition),
+                    "to": str(needed_partition + relativedelta(months=1)),
+                },
+                active=True,
+            )
+            self.add_partition(**newpart_vals)
+
+    def add_partition(self, **partition_record):
         with transaction.atomic():
             connection.set_schema(self.schema)
-            for needed_partition in {
-                r.replace(day=1) for r in requested_partition_start_dates
-            } - self.get_partition_start_dates(existing_partitions):
-                tmplpart = existing_partitions[0]
-                partition_name = f"{tmplpart.partition_of_table_name}_{needed_partition.strftime('%Y_%m')}"
-                # Successfully creating a new record will also create the partition
-                newpart_vals = dict(
-                    schema_name=tmplpart.schema_name,
-                    table_name=partition_name,
-                    partition_of_table_name=tmplpart.partition_of_table_name,
-                    partition_type=tmplpart.partition_type,
-                    partition_col=tmplpart.partition_col,
-                    partition_parameters={
-                        "default": False,
-                        "from": str(needed_partition),
-                        "to": str(needed_partition + relativedelta(months=1)),
-                    },
-                    active=True,
-                )
-                newpart, created = PartitionedTable.objects.get_or_create(
-                    defaults=newpart_vals, schema_name=tmplpart.schema_name, table_name=partition_name
-                )
-                if created:
-                    LOG.info(f"Created a new parttiion for {newpart.partition_of_table_name} : {newpart.table_name}")
+            newpart, created = PartitionedTable.objects.get_or_create(
+                defaults=partition_record,
+                schema_name=partition_record["schema_name"],
+                table_name=partition_record["table_name"],
+            )
+        if created:
+            LOG.info(f"Created a new parttiion for {newpart.partition_of_table_name} : {newpart.table_name}")

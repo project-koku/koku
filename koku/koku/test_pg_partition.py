@@ -14,164 +14,38 @@ class TestPGPartition(IamTestCase):
     @classmethod
     def setUpClass(cls):
         _execute("SET log_min_messages = NOTICE;")
+        super().setUpClass()
 
     @classmethod
     def tearDownClass(cls):
         _execute("SET log_min_messages = WARNING;")
+        super().tearDownClass()
 
     def execute(self, sql, params=None):
         return _execute(sql, params)
 
     def _clean_test(self):
-        sql = """
-drop table if exists public.__pg_partition_test cascade;
+        sql = f"""
+drop table if exists {self.schema_name}.__pg_partition_test cascade;
 """
         self.execute(sql)
 
-        sql = """
-drop table if exists public.__pg_part_fk_test cascade;
-"""
-        self.execute(sql)
-
-        sql = """
-drop table if exists public.partitioned_tables cascade;
+        sql = f"""
+drop table if exists {self.schema_name}.__pg_part_fk_test cascade;
 """
         self.execute(sql)
 
     def _setup_test(self, matview=False, indexes=False, foreign_key=False):
-        sql = """
-create table if not exists public.partitioned_tables
-(
-    schema_name text not null default 'public',
-    table_name text not null,
-    partition_of_table_name text not null,
-    partition_type text not null,
-    partition_col text not null,
-    partition_parameters jsonb not null,
-    active boolean not null default true,
-    constraint table_partition_pkey primary key (schema_name, table_name)
-);
-"""
-        self.execute(sql)
-
-        sql = """
-create table public.__pg_part_fk_test (
+        sql = f"""
+create table if not exists {self.schema_name}.__pg_part_fk_test (
     id serial primary key,
     data text not null
 );
 """
         self.execute(sql)
 
-        sql = """
-CREATE OR REPLACE FUNCTION public.trfn_manage_date_range_partition() RETURNS TRIGGER AS $$
-DECLARE
-    alter_stmt text = '';
-    action_stmt text = '';
-    alter_msg text = '';
-    action_msg text = '';
-    table_name text = '';
-BEGIN
-    IF ( TG_OP = 'DELETE' )
-    THEN
-        alter_stmt = 'ALTER TABLE ' ||
-                     quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
-                     ' DETACH PARTITION ' ||
-                     quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name) ||
-                     ' ;';
-        action_stmt = 'DROP TABLE IF EXISTS ' ||
-                      quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name) || ' ;';
-        table_name = quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name);
-        alter_msg = 'DROP PARTITION ' || quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name);
-    ELSIF ( TG_OP = 'UPDATE' )
-    THEN
-        alter_stmt = 'ALTER TABLE ' ||
-                    quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
-                    ' DETACH PARTITION ' ||
-                    quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name)
-                    || ' ;';
-        action_stmt = 'ALTER TABLE ' ||
-                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
-                        ' ATTACH PARTITION ' ||
-                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name) || ' ';
-        IF ( (NEW.partition_parameters->>'default')::boolean )
-        THEN
-            alter_stmt = alter_stmt || 'DEFAULT ;';
-            action_msg = 'DEFAULT';
-        ELSE
-            alter_stmt = alter_stmt || 'FOR VALUES FROM ( ' ||
-                         quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
-                         quote_literal(NEW.partition_parameters->>'to') || '::date ) ;';
-            action_msg = 'FOR VALUES FROM ( ' ||
-                         quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
-                         quote_literal(NEW.partition_parameters->>'to') || '::date )';
-        END IF;
-
-        table_name = quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name);
-        action_msg = 'UPDATE PARTITION ' || quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.table_name) ||
-                     ' ' || action_msg;
-    ELSIF ( TG_OP = 'INSERT' )
-    THEN
-        action_stmt = 'CREATE TABLE IF NOT EXISTS ' ||
-                      quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.table_name) || ' ' ||
-                      'PARTITION OF ' ||
-                      quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name) || ' ';
-        IF ( (NEW.partition_parameters->>'default')::boolean )
-        THEN
-            action_stmt = action_stmt || 'DEFAULT ;';
-            action_msg = 'DEFAULT';
-        ELSE
-            action_stmt = action_stmt || 'FOR VALUES FROM ( ' ||
-                          quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
-                          quote_literal(NEW.partition_parameters->>'to') || '::date ) ;';
-            action_msg = 'FOR VALUES FROM ( ' ||
-                         quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
-                         quote_literal(NEW.partition_parameters->>'to') || '::date )';
-        END IF;
-        action_msg = 'CREATE PARTITION ' || quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.table_name) ||
-                     ' ' || action_msg;
-        table_name = quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name);
-    ELSE
-        RAISE EXCEPTION 'Unhandled trigger operation %', TG_OP;
-    END IF;
-
-    IF ( alter_stmt != '' )
-    THEN
-        IF ( alter_msg != '' )
-        THEN
-            RAISE NOTICE 'ALTER TABLE % : %', table_name, alter_msg;
-        END IF;
-
-        EXECUTE alter_stmt;
-    END IF;
-
-    IF ( action_stmt != '' )
-    THEN
-        IF ( action_msg != '' )
-        THEN
-            RAISE NOTICE 'ALTER TABLE % : %', table_name, action_msg;
-        END IF;
-
-        EXECUTE action_stmt;
-    END IF;
-
-    RETURN NULL;
-END;
-$$ LANGUAGE plpgsql;
-"""
-        self.execute(sql)
-
-        sql = """
-CREATE TRIGGER tr_manage_date_range_partition
- AFTER INSERT
-    OR DELETE
-    OR UPDATE OF partition_parameters
-    ON public.partitioned_tables
-   FOR EACH ROW EXECUTE FUNCTION public.trfn_manage_date_range_partition();
-"""
-        self.execute(sql)
-
-        sql = """
-create table public.__pg_partition_test (
+        sql = f"""
+create table if not exists {self.schema_name}.__pg_partition_test (
     id bigserial primary key,
     ref_id int,
     utilization_date date not null,
@@ -182,33 +56,33 @@ create table public.__pg_partition_test (
         self.execute(sql)
 
         if foreign_key:
-            sql = """
-alter table public.__pg_partition_test
-      add constraint pg_part_fkey foreign key (ref_id) references public.__pg_part_fk_test (id);
+            sql = f"""
+alter table {self.schema_name}.__pg_partition_test
+      add constraint pg_part_fkey foreign key (ref_id) references {self.schema_name}.__pg_part_fk_test (id);
 """
             self.execute(sql)
 
         if indexes:
-            sql = """
-create index ix_pg_part_ref_id on public.__pg_partition_test (ref_id);
+            sql = f"""
+create index ix_pg_part_ref_id on {self.schema_name}.__pg_partition_test (ref_id);
 """
             self.execute(sql)
 
         if matview:
-            sql = """
-create materialized view __data_by_ref_label as
+            sql = f"""
+create materialized view {self.schema_name}.__data_by_ref_label as
 select ref_id,
        label,
        sum(data)
-  from public.__pg_partition_test
+  from {self.schema_name}.__pg_partition_test
  group
     by ref_id,
        label
   with data;
 """
             self.execute(sql)
-            sql = """
-create index ix_data_by_ref_label on __data_by_ref_label (ref_id, label);
+            sql = f"""
+create index ix_data_by_ref_label on {self.schema_name}.__data_by_ref_label (ref_id, label);
 """
             self.execute(sql)
 
@@ -220,21 +94,21 @@ select exists (
                 where partrelid = (
                                     select oid
                                       from pg_class
-                                     where relnamespace = 'public'::regnamespace
-                                       and relname = '__pg_partition_test'
+                                     where relnamespace = %s::regnamespace
+                                       and relname = %s
                                   )
               )::boolean as "is_partitioned";
 """
-        return self.execute(sql).fetchone()[0]
+        return self.execute(sql, (self.schema_name, "__pg_partition_test")).fetchone()[0]
 
     def _get_test_tables(self):
         sql = """
 select table_name
   from information_schema.tables
- where table_schema = 'public'
-   and table_name ~ '^__pg_';
+ where table_schema = %s
+   and table_name ~ %s;
 """
-        return {r[0] for r in self.execute(sql)}
+        return {r[0] for r in self.execute(sql, (self.schema_name, "^__pg_"))}
 
     def _get_table_constraints(self):
         sql = """
@@ -268,8 +142,8 @@ select c.oid::int as constraint_oid,
     on f.oid = c.confrelid
    and f.relkind = any( '{r,p}'::text[] )
  where c.conrelid > 0
-   and n.nspname = 'public'
-   and t.relname = '__pg_partition_test'
+   and n.nspname = %s
+   and t.relname = %s
  order
     by t.relname,
        case when c.contype = 'p'
@@ -277,7 +151,7 @@ select c.oid::int as constraint_oid,
             else 1
        end::int
 """
-        cur = self.execute(sql)
+        cur = self.execute(sql, (self.schema_name, "__pg_partition_test"))
         cols = [c.name for c in cur.description]
         res = [dict(zip(cols, rec)) for rec in cur.fetchall()]
         return res
@@ -286,12 +160,12 @@ select c.oid::int as constraint_oid,
         sql = """
 select *
   from pg_indexes
- where schemaname = 'public'
-   and tablename = any( '{__pg_partition_test,__data_by_ref_label}'::text[] )
+ where schemaname = %s
+   and tablename = any( %s::text[] )
  order
     by tablename;
 """
-        cur = self.execute(sql)
+        cur = self.execute(sql, (self.schema_name, ["__pg_partition_test", "__data_by_ref_label"]))
         cols = [c.name for c in cur.description]
         res = [dict(zip(cols, rec)) for rec in cur.fetchall()]
         return res
@@ -322,8 +196,8 @@ SELECT DISTINCT
     ON dependent_view_owner.oid = dependent_view.relowner
  WHERE NOT (dependent_ns.nspname = source_ns.nspname AND
             dependent_view.relname = source_table.relname)
-   AND source_table.relnamespace = 'public'::regnamespace
-   AND source_table.relname = '__pg_partition_test'
+   AND source_table.relnamespace = %s::regnamespace
+   AND source_table.relname = %s
 UNION
 SELECT DISTINCT
        dependent_ns.nspname as dependent_schema,
@@ -361,19 +235,19 @@ SELECT vd.*,
   FROM view_deps vd
  ORDER BY source_schema, source_table;
 """
-        cur = self.execute(sql)
+        cur = self.execute(sql, (self.schema_name, "__pg_partition_test"))
         cols = [c.name for c in cur.description]
         res = [dict(zip(cols, rec)) for rec in cur.fetchall()]
         return res
 
     def _init_data(self):
-        sql = """
-insert into public.__pg_part_fk_test (data) values ('eek') returning *;
+        sql = f"""
+insert into {self.schema_name}.__pg_part_fk_test (data) values ('eek') returning *;
 """
         cur = self.execute(sql)
         rec = dict(zip((d.name for d in cur.description), cur.fetchone()))
-        sql = """
-insert into public.__pg_partition_test (ref_id, utilization_date, label, data)
+        sql = f"""
+insert into {self.schema_name}.__pg_partition_test (ref_id, utilization_date, label, data)
 values
 (null, '2020-01-01'::date, 'no-ref', 95.25),
 (%s, '2020-01-01'::date, 'has-ref', 105.25),
@@ -383,7 +257,7 @@ values
 
     def _count_data(self, table):
         sql = f"""
-select count(*) from public.{table} ;
+select count(*) from {self.schema_name}.{table} ;
 """
         cur = self.execute(sql)
         return cur.fetchone()[0]
@@ -434,13 +308,13 @@ select count(*) from public.{table} ;
         self.assertEqual(len(self._get_views()), 0)
         self.assertEqual(len(self._get_table_constraints()), 1)  # PK
 
-        schema = "public"
+        schema = self.schema_name
         source_table = "__pg_partition_test"
         target_table = "__p_pg_partition_test"
         pk_seq = ppart.SequenceDefinition(
             schema,
             "__p_pg_part_table_test_id_seq",
-            copy_sequence={"schema_name": "public", "table_name": "__pg_partition_test", "column_name": "id"},
+            copy_sequence={"schema_name": schema, "table_name": "__pg_partition_test", "column_name": "id"},
         )
         pk_coldef = ppart.ColumnDefinition(
             schema, target_table=target_table, column_name="id", default=ppart.Default(pk_seq)
@@ -482,13 +356,13 @@ select count(*) from public.{table} ;
         self.assertEqual(len(self._get_table_constraints()), 2)  # PK + FK
         self.assertEqual(self._count_data("__pg_partition_test"), 3)
 
-        schema = "public"
+        schema = self.schema_name
         source_table = "__pg_partition_test"
         target_table = "__p_pg_partition_test"
         pk_seq = ppart.SequenceDefinition(
             schema,
             "__p_pg_parttition_test_id_seq",
-            copy_sequence={"schema_name": "public", "table_name": "__pg_partition_test", "column_name": "id"},
+            copy_sequence={"schema_name": schema, "table_name": "__pg_partition_test", "column_name": "id"},
         )
         pk_coldef = ppart.ColumnDefinition(
             schema, target_table=target_table, column_name="id", default=ppart.Default(pk_seq)
@@ -523,5 +397,42 @@ select count(*) from public.{table} ;
         self.assertEqual(self._count_data("__pg_partition_test_2020_01"), 2)
         self.assertEqual(self._count_data("__pg_partition_test_2020_02"), 1)
         self.assertEqual(self._count_data("__pg_partition_test_default"), 0)
+
+        self._clean_test()
+
+    def test_convert_partitioned_table_exception(self):
+        self._clean_test()
+        self._setup_test()
+
+        self.assertFalse(self._is_partitioned())
+        schema = self.schema_name
+        source_table = "__pg_partition_test"
+        target_table = "__p_pg_partition_test"
+        pk_seq = ppart.SequenceDefinition(
+            schema,
+            "__p_pg_part_table_test_id_seq",
+            copy_sequence={"schema_name": schema, "table_name": "__pg_partition_test", "column_name": "id"},
+        )
+        pk_coldef = ppart.ColumnDefinition(
+            schema, target_table=target_table, column_name="id", default=ppart.Default(pk_seq)
+        )
+        pk_def = ppart.PKDefinition("__p_pg_partition_test_pkey", ["utilization_date", "id"])
+        converter = ppart.ConvertToPartition(
+            source_table,
+            "utilization_date",
+            target_table_name=target_table,
+            pk_def=pk_def,
+            col_def=[pk_coldef],
+            target_schema=schema,
+            source_schema=schema,
+        )
+        converter.convert_to_partition()
+        tables = self._get_test_tables()
+
+        self.assertTrue(self._is_partitioned())
+        self.assertTrue(source_table + "_default" in tables)
+
+        with self.assertRaises(TypeError):
+            converter.convert_to_partition()
 
         self._clean_test()

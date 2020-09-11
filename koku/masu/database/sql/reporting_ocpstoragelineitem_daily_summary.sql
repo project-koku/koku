@@ -82,15 +82,6 @@ WHERE usage_start >= {{start_date}}
     AND data_source = 'Storage'
 ;
 
--- This procedure will scan the temp table for distinct start-of-month usage_start dates
--- and create any missing table partitions
-CALL public.create_date_partitions(
-        'reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsafe}}',
-        'usage_start',
-        '{{schema | sqlsafe}}',
-        'reporting_ocpusagelineitem_daily_summary'
-    );
-
 -- Populate the daily aggregate line item data
 -- THIS IS A PARTITONED TABLE
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (

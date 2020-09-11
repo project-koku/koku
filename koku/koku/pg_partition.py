@@ -17,8 +17,13 @@
 import logging
 import re
 
+import ciso8601
+from dateutil.relativedelta import relativedelta
 from django.db import connection as conn
 from django.db import transaction
+
+from reporting.models import PartitionedTable
+
 
 # If this is detected, the code will try to resolve this to a name
 # because, in some functionality, this needs to be a string vs the
@@ -263,7 +268,7 @@ select t.relname::text as table_name,
         self.owner = rec["sequenceowner"]
 
     def default_constraint(self):
-        return f"nextval('{self.name}'::regclass)"
+        return f"nextval('{self.target_schema}.{self.name}'::regclass)"
 
     def alter_owner(self):
         LOG.info("Running alter sequence owner")
@@ -739,40 +744,21 @@ PARTITION BY {self.partition_type} ( "{self.partition_key}" ) ;
     def __create_default_partition(self):
         LOG.info(f'Creating default partition "{self.target_schema}"."{self.source_table_name}_default"')
         sql = f"""
-CREATE TABLE "{self.target_schema}"."{self.source_table_name}_default"
-PARTITION OF {self.partitioned_table_name} DEFAULT ;
+CREATE TABLE IF NOT EXISTS "{self.target_schema}"."{self.source_table_name}_default"
+PARTITION OF "{self.target_schema}"."{self.partitioned_table_name}" DEFAULT ;
 """
         conn_execute(sql)
 
         LOG.debug("Recording default partition")
-        # TODO: Utilize model
-        sql = f"""
-INSERT INTO "{self.target_schema}"."partitioned_tables" (
-    schema_name,
-    table_name,
-    partition_of_table_name,
-    partition_type,
-    partition_col,
-    partition_parameters
-)
-VALUES (
-    %s,
-    %s,
-    %s,
-    %s,
-    %s,
-    %s::jsonb
-);
-"""
-        params = [
-            self.target_schema,
-            f"{self.source_table_name}_default",
-            self.partitioned_table_name,
-            self.partition_type.lower(),
-            self.partition_key,
-            '{"default": true}',
-        ]
-        conn_execute(sql, params)
+        def_part = PartitionedTable(
+            schema_name=self.target_schema,
+            table_name=f"{self.source_table_name}_default",
+            partition_of_table_name=self.partitioned_table_name,
+            partition_type=self.partition_type.lower(),
+            partition_col=self.partition_key,
+            partition_parameters={"default": True},
+        )
+        def_part.save()
 
     def __set_primary_key(self):
         LOG.info("Setting any primary key definition")
@@ -811,8 +797,9 @@ VALUES (
             conn_execute(idef.create())
 
     def __create_partitions(self):
+        # Get "requested" partitions
         sql = """
-CALL public.create_date_partitions( %s::text, %s::text, %s::text, %s::text );
+select partition_start from scan_for_date_partitions(%s::text, %s::text, %s::text, %s::text);
 """
         params = [
             f"{self.source_schema}.{self.source_table_name}",  # This will be quoted properly in the proc
@@ -820,15 +807,54 @@ CALL public.create_date_partitions( %s::text, %s::text, %s::text, %s::text );
             self.target_schema,
             self.partitioned_table_name,
         ]
-        conn_execute(sql, params)
+        cur = conn_execute(sql, params)
+        requested_partitions = fetchall(cur)
 
+        # Get existing partitions except the default partition
+        sql = f"""
+select (partition_parameters->>'from')::date as existing_partition
+  from "{self.target_schema}"."partitioned_tables"
+ where schema_name = %s
+   and partition_of_table_name = %s
+   and table_name ~ %s
+   and partition_parameters->>'default' = 'false';
+"""
+        params = [self.target_schema, self.partitioned_table_name, f"^{self.partitioned_table_name}"]
+        cur = conn_execute(sql, params)
+        existing_partitions = fetchall(cur)
+
+        needed_partitions = {p["partition_start"] for p in requested_partitions} - {
+            ciso8601.parse_datetime(p["partition_parameters"]["from"]).date() for p in existing_partitions
+        }
+
+        sqltmpl = f"""
+CREATE TABLE IF NOT EXISTS "{self.target_schema}"."{{table_partition}}"
+PARTITION OF "{self.target_schema}"."{self.partitioned_table_name}"
+FOR VALUES FROM (%s::date) TO (%s::date) ;
+"""
+        for newpart in needed_partitions:
+            params = (newpart, newpart + relativedelta(months=1))
+            partition_name = f"{self.partitioned_table_name}_{newpart.strftime('%Y_%m')}"
+            conn_execute(sqltmpl.format(table_partition=partition_name), params)
+
+            newpart_rec = PartitionedTable(
+                schema_name=self.target_schema,
+                table_name=partition_name,
+                partition_of_table_name=self.partitioned_table_name,
+                partition_type=self.partition_type.lower(),
+                partition_col=self.partition_key,
+                partition_parameters={"default": False, "from": params[0], "to": params[1]},
+            )
+            newpart_rec.save()
+
+        # Get created partitions
         sql = f"""
 select table_name,
        to_char(date(partition_parameters->>'from'), 'YYYY_MM') as suffix
   from "{self.target_schema}"."partitioned_tables"
  where schema_name = %s
    and partition_of_table_name = %s
-   and table_name ~ %s
+   and table_name ~ %s ;
 """
         params = [self.target_schema, self.partitioned_table_name, f"^{self.partitioned_table_name}"]
         cur = conn_execute(sql, params)
@@ -904,12 +930,41 @@ UPDATE partitioned_tables
             if vdef.view_type == VIEW_TYPE_MATERIALIZED:
                 conn_execute(vdef.refresh())
 
+    def is_partitioned(self, schema_name, table_name):
+        """
+        Check to see if the specified tabe is a partitioned table
+        Args:
+            schema_name (str) : Schema name containing the source table
+            table_name (str) : Table name
+        Returns:
+            (bool) : True if partitioned, False if not
+        """
+        sql = """
+select exists (
+                select 1
+                from pg_partitioned_table
+                where partrelid = (
+                                    select oid
+                                      from pg_class
+                                     where relnamespace = %s::regnamespace
+                                       and relname = %s
+                                  )
+              )::boolean as "is_partitioned";
+"""
+        return conn_execute(sql, (schema_name, table_name)).fetchone()[0]
+
     def convert_to_partition(self, drop_orig=True):
         """
         Execute the table conversion from the initialized converter
         Params:
             drop_orig (bool) : Flag to drop original objects (default is True)
         """
+        with transaction.atomic():
+            if self.is_partitioned(self.source_schema, self.source_table_name):
+                raise TypeError(
+                    f'Source table "{self.source_schema}"."{self.source_table_name}" is already partitioned'
+                )
+
         # Create structures
         with transaction.atomic():
             self.__create_table_like_source()
