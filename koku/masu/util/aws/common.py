@@ -297,7 +297,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
     """
     Copies data to s3 bucket file
     """
-    if not settings.ENABLE_S3_ARCHIVING:
+    if not (settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING):
         return None
 
     upload = None
@@ -322,7 +322,7 @@ def copy_local_report_file_to_s3_bucket(
     """
     Copies local report file to s3 bucket
     """
-    if s3_path and settings.ENABLE_S3_ARCHIVING:
+    if s3_path and (settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING):
         LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         with open(full_file_path, "rb") as fin:
             data = BytesIO(fin.read())
@@ -333,7 +333,7 @@ def get_file_keys_from_s3_with_manifest_id(request_id, s3_path, manifest_id, con
     """
     Get all files in a given prefix that match the given manifest_id.
     """
-    if not settings.ENABLE_S3_ARCHIVING:
+    if not settings.ENABLE_PARQUET_PROCESSING:
         return []
 
     keys = []
@@ -359,7 +359,7 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
     """
     Removes all files in a given prefix if they are not within the given set.
     """
-    if not settings.ENABLE_S3_ARCHIVING:
+    if not (settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING):
         return []
 
     removed = []
