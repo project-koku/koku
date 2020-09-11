@@ -25,7 +25,7 @@ from os import remove
 from tempfile import gettempdir
 from uuid import uuid4
 
-import pandas as pd
+import ciso8601
 from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
@@ -166,10 +166,10 @@ def get_column_converters(provider_type, **kwargs):
     converters = {}
     if provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
         converters = {
-            "bill/BillingPeriodStartDate": pd.to_datetime,
-            "bill/BillingPeriodEndDate": pd.to_datetime,
-            "lineItem/UsageStartDate": pd.to_datetime,
-            "lineItem/UsageEndDate": pd.to_datetime,
+            "bill/BillingPeriodStartDate": ciso8601.parse_datetime,
+            "bill/BillingPeriodEndDate": ciso8601.parse_datetime,
+            "lineItem/UsageStartDate": ciso8601.parse_datetime,
+            "lineItem/UsageEndDate": ciso8601.parse_datetime,
             "lineItem/UsageAmount": safe_float,
             "lineItem/NormalizationFactor": safe_float,
             "lineItem/NormalizedUsageAmount": safe_float,
@@ -182,7 +182,7 @@ def get_column_converters(provider_type, **kwargs):
         }
     elif provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
         converters = {
-            "UsageDateTime": pd.to_datetime,
+            "UsageDateTime": ciso8601.parse_datetime,
             "UsageQuantity": safe_float,
             "ResourceRate": safe_float,
             "PreTaxCost": safe_float,
