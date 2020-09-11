@@ -401,6 +401,9 @@ select count(*) from {self.schema_name}.{table} ;
         self._clean_test()
 
     def test_convert_partitioned_table_exception(self):
+        """
+        Test that converting a table that is already partitioned raises TypeError
+        """
         self._clean_test()
         self._setup_test()
 
@@ -433,6 +436,9 @@ select count(*) from {self.schema_name}.{table} ;
         self.assertTrue(source_table + "_default" in tables)
 
         with self.assertRaises(TypeError):
+            # These get flip-flopped after the converter runs successfully
+            # So flip 'em back
+            converter.source_table_name = converter.partitioned_table_name
             converter.convert_to_partition()
 
         self._clean_test()

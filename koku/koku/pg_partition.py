@@ -22,8 +22,6 @@ from dateutil.relativedelta import relativedelta
 from django.db import connection as conn
 from django.db import transaction
 
-from reporting.models import PartitionedTable
-
 
 # If this is detected, the code will try to resolve this to a name
 # because, in some functionality, this needs to be a string vs the
@@ -750,15 +748,33 @@ PARTITION OF "{self.target_schema}"."{self.partitioned_table_name}" DEFAULT ;
         conn_execute(sql)
 
         LOG.debug("Recording default partition")
-        def_part = PartitionedTable(
-            schema_name=self.target_schema,
-            table_name=f"{self.source_table_name}_default",
-            partition_of_table_name=self.partitioned_table_name,
-            partition_type=self.partition_type.lower(),
-            partition_col=self.partition_key,
-            partition_parameters={"default": True},
+        sql = f"""
+INSERT INTO "{self.target_schema}"."partitioned_tables" (
+    schema_name,
+    table_name,
+    partition_of_table_name,
+    partition_type,
+    partition_col,
+    partition_parameters
+)
+VALUES (
+    %s,
+    %s,
+    %s,
+    %s,
+    %s,
+    %s::jsonb
+);
+"""
+        params = (
+            self.target_schema,
+            f"{self.source_table_name}_default",
+            self.partitioned_table_name,
+            self.partition_type.lower(),
+            self.partition_key,
+            '{"default": true}',
         )
-        def_part.save()
+        conn_execute(sql, params)
 
     def __set_primary_key(self):
         LOG.info("Setting any primary key definition")
@@ -832,20 +848,40 @@ CREATE TABLE IF NOT EXISTS "{self.target_schema}"."{{table_partition}}"
 PARTITION OF "{self.target_schema}"."{self.partitioned_table_name}"
 FOR VALUES FROM (%s::date) TO (%s::date) ;
 """
+        part_rec_sql = f"""
+INSERT INTO "{self.target_schema}"."partitioned_tables" (
+    schema_name,
+    table_name,
+    partition_of_table_name,
+    partition_type,
+    partition_col,
+    partition_parameters
+)
+VALUES (
+    %s,
+    %s,
+    %s,
+    %s,
+    %s,
+    %s::jsonb
+);
+"""
         for newpart in needed_partitions:
             params = (newpart, newpart + relativedelta(months=1))
             partition_name = f"{self.partitioned_table_name}_{newpart.strftime('%Y_%m')}"
+            LOG.info(f"Creating partition {self.target_schema}.{partition_name}")
             conn_execute(sqltmpl.format(table_partition=partition_name), params)
 
-            newpart_rec = PartitionedTable(
-                schema_name=self.target_schema,
-                table_name=partition_name,
-                partition_of_table_name=self.partitioned_table_name,
-                partition_type=self.partition_type.lower(),
-                partition_col=self.partition_key,
-                partition_parameters={"default": False, "from": params[0], "to": params[1]},
+            params = (
+                self.target_schema,
+                partition_name,
+                self.partitioned_table_name,
+                self.partition_type.lower(),
+                self.partition_key,
+                '{{"default": false, "from": "{0}", "to": "{1}"}}'.format(*params),
             )
-            newpart_rec.save()
+            LOG.info(f"Recording partition {self.target_schema}.{partition_name}")
+            conn_execute(part_rec_sql, params)
 
         # Get created partitions
         sql = f"""
@@ -861,6 +897,9 @@ select table_name,
         self.created_partitions = fetchall(cur)
 
     def __copy_data(self):
+        c_from = f'"{self.target_schema}"."{self.partitioned_table_name}"'
+        c_to = f'"{self.source_schema}"."{self.source_table_name}"'
+        LOG.info(f"Copying data from {c_from} to {c_to}")
         sql = f"""
 INSERT INTO "{self.target_schema}"."{self.partitioned_table_name}"
 SELECT * FROM "{self.source_schema}"."{self.source_table_name}" ;
@@ -869,21 +908,34 @@ SELECT * FROM "{self.source_schema}"."{self.source_table_name}" ;
             conn_execute(sql)
 
     def __rename_objects(self):
+        LOG.info(f'Locking source table "{self.source_schema}"."{self.source_table_name}"')
         sql_actions = [
             f"""
 LOCK TABLE "{self.source_schema}"."{self.source_table_name}" ;
 """
         ]
         for vdef in self.views:
+            LOG.info(f'Renaming view indexes for "{vdef.view_schema}"."{vdef.view_name}"')
             sql_actions.extend(vdef.rename_original_view_indexes())
+            LOG.info(f'Renaming view "{vdef.view_schema}"."{vdef.view_name}" to "__{vdef.view_name}"')
             sql_actions.append(vdef.rename_original_view())
 
+        msg = (
+            f'Renaming source table "{self.source_schema}"."{self.source_table_name}"'
+            f' to "__{self.source_table_name}"'
+        )
+        LOG.info(msg)
         sql_actions.append(
             f"""
 ALTER TABLE "{self.source_schema}"."{self.source_table_name}"
 RENAME TO "__{self.source_table_name}" ;
 """
         )
+        msg = (
+            f'Renaming partitioned table "{self.target_schema}"."{self.partitioned_table_name}"'
+            f' to "{self.source_table_name}"'
+        )
+        LOG.info(msg)
         sql_actions.append(
             f"""
 ALTER TABLE "{self.target_schema}"."{self.partitioned_table_name}"
@@ -892,23 +944,32 @@ RENAME TO "{self.source_table_name}" ;
         )
         for partition in self.created_partitions:
             r_partition_name = f'{self.source_table_name}_{partition["suffix"]}'
+            msg = (
+                f'''Renaming table partition "{self.target_schema}"."{partition['table_name']}"'''
+                f' to "{r_partition_name}"'
+            )
+            LOG.info(msg)
             sql_actions.append(
                 f"""
 ALTER TABLE "{self.target_schema}"."{partition['table_name']}"
 RENAME TO "{r_partition_name}" ;
 """
             )
-        update_sql = """
-UPDATE partitioned_tables
+
+        LOG.info("Updating recorded partitions")
+        update_sql = f"""
+UPDATE "{self.target_schema}"."partitioned_tables"
    SET partition_of_table_name = %s
  WHERE partition_of_table_name = %s
    AND schema_name = %s ;
 """
         update_params = [self.source_table_name, self.partitioned_table_name, self.target_schema]
 
+        LOG.info("Executing batch rename commands")
         for sql in sql_actions:
             conn_execute(sql)
 
+        LOG.info("Executing update command")
         conn_execute(update_sql, update_params)
 
         self.partitioned_table_name = self.source_table_name
