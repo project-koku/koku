@@ -14,13 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
--- Procedure to create table partitions by scanning another table for partition key values.
+-- Function to return table partition start bounds from scanning another table for partition key values.
 -- Args:
 --   check_table (text)      : Name of the table to check for partition start bounds
 --   check_col (text)        : Name of the column that holds the date values to check
 --   schema (text)           : Schema of the partitioned table
 --   parttioned_table (text) : Name of the partitioned table within the schema
---   _commit (boolean)       : Execute a commit after action. (default is false)
 DROP FUNCTION IF EXISTS public.scan_for_date_partitions(text, text, text, text);
 CREATE OR REPLACE FUNCTION public.scan_for_date_partitions(
     check_table text,
