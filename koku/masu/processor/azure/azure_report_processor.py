@@ -23,8 +23,8 @@ from os import remove
 import ciso8601
 import pytz
 import ujson as json
-from dateutil import parser
 from django.conf import settings
+from django.db import transaction
 
 from masu.config import Config
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -32,6 +32,7 @@ from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util import common as utils
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDaily
+from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import AzureCostEntryProductService
 from reporting.provider.azure.models import AzureMeter
 from reporting_common import AZURE_REPORT_COLUMNS
@@ -61,6 +62,7 @@ class ProcessedAzureReport:
         self.bills = {}
         self.products = {}
         self.meters = {}
+        self.requested_partitions = set()
         self.line_items = []
 
     def remove_processed_rows(self):
@@ -150,10 +152,9 @@ class AzureReportProcessor(ReportProcessorBase):
             (str): A cost entry bill object id
 
         """
-        table_name = AzureCostEntryBill
         row_date = row.get("UsageDateTime")
 
-        report_date_range = utils.month_date_range(parser.parse(row_date))
+        report_date_range = utils.month_date_range(ciso8601.parse_datetime(row_date))
         start_date, end_date = report_date_range.split("-")
 
         start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
@@ -166,15 +167,15 @@ class AzureReportProcessor(ReportProcessorBase):
         if key in self.existing_bill_map:
             return self.existing_bill_map[key]
 
-        data = self._get_data_for_table(row, table_name._meta.db_table)
+        data = self._get_data_for_table(row, AzureCostEntryBill._meta.db_table)
 
         data["provider_id"] = self._provider_uuid
         data["billing_period_start"] = datetime.strftime(start_date_utc, "%Y-%m-%d %H:%M%z")
         data["billing_period_end"] = datetime.strftime(end_date_utc, "%Y-%m-%d %H:%M%z")
-
-        bill_id = report_db_accessor.insert_on_conflict_do_nothing(
-            table_name, data, conflict_columns=["billing_period_start", "provider_id"]
-        )
+        with transaction.atomic():
+            bill_id = report_db_accessor.insert_on_conflict_do_nothing(
+                AzureCostEntryBill, data, conflict_columns=["billing_period_start", "provider_id"]
+            )
 
         self.processed_report.bills[key] = bill_id
 
@@ -190,7 +191,6 @@ class AzureReportProcessor(ReportProcessorBase):
             (str): The DB id of the product object
 
         """
-        table_name = AzureCostEntryProductService
         instance_id = row.get("InstanceId")
         additional_info = row.get("AdditionalInfo")
         service_name = row.get("ServiceName")
@@ -211,15 +211,18 @@ class AzureReportProcessor(ReportProcessorBase):
         if key in self.existing_product_map:
             return self.existing_product_map[key]
 
-        data = self._get_data_for_table(row, table_name._meta.db_table)
+        data = self._get_data_for_table(row, AzureCostEntryProductService._meta.db_table)
         value_set = set(data.values())
         if value_set == {""}:
             return
         data["instance_type"] = instance_type
         data["provider_id"] = self._provider_uuid
-        product_id = report_db_accessor.insert_on_conflict_do_nothing(
-            table_name, data, conflict_columns=["instance_id", "instance_type", "service_tier", "service_name"]
-        )
+        with transaction.atomic():
+            product_id = report_db_accessor.insert_on_conflict_do_nothing(
+                AzureCostEntryProductService,
+                data,
+                conflict_columns=["instance_id", "instance_type", "service_tier", "service_name"],
+            )
         self.processed_report.products[key] = product_id
         return product_id
 
@@ -233,7 +236,6 @@ class AzureReportProcessor(ReportProcessorBase):
             (str): The DB id of the product object
 
         """
-        table_name = AzureMeter
         meter_id = row.get("MeterId")
 
         key = (meter_id,)
@@ -244,14 +246,17 @@ class AzureReportProcessor(ReportProcessorBase):
         if key in self.existing_meter_map:
             return self.existing_meter_map[key]
 
-        data = self._get_data_for_table(row, table_name._meta.db_table)
+        data = self._get_data_for_table(row, AzureMeter._meta.db_table)
         value_set = set(data.values())
         if value_set == {""}:
             return
         data["provider_id"] = self._provider_uuid
-        meter_id = report_db_accessor.insert_on_conflict_do_nothing(table_name, data, conflict_columns=["meter_id"])
-        self.processed_report.meters[key] = meter_id
-        return meter_id
+        with transaction.atomic():
+            meter_pk = report_db_accessor.insert_on_conflict_do_nothing(
+                AzureMeter, data, conflict_columns=["meter_id"]
+            )
+        self.processed_report.meters[key] = meter_pk
+        return meter_pk
 
     def _create_cost_entry_line_item(self, row, bill_id, product_id, meter_id, report_db_accesor):
         """Create a cost entry line item object.
@@ -294,7 +299,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         return bill_id
 
-    def process(self):
+    def process(self):  # noqa: C901
         """Process cost/usage file.
 
         Returns:
@@ -314,6 +319,18 @@ class AzureReportProcessor(ReportProcessorBase):
                 for row in reader:
                     if not self._should_process_row(row, "UsageDateTime", is_full_month):
                         continue
+                    li_usage_dt = row.get("UsageDateTime")
+                    if li_usage_dt:
+                        try:
+                            li_usage_dt = ciso8601.parse_datetime(li_usage_dt).date().replace(day=1)
+                        except (ValueError, TypeError):
+                            pass  # This is just gathering requested partition start values
+                            # If it's invalid, then it's OK to omit storing that value
+                            # as it only pertains to a requested partition.
+                        else:
+                            if li_usage_dt not in self.processed_report.requested_partitions:
+                                self.processed_report.requested_partitions.add(li_usage_dt)
+
                     self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
                         LOG.info(
@@ -351,3 +368,10 @@ class AzureReportProcessor(ReportProcessorBase):
         self.existing_meter_map.update(self.processed_report.meters)
 
         self.processed_report.remove_processed_rows()
+
+    def _save_to_db(self, temp_table, report_db):
+        # Create any needed partitions
+        existing_partitions = report_db.get_existing_partitions(AzureCostEntryLineItemDailySummary)
+        report_db.add_partitions(existing_partitions, self.processed_report.requested_partitions)
+        # Save batch to DB
+        super()._save_to_db(temp_table, report_db)
