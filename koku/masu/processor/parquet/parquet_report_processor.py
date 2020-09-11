@@ -15,21 +15,171 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Processor to convert Cost Usage Reports to parquet."""
+import logging
+import os
+
+from dateutil import parser
+from django.conf import settings
+
+from api.common import log_json
+from api.provider.models import Provider
+from masu.config import Config
+from masu.external.downloader.ocp.ocp_report_downloader import REPORT_TYPES
+from masu.util.aws.common import aws_post_processor
+from masu.util.aws.common import convert_csv_to_parquet
+from masu.util.aws.common import get_file_keys_from_s3_with_manifest_id
+from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
+from masu.util.common import get_column_converters
+from masu.util.common import get_path_prefix
+
+LOG = logging.getLogger(__name__)
 
 
 class ParquetReportProcessor:
     """Parquet report processor."""
 
-    def __init__(self, schema_name, report_path, compression, provider_uuid, manifest_id=None):
+    def __init__(
+        self, schema_name, report_path, compression, provider_uuid, provider_type, manifest_id=None, context=None
+    ):
         """initialize report processor."""
         self._schema_name = schema_name
         self._provider_uuid = provider_uuid
-        self._report_file = report_path
+        self._report_file = os.path.basename(report_path)
+        self._provider_type = provider_type
         self._manifest_id = manifest_id
+        self._request_id = context.get("request_id")
+        self._start_date = context.get("start_date")
 
-    def process(self):
+    def convert_to_parquet(  # noqa: C901
+        self, request_id, account, provider_uuid, provider_type, start_date, manifest_id, files=[], context={}
+    ):
+        """
+        Convert archived CSV data from our S3 bucket for a given provider to Parquet.
+
+        This function chiefly follows the download of a providers data.
+
+        This task is defined to attempt up to 10 retries using exponential backoff
+        starting with a 10-second delay. This is intended to allow graceful handling
+        of temporary AWS S3 connectivity issues because it is relatively important
+        for us to convert the archived data.
+
+        Args:
+            request_id (str): The associated request id (ingress or celery task id)
+            account (str): The account string
+            provider_uuid (UUID): The provider UUID
+            start_date (str): The report start time (YYYY-mm-dd)
+            manifest_id (str): The identifier for the report manifest
+            context (dict): A context object for logging
+
+        """
+        if not context:
+            context = {"account": account, "provider_uuid": provider_uuid}
+
+        if not settings.ENABLE_PARQUET_PROCESSING:
+            msg = "Skipping convert_to_parquet. Parquet processing is disabled."
+            LOG.info(log_json(request_id, msg, context))
+            return
+
+        if not request_id or not account or not provider_uuid:
+            if not request_id:
+                message = "missing required argument: request_id"
+                LOG.error(message)
+            if not account:
+                message = "missing required argument: account"
+                LOG.error(message)
+            if not provider_uuid:
+                message = "missing required argument: provider_uuid"
+                LOG.error(message)
+            if not provider_type:
+                message = "missing required argument: provider_type"
+                LOG.error(message)
+            return
+
+        if not start_date:
+            msg = "Parquet processing is enabled, but no start_date was given for processing."
+            LOG.warn(log_json(request_id, msg, context))
+            return
+
+        try:
+            cost_date = parser.parse(start_date)
+        except ValueError:
+            msg = "Parquet processing is enabled, but the start_date was not a valid date string ISO 8601 format."
+            LOG.warn(log_json(request_id, msg, context))
+            return
+
+        s3_csv_path = get_path_prefix(account, provider_uuid, cost_date, Config.CSV_DATA_TYPE)
+        local_path = f"{Config.TMP_DIR}/{account}/{provider_uuid}"
+        s3_parquet_path = get_path_prefix(account, provider_uuid, cost_date, Config.PARQUET_DATA_TYPE)
+
+        if not files:
+            file_keys = get_file_keys_from_s3_with_manifest_id(request_id, s3_csv_path, manifest_id, context)
+            files = [os.path.basename(file_key) for file_key in file_keys]
+            if not files:
+                msg = "Parquet processing is enabled, but no files to process."
+                LOG.info(log_json(request_id, msg, context))
+                return
+
+        post_processor = None
+        # OCP data is daily chunked report files.
+        # AWS and Azure are monthly reports. Previous reports should be removed so data isn't duplicated
+        if provider_type != Provider.PROVIDER_OCP:
+            remove_files_not_in_set_from_s3_bucket(request_id, s3_parquet_path, manifest_id, context)
+
+        if provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
+            post_processor = aws_post_processor
+
+        failed_conversion = []
+        for csv_filename in files:
+            kwargs = {}
+            parquet_path = s3_parquet_path
+            parquet_report_type = None
+            if provider_type == Provider.PROVIDER_OCP:
+                for report_type in REPORT_TYPES.keys():
+                    if report_type in csv_filename:
+                        parquet_path = f"{s3_parquet_path}/{report_type}"
+                        kwargs["report_type"] = report_type
+                        parquet_report_type = report_type
+                        break
+            converters = get_column_converters(provider_type, **kwargs)
+            result = convert_csv_to_parquet(
+                request_id,
+                s3_csv_path,
+                parquet_path,
+                local_path,
+                manifest_id,
+                csv_filename,
+                converters,
+                post_processor,
+                context,
+                parquet_report_type,
+            )
+            if not result:
+                failed_conversion.append(csv_filename)
+
+        if failed_conversion:
+            msg = f"Failed to convert the following files to parquet:{','.join(failed_conversion)}."
+            LOG.warn(log_json(request_id, msg, context))
+            return
+
+    def process(self, context=None):
         """Convert to parquet."""
-        pass
+        if self._provider_type == "OCP":
+            report_file = []
+        else:
+            report_file = [self._report_file]
+        report_file
+        LOG.info(f"Parquet conversion: start_date = {str(self._start_date)}. File: {str(self._report_file)}")
+        if self._start_date:
+            start_date_str = self._start_date.strftime("%Y-%m-%d")
+            self.convert_to_parquet(
+                self._request_id,
+                self._schema_name[4:],
+                self._provider_uuid,
+                self._provider_type,
+                start_date_str,
+                self._manifest_id,
+                report_file,
+            )
 
     def remove_temp_cur_files(self, report_path):
         """Remove processed files."""
