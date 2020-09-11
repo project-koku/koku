@@ -70,12 +70,29 @@ BEGIN
         END IF;
     END IF;
 
-    -- Successful insertion of this row will create a new partition
-    -- via a trigger on <schema>.partitioned_tables
+    action_stmt = 'CREATE TABLE IF NOT EXISTS ' ||
+                    quote_ident(schema) || '.' || quote_ident(table_partition) ||
+                    ' PARTITION OF ' ||
+                    quote_ident(schema) || '.' || quote_ident(partitioned_table);
+    IF ( _default )
+    THEN
+        action_stmt = action_stmt ||
+                    ' DEFAULT ; ';
+    ELSE
+        action_stmt = action_stmt ||
+                    ' FOR VALUES FROM (' ||
+                    quote_literal(date_from) ||
+                    '::date) TO (' ||
+                    quote_literal(end_date) ||
+                    '::date); ';
+    END IF;
+    EXECUTE action_stmt;
+
+    -- log the new partition
     action_stmt = 'INSERT INTO ' || quote_ident(schema) || '."partitioned_tables" ( ' ||
                           '"schema_name", "table_name", "partition_of_table_name", ' ||
-                          '"partition_type", "partition_col", "partition_parameters", ' ||
-                          '"active") ' ||
+                          '"partition_type", "partition_col", "partition_parameters" ' ||
+                  ') ' ||
                   'SELECT ' || quote_literal(schema) || ', ' ||
                                quote_literal(table_partition) || ', ' ||
                                quote_literal(partitioned_table) || ', ' ||
@@ -85,15 +102,14 @@ BEGIN
                                    '''default'', false, ' ||
                                    '''from'', ' || quote_literal(date_from::text) || ', ' ||
                                    '''to'', ' || quote_literal(end_date::text) ||
-                               '), ' ||
-                               'true ' ||
+                               ') ' ||
                     'FROM pg_partitioned_table p ' ||
                     'JOIN pg_attribute a ' ||
                       'ON a.attrelid = p.partrelid ' ||
                      'AND a.attnum = any(string_to_array(p.partattrs::text, '' '')::smallint[]) ' ||
                    'WHERE p.partrelid = ' ||
-                   quote_literal(schema || '.'::text || partitioned_table) || '::regclass ' ||
-                   'ON CONFLICT ( schema_name, table_name ) DO NOTHING ;';
+                          quote_literal(schema || '.'::text || partitioned_table) || '::regclass ' ||
+                      'ON CONFLICT (schema_name, table_name) DO NOTHING ;';
     EXECUTE action_stmt;
 
     IF ( _commit = true )
