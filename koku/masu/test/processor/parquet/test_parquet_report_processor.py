@@ -15,14 +15,17 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 import logging
+import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
 import faker
+from botocore.exceptions import ClientError
 
 from api.models import Provider
 from api.utils import DateHelper
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
+from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.test import MasuTestCase
 
 
@@ -99,13 +102,19 @@ class TestParquetReportProcessor(MasuTestCase):
         with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
                 with patch(
-                    "masu.processor.parquet.parquet_report_processor.get_file_keys_from_s3_with_manifest_id",
+                    (
+                        "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
+                        "get_file_keys_from_s3_with_manifest_id"
+                    ),
                     return_value=["cur.csv.gz"],
                 ):
                     with patch(
                         "masu.processor.parquet.parquet_report_processor.remove_files_not_in_set_from_s3_bucket"
                     ):
-                        with patch("masu.processor.parquet.parquet_report_processor.convert_csv_to_parquet"):
+                        with patch(
+                            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
+                            "convert_csv_to_parquet"
+                        ):
                             self.report_processor.convert_to_parquet(
                                 "request_id",
                                 "account",
@@ -120,11 +129,15 @@ class TestParquetReportProcessor(MasuTestCase):
         with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
                 with patch(
-                    "masu.processor.parquet.parquet_report_processor.get_file_keys_from_s3_with_manifest_id",
+                    (
+                        "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
+                        "get_file_keys_from_s3_with_manifest_id"
+                    ),
                     return_value=["cost_export.csv"],
                 ):
                     with patch(
-                        "masu.processor.parquet.parquet_report_processor.convert_csv_to_parquet", return_value=False
+                        "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet",
+                        return_value=False,
                     ):
                         with self.assertLogs(
                             "masu.processor.parquet.parquet_report_processor", level="INFO"
@@ -143,10 +156,15 @@ class TestParquetReportProcessor(MasuTestCase):
         with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
                 with patch(
-                    "masu.processor.parquet.parquet_report_processor.get_file_keys_from_s3_with_manifest_id",
+                    (
+                        "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
+                        "get_file_keys_from_s3_with_manifest_id"
+                    ),
                     return_value=["storage_usage.csv"],
                 ):
-                    with patch("masu.processor.parquet.parquet_report_processor.convert_csv_to_parquet"):
+                    with patch(
+                        "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet"
+                    ):
                         self.report_processor.convert_to_parquet(
                             "request_id",
                             "account",
@@ -160,10 +178,141 @@ class TestParquetReportProcessor(MasuTestCase):
         with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
                 with patch(
-                    "masu.processor.parquet.parquet_report_processor.get_file_keys_from_s3_with_manifest_id",
+                    (
+                        "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
+                        "get_file_keys_from_s3_with_manifest_id"
+                    ),
                     return_value=[],
                 ):
-                    with patch("masu.processor.parquet.parquet_report_processor.convert_csv_to_parquet"):
+                    with patch(
+                        "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet"
+                    ):
                         self.report_processor.convert_to_parquet(
                             "request_id", "account", "provider_uuid", "OCP", "2020-01-01T12:00:00", "manifest_id"
                         )
+
+    def test_get_file_keys_from_s3_with_manifest_id(self):
+        """Test get_file_keys_from_s3_with_manifest_id."""
+        files = self.report_processor.get_file_keys_from_s3_with_manifest_id("request_id", "s3_path", "manifest_id")
+        self.assertEqual(files, [])
+
+        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.parquet.parquet_report_processor.get_s3_resource") as mock_s3:
+                files = self.report_processor.get_file_keys_from_s3_with_manifest_id("request_id", None, "manifest_id")
+                self.assertEqual(files, [])
+
+        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.parquet.parquet_report_processor.get_s3_resource") as mock_s3:
+                mock_s3.side_effect = ClientError({}, "Error")
+                files = self.report_processor.get_file_keys_from_s3_with_manifest_id(
+                    "request_id", "s3_path", "manifest_id"
+                )
+                self.assertEqual(files, [])
+
+    def test_convert_csv_to_parquet(self):
+        """Test convert_csv_to_parquet."""
+        result = self.report_processor.convert_csv_to_parquet(
+            "request_id", None, "s3_parquet_path", "local_path", "manifest_id", "csv_filename"
+        )
+        self.assertFalse(result)
+
+        result = self.report_processor.convert_csv_to_parquet(
+            "request_id", "s3_csv_path", "s3_parquet_path", "local_path", "manifest_id", "csv_filename"
+        )
+        self.assertFalse(result)
+
+        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.parquet.parquet_report_processor.get_s3_resource") as mock_s3:
+                with patch("masu.processor.parquet.parquet_report_processor.shutil.rmtree"):
+                    with patch("masu.processor.parquet.parquet_report_processor.Path"):
+                        mock_s3.side_effect = ClientError({}, "Error")
+                        result = self.report_processor.convert_csv_to_parquet(
+                            "request_id",
+                            "s3_csv_path",
+                            "s3_parquet_path",
+                            "local_path",
+                            "manifest_id",
+                            "csv_filename.csv",
+                        )
+                        self.assertFalse(result)
+
+        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.parquet.parquet_report_processor.get_s3_resource"):
+                with patch("masu.processor.parquet.parquet_report_processor.shutil.rmtree"):
+                    with patch("masu.processor.parquet.parquet_report_processor.Path"):
+                        result = self.report_processor.convert_csv_to_parquet(
+                            "request_id",
+                            "s3_csv_path",
+                            "s3_parquet_path",
+                            "local_path",
+                            "manifest_id",
+                            "csv_filename.csv.gz",
+                        )
+                        self.assertFalse(result)
+
+        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.parquet.parquet_report_processor.get_s3_resource"):
+                with patch("masu.processor.parquet.parquet_report_processor.shutil.rmtree"):
+                    with patch("masu.processor.parquet.parquet_report_processor.Path"):
+                        with patch("masu.processor.parquet.parquet_report_processor.pd"):
+                            with patch("masu.processor.parquet.parquet_report_processor.open") as mock_open:
+                                mock_open.side_effect = ValueError()
+                                result = self.report_processor.convert_csv_to_parquet(
+                                    "request_id",
+                                    "s3_csv_path",
+                                    "s3_parquet_path",
+                                    "local_path",
+                                    "manifest_id",
+                                    "csv_filename.csv.gz",
+                                )
+                                self.assertFalse(result)
+
+        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.parquet.parquet_report_processor.get_s3_resource"):
+                with patch("masu.processor.parquet.parquet_report_processor.Path"):
+                    with patch("masu.processor.parquet.parquet_report_processor.shutil.rmtree"):
+                        with patch("masu.processor.parquet.parquet_report_processor.pd"):
+                            with patch("masu.processor.parquet.parquet_report_processor.open"):
+                                with patch("masu.processor.parquet.parquet_report_processor.BytesIO"):
+                                    with patch(
+                                        "masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"
+                                    ):
+                                        with patch(
+                                            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
+                                            "create_parquet_table"
+                                        ):
+                                            result = self.report_processor.convert_csv_to_parquet(
+                                                "request_id",
+                                                "s3_csv_path",
+                                                "s3_parquet_path",
+                                                "local_path",
+                                                "manifest_id",
+                                                "csv_filename.csv.gz",
+                                            )
+                                            self.assertTrue(result)
+
+    @patch.object(ReportParquetProcessorBase, "create_table")
+    def skip_test_create_parquet_table(self, mock_create_table):
+        """Test create_parquet_table function."""
+        test_matrix = [
+            {"provider_uuid": str(self.aws_provider_uuid), "expected_create": True},
+            {"provider_uuid": str(self.ocp_provider_uuid), "expected_create": True},
+            {"provider_uuid": str(self.azure_provider_uuid), "expected_create": True},
+            {"provider_uuid": str(uuid.uuid4()), "expected_create": False},
+        ]
+        account = 10001
+        manifest_id = "1"
+        s3_parquet_path = "data/to/parquet"
+        output_file = "local_path/file.parquet"
+        report_type = None
+
+        for test in test_matrix:
+            provider_uuid = test.get("provider_uuid")
+            self.report_processor.create_parquet_table(
+                account, provider_uuid, manifest_id, s3_parquet_path, output_file, report_type
+            )
+            if test.get("expected_create"):
+                mock_create_table.assert_called()
+            else:
+                mock_create_table.assert_not_called()
+            mock_create_table.reset_mock()
