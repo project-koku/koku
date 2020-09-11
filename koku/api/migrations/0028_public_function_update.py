@@ -12,9 +12,8 @@ def apply_public_function_updates(apps, schema_editor):
     for funcfile in (
         "partitioned_tables_manage_trigger_function.sql",
         "partitioned_tables_active_trigger_function.sql",
-        "create_table_date_range_partition.sql",
+        "scan_date_partitions.sql",
     ):
-        print(f"Processing {funcfile}", file=sys.stderr)
         msh.apply_sql_file(schema_editor, os.path.join(path, funcfile), literal_placeholder=True)
 
 
