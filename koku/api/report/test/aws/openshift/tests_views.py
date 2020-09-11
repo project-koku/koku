@@ -1049,7 +1049,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 with self.subTest(data=day):
                     values = instance_type.get("values", [])
                     if values:
-                        # see: koku.api.report.aws.query_handler.execute_query(), line 87
+                        # see: koku.api.report.aws.openshift.query_handler.execute_query(), line 87
                         current_delta = values[0].get("usage").get("value")
                         if previous_delta is not None:
                             self.assertLessEqual(previous_delta, current_delta)
@@ -1083,7 +1083,6 @@ class OCPAWSReportViewTest(IamTestCase):
                     if values:
                         # see: koku.api.report.aws.openshift.query_handler.execute_query(), line 87
                         current_delta = values[0].get("delta_value")
-                        self.assertIsNotNone(current_delta)
                         if previous_delta is not None:
                             self.assertLessEqual(previous_delta, current_delta)
                             compared_deltas = True
