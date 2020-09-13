@@ -183,6 +183,7 @@ class RateSerializer(serializers.Serializer):
 
     metric = serializers.DictField(required=True)
     cost_type = serializers.ChoiceField(choices=metric_constants.COST_TYPE_CHOICES)
+    description = serializers.CharField(allow_blank=True, max_length=100, required=False)
     tiered_rates = serializers.ListField(required=False)
     tag_rates = serializers.ListField(required=False)
 
@@ -299,7 +300,7 @@ class RateSerializer(serializers.Serializer):
             data["tag_rates"] = tag_rates
 
         rate_keys_str = ", ".join(str(rate_key) for rate_key in self.RATE_TYPES)
-        if data.get("metric").get("name") not in [metric for metric, metric2 in metric_constants.METRIC_CHOICES]:
+        if data.get("metric").get("name") not in [metric for metric, _ in metric_constants.METRIC_CHOICES]:
             error_msg = "{} is an invalid metric".format(data.get("metric").get("name"))
             raise serializers.ValidationError(error_msg)
 
@@ -307,18 +308,21 @@ class RateSerializer(serializers.Serializer):
 
         if any(data.get(rate_key) is not None for rate_key in self.RATE_TYPES):
             if tiered_rates == [] and tag_rates == []:
-                error_msg = f"A rate must be provided IF (e.g. {rate_keys_str})."
+                error_msg = f"{rate_keys_str} cannot be an empty list"
                 raise serializers.ValidationError(error_msg)
             elif tiered_rates is not None and tiered_rates != []:
                 RateSerializer._validate_continuouse_tiers(tiered_rates)
             return data
         else:
-            error_msg = f"A rate must be provided ELSE (e.g. {rate_keys_str})."
+            error_msg = f"Missing rate information: one of {rate_keys_str}"
             raise serializers.ValidationError(error_msg)
 
     def to_representation(self, rate_obj):
         """Create external representation of a rate."""
-        out = {"metric": {"name": rate_obj.get("metric", {}).get("name")}}
+        out = {
+            "metric": {"name": rate_obj.get("metric", {}).get("name")},
+            "description": rate_obj.get("description", ""),
+        }
 
         # Specifically handling only tiered rates now
         # with the expectation that this code will be generalized
