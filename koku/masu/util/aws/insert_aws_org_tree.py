@@ -20,6 +20,7 @@ import os
 from datetime import datetime
 from datetime import timedelta
 
+import ciso8601
 import yaml
 from tenant_schemas.utils import schema_context
 
@@ -66,6 +67,8 @@ class InsertAwsOrgTree:
         if not self.start_date:
             today = datetime.today().date()
             self.start_date = today.replace(day=1)
+        if isinstance(self.start_date, str):
+            self.start_date = ciso8601.parse_datetime(self.start_date)
         date = self.start_date + timedelta(days=day_delta)
         if isinstance(date, datetime):
             return str(date.date())

@@ -162,6 +162,7 @@ create-test-customer-no-sources: run-migrations docker-up-koku
 
 load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
+	make load-aws-org-unit-tree
 
 load-aws-org-unit-tree:
 	@if [ $(shell $(PYTHON) -c 'import sys; print(sys.version_info[0])') = '3' ] ; then \

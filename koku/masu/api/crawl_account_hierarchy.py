@@ -63,12 +63,15 @@ def crawl_account_hierarchy(request):
         data = request.data
         schema_name = data.get("schema")
         if schema_name is None:
-            errmsg = "schema is required."
+            errmsg = "schema is a required parameter."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
         days_list = data.get("account_structure", {}).get("days")
         if days_list is None:
             errmsg = "Unexpected json structure. Can not find days key."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-        insert_obj = InsertAwsOrgTree(schema=schema_name)
+        if data.get("start_date"):
+            insert_obj = InsertAwsOrgTree(schema=schema_name, start_date=data.get("start_date"))
+        else:
+            insert_obj = InsertAwsOrgTree(schema=schema_name)
         insert_obj.insert_tree(day_list=days_list)
         return Response({"data": str(data)})
