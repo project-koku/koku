@@ -521,6 +521,11 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 json={"data": [{"name": mock_source_name}]},
             )
             m.get(
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
+                status_code=200,
+                json={"data": []},
+            )
+            m.get(
                 f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
                 status_code=200,
                 json={"data": [{"id": resource_id}]},
@@ -576,6 +581,11 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
                 status_code=200,
                 json={"data": [{"name": mock_source_name}]},
+            )
+            m.get(
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
+                status_code=200,
+                json={"data": []},
             )
             m.get(
                 f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
@@ -694,6 +704,11 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 json={"data": [{"name": mock_source_name}]},
             )
             m.get(
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
+                status_code=200,
+                json={"data": []},
+            )
+            m.get(
                 f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
                 status_code=200,
                 json={"data": [{"id": resource_id}]},
@@ -759,6 +774,11 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
                 status_code=200,
                 json={"data": [{"name": mock_source_name}]},
+            )
+            m.get(
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
+                status_code=200,
+                json={"data": []},
             )
             m.get(
                 f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
@@ -833,7 +853,11 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 status_code=200,
                 json={"data": []},
             )
-
+            m.get(
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
+                status_code=200,
+                json={"data": []},
+            )
             source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
