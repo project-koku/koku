@@ -52,7 +52,9 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
         with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
             self._infra_rates = cost_model_accessor.infrastructure_rates
+            self._tag_infra_rates = cost_model_accessor.tag_infrastructure_rates
             self._supplementary_rates = cost_model_accessor.supplementary_rates
+            self._tag_supplementary_rates = cost_model_accessor.tag_supplementary_rates
 
     @staticmethod
     def _normalize_tier(input_tier):

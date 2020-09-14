@@ -60,6 +60,8 @@ class CostModelDBAccessor(KokuDBAccess):
         if not price_list:
             return {}
         for rate in price_list:
+            if not rate.get("tiered_rates"):
+                continue
             metric_name = rate.get("metric", {}).get("name")
             metric_cost_type = rate.pop("cost_type", None)
             if not metric_cost_type:
@@ -152,4 +154,104 @@ class CostModelDBAccessor(KokuDBAccess):
         """Get the storage request rates."""
         node_rates = self.get_rates("node_cost_per_month")
         LOG.info("OCP Node rate: %s", str(node_rates))
+        return node_rates
+
+    @property
+    def tag_based_price_list(self):
+        """Return the rates definied on this cost model that come from tag based rates."""
+        metric_rate_map = {}
+        tag_based_price_list = None
+        if self.cost_model:
+            tag_based_price_list = copy.deepcopy(self.cost_model.rates)
+        if not tag_based_price_list:
+            return {}
+        for rate in tag_based_price_list:
+            if not rate.get("tag_rates"):
+                continue
+            metric_name = rate.get("metric", {}).get("name")
+            metric_cost_type = rate.pop("cost_type", None)
+            if not metric_cost_type:
+                for default_metric in metric_constants.COST_MODEL_METRIC_MAP:
+                    if metric_name == default_metric.get("metric"):
+                        metric_cost_type = default_metric.get("default_cost_type")
+            if metric_name in metric_rate_map.keys():
+                metric_mapping = metric_rate_map.get(metric_name)
+                if metric_cost_type in metric_mapping.get("tag_rates", {}).keys():
+                    current_tag_mapping = metric_mapping.get("tag_rates", {}).get(metric_cost_type)
+                    new_tag_rate = rate.get("tag_rates")
+                    current_value = float(current_tag_mapping[0].get("value"))
+                    value_to_add = float(new_tag_rate[0].get("value"))
+                    current_tag_mapping[0]["value"] = current_value + value_to_add
+                    metric_rate_map[metric_name] = metric_mapping
+                else:
+                    new_tag_rate = rate.get("tag_rates")
+                    current_tag_mapping = metric_mapping.get("tag_rates", {})[metric_cost_type] = new_tag_rate
+            else:
+                format_tag_rates = {f"{metric_cost_type}": rate.get("tag_rates")}
+                rate["tag_rates"] = format_tag_rates
+                metric_rate_map[metric_name] = rate
+        return metric_rate_map
+
+    @property
+    def tag_infrastructure_rates(self):
+        """Return the rates designated as infrastructure cost from tag based rates."""
+        return {
+            key: value.get("tag_rates").get(metric_constants.INFRASTRUCTURE_COST_TYPE)[0].get("value")
+            for key, value in self.tag_based_price_list.items()
+            if metric_constants.INFRASTRUCTURE_COST_TYPE in value.get("tag_rates").keys()
+        }
+
+    @property
+    def tag_supplementary_rates(self):
+        """Return the rates designated as supplementary cost from tag based rates."""
+        return {
+            key: value.get("tiered_rates").get(metric_constants.SUPPLEMENTARY_COST_TYPE)[0].get("value")
+            for key, value in self.price_list.items()
+            if metric_constants.SUPPLEMENTARY_COST_TYPE in value.get("tiered_rates").keys()
+        }
+
+    def get_tag_rates(self, value):
+        """Get the tag rates."""
+        return self.tag_based_price_list.get(value)
+
+    def get_cpu_core_usage_per_hour_tag_rates(self):
+        """Get cpu usage tag based rates."""
+        cpu_usage_rates = self.get_tag_rates("cpu_core_usage_per_hour")
+        LOG.info("OCP CPU usage tag based rates: %s", str(cpu_usage_rates))
+        return cpu_usage_rates
+
+    def get_memory_gb_usage_per_hour_tag_rates(self):
+        """Get the memory usage tag based rates."""
+        mem_usage_rates = self.get_tag_rates("memory_gb_usage_per_hour")
+        LOG.info("OCP Memory usage tag based rates: %s", str(mem_usage_rates))
+        return mem_usage_rates
+
+    def get_cpu_core_request_per_hour_tag_rates(self):
+        """Get cpu request tag based rates."""
+        cpu_request_rates = self.get_tag_rates("cpu_core_request_per_hour")
+        LOG.info("OCP CPU request tag based rates: %s", str(cpu_request_rates))
+        return cpu_request_rates
+
+    def get_memory_gb_request_per_hour_tag_rates(self):
+        """Get the memory request tag based rates."""
+        mem_request_rates = self.get_tag_rates("memory_gb_request_per_hour")
+        LOG.info("OCP Memory request tag based rates: %s", str(mem_request_rates))
+        return mem_request_rates
+
+    def get_storage_gb_usage_per_month_tag_rates(self):
+        """Get the storage usage tag based rates."""
+        storage_usage_rates = self.get_rates("storage_gb_usage_per_month")
+        LOG.info("OCP Storage usage tag based rates: %s", str(storage_usage_rates))
+        return storage_usage_rates
+
+    def get_storage_gb_request_per_month_tag_rates(self):
+        """Get the storage request tag based rates."""
+        storage_request_rates = self.get_rates("storage_gb_request_per_month")
+        LOG.info("OCP Storage request tag based rates: %s", str(storage_request_rates))
+        return storage_request_rates
+
+    def get_node_per_month_tag_rates(self):
+        """Get the storage request tag based rates."""
+        node_rates = self.get_rates("node_cost_per_month")
+        LOG.info("OCP Node tag based rate: %s", str(node_rates))
         return node_rates
