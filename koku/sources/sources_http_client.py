@@ -189,7 +189,7 @@ class SourcesHTTPClient:
             if endpoint_response.get("data"):
                 resource_id = endpoint_response.get("data")[0].get("id")
             else:
-                raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
+                continue
 
             authentications_str = "{}/authentications?[authtype]=arn&[resource_id]={}"
             authentications_url = authentications_str.format(self._base_url, str(resource_id))
@@ -209,8 +209,8 @@ class SourcesHTTPClient:
             password = authentications_internal_response.get("password")
             if password:
                 return {"role_arn": password}
-            else:
-                raise SourcesHTTPClientError(f"No authentication details for Source: {self._source_id}")
+
+        raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
 
     def get_azure_credentials(self):
         """Get the Azure Credentials from Sources Authentication service."""
@@ -225,9 +225,7 @@ class SourcesHTTPClient:
             if endpoint_response.get("data"):
                 resource_id = endpoint_response.get("data")[0].get("id")
             else:
-                raise SourcesHTTPClientError(
-                    f"Unable to get Azure credentials.  Endpoint not found for Source: {self._source_id}"
-                )
+                continue
 
             authentications_url = (
                 f"{self._base_url}/authentications?filter[resource_type]=Endpoint&"
@@ -257,7 +255,8 @@ class SourcesHTTPClient:
                     "client_secret": password,
                     "tenant_id": data_dict.get("extra").get("azure").get("tenant_id"),
                 }
-            raise SourcesHTTPClientError(f"No authentication details for Source: {self._source_id}")
+
+        raise SourcesHTTPClientError(f"Unable to get Azure crednetials for Source: {self._source_id}")
 
     def build_source_status(self, error_obj):
         """

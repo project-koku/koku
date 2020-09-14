@@ -371,6 +371,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             response = source_integration.get_sources_msg_data(msg, cost_management_app_type)
             self.assertEqual(response.get("event_type"), event)
             self.assertEqual(response.get("resource_id"), 1)
+            self.assertEqual(response.get("resource_type"), "Endpoint")
             self.assertEqual(response.get("auth_header"), test_auth_header)
             self.assertEqual(response.get("offset"), test_offset)
 
@@ -531,10 +532,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 json={"data": [{"id": resource_id}]},
             )
             m.get(
-                (
-                    f"http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint"
-                    f"&[authtype]=arn&[resource_id]={resource_id}"
-                ),
+                (f"http://www.sources.com/api/v1.0/authentications?" f"[authtype]=arn&[resource_id]={resource_id}"),
                 status_code=200,
                 json={"data": [{"id": authentication_id}]},
             )
@@ -593,10 +591,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 json={"data": [{"id": resource_id}]},
             )
             m.get(
-                (
-                    f"http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint"
-                    f"&[authtype]=arn&[resource_id]={resource_id}"
-                ),
+                (f"http://www.sources.com/api/v1.0/authentications?" f"[authtype]=arn&[resource_id]={resource_id}"),
                 status_code=200,
                 json={"data": [{"id": authentication_id}]},
             )
@@ -656,10 +651,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 json={"data": [{"id": resource_id}]},
             )
             m.get(
-                (
-                    f"http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint"
-                    f"&[authtype]=token&[resource_id]={resource_id}"
-                ),
+                (f"http://www.sources.com/api/v1.0/authentications?" f"[authtype]=token&[resource_id]={resource_id}"),
                 status_code=200,
                 json={"data": [{"id": authentication_id}]},
             )
@@ -715,8 +707,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             )
             m.get(
                 (
-                    f"http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint"
-                    f"&[authtype]=tenant_id_client_id_client_secret&[resource_id]={resource_id}"
+                    f"http://www.sources.com/api/v1.0/authentications?"
+                    f"[authtype]=tenant_id_client_id_client_secret&[resource_id]={resource_id}"
                 ),
                 status_code=200,
                 json={"data": [authentications_response]},
@@ -787,8 +779,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             )
             m.get(
                 (
-                    f"http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint"
-                    f"&[authtype]=tenant_id_client_id_client_secret&[resource_id]={resource_id}"
+                    f"http://www.sources.com/api/v1.0/authentications?"
+                    f"[authtype]=tenant_id_client_id_client_secret&[resource_id]={resource_id}"
                 ),
                 status_code=200,
                 json={"data": [authentications_response]},
@@ -830,6 +822,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
     def test_sources_network_info_no_endpoint(self):
         """Test to get additional Source context from Sources API with no endpoint found."""
         test_source_id = 1
+        application_type = 2
         mock_source_name = "amazon"
         source_type_id = 1
         source_uid = faker.uuid4()
@@ -858,11 +851,16 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 status_code=200,
                 json={"data": []},
             )
+            m.get(
+                "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
+                status_code=200,
+                json={"data": [{"id": application_type}]},
+            )
             source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
-        self.assertIsNone(source_obj.name)
-        self.assertEquals(source_obj.source_type, "")
+        self.assertEquals(source_obj.name, mock_source_name)
+        self.assertEquals(source_obj.source_type, "AWS")
         self.assertEquals(source_obj.authentication, {})
 
     @patch("time.sleep", side_effect=None)
@@ -963,6 +961,18 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                     "id": 1,
                     "source_id": 1,
                     "resource_type": "Endpoint",
+                    "resource_id": "1",
+                    "application_type_id": test_application_id,
+                },
+                "expected_cost_mgmt_match": True,
+                "expected_fn": _expected_authentication_create,
+            },
+            {
+                "event": source_integration.KAFKA_AUTHENTICATION_CREATE,
+                "value": {
+                    "id": 1,
+                    "source_id": 1,
+                    "resource_type": "Application",
                     "resource_id": "1",
                     "application_type_id": test_application_id,
                 },
