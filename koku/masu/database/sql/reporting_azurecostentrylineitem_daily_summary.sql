@@ -94,15 +94,6 @@ WHERE usage_start >= {{start_date}}
     {% endif %}
 ;
 
--- This procedure will scan the temp table for distinct start-of-month usage_start dates
--- and create any missing table partitions
-CALL public.create_date_partitions(
-        'reporting_azurecostentrylineitem_daily_summary_{{uuid | sqlsafe}}',
-        'usage_start',
-        '{{schema | sqlsafe}}',
-        'reporting_azurecostentrylineitem_daily_summary'
-    );
-
 -- Populate the daily summary line item data
 INSERT INTO {{schema | safe}}.reporting_azurecostentrylineitem_daily_summary (
     cost_entry_bill_id,
