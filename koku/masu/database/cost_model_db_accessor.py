@@ -84,6 +84,9 @@ class CostModelDBAccessor(KokuDBAccess):
                 format_tiered_rates = {f"{metric_cost_type}": rate.get("tiered_rates")}
                 rate["tiered_rates"] = format_tiered_rates
                 metric_rate_map[metric_name] = rate
+        LOG.warning("metric map")
+        LOG.warning(metric_rate_map)
+        self.tag_based_price_list.items()
         return metric_rate_map
 
     @property
@@ -179,17 +182,25 @@ class CostModelDBAccessor(KokuDBAccess):
                 if metric_cost_type in metric_mapping.get("tag_rates", {}).keys():
                     current_tag_mapping = metric_mapping.get("tag_rates", {}).get(metric_cost_type)
                     new_tag_rate = rate.get("tag_rates")
+                    LOG.warning("-------------------------------------")
+                    LOG.warning(new_tag_rate)
+                    LOG.warning("-------------------------------------")
                     current_value = float(current_tag_mapping[0].get("value"))
                     value_to_add = float(new_tag_rate[0].get("value"))
                     current_tag_mapping[0]["value"] = current_value + value_to_add
                     metric_rate_map[metric_name] = metric_mapping
                 else:
                     new_tag_rate = rate.get("tag_rates")
+                    LOG.warning("-------------------------------------")
+                    LOG.warning(new_tag_rate)
+                    LOG.warning("-------------------------------------")
                     current_tag_mapping = metric_mapping.get("tag_rates", {})[metric_cost_type] = new_tag_rate
             else:
                 format_tag_rates = {f"{metric_cost_type}": rate.get("tag_rates")}
                 rate["tag_rates"] = format_tag_rates
                 metric_rate_map[metric_name] = rate
+        LOG.warning("the tag-------based----metric------------------------rate-map")
+        LOG.warning(metric_rate_map)
         return metric_rate_map
 
     @property
