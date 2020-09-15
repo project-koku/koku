@@ -580,7 +580,7 @@ class SourcesHTTPClientTest(TestCase):
                 client.get_source_id_from_endpoint_id(resource_id)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def get_source_id_from_applications_id_no_data(self):
+    def test_get_source_id_from_applications_id_no_data(self):
         """Test to get source_id from application resource_id with no data in response."""
         resource_id = 2
         source_id = 3
@@ -595,7 +595,7 @@ class SourcesHTTPClientTest(TestCase):
             self.assertIsNone(client.get_source_id_from_applications_id(resource_id))
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def get_source_id_from_applications_id_misconfigured(self):
+    def test_get_source_id_from_applications_id_misconfigured(self):
         """Test to get source_id from application resource_id with route not found."""
         resource_id = 2
         source_id = 3
@@ -611,7 +611,7 @@ class SourcesHTTPClientTest(TestCase):
                 client.get_source_id_from_applications_id(resource_id)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def get_source_id_from_applications_id_connection_error(self):
+    def test_get_source_id_from_applications_id_connection_error(self):
         """Test to get source ID from application resource_id with connection error."""
         resource_id = 2
 
