@@ -592,7 +592,7 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=200,
                 json={"data": []},
             )
-            self.assertIsNone(client.get_source_id_from_endpoint_id(resource_id))
+            self.assertIsNone(client.get_source_id_from_applications_id(resource_id))
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def get_source_id_from_applications_id_misconfigured(self):
@@ -608,7 +608,7 @@ class SourcesHTTPClientTest(TestCase):
                 json={"data": [{"id": resource_id}]},
             )
             with self.assertRaises(SourceNotFoundError):
-                client.get_source_id_from_endpoint_id(resource_id)
+                client.get_source_id_from_applications_id(resource_id)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def get_source_id_from_applications_id_connection_error(self):
@@ -619,7 +619,7 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             m.get(f"http://www.sources.com/api/v1.0/applications?filter[id]={resource_id}", exc=RequestException)
             with self.assertRaises(SourcesHTTPClientError):
-                client.get_source_id_from_endpoint_id(resource_id)
+                client.get_source_id_from_applications_id(resource_id)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_set_source_status(self):
