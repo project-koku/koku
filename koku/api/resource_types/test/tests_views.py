@@ -34,7 +34,7 @@ class ResourceTypesViewTest(IamTestCase):
     ENDPOINTS = (
         ENDPOINTS_RTYPE
         + ENDPOINTS_AWS
-        # + ENDPOINTS_AZURE
+        + ENDPOINTS_AZURE
         # + ENDPOINTS_OPENSHIFT
         # + ENDPOINTS_COST
     )
