@@ -23,12 +23,14 @@ from rest_framework.routers import DefaultRouter
 from api.views import AWSAccountView
 from api.views import AWSCostView
 from api.views import AWSInstanceTypeView
+from api.views import AWSOrganizationalUnitView
 from api.views import AWSOrgView
 from api.views import AWSStorageView
 from api.views import AWSTagView
 from api.views import AzureCostView
 from api.views import AzureInstanceTypeView
 from api.views import AzureStorageView
+from api.views import AzureSubscriptionGuidView
 from api.views import AzureTagView
 from api.views import cloud_accounts
 from api.views import DataExportRequestViewSet
@@ -273,5 +275,15 @@ urlpatterns = [
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
+    path(
+        "resource-types/aws-organizational-units/",
+        AWSOrganizationalUnitView.as_view(),
+        name="aws-organizational-units",
+    ),
+    path(
+        "resource-types/azure-subscription-guids/",
+        AzureSubscriptionGuidView.as_view(),
+        name="azure-subscription-guids",
+    ),
 ]
 urlpatterns += ROUTER.urls
