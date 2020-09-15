@@ -47,9 +47,12 @@ from api.views import OCPAzureCostView
 from api.views import OCPAzureInstanceTypeView
 from api.views import OCPAzureStorageView
 from api.views import OCPAzureTagView
+from api.views import OCPClustersView
 from api.views import OCPCostView
 from api.views import OCPCpuView
 from api.views import OCPMemoryView
+from api.views import OCPNodesView
+from api.views import OCPProjectsView
 from api.views import OCPTagView
 from api.views import OCPVolumeView
 from api.views import openapi
@@ -285,5 +288,8 @@ urlpatterns = [
         AzureSubscriptionGuidView.as_view(),
         name="azure-subscription-guids",
     ),
+    path("resource-types/openshift-clusters/", OCPClustersView.as_view(), name="openshift-clusters"),
+    path("resource-types/openshift-projects/", OCPProjectsView.as_view(), name="openshift-projects"),
+    path("resource-types/openshift-nodes/", OCPNodesView.as_view(), name="openshift-nodes"),
 ]
 urlpatterns += ROUTER.urls
