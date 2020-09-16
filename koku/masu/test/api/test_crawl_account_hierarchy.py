@@ -166,17 +166,15 @@ class crawlAccountHierarchyTest(MasuTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_successful_post_upload(self, _):
         """Test the POST crawl_account_hierarchy endpoint requires schema."""
-        with schema_context(self.schema):
-            # Delete the rows created by the koku_test_runner. This next test suite
-            # is intended to test how the crawler inserts the data into the database
-            # which is easier to do without preloaded data.
-            AWSOrganizationalUnit.objects.all().delete()
-            cur_count = AWSOrganizationalUnit.objects.count()
-            self.assertEqual(cur_count, 0)
+        schema = "acct12345"
+        self.tree_json["schema"] = schema
         response = self.client.post(
             reverse("crawl_account_hierarchy"), self.tree_json, content_type="application/json"
         )
         self.assertEqual(response.status_code, 200)
+        with schema_context(schema):
+            cur_count = AWSOrganizationalUnit.objects.count()
+            self.assertNotEqual(cur_count, 0)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_successful_post_upload_with_start_date(self, _):
