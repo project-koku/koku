@@ -228,7 +228,7 @@ class SourcesHTTPClient:
                 continue
 
             authentications_url = (
-                f"{self._base_url}/authentications?filter[resource_type]=Endpoint&"
+                f"{self._base_url}/authentications?"
                 f"[authtype]=tenant_id_client_id_client_secret&[resource_id]={str(resource_id)}"
             )
             r = self._get_network_response(
