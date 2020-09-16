@@ -65,8 +65,7 @@ class InsertAwsOrgTree:
     def calculate_date(self, day_delta):
         """Calculate the date based off of a delta and a range start date."""
         if not self.start_date:
-            today = datetime.today().date()
-            self.start_date = today.replace(day=1)
+            self.start_date = datetime.today().date()
         if isinstance(self.start_date, str):
             self.start_date = ciso8601.parse_datetime(self.start_date)
         date = self.start_date + timedelta(days=day_delta)
