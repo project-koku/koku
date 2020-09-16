@@ -74,4 +74,4 @@ def crawl_account_hierarchy(request):
         else:
             insert_obj = InsertAwsOrgTree(schema=schema_name)
         insert_obj.insert_tree(day_list=days_list)
-        return Response({"data": str(data)})
+        return Response(data)

@@ -34,6 +34,7 @@ class crawlAccountHierarchyTest(MasuTestCase):
     def setUp(self):
         """Create test case setup."""
         super().setUp()
+        self.root_id = "ROOT_01"
         self.tree_json = {
             "account_structure": {
                 "days": [
@@ -43,7 +44,7 @@ class crawlAccountHierarchyTest(MasuTestCase):
                             "nodes": [
                                 {
                                     "organizational_unit": None,
-                                    "org_unit_id": "ROOT_O1",
+                                    "org_unit_id": self.root_id,
                                     "org_unit_name": "Root",
                                     "accounts": [{"account_alias_id": "90", "account_alias_name": "ROOT TEST"}],
                                 },
@@ -51,7 +52,7 @@ class crawlAccountHierarchyTest(MasuTestCase):
                                     "organizational_unit": None,
                                     "org_unit_id": "OU_01",
                                     "org_unit_name": "Dept OU_01",
-                                    "parent_path": "ROOT_O1",
+                                    "parent_path": self.root_id,
                                     "accounts": [
                                         {"account_alias_id": "91", "account_alias_name": "acct 01"},
                                         {"account_alias_id": "92", "account_alias_name": "acct 02"},
@@ -61,7 +62,7 @@ class crawlAccountHierarchyTest(MasuTestCase):
                                     "organizational_unit": None,
                                     "org_unit_id": "OU_02",
                                     "org_unit_name": "Dept OU_02",
-                                    "parent_path": "ROOT_O1",
+                                    "parent_path": self.root_id,
                                 },
                             ],
                         }
@@ -72,7 +73,7 @@ class crawlAccountHierarchyTest(MasuTestCase):
                             "nodes": [
                                 {
                                     "organizational_unit": None,
-                                    "org_unit_id": "ROOT_O1",
+                                    "org_unit_id": self.root_id,
                                     "org_unit_name": "Root",
                                     "accounts": [{"account_alias_id": "90", "account_alias_name": "ROOT TEST"}],
                                 },
@@ -80,7 +81,7 @@ class crawlAccountHierarchyTest(MasuTestCase):
                                     "organizational_unit": None,
                                     "org_unit_id": "OU_01",
                                     "org_unit_name": "Dept OU_01",
-                                    "parent_path": "ROOT_O1",
+                                    "parent_path": self.root_id,
                                     "accounts": [
                                         {"account_alias_id": "91", "account_alias_name": "acct 01"},
                                         {"account_alias_id": "92", "account_alias_name": "acct 02"},
@@ -90,7 +91,7 @@ class crawlAccountHierarchyTest(MasuTestCase):
                                     "organizational_unit": None,
                                     "org_unit_id": "OU_02",
                                     "org_unit_name": "Dept OU_02",
-                                    "parent_path": "ROOT_O1&OU_01",
+                                    "parent_path": f"{self.root_id}&OU_01",
                                 },
                             ],
                         }
@@ -175,6 +176,11 @@ class crawlAccountHierarchyTest(MasuTestCase):
         with schema_context(schema):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertNotEqual(cur_count, 0)
+            root_node = AWSOrganizationalUnit.objects.filter(org_unit_id=self.root_id).first()
+            self.assertIsNotNone(root_node)
+        data = response.json()
+        structure_check = data.get("account_structure")
+        self.assertIsNotNone(structure_check)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_successful_post_upload_with_start_date(self, _):
