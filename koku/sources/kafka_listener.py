@@ -341,7 +341,7 @@ def cost_mgmt_msg_filter(msg_data):
 
     if event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
         sources_network = SourcesHTTPClient(auth_header)
-        LOG.info(f"MSG_DATA: {str(msg_data)}")
+
         if msg_data.get("resource_type") == "Endpoint":
             source_id = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
         if msg_data.get("resource_type") == "Application":
