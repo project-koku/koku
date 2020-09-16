@@ -580,6 +580,21 @@ class SourcesHTTPClientTest(TestCase):
                 client.get_source_id_from_endpoint_id(resource_id)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_source_id_from_applications_id(self):
+        """Test to get source_id from application resource_id."""
+        resource_id = 2
+        source_id = 3
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/applications?filter[id]={resource_id}",
+                status_code=200,
+                json={"data": [{"source_id": 1}]},
+            )
+            self.assertEqual(client.get_source_id_from_applications_id(resource_id), 1)
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_get_source_id_from_applications_id_no_data(self):
         """Test to get source_id from application resource_id with no data in response."""
         resource_id = 2
@@ -618,6 +633,17 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(f"http://www.sources.com/api/v1.0/applications?filter[id]={resource_id}", exc=RequestException)
+            with self.assertRaises(SourcesHTTPClientError):
+                client.get_source_id_from_applications_id(resource_id)
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_source_id_from_applications_id_server_error(self):
+        """Test to get source ID from application resource_id with server error."""
+        resource_id = 2
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(f"http://www.sources.com/api/v1.0/applications?filter[id]={resource_id}", status_code=400)
             with self.assertRaises(SourcesHTTPClientError):
                 client.get_source_id_from_applications_id(resource_id)
 
