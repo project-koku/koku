@@ -345,7 +345,8 @@ class ReportDBAccessorBase(KokuDBAccess):
             cursor.execute(sql, params=bind_params)
         LOG.info("Finished updating %s.", table)
 
-    def _execute_presto_raw_sql_query(self, sql, schema):
+    def _execute_presto_raw_sql_query(self, schema, sql):
+        """Run a SQL statement using Presto."""
         postgres_conn = prestodb.dbapi.connect(
             host="presto", port=8080, user="admin", catalog="postgres", schema=schema
         )
