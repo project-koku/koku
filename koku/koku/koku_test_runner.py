@@ -24,13 +24,13 @@ from django.conf import settings
 from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors
-from scripts.insert_aws_org_tree import InsertAwsOrgTree
 from tenant_schemas.utils import tenant_context
 
 from api.models import Customer
 from api.models import Tenant
 from api.report.test.utils import NiseDataLoader
 from koku.env import ENVIRONMENT
+from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
 from reporting.models import OCPEnabledTagKeys
 
 GITHUB_ACTIONS = ENVIRONMENT.bool("GITHUB_ACTIONS", default=False)
@@ -97,7 +97,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                     # grab the dates to get the start date
                     dates = data_loader.dates
                     org_tree_obj = InsertAwsOrgTree(
-                        "scripts/aws_org_tree.yml", KokuTestRunner.schema, test_db_name, dates[0][0]
+                        schema=KokuTestRunner.schema, tree_yaml="scripts/aws_org_tree.yml", start_date=dates[0][0]
                     )
                     org_tree_obj.insert_tree()
                     data_loader.load_openshift_data(customer, "ocp_aws_static_data.yml", "OCP-on-AWS")
