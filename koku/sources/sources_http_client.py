@@ -256,7 +256,7 @@ class SourcesHTTPClient:
                     "tenant_id": data_dict.get("extra").get("azure").get("tenant_id"),
                 }
 
-        raise SourcesHTTPClientError(f"Unable to get Azure crednetials for Source: {self._source_id}")
+        raise SourcesHTTPClientError(f"Unable to get Azure credentials for Source: {self._source_id}")
 
     def build_source_status(self, error_obj):
         """
