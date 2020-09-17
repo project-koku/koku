@@ -72,7 +72,7 @@ class ReportParquetProcessorBase:
         parquet_columns = self._generate_column_list()
         s3_path = f"{settings.S3_BUCKET_NAME}/{self._s3_path}"
 
-        sql = f"CREATE TABLE IF NOT EXISTS {self._table_name} ("
+        sql = f"CREATE TABLE IF NOT EXISTS {self._schema_name}.{self._table_name} ("
 
         for idx, col in enumerate(parquet_columns):
             norm_col = col.replace("/", "_").replace(":", "_").lower()
@@ -97,4 +97,9 @@ class ReportParquetProcessorBase:
         schema = self._create_schema()
         sql = self._generate_create_table_sql()
         self._execute_sql(sql, schema)
+
+        sql = f"CALL system.sync_partition_metadata('{self._schema_name}', '{self._table_name}', 'FULL')"
+        LOG.info(sql)
+        self._execute_sql(sql, schema)
+
         LOG.info(f"Presto Table: {self._table_name} created.")
