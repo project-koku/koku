@@ -6,6 +6,7 @@ CREATE TABLE hive.{{schema | sqlsafe}}.presto_aws_daily_summary_{{uuid | sqlsafe
         lineitem_usageaccountid as usage_account_id,
         lineitem_availabilityzone as availability_zone,
         product_region as region,
+        resourcetags as tags,
         product_instancetype as instance_type,
         pricing_unit as unit,
         sum(lineitem_usageamount) as usage_amount,
@@ -20,12 +21,16 @@ CREATE TABLE hive.{{schema | sqlsafe}}.presto_aws_daily_summary_{{uuid | sqlsafe
         max(pricing_publicondemandrate) as public_on_demand_rate,
         array_agg(DISTINCT lineitem_resourceid) as resource_ids
     FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
+    WHERE date(lineitem_usagestartdate) >= date('{{start_date | sqlsafe}}')
+        AND date(lineitem_usagestartdate) <= date('{{end_date | sqlsafe}}')
+        -- TODO: ADD partitions year and month to this
     GROUP BY date(lineitem_usagestartdate),
         lineitem_productcode,
         lineitem_usageaccountid,
         lineitem_availabilityzone,
         product_productfamily,
         product_region,
+        resourcetags,
         product_instancetype,
         pricing_unit
 )
