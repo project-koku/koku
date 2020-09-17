@@ -20,7 +20,7 @@ from masu.processor.report_parquet_processor_base import ReportParquetProcessorB
 
 class AWSReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
-        aws_table_name = f"acct{account}.source_{provider_uuid.replace('-', '_')}_manifest_{manifest_id}"
+        aws_table_name = f"source_{provider_uuid.replace('-', '_')}_aws_line_items"
         numeric_columns = [
             "lineitem_normalizationfactor",
             "lineitem_normalizedusageamount",
