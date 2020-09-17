@@ -40,7 +40,7 @@ def find_db_functions_dir(db_func_dir_name="db_functions"):
     return path
 
 
-def apply_sql_file(conn, path):
+def apply_sql_file(conn, path, literal_placeholder=False):
     """
     Reads the contents of the given SQL file and passes the buffer to the executor
     for application to the database.
@@ -51,6 +51,8 @@ def apply_sql_file(conn, path):
         True
     """
     sqlbuff = open(path, "rt").read()
+    if literal_placeholder:
+        sqlbuff = sqlbuff.replace("%", "%%")
     if isinstance(conn, BaseDatabaseSchemaEditor):
         conn.execute(sqlbuff)
     else:

@@ -21,7 +21,9 @@ import logging
 from os import path
 from os import remove
 
+import ciso8601
 from django.conf import settings
+from django.db import transaction
 
 from masu.config import Config
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -29,6 +31,7 @@ from masu.processor.report_processor_base import ReportProcessorBase
 from reporting.provider.aws.models import AWSCostEntry
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItem
+from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSCostEntryPricing
 from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
@@ -51,6 +54,7 @@ class ProcessedReport:
         self.products = {}
         self.reservations = {}
         self.pricing = {}
+        self.requested_partitions = set()
 
     def remove_processed_rows(self):
         """Clear a batch of rows from their containers."""
@@ -109,7 +113,7 @@ class AWSReportProcessor(ReportProcessorBase):
         )
         LOG.info(stmt)
 
-    def process(self):
+    def process(self):  # noqa: C901
         """Process CUR file.
 
         Returns:
@@ -143,6 +147,19 @@ class AWSReportProcessor(ReportProcessorBase):
                         row, "lineItem/UsageStartDate", is_full_month, is_finalized=is_finalized_data
                     ):
                         continue
+
+                    li_usage_dt = row.get("lineItem/UsageStartDate")
+                    if li_usage_dt:
+                        try:
+                            li_usage_dt = ciso8601.parse_datetime(li_usage_dt).date().replace(day=1)
+                        except (ValueError, TypeError):
+                            pass  # This is just gathering requested partition start values
+                            # If it's invalid, then it's OK to omit storing that value
+                            # as it only pertains to a requested partition.
+                        else:
+                            if li_usage_dt not in self.processed_report.requested_partitions:
+                                self.processed_report.requested_partitions.add(li_usage_dt)
+
                     bill_id = self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
                         LOG.debug(
@@ -290,9 +307,12 @@ class AWSReportProcessor(ReportProcessorBase):
 
         data["provider_id"] = self._provider_uuid
 
-        bill_id = report_db_accessor.insert_on_conflict_do_nothing(
-            table_name, data, conflict_columns=["bill_type", "payer_account_id", "billing_period_start", "provider_id"]
-        )
+        with transaction.atomic():
+            bill_id = report_db_accessor.insert_on_conflict_do_nothing(
+                table_name,
+                data,
+                conflict_columns=["bill_type", "payer_account_id", "billing_period_start", "provider_id"],
+            )
 
         self.processed_report.bills[key] = bill_id
 
@@ -321,8 +341,8 @@ class AWSReportProcessor(ReportProcessorBase):
             return self.existing_cost_entry_map[key]
 
         data = {"bill_id": bill_id, "interval_start": start, "interval_end": end}
-
-        cost_entry_id = report_db_accessor.insert_on_conflict_do_nothing(table_name, data)
+        with transaction.atomic():
+            cost_entry_id = report_db_accessor.insert_on_conflict_do_nothing(table_name, data)
         self.processed_report.cost_entries[key] = cost_entry_id
 
         return cost_entry_id
@@ -387,7 +407,8 @@ class AWSReportProcessor(ReportProcessorBase):
         if value_set == {""}:
             return
 
-        pricing_id = report_db_accessor.insert_on_conflict_do_nothing(table_name, data)
+        with transaction.atomic():
+            pricing_id = report_db_accessor.insert_on_conflict_do_nothing(table_name, data)
         self.processed_report.pricing[key] = pricing_id
 
         return pricing_id
@@ -418,9 +439,10 @@ class AWSReportProcessor(ReportProcessorBase):
         value_set = set(data.values())
         if value_set == {""}:
             return
-        product_id = report_db_accessor.insert_on_conflict_do_nothing(
-            table_name, data, conflict_columns=["sku", "product_name", "region"]
-        )
+        with transaction.atomic():
+            product_id = report_db_accessor.insert_on_conflict_do_nothing(
+                table_name, data, conflict_columns=["sku", "product_name", "region"]
+            )
         self.processed_report.products[key] = product_id
         return product_id
 
@@ -453,14 +475,15 @@ class AWSReportProcessor(ReportProcessorBase):
             return reservation_id
 
         # Special rows with additional reservation information
-        if line_item_type == "rifee":
-            reservation_id = report_db_accessor.insert_on_conflict_do_update(
-                table_name, data, conflict_columns=["reservation_arn"], set_columns=list(data.keys())
-            )
-        else:
-            reservation_id = report_db_accessor.insert_on_conflict_do_nothing(
-                table_name, data, conflict_columns=["reservation_arn"]
-            )
+        with transaction.atomic():
+            if line_item_type == "rifee":
+                reservation_id = report_db_accessor.insert_on_conflict_do_update(
+                    table_name, data, conflict_columns=["reservation_arn"], set_columns=list(data.keys())
+                )
+            else:
+                reservation_id = report_db_accessor.insert_on_conflict_do_nothing(
+                    table_name, data, conflict_columns=["reservation_arn"]
+                )
         self.processed_report.reservations[arn] = reservation_id
 
         return reservation_id
@@ -478,3 +501,10 @@ class AWSReportProcessor(ReportProcessorBase):
         )
 
         return bill_id
+
+    def _save_to_db(self, temp_table, report_db):
+        # Create any needed partitions
+        existing_partitions = report_db.get_existing_partitions(AWSCostEntryLineItemDailySummary)
+        report_db.add_partitions(existing_partitions, self.processed_report.requested_partitions)
+        # Save batch to DB
+        super()._save_to_db(temp_table, report_db)
