@@ -306,3 +306,9 @@ def get_path_prefix(account, provider_uuid, start_date, data_type, file_type=Non
         if file_type == "parquet":
             path = f"{path_prefix}/{account}/{provider_uuid}/year={year}/month={month}"
     return path
+
+
+def get_hive_table_path(account, provider_uuid, data_type):
+    """Get the S3 bucket prefix without partitions for hive table location."""
+    path_prefix = f"{Config.WAREHOUSE_PATH}/{data_type}"
+    return f"{path_prefix}/{account}/{provider_uuid}"
