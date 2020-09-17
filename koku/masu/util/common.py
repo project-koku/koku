@@ -291,14 +291,18 @@ def date_range_pair(start_date, end_date, step=5):
         yield start_date.date(), end_date.date()
 
 
-def get_path_prefix(account, provider_uuid, start_date, data_type):
+def get_path_prefix(account, provider_uuid, start_date, data_type, file_type=None):
     """
     Get the S3 bucket prefix
     """
     path = None
+    if file_type:
+        file_type = file_type.lower()
     if start_date:
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         path_prefix = f"{Config.WAREHOUSE_PATH}/{data_type}"
         path = f"{path_prefix}/{account}/{provider_uuid}/{year}/{month}"
+        if file_type == "parquet":
+            path = f"{path_prefix}/{account}/{provider_uuid}/year={year}/month={month}"
     return path

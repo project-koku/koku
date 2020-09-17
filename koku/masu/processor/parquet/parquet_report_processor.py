@@ -121,7 +121,9 @@ class ParquetReportProcessor:
 
         s3_csv_path = get_path_prefix(account, provider_uuid, cost_date, Config.CSV_DATA_TYPE)
         local_path = f"{Config.TMP_DIR}/{account}/{provider_uuid}"
-        s3_parquet_path = get_path_prefix(account, provider_uuid, cost_date, Config.PARQUET_DATA_TYPE)
+        s3_parquet_path = get_path_prefix(
+            account, provider_uuid, cost_date, Config.PARQUET_DATA_TYPE, file_type="parquet"
+        )
 
         if not files:
             file_keys = self.get_file_keys_from_s3_with_manifest_id(request_id, s3_csv_path, manifest_id, context)
