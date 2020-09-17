@@ -108,6 +108,8 @@ help:
 	@echo "  docker-rabbit                        run RabbitMQ container"
 	@echo "  docker-reinitdb                      drop and recreate the database"
 	@echo "  docker-reinitdb-with-sources         drop and recreate the database with fake sources"
+	@echo "  docker-reinitdb-with-sources-lite    drop and recreate the database with fake sources without restarting everything"
+
 	@echo "  docker-shell                         run Django and database containers with shell access to server (for pdb)"
 	@echo "  docker-logs                          connect to console logs for all services"
 	@echo "  docker-test-all                      run unittests"
@@ -270,6 +272,9 @@ docker-reinitdb: docker-down-db remove-db docker-up-db run-migrations docker-res
 docker-reinitdb-with-sources: docker-down-db remove-db docker-up-db run-migrations docker-restart-koku create-test-customer
 	@echo "Local database re-initialized with a test customer and sources."
 
+docker-reinitdb-with-sources-lite: docker-down-db remove-db docker-up-db run-migrations create-test-customer
+	@echo "Local database re-initialized with a test customer and sources."
+
 docker-shell:
 	docker-compose run --service-ports koku-server
 
@@ -309,7 +314,12 @@ docker-up-no-build:
 docker-up-min:
 	docker-compose up --build -d db redis koku-server masu-server koku-worker
 
+docker-up-min-no-build:
+	docker-compose up -d db redis koku-server masu-server koku-worker
+
 docker-up-min-presto: docker-presto-up docker-up-min
+
+docker-up-min-presto-no-build: docker-presto-up docker-up-min-no-build
 
 docker-up-db:
 	docker-compose up -d db
@@ -352,6 +362,9 @@ docker-presto-setup:
 	@cp -fr deploy/presto/ testing/presto/
 	@cp -fr deploy/hadoop/ testing/hadoop/
 	@sed -i "" 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
+	@sed -i "" 's/DATABASE_NAME/$(shell echo $(or $(DATABASE_NAME),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
+	@sed -i "" 's/DATABASE_USER/$(shell echo $(or $(DATABASE_USER),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
+	@sed -i "" 's/DATABASE_PASSWORD/$(shell echo $(or $(DATABASE_PASSWORD),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
 
 docker-presto-cleanup:
 	@rm -fr testing/parquet_data testing/hadoop testing/metastore testing/presto
@@ -359,8 +372,9 @@ docker-presto-cleanup:
 docker-presto-up: docker-metastore-setup docker-presto-setup
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d
 
-docker-presto-down: docker-presto-cleanup
+docker-presto-down:
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down
+	make docker-presto-cleanup
 
 ### Source targets ###
 ocp-source-from-yaml:
