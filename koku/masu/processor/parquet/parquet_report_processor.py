@@ -40,7 +40,9 @@ from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import get_s3_resource
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.common import get_column_converters
+from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
+
 
 LOG = logging.getLogger(__name__)
 CSV_GZIP_EXT = ".csv.gz"
@@ -303,11 +305,15 @@ class ParquetReportProcessor:
             LOG.warn(log_json(request_id, msg, context))
             return False
 
+        s3_hive_table_path = get_hive_table_path(
+            context.get("account"), context.get("provider_uuid"), Config.PARQUET_DATA_TYPE
+        )
+
         self.create_parquet_table(
             context.get("account"),
             context.get("provider_uuid"),
             manifest_id,
-            s3_parquet_path,
+            s3_hive_table_path,
             output_file,
             report_type,
         )
