@@ -133,7 +133,7 @@ class AzureCostEntryLineItemDailySummary(models.Model):
         # via RunSQL migration operation
         # Function: (upper(service_name) gin_trgm_ops)
 
-    id = models.BigAutoField(primary_key=True)
+    uuid = models.UUIDField(primary_key=True)
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
     meter = models.ForeignKey("AzureMeter", on_delete=models.SET_NULL, null=True)
     subscription_guid = models.TextField(null=False)

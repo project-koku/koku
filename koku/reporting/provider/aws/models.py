@@ -194,7 +194,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
             # Function: (upper(product_code) gin_trgm_ops)
         ]
 
-    id = models.BigAutoField(primary_key=True)
+    uuid = models.UUIDField(primary_key=True)
 
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE, null=True)
 
@@ -212,7 +212,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
 
     # The following fields are aggregates
-    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+    resource_ids = ArrayField(models.TextField(), null=True)
     resource_count = models.IntegerField(null=True)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     normalization_factor = models.FloatField(null=True)

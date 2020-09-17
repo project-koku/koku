@@ -208,7 +208,7 @@ class OCPUsageLineItemDailySummary(models.Model):
 
         managed = False
 
-    id = models.BigAutoField(primary_key=True)
+    uuid = models.UUIDField(primary_key=True)
 
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
