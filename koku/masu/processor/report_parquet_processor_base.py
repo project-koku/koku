@@ -65,8 +65,7 @@ class ReportParquetProcessorBase:
     def _generate_column_list(self):
         """Generate column list based on parquet file."""
         parquet_file = self._parquet_path
-        table = pq.read_table(parquet_file)
-        return table.column_names
+        return pq.ParquetFile(parquet_file).schema.names
 
     def _generate_create_table_sql(self):
         """Generate SQL to create table."""
@@ -85,9 +84,12 @@ class ReportParquetProcessorBase:
             sql += f"{norm_col} {col_type}"
             if idx < (len(parquet_columns) - 1):
                 sql += ","
+        sql += ",year varchar, month varchar"
 
-        sql += f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET')"
-        LOG.debug(f"Create Parquet Table SQL: {sql}")
+        sql += (
+            f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET', partitioned_by=ARRAY['year', 'month'])"
+        )
+        LOG.info(f"Create Parquet Table SQL: {sql}")
         return sql
 
     def create_table(self):
