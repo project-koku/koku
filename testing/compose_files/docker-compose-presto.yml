@@ -32,7 +32,7 @@ services:
 
   hive-metastore:
     container_name: hive-metastore
-    image: registry.redhat.io/openshift4/ose-metering-hive:v4.4
+    image: quay.io/coreos/hive:release-4.6
     entrypoint:  ["/hive-scripts/entrypoint.sh", "/opt/hive/bin/hive", "--service", "metastore"]
     ports:
       - "9083:9083"
@@ -53,7 +53,7 @@ services:
 
   presto:
     container_name: presto
-    image: registry.redhat.io/openshift4/ose-metering-presto:v4.4
+    image: quay.io/coreos/presto:release-4.6
     user: root
     command: /presto-common/initialize_presto.sh
     ports:
