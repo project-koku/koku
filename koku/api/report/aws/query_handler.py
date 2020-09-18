@@ -93,8 +93,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
 
-        self.is_csv_output = parameters.accept_type and "text/csv" in self.parameters.accept_type
-
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
 
@@ -259,9 +257,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         # grab the base query
         # (without org_units this is the only query - with org_units this is the query to find the accounts)
-        query_data, query_sum = self.execute_individual_query(
-            org_unit_applied, ((not org_unit_applied) and self.is_csv_output)
-        )
+        query_data, query_sum = self.execute_individual_query(org_unit_applied)
 
         # Next we want to loop through each sub_org and execute the query for it
         if org_unit_applied:
@@ -281,7 +277,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 if org_access is None or (sub_org_id in org_access or "*" in org_access):
                     self.parameters.set_filter(org_unit_id=[sub_org_id])
                 self.query_filter = self._get_filter()
-                sub_query_data, sub_query_sum = self.execute_individual_query(org_unit_applied, False)
+                sub_query_data, sub_query_sum = self.execute_individual_query(org_unit_applied)
                 query_sum = self.total_sum(sub_query_sum, query_sum)
                 if not self.is_csv_output:
                     query_data_results[sub_org_name] = sub_query_data
@@ -526,7 +522,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     sum2[expected_key] = self.total_sum(sum1.get(expected_key), sum2.get(expected_key))
         return sum2
 
-    def execute_individual_query(self, org_unit_applied=False, is_csv_output=False):  # noqa: C901
+    def execute_individual_query(self, org_unit_applied=False):  # noqa: C901
         """Execute query and return provided data.
 
         Returns:
@@ -534,6 +530,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         """
         data = []
+        is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
         with tenant_context(self.tenant):
             query_table = self.query_table
@@ -590,12 +587,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 for res in query_results:
                     res["tags_exist"] = tag_results.get(res["account_alias"], False)
 
-            if is_csv_output:
-                if self._limit:
-                    data = self._ranked_list(query_results)
-                else:
-                    data = query_results
-            else:
+            if not is_csv_output:
                 groups = copy.deepcopy(query_group_by)
                 groups.remove("date")
                 data = self._apply_group_by(query_results, groups)
