@@ -93,6 +93,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
 
+        self.is_csv_output = parameters.accept_type and "text/csv" in self.parameters.accept_type
+
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
 
@@ -195,8 +197,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         original_filters = copy.deepcopy(self.parameters.parameters.get("filter"))
         sub_orgs_dict = {}
         query_data_results = {}
-        query_sum_results = []
         org_unit_applied = False
+        csv_results = []
         group_by_param = self.parameters.parameters.get("group_by")
         ou_group_by_key = None
         for potential_key in ["org_unit_id", "or:org_unit_id"]:
@@ -254,35 +256,50 @@ class AWSReportQueryHandler(ReportQueryHandler):
             # First we need to modify the parameters to get all accounts if org unit group_by is used
             self.parameters.set_filter(org_unit_single_level=org_unit_group_by_data)
             self.query_filter = self._get_filter()
+
         # grab the base query
         # (without org_units this is the only query - with org_units this is the query to find the accounts)
-        query_data, query_sum = self.execute_individual_query(org_unit_applied)
+        query_data, query_sum = self.execute_individual_query(
+            org_unit_applied, ((not org_unit_applied) and self.is_csv_output)
+        )
+
         # Next we want to loop through each sub_org and execute the query for it
-        for sub_org_name, value in sub_orgs_dict.items():
-            sub_org_id, org_unit_path = value
-            if self.parameters.get_filter("org_unit_id"):
-                self.parameters.parameters["filter"].pop("org_unit_id")
-            if self.parameters.get_filter("org_unit_single_level"):
-                self.parameters.parameters["filter"].pop("org_unit_single_level")
-            if self.parameters.parameters["group_by"].get("account"):
-                self.parameters.parameters["group_by"].pop("account")
-            # only add the org_unit to the filter if the user has access
-            # through RBAC so that we avoid returning a 403
-            org_access = None
-            if self.access:
-                org_access = self.access.get("aws.organizational_unit", {}).get("read", [])
-            if org_access is None or (sub_org_id in org_access or "*" in org_access):
-                self.parameters.set_filter(org_unit_id=[sub_org_id])
-            self.query_filter = self._get_filter()
-            sub_query_data, sub_query_sum = self.execute_individual_query(org_unit_applied)
-            query_data_results[sub_org_name] = sub_query_data
-            query_sum_results.append(sub_query_sum)
         if org_unit_applied:
-            query_data = self.format_sub_org_results(query_data_results, query_data, sub_orgs_dict)
+            for sub_org_name, value in sub_orgs_dict.items():
+                sub_org_id, _ = value
+                if self.parameters.get_filter("org_unit_id"):
+                    self.parameters.parameters["filter"].pop("org_unit_id")
+                if self.parameters.get_filter("org_unit_single_level"):
+                    self.parameters.parameters["filter"].pop("org_unit_single_level")
+                if self.parameters.parameters["group_by"].get("account"):
+                    self.parameters.parameters["group_by"].pop("account")
+                # only add the org_unit to the filter if the user has access
+                # through RBAC so that we avoid returning a 403
+                org_access = None
+                if self.access:
+                    org_access = self.access.get("aws.organizational_unit", {}).get("read", [])
+                if org_access is None or (sub_org_id in org_access or "*" in org_access):
+                    self.parameters.set_filter(org_unit_id=[sub_org_id])
+                self.query_filter = self._get_filter()
+                sub_query_data, sub_query_sum = self.execute_individual_query(org_unit_applied, False)
+                query_sum = self.total_sum(sub_query_sum, query_sum)
+                if not self.is_csv_output:
+                    query_data_results[sub_org_name] = sub_query_data
+                else:
+                    if len(csv_results) == 0:
+                        csv_results = query_data if isinstance(query_data, list) else list(query_data)
+                    csv_results.extend(sub_query_data)
+
+        if not self.is_csv_output:
+            if org_unit_applied:
+                query_data = self.format_sub_org_results(query_data_results, query_data, sub_orgs_dict)
+        else:
+            if self._limit:
+                query_data = self._ranked_list(csv_results) if self._limit else csv_results
+            else:
+                query_data = csv_results
+
         # Add each of the sub_org sums to the query_sum
-        if query_sum_results:
-            for sub_query in query_sum_results:
-                query_sum = self.total_sum(sub_query, query_sum)
         self.query_data = query_data
         self.query_sum = query_sum
 
@@ -509,7 +526,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     sum2[expected_key] = self.total_sum(sum1.get(expected_key), sum2.get(expected_key))
         return sum2
 
-    def execute_individual_query(self, org_unit_applied=False):  # noqa: C901
+    def execute_individual_query(self, org_unit_applied=False, is_csv_output=False):  # noqa: C901
         """Execute query and return provided data.
 
         Returns:
@@ -559,8 +576,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
-
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
             query_data = self.order_by(query_data, query_order_by)
 
