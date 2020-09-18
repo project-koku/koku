@@ -80,7 +80,7 @@ class UploadAwsTree:
         json_info = {
             "name": "aws_org_tree",
             "source_type": "AWS-local",
-            "authentication": {"credentials": {"role_arn": require_env("AWS_RESOURCE_NAME")}},
+            "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/LocalAWSSource"}},
             "billing_source": {"data_source": {"bucket": "/tmp/local_bucket_1"}},
         }
         LOG.info("Creating a source with the following information:\n" f"\t{json_info}")
