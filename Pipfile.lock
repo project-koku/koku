@@ -54,11 +54,10 @@
         },
         "azure-mgmt-resource": {
             "hashes": [
-                "sha256:ddfe4c0c55f0e3fd1f66dd82c1d4a3d872ce124639b9a77fcd172daf464438a5",
-                "sha256:e7e72209e7b7f0e1fc5ff43caab1e95d8893f286300338bbfe9a884cb9342c17"
+                "sha256:15bb46ef4b197426ce7ce8080a490c997111f3f3efe9f728cf8dc420982d54a2",
+                "sha256:80ecb69aa21152b924edf481e4b26c641f11aa264120bc322a14284811df9c14"
             ],
-            "index": "pypi",
-            "version": "==10.2.0"
+            "version": "==15.0.0"
         },
         "azure-mgmt-storage": {
             "hashes": [
@@ -1040,11 +1039,10 @@
         },
         "azure-mgmt-resource": {
             "hashes": [
-                "sha256:ddfe4c0c55f0e3fd1f66dd82c1d4a3d872ce124639b9a77fcd172daf464438a5",
-                "sha256:e7e72209e7b7f0e1fc5ff43caab1e95d8893f286300338bbfe9a884cb9342c17"
+                "sha256:15bb46ef4b197426ce7ce8080a490c997111f3f3efe9f728cf8dc420982d54a2",
+                "sha256:80ecb69aa21152b924edf481e4b26c641f11aa264120bc322a14284811df9c14"
             ],
-            "index": "pypi",
-            "version": "==10.2.0"
+            "version": "==15.0.0"
         },
         "azure-mgmt-storage": {
             "hashes": [
