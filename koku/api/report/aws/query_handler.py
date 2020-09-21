@@ -92,6 +92,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
+        self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
@@ -530,7 +531,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         """
         data = []
-        is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
         with tenant_context(self.tenant):
             query_table = self.query_table
@@ -587,7 +587,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 for res in query_results:
                     res["tags_exist"] = tag_results.get(res["account_alias"], False)
 
-            if not is_csv_output:
+            if not self.is_csv_output:
                 groups = copy.deepcopy(query_group_by)
                 groups.remove("date")
                 data = self._apply_group_by(query_results, groups)
