@@ -30,6 +30,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
 from api.report.aws.provider_map import AWSProviderMap
+from api.report.aws.provider_map import CSV_FIELD_MAP
 from api.report.queries import ReportQueryHandler
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
@@ -186,6 +187,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         return query_data
 
+    def _set_csv_output_fields(self, query_data):
+        return [{CSV_FIELD_MAP.get(k, k): d[k] for k in d} for d in query_data]
+
     def execute_query(self):  # noqa: C901
         """Execute each query needed to return the results.
 
@@ -298,6 +302,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 query_data = self._ranked_list(csv_results) if self._limit else csv_results
             else:
                 query_data = csv_results
+
+            query_data = self._set_csv_output_fields(query_data)
 
         # Add each of the sub_org sums to the query_sum
         self.query_data = query_data
