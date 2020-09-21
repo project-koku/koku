@@ -286,6 +286,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     if len(csv_results) == 0:
                         csv_results = query_data if isinstance(query_data, list) else list(query_data)
                     csv_results.extend(sub_query_data)
+        else:
+            if self.is_csv_output:
+                csv_results = query_data
 
         if not self.is_csv_output:
             if org_unit_applied:
@@ -592,6 +595,8 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 groups.remove("date")
                 data = self._apply_group_by(query_results, groups)
                 data = self._transform_data(query_group_by, 0, data)
+            else:
+                data = query_results
 
         key_order = list(["units"] + list(annotations.keys()))
         ordered_total = {total_key: query_sum[total_key] for total_key in key_order if total_key in query_sum}
