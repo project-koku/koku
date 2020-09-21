@@ -223,6 +223,7 @@ class ParquetReportProcessor:
                 )
 
             processor.create_table()
+            processor.create_bill()
 
     def convert_csv_to_parquet(  # noqa: C901
         self,

@@ -15,14 +15,18 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Processor for OCP Parquet files."""
+import ciso8601
+from dateutil import parser
+from tenant_schemas.utils import schema_context
+
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
+from masu.util.ocp import common as utils
+from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 
 class OCPReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
-        ocp_table_name = (
-            f"acct{account}.source_{provider_uuid.replace('-', '_')}_type_{report_type}_manifest_{manifest_id}"
-        )
+        ocp_table_name = f"source_{provider_uuid.replace('-', '_')}_type_{report_type}_manifest_{manifest_id}"
         numeric_columns = [
             "pod_usage_cpu_core_seconds",
             "pod_request_cpu_core_seconds",
@@ -50,3 +54,30 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             date_columns=date_columns,
             table_name=ocp_table_name,
         )
+
+    def create_bill(self):
+        """Create bill postgres entry."""
+        sql = f"select distinct(report_period_start), report_period_end from {self._table_name}"
+        rows = self._execute_sql(sql, self._schema_name)
+        provider = self._get_provider()
+        cluster_id = utils.get_cluster_id_from_provider(provider.uuid)
+        cluster_alias = utils.get_cluster_alias_from_cluster_id(cluster_id)
+
+        if rows:
+            results = rows.pop()
+            if results:
+                usage_date = results.pop()
+                report_date_range = utils.month_date_range(parser.parse(usage_date))
+                start_date, end_date = report_date_range.split("-")
+
+                report_period_start = ciso8601.parse_datetime(start_date.replace(" +0000 UTC", "+0000"))
+                report_period_end = ciso8601.parse_datetime(end_date.replace(" +0000 UTC", "+0000"))
+
+                with schema_context(self._schema_name):
+                    OCPUsageReportPeriod.objects.get_or_create(
+                        cluster_id=cluster_id,
+                        cluster_alias=cluster_alias,
+                        report_period_start=report_period_start,
+                        report_period_end=report_period_end,
+                        provider=provider,
+                    )

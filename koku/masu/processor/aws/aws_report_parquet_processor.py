@@ -15,7 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Processor for AWS Parquet files."""
+from tenant_schemas.utils import schema_context
+
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
+from reporting.provider.aws.models import AWSCostEntryBill
 
 
 class AWSReportParquetProcessor(ReportParquetProcessorBase):
@@ -48,3 +51,23 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
             date_columns=date_columns,
             table_name=aws_table_name,
         )
+
+    def create_bill(self):
+        """Create bill postgres entry."""
+        sql = (
+            f"select distinct(bill_billingperiodstartdate), bill_billingperiodenddate, "
+            f"bill_billtype, bill_payeraccountid from {self._table_name}"
+        )
+        rows = self._execute_sql(sql, self._schema_name)
+        provider = self._get_provider()
+        if rows:
+            results = rows.pop()
+            start_date, end_date, bill_type, payer_account_id = results
+            with schema_context(self._schema_name):
+                AWSCostEntryBill.objects.get_or_create(
+                    bill_type=bill_type,
+                    billing_period_start=start_date,
+                    billing_period_end=end_date,
+                    payer_account_id=payer_account_id,
+                    provider=provider,
+                )

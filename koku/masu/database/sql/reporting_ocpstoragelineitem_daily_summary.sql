@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsafe}} AS (
     WITH cte_array_agg_keys AS (
         SELECT array_agg(key) as key_array
@@ -27,7 +29,8 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsa
         WHERE key = ANY (key_array)
         GROUP BY id
     )
-    SELECT li.report_period_id,
+    SELECT uuid_generate_v4() as uuid,
+        li.report_period_id,
         li.cluster_id,
         li.cluster_alias,
         li.namespace,
@@ -94,6 +97,7 @@ CALL public.create_date_partitions(
 -- Populate the daily aggregate line item data
 -- THIS IS A PARTITONED TABLE
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+    uuid,
     report_period_id,
     cluster_id,
     cluster_alias,
@@ -112,7 +116,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     persistentvolumeclaim_usage_gigabyte_months,
     source_uuid
 )
-    SELECT report_period_id,
+    SELECT uuid,
+        report_period_id,
         cluster_id,
         cluster_alias,
         'Storage',

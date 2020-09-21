@@ -20,6 +20,9 @@ import logging
 import prestodb
 import pyarrow.parquet as pq
 from django.conf import settings
+from tenant_schemas.utils import schema_context
+
+from api.models import Provider
 
 LOG = logging.getLogger(__name__)
 
@@ -55,6 +58,14 @@ class ReportParquetProcessorBase:
             cur.execute(sql)
             rows = cur.fetchall()
             LOG.debug(f"_execute_sql rows: {str(rows)}. Type: {type(rows)}")
+        return rows
+
+    def _get_provider(self):
+        """Retrieve the postgres provider id."""
+        with schema_context(self._schema_name):
+            obj = Provider.objects.get(uuid=self._provider_uuid)
+            return obj
+        return None
 
     def _create_schema(self,):
         """Create presto schema."""
