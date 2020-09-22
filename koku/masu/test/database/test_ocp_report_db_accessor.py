@@ -802,6 +802,80 @@ class OCPReportDBAccessorTest(MasuTestCase):
             for monthly_cost_row in monthly_cost_rows:
                 self.assertEquals(monthly_cost_row.supplementary_monthly_cost, cluster_rate)
 
+    def test_populate_monthly_cost_pvc_infrastructure_cost(self):
+        """Test that the monthly infrastructure cost row for PVC in the summary table is populated."""
+        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+
+        pvc_rate = random.randrange(1, 100)
+
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+
+        first_month, _ = month_date_range_tuple(start_date)
+
+        cluster_alias = "test_cluster_alias"
+        self.accessor.populate_monthly_cost(
+            "PVC", "Infrastructure", pvc_rate, start_date, end_date, self.cluster_id, cluster_alias
+        )
+
+        monthly_cost_rows = (
+            self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+            .filter(usage_start=first_month, infrastructure_monthly_cost__isnull=False)
+            .all()
+        )
+        with schema_context(self.schema):
+            expected_count = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    report_period__provider_id=self.ocp_provider.uuid,
+                    usage_start__gte=start_date,
+                    persistentvolumeclaim__isnull=False,
+                )
+                .values("persistentvolumeclaim")
+                .distinct()
+                .count()
+            )
+            self.assertEquals(monthly_cost_rows.count(), expected_count)
+            for monthly_cost_row in monthly_cost_rows:
+                self.assertEquals(monthly_cost_row.infrastructure_monthly_cost, pvc_rate)
+
+    def test_populate_monthly_cost_pvc_supplementary_cost(self):
+        """Test that the monthly supplementary cost row for PVC in the summary table is populated."""
+        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+
+        pvc_rate = random.randrange(1, 100)
+
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+
+        first_month, _ = month_date_range_tuple(start_date)
+
+        cluster_alias = "test_cluster_alias"
+        self.accessor.populate_monthly_cost(
+            "PVC", "Supplementary", pvc_rate, start_date, end_date, self.cluster_id, cluster_alias
+        )
+
+        monthly_cost_rows = (
+            self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+            .filter(usage_start=first_month, supplementary_monthly_cost__isnull=False)
+            .all()
+        )
+        with schema_context(self.schema):
+            expected_count = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    report_period__provider_id=self.ocp_provider.uuid,
+                    usage_start__gte=start_date,
+                    persistentvolumeclaim__isnull=False,
+                )
+                .values("persistentvolumeclaim")
+                .distinct()
+                .count()
+            )
+            self.assertEquals(monthly_cost_rows.count(), expected_count)
+            for monthly_cost_row in monthly_cost_rows:
+                self.assertEquals(monthly_cost_row.supplementary_monthly_cost, pvc_rate)
+
     def test_remove_monthly_cost(self):
         """Test that the monthly cost row in the summary table is removed."""
         self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
