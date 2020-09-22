@@ -142,6 +142,14 @@ class AzureReportProcessor(ReportProcessorBase):
 
         return json.dumps(tag_dict)
 
+    def _get_and_verify_row_value(self, row, key):
+        """Get the row value and throw exception if not populated."""
+        value = row.get(key)
+        if value:
+            return value
+        else:
+            raise Exception(f"Azure row value not populated for column {key}")
+
     def _create_cost_entry_bill(self, row, report_db_accessor):
         """Create a cost entry bill object.
 
@@ -152,7 +160,7 @@ class AzureReportProcessor(ReportProcessorBase):
             (str): A cost entry bill object id
 
         """
-        row_date = row.get("UsageDateTime")
+        row_date = self._get_and_verify_row_value(row, "UsageDateTime")
 
         report_date_range = utils.month_date_range(ciso8601.parse_datetime(row_date))
         start_date, end_date = report_date_range.split("-")
@@ -191,10 +199,10 @@ class AzureReportProcessor(ReportProcessorBase):
             (str): The DB id of the product object
 
         """
-        instance_id = row.get("InstanceId")
-        additional_info = row.get("AdditionalInfo")
-        service_name = row.get("ServiceName")
-        service_tier = row.get("ServiceTier")
+        instance_id =  self._get_and_verify_row_value(row, "InstanceId")
+        additional_info =  row.get("AdditionalInfo")
+        service_name =  self._get_and_verify_row_value(row, "ServiceName")
+        service_tier =  self._get_and_verify_row_value(row, "ServiceTier")
 
         decoded_info = None
         if additional_info:
@@ -236,7 +244,7 @@ class AzureReportProcessor(ReportProcessorBase):
             (str): The DB id of the product object
 
         """
-        meter_id = row.get("MeterId")
+        meter_id =  self._get_and_verify_row_value(row, "MeterId")
 
         key = (meter_id,)
 

@@ -422,3 +422,10 @@ class AzureReportProcessorTest(MasuTestCase):
         self.assertEqual(processor._process_tags(tag_str_as_json), expected_tag_str)
         self.assertEqual(processor._process_tags(tag_str_no_json), expected_tag_str)
         self.assertEqual(processor._process_tags(""), "{}")
+
+    def test_get_and_verify_row_value(self):
+        """Test that Exception is thrown with empty dictionary value."""
+        row = {"Foo": "Bar", "FooNone": None}
+        self.assertEqual(self.processor._get_and_verify_row_value(row, "Foo"), "Bar")
+        with self.assertRaises(Exception):
+            self.processor._get_and_verify_row_value(row, "FooNone")
