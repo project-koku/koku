@@ -17,6 +17,7 @@
 from django.db.models import F
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
+from rest_framework import filters
 from rest_framework import generics
 
 from api.common import CACHE_RH_IDENTITY_HEADER
@@ -28,11 +29,11 @@ from reporting.provider.ocp.models import OCPCostSummaryByNode
 class OCPNodesView(generics.ListAPIView):
     """API GET list view for Openshift nodes."""
 
-    queryset = (
-        OCPCostSummaryByNode.objects.annotate(**{"value": F("node")}).values("value").distinct().order_by("value")
-    )
+    queryset = OCPCostSummaryByNode.objects.annotate(**{"value": F("node")}).values("value").distinct()
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
+    filter_backends = [filters.OrderingFilter]
+    ordering = ["value"]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
