@@ -1,9 +1,9 @@
 WITH cte_tag_value(key, value, report_period_id, namespace) AS (
-
     SELECT key,
         value,
         li.report_period_id,
-        li.namespace
+        li.namespace,
+        li.node
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily AS li,
         jsonb_each_text(li.pod_labels) labels
     {% if report_periods %}
@@ -13,37 +13,39 @@ WITH cte_tag_value(key, value, report_period_id, namespace) AS (
     {%- endfor -%}
     )
     {% endif %}
-    GROUP BY key, value, li.report_period_id, li.namespace
+    GROUP BY key, value, li.report_period_id, li.namespace, li.node
 ),
 cte_values_agg AS (
     SELECT key,
         array_agg(DISTINCT value) as values,
         report_period_id,
-        namespace
+        namespace,
+        node
     FROM cte_tag_value
-    GROUP BY key, report_period_id, namespace
+    GROUP BY key, report_period_id, namespace, node
 )
 , ins1 AS (
-    INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary (key, report_period_id, namespace, values)
-    SELECT key,
+    INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary (uuid, key, report_period_id, namespace, node, values)
+    SELECT uuid_generate_v4() as uuid,
+        key,
         report_period_id,
         namespace,
+        node,
         values
     FROM cte_values_agg
     ON CONFLICT (key, report_period_id, namespace) DO UPDATE SET values=EXCLUDED.values
-    RETURNING key, id AS key_id
     )
-, ins2 AS (
-   INSERT INTO {{schema | sqlsafe}}.reporting_ocptags_values (value)
-   SELECT DISTINCT d.value
-   FROM cte_tag_value d
-   ON CONFLICT (value) DO UPDATE SET value=EXCLUDED.value
-   RETURNING value, id AS values_id
-    )
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary_values_mtm (ocpusagepodlabelsummary_id, ocptagsvalues_id)
-SELECT DISTINCT ins1.key_id, ins2.values_id
-FROM cte_tag_value d
-INNER JOIN ins1 ON d.key = ins1.key
-INNER JOIN ins2 ON d.value = ins2.value
-ON CONFLICT (ocpusagepodlabelsummary_id, ocptagsvalues_id) DO NOTHING
+INSERT INTO {{schema | sqlsafe}}.reporting_ocptags_values (uuid, key, value, cluster_ids, cluster_aliases, namespaces, nodes)
+SELECT uuid_generate_v4() as uuid,
+    tv.key,
+    tv.value,
+    array_agg(DISTINCT rp.cluster_id) as cluster_ids,
+    array_agg(DISTINCT rp.cluster_alias) as cluster_aliases,
+    array_agg(DISTINCT tv.namespace) as namespaces,
+    array_agg(DISTINCT tv.node) as nodes
+FROM cte_tag_value AS tv
+JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
+    ON tv.report_period_id = rp.id
+GROUP BY tv.key, tv.value
+ON CONFLICT (key, value) DO UPDATE SET namespaces=EXCLUDED.namespaces, nodes=EXCLUDED.nodes, cluster_ids=EXCLUDED.cluster_ids, cluster_aliases=EXCLUDED.cluster_aliases
 ;
