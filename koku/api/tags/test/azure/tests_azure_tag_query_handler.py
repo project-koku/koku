@@ -175,12 +175,7 @@ class AzureTagQueryHandlerTest(IamTestCase):
         handler = AzureTagQueryHandler(query_params)
         handler.key = key
         with tenant_context(self.tenant):
-            tags = (
-                AzureTagsValues.objects.filter(azuretagssummary__key__exact=key, value=value)
-                .values("value")
-                .distinct()
-                .all()
-            )
+            tags = AzureTagsValues.objects.filter(key__exact=key, value=value).values("value").distinct().all()
             tag_values = [tag.get("value") for tag in tags]
         expected = {"key": key, "values": tag_values}
         result = handler.get_tag_values()
@@ -198,10 +193,7 @@ class AzureTagQueryHandlerTest(IamTestCase):
         handler = AzureTagQueryHandler(query_params)
         with tenant_context(self.tenant):
             tags = (
-                AzureTagsValues.objects.filter(azuretagssummary__key__exact=key, value__icontains=value)
-                .values("value")
-                .distinct()
-                .all()
+                AzureTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
             )
             tag_values = [tag.get("value") for tag in tags]
         expected = {"key": key, "values": tag_values}
