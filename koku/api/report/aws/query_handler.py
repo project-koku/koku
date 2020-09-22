@@ -188,7 +188,13 @@ class AWSReportQueryHandler(ReportQueryHandler):
         return query_data
 
     def _set_csv_output_fields(self, query_data):
-        return [{CSV_FIELD_MAP.get(k, k): d[k] for k in d} for d in query_data]
+        for rec in query_data:
+            for target, mapped in CSV_FIELD_MAP.items():
+                if target in rec:
+                    rec[mapped] = rec[target]
+                    del rec[target]
+
+        return query_data
 
     def execute_query(self):  # noqa: C901
         """Execute each query needed to return the results.
@@ -284,23 +290,41 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 self.query_filter = self._get_filter()
                 sub_query_data, sub_query_sum = self.execute_individual_query(org_unit_applied)
                 query_sum = self.total_sum(sub_query_sum, query_sum)
+
+                # If we're processing for CSV output, then just append the results to a
+                # CSV output list and ensure that id, alias, and type are filled out correctly
                 if not self.is_csv_output:
                     query_data_results[sub_org_name] = sub_query_data
                 else:
+                    # Add the initial account query results, if not set
                     if len(csv_results) == 0:
-                        csv_results = query_data if isinstance(query_data, list) else list(query_data)
-                    csv_results.extend(sub_query_data)
+                        csv_results = [dict(type="account", **d) for d in query_data]
+                    # And extend by the org unit query results
+                    # keys "account_alias" and "account_id" are used here to match the query's
+                    # structure so that the CSV MAPPER can rename the proper keys as one of the
+                    # final steps in CSV processing
+                    csv_results.extend(
+                        dict(type="organizational_unit", account_alias=sub_org_name, account=sub_org_id, **d)
+                        for d in sub_query_data
+                    )
         else:
+            # If we're processing for CSV output, but were not processing
+            # org unit, then just make the CSV result list the initial query data results
             if self.is_csv_output:
                 csv_results = query_data
 
         if not self.is_csv_output:
+            # If not CSV output and org unit was applied, then reshape the output
+            # structures for the JSON serializer
             if org_unit_applied:
                 query_data = self.format_sub_org_results(query_data_results, query_data, sub_orgs_dict)
         else:
+            # For CSV output, if there was a limit, then sent *all* output (base + sub-org, if any)
+            # to the ranked list method
             if self._limit:
                 query_data = self._ranked_list(csv_results) if self._limit else csv_results
             else:
+                # Otherwise, just set the output intermediate variable to the CSV results list
                 query_data = csv_results
 
             query_data = self._set_csv_output_fields(query_data)
