@@ -310,6 +310,9 @@ class RateSerializer(serializers.Serializer):
             if tiered_rates == [] and tag_rates == []:
                 error_msg = f"{rate_keys_str} cannot be an empty list"
                 raise serializers.ValidationError(error_msg)
+            elif tiered_rates != [] and tag_rates != []:
+                error_msg = f"Set either '{self.RATE_TYPES[0]}' or '{self.RATE_TYPES[1]}' but not both"
+                raise serializers.ValidationError(error_msg)
             elif tiered_rates is not None and tiered_rates != []:
                 RateSerializer._validate_continuouse_tiers(tiered_rates)
             return data
