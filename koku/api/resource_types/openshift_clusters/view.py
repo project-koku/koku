@@ -28,7 +28,9 @@ from reporting.provider.ocp.models import OCPCostSummary
 class OCPClustersView(generics.ListAPIView):
     """API GET list view for Openshift clusters."""
 
-    queryset = OCPCostSummary.objects.annotate(**{"value": F("cluster_id")}).values("value").distinct()
+    queryset = (
+        OCPCostSummary.objects.annotate(**{"value": F("cluster_id")}).values("value").distinct().order_by("value")
+    )
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
 

@@ -28,8 +28,12 @@ from reporting.provider.ocp.models import OCPCostSummaryByProject
 class OCPProjectsView(generics.ListAPIView):
     """API GET list view for Openshift projects."""
 
-    queryset = OCPCostSummaryByProject.objects.annotate(**{"value": F("namespace")}).values("value").distinct()
-    # queryset = ocp_project_count = OCPCostSummaryByProject.objects.values("namespace").distinct().count()
+    queryset = (
+        OCPCostSummaryByProject.objects.annotate(**{"value": F("namespace")})
+        .values("value")
+        .distinct()
+        .order_by("value")
+    )
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
 
