@@ -34,13 +34,13 @@ class ResourceTypeAccessPermissionTest(TestCase):
         result = accessPerm.has_permission(request=req, view=None)
         self.assertTrue(result)
 
-    def test_has_perm_with_access_on_get(self):
+    def test_has_perm_with_no_access_on_get(self):
         """Test that a user read."""
         user = Mock(spec=User, admin=False)
         req = Mock(user=user, method="GET")
         accessPerm = ResourceTypeAccessPermission()
         result = accessPerm.has_permission(request=req, view=None)
-        self.assertTrue(result)
+        self.assertFalse(result)
 
     def test_has_perm_with_no_access_on_post(self):
         """Test that a user cannot execute POST."""
