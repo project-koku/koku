@@ -44,6 +44,9 @@ from reporting.provider.aws.models import AWSStorageSummaryByRegion
 from reporting.provider.aws.models import AWSStorageSummaryByService
 
 
+CSV_FIELD_MAP = {"account": "id", "account_alias": "alias"}
+
+
 class AWSProviderMap(ProviderMap):
     """AWS Provider Map."""
 
