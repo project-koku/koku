@@ -133,7 +133,10 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             tag_keys = (
-                OCPAWSTagsSummary.objects.filter(cluster_id__contains="OCP-on-AWS").values("key").distinct().all()
+                OCPAWSTagsSummary.objects.filter(report_period__cluster_id__contains="OCP-on-AWS")
+                .values("key")
+                .distinct()
+                .all()
             )
             tag_keys = [tag.get("key") for tag in tag_keys]
 
@@ -163,12 +166,7 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
         handler = OCPAWSTagQueryHandler(query_params)
         handler.key = key
         with tenant_context(self.tenant):
-            tags = (
-                OCPAWSTagsValues.objects.filter(ocpawstagssummary__key__exact="version", value="prod")
-                .values("value")
-                .distinct()
-                .all()
-            )
+            tags = OCPAWSTagsValues.objects.filter(key__exact="version", value="prod").values("value").distinct().all()
             tag_values = [tag.get("value") for tag in tags]
         expected = {"key": key, "values": tag_values}
         result = handler.get_tag_values()
@@ -186,7 +184,7 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
         handler = OCPAWSTagQueryHandler(query_params)
         with tenant_context(self.tenant):
             tags = (
-                OCPAWSTagsValues.objects.filter(ocpawstagssummary__key__exact=key, value__icontains=value)
+                OCPAWSTagsValues.objects.filter(key__exact=key, value__icontains=value)
                 .values("value")
                 .distinct()
                 .all()
