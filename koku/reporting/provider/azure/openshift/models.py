@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Models for OCP on Azure tables."""
+from uuid import uuid4
+
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
@@ -192,8 +194,18 @@ class OCPAzureTagsValues(models.Model):
         """Meta for OCPAzureTagsValues."""
 
         db_table = "reporting_ocpazuretags_values"
+        unique_together = ("key", "value")
+        indexes = [models.Index(fields=["key"], name="ocp_azure_tags_value_key_idx")]
 
-    value = models.CharField(max_length=253, unique=True)
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+
+    key = models.TextField()
+    value = models.TextField()
+    subscription_guids = ArrayField(models.TextField())
+    cluster_ids = ArrayField(models.TextField())
+    cluster_aliases = ArrayField(models.TextField())
+    namespaces = ArrayField(models.TextField())
+    nodes = ArrayField(models.TextField(), null=True)
 
 
 class OCPAzureTagsSummary(models.Model):
@@ -203,18 +215,17 @@ class OCPAzureTagsSummary(models.Model):
         """Meta for AzureTagsSummary."""
 
         db_table = "reporting_ocpazuretags_summary"
-        unique_together = ("key", "cost_entry_bill", "subscription_guid", "namespace")
+        unique_together = ("key", "cost_entry_bill", "report_period", "subscription_guid", "namespace")
 
-    id = models.BigAutoField(primary_key=True)
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
 
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
-    values_mtm = models.ManyToManyField(OCPAzureTagsValues)
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
     subscription_guid = models.TextField(null=True)
-    namespace = models.CharField(max_length=253, null=True)
-    cluster_id = models.CharField(max_length=50, null=True)
-    cluster_alias = models.CharField(max_length=256, null=True)
+    namespace = models.TextField()
+    node = models.TextField(null=True)
 
 
 # Materialized Views for UI Reporting

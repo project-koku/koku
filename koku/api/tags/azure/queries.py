@@ -33,10 +33,8 @@ class AzureTagQueryHandler(TagQueryHandler):
 
     provider = Provider.PROVIDER_AZURE
     data_sources = [{"db_table": AzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
-    TAGS_VALUES_SOURCE = [{"db_table": AzureTagsValues, "fields": ["azuretagssummary__key"]}]
+    TAGS_VALUES_SOURCE = [{"db_table": AzureTagsValues, "fields": ["key"]}]
     SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["subscription_guid"]
-    FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
-    FILTER_MAP.update({"subscription_guid": {"field": "subscription_guid", "operation": "icontains"}})
 
     def __init__(self, parameters):
         """Establish Azure report query handler.
@@ -45,7 +43,18 @@ class AzureTagQueryHandler(TagQueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
+        self._parameters = parameters
         if not hasattr(self, "_mapper"):
             self._mapper = AzureProviderMap(provider=self.provider, report_type=parameters.report_type)
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
+
+    @property
+    def filter_map(self):
+        """Establish which filter map to use based on tag API."""
+        filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
+        if self._parameters.get_filter("value"):
+            filter_map.update({"subscription_guid": {"field": "subscription_guids", "operation": "icontains"}})
+        else:
+            filter_map.update({"subscription_guid": {"field": "subscription_guid", "operation": "icontains"}})
+        return filter_map
