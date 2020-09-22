@@ -16,12 +16,10 @@
 #
 """AWS Utility functions for inserting a aws org unit tree for testing."""
 import logging
-import os
 from datetime import datetime
 from datetime import timedelta
 
 import ciso8601
-import yaml
 from tenant_schemas.utils import schema_context
 
 from reporting.provider.aws.models import AWSAccountAlias
@@ -39,7 +37,7 @@ class InsertAwsOrgTreeError(Exception):
 class InsertAwsOrgTree:
     """Insert aws org tree abstract class."""
 
-    def __init__(self, schema, start_date=None, tree_yaml=None):
+    def __init__(self, schema, start_date=None):
         self.schema = schema
         self.start_date = start_date
         self.yesterday_accounts = []
@@ -47,20 +45,6 @@ class InsertAwsOrgTree:
         self.today_accounts = []
         self.today_orgs = []
         self.account_alias_mapping = {}
-        self.tree_yaml = tree_yaml
-
-    def _load_yaml_file(self, filename):
-        """Local data from yaml file."""
-        yamlfile = None
-        if not os.path.isfile(filename):
-            err_msg = "Error: No such file: {filename}"
-            raise InsertAwsOrgTreeError(err_msg=err_msg)
-        try:
-            with open(filename, "r+") as yaml_file:
-                yamlfile = yaml.safe_load(yaml_file)
-        except TypeError:
-            yamlfile = yaml.safe_load(filename)
-        return yamlfile
 
     def calculate_date(self, day_delta):
         """Calculate the date based off of a delta and a range start date."""
@@ -131,12 +115,9 @@ class InsertAwsOrgTree:
                     removed_org_unit.save()
                     LOG.info(f"Updating org={removed_org_unit.org_unit_id} with delete_timestamp={date}")
 
-    def insert_tree(self, day_list=None):  # noqa: C901
+    def insert_tree(self, day_list):  # noqa: C901
         """Inserts the tree into the database."""
         try:
-            if self.tree_yaml:
-                yaml_contents = self._load_yaml_file(self.tree_yaml)
-                day_list = yaml_contents["account_structure"]["days"]
             for day_dict in day_list:
                 day = day_dict["day"]
                 date_delta = day["date"]
