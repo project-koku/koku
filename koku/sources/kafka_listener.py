@@ -426,7 +426,7 @@ def get_consumer():
             "enable.auto.commit": False,
         }
     )
-    consumer.subscribe([Config.SOURCES_TOPIC])
+    consumer.assign([TopicPartition(topic=Config.SOURCES_TOPIC, partition=0)])
     return consumer
 
 
