@@ -86,7 +86,7 @@ class OCPAzureQueryHandlerTestNoData(IamTestCase):
             "usage_end__lte": self.dh.last_month_end.date(),
         }
 
-    def test_execute_sum_query_instance_types(self):
+    def test_execute_sum_query_instance_types_1(self):
         """Test that the sum query runs properly for instance-types."""
         with tenant_context(self.tenant):
             OCPAzureCostLineItemDailySummary.objects.all().delete()
@@ -160,7 +160,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
-    def test_execute_sum_query_instance_types(self):
+    def test_execute_sum_query_instance_types_2(self):
         """Test that the sum query runs properly."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPAzureInstanceTypeView)

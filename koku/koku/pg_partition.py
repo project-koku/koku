@@ -17,8 +17,11 @@
 import logging
 import re
 
+import ciso8601
+from dateutil.relativedelta import relativedelta
 from django.db import connection as conn
 from django.db import transaction
+
 
 # If this is detected, the code will try to resolve this to a name
 # because, in some functionality, this needs to be a string vs the
@@ -263,7 +266,7 @@ select t.relname::text as table_name,
         self.owner = rec["sequenceowner"]
 
     def default_constraint(self):
-        return f"nextval('{self.name}'::regclass)"
+        return f"nextval('{self.target_schema}.{self.name}'::regclass)"
 
     def alter_owner(self):
         LOG.info("Running alter sequence owner")
@@ -739,13 +742,12 @@ PARTITION BY {self.partition_type} ( "{self.partition_key}" ) ;
     def __create_default_partition(self):
         LOG.info(f'Creating default partition "{self.target_schema}"."{self.source_table_name}_default"')
         sql = f"""
-CREATE TABLE "{self.target_schema}"."{self.source_table_name}_default"
-PARTITION OF {self.partitioned_table_name} DEFAULT ;
+CREATE TABLE IF NOT EXISTS "{self.target_schema}"."{self.source_table_name}_default"
+PARTITION OF "{self.target_schema}"."{self.partitioned_table_name}" DEFAULT ;
 """
         conn_execute(sql)
 
         LOG.debug("Recording default partition")
-        # TODO: Utilize model
         sql = f"""
 INSERT INTO "{self.target_schema}"."partitioned_tables" (
     schema_name,
@@ -764,14 +766,14 @@ VALUES (
     %s::jsonb
 );
 """
-        params = [
+        params = (
             self.target_schema,
             f"{self.source_table_name}_default",
             self.partitioned_table_name,
             self.partition_type.lower(),
             self.partition_key,
             '{"default": true}',
-        ]
+        )
         conn_execute(sql, params)
 
     def __set_primary_key(self):
@@ -811,8 +813,9 @@ VALUES (
             conn_execute(idef.create())
 
     def __create_partitions(self):
+        # Get "requested" partitions
         sql = """
-CALL public.create_date_partitions( %s::text, %s::text, %s::text, %s::text );
+select partition_start from scan_for_date_partitions(%s::text, %s::text, %s::text, %s::text);
 """
         params = [
             f"{self.source_schema}.{self.source_table_name}",  # This will be quoted properly in the proc
@@ -820,21 +823,83 @@ CALL public.create_date_partitions( %s::text, %s::text, %s::text, %s::text );
             self.target_schema,
             self.partitioned_table_name,
         ]
-        conn_execute(sql, params)
+        cur = conn_execute(sql, params)
+        requested_partitions = fetchall(cur)
 
+        # Get existing partitions except the default partition
+        sql = f"""
+select (partition_parameters->>'from')::date as existing_partition
+  from "{self.target_schema}"."partitioned_tables"
+ where schema_name = %s
+   and partition_of_table_name = %s
+   and table_name ~ %s
+   and partition_parameters->>'default' = 'false';
+"""
+        params = [self.target_schema, self.partitioned_table_name, f"^{self.partitioned_table_name}"]
+        cur = conn_execute(sql, params)
+        existing_partitions = fetchall(cur)
+
+        needed_partitions = {p["partition_start"] for p in requested_partitions} - {
+            ciso8601.parse_datetime(p["partition_parameters"]["from"]).date() for p in existing_partitions
+        }
+
+        sqltmpl = f"""
+CREATE TABLE IF NOT EXISTS "{self.target_schema}"."{{table_partition}}"
+PARTITION OF "{self.target_schema}"."{self.partitioned_table_name}"
+FOR VALUES FROM (%s::date) TO (%s::date) ;
+"""
+        part_rec_sql = f"""
+INSERT INTO "{self.target_schema}"."partitioned_tables" (
+    schema_name,
+    table_name,
+    partition_of_table_name,
+    partition_type,
+    partition_col,
+    partition_parameters
+)
+VALUES (
+    %s,
+    %s,
+    %s,
+    %s,
+    %s,
+    %s::jsonb
+);
+"""
+        for newpart in needed_partitions:
+            params = (newpart, newpart + relativedelta(months=1))
+            partition_name = f"{self.partitioned_table_name}_{newpart.strftime('%Y_%m')}"
+            LOG.info(f"Creating partition {self.target_schema}.{partition_name}")
+            conn_execute(sqltmpl.format(table_partition=partition_name), params)
+
+            params = (
+                self.target_schema,
+                partition_name,
+                self.partitioned_table_name,
+                self.partition_type.lower(),
+                self.partition_key,
+                '{{"default": false, "from": "{0}", "to": "{1}"}}'.format(*params),
+            )
+            LOG.info(f"Recording partition {self.target_schema}.{partition_name}")
+            conn_execute(part_rec_sql, params)
+
+        # Get created partitions
         sql = f"""
 select table_name,
        to_char(date(partition_parameters->>'from'), 'YYYY_MM') as suffix
   from "{self.target_schema}"."partitioned_tables"
  where schema_name = %s
    and partition_of_table_name = %s
-   and table_name ~ %s
+   and table_name ~ %s ;
 """
         params = [self.target_schema, self.partitioned_table_name, f"^{self.partitioned_table_name}"]
         cur = conn_execute(sql, params)
         self.created_partitions = fetchall(cur)
 
     def __copy_data(self):
+        c_from = f'"{self.target_schema}"."{self.partitioned_table_name}"'
+        c_to = f'"{self.source_schema}"."{self.source_table_name}"'
+        LOG.info(f"Copying data from {c_from} to {c_to}")
         sql = f"""
 INSERT INTO "{self.target_schema}"."{self.partitioned_table_name}"
 SELECT * FROM "{self.source_schema}"."{self.source_table_name}" ;
@@ -843,21 +908,34 @@ SELECT * FROM "{self.source_schema}"."{self.source_table_name}" ;
             conn_execute(sql)
 
     def __rename_objects(self):
+        LOG.info(f'Locking source table "{self.source_schema}"."{self.source_table_name}"')
         sql_actions = [
             f"""
 LOCK TABLE "{self.source_schema}"."{self.source_table_name}" ;
 """
         ]
         for vdef in self.views:
+            LOG.info(f'Renaming view indexes for "{vdef.view_schema}"."{vdef.view_name}"')
             sql_actions.extend(vdef.rename_original_view_indexes())
+            LOG.info(f'Renaming view "{vdef.view_schema}"."{vdef.view_name}" to "__{vdef.view_name}"')
             sql_actions.append(vdef.rename_original_view())
 
+        msg = (
+            f'Renaming source table "{self.source_schema}"."{self.source_table_name}"'
+            f' to "__{self.source_table_name}"'
+        )
+        LOG.info(msg)
         sql_actions.append(
             f"""
 ALTER TABLE "{self.source_schema}"."{self.source_table_name}"
 RENAME TO "__{self.source_table_name}" ;
 """
         )
+        msg = (
+            f'Renaming partitioned table "{self.target_schema}"."{self.partitioned_table_name}"'
+            f' to "{self.source_table_name}"'
+        )
+        LOG.info(msg)
         sql_actions.append(
             f"""
 ALTER TABLE "{self.target_schema}"."{self.partitioned_table_name}"
@@ -866,23 +944,32 @@ RENAME TO "{self.source_table_name}" ;
         )
         for partition in self.created_partitions:
             r_partition_name = f'{self.source_table_name}_{partition["suffix"]}'
+            msg = (
+                f'''Renaming table partition "{self.target_schema}"."{partition['table_name']}"'''
+                f' to "{r_partition_name}"'
+            )
+            LOG.info(msg)
             sql_actions.append(
                 f"""
 ALTER TABLE "{self.target_schema}"."{partition['table_name']}"
 RENAME TO "{r_partition_name}" ;
 """
             )
-        update_sql = """
-UPDATE partitioned_tables
+
+        LOG.info("Updating recorded partitions")
+        update_sql = f"""
+UPDATE "{self.target_schema}"."partitioned_tables"
    SET partition_of_table_name = %s
  WHERE partition_of_table_name = %s
    AND schema_name = %s ;
 """
         update_params = [self.source_table_name, self.partitioned_table_name, self.target_schema]
 
+        LOG.info("Executing batch rename commands")
         for sql in sql_actions:
             conn_execute(sql)
 
+        LOG.info("Executing update command")
         conn_execute(update_sql, update_params)
 
         self.partitioned_table_name = self.source_table_name
@@ -904,12 +991,41 @@ UPDATE partitioned_tables
             if vdef.view_type == VIEW_TYPE_MATERIALIZED:
                 conn_execute(vdef.refresh())
 
+    def is_partitioned(self, schema_name, table_name):
+        """
+        Check to see if the specified tabe is a partitioned table
+        Args:
+            schema_name (str) : Schema name containing the source table
+            table_name (str) : Table name
+        Returns:
+            (bool) : True if partitioned, False if not
+        """
+        sql = """
+select exists (
+                select 1
+                from pg_partitioned_table
+                where partrelid = (
+                                    select oid
+                                      from pg_class
+                                     where relnamespace = %s::regnamespace
+                                       and relname = %s
+                                  )
+              )::boolean as "is_partitioned";
+"""
+        return conn_execute(sql, (schema_name, table_name)).fetchone()[0]
+
     def convert_to_partition(self, drop_orig=True):
         """
         Execute the table conversion from the initialized converter
         Params:
             drop_orig (bool) : Flag to drop original objects (default is True)
         """
+        with transaction.atomic():
+            if self.is_partitioned(self.source_schema, self.source_table_name):
+                raise TypeError(
+                    f'Source table "{self.source_schema}"."{self.source_table_name}" is already partitioned'
+                )
+
         # Create structures
         with transaction.atomic():
             self.__create_table_like_source()

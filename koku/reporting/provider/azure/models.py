@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Models for Azure cost and usage entry tables."""
+from uuid import uuid4
+
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import JSONField
 from django.db import models
@@ -159,8 +161,14 @@ class AzureTagsValues(models.Model):
         """Meta for AzureTagsValues."""
 
         db_table = "reporting_azuretags_values"
+        unique_together = ("key", "value")
+        indexes = [models.Index(fields=["key"], name="azure_tags_value_key_idx")]
 
-    value = models.CharField(max_length=253, unique=True)
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+
+    key = models.TextField()
+    value = models.TextField()
+    subscription_guids = ArrayField(models.TextField())
 
 
 class AzureTagsSummary(models.Model):
@@ -172,11 +180,10 @@ class AzureTagsSummary(models.Model):
         db_table = "reporting_azuretags_summary"
         unique_together = ("key", "cost_entry_bill", "subscription_guid")
 
-    id = models.BigAutoField(primary_key=True)
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
 
-    key = models.CharField(max_length=253)
-    values = ArrayField(models.CharField(max_length=253))
-    values_mtm = models.ManyToManyField(AzureTagsValues)
+    key = models.TextField()
+    values = ArrayField(models.TextField())
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
     subscription_guid = models.TextField(null=True)
 
