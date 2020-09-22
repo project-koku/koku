@@ -136,7 +136,10 @@ class OCPAWSTagsViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         cluster_tags = (
-            OCPAWSTagsSummary.objects.filter(cluster_id__contains="OCP-on-AWS").values("key").distinct().all()
+            OCPAWSTagsSummary.objects.filter(report_period__cluster_id__contains="OCP-on-AWS")
+            .values("key")
+            .distinct()
+            .all()
         )
         tag_keys = [tag.get("key") for tag in cluster_tags]
         for tag in data.get("data"):
