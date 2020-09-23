@@ -1020,7 +1020,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         # updates infrastructure costs from tags
         for metric, tags in infrastructure_rates.items():
+            LOG.warning(metric)
+            LOG.warning(tags)
             for tag_key, tag_vals in tags.items():
+                LOG.warning(tag_key)
+                LOG.warning(tag_vals)
                 value_names = list(tag_vals.keys())
                 for val_name in value_names:
                     rate_value = tag_vals[val_name]
@@ -1055,7 +1059,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                         F("infrastructure_usage_cost").get("storage"),
                                     )
                                 )
-                            if metric_choice["label_metric"] == "Memory":
+                            elif metric_choice["label_metric"] == "Memory":
                                 qset.update(
                                     infrastructure_usage_cost=JSONBBuildObject(
                                         Value("cpu"),
@@ -1078,7 +1082,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                         F("infrastructure_usage_cost").get("storage"),
                                     )
                                 )
-                            if metric_choice["label_metric"] == "Storage":
+                            elif metric_choice["label_metric"] == "Storage":
                                 qset.update(
                                     infrastructure_usage_cost=JSONBBuildObject(
                                         Value("cpu"),
@@ -1142,7 +1146,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                         F("supplementary_usage_cost").get("storage"),
                                     )
                                 )
-                            if metric_choice["label_metric"] == "Memory":
+                            elif metric_choice["label_metric"] == "Memory":
                                 qset.update(
                                     supplementary_usage_cost=JSONBBuildObject(
                                         Value("cpu"),
@@ -1165,7 +1169,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                         F("supplementary_usage_cost").get("storage"),
                                     )
                                 )
-                            if metric_choice["label_metric"] == "Storage":
+                            elif metric_choice["label_metric"] == "Storage":
                                 qset.update(
                                     supplementary_usage_cost=JSONBBuildObject(
                                         Value("cpu"),
@@ -1188,3 +1192,175 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                         ),
                                     )
                                 )
+
+    def populate_tag_usage_default_costs(  # noqa: C901
+        self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
+    ):
+        """
+        Update the reporting_ocpusagelineitem_daily_summary table with usage costs based on tag rates.
+        Due to the way the tag_keys are stored it loops through all of the tag keys to filter and update costs.
+        This may be slow, need to talk with Andrew and see if he has a better implementation or idea
+        """
+        # Cast start_date and end_date to date object, if they aren't already
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
+
+        # updates infrastructure costs from tags
+        for metric, tags in infrastructure_rates.items():
+            for tag_key, tag_vals in tags.items():
+                LOG.warning(tag_vals)
+                rate_value = tag_vals[0]
+                value_names = tag_vals[1]
+                qset = OCPUsageLineItemDailySummary.objects.filter(
+                    cluster_id=cluster_id,
+                    usage_start__gte=start_date,
+                    usage_start__lte=end_date,
+                    pod_labels__has_key=tag_key,
+                )
+                for value_to_skip in value_names:
+                    qset = qset.exclude(pod_labels__contains={tag_key: value_to_skip})
+                for metric_choice in metric_constants.COST_MODEL_METRIC_MAP:
+                    if metric == metric_choice["metric"]:
+                        if metric_choice["label_metric"] == "CPU":
+                            qset.update(
+                                infrastructure_usage_cost=JSONBBuildObject(
+                                    Value("cpu"),
+                                    Coalesce(
+                                        Value(rate_value, output_field=DecimalField())
+                                        * Coalesce(F(metric_choice["metric"]), Value(0), output_field=DecimalField())
+                                        + Coalesce(
+                                            F("infrastructure_usage_cost__cpu"), Value(0), output_field=DecimalField()
+                                        ),
+                                        0,
+                                        output_field=DecimalField(),
+                                    ),
+                                    Value("memory"),
+                                    F("infrastructure_usage_cost").get("memory"),
+                                    Value("storage"),
+                                    F("infrastructure_usage_cost").get("storage"),
+                                )
+                            )
+                        elif metric_choice["label_metric"] == "Memory":
+                            qset.update(
+                                infrastructure_usage_cost=JSONBBuildObject(
+                                    Value("cpu"),
+                                    F("infrastructure_usage_cost").get("cpu"),
+                                    Value("memory"),
+                                    Coalesce(
+                                        Value(rate_value, output_field=DecimalField())
+                                        * Coalesce(F(metric_choice["metric"]), Value(0), output_field=DecimalField())
+                                        + Coalesce(
+                                            F("infrastructure_usage_cost__memory"),
+                                            Value(0),
+                                            output_field=DecimalField(),
+                                        ),
+                                        0,
+                                        output_field=DecimalField(),
+                                    ),
+                                    Value("storage"),
+                                    F("infrastructure_usage_cost").get("storage"),
+                                )
+                            )
+                        elif metric_choice["label_metric"] == "Storage":
+                            qset.update(
+                                infrastructure_usage_cost=JSONBBuildObject(
+                                    Value("cpu"),
+                                    F("infrastructure_usage_cost").get("cpu"),
+                                    Value("memory"),
+                                    F("infrastructure_usage_cost").get("memory"),
+                                    Value("storage"),
+                                    Coalesce(
+                                        Value(rate_value, output_field=DecimalField())
+                                        * Coalesce(F(metric_choice["metric"]), Value(0), output_field=DecimalField())
+                                        + Coalesce(
+                                            F("infrastructure_usage_cost__memory"),
+                                            Value(0),
+                                            output_field=DecimalField(),
+                                        ),
+                                        0,
+                                        output_field=DecimalField(),
+                                    ),
+                                )
+                            )
+
+        # updates supplementary costs from tags
+        for metric, tags in supplementary_rates.items():
+            for tag_key, tag_vals in tags.items():
+                LOG.warning(tag_vals)
+                rate_value = tag_vals[0]
+                value_names = tag_vals[1]
+                qset = OCPUsageLineItemDailySummary.objects.filter(
+                    cluster_id=cluster_id,
+                    usage_start__gte=start_date,
+                    usage_start__lte=end_date,
+                    pod_labels__has_key=tag_key,
+                )
+                for value_to_skip in value_names:
+                    qset = qset.exclude(pod_labels__contains={tag_key: value_to_skip})
+                for metric_choice in metric_constants.COST_MODEL_METRIC_MAP:
+                    if metric == metric_choice["metric"]:
+                        if metric_choice["label_metric"] == "CPU":
+                            qset.update(
+                                supplementary_usage_cost=JSONBBuildObject(
+                                    Value("cpu"),
+                                    Coalesce(
+                                        Value(rate_value, output_field=DecimalField())
+                                        * Coalesce(F(metric_choice["metric"]), Value(0), output_field=DecimalField())
+                                        + Coalesce(
+                                            F("supplementary_usage_cost__cpu"), Value(0), output_field=DecimalField()
+                                        ),
+                                        0,
+                                        output_field=DecimalField(),
+                                    ),
+                                    Value("memory"),
+                                    F("supplementary_usage_cost").get("memory"),
+                                    Value("storage"),
+                                    F("supplementary_usage_cost").get("storage"),
+                                )
+                            )
+                        if metric_choice["label_metric"] == "Memory":
+                            qset.update(
+                                supplementary_usage_cost=JSONBBuildObject(
+                                    Value("cpu"),
+                                    F("supplementary_usage_cost").get("cpu"),
+                                    Value("memory"),
+                                    Coalesce(
+                                        Value(rate_value, output_field=DecimalField())
+                                        * Coalesce(F(metric_choice["metric"]), Value(0), output_field=DecimalField())
+                                        + Coalesce(
+                                            F("supplementary_usage_cost__memory"),
+                                            Value(0),
+                                            output_field=DecimalField(),
+                                        ),
+                                        0,
+                                        output_field=DecimalField(),
+                                    ),
+                                    Value("storage"),
+                                    F("supplementary_usage_cost").get("storage"),
+                                )
+                            )
+                        if metric_choice["label_metric"] == "Storage":
+                            qset.update(
+                                supplementary_usage_cost=JSONBBuildObject(
+                                    Value("cpu"),
+                                    F("supplementary_usage_cost").get("cpu"),
+                                    Value("memory"),
+                                    F("supplementary_usage_cost").get("memory"),
+                                    Value("storage"),
+                                    Coalesce(
+                                        Value(rate_value, output_field=DecimalField())
+                                        * Coalesce(F(metric_choice["metric"]), Value(0), output_field=DecimalField())
+                                        + Coalesce(
+                                            F("supplementary_usage_cost__memory"),
+                                            Value(0),
+                                            output_field=DecimalField(),
+                                        ),
+                                        0,
+                                        output_field=DecimalField(),
+                                    ),
+                                )
+                            )

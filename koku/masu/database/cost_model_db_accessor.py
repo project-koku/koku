@@ -193,7 +193,6 @@ class CostModelDBAccessor(KokuDBAccess):
             format_tag_rates = {f"{metric_cost_type}": tag_rates_list}
             rate["tag_rates"] = format_tag_rates
             metric_rate_map[metric_name] = rate
-
         LOG.warning(metric_rate_map)
         return metric_rate_map
 
@@ -201,7 +200,7 @@ class CostModelDBAccessor(KokuDBAccess):
     def tag_infrastructure_rates(self):
         """
         Return the rates designated as infrastructure cost from tag based rates.
-        The format for this is {metric_name: {tag_name : {value_name: [value, default]}}}
+        The format for this is {metric_name: {tag_name : {value_name: value, default]}}}
         This is in order to keep tag values associated with their key and a record of which is the default
         """
         results_dict = {}
@@ -218,17 +217,56 @@ class CostModelDBAccessor(KokuDBAccess):
         return results_dict
 
     @property
+    def tag_default_infrastructure_rates(self):
+        """Return the default infrastructure rates for each key that has a defined rate
+        It is returned in the format {metric: {key: [default_value, [keys, to, be, ignored]]}}
+        Where the keys to be ignored is a list of tag values that have defined rates
+        """
+        results_dict = {}
+        for key, value in self.tag_based_price_list.items():
+            LOG.warning(value)
+            if metric_constants.INFRASTRUCTURE_COST_TYPE in value.get("tag_rates").keys():
+                tag_dict = {}
+                for tag in value.get("tag_rates").get(metric_constants.INFRASTRUCTURE_COST_TYPE):
+                    LOG.warning(tag)
+                    tag_key = tag.get("tag_key")
+                    tag_keys_to_ignore = list(tag.get("tag_values").keys())
+                    default_value = tag.get("tag_key_default")
+                    tag_dict[tag_key] = [default_value, tag_keys_to_ignore]
+                    results_dict[key] = tag_dict
+        LOG.warning("------ default tag stuff")
+        LOG.warning(results_dict)
+        return results_dict
+
+    @property
     def tag_supplementary_rates(self):
         """Return the rates designated as supplementary cost from tag based rates."""
         results_dict = {}
         for key, value in self.tag_based_price_list.items():
             if metric_constants.SUPPLEMENTARY_COST_TYPE in value.get("tag_rates").keys():
                 tag_dict = {}
-                for tag in value.get("tag_rates").get(metric_constants.SUPLLEMENTARY_COST_TYPE):
+                for tag in value.get("tag_rates").get(metric_constants.SUPPLEMENTARY_COST_TYPE):
                     tag_key = tag.get("tag_key")
                     tag_values = {}
                     for value_key, val in tag.get("tag_values").items():
                         tag_values[value_key] = val.get("value")
                     tag_dict[tag_key] = tag_values
                     results_dict[key] = tag_dict
+        return results_dict
+
+    @property
+    def tag_default_supplementary_rates(self):
+        """Return the default supplementary rates for each key that has a defined rate"""
+        results_dict = {}
+        for key, value in self.tag_based_price_list.items():
+            if metric_constants.SUPPLEMENTARY_COST_TYPE in value.get("tag_rates").keys():
+                LOG.warning(value)
+                tag_dict = {}
+                for tag in value.get("tag_rates").get(metric_constants.SUPLLEMENTARY_COST_TYPE):
+                    tag_key = tag.get("tag_key")
+                    tag_keys_to_ignore = list(tag.get("tag_values").keys())
+                    default_value = tag.get("tag_key_default")
+                    tag_dict[tag_key] = [default_value, tag_keys_to_ignore]
+                    results_dict[key] = tag_dict
+        LOG.warning(results_dict)
         return results_dict

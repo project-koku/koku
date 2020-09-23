@@ -53,8 +53,10 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
             self._infra_rates = cost_model_accessor.infrastructure_rates
             self._tag_infra_rates = cost_model_accessor.tag_infrastructure_rates
+            self._tag_default_infra_rates = cost_model_accessor.tag_default_infrastructure_rates
             self._supplementary_rates = cost_model_accessor.supplementary_rates
             self._tag_supplementary_rates = cost_model_accessor.tag_supplementary_rates
+            self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
 
     @staticmethod
     def _normalize_tier(input_tier):
@@ -265,6 +267,17 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 self._tag_infra_rates, self._tag_supplementary_rates, start_date, end_date, self._cluster_id
             )
 
+    def _update_tag_usage_default_costs(self, start_date, end_date):
+        """Update infrastructure and supplementary usage costs."""
+        with OCPReportDBAccessor(self._schema) as report_accessor:
+            report_accessor.populate_tag_usage_default_costs(
+                self._tag_default_infra_rates,
+                self._tag_default_supplementary_rates,
+                start_date,
+                end_date,
+                self._cluster_id,
+            )
+
     def update_summary_cost_model_costs(self, start_date, end_date):
         """Update the OCP summary table with the charge information.
 
@@ -289,7 +302,8 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._cluster_id,
         )
         self._update_usage_costs(start_date, end_date)
-        # self._update_tag_usage_costs(start_date, end_date)
+        self._update_tag_usage_costs(start_date, end_date)
+        self._update_tag_usage_default_costs(start_date, end_date)
         self._update_markup_cost(start_date, end_date)
         self._update_monthly_cost(start_date, end_date)
         self._update_monthly_tag_based_cost(start_date, end_date)
