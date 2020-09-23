@@ -582,3 +582,17 @@ class CostModelSerializerTest(IamTestCase):
             for tag_rate in tag_rates:
                 tag_values = tag_rate["tag_values"]
                 self.assertEqual(len(tag_values), 2)
+
+    def test_rates_error_on_specifying_tiered_and_tag_rates(self):
+        """Test that specifying both tiered and tag rates fails."""
+        tag_values_kwargs = [{"value": 0.2}]
+        tiered_rate = [{"value": 1.3, "unit": "USD"}]
+        self.basic_model["rates"][0]["tag_rates"] = [format_tag_rate(tag_values=tag_values_kwargs)]
+        self.basic_model["rates"][0]["tiered_rates"] = tiered_rate
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.basic_model)
+            with self.assertRaises(serializers.ValidationError):
+                self.assertFalse(serializer.is_valid(raise_exception=True))
+        result_err_msg = serializer.errors["rates"][0]["non_field_errors"][0]
+        expected_err_msg = "Set either 'tiered_rates' or 'tag_rates' but not both"
+        self.assertEqual(result_err_msg, expected_err_msg)

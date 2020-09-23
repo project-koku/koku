@@ -30,6 +30,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
 from api.report.aws.provider_map import AWSProviderMap
+from api.report.aws.provider_map import CSV_FIELD_MAP
 from api.report.queries import ReportQueryHandler
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
@@ -92,6 +93,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
+        self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
@@ -185,6 +187,15 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         return query_data
 
+    def _set_csv_output_fields(self, query_data):
+        for rec in query_data:
+            for target, mapped in CSV_FIELD_MAP.items():
+                if target in rec:
+                    rec[mapped] = rec[target]
+                    del rec[target]
+
+        return query_data
+
     def execute_query(self):  # noqa: C901
         """Execute each query needed to return the results.
 
@@ -195,8 +206,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         original_filters = copy.deepcopy(self.parameters.parameters.get("filter"))
         sub_orgs_dict = {}
         query_data_results = {}
-        query_sum_results = []
         org_unit_applied = False
+        csv_results = []
         group_by_param = self.parameters.parameters.get("group_by")
         ou_group_by_key = None
         for potential_key in ["org_unit_id", "or:org_unit_id"]:
@@ -254,35 +265,71 @@ class AWSReportQueryHandler(ReportQueryHandler):
             # First we need to modify the parameters to get all accounts if org unit group_by is used
             self.parameters.set_filter(org_unit_single_level=org_unit_group_by_data)
             self.query_filter = self._get_filter()
+
         # grab the base query
         # (without org_units this is the only query - with org_units this is the query to find the accounts)
         query_data, query_sum = self.execute_individual_query(org_unit_applied)
+
         # Next we want to loop through each sub_org and execute the query for it
-        for sub_org_name, value in sub_orgs_dict.items():
-            sub_org_id, org_unit_path = value
-            if self.parameters.get_filter("org_unit_id"):
-                self.parameters.parameters["filter"].pop("org_unit_id")
-            if self.parameters.get_filter("org_unit_single_level"):
-                self.parameters.parameters["filter"].pop("org_unit_single_level")
-            if self.parameters.parameters["group_by"].get("account"):
-                self.parameters.parameters["group_by"].pop("account")
-            # only add the org_unit to the filter if the user has access
-            # through RBAC so that we avoid returning a 403
-            org_access = None
-            if self.access:
-                org_access = self.access.get("aws.organizational_unit", {}).get("read", [])
-            if org_access is None or (sub_org_id in org_access or "*" in org_access):
-                self.parameters.set_filter(org_unit_id=[sub_org_id])
-            self.query_filter = self._get_filter()
-            sub_query_data, sub_query_sum = self.execute_individual_query(org_unit_applied)
-            query_data_results[sub_org_name] = sub_query_data
-            query_sum_results.append(sub_query_sum)
         if org_unit_applied:
-            query_data = self.format_sub_org_results(query_data_results, query_data, sub_orgs_dict)
+            for sub_org_name, value in sub_orgs_dict.items():
+                sub_org_id, _ = value
+                if self.parameters.get_filter("org_unit_id"):
+                    self.parameters.parameters["filter"].pop("org_unit_id")
+                if self.parameters.get_filter("org_unit_single_level"):
+                    self.parameters.parameters["filter"].pop("org_unit_single_level")
+                if self.parameters.parameters["group_by"].get("account"):
+                    self.parameters.parameters["group_by"].pop("account")
+                # only add the org_unit to the filter if the user has access
+                # through RBAC so that we avoid returning a 403
+                org_access = None
+                if self.access:
+                    org_access = self.access.get("aws.organizational_unit", {}).get("read", [])
+                if org_access is None or (sub_org_id in org_access or "*" in org_access):
+                    self.parameters.set_filter(org_unit_id=[sub_org_id])
+                self.query_filter = self._get_filter()
+                sub_query_data, sub_query_sum = self.execute_individual_query(org_unit_applied)
+                query_sum = self.total_sum(sub_query_sum, query_sum)
+
+                # If we're processing for CSV output, then just append the results to a
+                # CSV output list and ensure that id, alias, and type are filled out correctly
+                if not self.is_csv_output:
+                    query_data_results[sub_org_name] = sub_query_data
+                else:
+                    # Add the initial account query results, if not set
+                    if len(csv_results) == 0:
+                        csv_results = [dict(type="account", **d) for d in query_data]
+                    # And extend by the org unit query results
+                    # keys "account_alias" and "account_id" are used here to match the query's
+                    # structure so that the CSV MAPPER can rename the proper keys as one of the
+                    # final steps in CSV processing
+                    csv_results.extend(
+                        dict(type="organizational_unit", account_alias=sub_org_name, account=sub_org_id, **d)
+                        for d in sub_query_data
+                    )
+        else:
+            # If we're processing for CSV output, but were not processing
+            # org unit, then just make the CSV result list the initial query data results
+            if self.is_csv_output:
+                csv_results = query_data
+
+        if not self.is_csv_output:
+            # If not CSV output and org unit was applied, then reshape the output
+            # structures for the JSON serializer
+            if org_unit_applied:
+                query_data = self.format_sub_org_results(query_data_results, query_data, sub_orgs_dict)
+        else:
+            # For CSV output, if there was a limit, then sent *all* output (base + sub-org, if any)
+            # to the ranked list method
+            if self._limit:
+                query_data = self._ranked_list(csv_results) if self._limit else csv_results
+            else:
+                # Otherwise, just set the output intermediate variable to the CSV results list
+                query_data = csv_results
+
+            query_data = self._set_csv_output_fields(query_data)
+
         # Add each of the sub_org sums to the query_sum
-        if query_sum_results:
-            for sub_query in query_sum_results:
-                query_sum = self.total_sum(sub_query, query_sum)
         self.query_data = query_data
         self.query_sum = query_sum
 
@@ -561,8 +608,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
-
             query_data = self.order_by(query_data, query_order_by)
 
             # Fetch the data (returning list(dict))
@@ -576,16 +621,13 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 for res in query_results:
                     res["tags_exist"] = tag_results.get(res["account_alias"], False)
 
-            if is_csv_output:
-                if self._limit:
-                    data = self._ranked_list(query_results)
-                else:
-                    data = query_results
-            else:
+            if not self.is_csv_output:
                 groups = copy.deepcopy(query_group_by)
                 groups.remove("date")
                 data = self._apply_group_by(query_results, groups)
                 data = self._transform_data(query_group_by, 0, data)
+            else:
+                data = query_results
 
         key_order = list(["units"] + list(annotations.keys()))
         ordered_total = {total_key: query_sum[total_key] for total_key in key_order if total_key in query_sum}

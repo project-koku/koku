@@ -18,8 +18,8 @@ data:
       "editable": true,
       "gnetId": null,
       "graphTooltip": 0,
-      "id": 4,
-      "iteration": 1600179481701,
+      "id": 112,
+      "iteration": 1600353196499,
       "links": [],
       "panels": [
         {
@@ -57,6 +57,9 @@ data:
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -219,6 +222,9 @@ data:
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -346,6 +352,9 @@ data:
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -483,6 +492,9 @@ data:
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -612,6 +624,9 @@ data:
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -770,6 +785,9 @@ data:
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -871,14 +889,36 @@ data:
           }
         }
       ],
-      "schemaVersion": 26,
+      "schemaVersion": 22,
       "style": "dark",
       "tags": [],
       "templating": {
         "list": [
           {
+            "current": {
+              "selected": true,
+              "text": "crc-stg-01-prometheus",
+              "value": "crc-stg-01-prometheus"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Datasource",
+            "multi": false,
+            "name": "Datasource",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "regex": "/.*crc.*/",
+            "skipUrlSync": false,
+            "type": "datasource"
+          },
+          {
             "allValue": null,
-            "current": {},
+            "current": {
+              "selected": true,
+              "text": "hccm-stage",
+              "value": "hccm-stage",
+            },
             "datasource": "$Datasource",
             "definition": "label_values(kubernetes_namespace)",
             "hide": 0,
@@ -897,20 +937,6 @@ data:
             "tagsQuery": "",
             "type": "query",
             "useTags": false
-          },
-          {
-            "current": {},
-            "hide": 0,
-            "includeAll": false,
-            "label": "Datasource",
-            "multi": false,
-            "name": "Datasource",
-            "options": [],
-            "query": "",
-            "refresh": 1,
-            "regex": "/.*crc.*/",
-            "skipUrlSync": false,
-            "type": "datasource"
           }
         ]
       },
@@ -946,7 +972,7 @@ data:
       "timezone": "",
       "title": "Cost Management - PostgreSQL",
       "uid": "Qt5PC09Wk",
-      "version": 2
+      "version": 1
     }
 kind: ConfigMap
 metadata:

@@ -24,6 +24,7 @@ from django.conf import settings
 from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors
+from scripts.insert_org_tree import UploadAwsTree
 from tenant_schemas.utils import tenant_context
 
 from api.models import Customer
@@ -95,10 +96,13 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                     data_loader = NiseDataLoader(KokuTestRunner.schema)
                     # grab the dates to get the start date
                     dates = data_loader.dates
-                    org_tree_obj = InsertAwsOrgTree(
-                        schema=KokuTestRunner.schema, tree_yaml="scripts/aws_org_tree.yml", start_date=dates[0][0]
-                    )
-                    org_tree_obj.insert_tree()
+                    # Obtain the day_list from yaml
+                    read_yaml = UploadAwsTree(None, None, None, None)
+                    tree_yaml = read_yaml.import_yaml(yaml_file_path="scripts/aws_org_tree.yml")
+                    day_list = tree_yaml["account_structure"]["days"]
+                    # Insert the tree
+                    org_tree_obj = InsertAwsOrgTree(schema=KokuTestRunner.schema, start_date=dates[0][0])
+                    org_tree_obj.insert_tree(day_list=day_list)
                     data_loader.load_openshift_data(customer, "ocp_aws_static_data.yml", "OCP-on-AWS")
                     data_loader.load_openshift_data(customer, "ocp_azure_static_data.yml", "OCP-on-Azure")
                     data_loader.load_aws_data(customer, "aws_static_data.yml")
