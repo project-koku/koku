@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""View for Rates."""
+"""View for Resource Types Cost Model."""
 from django.db.models import CharField
 from django.db.models import Value as V
 from django.db.models.functions import Concat
@@ -28,8 +28,8 @@ from api.resource_types.serializers import ResourceTypeSerializer
 from cost_models.models import CostModel
 
 
-class RatesView(generics.ListAPIView):
-    """API GET rates for resource types cost model view."""
+class CostModelResourceTypesView(generics.ListAPIView):
+    """API GET for resource types cost model view."""
 
     queryset = (
         CostModel.objects.all()

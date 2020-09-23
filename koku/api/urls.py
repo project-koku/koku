@@ -33,6 +33,7 @@ from api.views import AzureStorageView
 from api.views import AzureSubscriptionGuidView
 from api.views import AzureTagView
 from api.views import cloud_accounts
+from api.views import CostModelResourceTypesView
 from api.views import DataExportRequestViewSet
 from api.views import metrics
 from api.views import OCPAllCostView
@@ -56,7 +57,6 @@ from api.views import OCPProjectsView
 from api.views import OCPTagView
 from api.views import OCPVolumeView
 from api.views import openapi
-from api.views import RatesView
 from api.views import ResourceTypeView
 from api.views import SettingsView
 from api.views import StatusView
@@ -292,6 +292,6 @@ urlpatterns = [
     path("resource-types/openshift-clusters/", OCPClustersView.as_view(), name="openshift-clusters"),
     path("resource-types/openshift-projects/", OCPProjectsView.as_view(), name="openshift-projects"),
     path("resource-types/openshift-nodes/", OCPNodesView.as_view(), name="openshift-nodes"),
-    path("resource-types/cost-models/", RatesView.as_view(), name="cost-models"),
+    path("resource-types/cost-models/", CostModelResourceTypesView.as_view(), name="cost-models"),
 ]
 urlpatterns += ROUTER.urls
