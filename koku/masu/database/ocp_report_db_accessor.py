@@ -656,6 +656,40 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
                     )
 
+    def populate_monthly_tag_cost(self, cost_type, rate_type, rate, start_date, end_date, cluster_id, cluster_alias):
+        """
+        Populate the monthly cost of a customer.
+
+        Right now this is just the node/month cost. Calculated from
+        node_cost * number_unique_nodes.
+
+        args:
+            node_cost (Decimal): The node cost per month
+            start_date (datetime, str): The start_date to calculate monthly_cost.
+            end_date (datetime, str): The end_date to calculate monthly_cost.
+
+        """
+        if isinstance(start_date, str):
+            start_date = parse(start_date).date()
+        if isinstance(end_date, str):
+            end_date = parse(end_date).date()
+
+        # usage_start, usage_end are date types
+        first_month = datetime.datetime(*start_date.replace(day=1).timetuple()[:3]).replace(tzinfo=pytz.UTC)
+        end_date = datetime.datetime(*end_date.timetuple()[:3]).replace(hour=23, minute=59, second=59, tzinfo=pytz.UTC)
+        # Calculate monthly cost for each month from start date to end date for each tag key:value pair in the rate
+        for curr_month in rrule(freq=MONTHLY, until=end_date, dtstart=first_month):
+            first_curr_month, first_next_month = month_date_range_tuple(curr_month)
+            LOG.info("Populating monthly tag based cost from %s to %s.", first_curr_month, first_next_month)
+            if cost_type == "Node":
+                self.tag_upsert_monthly_node_cost_line_item(
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
+                )
+            elif cost_type == "Cluster":
+                self.tag_upsert_monthly_cluster_cost_line_item(
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
+                )
+
     def upsert_monthly_node_cost_line_item(
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, node_cost
     ):
@@ -691,6 +725,61 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     line_item.supplementary_monthly_cost = node_cost
                 line_item.save()
 
+    def tag_upsert_monthly_node_cost_line_item(self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate):
+        """Update or insert daily summary line item for node cost."""
+        unique_nodes = self.get_distinct_nodes(start_date, end_date, cluster_id)
+        report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
+        with schema_context(self.schema):
+            for node in unique_nodes:
+                for tag_key, tag_values in rate.items():
+                    for value_name, rate_value in tag_values.items():
+                        item_check = line_item = OCPUsageLineItemDailySummary.objects.filter(
+                            usage_start=start_date,
+                            usage_end=start_date,
+                            report_period=report_period,
+                            cluster_id=cluster_id,
+                            cluster_alias=cluster_alias,
+                            node=node,
+                            pod_labels__contains={tag_key: value_name},
+                        ).first()
+                        if item_check:
+                            line_item = OCPUsageLineItemDailySummary.objects.filter(
+                                usage_start=start_date,
+                                usage_end=start_date,
+                                report_period=report_period,
+                                cluster_id=cluster_id,
+                                cluster_alias=cluster_alias,
+                                monthly_cost_type="Node",
+                                node=node,
+                            ).first()
+                            if not line_item:
+                                line_item = OCPUsageLineItemDailySummary(
+                                    usage_start=start_date,
+                                    usage_end=start_date,
+                                    report_period=report_period,
+                                    cluster_id=cluster_id,
+                                    cluster_alias=cluster_alias,
+                                    monthly_cost_type="Node",
+                                    node=node,
+                                )
+                            if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                                LOG.info("Node (%s) has a monthly infrastructure cost of %s.", node, rate_value)
+                                line_item.infrastructure_monthly_cost = (
+                                    Coalesce(
+                                        line_item.infrastructure_monthly_cost, Value(0), output_field=DecimalField()
+                                    )
+                                    + rate_value
+                                )
+                            elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                                LOG.info("Node (%s) has a monthly supplemenarty cost of %s.", node, rate_value)
+                                line_item.supplementary_monthly_cost = (
+                                    Coalesce(
+                                        line_item.supplementary_monthly_cost, Value(0), output_field=DecimalField()
+                                    )
+                                    + rate_value
+                                )
+                            line_item.save()
+
     def upsert_monthly_cluster_cost_line_item(
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, cluster_cost
     ):
@@ -722,6 +811,63 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     LOG.info("Cluster (%s) has a monthly supplemenarty cost of %s.", cluster_id, cluster_cost)
                     line_item.supplementary_monthly_cost = cluster_cost
                 line_item.save()
+
+    def tag_upsert_monthly_cluster_cost_line_item(
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate
+    ):
+        """Update or insert a daily summary line item for cluster cost based on tag rates."""
+        report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
+        if report_period:
+            with schema_context(self.schema):
+                for tag_key, tag_values in rate.items():
+                    for value_name, rate_value in tag_values.items():
+                        item_check = line_item = OCPUsageLineItemDailySummary.objects.filter(
+                            usage_start=start_date,
+                            usage_end=start_date,
+                            report_period=report_period,
+                            cluster_id=cluster_id,
+                            cluster_alias=cluster_alias,
+                            pod_labels__contains={tag_key: value_name},
+                        ).first()
+                        if item_check:
+                            line_item = OCPUsageLineItemDailySummary.objects.filter(
+                                usage_start=start_date,
+                                usage_end=start_date,
+                                report_period=report_period,
+                                cluster_id=cluster_id,
+                                cluster_alias=cluster_alias,
+                                monthly_cost_type="Cluster",
+                            ).first()
+                            if not line_item:
+                                line_item = OCPUsageLineItemDailySummary(
+                                    usage_start=start_date,
+                                    usage_end=start_date,
+                                    report_period=report_period,
+                                    cluster_id=cluster_id,
+                                    cluster_alias=cluster_alias,
+                                    monthly_cost_type="Cluster",
+                                )
+                            if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                                LOG.info(
+                                    "Cluster (%s) has a monthly infrastructure cost of %s.", cluster_id, rate_value
+                                )
+                                line_item.infrastructure_monthly_cost = (
+                                    Coalesce(
+                                        line_item.infrastructure_monthly_cost, Value(0), output_field=DecimalField()
+                                    )
+                                    + rate_value
+                                )
+                            elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                                LOG.info(
+                                    "Cluster (%s) has a monthly supplemenarty cost of %s.", cluster_id, rate_value
+                                )
+                                line_item.supplementary_monthly_cost = (
+                                    Coalesce(
+                                        line_item.supplementary_monthly_cost, Value(0), output_field=DecimalField()
+                                    )
+                                    + rate_value
+                                )
+                            line_item.save()
 
     def remove_monthly_cost(self, start_date, end_date, cluster_id, cost_type):
         """Delete all monthly costs of a specific type over a date range."""
@@ -855,3 +1001,190 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 ),
             ),
         )
+
+    def populate_tag_usage_costs(  # noqa: C901
+        self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
+    ):
+        """
+        Update the reporting_ocpusagelineitem_daily_summary table with usage costs based on tag rates.
+        Due to the way the tag_keys are stored it loops through all of the tag keys to filter and update costs.
+        This may be slow, need to talk with Andrew and see if he has a better implementation or idea
+        """
+        # Cast start_date and end_date to date object, if they aren't already
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
+
+        # updates infrastructure costs from tags
+        for metric, tags in infrastructure_rates.items():
+            for tag_key, tag_vals in tags.items():
+                value_names = list(tag_vals.keys())
+                for val_name in value_names:
+                    rate_value = tag_vals[val_name]
+                    qset = OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=cluster_id,
+                        usage_start__gte=start_date,
+                        usage_start__lte=end_date,
+                        pod_labels__contains={tag_key: val_name},
+                    )
+                    for metric_choice in metric_constants.COST_MODEL_METRIC_MAP:
+                        if metric == metric_choice["metric"]:
+                            if metric_choice["label_metric"] == "CPU":
+                                qset.update(
+                                    infrastructure_usage_cost=JSONBBuildObject(
+                                        Value("cpu"),
+                                        Coalesce(
+                                            Value(rate_value, output_field=DecimalField())
+                                            * Coalesce(
+                                                F(metric_choice["metric"]), Value(0), output_field=DecimalField()
+                                            )
+                                            + Coalesce(
+                                                F("infrastructure_usage_cost__cpu"),
+                                                Value(0),
+                                                output_field=DecimalField(),
+                                            ),
+                                            0,
+                                            output_field=DecimalField(),
+                                        ),
+                                        Value("memory"),
+                                        F("infrastructure_usage_cost").get("memory"),
+                                        Value("storage"),
+                                        F("infrastructure_usage_cost").get("storage"),
+                                    )
+                                )
+                            if metric_choice["label_metric"] == "Memory":
+                                qset.update(
+                                    infrastructure_usage_cost=JSONBBuildObject(
+                                        Value("cpu"),
+                                        F("infrastructure_usage_cost").get("cpu"),
+                                        Value("memory"),
+                                        Coalesce(
+                                            Value(rate_value, output_field=DecimalField())
+                                            * Coalesce(
+                                                F(metric_choice["metric"]), Value(0), output_field=DecimalField()
+                                            )
+                                            + Coalesce(
+                                                F("infrastructure_usage_cost__memory"),
+                                                Value(0),
+                                                output_field=DecimalField(),
+                                            ),
+                                            0,
+                                            output_field=DecimalField(),
+                                        ),
+                                        Value("storage"),
+                                        F("infrastructure_usage_cost").get("storage"),
+                                    )
+                                )
+                            if metric_choice["label_metric"] == "Storage":
+                                qset.update(
+                                    infrastructure_usage_cost=JSONBBuildObject(
+                                        Value("cpu"),
+                                        F("infrastructure_usage_cost").get("cpu"),
+                                        Value("memory"),
+                                        F("infrastructure_usage_cost").get("memory"),
+                                        Value("storage"),
+                                        Coalesce(
+                                            Value(rate_value, output_field=DecimalField())
+                                            * Coalesce(
+                                                F(metric_choice["metric"]), Value(0), output_field=DecimalField()
+                                            )
+                                            + Coalesce(
+                                                F("infrastructure_usage_cost__memory"),
+                                                Value(0),
+                                                output_field=DecimalField(),
+                                            ),
+                                            0,
+                                            output_field=DecimalField(),
+                                        ),
+                                    )
+                                )
+
+        # updates supplementary costs from tags
+        for metric, tags in supplementary_rates.items():
+            for tag_key, tag_vals in tags.items():
+                value_names = list(tag_vals.keys())
+                for val_name in value_names:
+                    rate_value = tag_vals[val_name]
+                    qset = OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=cluster_id,
+                        usage_start__gte=start_date,
+                        usage_start__lte=end_date,
+                        pod_labels__contains={tag_key: val_name},
+                    )
+                    LOG.warning(qset)
+                    LOG.warning(metric)
+                    LOG.warning(rate_value)
+                    for metric_choice in metric_constants.COST_MODEL_METRIC_MAP:
+                        if metric == metric_choice["metric"]:
+                            if metric_choice["label_metric"] == "CPU":
+                                qset.update(
+                                    supplementary_usage_cost=JSONBBuildObject(
+                                        Value("cpu"),
+                                        Coalesce(
+                                            Value(rate_value, output_field=DecimalField())
+                                            * Coalesce(
+                                                F(metric_choice["metric"]), Value(0), output_field=DecimalField()
+                                            )
+                                            + Coalesce(
+                                                F("supplementary_usage_cost__cpu"),
+                                                Value(0),
+                                                output_field=DecimalField(),
+                                            ),
+                                            0,
+                                            output_field=DecimalField(),
+                                        ),
+                                        Value("memory"),
+                                        F("supplementary_usage_cost").get("memory"),
+                                        Value("storage"),
+                                        F("supplementary_usage_cost").get("storage"),
+                                    )
+                                )
+                            if metric_choice["label_metric"] == "Memory":
+                                qset.update(
+                                    supplementary_usage_cost=JSONBBuildObject(
+                                        Value("cpu"),
+                                        F("supplementary_usage_cost").get("cpu"),
+                                        Value("memory"),
+                                        Coalesce(
+                                            Value(rate_value, output_field=DecimalField())
+                                            * Coalesce(
+                                                F(metric_choice["metric"]), Value(0), output_field=DecimalField()
+                                            )
+                                            + Coalesce(
+                                                F("supplementary_usage_cost__memory"),
+                                                Value(0),
+                                                output_field=DecimalField(),
+                                            ),
+                                            0,
+                                            output_field=DecimalField(),
+                                        ),
+                                        Value("storage"),
+                                        F("supplementary_usage_cost").get("storage"),
+                                    )
+                                )
+                            if metric_choice["label_metric"] == "Storage":
+                                qset.update(
+                                    supplementary_usage_cost=JSONBBuildObject(
+                                        Value("cpu"),
+                                        F("supplementary_usage_cost").get("cpu"),
+                                        Value("memory"),
+                                        F("supplementary_usage_cost").get("memory"),
+                                        Value("storage"),
+                                        Coalesce(
+                                            Value(rate_value, output_field=DecimalField())
+                                            * Coalesce(
+                                                F(metric_choice["metric"]), Value(0), output_field=DecimalField()
+                                            )
+                                            + Coalesce(
+                                                F("supplementary_usage_cost__memory"),
+                                                Value(0),
+                                                output_field=DecimalField(),
+                                            ),
+                                            0,
+                                            output_field=DecimalField(),
+                                        ),
+                                    )
+                                )

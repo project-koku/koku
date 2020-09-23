@@ -244,7 +244,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         end_date,
                     )
 
-                    report_accessor.populate_monthly_cost(
+                    report_accessor.populate_monthly_tag_cost(
                         cost_type, rate_type, rate, start_date, end_date, self._cluster_id, self._cluster_alias
                     )
 
@@ -256,6 +256,13 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         with OCPReportDBAccessor(self._schema) as report_accessor:
             report_accessor.populate_usage_costs(
                 self._infra_rates, self._supplementary_rates, start_date, end_date, self._cluster_id
+            )
+
+    def _update_tag_usage_costs(self, start_date, end_date):
+        """Update infrastructure and supplementary usage costs."""
+        with OCPReportDBAccessor(self._schema) as report_accessor:
+            report_accessor.populate_tag_usage_costs(
+                self._tag_infra_rates, self._tag_supplementary_rates, start_date, end_date, self._cluster_id
             )
 
     def update_summary_cost_model_costs(self, start_date, end_date):
@@ -282,9 +289,10 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._cluster_id,
         )
         self._update_usage_costs(start_date, end_date)
+        # self._update_tag_usage_costs(start_date, end_date)
         self._update_markup_cost(start_date, end_date)
         self._update_monthly_cost(start_date, end_date)
-        # self._update_monthly_tag_based_cost(start_date, end_date)
+        self._update_monthly_tag_based_cost(start_date, end_date)
 
         with OCPReportDBAccessor(self._schema) as accessor:
             report_periods = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
