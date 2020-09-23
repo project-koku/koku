@@ -140,12 +140,7 @@ class AWSTagQueryHandlerTest(IamTestCase):
         handler = AWSTagQueryHandler(query_params)
         handler.key = key
         with tenant_context(self.tenant):
-            tags = (
-                AWSTagsValues.objects.filter(awstagssummary__key__exact=key, value=value)
-                .values("value")
-                .distinct()
-                .all()
-            )
+            tags = AWSTagsValues.objects.filter(key__exact=key, value=value).values("value").distinct().all()
             tag_values = [tag.get("value") for tag in tags]
         expected = {"key": key, "values": tag_values}
         result = handler.get_tag_values()
@@ -163,10 +158,7 @@ class AWSTagQueryHandlerTest(IamTestCase):
         handler = AWSTagQueryHandler(query_params)
         with tenant_context(self.tenant):
             tags = (
-                AWSTagsValues.objects.filter(awstagssummary__key__exact=key, value__icontains=value)
-                .values("value")
-                .distinct()
-                .all()
+                AWSTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
             )
             tag_values = [tag.get("value") for tag in tags]
         expected = {"key": key, "values": tag_values}
