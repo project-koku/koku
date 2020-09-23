@@ -12,11 +12,13 @@ local:
           hostname: localhost
           scheme: http
   SOURCES:
-    http:
-      path: "api/v1.0"
-      hostname: localhost
-      port: 3000
-      scheme: http
+    service_objects:
+      sources:
+        config:
+          path: "api/v1.0"
+          hostname: localhost
+          port: 3000
+          scheme: http
   main:
     hostname: localhost:8000
     scheme: http

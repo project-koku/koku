@@ -514,7 +514,7 @@ class QueryParamSerializerTest(TestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
-    def test_multiple_group_by_error_valid_key_whitelist(self):
+    def test_multiple_group_by_error_valid_key_allowlist(self):
         """Test for valid key for special case account alias."""
         query_params = {
             "group_by": {"account": ["account1"], "project": ["project1"]},

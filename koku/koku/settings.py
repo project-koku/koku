@@ -263,17 +263,18 @@ INTERNAL_IPS = ["127.0.0.1"]
 DEFAULT_PAGINATION_CLASS = "api.common.pagination.StandardResultsSetPagination"
 DEFAULT_EXCEPTION_HANDLER = "api.common.exception_handler.custom_exception_handler"
 
+DEFAULT_RENDERER_CLASSES = ("rest_framework.renderers.JSONRenderer", "api.common.csv.PaginatedCSVRenderer")
+
+if DEVELOPMENT:
+    DEFAULT_RENDERER_CLASSES = DEFAULT_RENDERER_CLASSES + ("rest_framework.renderers.BrowsableAPIRenderer",)
+
 # django rest_framework settings
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly"],
     "DEFAULT_PAGINATION_CLASS": DEFAULT_PAGINATION_CLASS,
-    "DEFAULT_RENDERER_CLASSES": (
-        "rest_framework.renderers.JSONRenderer",
-        "api.common.csv.PaginatedCSVRenderer",
-        "rest_framework.renderers.BrowsableAPIRenderer",
-    ),
+    "DEFAULT_RENDERER_CLASSES": DEFAULT_RENDERER_CLASSES,
     "EXCEPTION_HANDLER": DEFAULT_EXCEPTION_HANDLER,
 }
 
@@ -423,6 +424,7 @@ if not (S3_ENDPOINT.startswith("https://") or S3_ENDPOINT.startswith("http://"))
 S3_ACCESS_KEY = ENVIRONMENT.get_value("S3_ACCESS_KEY", default=None)
 S3_SECRET = ENVIRONMENT.get_value("S3_SECRET", default=None)
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
+ENABLE_PARQUET_PROCESSING = ENVIRONMENT.bool("ENABLE_PARQUET_PROCESSING", default=False)
 
 # Presto Settings
 PRESTO_HOST = ENVIRONMENT.get_value("PRESTO_HOST", default=None)
