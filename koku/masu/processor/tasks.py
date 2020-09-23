@@ -651,8 +651,8 @@ def convert_to_parquet(  # noqa: C901
     if not context:
         context = {"account": account, "provider_uuid": provider_uuid}
 
-    if not settings.ENABLE_S3_ARCHIVING:
-        msg = "Skipping convert_to_parquet. S3 archiving feature is disabled."
+    if not settings.ENABLE_PARQUET_PROCESSING:
+        msg = "Skipping convert_to_parquet. Parquet processing is disabled."
         LOG.info(log_json(request_id, msg, context))
         return
 
@@ -672,14 +672,14 @@ def convert_to_parquet(  # noqa: C901
         return
 
     if not start_date:
-        msg = "S3 archiving feature is enabled, but no start_date was given for processing."
+        msg = "Parquet processing is enabled, but no start_date was given for processing."
         LOG.warn(log_json(request_id, msg, context))
         return
 
     try:
         cost_date = parser.parse(start_date)
     except ValueError:
-        msg = "S3 archiving feature is enabled, but the start_date was not a valid date string ISO 8601 format."
+        msg = "Parquet processing is enabled, but the start_date was not a valid date string ISO 8601 format."
         LOG.warn(log_json(request_id, msg, context))
         return
 
@@ -691,7 +691,7 @@ def convert_to_parquet(  # noqa: C901
         file_keys = get_file_keys_from_s3_with_manifest_id(request_id, s3_csv_path, manifest_id, context)
         files = [os.path.basename(file_key) for file_key in file_keys]
         if not files:
-            msg = "S3 archiving feature is enabled, but no files to process."
+            msg = "Parquet processing is enabled, but no files to process."
             LOG.info(log_json(request_id, msg, context))
             return
 

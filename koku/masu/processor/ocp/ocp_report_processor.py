@@ -23,6 +23,7 @@ from os import remove
 
 import ciso8601
 from django.conf import settings
+from django.db import transaction
 
 from masu.config import Config
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -31,6 +32,7 @@ from masu.util.ocp import common as utils
 from reporting.provider.ocp.models import OCPNodeLabelLineItem
 from reporting.provider.ocp.models import OCPStorageLineItem
 from reporting.provider.ocp.models import OCPUsageLineItem
+from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
@@ -54,6 +56,7 @@ class ProcessedOCPReport:
         self.reports = {}
         self.line_items = []
         self.line_item_keys = {}
+        self.requested_partitions = set()
 
     def remove_processed_rows(self):
         """Clear a batch of rows from their containers."""
@@ -145,9 +148,10 @@ class OCPReportProcessorBase(ReportProcessorBase):
             return self.existing_report_map[key]
 
         data = {"report_period_id": report_period_id, "interval_start": start, "interval_end": end}
-        report_id = report_db_accessor.insert_on_conflict_do_nothing(
-            table_name, data, conflict_columns=["report_period_id", "interval_start"]
-        )
+        with transaction.atomic():
+            report_id = report_db_accessor.insert_on_conflict_do_nothing(
+                table_name, data, conflict_columns=["report_period_id", "interval_start"]
+            )
 
         self.processed_report.reports[key] = report_id
 
@@ -184,9 +188,10 @@ class OCPReportProcessorBase(ReportProcessorBase):
             "provider_id": self._provider_uuid,
         }
 
-        report_period_id = report_db_accessor.insert_on_conflict_do_nothing(
-            table_name, data, conflict_columns=["cluster_id", "report_period_start", "provider_id"]
-        )
+        with transaction.atomic():
+            report_period_id = report_db_accessor.insert_on_conflict_do_nothing(
+                table_name, data, conflict_columns=["cluster_id", "report_period_start", "provider_id"]
+            )
 
         self.processed_report.report_periods[key] = report_period_id
 
@@ -227,6 +232,18 @@ class OCPReportProcessorBase(ReportProcessorBase):
                 LOG.info(f"File '{self._report_path}' opened for processing")
                 reader = csv.DictReader(f)
                 for row in reader:
+                    li_usage_dt = row.get("report_period_start")
+                    if li_usage_dt:
+                        try:
+                            li_usage_dt = ciso8601.parse_datetime(li_usage_dt).date().replace(day=1)
+                        except (ValueError, TypeError):
+                            pass  # This is just gathering requested partition start values
+                            # If it's invalid, then it's OK to omit storing that value
+                            # as it only pertains to a requested partition.
+                        else:
+                            if li_usage_dt not in self.processed_report.requested_partitions:
+                                self.processed_report.requested_partitions.add(li_usage_dt)
+
                     report_period_id = self._create_report_period(
                         row, self._cluster_id, report_db, self._cluster_alias
                     )
@@ -271,6 +288,13 @@ class OCPReportProcessorBase(ReportProcessorBase):
         if not settings.DEVELOPMENT:
             LOG.info("Removing processed file: %s", self._report_path)
             remove(self._report_path)
+
+    def _save_to_db(self, temp_table, report_db):
+        # Create any needed partitions
+        existing_partitions = report_db.get_existing_partitions(OCPUsageLineItemDailySummary)
+        report_db.add_partitions(existing_partitions, self.processed_report.requested_partitions)
+        # Save batch to DB
+        super()._save_to_db(temp_table, report_db)
 
 
 class OCPCpuMemReportProcessor(OCPReportProcessorBase):

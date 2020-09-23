@@ -179,7 +179,7 @@ class TagQueryHandler(QueryHandler):
                 continue
             filter_value = self.parameters.get_filter(filter_key)
             if filter_value and not TagQueryHandler.has_wildcard(filter_value):
-                filter_obj = self.FILTER_MAP.get(filter_key)
+                filter_obj = self.filter_map.get(filter_key)
                 if isinstance(filter_value, bool):
                     filters.add(QueryFilter(**filter_obj))
                 elif isinstance(filter_obj, list):
@@ -192,7 +192,7 @@ class TagQueryHandler(QueryHandler):
                         q_filter = QueryFilter(parameter=item, **filter_obj)
                         filters.add(q_filter)
             access = self.parameters.get_access(filter_key)
-            filt = self.FILTER_MAP.get(filter_key)
+            filt = self.filter_map.get(filter_key)
             if access and filt:
                 self.set_access_filters(access, filt, filters)
 
@@ -217,7 +217,7 @@ class TagQueryHandler(QueryHandler):
             if filter_value and len(filter_value) < 2:
                 logical_operator = "or"
             if filter_value and not TagQueryHandler.has_wildcard(filter_value):
-                filter_obj = self.FILTER_MAP.get(filter_key)
+                filter_obj = self.filter_map.get(filter_key)
                 if isinstance(filter_obj, list):
                     for _filt in filter_obj:
                         filt_filters = QueryFilterCollection()

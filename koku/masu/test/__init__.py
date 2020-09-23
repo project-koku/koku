@@ -19,7 +19,7 @@ class MasuTestCase(IamTestCase):
         """Set up each test case."""
         self.customer, __ = Customer.objects.get_or_create(account_id=self.acct, schema_name=self.schema)
 
-        self.aws_provider = Provider.objects.get(type=Provider.PROVIDER_AWS_LOCAL)
+        self.aws_provider = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL).first()
         self.ocp_provider = Provider.objects.filter(type=Provider.PROVIDER_OCP).first()
         self.azure_provider = Provider.objects.get(type=Provider.PROVIDER_AZURE_LOCAL)
         self.unkown_test_provider_uuid = "cabfdddb-4ed5-421e-a041-311b75daf235"
