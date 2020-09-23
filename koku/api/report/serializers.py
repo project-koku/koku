@@ -285,7 +285,7 @@ class ParamSerializer(BaseSerializer):
     limit = serializers.IntegerField(required=False)
     offset = serializers.IntegerField(required=False)
 
-    order_by_whitelist = ("cost", "supplementary", "infrastructure", "delta", "usage", "request", "limit", "capacity")
+    order_by_allowlist = ("cost", "supplementary", "infrastructure", "delta", "usage", "request", "limit", "capacity")
 
     def _init_tagged_fields(self, **kwargs):
         """Initialize serializer fields that support tagging.
@@ -325,7 +325,7 @@ class ParamSerializer(BaseSerializer):
         error = {}
 
         for key, val in value.items():
-            if key in self.order_by_whitelist:
+            if key in self.order_by_allowlist:
                 continue  # fields that do not require a group-by
 
             if "or:" in key:
