@@ -160,7 +160,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filt = {"service_name__icontains": "Storage", "unit_of_measure__exact": "GB-Mo"}
+        filt = {"service_name__icontains": "Storage"}
         filt.update(self.ten_day_filter)
         current_totals = self.get_totals_by_time_scope(aggregates, filt)
         total = query_output.get("total")
@@ -609,6 +609,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
+
         path = reverse("reports-openshift-azure-costs")
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*&delta=cost"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView, path)
