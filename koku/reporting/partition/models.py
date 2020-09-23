@@ -14,6 +14,8 @@ class PartitionedTable(models.Model):
     Tracking table for table partitions
     """
 
+    RANGE = "range"
+
     class Meta:
         db_table = "partitioned_tables"
         unique_together = ("schema_name", "table_name")
@@ -36,3 +38,5 @@ class PartitionedTable(models.Model):
     partition_col = models.TextField(null=False, validators=[validate_not_empty])
     # Parameters used when creating partition (partition key values or range)
     partition_parameters = JSONField(null=False, validators=[validate_not_empty])
+    # active flag will attach/detach partition
+    active = models.BooleanField(null=False, default=True)

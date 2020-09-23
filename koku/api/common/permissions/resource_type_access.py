@@ -28,7 +28,4 @@ class ResourceTypeAccessPermission(permissions.BasePermission):
         if request.user.admin:
             return True
 
-        if request.method in permissions.SAFE_METHODS:
-            return True
-
         return False

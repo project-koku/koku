@@ -20,6 +20,7 @@ import logging
 import os
 from enum import Enum
 
+import ciso8601
 import pandas as pd
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
@@ -283,7 +284,7 @@ def process_openshift_datetime(val):
     result = None
     try:
         datetime_str = str(val).replace(" +0000 UTC", "")
-        result = pd.to_datetime(datetime_str)
+        result = ciso8601.parse_datetime(datetime_str)
     except parser.ParserError:
         pass
     return result

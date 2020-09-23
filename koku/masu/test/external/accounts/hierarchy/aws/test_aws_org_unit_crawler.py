@@ -80,6 +80,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
     def setUp(self):
         """Set up test case."""
         super().setUp()
+        self.schema = "acct12345"
         self.paginator_dict = {
             "r-0": {
                 "OrganizationalUnits": [
@@ -101,11 +102,6 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             "schema_name": self.schema,
             "provider_uuid": P_UUID,
         }
-        with schema_context(self.schema):
-            # Delete the rows created by the koku_test_runner. This next test suite
-            # is intended to test how the crawler inserts the data into the database
-            # which is easier to do without preloaded data.
-            AWSOrganizationalUnit.objects.all().delete()
 
     def test_initializer(self):
         """Test AWSOrgUnitCrawler initializer."""
