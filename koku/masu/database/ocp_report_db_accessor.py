@@ -658,16 +658,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def populate_monthly_tag_cost(self, cost_type, rate_type, rate, start_date, end_date, cluster_id, cluster_alias):
         """
-        Populate the monthly cost of a customer.
+        Populate the monthly cost of a customer based on tag rates.
 
         Right now this is just the node/month cost. Calculated from
-        node_cost * number_unique_nodes.
-
-        args:
-            node_cost (Decimal): The node cost per month
-            start_date (datetime, str): The start_date to calculate monthly_cost.
-            end_date (datetime, str): The end_date to calculate monthly_cost.
-
+        tag value cost * number_unique_nodes for each tag key value pair
+        that is found on a line item with that node.
         """
         if isinstance(start_date, str):
             start_date = parse(start_date).date()
@@ -726,7 +721,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 line_item.save()
 
     def tag_upsert_monthly_node_cost_line_item(self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate):
-        """Update or insert daily summary line item for node cost."""
+        """
+        Update or insert daily summary line item for node cost.
+
+        It checks to see if a line item exists for each node
+        that contains the tag key:value pair,
+        if it does then the price is added to the monthly cost.
+        """
         unique_nodes = self.get_distinct_nodes(start_date, end_date, cluster_id)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
         with schema_context(self.schema):
@@ -815,7 +816,12 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     def tag_upsert_monthly_cluster_cost_line_item(
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate
     ):
-        """Update or insert a daily summary line item for cluster cost based on tag rates."""
+        """
+        Update or insert a daily summary line item for cluster cost based on tag rates.
+        It checks to see if a line item exists for the cluster
+        that contains the tag key:value pair,
+        if it does then the price is added to the monthly cost.
+        """
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
         if report_period:
             with schema_context(self.schema):
@@ -1006,12 +1012,14 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
     ):
         """
-        Update the reporting_ocpusagelineitem_daily_summary table with usage costs based on tag rates.
-        Due to the way the tag_keys are stored it loops through all of the tag keys to filter and update costs.
-        This may be slow, need to talk with Andrew and see if he has a better implementation or idea
+        Update the reporting_ocpusagelineitem_daily_summary table with
+        usage costs based on tag rates.
+        Due to the way the tag_keys are stored it loops through all of
+        the tag keys to filter and update costs.
 
-        The data structure for infrastructure and supplementary rates are a dictionary that include the metric name,
-        the tag key, the tag value names, and the tag value, for example:
+        The data structure for infrastructure and supplementary rates are
+        a dictionary that include the metric name, the tag key,
+        the tag value names, and the tag value, for example:
             {'cpu_core_usage_per_hour': {
                 'app': {
                     'far': '0.2000000000', 'manager': '100.0000000000', 'walk': '5.0000000000'
@@ -1201,11 +1209,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
     ):
         """
-        Update the reporting_ocpusagelineitem_daily_summary table with usage costs based on tag rates.
+        Update the reporting_ocpusagelineitem_daily_summary table
+        with usage costs based on tag rates.
 
-        The data structure for infrastructure and supplementary rates are a dictionary that includes the metric,
-        the tag key, the default value,
-        and the values for that key that have rates defined and do not need the default applied,
+        The data structure for infrastructure and supplementary rates
+        are a dictionary that includes the metric, the tag key,
+        the default value, and the values for that key that have
+        rates defined and do not need the default applied,
         for example:
             {
                 'cpu_core_usage_per_hour': {
