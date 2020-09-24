@@ -18,8 +18,8 @@ data:
       "editable": true,
       "gnetId": null,
       "graphTooltip": 0,
-      "id": 3,
-      "iteration": 1600112374934,
+      "id": 113,
+      "iteration": 1600352569902,
       "links": [],
       "panels": [
         {
@@ -82,6 +82,7 @@ data:
           "maxDataPoints": 100,
           "nullPointMode": "connected",
           "nullText": null,
+          "options": {},
           "postfix": "",
           "postfixFontSize": "50%",
           "prefix": "",
@@ -159,6 +160,9 @@ data:
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -291,6 +295,7 @@ data:
           "maxDataPoints": 100,
           "nullPointMode": "connected",
           "nullText": null,
+          "options": {},
           "postfix": "",
           "postfixFontSize": "50%",
           "prefix": "",
@@ -381,6 +386,9 @@ data:
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -517,6 +525,9 @@ data:
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -638,6 +649,9 @@ data:
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -759,6 +773,9 @@ data:
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -891,6 +908,9 @@ data:
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -996,6 +1016,9 @@ data:
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -1092,12 +1115,14 @@ data:
             "overrides": []
           },
           "fill": 1,
+          "fillGradient": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
             "x": 0,
             "y": 39
           },
+          "hiddenSeries": false,
           "id": 16,
           "legend": {
             "avg": false,
@@ -1114,6 +1139,9 @@ data:
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -1183,15 +1211,37 @@ data:
           }
         }
       ],
-      "schemaVersion": 26,
+      "schemaVersion": 22,
       "style": "dark",
       "tags": [],
       "templating": {
         "list": [
           {
+            "current": {
+              "selected": true,
+              "text": "crc-stg-01-prometheus",
+              "value": "crc-stg-01-prometheus"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Datasource",
+            "multi": false,
+            "name": "Datasource",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "regex": "/.*crc.*/",
+            "skipUrlSync": false,
+            "type": "datasource"
+          },
+          {
             "allValue": null,
-            "current": {},
-          "datasource": "$Datasource",
+            "current": {
+              "selected": true,
+              "text": "hccm-stage",
+              "value": "hccm-stage",
+            },
+            "datasource": "$Datasource",
             "definition": "label_values(kubernetes_namespace)",
             "hide": 0,
             "includeAll": false,
@@ -1209,20 +1259,6 @@ data:
             "tagsQuery": "",
             "type": "query",
             "useTags": false
-          },
-          {
-            "current": {},
-            "hide": 0,
-            "includeAll": false,
-            "label": "Datasource",
-            "multi": false,
-            "name": "Datasource",
-            "options": [],
-            "query": "",
-            "refresh": 1,
-            "regex": "/.*crc.*/",
-            "skipUrlSync": false,
-            "type": "datasource"
           }
         ]
       },
@@ -1256,9 +1292,9 @@ data:
         ]
       },
       "timezone": "",
-      "title": "Cost Management Presto",
+      "title": "Cost Management - Presto",
       "uid": "6WhuBODGk",
-      "version": 2
+      "version": 1
     }
 kind: ConfigMap
 metadata:

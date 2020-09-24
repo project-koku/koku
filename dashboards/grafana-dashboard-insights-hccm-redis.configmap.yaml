@@ -19,8 +19,8 @@ data:
       "editable": true,
       "gnetId": 763,
       "graphTooltip": 0,
-      "id": 2,
-      "iteration": 1600180154128,
+      "id": 114,
+      "iteration": 1600353498521,
       "links": [],
       "panels": [
         {
@@ -74,6 +74,7 @@ data:
           "maxDataPoints": 100,
           "nullPointMode": "connected",
           "nullText": null,
+          "options": {},
           "postfix": "",
           "postfixFontSize": "50%",
           "prefix": "",
@@ -169,6 +170,7 @@ data:
           "maxDataPoints": 100,
           "nullPointMode": "connected",
           "nullText": null,
+          "options": {},
           "postfix": "",
           "postfixFontSize": "50%",
           "prefix": "",
@@ -265,6 +267,7 @@ data:
           "maxDataPoints": 100,
           "nullPointMode": "connected",
           "nullText": null,
+          "options": {},
           "postfix": "",
           "postfixFontSize": "50%",
           "prefix": "",
@@ -348,6 +351,9 @@ data:
           "linewidth": 2,
           "links": [],
           "nullPointMode": "connected",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -452,6 +458,9 @@ data:
           "linewidth": 2,
           "links": [],
           "nullPointMode": "connected",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": true,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -572,6 +581,9 @@ data:
           "linewidth": 2,
           "links": [],
           "nullPointMode": "null as zero",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -683,6 +695,9 @@ data:
           "linewidth": 2,
           "links": [],
           "nullPointMode": "connected",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -794,6 +809,9 @@ data:
           "linewidth": 2,
           "links": [],
           "nullPointMode": "connected",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -896,6 +914,9 @@ data:
           "linewidth": 2,
           "links": [],
           "nullPointMode": "connected",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -1012,6 +1033,9 @@ data:
           "linewidth": 2,
           "links": [],
           "nullPointMode": "connected",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -1130,6 +1154,9 @@ data:
           "linewidth": 1,
           "links": [],
           "nullPointMode": "connected",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
           "pluginVersion": "7.1.5",
           "pointradius": 5,
@@ -1195,7 +1222,7 @@ data:
         }
       ],
       "refresh": "5m",
-      "schemaVersion": 26,
+      "schemaVersion": 22,
       "style": "dark",
       "tags": [
         "prometheus",
@@ -1204,8 +1231,30 @@ data:
       "templating": {
         "list": [
           {
+            "current": {
+              "selected": true,
+              "text": "crc-stg-01-prometheus",
+              "value": "crc-stg-01-prometheus"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Datasource",
+            "multi": false,
+            "name": "Datasource",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "regex": "/.*crc.*/",
+            "skipUrlSync": false,
+            "type": "datasource"
+          },
+          {
             "allValue": null,
-            "current": {},
+            "current": {
+              "selected": true,
+              "text": "hccm-stage",
+              "value": "hccm-stage",
+            },
             "datasource": "$Datasource",
             "definition": "label_values(redis_up, instance)",
             "hide": 0,
@@ -1224,24 +1273,6 @@ data:
             "tagsQuery": "",
             "type": "query",
             "useTags": false
-          },
-          {
-            "current": {
-              "selected": false,
-              "text": "No data sources found",
-              "value": ""
-            },
-            "hide": 0,
-            "includeAll": false,
-            "label": "Datasource",
-            "multi": false,
-            "name": "Datasource",
-            "options": [],
-            "query": "",
-            "refresh": 1,
-            "regex": "/.*crc.*/",
-            "skipUrlSync": false,
-            "type": "datasource"
           }
         ]
       },
@@ -1277,7 +1308,7 @@ data:
       "timezone": "browser",
       "title": "Cost Management - Redis",
       "uid": "Z4R11nuWk",
-      "version": 2
+      "version": 1
     }
 kind: ConfigMap
 metadata:
