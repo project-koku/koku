@@ -95,10 +95,11 @@ class ReportParquetProcessorBase:
             sql += f"{norm_col} {col_type}"
             if idx < (len(parquet_columns) - 1):
                 sql += ","
-        sql += ",year varchar, month varchar"
+        sql += ",source varchar, year varchar, month varchar"
 
         sql += (
-            f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET', partitioned_by=ARRAY['year', 'month'])"
+            f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET',"
+            " partitioned_by=ARRAY['source', 'year', 'month'])"
         )
         LOG.info(f"Create Parquet Table SQL: {sql}")
         return sql
