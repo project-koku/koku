@@ -25,13 +25,13 @@ from tenant_schemas.utils import schema_context
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.util import common as utils
 from reporting.provider.azure.models import AzureCostEntryBill
+from reporting.provider.azure.models import PRESTO_LINE_ITEM_TABLE
 
 LOG = logging.getLogger(__name__)
 
 
 class AzureReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
-        azure_table_name = f"source_{provider_uuid.replace('-', '_')}_manifest_{manifest_id}"
         super().__init__(
             manifest_id=manifest_id,
             account=account,
@@ -40,7 +40,7 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
             parquet_local_path=parquet_local_path,
             numeric_columns=["usagequantity", "resourcerate", "pretaxcost"],
             date_columns=["usagedatetime"],
-            table_name=azure_table_name,
+            table_name=PRESTO_LINE_ITEM_TABLE,
         )
 
     def create_bill(self):

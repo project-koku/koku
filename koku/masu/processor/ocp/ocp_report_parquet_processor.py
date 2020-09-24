@@ -22,11 +22,12 @@ from tenant_schemas.utils import schema_context
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.util.ocp import common as utils
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_MAP
 
 
 class OCPReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
-        ocp_table_name = f"source_{provider_uuid.replace('-', '_')}_type_{report_type}_manifest_{manifest_id}"
+        ocp_table_name = PRESTO_LINE_ITEM_TABLE_MAP[report_type]
         numeric_columns = [
             "pod_usage_cpu_core_seconds",
             "pod_request_cpu_core_seconds",

@@ -19,11 +19,11 @@ from tenant_schemas.utils import schema_context
 
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from reporting.provider.aws.models import AWSCostEntryBill
+from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
 
 
 class AWSReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
-        aws_table_name = f"source_{provider_uuid.replace('-', '_')}_aws_line_items"
         numeric_columns = [
             "lineitem_normalizationfactor",
             "lineitem_normalizedusageamount",
@@ -49,7 +49,7 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
             parquet_local_path=parquet_local_path,
             numeric_columns=numeric_columns,
             date_columns=date_columns,
-            table_name=aws_table_name,
+            table_name=PRESTO_LINE_ITEM_TABLE,
         )
 
     def create_bill(self):
