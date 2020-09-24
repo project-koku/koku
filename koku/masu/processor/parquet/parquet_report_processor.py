@@ -121,11 +121,9 @@ class ParquetReportProcessor:
             LOG.warn(log_json(request_id, msg, context))
             return
 
-        s3_csv_path = get_path_prefix(account, provider_uuid, cost_date, Config.CSV_DATA_TYPE)
+        s3_csv_path = get_path_prefix(account, provider_type, provider_uuid, cost_date, Config.CSV_DATA_TYPE)
         local_path = f"{Config.TMP_DIR}/{account}/{provider_uuid}"
-        s3_parquet_path = get_path_prefix(
-            account, provider_uuid, cost_date, Config.PARQUET_DATA_TYPE, file_type="parquet"
-        )
+        s3_parquet_path = get_path_prefix(account, provider_type, provider_uuid, cost_date, Config.PARQUET_DATA_TYPE)
 
         if not files:
             file_keys = self.get_file_keys_from_s3_with_manifest_id(request_id, s3_csv_path, manifest_id, context)
@@ -152,7 +150,14 @@ class ParquetReportProcessor:
             if provider_type == Provider.PROVIDER_OCP:
                 for report_type in REPORT_TYPES.keys():
                     if report_type in csv_filename:
-                        parquet_path = f"{s3_parquet_path}/{report_type}"
+                        parquet_path = get_path_prefix(
+                            account,
+                            provider_type,
+                            provider_uuid,
+                            cost_date,
+                            Config.PARQUET_DATA_TYPE,
+                            report_type=report_type,
+                        )
                         kwargs["report_type"] = report_type
                         parquet_report_type = report_type
                         break
@@ -306,9 +311,7 @@ class ParquetReportProcessor:
             LOG.warn(log_json(request_id, msg, context))
             return False
 
-        s3_hive_table_path = get_hive_table_path(
-            context.get("account"), context.get("provider_uuid"), Config.PARQUET_DATA_TYPE
-        )
+        s3_hive_table_path = get_hive_table_path(context.get("account"), self._provider_type)
 
         self.create_parquet_table(
             context.get("account"),
