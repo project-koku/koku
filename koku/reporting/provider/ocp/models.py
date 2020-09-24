@@ -23,6 +23,12 @@ from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
+PRESTO_LINE_ITEM_TABLE_MAP = {
+    "pod_usage": "openshift_pod_usage_line_items",
+    "volume_usage": "openshift_volume_usage_line_items",
+    "node_labels": "openshift_node_labels_line_items",
+}
+
 
 class OCPUsageReportPeriod(models.Model):
     """The report period information for a Operator Metering report.

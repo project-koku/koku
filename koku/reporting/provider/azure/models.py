@@ -21,6 +21,9 @@ from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 
+
+PRESTO_LINE_ITEM_TABLE = "azure_line_items"
+
 VIEWS = (
     "reporting_azure_compute_summary",
     "reporting_azure_cost_summary",
