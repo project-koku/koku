@@ -20,6 +20,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_s
     account_alias_id,
     organizational_unit_id,
     source_uuid,
+    cost_entry_bill_id,
     markup_cost
 )
 SELECT uuid() as uuid,
@@ -43,10 +44,9 @@ SELECT uuid() as uuid,
     aa.id as account_alias_id,
     ou.id as organizational_unit_id,
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
+    INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
     cast(unblended_cost * {{markup | sqlsafe}} AS decimal(24,9)) as markup_cost
 FROM hive.{{schema | sqlsafe}}.presto_aws_daily_summary_{{uuid | sqlsafe}} AS ds
--- JOIN postgres.{{schema | sqlsafe}}.reporting_awscostentrybill AS b
---     ON
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
     ON ds.usage_account_id = aa.account_id
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsorganizationalunit AS ou
