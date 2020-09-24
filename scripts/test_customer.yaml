@@ -4,33 +4,6 @@ customer:
   email: test@example.com
   user: test_customer
   sources:
-    - aws_source:
-      source_name: Test AWS Source
-      source_type: 'AWS-local'
-      authentication:
-        credentials:
-          role_arn: arn:aws:iam::111111111111:role/CostManagement
-      billing_source:
-        data_source:
-          bucket: /tmp/local_bucket
-    - ocp_on_aws_source:
-      source_name: Test OCP on AWS
-      source_type: 'OCP'
-      authentication:
-        credentials:
-          cluster_id: my-ocp-cluster-1
-    - ocp_on_azure_source:
-      source_name: Test OCP on Azure
-      source_type: 'OCP'
-      authentication:
-        credentials:
-          cluster_id: my-ocp-cluster-2
-    - ocp_on_prem_source:
-      source_name: Test OCP on Premises
-      source_type: 'OCP'
-      authentication:
-        credentials:
-          cluster_id: my-ocp-cluster-3
     - azure_source:
       source_name: Test Azure Source
       source_type: 'Azure-local'

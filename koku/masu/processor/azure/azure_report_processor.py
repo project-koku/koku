@@ -218,11 +218,14 @@ class AzureReportProcessor(ReportProcessorBase):
         data["instance_type"] = instance_type
         data["provider_id"] = self._provider_uuid
         with transaction.atomic():
-            product_id = report_db_accessor.insert_on_conflict_do_nothing(
-                AzureCostEntryProductService,
-                data,
-                conflict_columns=["instance_id", "instance_type", "service_tier", "service_name"],
-            )
+            try:
+                product_id = report_db_accessor.insert_on_conflict_do_nothing(
+                    AzureCostEntryProductService,
+                    data,
+                    conflict_columns=["instance_id", "instance_type", "service_tier", "service_name"],
+                )
+            except Exception:
+                LOG.info(f"FAILING row: {str(row)}")
         self.processed_report.products[key] = product_id
         return product_id
 
@@ -299,6 +302,73 @@ class AzureReportProcessor(ReportProcessorBase):
 
         return bill_id
 
+    def _update_header(self, headers):
+        modified_header = headers
+
+        if 'UsageDateTime' not in headers:
+            other_date_values = ['Date']
+            for other_date in other_date_values:
+                if other_date in headers:
+                    date_index = modified_header.index(other_date)
+                    del modified_header[date_index]
+                    modified_header.insert(date_index, 'UsageDateTime')
+
+        if 'UsageQuantity' not in headers:
+            other_date_values = ['Quantity']
+            for other_date in other_date_values:
+                if other_date in headers:
+                    date_index = modified_header.index(other_date)
+                    del modified_header[date_index]
+                    modified_header.insert(date_index, 'UsageQuantity')
+
+        # TODO: Check that this is right...
+        if 'PreTaxCost' not in headers:
+            other_date_values = ['CostInBillingCurrency']
+            for other_date in other_date_values:
+                if other_date in headers:
+                    date_index = modified_header.index(other_date)
+                    del modified_header[date_index]
+                    modified_header.insert(date_index, 'PreTaxCost')
+
+        if 'InstanceId' not in headers:
+            other_date_values = ['ResourceId']
+            for other_date in other_date_values:
+                if other_date in headers:
+                    date_index = modified_header.index(other_date)
+                    del modified_header[date_index]
+                    modified_header.insert(date_index, 'InstanceId')
+
+        if 'SubscriptionGuid' not in headers:
+            other_date_values = ['SubscriptionId']
+            for other_date in other_date_values:
+                if other_date in headers:
+                    date_index = modified_header.index(other_date)
+                    del modified_header[date_index]
+                    modified_header.insert(date_index, 'SubscriptionGuid')
+
+        if 'ServiceName' not in headers:
+            other_date_values = ['MeterCategory']
+            for other_date in other_date_values:
+                if other_date in headers:
+                    date_index = modified_header.index(other_date)
+                    del modified_header[date_index]
+                    modified_header.insert(date_index, 'ServiceName')
+
+        return modified_header
+
+    def _update_dateformat_in_row(self, row):
+        modified_row = row
+        try:
+            modified_row['UsageDateTime'] = datetime.strptime(row.get("UsageDateTime"), "%m/%d/%Y").strftime("%Y-%m-%d")
+        except ValueError:
+            LOG.debug("No conversion necessary")
+        return modified_row
+
+    def _is_row_unassigned(self, row):
+        if row.get("MeterId") == '00000000-0000-0000-0000-000000000000':
+            return True
+        return False
+
     def process(self):  # noqa: C901
         """Process cost/usage file.
 
@@ -311,12 +381,21 @@ class AzureReportProcessor(ReportProcessorBase):
         self._delete_line_items(AzureReportDBAccessor)
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode, encoding="utf-8-sig") as f:
-            header = normalize_header(f.readline())
+            original_header = normalize_header(f.readline())
+            LOG.info(f"HEADER: {str(original_header)}.")
+            header = self._update_header(original_header)
+            LOG.info(f"MODIFIED HEADER: {str(header)}.")
             with AzureReportDBAccessor(self._schema) as report_db:
                 temp_table = report_db.create_temp_table(self.table_name._meta.db_table, drop_column="id")
                 LOG.info("File %s opened for processing", str(f))
                 reader = csv.DictReader(f, fieldnames=header)
+
                 for row in reader:
+                    if self._is_row_unassigned(row):
+                        continue
+
+                    row = self._update_dateformat_in_row(row)
+
                     if not self._should_process_row(row, "UsageDateTime", is_full_month):
                         continue
                     li_usage_dt = row.get("UsageDateTime")
