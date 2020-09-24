@@ -234,9 +234,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
 
-    def populate_line_item_daily_summary_table_from_parquet(
-        self, start_date, end_date, source_uuid, manifest_id, markup_value
-    ):
+    def populate_line_item_daily_summary_table_presto(self, start_date, end_date, source_uuid, bill_id, markup_value):
         """Populate the daily aggregated summary of line items table.
 
         Args:
@@ -258,6 +256,8 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             "schema": self.schema,
             "table": table_name,
             "source_uuid": source_uuid,
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
@@ -273,6 +273,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             "schema": self.schema,
             "source_uuid": source_uuid,
             "markup": markup_value if markup_value else 0,
+            "bill_id": bill_id,
         }
         insert_sql, insert_sql_params = self.jinja_sql.prepare_query(insert_sql, insert_sql_params)
         LOG.info(f"Insert SQL: {str(insert_sql)}")
