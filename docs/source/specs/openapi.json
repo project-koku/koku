@@ -3585,6 +3585,10 @@
                             "Supplementary"
                         ]
                     },
+                    "description": {
+                        "type": "string",
+                        "example": "Rate description"
+                    },
                     "tiered_rates": {
                         "type": "array",
                         "items": {
@@ -3639,6 +3643,10 @@
                             "Infrastructure",
                             "Supplementary"
                         ]
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Rate description"
                     },
                     "tag_rates": {
                         "required": [

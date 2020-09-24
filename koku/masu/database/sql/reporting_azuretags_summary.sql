@@ -24,26 +24,21 @@ cte_values_agg AS (
     GROUP BY key, cost_entry_bill_id, subscription_guid
 )
 , ins1 AS (
-    INSERT INTO {{schema | sqlsafe}}.reporting_azuretags_summary (key, cost_entry_bill_id, subscription_guid, values)
-    SELECT key,
+    INSERT INTO {{schema | sqlsafe}}.reporting_azuretags_summary (uuid, key, cost_entry_bill_id, subscription_guid, values)
+    SELECT uuid_generate_v4() as uuid,
+        key,
         cost_entry_bill_id,
         subscription_guid,
         values
     FROM cte_values_agg
     ON CONFLICT (key, cost_entry_bill_id, subscription_guid) DO UPDATE SET values=EXCLUDED.values
-    RETURNING key, id as key_id
 )
-, ins2 AS (
-   INSERT INTO {{schema | sqlsafe}}.reporting_azuretags_values (value)
-   SELECT DISTINCT d.value
-   FROM cte_tag_value d
-   ON CONFLICT (value) DO UPDATE SET value=EXCLUDED.value
-   RETURNING value, id AS values_id
-   )
-
-INSERT INTO {{schema | sqlsafe}}.reporting_azuretags_summary_values_mtm (azuretagssummary_id, azuretagsvalues_id)
-SELECT DISTINCT ins1.key_id, ins2.values_id
-FROM cte_tag_value d
-INNER JOIN ins1 ON d.key = ins1.key
-INNER JOIN ins2 ON d.value = ins2.value
-ON CONFLICT (azuretagssummary_id, azuretagsvalues_id) DO NOTHING;
+INSERT INTO {{schema | sqlsafe}}.reporting_azuretags_values (uuid, key, value, subscription_guids)
+SELECT uuid_generate_v4() as uuid,
+    tv.key,
+    tv.value,
+    array_agg(DISTINCT tv.subscription_guid) as subscription_guids
+FROM cte_tag_value AS tv
+GROUP BY tv.key, tv.value
+ON CONFLICT (key, value) DO UPDATE SET subscription_guids=EXCLUDED.subscription_guids
+;
