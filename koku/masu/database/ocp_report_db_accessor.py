@@ -1130,9 +1130,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         usage_start__lte=end_date,
                         pod_labels__contains={tag_key: val_name},
                     )
-                    LOG.warning(qset)
-                    LOG.warning(metric)
-                    LOG.warning(rate_value)
                     for metric_choice in metric_constants.COST_MODEL_METRIC_MAP:
                         if metric == metric_choice["metric"]:
                             if metric_choice["label_metric"] == "CPU":
@@ -1236,7 +1233,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         # updates infrastructure costs from tags
         for metric, tags in infrastructure_rates.items():
             for tag_key, tag_vals in tags.items():
-                LOG.warning(tag_vals)
                 rate_value = tag_vals.get("default_value", 0)
                 value_names = tag_vals.get("defined_keys", [])
                 qset = OCPUsageLineItemDailySummary.objects.filter(
@@ -1314,7 +1310,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         # updates supplementary costs from tags
         for metric, tags in supplementary_rates.items():
             for tag_key, tag_vals in tags.items():
-                LOG.warning(tag_vals)
                 rate_value = tag_vals[0]
                 value_names = tag_vals[1]
                 qset = OCPUsageLineItemDailySummary.objects.filter(

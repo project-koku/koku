@@ -193,15 +193,21 @@ class CostModelDBAccessor(KokuDBAccess):
             format_tag_rates = {f"{metric_cost_type}": tag_rates_list}
             rate["tag_rates"] = format_tag_rates
             metric_rate_map[metric_name] = rate
-        LOG.warning(metric_rate_map)
         return metric_rate_map
 
     @property
     def tag_infrastructure_rates(self):
         """
         Return the rates designated as infrastructure cost from tag based rates.
-        The format for this is {metric_name: {tag_name : {value_name: value, default]}}}
-        This is in order to keep tag values associated with their key and a record of which is the default
+        The format for this is
+        {
+            metric: {
+                tag_key: {
+                    tag_value: value_rate, tag_value_2: value_rate
+                }
+            }
+        }
+        This is in order to keep tag values associated with their key
         """
         results_dict = {}
         for key, value in self.tag_based_price_list.items():
@@ -218,7 +224,8 @@ class CostModelDBAccessor(KokuDBAccess):
 
     @property
     def tag_default_infrastructure_rates(self):
-        """Return the default infrastructure rates for each key that has a defined rate
+        """
+        Return the default infrastructure rates for each key that has a defined rate
         It is returned in the format
         {
             metric: {
@@ -231,11 +238,9 @@ class CostModelDBAccessor(KokuDBAccess):
         """
         results_dict = {}
         for key, value in self.tag_based_price_list.items():
-            LOG.warning(value)
             if metric_constants.INFRASTRUCTURE_COST_TYPE in value.get("tag_rates").keys():
                 tag_dict = {}
                 for tag in value.get("tag_rates").get(metric_constants.INFRASTRUCTURE_COST_TYPE):
-                    LOG.warning(tag)
                     tag_key = tag.get("tag_key")
                     tag_keys_to_ignore = list(tag.get("tag_values").keys())
                     default_value = tag.get("tag_key_default")
@@ -245,7 +250,18 @@ class CostModelDBAccessor(KokuDBAccess):
 
     @property
     def tag_supplementary_rates(self):
-        """Return the rates designated as supplementary cost from tag based rates."""
+        """
+        Return the rates designated as supplementary cost from tag based rates.
+        The format for this is
+        {
+            metric: {
+                tag_key: {
+                    tag_value: value_rate, tag_value_2: value_rate
+                }
+            }
+        }
+        This is in order to keep tag values associated with their key
+        """
         results_dict = {}
         for key, value in self.tag_based_price_list.items():
             if metric_constants.SUPPLEMENTARY_COST_TYPE in value.get("tag_rates").keys():
@@ -261,11 +277,21 @@ class CostModelDBAccessor(KokuDBAccess):
 
     @property
     def tag_default_supplementary_rates(self):
-        """Return the default supplementary rates for each key that has a defined rate"""
+        """
+        Return the default infrastructure rates for each key that has a defined rate
+        It is returned in the format
+        {
+            metric: {
+                key: {
+                    'default_value': <value>, 'defined_keys': [keys, to, be, ignored]
+                }
+            }
+        }
+        Where the keys to be ignored is a list of tag values that have defined rates
+        """
         results_dict = {}
         for key, value in self.tag_based_price_list.items():
             if metric_constants.SUPPLEMENTARY_COST_TYPE in value.get("tag_rates").keys():
-                LOG.warning(value)
                 tag_dict = {}
                 for tag in value.get("tag_rates").get(metric_constants.SUPLLEMENTARY_COST_TYPE):
                     tag_key = tag.get("tag_key")
@@ -273,5 +299,4 @@ class CostModelDBAccessor(KokuDBAccess):
                     default_value = tag.get("tag_key_default")
                     tag_dict[tag_key] = {"default_value": default_value, "defined_keys": tag_keys_to_ignore}
                     results_dict[key] = tag_dict
-        LOG.warning(results_dict)
         return results_dict
