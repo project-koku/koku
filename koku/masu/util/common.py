@@ -291,24 +291,26 @@ def date_range_pair(start_date, end_date, step=5):
         yield start_date.date(), end_date.date()
 
 
-def get_path_prefix(account, provider_uuid, start_date, data_type, file_type=None):
-    """
-    Get the S3 bucket prefix
-    """
+def get_path_prefix(account, provider_type, provider_uuid, start_date, data_type, report_type=None):
+    """Get the S3 bucket prefix"""
     path = None
-    if file_type:
-        file_type = file_type.lower()
     if start_date:
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         path_prefix = f"{Config.WAREHOUSE_PATH}/{data_type}"
-        path = f"{path_prefix}/{account}/{provider_uuid}/{year}/{month}"
-        if file_type == "parquet":
-            path = f"{path_prefix}/{account}/{provider_uuid}/year={year}/month={month}"
+        path = f"{path_prefix}/{account}/{provider_type}/source={provider_uuid}/year={year}/month={month}"
+        if report_type:
+            path = (
+                f"{path_prefix}/{account}/{provider_type}/{report_type}"
+                "/source={provider_uuid}/year={year}/month={month}"
+            )
     return path
 
 
-def get_hive_table_path(account, provider_uuid, data_type):
+def get_hive_table_path(account, provider_type, report_type=None):
     """Get the S3 bucket prefix without partitions for hive table location."""
-    path_prefix = f"{Config.WAREHOUSE_PATH}/{data_type}"
-    return f"{path_prefix}/{account}/{provider_uuid}"
+    path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
+    table_path = f"{path_prefix}/{account}/{provider_type}"
+    if report_type:
+        table_path += "/{report_type}"
+    return table_path
