@@ -50,8 +50,10 @@ endif
 OS := $(shell uname)
 ifeq ($(OS),Darwin)
 	PREFIX	=
+	SED_IN_PLACE = sed -i ""
 else
 	PREFIX	= sudo
+	SED_IN_PLACE = sed -i
 endif
 
 help:
@@ -323,11 +325,11 @@ docker-up-min:
 	$(DOCKER_COMPOSE) up --build -d db redis koku-server masu-server koku-worker
 
 docker-up-min-no-build:
-	docker-compose up -d db redis koku-server masu-server koku-worker
+	$(DOCKER_COMPOSE) up -d db redis koku-server masu-server koku-worker
 
-docker-up-min-presto: docker-presto-up docker-up-min
+docker-up-min-presto: docker-up-min docker-presto-up
 
-docker-up-min-presto-no-build: docker-presto-up docker-up-min-no-build
+docker-up-min-presto-no-build: docker-up-min-no-build docker-presto-up
 
 docker-up-db:
 	$(DOCKER_COMPOSE) up -d db
@@ -359,23 +361,28 @@ docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 
 docker-metastore-setup:
 	@cp -fr deploy/metastore/ testing/metastore/
+	@chmod o+rwx ./testing/metastore
 	@cp -fr deploy/hadoop/ testing/hadoop/
-	@sed -i "" 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
-	@sed -i "" 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/metastore/hive-config/hive-site.xml
-	@sed -i "" 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' testing/metastore/hive-config/hive-site.xml
-	@sed -i "" 's/s3access/$(shell echo $(or $(S3_ACCESS_KEY),localhost))/g' testing/metastore/hive-config/hive-site.xml
-	@sed -i "" 's/s3secret/$(shell echo $(or $(S3_SECRET),localhost))/g' testing/metastore/hive-config/hive-site.xml
+	@chmod o+rwx ./testing/hadoop
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/s3access/$(shell echo $(or $(S3_ACCESS_KEY),localhost))/g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/s3secret/$(shell echo $(or $(S3_SECRET),localhost))/g' testing/metastore/hive-config/hive-site.xml
 
 docker-presto-setup:
 	@cp -fr deploy/presto/ testing/presto/
+	@chmod o+rwx ./testing/presto
 	@cp -fr deploy/hadoop/ testing/hadoop/
-	@sed -i "" 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
-	@sed -i "" 's/DATABASE_NAME/$(shell echo $(or $(DATABASE_NAME),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
-	@sed -i "" 's/DATABASE_USER/$(shell echo $(or $(DATABASE_USER),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
-	@sed -i "" 's/DATABASE_PASSWORD/$(shell echo $(or $(DATABASE_PASSWORD),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
+	@chmod o+rwx ./testing/hadoop
+	@[[ ! -d ./testing/parquet_data ]] && mkdir -p --mode=a+rwx ./testing/parquet_data || chmod a+rwx ./testing/parquet_data
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
+	@$(SED_IN_PLACE) -e 's/DATABASE_NAME/$(shell echo $(or $(DATABASE_NAME),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
+	@$(SED_IN_PLACE) -e 's/DATABASE_USER/$(shell echo $(or $(DATABASE_USER),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
+	@$(SED_IN_PLACE) -e 's/DATABASE_PASSWORD/$(shell echo $(or $(DATABASE_PASSWORD),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
 
 docker-presto-cleanup:
-	@rm -fr testing/parquet_data testing/hadoop testing/metastore testing/presto
+	@$(PREFIX) rm -fr testing/parquet_data testing/hadoop testing/metastore testing/presto
 
 docker-presto-up: docker-metastore-setup docker-presto-setup
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d
