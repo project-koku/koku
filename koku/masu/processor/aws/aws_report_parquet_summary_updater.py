@@ -1,8 +1,10 @@
 import logging
 
+from tenant_schemas.utils import schema_context
+
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
-from masu.util.common import date_range_pair
+from masu.external.date_accessor import DateAccessor
 
 LOG = logging.getLogger(__name__)
 
@@ -15,6 +17,7 @@ class AWSReportParquetSummaryUpdater:
         self._schema = schema
         self._provider = provider
         self._manifest = manifest
+        self._date_accessor = DateAccessor()
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
@@ -56,17 +59,28 @@ class AWSReportParquetSummaryUpdater:
 
         with AWSReportDBAccessor(self._schema) as accessor:
             # Need these bills on the session to update dates after processing
-            for start, end in date_range_pair(start_date, end_date):
-                LOG.info(
-                    "Updating AWS report summary tables from parquet: \n\tSchema: %s"
-                    "\n\tProvider: %s \n\tDates: %s - %s",
-                    self._schema,
-                    self._provider.uuid,
-                    start,
-                    end,
-                )
-                accessor.populate_line_item_daily_summary_table_from_parquet(
-                    start, end, self._provider.uuid, self._manifest.id, markup_value
-                )
+            with schema_context(self._schema):
+                bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
+                bill_ids = [str(bill.id) for bill in bills]
+                current_bill_id = bills.first().id
+
+            # for start, end in date_range_pair(start_date, end_date):
+            LOG.info(
+                "Updating AWS report summary tables from parquet: \n\tSchema: %s"
+                "\n\tProvider: %s \n\tDates: %s - %s",
+                self._schema,
+                self._provider.uuid,
+                start_date,
+                end_date,
+            )
+            accessor.populate_line_item_daily_summary_table_presto(
+                start_date, end_date, self._provider.uuid, current_bill_id, markup_value
+            )
+            accessor.populate_tags_summary_table(bill_ids)
+            for bill in bills:
+                if bill.summary_data_creation_datetime is None:
+                    bill.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
+                bill.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+                bill.save()
 
         return start_date, end_date
