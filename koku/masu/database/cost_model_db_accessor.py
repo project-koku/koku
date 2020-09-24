@@ -219,7 +219,14 @@ class CostModelDBAccessor(KokuDBAccess):
     @property
     def tag_default_infrastructure_rates(self):
         """Return the default infrastructure rates for each key that has a defined rate
-        It is returned in the format {metric: {key: [default_value, [keys, to, be, ignored]]}}
+        It is returned in the format
+        {
+            metric: {
+                key: {
+                    'default_value': <value>, 'defined_keys': [keys, to, be, ignored]
+                }
+            }
+        }
         Where the keys to be ignored is a list of tag values that have defined rates
         """
         results_dict = {}
@@ -232,10 +239,8 @@ class CostModelDBAccessor(KokuDBAccess):
                     tag_key = tag.get("tag_key")
                     tag_keys_to_ignore = list(tag.get("tag_values").keys())
                     default_value = tag.get("tag_key_default")
-                    tag_dict[tag_key] = [default_value, tag_keys_to_ignore]
+                    tag_dict[tag_key] = {"default_value": default_value, "defined_keys": tag_keys_to_ignore}
                     results_dict[key] = tag_dict
-        LOG.warning("------ default tag stuff")
-        LOG.warning(results_dict)
         return results_dict
 
     @property
@@ -266,7 +271,7 @@ class CostModelDBAccessor(KokuDBAccess):
                     tag_key = tag.get("tag_key")
                     tag_keys_to_ignore = list(tag.get("tag_values").keys())
                     default_value = tag.get("tag_key_default")
-                    tag_dict[tag_key] = [default_value, tag_keys_to_ignore]
+                    tag_dict[tag_key] = {"default_value": default_value, "defined_keys": tag_keys_to_ignore}
                     results_dict[key] = tag_dict
         LOG.warning(results_dict)
         return results_dict

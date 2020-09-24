@@ -1009,6 +1009,15 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         Update the reporting_ocpusagelineitem_daily_summary table with usage costs based on tag rates.
         Due to the way the tag_keys are stored it loops through all of the tag keys to filter and update costs.
         This may be slow, need to talk with Andrew and see if he has a better implementation or idea
+
+        The data structure for infrastructure and supplementary rates are a dictionary that include the metric name,
+        the tag key, the tag value names, and the tag value, for example:
+            {'cpu_core_usage_per_hour': {
+                'app': {
+                    'far': '0.2000000000', 'manager': '100.0000000000', 'walk': '5.0000000000'
+                    }
+                }
+            }
         """
         # Cast start_date and end_date to date object, if they aren't already
         if isinstance(start_date, str):
@@ -1017,14 +1026,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         if isinstance(start_date, datetime.datetime):
             start_date = start_date.date()
             end_date = end_date.date()
-
         # updates infrastructure costs from tags
         for metric, tags in infrastructure_rates.items():
-            LOG.warning(metric)
-            LOG.warning(tags)
             for tag_key, tag_vals in tags.items():
-                LOG.warning(tag_key)
-                LOG.warning(tag_vals)
                 value_names = list(tag_vals.keys())
                 for val_name in value_names:
                     rate_value = tag_vals[val_name]
@@ -1198,8 +1202,18 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     ):
         """
         Update the reporting_ocpusagelineitem_daily_summary table with usage costs based on tag rates.
-        Due to the way the tag_keys are stored it loops through all of the tag keys to filter and update costs.
-        This may be slow, need to talk with Andrew and see if he has a better implementation or idea
+
+        The data structure for infrastructure and supplementary rates are a dictionary that includes the metric,
+        the tag key, the default value,
+        and the values for that key that have rates defined and do not need the default applied,
+        for example:
+            {
+                'cpu_core_usage_per_hour': {
+                    'app': {
+                        'default_value': '100.0000000000', 'defined_keys': ['far', 'manager', 'walk']
+                    }
+                }
+            }
         """
         # Cast start_date and end_date to date object, if they aren't already
         if isinstance(start_date, str):
@@ -1213,8 +1227,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         for metric, tags in infrastructure_rates.items():
             for tag_key, tag_vals in tags.items():
                 LOG.warning(tag_vals)
-                rate_value = tag_vals[0]
-                value_names = tag_vals[1]
+                rate_value = tag_vals.get("default_value", 0)
+                value_names = tag_vals.get("defined_keys", [])
                 qset = OCPUsageLineItemDailySummary.objects.filter(
                     cluster_id=cluster_id,
                     usage_start__gte=start_date,
