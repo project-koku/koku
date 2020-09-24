@@ -36,6 +36,7 @@ from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSCostEntryPricing
 from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
+from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
 
 LOG = logging.getLogger(__name__)
 
@@ -247,14 +248,13 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         """
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_awscostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
-        table_name = f"source_{str(source_uuid).replace('-', '_')}_aws_line_items"
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         summary_sql_params = {
             "uuid": uuid_str,
             "start_date": start_date,
             "end_date": end_date,
             "schema": self.schema,
-            "table": table_name,
+            "table": PRESTO_LINE_ITEM_TABLE,
             "source_uuid": source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
