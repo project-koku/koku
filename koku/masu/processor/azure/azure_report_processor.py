@@ -302,70 +302,47 @@ class AzureReportProcessor(ReportProcessorBase):
 
         return bill_id
 
-    def _update_header(self, headers):
+    def _replace_name_in_header(self, existing_name, new_names, headers):
+        """Helper to restore header names to original report format given a list of new name possibilities."""
         modified_header = headers
 
-        if 'UsageDateTime' not in headers:
-            other_date_values = ['Date']
+        if existing_name not in headers:
+            other_date_values = new_names
             for other_date in other_date_values:
                 if other_date in headers:
-                    date_index = modified_header.index(other_date)
-                    del modified_header[date_index]
-                    modified_header.insert(date_index, 'UsageDateTime')
+                    value_index = modified_header.index(other_date)
+                    del modified_header[value_index]
+                    modified_header.insert(value_index, existing_name)
+                    break
+        return modified_header
 
-        if 'UsageQuantity' not in headers:
-            other_date_values = ['Quantity']
-            for other_date in other_date_values:
-                if other_date in headers:
-                    date_index = modified_header.index(other_date)
-                    del modified_header[date_index]
-                    modified_header.insert(date_index, 'UsageQuantity')
+    def _update_header(self, headers):
+        """Update report header to conform with original report format."""
+        modified_header = headers
 
-        # TODO: Check that this is right...
-        if 'PreTaxCost' not in headers:
-            other_date_values = ['CostInBillingCurrency']
-            for other_date in other_date_values:
-                if other_date in headers:
-                    date_index = modified_header.index(other_date)
-                    del modified_header[date_index]
-                    modified_header.insert(date_index, 'PreTaxCost')
-
-        if 'InstanceId' not in headers:
-            other_date_values = ['ResourceId']
-            for other_date in other_date_values:
-                if other_date in headers:
-                    date_index = modified_header.index(other_date)
-                    del modified_header[date_index]
-                    modified_header.insert(date_index, 'InstanceId')
-
-        if 'SubscriptionGuid' not in headers:
-            other_date_values = ['SubscriptionId']
-            for other_date in other_date_values:
-                if other_date in headers:
-                    date_index = modified_header.index(other_date)
-                    del modified_header[date_index]
-                    modified_header.insert(date_index, 'SubscriptionGuid')
-
-        if 'ServiceName' not in headers:
-            other_date_values = ['MeterCategory']
-            for other_date in other_date_values:
-                if other_date in headers:
-                    date_index = modified_header.index(other_date)
-                    del modified_header[date_index]
-                    modified_header.insert(date_index, 'ServiceName')
+        modified_header = self._replace_name_in_header("UsageDateTime", ["Date"], modified_header)
+        modified_header = self._replace_name_in_header("UsageQuantity", ["Quantity"], modified_header)
+        modified_header = self._replace_name_in_header("PreTaxCost", ["CostInBillingCurrency"], modified_header)
+        modified_header = self._replace_name_in_header("InstanceId", ["ResourceId"], modified_header)
+        modified_header = self._replace_name_in_header("SubscriptionGuid", ["SubscriptionId"], modified_header)
+        modified_header = self._replace_name_in_header("ServiceName", ["MeterCategory"], modified_header)
 
         return modified_header
 
     def _update_dateformat_in_row(self, row):
+        """Convert date format from MM/DD/YYYY to YYYY-MM-DD."""
         modified_row = row
         try:
-            modified_row['UsageDateTime'] = datetime.strptime(row.get("UsageDateTime"), "%m/%d/%Y").strftime("%Y-%m-%d")
+            modified_row["UsageDateTime"] = datetime.strptime(row.get("UsageDateTime"), "%m/%d/%Y").strftime(
+                "%Y-%m-%d"
+            )
         except ValueError:
             LOG.debug("No conversion necessary")
         return modified_row
 
     def _is_row_unassigned(self, row):
-        if row.get("MeterId") == '00000000-0000-0000-0000-000000000000':
+        """Helper to detect unassigned meters in report."""
+        if row.get("MeterId") == "00000000-0000-0000-0000-000000000000":
             return True
         return False
 
@@ -382,9 +359,8 @@ class AzureReportProcessor(ReportProcessorBase):
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode, encoding="utf-8-sig") as f:
             original_header = normalize_header(f.readline())
-            LOG.info(f"HEADER: {str(original_header)}.")
             header = self._update_header(original_header)
-            LOG.info(f"MODIFIED HEADER: {str(header)}.")
+
             with AzureReportDBAccessor(self._schema) as report_db:
                 temp_table = report_db.create_temp_table(self.table_name._meta.db_table, drop_column="id")
                 LOG.info("File %s opened for processing", str(f))
