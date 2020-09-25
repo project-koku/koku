@@ -33,7 +33,7 @@ cte_values_agg AS (
         node,
         values
     FROM cte_values_agg
-    ON CONFLICT (key, report_period_id, namespace) DO UPDATE SET values=EXCLUDED.values
+    ON CONFLICT (key, report_period_id, namespace, node) DO UPDATE SET values=EXCLUDED.values
     )
 INSERT INTO {{schema | sqlsafe}}.reporting_ocptags_values (uuid, key, value, cluster_ids, cluster_aliases, namespaces, nodes)
 SELECT uuid_generate_v4() as uuid,

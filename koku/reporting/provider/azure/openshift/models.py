@@ -215,7 +215,7 @@ class OCPAzureTagsSummary(models.Model):
         """Meta for AzureTagsSummary."""
 
         db_table = "reporting_ocpazuretags_summary"
-        unique_together = ("key", "cost_entry_bill", "report_period", "subscription_guid", "namespace")
+        unique_together = ("key", "cost_entry_bill", "report_period", "subscription_guid", "namespace", "node")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
