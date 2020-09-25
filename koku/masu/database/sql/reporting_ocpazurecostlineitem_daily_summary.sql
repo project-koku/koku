@@ -240,7 +240,6 @@ CREATE TEMPORARY TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} 
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure
         JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice as aps
@@ -323,7 +322,6 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
@@ -391,7 +389,6 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
@@ -459,7 +456,6 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
@@ -598,7 +594,6 @@ CREATE TEMPORARY TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure
         JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice as aps
@@ -674,7 +669,6 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
@@ -739,7 +733,6 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
@@ -804,7 +797,6 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
@@ -869,7 +861,6 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
@@ -939,7 +930,6 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp

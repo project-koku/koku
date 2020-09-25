@@ -99,8 +99,6 @@ class OCPAzureCostLineItemDailySummary(models.Model):
 
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
 
-    offer_id = models.PositiveIntegerField(null=True)
-
     currency = models.TextField(null=True)
 
     unit_of_measure = models.TextField(null=True)
@@ -173,8 +171,6 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     unit_of_measure = models.TextField(null=True)
-
-    offer_id = models.PositiveIntegerField(null=True)
 
     currency = models.TextField(null=True)
 
