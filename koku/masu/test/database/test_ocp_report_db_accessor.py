@@ -505,8 +505,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
             cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date, data_source="Pod"
         )
 
-        expected_usage_reports = {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
-        expected_request_reports = {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
+        expected_usage_reports = {entry.uuid: entry.pod_usage_cpu_core_hours for entry in reports}
+        expected_request_reports = {entry.uuid: entry.pod_usage_cpu_core_hours for entry in reports}
         cpu_usage_query = self.accessor.get_pod_usage_cpu_core_hours(start_date, end_date, cluster_id)
         cpu_request_query = self.accessor.get_pod_request_cpu_core_hours(start_date, end_date, cluster_id)
 
@@ -527,8 +527,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         # Verify that the line items for the test cluster_id are returned
         reports = self.accessor._get_db_obj_query(table_name).filter(data_source="Pod").all()
 
-        expected_usage_reports = {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
-        expected_request_reports = {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
+        expected_usage_reports = {entry.uuid: entry.pod_usage_cpu_core_hours for entry in reports}
+        expected_request_reports = {entry.uuid: entry.pod_usage_cpu_core_hours for entry in reports}
         cpu_usage_query = self.accessor.get_pod_usage_cpu_core_hours(start_date, end_date)
         cpu_request_query = self.accessor.get_pod_request_cpu_core_hours(start_date, end_date)
 
@@ -546,8 +546,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
             cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date, data_source="Pod"
         )
 
-        expected_usage_reports = {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
-        expected_request_reports = {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
+        expected_usage_reports = {entry.uuid: entry.pod_usage_memory_gigabyte_hours for entry in reports}
+        expected_request_reports = {entry.uuid: entry.pod_request_memory_gigabyte_hours for entry in reports}
         mem_usage_query = self.accessor.get_pod_usage_memory_gigabyte_hours(start_date, end_date, cluster_id)
         mem_request_query = self.accessor.get_pod_request_memory_gigabyte_hours(start_date, end_date, cluster_id)
 
@@ -569,8 +569,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         # Verify that the line items for the test cluster_id are returned
         reports = self.accessor._get_db_obj_query(table_name).filter(data_source="Pod").all()
 
-        expected_usage_reports = {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
-        expected_request_reports = {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
+        expected_usage_reports = {entry.uuid: entry.pod_usage_memory_gigabyte_hours for entry in reports}
+        expected_request_reports = {entry.uuid: entry.pod_request_memory_gigabyte_hours for entry in reports}
         mem_usage_query = self.accessor.get_pod_usage_memory_gigabyte_hours(start_date, end_date)
         mem_request_query = self.accessor.get_pod_request_memory_gigabyte_hours(start_date, end_date)
 
@@ -585,8 +585,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         # Verify that the line items for the test cluster_id are returned
         reports = self.accessor._get_db_obj_query(table_name).filter(cluster_id=self.cluster_id, data_source="Storage")
 
-        expected_usage_reports = {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
-        expected_request_reports = {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
+        expected_usage_reports = {entry.uuid: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
+        expected_request_reports = {entry.uuid: entry.volume_request_storage_gigabyte_months for entry in reports}
         vol_usage_query = self.accessor.get_persistentvolumeclaim_usage_gigabyte_months(
             start_date, end_date, self.cluster_id
         )
@@ -616,8 +616,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         # Verify that the line items for the test cluster_id are returned
         reports = self.accessor._get_db_obj_query(table_name).filter(data_source="Storage").all()
 
-        expected_usage_reports = {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
-        expected_request_reports = {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
+        expected_usage_reports = {entry.uuid: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
+        expected_request_reports = {entry.uuid: entry.volume_request_storage_gigabyte_months for entry in reports}
         vol_usage_query = self.accessor.get_persistentvolumeclaim_usage_gigabyte_months(start_date, end_date)
         vol_request_query = self.accessor.get_volume_request_storage_gigabyte_months(start_date, end_date)
 

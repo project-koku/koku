@@ -19,6 +19,7 @@ import uuid
 
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.test import MasuTestCase
+from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_MAP
 
 
 class OCPReportProcessorParquetTest(MasuTestCase):
@@ -40,8 +41,4 @@ class OCPReportProcessorParquetTest(MasuTestCase):
 
     def test_ocp_table_name(self):
         """Test the OCP table name generation."""
-        expected_table_name = (
-            f"acct{self.account}.source_{self.provider_uuid.replace('-', '_')}"
-            f"_type_{self.report_type}_manifest_{self.manifest_id}"
-        )
-        self.assertEqual(self.processor._table_name, expected_table_name)
+        self.assertEqual(self.processor._table_name, PRESTO_LINE_ITEM_TABLE_MAP[self.report_type])

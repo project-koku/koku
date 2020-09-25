@@ -19,6 +19,7 @@ import uuid
 
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.test import MasuTestCase
+from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
 
 
 class AWSReportProcessorParquetTest(MasuTestCase):
@@ -39,7 +40,4 @@ class AWSReportProcessorParquetTest(MasuTestCase):
 
     def test_aws_table_name(self):
         """Test the AWS table name generation."""
-        expected_table_name = (
-            f"acct{self.account}.source_{self.provider_uuid.replace('-', '_')}_manifest_{self.manifest_id}"
-        )
-        self.assertEqual(self.processor._table_name, expected_table_name)
+        self.assertEqual(self.processor._table_name, PRESTO_LINE_ITEM_TABLE)

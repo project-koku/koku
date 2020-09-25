@@ -336,7 +336,7 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
         )
 
     dh = DateHelper(utc=True)
-    prev_month_start_day = dh.last_month_start.replace(tzinfo=None)
+    prev_month_start_day = dh.last_month_start.replace(tzinfo=None).date()
     if isinstance(start_date, str):
         start_date = ciso8601.parse_datetime(start_date).date()
     if manifest_id and (start_date <= prev_month_start_day):
