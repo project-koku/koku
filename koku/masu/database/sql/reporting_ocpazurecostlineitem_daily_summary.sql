@@ -240,7 +240,6 @@ CREATE TEMPORARY TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} 
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure
         JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice as aps
@@ -323,7 +322,6 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
@@ -391,7 +389,6 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
@@ -459,7 +456,6 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
@@ -528,7 +524,6 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
@@ -598,7 +593,6 @@ CREATE TEMPORARY TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure
         JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice as aps
@@ -674,7 +668,6 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
@@ -739,7 +732,6 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
@@ -804,7 +796,6 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
@@ -869,7 +860,6 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_special_case_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
@@ -939,7 +929,6 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
             azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
-            azure.offer_id,
             azure.tags
         FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
@@ -1073,7 +1062,6 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         max(li.pretax_cost) as pretax_cost,
         max(li.pretax_cost) * {{markup}}::numeric as markup_cost,
         max(li.shared_projects) as shared_projects,
-        max(li.offer_id) as offer_id,
         pc.project_costs as project_costs,
         ab.provider_id as source_uuid
     FROM reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} as li
@@ -1115,7 +1103,6 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         max(li.pretax_cost) as pretax_cost,
         max(li.pretax_cost) * {{markup}}::numeric as markup_cost,
         max(li.shared_projects) as shared_projects,
-        max(li.offer_id) as offer_id,
         pc.project_costs as project_costs,
         ab.provider_id as source_uuid
     FROM reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
@@ -1206,7 +1193,6 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         max((li.usage_quantity * suu.multiplier) / li.shared_pods) as usage_quantity,
         sum(li.pretax_cost / li.shared_pods) as pretax_cost,
         sum(li.pretax_cost / li.shared_pods) * {{markup}}::numeric as markup_cost,
-        max(li.offer_id) as offer_id,
         max(li.shared_pods) as shared_pods,
         li.pod_cost,
         li.pod_cost * {{markup}}::numeric as project_markup_cost,
@@ -1257,7 +1243,6 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         max((li.usage_quantity * sus.multiplier) / li.shared_pods) as usage_quantity,
         sum(li.pretax_cost / li.shared_pods) as pretax_cost,
         sum(li.pretax_cost / li.shared_pods) * {{markup}}::numeric as markup_cost,
-        max(li.offer_id) as offer_id,
         max(li.shared_pods) as shared_pods,
         li.pod_cost,
         li.pod_cost * {{markup}}::numeric as project_markup_cost,
@@ -1336,7 +1321,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary (
     usage_quantity,
     pretax_cost,
     markup_cost,
-    offer_id,
     currency,
     unit_of_measure,
     shared_projects,
@@ -1361,7 +1345,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary (
         usage_quantity,
         pretax_cost,
         markup_cost,
-        offer_id,
         currency,
         unit_of_measure,
         shared_projects,
@@ -1412,7 +1395,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_su
     usage_quantity,
     pretax_cost,
     markup_cost,
-    offer_id,
     currency,
     unit_of_measure,
     pod_cost,
@@ -1438,7 +1420,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_su
         usage_quantity,
         pretax_cost,
         markup_cost,
-        offer_id,
         currency,
         unit_of_measure,
         pod_cost,
