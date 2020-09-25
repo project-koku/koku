@@ -46,6 +46,8 @@ class AzureReportProcessorTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
         cls.test_report_path = "./koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
+        cls.test_v2_report_path = "./koku/masu/test/data/azure/azure_version_2.csv"
+
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -66,13 +68,22 @@ class AzureReportProcessorTest(MasuTestCase):
         super().setUp()
         self.temp_dir = tempfile.mkdtemp()
         self.test_report = f"{self.temp_dir}/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
+        self.test_v2_report = f"{self.temp_dir}/azure_version_2.csv"
 
         shutil.copy2(self.test_report_path, self.test_report)
+        shutil.copy2(self.test_v2_report_path, self.test_v2_report)
 
         self.assembly_id = "1234"
         self.processor = AzureReportProcessor(
             schema_name=self.schema,
             report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.azure_provider_uuid,
+        )
+
+        self.processor_v2 = AzureReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_v2_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.azure_provider_uuid,
         )
@@ -129,6 +140,30 @@ class AzureReportProcessorTest(MasuTestCase):
                 count = table.objects.count()
             self.assertTrue(count > counts[table_name])
         self.assertFalse(os.path.exists(self.test_report))
+
+    def test_azure_process_v2(self):
+        """Test the processing of an uncompressed Azure V2 file."""
+        counts = {}
+
+        report_db = self.accessor
+        report_schema = report_db.report_schema
+        for table_name in self.report_tables:
+            table = getattr(report_schema, table_name)
+            with schema_context(self.schema):
+                count = table.objects.count()
+            counts[table_name] = count
+        logging.disable(logging.NOTSET)  # We are currently disabling all logging below CRITICAL in masu/__init__.py
+        with self.assertLogs("masu.processor.azure.azure_report_processor", level="INFO") as logger:
+            self.processor_v2.process()
+            self.assertIn("INFO:masu.processor.azure.azure_report_processor", logger.output[0])
+            self.assertIn("azure_version_2.csv", logger.output[0])
+
+        for table_name in self.report_tables:
+            table = getattr(report_schema, table_name)
+            with schema_context(self.schema):
+                count = table.objects.count()
+            self.assertTrue(count >= counts[table_name])
+        self.assertFalse(os.path.exists(self.test_v2_report))
 
     def test_process_azure_small_batches(self):
         """Test the processing of an uncompressed azure file in small batches."""
