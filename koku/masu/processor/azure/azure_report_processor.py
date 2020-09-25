@@ -218,14 +218,11 @@ class AzureReportProcessor(ReportProcessorBase):
         data["instance_type"] = instance_type
         data["provider_id"] = self._provider_uuid
         with transaction.atomic():
-            try:
-                product_id = report_db_accessor.insert_on_conflict_do_nothing(
-                    AzureCostEntryProductService,
-                    data,
-                    conflict_columns=["instance_id", "instance_type", "service_tier", "service_name"],
-                )
-            except Exception:
-                LOG.info(f"FAILING row: {str(row)}")
+            product_id = report_db_accessor.insert_on_conflict_do_nothing(
+                AzureCostEntryProductService,
+                data,
+                conflict_columns=["instance_id", "instance_type", "service_tier", "service_name"],
+            )
         self.processed_report.products[key] = product_id
         return product_id
 
