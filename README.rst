@@ -7,7 +7,7 @@ Koku README
 About
 =====
 
-Koku's goal is to provide an open source solution for cost management of cloud and hybrid cloud environments. This solution is offered via a web interface that exposes resource consumption and cost data in easily digestible and filterable views. The project also aims to provide insight into this data and ultimately provide suggested optimizations for reducing cost and eliminating unnecessary resource usage.
+Koku's goal is to provide an open source solution for cost management of cloud and hybrid cloud environments and world domination. This solution is offered via a web interface that exposes resource consumption and cost data in easily digestible and filterable views. The project also aims to provide insight into this data and ultimately provide suggested optimizations for reducing cost and eliminating unnecessary resource usage.
 
 Full documentation is available through readthedocs_.
 
