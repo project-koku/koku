@@ -375,7 +375,7 @@ docker-presto-setup:
 	@chmod o+rwx ./testing/presto
 	@cp -fr deploy/hadoop/ testing/hadoop/
 	@chmod o+rwx ./testing/hadoop
-	@[[ ! -d ./testing/parquet_data ]] && mkdir -p --mode=a+rwx ./testing/parquet_data || chmod a+rwx ./testing/parquet_data
+	@[[ ! -d ./testing/parquet_data ]] && mkdir -p -m a+rwx ./testing/parquet_data || chmod a+rwx ./testing/parquet_data
 	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
 	@$(SED_IN_PLACE) -e 's/DATABASE_NAME/$(shell echo $(or $(DATABASE_NAME),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
 	@$(SED_IN_PLACE) -e 's/DATABASE_USER/$(shell echo $(or $(DATABASE_USER),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
