@@ -128,11 +128,9 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             "schema": self.schema,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        LOG.info(f"SUMMARY SQL: {str(summary_sql)}")
         self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
-        LOG.info("COMPLETED SUMMARY")
 
     def populate_tags_summary_table(self, bill_ids):
         """Populate the line item aggregated totals data table."""
