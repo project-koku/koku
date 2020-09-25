@@ -1,5 +1,4 @@
 -- Place our query in a temporary table
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | sqlsafe}} AS (
     WITH cte_split_units AS (
         SELECT li.id,
