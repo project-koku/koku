@@ -36,7 +36,7 @@ cte_values_agg AS (
         namespace,
         node
     FROM cte_values_agg
-    ON CONFLICT (key, cost_entry_bill_id, report_period_id, usage_account_id, namespace) DO UPDATE SET values=EXCLUDED.values
+    ON CONFLICT (key, cost_entry_bill_id, report_period_id, usage_account_id, namespace, node) DO UPDATE SET values=EXCLUDED.values
     )
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpawstags_values (uuid, key, value, usage_account_ids, account_aliases, cluster_ids, cluster_aliases, namespaces, nodes)
 SELECT uuid_generate_v4() as uuid,
