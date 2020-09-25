@@ -361,7 +361,8 @@ docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 
 docker-metastore-setup:
 	@cp -fr deploy/metastore/ testing/metastore/
-	@chmod o+rwx ./testing/metastore
+	@chmod -R o+rwx ./testing/metastore
+	@[[ ! -d ./testing/metastore/db-data ]] && mkdir -p -m a+rwx ./testing/metastore/db-data || chmod a+rwx ./testing/metastore/db-data
 	@cp -fr deploy/hadoop/ testing/hadoop/
 	@chmod o+rwx ./testing/hadoop
 	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
@@ -382,7 +383,7 @@ docker-presto-setup:
 	@$(SED_IN_PLACE) -e 's/DATABASE_PASSWORD/$(shell echo $(or $(DATABASE_PASSWORD),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
 
 docker-presto-cleanup:
-	@$(PREFIX) rm -fr testing/parquet_data testing/hadoop testing/metastore testing/presto
+	@$(PREFIX) rm -fr ./testing/parquet_data ./testing/hadoop ./testing/metastore ./testing/presto
 
 docker-presto-up: docker-metastore-setup docker-presto-setup
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d
