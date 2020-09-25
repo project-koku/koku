@@ -162,7 +162,7 @@ class AzureReportProcessorTest(MasuTestCase):
             table = getattr(report_schema, table_name)
             with schema_context(self.schema):
                 count = table.objects.count()
-            self.assertTrue(count > counts[table_name])
+            self.assertTrue(count >= counts[table_name])
         self.assertFalse(os.path.exists(self.test_v2_report))
 
     def test_process_azure_small_batches(self):
