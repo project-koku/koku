@@ -302,7 +302,7 @@ def get_path_prefix(account, provider_type, provider_uuid, start_date, data_type
         if report_type:
             path = (
                 f"{path_prefix}/{account}/{provider_type}/{report_type}"
-                "/source={provider_uuid}/year={year}/month={month}"
+                f"/source={provider_uuid}/year={year}/month={month}"
             )
     return path
 
@@ -312,5 +312,5 @@ def get_hive_table_path(account, provider_type, report_type=None):
     path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
     table_path = f"{path_prefix}/{account}/{provider_type}"
     if report_type:
-        table_path += "/{report_type}"
+        table_path += f"/{report_type}"
     return table_path

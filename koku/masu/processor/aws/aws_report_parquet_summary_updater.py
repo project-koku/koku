@@ -1,5 +1,6 @@
 import logging
 
+import ciso8601
 from tenant_schemas.utils import schema_context
 
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -21,6 +22,10 @@ class AWSReportParquetSummaryUpdater:
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
+        if isinstance(start_date, str):
+            start_date = ciso8601.parse_datetime(start_date).date()
+        if isinstance(end_date, str):
+            end_date = ciso8601.parse_datetime(end_date).date()
 
         return start_date, end_date
 

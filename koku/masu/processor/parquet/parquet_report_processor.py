@@ -311,7 +311,7 @@ class ParquetReportProcessor:
             LOG.warn(log_json(request_id, msg, context))
             return False
 
-        s3_hive_table_path = get_hive_table_path(context.get("account"), self._provider_type)
+        s3_hive_table_path = get_hive_table_path(context.get("account"), self._provider_type, report_type=report_type)
 
         self.create_parquet_table(
             context.get("account"),
