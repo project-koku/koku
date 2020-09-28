@@ -8,53 +8,6 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    replaces = [
-        ("reporting", "0001_initial_squashed_0050_auto_20190315_1339"),
-        ("reporting", "0051_auto_20190315_1458"),
-        ("reporting", "0052_auto_20190318_1741"),
-        ("reporting", "0053_auto_20190412_1529"),
-        ("reporting", "0054_delete_ocpawscostlineitemdaily"),
-        ("reporting", "0055_auto_20190416_2025"),
-        ("reporting", "0056_auto_20190418_1850"),
-        ("reporting", "0057_auto_20190422_1910"),
-        ("reporting", "0058_auto_20190422_1915"),
-        ("reporting", "0059_auto_20190422_1924"),
-        ("reporting", "0060_auto_20190430_1926"),
-        ("reporting", "0061_auto_20190501_1854"),
-        ("reporting", "0062_auto_20190604_1840"),
-        ("reporting", "0063_auto_20190826_1750"),
-        ("reporting", "0064_auto_20190830_1353"),
-        ("reporting", "0065_auto_20190830_1606"),
-        ("reporting", "0066_auto_20190913_1734"),
-        ("reporting", "0067_auto_20190913_2023"),
-        ("reporting", "0068_auto_20190917_1614"),
-        ("reporting", "0069_auto_20190925_1327"),
-        ("reporting", "0070_auto_20191002_1720"),
-        ("reporting", "0071_auto_20190926_1816"),
-        ("reporting", "0072_auto_20191011_1735"),
-        ("reporting", "0073_auto_20191017_1629"),
-        ("reporting", "0074_auto_20191022_1602"),
-        ("reporting", "0075_auto_20191022_1632"),
-        ("reporting", "0076_auto_20191022_1635"),
-        ("reporting", "0077_auto_20191026_2002"),
-        ("reporting", "0078_gcpcostentrybill_gcpcostentrylineitemdaily_gcpproject"),
-        ("reporting", "0079_azuremeter_provider"),
-        ("reporting", "0080_azurecostentryproductservice_provider"),
-        ("reporting", "0081_auto_20191101_1705"),
-        ("reporting", "0082_auto_20191107_1541"),
-        ("reporting", "0083_auto_20191111_1932"),
-        ("reporting", "0084_auto_20191111_2002"),
-        ("reporting", "0085_auto_20191111_2101"),
-        ("reporting", "0086_auto_20191120_1615"),
-        ("reporting", "0087_auto_20191119_2119"),
-        ("reporting", "0088_auto_20191210_2116"),
-        (
-            "reporting",
-            "0089_awscomputesummary_awscomputesummarybyaccount_awscomputesummarybyregion_awscomputesummarybyservice_aw",
-        ),
-        ("reporting", "0090_ocpallcostlineitemdailysummary_ocpallcostlineitemprojectdailysummary"),
-    ]
-
     initial = True
 
     dependencies = [
