@@ -222,7 +222,7 @@ class OCPAWSTagsSummary(models.Model):
         """Meta for OCPUsageTagSummary."""
 
         db_table = "reporting_ocpawstags_summary"
-        unique_together = ("key", "cost_entry_bill", "report_period", "usage_account_id", "namespace")
+        unique_together = ("key", "cost_entry_bill", "report_period", "usage_account_id", "namespace", "node")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
