@@ -19,12 +19,18 @@ import logging
 
 import prestodb
 import pyarrow.parquet as pq
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
+from reporting.models import PartitionedTable
 
 LOG = logging.getLogger(__name__)
+
+
+class PostgresSummaryTableError(Exception):
+    """Postgres summary table is not defined."""
 
 
 class ReportParquetProcessorBase:
@@ -48,6 +54,11 @@ class ReportParquetProcessorBase:
         self._numeric_columns = numeric_columns
         self._date_columns = date_columns
         self._table_name = table_name
+
+    @property
+    def postgres_summary_table(self):
+        """Return error if unimplemented in subclass."""
+        raise PostgresSummaryTableError("This must be a property on the sub class.")
 
     def _execute_sql(self, sql, schema_name):  # pragma: no cover
         """Execute presto SQL."""
@@ -115,3 +126,26 @@ class ReportParquetProcessorBase:
         self._execute_sql(sql, schema)
 
         LOG.info(f"Presto Table: {self._table_name} created.")
+
+    def get_or_create_postgres_partition(self, bill_date, **kwargs):
+        """Make sure we have a Postgres partition for a billing period."""
+        table_name = self.postgres_summary_table._meta.db_table
+        partition_type = kwargs.get("partition_type", PartitionedTable.RANGE)
+        partition_column = kwargs.get("partition_column", "usage_start")
+
+        with schema_context(self._schema_name):
+            record, created = PartitionedTable.objects.get_or_create(
+                schema_name=self._schema_name,
+                table_name=f"{table_name}_{bill_date.strftime('%Y_%m')}",
+                partition_of_table_name=table_name,
+                partition_type=partition_type,
+                partition_col=partition_column,
+                partition_parameters={
+                    "default": False,
+                    "from": str(bill_date),
+                    "to": str(bill_date + relativedelta(months=1)),
+                },
+                active=True,
+            )
+            if created:
+                LOG.info(f"Created a new parttiion for {record.partition_of_table_name} : {record.table_name}")

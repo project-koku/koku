@@ -25,6 +25,7 @@ from tenant_schemas.utils import schema_context
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.util import common as utils
 from reporting.provider.azure.models import AzureCostEntryBill
+from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import PRESTO_LINE_ITEM_TABLE
 
 LOG = logging.getLogger(__name__)
@@ -42,6 +43,11 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
             date_columns=["usagedatetime"],
             table_name=PRESTO_LINE_ITEM_TABLE,
         )
+
+    @property
+    def postgres_summary_table(self):
+        """Return the mode for the source specific summary table."""
+        return AzureCostEntryLineItemDailySummary
 
     def create_bill(self):
         """Create bill postgres entry."""

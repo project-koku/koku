@@ -19,6 +19,7 @@ from tenant_schemas.utils import schema_context
 
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from reporting.provider.aws.models import AWSCostEntryBill
+from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
 
 
@@ -51,6 +52,11 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
             date_columns=date_columns,
             table_name=PRESTO_LINE_ITEM_TABLE,
         )
+
+    @property
+    def postgres_summary_table(self):
+        """Return the mode for the source specific summary table."""
+        return AWSCostEntryLineItemDailySummary
 
     def create_bill(self):
         """Create bill postgres entry."""

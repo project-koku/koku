@@ -229,6 +229,7 @@ class ParquetReportProcessor:
 
             processor.create_table()
             processor.create_bill()
+            processor.get_or_create_postgres_partition(bill_date=self._start_date.replace(day=1).date())
 
     def convert_csv_to_parquet(  # noqa: C901
         self,
