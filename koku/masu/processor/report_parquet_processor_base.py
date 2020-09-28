@@ -38,6 +38,7 @@ class ReportParquetProcessorBase:
         numeric_columns,
         date_columns,
         table_name,
+        json_columns=[],
     ):
         self._manifest_id = manifest_id
         self._account = account
@@ -47,6 +48,7 @@ class ReportParquetProcessorBase:
         self._provider_uuid = provider_uuid
         self._numeric_columns = numeric_columns
         self._date_columns = date_columns
+        self._json_columns = json_columns
         self._table_name = table_name
 
     def _execute_sql(self, sql, schema_name):  # pragma: no cover
@@ -92,6 +94,8 @@ class ReportParquetProcessorBase:
                 col_type = "double"
             if norm_col in self._date_columns:
                 col_type = "timestamp"
+            if norm_col in self._json_columns:
+                col_type = "json"
             sql += f"{norm_col} {col_type}"
             if idx < (len(parquet_columns) - 1):
                 sql += ","

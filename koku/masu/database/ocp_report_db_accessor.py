@@ -43,6 +43,8 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
+# from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_MAP
+
 LOG = logging.getLogger(__name__)
 
 
@@ -521,6 +523,76 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
 
+    def populate_line_item_daily_summary_table_presto(self, start_date, end_date, cluster_id, markup_value):
+        """Populate the daily aggregate of line items table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+            cluster_id (String) Cluster Identifier
+
+        Returns
+            (None)
+
+        """
+        # Cast start_date to date
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+
+        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagelineitem_daily_summary.sql")
+        summary_sql = summary_sql.decode("utf-8")
+        transaction_uuid = str(uuid.uuid4()).replace("-", "_")
+        summary_sql_params = {
+            "uuid": transaction_uuid,
+            "start_date": start_date,
+            "end_date": end_date,
+            "cluster_id": cluster_id,
+            "schema": self.schema,
+            "markup": markup_value or 0,
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        self._execute_raw_sql_query(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+        )
+
+    def populate_storage_line_item_daily_summary_table_presto(self, start_date, end_date, cluster_id, markup_value):
+        """Populate the daily aggregate of storage line items table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+            cluster_id (String) Cluster Identifier
+        Returns
+            (None)
+
+        """
+        # Cast start_date and end_date to date object, if they aren't already
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+
+        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpstoragelineitem_daily_summary.sql")
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "uuid": str(uuid.uuid4()).replace("-", "_"),
+            "start_date": start_date,
+            "end_date": end_date,
+            "cluster_id": cluster_id,
+            "schema": self.schema,
+            "markup": markup_value or 0,
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        self._execute_raw_sql_query(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
+
     def update_summary_infrastructure_cost(self, cluster_id, start_date, end_date):
         """Populate the infrastructure costs on the daily usage summary table.
 
@@ -580,6 +652,26 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def populate_volume_label_summary_table(self, report_period_ids):
+        """Populate the OCP volume label summary table."""
+        table_name = OCP_REPORT_TABLE_MAP["volume_label_summary"]
+
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {"schema": self.schema, "report_period_ids": report_period_ids}
+        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
+        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+
+    def populate_pod_label_summary_table_presto(self, report_period_ids):
+        """Populate the line item aggregated totals data table."""
+        table_name = OCP_REPORT_TABLE_MAP["pod_label_summary"]
+
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagepodlabel_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {"schema": self.schema, "report_period_ids": report_period_ids}
+        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
+        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+
+    def populate_volume_label_summary_table_presto(self, report_period_ids):
         """Populate the OCP volume label summary table."""
         table_name = OCP_REPORT_TABLE_MAP["volume_label_summary"]
 
