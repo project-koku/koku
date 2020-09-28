@@ -299,6 +299,50 @@ class AzureReportProcessor(ReportProcessorBase):
 
         return bill_id
 
+    def _replace_name_in_header(self, existing_name, new_names, headers):
+        """Helper to restore header names to original report format given a list of new name possibilities."""
+        modified_header = headers
+
+        if existing_name not in headers:
+            other_date_values = new_names
+            for other_date in other_date_values:
+                if other_date in headers:
+                    value_index = modified_header.index(other_date)
+                    del modified_header[value_index]
+                    modified_header.insert(value_index, existing_name)
+                    break
+        return modified_header
+
+    def _update_header(self, headers):
+        """Update report header to conform with original report format."""
+        modified_header = headers
+
+        modified_header = self._replace_name_in_header("UsageDateTime", ["Date"], modified_header)
+        modified_header = self._replace_name_in_header("UsageQuantity", ["Quantity"], modified_header)
+        modified_header = self._replace_name_in_header("PreTaxCost", ["CostInBillingCurrency"], modified_header)
+        modified_header = self._replace_name_in_header("InstanceId", ["ResourceId"], modified_header)
+        modified_header = self._replace_name_in_header("SubscriptionGuid", ["SubscriptionId"], modified_header)
+        modified_header = self._replace_name_in_header("ServiceName", ["MeterCategory"], modified_header)
+
+        return modified_header
+
+    def _update_dateformat_in_row(self, row):
+        """Convert date format from MM/DD/YYYY to YYYY-MM-DD."""
+        modified_row = row
+        try:
+            modified_row["UsageDateTime"] = datetime.strptime(row.get("UsageDateTime"), "%m/%d/%Y").strftime(
+                "%Y-%m-%d"
+            )
+        except ValueError:
+            LOG.debug("No conversion necessary")
+        return modified_row
+
+    def _is_row_unassigned(self, row):
+        """Helper to detect unassigned meters in report."""
+        if row.get("MeterId") == "00000000-0000-0000-0000-000000000000":
+            return True
+        return False
+
     def process(self):  # noqa: C901
         """Process cost/usage file.
 
@@ -311,12 +355,20 @@ class AzureReportProcessor(ReportProcessorBase):
         self._delete_line_items(AzureReportDBAccessor)
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode, encoding="utf-8-sig") as f:
-            header = normalize_header(f.readline())
+            original_header = normalize_header(f.readline())
+            header = self._update_header(original_header)
+
             with AzureReportDBAccessor(self._schema) as report_db:
                 temp_table = report_db.create_temp_table(self.table_name._meta.db_table, drop_column="id")
                 LOG.info("File %s opened for processing", str(f))
                 reader = csv.DictReader(f, fieldnames=header)
+
                 for row in reader:
+                    if self._is_row_unassigned(row):
+                        continue
+
+                    row = self._update_dateformat_in_row(row)
+
                     if not self._should_process_row(row, "UsageDateTime", is_full_month):
                         continue
                     li_usage_dt = row.get("UsageDateTime")
