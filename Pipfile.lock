@@ -128,11 +128,10 @@
         },
         "celery": {
             "hashes": [
-                "sha256:a92e1d56e650781fb747032a3997d16236d037c8199eacd5217d1a72893bca45",
-                "sha256:d220b13a8ed57c78149acf82c006785356071844afe0b27012a4991d44026f9f"
+                "sha256:313930fddde703d8e37029a304bf91429cd11aeef63c57de6daca9d958e1f255",
+                "sha256:72138dc3887f68dc58e1a2397e477256f80f1894c69fa4337f8ed70be460375b"
             ],
-            "index": "pypi",
-            "version": "==4.4.7"
+            "version": "==5.0.0"
         },
         "celery-prometheus-exporter": {
             "hashes": [
