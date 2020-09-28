@@ -26,7 +26,7 @@ cryptography==3.1.1; python_version >= '2.7' and python_version not in '3.0, 3.1
 django-cors-headers==3.5.0
 django-environ==0.4.5
 django-extensions==3.0.9
-django-filter==2.3.0
+django-filter==2.4.0
 django-prometheus==2.1.0
 django-redis==4.12.1
 django-tenant-schemas==1.10.0
