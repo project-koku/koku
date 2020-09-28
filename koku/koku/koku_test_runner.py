@@ -31,7 +31,6 @@ from api.models import Customer
 from api.models import Tenant
 from api.report.test.utils import NiseDataLoader
 from koku.env import ENVIRONMENT
-from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
 from reporting.models import OCPEnabledTagKeys
 
 GITHUB_ACTIONS = ENVIRONMENT.bool("GITHUB_ACTIONS", default=False)
@@ -94,19 +93,15 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                     with tenant_context(tenant):
                         for tag_key in OCP_ENABLED_TAGS:
                             OCPEnabledTagKeys.objects.get_or_create(key=tag_key)
-                    data_loader = NiseDataLoader(KokuTestRunner.schema)
-                    # grab the dates to get the start date
-                    dates = data_loader.dates
                     # Obtain the day_list from yaml
                     read_yaml = UploadAwsTree(None, None, None, None)
                     tree_yaml = read_yaml.import_yaml(yaml_file_path="scripts/aws_org_tree.yml")
                     day_list = tree_yaml["account_structure"]["days"]
-                    # Insert the tree
-                    org_tree_obj = InsertAwsOrgTree(schema=KokuTestRunner.schema, start_date=dates[0][0])
-                    org_tree_obj.insert_tree(day_list=day_list)
+                    # Load data
+                    data_loader = NiseDataLoader(KokuTestRunner.schema)
+                    data_loader.load_aws_data(customer, "aws_static_data.yml", day_list=day_list)
                     data_loader.load_openshift_data(customer, "ocp_aws_static_data.yml", "OCP-on-AWS")
                     data_loader.load_openshift_data(customer, "ocp_azure_static_data.yml", "OCP-on-Azure")
-                    data_loader.load_aws_data(customer, "aws_static_data.yml")
                     data_loader.load_azure_data(customer, "azure_static_data.yml")
                     for account in [("10002", "acct10002"), ("12345", "acct12345")]:
                         tenant = Tenant.objects.get_or_create(schema_name=account[1])[0]
