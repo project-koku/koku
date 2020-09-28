@@ -381,11 +381,10 @@
         },
         "google-cloud-storage": {
             "hashes": [
-                "sha256:3ca40dcf31b86bab3355ee2bb4502aefd37b37798c6d0545cdc62ca99ea5d05a",
-                "sha256:a82b5d60a2ec366a14746f17910dd8348c36a4aeec36da10021307e1951fcc7f"
+                "sha256:74bbb5b2d0b249de4a52f561435d0c3570ddc19b249653ae588ec0abcc3c81e6",
+                "sha256:e2a2533b5e368365e84d2acaa53b75266a09802fc1c8bda52e3212335eccb6bd"
             ],
-            "index": "pypi",
-            "version": "==1.19.1"
+            "version": "==1.31.2"
         },
         "google-resumable-media": {
             "hashes": [
@@ -1333,11 +1332,10 @@
         },
         "google-cloud-storage": {
             "hashes": [
-                "sha256:3ca40dcf31b86bab3355ee2bb4502aefd37b37798c6d0545cdc62ca99ea5d05a",
-                "sha256:a82b5d60a2ec366a14746f17910dd8348c36a4aeec36da10021307e1951fcc7f"
+                "sha256:74bbb5b2d0b249de4a52f561435d0c3570ddc19b249653ae588ec0abcc3c81e6",
+                "sha256:e2a2533b5e368365e84d2acaa53b75266a09802fc1c8bda52e3212335eccb6bd"
             ],
-            "index": "pypi",
-            "version": "==1.19.1"
+            "version": "==1.31.2"
         },
         "google-crc32c": {
             "hashes": [
