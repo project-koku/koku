@@ -18,9 +18,9 @@
 import copy
 
 from dateutil.relativedelta import relativedelta
+from django_tenants.utils import schema_context
 from faker import Faker
 from model_bakery import baker
-from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor

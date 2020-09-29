@@ -19,7 +19,7 @@ import datetime
 import logging
 
 from dateutil import relativedelta
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor

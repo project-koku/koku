@@ -4,7 +4,6 @@ import logging
 import os
 import time
 
-import django
 from celery import Celery
 from celery import Task
 from celery.schedules import crontab
@@ -43,9 +42,6 @@ class LoggingCelery(Celery):
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
 
 LOGGER.info("Starting celery.")
-# Setup the database for use in Celery
-django.setup()
-LOGGER.info("Database configured.")
 
 # 'app' is the recommended convention from celery docs
 # following this for ease of comparison to reference implementation

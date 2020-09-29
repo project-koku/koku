@@ -19,7 +19,7 @@ from celery.utils.log import get_task_logger
 from django.db.models import F
 from django.db.models.expressions import Window
 from django.db.models.functions import RowNumber
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor

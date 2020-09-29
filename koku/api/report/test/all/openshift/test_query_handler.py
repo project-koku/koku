@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the OCP on All query handler."""
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.all.openshift.query_handler import OCPAllReportQueryHandler

@@ -58,12 +58,12 @@ class KokuTenantMiddlewareTest(IamTestCase):
         """Test that the customer tenant is returned."""
         mock_request = self.request_context["request"]
         middleware = KokuTenantMiddleware()
-        result = middleware.get_tenant(Tenant, "localhost", mock_request)
+        result = middleware.get_tenant(mock_request)
         self.assertEqual(result.schema_name, self.schema_name)
 
     def test_get_tenant_with_no_user(self):
         """Test that a 401 is returned."""
-        mock_request = Mock(path="/api/v1/tags/aws/", user=None)
+        mock_request = Mock(path="localhost/api/v1/tags/aws/", user=None, get_host=lambda: "localhost")
         middleware = KokuTenantMiddleware()
         result = middleware.process_request(mock_request)
         self.assertIsInstance(result, HttpResponseUnauthorizedRequest)
@@ -71,7 +71,7 @@ class KokuTenantMiddlewareTest(IamTestCase):
     def test_get_tenant_user_not_found(self):
         """Test that a 401 is returned."""
         mock_user = Mock(username="mockuser")
-        mock_request = Mock(path="/api/v1/tags/aws/", user=mock_user)
+        mock_request = Mock(path="/api/v1/tags/aws/", user=mock_user, get_host=lambda: "localhost")
         middleware = KokuTenantMiddleware()
         result = middleware.process_request(mock_request)
         self.assertIsInstance(result, HttpResponseUnauthorizedRequest)
@@ -81,9 +81,9 @@ class KokuTenantMiddlewareTest(IamTestCase):
         """Test that the tenant cache is successfully storing and expiring."""
         mock_request = self.request_context["request"]
         middleware = KokuTenantMiddleware()
-        middleware.get_tenant(Tenant, "localhost", mock_request)  # Add one item to the cache
+        middleware.get_tenant(mock_request)  # Add one item to the cache
         self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 1)
-        middleware.get_tenant(Tenant, "localhost", mock_request)  # Call the same tenant
+        middleware.get_tenant(mock_request)  # Call the same tenant
         self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 1)  # Size should remain the same
         self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 1)
         time.sleep(4)  # Wait the time greater than the ttl

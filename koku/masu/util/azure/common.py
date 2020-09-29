@@ -19,7 +19,7 @@ import datetime
 import logging
 import re
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.models import Provider
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor

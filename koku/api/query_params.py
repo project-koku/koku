@@ -22,9 +22,9 @@ from pprint import pformat
 
 from django.core.exceptions import PermissionDenied
 from django.utils.translation import ugettext as _
+from django_tenants.utils import tenant_context
 from querystring_parser import parser
 from rest_framework.serializers import ValidationError
-from tenant_schemas.utils import tenant_context
 
 from api.models import Tenant
 from api.models import User

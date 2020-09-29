@@ -15,14 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS org unit crawler."""
-# from tenant_schemas.utils import schema_context
+# from django_tenants.utils import schema_context
 import logging
 from datetime import timedelta
 
 from botocore.exceptions import ClientError
 from botocore.exceptions import ParamValidationError
 from django.db import transaction
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.external.accounts.hierarchy.account_crawler import AccountCrawler
 from masu.external.date_accessor import DateAccessor

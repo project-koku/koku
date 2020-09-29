@@ -3,7 +3,7 @@ import uuid
 
 import django.contrib.postgres.fields.jsonb
 import django.db.models.deletion
-import tenant_schemas.postgresql_backend.base
+import django_tenants.postgresql_backend.base
 from django.db import migrations
 from django.db import models
 
@@ -96,7 +96,7 @@ class Migration(migrations.Migration):
                     models.CharField(
                         max_length=63,
                         unique=True,
-                        validators=[tenant_schemas.postgresql_backend.base._check_schema_name],
+                        validators=[django_tenants.postgresql_backend.base._check_schema_name],
                     ),
                 ),
             ],
@@ -110,7 +110,7 @@ class Migration(migrations.Migration):
                 ("username", models.CharField(max_length=150, unique=True)),
                 ("email", models.EmailField(blank=True, max_length=254)),
                 ("date_created", models.DateTimeField(auto_now_add=True)),
-                ("is_active", models.NullBooleanField(default=True)),
+                ("is_active", models.BooleanField(default=True, null=True)),
                 (
                     "customer",
                     models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="api.Customer"),

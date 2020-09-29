@@ -17,7 +17,7 @@
 """Test the CostModelDBAccessor utility object."""
 import random
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.metrics import constants as metric_constants
 from api.models import Provider

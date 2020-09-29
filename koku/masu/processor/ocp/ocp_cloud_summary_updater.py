@@ -19,7 +19,7 @@ import logging
 from decimal import Decimal
 
 from dateutil import parser
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor

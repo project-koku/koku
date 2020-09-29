@@ -29,7 +29,7 @@ from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
 from django.db.models.query import QuerySet
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP

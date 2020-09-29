@@ -18,7 +18,7 @@
 import logging
 from datetime import datetime
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 

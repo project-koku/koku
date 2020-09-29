@@ -18,7 +18,8 @@
 from uuid import uuid4
 
 from django.db import models
-from tenant_schemas.models import TenantMixin
+from django_tenants.models import DomainMixin
+from django_tenants.models import TenantMixin
 
 
 class Customer(models.Model):
@@ -45,7 +46,7 @@ class User(models.Model):
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(blank=True)
     date_created = models.DateTimeField(auto_now_add=True)
-    is_active = models.NullBooleanField(default=True)
+    is_active = models.BooleanField(default=True, null=True)
     customer = models.ForeignKey("Customer", null=True, on_delete=models.CASCADE)
 
     def __init__(self, *args, **kwargs):
@@ -67,3 +68,7 @@ class Tenant(TenantMixin):
 
     # Delete all schemas when a tenant is removed
     auto_drop_schema = True
+
+
+class TenantDomain(DomainMixin):
+    pass

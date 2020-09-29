@@ -18,7 +18,7 @@
 import datetime
 
 from dateutil import relativedelta
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor

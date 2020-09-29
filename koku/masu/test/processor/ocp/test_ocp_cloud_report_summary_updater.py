@@ -21,8 +21,8 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from django.db.models import Sum
+from django_tenants.utils import schema_context
 from model_bakery import baker
-from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from api.utils import DateHelper

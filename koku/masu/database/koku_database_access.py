@@ -18,7 +18,7 @@
 import logging
 
 from django.db import transaction
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 
 LOG = logging.getLogger(__name__)

@@ -23,7 +23,7 @@ from unittest.mock import patch
 from dateutil.relativedelta import relativedelta
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor

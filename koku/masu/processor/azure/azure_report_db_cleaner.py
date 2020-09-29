@@ -17,7 +17,7 @@
 """Removes report data from database."""
 import logging
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 

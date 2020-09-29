@@ -33,9 +33,9 @@ from django.db.utils import OperationalError
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
+from django_tenants.middleware import TenantMainMiddleware
 from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
-from tenant_schemas.middleware import BaseTenantMiddleware
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.models import Customer
@@ -102,7 +102,7 @@ class HttpResponseFailedDependency(JsonResponse):
         super().__init__(data)
 
 
-class KokuTenantMiddleware(BaseTenantMiddleware):
+class KokuTenantMiddleware(TenantMainMiddleware):
     """A subclass of the Django-tenant-schemas tenant middleware.
     Determines which schema to use based on the customer's schema
     found from the user tied to a request.
@@ -122,6 +122,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
     def process_request(self, request):
         """Check before super."""
         connection.set_schema_to_public()
+        hostname = self.hostname_from_request(request)
 
         if not is_no_auth(request):
             if hasattr(request, "user") and hasattr(request.user, "username"):
@@ -137,24 +138,24 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
                     raise PermissionDenied()
             else:
                 return HttpResponseUnauthorizedRequest()
-        try:
-            super().process_request(request)
-        except OperationalError as err:
-            LOG.error("Request resulted in OperationalError: %s", err)
-            DB_CONNECTION_ERRORS_COUNTER.inc()
-            return HttpResponseFailedDependency({"source": "Database", "exception": err})
 
-    def get_tenant(self, model, hostname, request):
+        # The superclass requires a domain->tenant relationship to do this
+        tenant = self.get_tenant(request)
+        tenant.domain_url = hostname
+        request.tenant = tenant
+
+        connection.set_tenant(request.tenant)
+
+    def get_tenant(self, request):
         """Override the tenant selection logic."""
         schema_name = "public"
         tenant_username = request.user.username
         if tenant_username not in KokuTenantMiddleware.tenant_cache:
             if not is_no_auth(request):
-                user = User.objects.get(username=tenant_username)
-                customer = user.customer
-                schema_name = customer.schema_name
+                user = User.objects.select_related("customer").get(username=tenant_username)
+                schema_name = user.customer.schema_name
 
-            tenant, created = model.objects.get_or_create(schema_name=schema_name)
+            tenant, created = Tenant.objects.get_or_create(schema_name=schema_name)
             if created:
                 msg = f"Created tenant {schema_name}"
                 LOG.info(msg)

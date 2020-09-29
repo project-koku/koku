@@ -22,8 +22,8 @@ from unittest.mock import patch
 from dateutil import parser
 from django.http import HttpRequest
 from django.http import QueryDict
+from django_tenants.utils import tenant_context
 from rest_framework.request import Request
-from tenant_schemas.utils import tenant_context
 
 from api.iam.models import Customer
 from api.iam.models import User

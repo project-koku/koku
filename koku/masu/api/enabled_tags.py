@@ -18,6 +18,7 @@
 import logging
 
 from django.views.decorators.cache import never_cache
+from django_tenants.utils import schema_context
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
@@ -25,7 +26,6 @@ from rest_framework.decorators import renderer_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
-from tenant_schemas.utils import schema_context
 
 from reporting.models import OCPEnabledTagKeys
 

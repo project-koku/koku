@@ -22,7 +22,7 @@ from unittest.mock import patch
 
 from django.db.models import Max
 from django.db.models.expressions import OrderBy
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilterCollection

@@ -23,10 +23,10 @@ from unittest.mock import patch
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.test.utils import override_settings
+from django_tenants.utils import schema_context
 from jinja2 import Template
 from model_bakery import baker
 from nise.__main__ import run
-from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from api.provider.models import ProviderBillingSource

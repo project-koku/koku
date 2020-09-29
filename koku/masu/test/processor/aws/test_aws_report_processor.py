@@ -30,7 +30,7 @@ from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import Max
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
 from masu.config import Config

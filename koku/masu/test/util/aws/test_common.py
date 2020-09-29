@@ -25,8 +25,8 @@ from unittest.mock import patch
 import boto3
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
+from django_tenants.utils import schema_context
 from faker import Faker
-from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor

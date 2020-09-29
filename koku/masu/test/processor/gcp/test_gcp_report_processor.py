@@ -9,8 +9,8 @@ from unittest.mock import patch
 import numpy as np
 import pytz
 from dateutil import parser
+from django_tenants.utils import schema_context
 from faker import Faker
-from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication

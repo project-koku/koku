@@ -22,8 +22,8 @@ from datetime import datetime
 
 from dateutil.parser import parse
 from django.db.models import F
+from django_tenants.utils import schema_context
 from jinjasql import JinjaSql
-from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP

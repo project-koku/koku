@@ -29,7 +29,7 @@ from dateutil import parser
 from django.conf import settings
 from django.db import connection
 from django.db.utils import IntegrityError
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
 from api.common import log_json

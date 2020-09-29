@@ -21,8 +21,8 @@ from unittest.mock import patch
 from uuid import UUID
 
 from django.test.utils import override_settings
+from django_tenants.utils import tenant_context
 from faker import Faker
-from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager

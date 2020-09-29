@@ -19,7 +19,7 @@ import copy
 import logging
 
 from django.db.models import Q
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection

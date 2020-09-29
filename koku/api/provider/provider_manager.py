@@ -24,7 +24,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.provider.models import Provider
 from api.provider.models import Sources

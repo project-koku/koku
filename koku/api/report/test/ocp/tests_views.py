@@ -32,11 +32,11 @@ from django.db.models.functions import Coalesce
 from django.http import HttpRequest
 from django.http import QueryDict
 from django.urls import reverse
+from django_tenants.utils import tenant_context
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.test import APIClient
-from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User

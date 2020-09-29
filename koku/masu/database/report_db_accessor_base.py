@@ -25,7 +25,7 @@ import django.apps
 from dateutil.relativedelta import relativedelta
 from django.db import connection
 from django.db import transaction
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess

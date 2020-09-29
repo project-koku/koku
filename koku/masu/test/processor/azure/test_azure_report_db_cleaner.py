@@ -19,7 +19,7 @@ import datetime
 from unittest.mock import patch
 
 from dateutil import relativedelta
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication

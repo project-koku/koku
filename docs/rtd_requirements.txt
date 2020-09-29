@@ -1,6 +1,7 @@
--i https://pypi.python.org/simple
+-i http://localhost:3141/root/pypi/+simple/
+--trusted-host localhost:3141
 adal==1.2.4
-aiohttp==3.6.2 ; python_version >= '3.6'
+aiohttp==3.6.2; python_version >= '3.6'
 amqp==2.6.1
 async-timeout==3.0.1
 attrs==20.2.0
@@ -32,7 +33,7 @@ django-extensions==3.0.9
 django-filter==2.4.0
 django-prometheus==2.1.0
 django-redis==4.12.1
-django-tenant-schemas==1.10.0
+django-tenants==3.2.1
 django==2.2.16
 djangorestframework-csv==2.1.0
 djangorestframework==3.12.1
@@ -59,7 +60,6 @@ msrestazure==0.6.4
 multidict==4.7.6
 numpy==1.19.2
 oauthlib==3.1.0
-ordered-set==4.0.2
 packaging==20.4
 pandas==1.1.2
 pint==0.16.1
@@ -67,7 +67,7 @@ presto-python-client==0.7.0
 prometheus-client==0.8.0
 protobuf==3.13.0
 psutil==5.7.2
-psycopg2-binary==2.8.6
+psycopg2==2.8.6
 pyarrow==1.0.1
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
@@ -82,15 +82,15 @@ querystring-parser==1.2.4
 redis==3.5.3
 requests-oauthlib==1.3.0
 requests==2.24.0
-rsa==4.6 ; python_version >= '3.5'
+rsa==4.6; python_version >= '3.5'
 s3transfer==0.3.3
-sentry-sdk==0.17.8
+sentry-sdk==0.18.0
 six==1.15.0
-soupsieve==2.0.1 ; python_version >= '3.0'
+soupsieve==2.0.1; python_version >= '3.0'
 sqlparse==0.3.1
 ujson==3.2.0
 unicodecsv==0.14.1
-urllib3==1.25.10 ; python_version != '3.4'
+urllib3==1.25.10; python_version != '3.4'
 vine==1.3.0
 watchtower==0.8.0
 whitenoise==5.2.0

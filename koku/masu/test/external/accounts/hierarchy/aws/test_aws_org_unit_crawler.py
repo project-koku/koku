@@ -22,8 +22,8 @@ from unittest.mock import patch
 
 from botocore.exceptions import ClientError
 from botocore.exceptions import ParamValidationError
+from django_tenants.utils import schema_context
 from faker import Faker
-from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler

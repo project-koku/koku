@@ -37,6 +37,7 @@ from corsheaders.defaults import default_headers
 from . import database
 from . import sentry
 from .env import ENVIRONMENT
+from .log import TaskFormatter
 
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
@@ -66,7 +67,6 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
-    "tenant_schemas",
     # django
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_extensions",
     "django_filters",
+    "django_tenants",
     "corsheaders",
     "querystring_parser",
     "django_prometheus",
@@ -90,7 +91,7 @@ INSTALLED_APPS = [
 ]
 
 SHARED_APPS = (
-    "tenant_schemas",
+    "django_tenants",
     "api",
     "masu",
     "reporting_common",
@@ -104,7 +105,7 @@ SHARED_APPS = (
 
 TENANT_APPS = ("reporting", "cost_models")
 
-DEFAULT_FILE_STORAGE = "tenant_schemas.storage.TenantFileSystemStorage"
+DEFAULT_FILE_STORAGE = "djanog_tenants.storage.TenantFileSystemStorage"
 
 ### Middleware setup
 MIDDLEWARE = [
@@ -188,8 +189,8 @@ else:
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
-            "KEY_FUNCTION": "tenant_schemas.cache.make_key",
-            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+            "KEY_FUNCTION": "django_tenants.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
             "TIMEOUT": 3600,  # 1 hour default
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
@@ -217,10 +218,11 @@ if ENVIRONMENT.get_value("CACHED_VIEWS_DISABLED", default=False):
     CACHES.update({"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
 DATABASES = {"default": database.config()}
 
-DATABASE_ROUTERS = ("tenant_schemas.routers.TenantSyncRouter",)
+DATABASE_ROUTERS = ("django_tenants.routers.TenantSyncRouter",)
 
 #
 TENANT_MODEL = "api.Tenant"
+TENANT_DOMAIN_MODEL = "api.TenantDomain"
 
 PROMETHEUS_EXPORT_MIGRATIONS = False
 
@@ -340,8 +342,8 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "verbose": {"()": "koku.log.TaskFormatter", "format": VERBOSE_FORMATTING},
-        "simple": {"()": "koku.log.TaskFormatter", "format": SIMPLE_FORMATTING},
+        "verbose": {"()": TaskFormatter, "format": VERBOSE_FORMATTING},
+        "simple": {"()": TaskFormatter, "format": SIMPLE_FORMATTING},
     },
     "handlers": {
         "celery": {"class": "logging.StreamHandler", "formatter": LOGGING_FORMATTER},

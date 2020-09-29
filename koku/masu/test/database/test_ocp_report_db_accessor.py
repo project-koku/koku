@@ -23,7 +23,7 @@ from django.db import connection
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models.query import QuerySet
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.metrics import constants as metric_constants
 from api.utils import DateHelper
