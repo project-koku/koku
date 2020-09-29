@@ -46,7 +46,6 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             "persistentvolumeclaim_capacity_bytes",
         ]
         date_columns = ["report_period_start", "report_period_end", "interval_start", "interval_end"]
-        json_columns = ["pod_labels"]
         super().__init__(
             manifest_id=manifest_id,
             account=account,
@@ -55,7 +54,6 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             parquet_local_path=parquet_local_path,
             numeric_columns=numeric_columns,
             date_columns=date_columns,
-            json_columns=json_columns,
             table_name=ocp_table_name,
         )
 

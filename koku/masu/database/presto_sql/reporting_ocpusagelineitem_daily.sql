@@ -1,41 +1,18 @@
 -- pod labels extraction
-select a.pod_labels,
-       l.key,
-       l.value
-  from (
-         select pod_labels,
-                regexp_extract_all(pod_labels, 'label_(.+?):', 1) as "pod_label_keys",
-                regexp_extract_all(pod_labels || '|', ':(.+?)\|', 1) as "pod_label_values"
-           from hive.acct10001.openshift_pod_usage_line_items
-          where source = 'ab1ac537-36c3-478f-b545-af618d2c0372'
-            and report_period_start = TIMESTAMP '2020-08-31 20:00:00.000'
-          limit 5
-       ) as a
+select li.pod_labels,
+       map_filter(cast(json_parse(li.pod_labels) as map(varchar, varchar)),
+                  (k, v) -> contains(ek.enabled_keys, k)) as "filtered_pod_labels"
+  from hive.acct10001.openshift_pod_usage_line_items as li
  cross
-  join unnest (a.pod_label_keys, a.pod_label_values) as l (key, value)
-  join postgres.acct10001.reporting_ocpenabledtagkeys ek
-    on ek.key = l.key
-
-select a.pod_labels, array_agg(l.key), array_agg(l.value)
-  from (
-         select pod_labels,
-                regexp_extract_all(pod_labels, 'label_(.+?):', 1) as "pod_label_keys",
-                regexp_extract_all(pod_labels || '|', ':(.+?)\|', 1) as "pod_label_values"
-           from hive.acct10001.openshift_pod_usage_line_items
-          where source = 'ab1ac537-36c3-478f-b545-af618d2c0372'
-            and report_period_start = TIMESTAMP '2020-08-31 20:00:00.000'
-          limit 5
-       ) as a
- cross
-  join unnest (a.pod_label_keys, a.pod_label_values) as l (key, value)
   join (
-         VALUES
-           ('app'),
-           ('environment')
-       ) as ek (key)
-    on ek.key = l.key
- group
-    by a.pod_labels;
+         select array_agg(distinct key) as enabled_keys
+           from postgres.acct10001.reporting_ocpenabledtagkeys
+       ) as ek
+ where li.source = 'cdd92137-0d73-4535-991b-d2d11a190479'
+   and li.report_period_start = TIMESTAMP '2020-08-31 20:00:00.000'
+ limit 5;
+
+
 
 -- Calculate cluster capacity at daily level
 CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}} AS (
@@ -64,7 +41,9 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}}
 );
 
 -- Place our query in a temporary table
-CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
+CREATE TABLE hive.acct10001.__reporting_ocpusagelineitem_daily_uuid_eek AS (
+    WITH __cluster_capacity_uuid_eek AS
+
     SELECT  li.report_period_id,
         rp.cluster_id,
         coalesce(max(p.name), rp.cluster_id) as cluster_alias,
