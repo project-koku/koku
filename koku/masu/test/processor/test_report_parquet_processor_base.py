@@ -91,8 +91,11 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         """Test the generate parquet table sql."""
         generated_sql = self.processor._generate_create_table_sql()
 
-        expected_start = f"CREATE TABLE IF NOT EXISTS {self.table_name}"
-        expected_end = f"WITH(external_location = 's3a://test-bucket/{self.temp_dir}', format = 'PARQUET')"
+        expected_start = f"CREATE TABLE IF NOT EXISTS {self.schema}.{self.table_name}"
+        expected_end = (
+            f"WITH(external_location = 's3a://test-bucket/{self.temp_dir}', "
+            "format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month'])"
+        )
         self.assertTrue(generated_sql.startswith(expected_start))
         for num_col in self.numeric_columns:
             self.assertIn(f"{num_col} double", generated_sql)

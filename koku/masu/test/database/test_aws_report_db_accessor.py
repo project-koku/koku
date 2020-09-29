@@ -650,14 +650,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         ce_table = getattr(self.accessor.report_schema, ce_table_name)
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
 
-        for _ in range(10):
-            bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
-            cost_entry = self.creator.create_cost_entry(bill)
-            product = self.creator.create_cost_entry_product()
-            pricing = self.creator.create_cost_entry_pricing()
-            reservation = self.creator.create_cost_entry_reservation()
-            self.creator.create_cost_entry_line_item(bill, cost_entry, product, pricing, reservation)
-
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
@@ -680,9 +672,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
+            summary_table.objects.all().delete()
             initial_count = query.count()
 
-        self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
         with schema_context(self.schema):
             self.assertNotEqual(query.count(), initial_count)
@@ -694,7 +686,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.assertEqual(result_start_date, start_date.date())
             self.assertEqual(result_end_date, end_date.date())
 
-            entry = query.order_by("-uuid")
+            entry = query.first()
 
             summary_columns = [
                 "usage_start",
@@ -702,14 +694,10 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 "usage_account_id",
                 "product_code",
                 "product_family",
-                "availability_zone",
                 "region",
-                "instance_type",
                 "unit",
                 "resource_count",
                 "usage_amount",
-                "normalization_factor",
-                "normalized_usage_amount",
                 "currency_code",
                 "unblended_rate",
                 "unblended_cost",
@@ -719,9 +707,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 "public_on_demand_rate",
                 "tags",
             ]
-
             for column in summary_columns:
-                self.assertIsNotNone(getattr(entry.first(), column))
+                self.assertIsNotNone(getattr(entry, column))
 
             found_keys = []
             found_values = []
@@ -741,14 +728,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
         bill_ids = None
 
-        for _ in range(10):
-            bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
-            cost_entry = self.creator.create_cost_entry(bill)
-            product = self.creator.create_cost_entry_product()
-            pricing = self.creator.create_cost_entry_pricing()
-            reservation = self.creator.create_cost_entry_reservation()
-            self.creator.create_cost_entry_line_item(bill, cost_entry, product, pricing, reservation)
-
         table_name = AWS_CUR_TABLE_MAP["line_item"]
         tag_query = self.accessor._get_db_obj_query(table_name)
         possible_keys = []
@@ -767,9 +746,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
+            summary_table.objects.all().delete()
             initial_count = query.count()
 
-        self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
         with schema_context(self.schema):
             self.assertNotEqual(query.count(), initial_count)
@@ -781,7 +760,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.assertEqual(result_start_date, start_date.date())
             self.assertEqual(result_end_date, end_date.date())
 
-            entry = query.order_by("-uuid")
+            entry = query.first()
 
             summary_columns = [
                 "usage_start",
@@ -789,14 +768,10 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 "usage_account_id",
                 "product_code",
                 "product_family",
-                "availability_zone",
                 "region",
-                "instance_type",
                 "unit",
                 "resource_count",
                 "usage_amount",
-                "normalization_factor",
-                "normalized_usage_amount",
                 "currency_code",
                 "unblended_rate",
                 "unblended_cost",
@@ -808,7 +783,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             ]
 
             for column in summary_columns:
-                self.assertIsNotNone(getattr(entry.first(), column))
+                self.assertIsNotNone(getattr(entry, column))
 
             found_keys = []
             found_values = []
