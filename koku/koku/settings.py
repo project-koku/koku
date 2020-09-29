@@ -105,7 +105,7 @@ SHARED_APPS = (
 
 TENANT_APPS = ("reporting", "cost_models")
 
-DEFAULT_FILE_STORAGE = "djanog_tenants.storage.TenantFileSystemStorage"
+DEFAULT_FILE_STORAGE = "django_tenants.storage.TenantFileSystemStorage"
 
 ### Middleware setup
 MIDDLEWARE = [

@@ -100,6 +100,6 @@ class KeyDecimalTransform(KeyTextTransform):
 
     output_field = DecimalField()
 
-    def as_postgresql(self, compiler, connection):
-        sqlpart, params = super().as_postgresql(compiler, connection)
+    def as_sql(self, compiler, connection):
+        sqlpart, params = super().as_sql(compiler, connection)
         return sqlpart + "::numeric", params
