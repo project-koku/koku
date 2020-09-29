@@ -152,16 +152,21 @@ def safe_dict(val):
     return json.dumps(result)
 
 
-def process_openshift_pod_labels_json(val):
+def process_openshift_labels_to_json(val):
     """
     Convert "label_<key>:<val>[|label_<key>:<val>...] to json string '{"<key>": "<val", [...]}'
     """
-    try:
-        labels = dict(lbl.split(":") for lbl in val.replace("label_", "").split("|"))
-    except (ValueError, TypeError):
-        return ""
-    else:
-        return json.dumps(labels)
+    label_start = len("label_")  # change this string if the prefix ever changes.
+    labels = {}
+    if val:
+        try:
+            for raw_label in val.split("|"):
+                key, value = raw_label.split(":")
+                labels[key[label_start:]] = value
+        except (ValueError, TypeError):
+            pass
+
+    return json.dumps(labels)
 
 
 def get_column_converters(provider_type, **kwargs):
@@ -220,10 +225,10 @@ def get_column_converters(provider_type, **kwargs):
             "persistentvolumeclaim_capacity_byte_seconds": safe_float,
             "volume_request_storage_byte_seconds": safe_float,
             "persistentvolumeclaim_usage_byte_seconds": safe_float,
-            "pod_labels": process_openshift_pod_labels_json,
-            "persistentvolume_labels": process_openshift_pod_labels_json,
-            "persistentvolumeclaim_labels": process_openshift_pod_labels_json,
-            "node_labels": process_openshift_pod_labels_json,
+            "pod_labels": process_openshift_labels_to_json,
+            "persistentvolume_labels": process_openshift_labels_to_json,
+            "persistentvolumeclaim_labels": process_openshift_labels_to_json,
+            "node_labels": process_openshift_labels_to_json,
         }
     return converters
 
