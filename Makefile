@@ -208,7 +208,7 @@ check-manifest:
 	.github/scripts/check_manifest.sh
 
 run-migrations:
-	$(DJANGO_MANAGE) migrate_schemas --executor=parallel
+	$(DJANGO_MANAGE) migrate_schemas --executor=multiprocessing
 
 serve:
 	$(DJANGO_MANAGE) runserver
