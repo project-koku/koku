@@ -145,7 +145,6 @@ REPORT_COLUMN_MAP = defaultdict(
             "UsageDateTime": "usage_date",
             "UsageQuantity": "usage_quantity",
             "PreTaxCost": "pretax_cost",
-            "OfferId": "offer_id",
         },
         "reporting_gcpproject": {
             "Project ID": "project_id",

@@ -114,7 +114,6 @@ class AzureCostEntryLineItemDaily(models.Model):
     usage_date = models.DateField(null=False)
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    offer_id = models.PositiveIntegerField(null=True)
 
 
 class AzureCostEntryLineItemDailySummary(models.Model):
@@ -148,7 +147,6 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    offer_id = models.PositiveIntegerField(null=True)
     currency = models.TextField(null=True)
     instance_ids = ArrayField(models.TextField(), null=True)
     instance_count = models.IntegerField(null=True)
