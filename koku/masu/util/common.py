@@ -35,6 +35,7 @@ from masu.config import Config
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
 from masu.util.ocp.common import process_openshift_datetime
+from masu.util.ocp.common import process_openshift_labels
 
 
 LOG = logging.getLogger(__name__)
@@ -152,21 +153,8 @@ def safe_dict(val):
     return json.dumps(result)
 
 
-def process_openshift_labels_to_json(val):
-    """
-    Convert "label_<key>:<val>[|label_<key>:<val>...] to json string '{"<key>": "<val", [...]}'
-    """
-    label_start = len("label_")  # change this string if the prefix ever changes.
-    labels = {}
-    if val:
-        try:
-            for raw_label in val.split("|"):
-                key, value = raw_label.split(":")
-                labels[key[label_start:]] = value
-        except (ValueError, TypeError):
-            pass
-
-    return json.dumps(labels)
+def process_openshift_labels_to_json(label_val):
+    return json.dumps(process_openshift_labels(label_val))
 
 
 def get_column_converters(provider_type, **kwargs):
