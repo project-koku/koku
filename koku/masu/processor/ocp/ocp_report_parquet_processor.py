@@ -21,6 +21,7 @@ from tenant_schemas.utils import schema_context
 
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.util.ocp import common as utils
+from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_MAP
 
@@ -57,6 +58,11 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             json_columns=json_columns,
             table_name=ocp_table_name,
         )
+
+    @property
+    def postgres_summary_table(self):
+        """Return the mode for the source specific summary table."""
+        return OCPUsageLineItemDailySummary
 
     def create_bill(self):
         """Create bill postgres entry."""
