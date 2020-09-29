@@ -17,6 +17,7 @@
 """Models for identity and access management."""
 from uuid import uuid4
 
+from django.conf import settings
 from django.db import connection
 from django.db import models
 from tenant_schemas.models import TenantMixin
@@ -92,6 +93,9 @@ class Tenant(TenantMixin):
             # In-line import to avoid circular issue
             from masu.celery.tasks import create_schema as create_schema_task
 
-            create_schema_task.s(self.schema_name, verbosity).apply_async()
+            if settings.DEVELOPMENT:
+                create_schema_task.s(self.schema_name, verbosity).apply()
+            else:
+                create_schema_task.s(self.schema_name, verbosity).apply_async()
 
         connection.set_schema_to_public()
