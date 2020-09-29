@@ -12,6 +12,32 @@ select li.pod_labels,
    and li.report_period_start = TIMESTAMP '2020-08-31 20:00:00.000'
  limit 5;
 
+select li.node_labels,
+       map_filter(cast(json_parse(li.node_labels) as map(varchar, varchar)),
+                  (k, v) -> contains(ek.enabled_keys, k)) as "filtered_node_labels"
+  from hive.acct10001.openshift_node_labels_line_items as li
+ cross
+  join (
+         select array_agg(distinct key) as enabled_keys
+           from postgres.acct10001.reporting_ocpenabledtagkeys
+       ) as ek
+ where li.source = 'cdd92137-0d73-4535-991b-d2d11a190479'
+   and li.report_period_start = TIMESTAMP '2020-08-31 20:00:00.000'
+ limit 5;
+
+
+select map_filter(cast(json_parse(li.pod_labels) as map(varchar, varchar)),
+                  (k, v) -> contains(ek.enabled_keys, k)) as "pod_labels"
+  from hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items as li
+ cross
+  join (
+         select array_agg(distinct key) as enabled_keys
+           from postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys
+       ) as ek
+ where li.source = {{source}}
+   and li.year = {{start_year}}
+   and li.month = {{start_month}}
+
 
 
 -- Calculate cluster capacity at daily level
@@ -42,8 +68,6 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}}
 
 -- Place our query in a temporary table
 CREATE TABLE hive.acct10001.__reporting_ocpusagelineitem_daily_uuid_eek AS (
-    WITH __cluster_capacity_uuid_eek AS
-
     SELECT  li.report_period_id,
         rp.cluster_id,
         coalesce(max(p.name), rp.cluster_id) as cluster_alias,
