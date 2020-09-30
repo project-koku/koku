@@ -87,7 +87,7 @@ class ReportParquetProcessorBase:
     def _generate_column_list(self):
         """Generate column list based on parquet file."""
         parquet_file = self._parquet_path
-        return pq.ParquetFile(parquet_file).schema.names
+        return pq.ParquetFile(parquet_file).schema_arrow.names
 
     def _generate_create_table_sql(self):
         """Generate SQL to create table."""
@@ -98,11 +98,13 @@ class ReportParquetProcessorBase:
 
         for idx, col in enumerate(parquet_columns):
             norm_col = col.replace("/", "_").replace(":", "_").lower()
-            col_type = "varchar"
             if norm_col in self._numeric_columns:
                 col_type = "double"
-            if norm_col in self._date_columns:
+            elif norm_col in self._date_columns:
                 col_type = "timestamp"
+            else:
+                col_type = "varchar"
+
             sql += f"{norm_col} {col_type}"
             if idx < (len(parquet_columns) - 1):
                 sql += ","

@@ -262,10 +262,10 @@ class ParquetReportProcessor:
         parquet_file = None
         csv_file = f"{s3_csv_path}/{csv_filename}"
         if csv_filename.lower().endswith(CSV_EXT):
-            ext = -1 * len(CSV_EXT)
+            ext = -len(CSV_EXT)
             parquet_file = f"{csv_filename[:ext]}.parquet"
         elif csv_filename.lower().endswith(CSV_GZIP_EXT):
-            ext = -1 * len(CSV_GZIP_EXT)
+            ext = -len(CSV_GZIP_EXT)
             parquet_file = f"{csv_filename[:ext]}.parquet"
             kwargs = {"compression": "gzip"}
         else:

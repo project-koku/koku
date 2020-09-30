@@ -1,45 +1,104 @@
--- pod labels extraction
-select li.pod_labels,
-       map_filter(cast(json_parse(li.pod_labels) as map(varchar, varchar)),
-                  (k, v) -> contains(ek.enabled_keys, k)) as "filtered_pod_labels"
-  from hive.acct10001.openshift_pod_usage_line_items as li
- cross
-  join (
-         select array_agg(distinct key) as enabled_keys
-           from postgres.acct10001.reporting_ocpenabledtagkeys
-       ) as ek
- where li.source = 'cdd92137-0d73-4535-991b-d2d11a190479'
-   and li.report_period_start = TIMESTAMP '2020-08-31 20:00:00.000'
- limit 5;
 
-select li.node_labels,
-       map_filter(cast(json_parse(li.node_labels) as map(varchar, varchar)),
-                  (k, v) -> contains(ek.enabled_keys, k)) as "filtered_node_labels"
-  from hive.acct10001.openshift_node_labels_line_items as li
- cross
-  join (
-         select array_agg(distinct key) as enabled_keys
-           from postgres.acct10001.reporting_ocpenabledtagkeys
-       ) as ek
- where li.source = 'cdd92137-0d73-4535-991b-d2d11a190479'
-   and li.report_period_start = TIMESTAMP '2020-08-31 20:00:00.000'
- limit 5;
+-- node label line items by day presto sql
+CREATE TABLE hive.acct10001.__ocp_node_label_line_item_daily_uuid_eek AS (
+    SELECT cast(p_src.authentication as MAP(varchar, MAP(varchar, varchar)))['credentials']['cluster_id'] as "cluster_id",
+           date(nli.interval_start) as "usage_start",
+           max(nli.node) as "node",
+           nli.node_labels,
+           count(nli.interval_start) * 3600 as "total_seconds",
+           max(nli.source) as "source",
+           max(nli.year) as "year",
+           max(nli.month) as "month"
+      FROM hive.acct10001.openshift_node_labels_line_items as "nli"
+      JOIN postgres.public.api_sources p_src
+        ON cast(p_src.source_uuid as varchar) = nli.source
+     WHERE date(nli.interval_start) >= DATE '2020-09-01'
+       AND date(nli.interval_start) <= DATE '2020-09-08'
+     GROUP
+        BY 1, 2, 4
+)
+;
 
+-- cluster daily cappacity presto sql
+CREATE TABLE hive.acct10001.__ocp_cluster_capacity_uuid_eek as (
+    SELECT cc.cluster_id,
+           coalesce(cc.cluster_alias, cc.cluster_id) as "cluster_alias",
+           date(cc.interval_start) as usage_start,
+           max(cc.source) as "source",
+           max(cc.year) as "year",
+           max(cc.month) as "month",
+           sum(cc.max_cluster_capacity_cpu_core_seconds) as cluster_capacity_cpu_core_seconds,
+           sum(cc.max_cluster_capacity_memory_byte_seconds) as cluster_capacity_memory_byte_seconds
+      FROM (
+               SELECT cast(p_src.authentication as MAP(varchar, MAP(varchar, varchar)))['credentials']['cluster_id'] as "cluster_id",
+                      p_src.name as "cluster_alias",
+                      li.interval_start,
+                      max(li.source) as "source",
+                      max(li.year) as "year",
+                      max(li.month) as "month",
+                      max(li.node_capacity_cpu_core_seconds) as "max_cluster_capacity_cpu_core_seconds",
+                      max(li.node_capacity_memory_byte_seconds) as "max_cluster_capacity_memory_byte_seconds"
+                 FROM hive.acct10001.openshift_pod_usage_line_items AS li
+                 JOIN postgres.public.api_sources p_src
+                   ON cast(p_src.source_uuid as varchar) = li.source
+                WHERE date(li.interval_start) >= DATE '2020-09-01'
+                  AND date(li.interval_start) <= DATE '2020-09-08'
+                GROUP
+                   BY 1, 2, 3
+           ) as cc
+     GROUP
+        BY 1, 2, 3
+)
+;
 
-select map_filter(cast(json_parse(li.pod_labels) as map(varchar, varchar)),
-                  (k, v) -> contains(ek.enabled_keys, k)) as "pod_labels"
-  from hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items as li
- cross
-  join (
-         select array_agg(distinct key) as enabled_keys
-           from postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys
-       ) as ek
- where li.source = {{source}}
-   and li.year = {{start_year}}
-   and li.month = {{start_month}}
+-- daily summarization??
+CREATE TABLE hive.acct10001.__reporting_ocpusagelineitem_daily_uuid_eek AS (
+    SELECT li.report_period_start,
+           cc.cluster_id,
+           cc.cluster_alias,
+           date(li.interval_start) as "usage_start",
+           date(li.interval_start) as "usage_end",
+           li.namespace,
+           li.pod,
+           li.node,
+           max(li.resource_id) as "resource_id",
+           map_filter(map_concat(cast(json_parse(nli.node_labels) as map(varchar, varchar)),
+                                 cast(json_parse(li.pod_labels) as map(varchar, varchar))),
+                      (k, v) -> contains(ek.enabled_keys, k)) as "pod_labels",
+           sum(li.pod_usage_cpu_core_seconds) as "pod_usage_cpu_core_seconds",
+           sum(li.pod_request_cpu_core_seconds) as "pod_request_cpu_core_seconds",
+           sum(li.pod_limit_cpu_core_seconds) as "pod_limit_cpu_core_seconds",
+           sum(li.pod_usage_memory_byte_seconds) as "pod_usage_memory_byte_seconds",
+           sum(li.pod_request_memory_byte_seconds) as "pod_request_memory_byte_seconds",
+           sum(li.pod_limit_memory_byte_seconds) as "pod_limit_memory_byte_seconds",
+           max(li.node_capacity_cpu_cores) as "node_capacity_cpu_cores",
+           sum(li.node_capacity_cpu_core_seconds) as "node_capacity_cpu_core_seconds",
+           max(li.node_capacity_memory_bytes) as "node_capacity_memory_bytes",
+           sum(li.node_capacity_memory_byte_seconds) as "node_capacity_memory_byte_seconds",
+           max(cc.cluster_capacity_cpu_core_seconds) as "cluster_capacity_cpu_core_seconds",
+           max(cc.cluster_capacity_memory_byte_seconds) as "cluster_capacity_memory_byte_seconds",
+           count(li.interval_start) * 3600 as "total_seconds"
+      FROM hive.acct10001.openshift_pod_usage_line_items as "li"
+      JOIN hive.acct10001.__ocp_node_label_line_item_daily_uuid_eek as "nli"
+        ON nli.node = li.node
+       AND nli.usage_start = date(li.interval_start)
+       AND nli.source = li.source
+      JOIN hive.acct10001.__ocp_cluster_capacity_uuid_eek as "cc"
+        ON cc.source = li.source
+       AND cc.usage_start = date(li.interval_start)
+     CROSS
+      JOIN (
+               SELECT array_agg(distinct key) as enabled_keys
+                 FROM postgres.acct10001.reporting_ocpenabledtagkeys
+           ) as "ek"
+     WHERE date(li.interval_start) >= DATE '2020-09-01'
+       AND date(li.interval_start) <= DATE '2020-09-08'
+     GROUP
+        BY 1, 2, 3, 4, 5, 6, 7, 8, 10
+)
+;
 
-
-
+/*
 -- Calculate cluster capacity at daily level
 CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}} AS (
     SELECT cc.cluster_id,
@@ -65,7 +124,9 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}}
         GROUP BY cc.cluster_id,
             date(cc.interval_start)
 );
+*/
 
+/*
 -- Place our query in a temporary table
 CREATE TABLE hive.acct10001.__reporting_ocpusagelineitem_daily_uuid_eek AS (
     SELECT  li.report_period_id,
@@ -117,11 +178,12 @@ CREATE TABLE hive.acct10001.__reporting_ocpusagelineitem_daily_uuid_eek AS (
 )
 ;
 
--- no need to wait on commit
-TRUNCATE TABLE ocp_cluster_capacity_{{uuid | sqlsafe}};
-DROP TABLE ocp_cluster_capacity_{{uuid | sqlsafe}};
+*/
 
+DROP TABLE hive.acct10001.__ocp_node_label_line_item_daily_uuid_eek;
+DROP TABLE hive.acct10001.__ocp_cluster_capacity_uuid_eek;
 
+/*
 -- Clear out old entries first
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily
 WHERE usage_start >= {{start_date}}
@@ -184,3 +246,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily (
 -- no need to wait on commit
 TRUNCATE TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}};
 DROP TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}};
+*/
