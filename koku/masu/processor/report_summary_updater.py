@@ -27,6 +27,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
+from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
 from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
 from masu.processor.ocp.ocp_report_summary_updater import OCPReportSummaryUpdater
@@ -98,6 +99,11 @@ class ReportSummaryUpdater:
                 OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
             )
         if self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            if settings.ENABLE_PARQUET_PROCESSING:
+                return (
+                    AzureReportParquetSummaryUpdater(self._schema, self._provider, self._manifest),
+                    OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+                )
             return (
                 AzureReportSummaryUpdater(self._schema, self._provider, self._manifest),
                 OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
