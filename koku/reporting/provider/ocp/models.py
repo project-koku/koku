@@ -331,7 +331,7 @@ class OCPUsagePodLabelSummary(models.Model):
         """Meta for OCPUsageTagSummary."""
 
         db_table = "reporting_ocpusagepodlabel_summary"
-        unique_together = ("key", "report_period", "namespace")
+        unique_together = ("key", "report_period", "namespace", "node")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
@@ -439,7 +439,7 @@ class OCPStorageVolumeLabelSummary(models.Model):
         """Meta for OCPStorageVolumeLabelSummary."""
 
         db_table = "reporting_ocpstoragevolumelabel_summary"
-        unique_together = ("key", "report_period", "namespace")
+        unique_together = ("key", "report_period", "namespace", "node")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
