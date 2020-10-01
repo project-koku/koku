@@ -85,30 +85,34 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                 )
 
                 try:
-                    tenant = Tenant.objects.get_or_create(schema_name=KokuTestRunner.schema)[0]
-                    tenant.save()
-                    customer, __ = Customer.objects.get_or_create(
-                        account_id=KokuTestRunner.account, schema_name=KokuTestRunner.schema
-                    )
-                    with tenant_context(tenant):
-                        for tag_key in OCP_ENABLED_TAGS:
-                            OCPEnabledTagKeys.objects.get_or_create(key=tag_key)
-                    # Obtain the day_list from yaml
-                    read_yaml = UploadAwsTree(None, None, None, None)
-                    tree_yaml = read_yaml.import_yaml(yaml_file_path="scripts/aws_org_tree.yml")
-                    day_list = tree_yaml["account_structure"]["days"]
-                    # Load data
-                    data_loader = NiseDataLoader(KokuTestRunner.schema)
-                    data_loader.load_aws_data(customer, "aws_static_data.yml", day_list=day_list)
-                    data_loader.load_openshift_data(customer, "ocp_aws_static_data.yml", "OCP-on-AWS")
-                    data_loader.load_openshift_data(customer, "ocp_azure_static_data.yml", "OCP-on-Azure")
-                    data_loader.load_azure_data(customer, "azure_static_data.yml")
-                    for account in [("10002", "acct10002"), ("12345", "acct12345")]:
-                        tenant = Tenant.objects.get_or_create(schema_name=account[1])[0]
+                    tenant, created = Tenant.objects.get_or_create(schema_name=KokuTestRunner.schema)
+                    if created:
+                        tenant = Tenant.objects.get_or_create(schema_name=KokuTestRunner.schema)[0]
                         tenant.save()
-                        Customer.objects.get_or_create(account_id=account[0], schema_name=account[1])
+                        customer, __ = Customer.objects.get_or_create(
+                            account_id=KokuTestRunner.account, schema_name=KokuTestRunner.schema
+                        )
+                        with tenant_context(tenant):
+                            for tag_key in OCP_ENABLED_TAGS:
+                                OCPEnabledTagKeys.objects.get_or_create(key=tag_key)
+                        data_loader = NiseDataLoader(KokuTestRunner.schema)
+                        # Obtain the day_list from yaml
+                        read_yaml = UploadAwsTree(None, None, None, None)
+                        tree_yaml = read_yaml.import_yaml(yaml_file_path="scripts/aws_org_tree.yml")
+                        day_list = tree_yaml["account_structure"]["days"]
+                        # Load data
+                        data_loader = NiseDataLoader(KokuTestRunner.schema)
+                        data_loader.load_aws_data(customer, "aws_static_data.yml", day_list=day_list)
+                        data_loader.load_openshift_data(customer, "ocp_aws_static_data.yml", "OCP-on-AWS")
+                        data_loader.load_openshift_data(customer, "ocp_azure_static_data.yml", "OCP-on-Azure")
+                        data_loader.load_azure_data(customer, "azure_static_data.yml")
+                        for account in [("10002", "acct10002"), ("12345", "acct12345")]:
+                            tenant = Tenant.objects.get_or_create(schema_name=account[1])[0]
+                            tenant.save()
+                            Customer.objects.get_or_create(account_id=account[0], schema_name=account[1])
                 except Exception as err:
-                    LOG.warning(err)
+                    LOG.error(err)
+                    raise err
 
                 if parallel > 1:
                     for index in range(parallel):
