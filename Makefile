@@ -384,6 +384,7 @@ docker-presto-setup:
 
 docker-presto-cleanup:
 	@$(PREFIX) rm -fr ./testing/hadoop ./testing/metastore ./testing/presto
+	make clear-testing
 
 docker-presto-up: docker-metastore-setup docker-presto-setup
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d
