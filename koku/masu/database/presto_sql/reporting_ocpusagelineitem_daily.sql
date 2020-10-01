@@ -12,6 +12,7 @@
 DROP TABLE IF EXISTS hive.acct10001.__ocp_node_label_line_item_daily_uuid_eek;
 CREATE TABLE hive.acct10001.__ocp_node_label_line_item_daily_uuid_eek AS (
     SELECT cast(p_src.authentication as MAP(varchar, MAP(varchar, varchar)))['credentials']['cluster_id'] as "cluster_id",
+           p_src.name as "cluster_alias",
            date(nli.interval_start) as "usage_start",
            max(nli.node) as "node",
            nli.node_labels,
@@ -28,7 +29,7 @@ CREATE TABLE hive.acct10001.__ocp_node_label_line_item_daily_uuid_eek AS (
        AND date(nli.interval_start) >= DATE '2020-09-01'
        AND date(nli.interval_start) <= DATE '2020-09-08'
      GROUP
-        BY 1, 2, 4
+        BY 1, 2, 3, 5
 )
 ;
 
