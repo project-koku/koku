@@ -17,7 +17,7 @@ def add_views(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0138_auto_20200918_1724")]
+    dependencies = [("reporting", "0140_auto_20200925_1825")]
 
     operations = [
         migrations.RunSQL(
