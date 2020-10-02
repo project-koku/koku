@@ -73,10 +73,7 @@ class ReportParquetProcessorBase:
 
     def _get_provider(self):
         """Retrieve the postgres provider id."""
-        with schema_context(self._schema_name):
-            obj = Provider.objects.get(uuid=self._provider_uuid)
-            return obj
-        return None
+        return Provider.objects.get(uuid=self._provider_uuid)
 
     def _create_schema(self,):
         """Create presto schema."""
