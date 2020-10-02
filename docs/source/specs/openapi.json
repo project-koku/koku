@@ -1726,6 +1726,407 @@
                 }]
             }
         },
+        "/resource-types/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Resource Types For RBAC",
+                "operationId": "listResourceTypes",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of cost model objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResorceTypesListPagination"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/aws-accounts/": {
+            "get": {
+                "tags": [
+                    "AWS Accounts"
+                ],
+                "summary": "List AWS Accounts For RBAC",
+                "operationId": "listAwsAccountsForResourceType",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of aws account objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AWSAccountsListPagination"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/aws-organizational-units/": {
+            "get": {
+                "tags": [
+                    "AWS Organizational Units"
+                ],
+                "summary": "List AWS Organizational Units For RBAC",
+                "operationId": "listAwsOrgUnitsForResourceType",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of aws organizational units objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AwsOrgUnitListPagination"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/azure-subscription-guids/": {
+            "get": {
+                "tags": [
+                    "Azure Subscription Guids"
+                ],
+                "summary": "List Azure Subscription Guids For RBAC",
+                "operationId": "listAzureSubGuidsForResourceType",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of azure subscription guids objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AzureSubGuidListPagination"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/openshift-clusters/": {
+            "get": {
+                "tags": [
+                    "Openshift Clusters"
+                ],
+                "summary": "List OpenShift Clusters For RBAC",
+                "operationId": "listOpenShiftClustersForResourceType",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of openshift clusters guids objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OpenShiftClusterListPagination"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/openshift-nodes/": {
+            "get": {
+                "tags": [
+                    "Openshift Nodes"
+                ],
+                "summary": "List OpenShift Nodes For RBAC",
+                "operationId": "listOpenShiftNodesForResourceType",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of openshift nodes objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OpenShiftNodeListPagination"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/openshift-projects/": {
+            "get": {
+                "tags": [
+                    "Openshift Projects"
+                ],
+                "summary": "List the openshift projects",
+                "operationId": "listOpenShiftProjectsForResourceType",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+
+                ],
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of openshift project objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OpenShiftProjectListPagination"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/rates/": {
+            "get": {
+                "tags": [
+                    "Rates"
+                ],
+                "summary": "List Rates For RBAC",
+                "operationId": "listRatesForResourceType",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of rates objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RateListPagination"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/sources/": {
             "get": {
                 "tags": [
@@ -3014,6 +3415,25 @@
                 "schema": {
                     "type": "boolean"
                 }
+            },
+            "QueryValue": {
+                "in": "query",
+                "name": "value",
+                "required": false,
+                "description": "Parameter for matching the value data using a contains.",
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "QueryOrder" : {
+                "in": "query",
+                "name": "ordering",
+                "required": false,
+                "description": "Parameter for ordering the value data.",
+                "schema": {
+                    "type": "string",
+                    "enum": ["value", "-value"]
+                }
             }
         },
         "securitySchemes": {
@@ -3414,6 +3834,78 @@
                         }
                     }
                 ]
+            },
+            "ResourceTypePaginationLinks": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/PaginationLinks"
+                }]
+            },
+            "ResourceTypesOut": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "count": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "ResourceTypesListPagination": {
+                "properties": {
+                    "meta": {
+                        "$ref": "#/components/schemas/PaginationMeta"
+                    },
+                    "links": {
+                        "$ref": "#/components/schemas/ResourceTypePaginationLinks"
+                    },
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ResourceTypeOut"
+                        },
+                        "example": [
+                            {
+                                "value": "aws.account",
+                                "path": "/api/cost-management/v1/resource-types/aws-accounts/",
+                                "count": 10
+                            },
+                            {
+                                "value": "aws.organizational_unit",
+                                "path": "/api/cost-management/v1/resource-types/aws-organizational-units/",
+                                "count": 2
+                            },
+                            {
+                                "value": "azure.subscription_guid",
+                                "path": "/api/cost-management/v1/resource-types/azure-subscription-guids/",
+                                "count": 0
+                            },
+                            {
+                                "value": "openshift.cluster",
+                                "path": "/api/cost-management/v1/resource-types/openshift-cluster/",
+                                "count": 3
+                            },
+                            {
+                                "value": "openshift.node",
+                                "path": "/api/cost-management/v1/resource-types/openshift-nodes/",
+                                "count": 12
+                            },
+                            {
+                                "value": "openshift.project",
+                                "path": "/api/cost-management/v1/resource-types/openshift-projects/",
+                                "count": 47
+                            },
+                            {
+                                "value": "rate",
+                                "path": "/api/cost-management/v1/resource-types/rates/",
+                                "count": 4
+                            }
+
+                        ]
+                    }
+                }
             },
             "Source": {
                 "required": [
