@@ -15,10 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the AWSReportParquetProcessor."""
-import uuid
+from unittest.mock import patch
 
+from tenant_schemas.utils import schema_context
+
+from api.utils import DateHelper
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.test import MasuTestCase
+from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
 
 
@@ -32,12 +36,30 @@ class AWSReportProcessorParquetTest(MasuTestCase):
         self.manifest_id = 1
         self.account = 10001
         self.s3_path = "/s3/path"
-        self.provider_uuid = str(uuid.uuid4())
         self.local_parquet = "/local/path"
         self.processor = AWSReportParquetProcessor(
-            self.manifest_id, self.account, self.s3_path, self.provider_uuid, self.local_parquet
+            self.manifest_id, self.account, self.s3_path, self.aws_provider_uuid, self.local_parquet
         )
 
     def test_aws_table_name(self):
         """Test the AWS table name generation."""
         self.assertEqual(self.processor._table_name, PRESTO_LINE_ITEM_TABLE)
+
+    @patch("masu.processor.aws.aws_report_parquet_processor.AWSReportParquetProcessor._execute_sql")
+    def test_create_bill(self, mock_execute_sql):
+        """Test that a bill is created in the Postgres database."""
+        bill_date = DateHelper().this_month_start
+        start_date = bill_date
+        end_date = DateHelper().this_month_end
+        account_id = "9999999999"
+        mock_execute_sql.return_value = [[account_id]]
+
+        self.processor.create_bill(bill_date.date())
+        with schema_context(self.schema):
+            bill = AWSCostEntryBill.objects.filter(
+                billing_period_start=start_date,
+                billing_period_end=end_date,
+                payer_account_id=account_id,
+                provider=self.aws_provider,
+            )
+            self.assertIsNotNone(bill.first())
