@@ -322,7 +322,7 @@ class OCPUsagePodLabelSummary(models.Model):
     """A collection of all current existing tag key and values."""
 
     class Meta:
-        """Meta for OCPUsageTagSummary."""
+        """Meta for OCPUsagePodLabelSummary."""
 
         db_table = "reporting_ocpusagepodlabel_summary"
         unique_together = ("key", "report_period", "namespace", "node")
