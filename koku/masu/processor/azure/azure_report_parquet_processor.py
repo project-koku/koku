@@ -19,7 +19,6 @@ import logging
 
 import ciso8601
 import pytz
-from dateutil import parser
 from tenant_schemas.utils import schema_context
 
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
@@ -49,22 +48,19 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
         """Return the mode for the source specific summary table."""
         return AzureCostEntryLineItemDailySummary
 
-    def create_bill(self):
+    def create_bill(self, bill_date):
         """Create bill postgres entry."""
-        sql = f"select distinct(usagedatetime) from {self._table_name}"
-        rows = self._execute_sql(sql, self._schema_name)
+        if isinstance(bill_date, str):
+            bill_date = ciso8601.parse_datetime(bill_date)
+        report_date_range = utils.month_date_range(bill_date)
+        start_date, end_date = report_date_range.split("-")
+
+        start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
+        end_date_utc = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
+
         provider = self._get_provider()
-        if rows:
-            results = rows.pop()
-            if results:
-                usage_date = results.pop()
-                report_date_range = utils.month_date_range(parser.parse(usage_date))
-                start_date, end_date = report_date_range.split("-")
 
-                start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
-                end_date_utc = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
-
-                with schema_context(self._schema_name):
-                    AzureCostEntryBill.objects.get_or_create(
-                        billing_period_start=start_date_utc, billing_period_end=end_date_utc, provider=provider
-                    )
+        with schema_context(self._schema_name):
+            AzureCostEntryBill.objects.get_or_create(
+                billing_period_start=start_date_utc, billing_period_end=end_date_utc, provider=provider
+            )
