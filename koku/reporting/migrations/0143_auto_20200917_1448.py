@@ -3,6 +3,7 @@ import pkgutil
 
 from django.db import connection
 from django.db import migrations
+from django.db import models
 
 
 def add_views(apps, schema_editor):
@@ -17,7 +18,7 @@ def add_views(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0140_auto_20200925_1825")]
+    dependencies = [("reporting", "0142_auto_20201002_1925")]
 
     operations = [
         migrations.RunSQL(
@@ -43,4 +44,10 @@ class Migration(migrations.Migration):
             """
         ),
         migrations.RunPython(add_views),
+        migrations.AlterField(
+            model_name="awscostentrybill", name="bill_type", field=models.CharField(max_length=50, null=True)
+        ),
+        migrations.AlterField(
+            model_name="awscostentrybill", name="payer_account_id", field=models.CharField(max_length=50, null=True)
+        ),
     ]
