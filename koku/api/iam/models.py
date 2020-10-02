@@ -17,8 +17,12 @@
 """Models for identity and access management."""
 from uuid import uuid4
 
+from django.conf import settings
+from django.db import connection
 from django.db import models
 from tenant_schemas.models import TenantMixin
+from tenant_schemas.postgresql_backend.base import _check_schema_name
+from tenant_schemas.utils import schema_exists
 
 
 class Customer(models.Model):
@@ -67,3 +71,31 @@ class Tenant(TenantMixin):
 
     # Delete all schemas when a tenant is removed
     auto_drop_schema = True
+
+    def create_schema(self, check_if_exists=False, sync_schema=True, verbosity=1):
+        """
+        Creates the schema 'schema_name' for this tenant. Optionally checks if
+        the schema already exists before creating it. Returns true if the
+        schema was created, false otherwise.
+        """
+
+        # safety check
+        _check_schema_name(self.schema_name)
+        cursor = connection.cursor()
+
+        if check_if_exists and schema_exists(self.schema_name):
+            return False
+
+        # create the schema
+        cursor.execute("CREATE SCHEMA %s" % self.schema_name)
+
+        if sync_schema:
+            # In-line import to avoid circular issue
+            from masu.celery.tasks import create_schema as create_schema_task
+
+            if settings.ASYNC_TENANT_MIGRATION:
+                create_schema_task.s(self.schema_name, verbosity).apply_async()
+            else:
+                create_schema_task.s(self.schema_name, verbosity).apply()
+
+        connection.set_schema_to_public()
