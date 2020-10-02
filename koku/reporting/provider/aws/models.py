@@ -39,8 +39,8 @@ class AWSCostEntryBill(models.Model):
         unique_together = ("bill_type", "payer_account_id", "billing_period_start", "provider")
 
     billing_resource = models.CharField(max_length=50, default="aws", null=False)
-    bill_type = models.CharField(max_length=50, null=False)
-    payer_account_id = models.CharField(max_length=50, null=False)
+    bill_type = models.CharField(max_length=50, null=True)
+    payer_account_id = models.CharField(max_length=50, null=True)
     billing_period_start = models.DateTimeField(null=False)
     billing_period_end = models.DateTimeField(null=False)
     summary_data_creation_datetime = models.DateTimeField(null=True)
