@@ -1,22 +1,29 @@
-# Originally from django-tenant-schemas, modified to use our own MigrateSchemas command.
-from django.conf import settings
-from django.core.management.base import BaseCommand
-from django.core.management.base import CommandError
+#
+# Copyright 2020 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+from tenant_schemas.management.commands import migrate
 from tenant_schemas.utils import django_is_in_test_mode
 
 from .migrate_schemas import Command as MigrateSchemasCommand
 
 
-class Command(BaseCommand):
-    def handle(self, *args, **options):
-        database = options.get("database", "default")
-        if settings.DATABASES[database]["ENGINE"] == "tenant_schemas.postgresql_backend":
-            raise CommandError(
-                "migrate has been disabled, for database '{}'. Use migrate_schemas "
-                "instead. Please read the documentation if you don't know why you "
-                "shouldn't call migrate directly!".format(database)
-            )
-        super().handle(*args, **options)
+class Command(migrate.Command):
+    """Override the migrate command from django-tenant-schemas."""
+
+    requires_system_checks = []
 
 
 if django_is_in_test_mode():
