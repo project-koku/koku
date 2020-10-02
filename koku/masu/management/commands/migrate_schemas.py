@@ -14,10 +14,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+"""command overrides."""
 from tenant_schemas.management.commands import migrate_schemas
 
 
 class Command(migrate_schemas.Command):
-    """Override the migrate_schemas command from django-tenant-schemas."""
+    """Override the migrate_schemas command from django-tenant-schemas.
+
+    This override is here to workaround a dead upstream.
+    This enables django-tenant_schemas to work with Django 3.1.x
+    """
 
     requires_system_checks = []
