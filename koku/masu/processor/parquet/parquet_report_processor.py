@@ -226,10 +226,10 @@ class ParquetReportProcessor:
                 processor = AzureReportParquetProcessor(
                     manifest_id, account, s3_parquet_path, provider_uuid, output_file
                 )
-
+            bill_date = self._start_date.replace(day=1).date()
             processor.create_table()
-            processor.create_bill()
-            processor.get_or_create_postgres_partition(bill_date=self._start_date.replace(day=1).date())
+            processor.create_bill(bill_date=bill_date)
+            processor.get_or_create_postgres_partition(bill_date=bill_date)
 
     def convert_csv_to_parquet(  # noqa: C901
         self,

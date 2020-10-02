@@ -67,7 +67,7 @@ class AWSReportParquetSummaryUpdater:
             with schema_context(self._schema):
                 bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
                 bill_ids = [str(bill.id) for bill in bills]
-                current_bill_id = bills.first().id
+                current_bill_id = bills.first().id if bills else None
 
             # for start, end in date_range_pair(start_date, end_date):
             LOG.info(
