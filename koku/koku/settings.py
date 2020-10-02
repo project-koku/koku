@@ -221,6 +221,7 @@ DATABASE_ROUTERS = ("tenant_schemas.routers.TenantSyncRouter",)
 
 #
 TENANT_MODEL = "api.Tenant"
+ASYNC_TENANT_MIGRATION = ENVIRONMENT.bool("ASYNC_TENANT_MIGRATION", default=False)
 
 PROMETHEUS_EXPORT_MIGRATIONS = False
 
