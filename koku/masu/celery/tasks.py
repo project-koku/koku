@@ -24,6 +24,7 @@ from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
 from django.conf import settings
+from django.core.management import call_command
 from django.utils import timezone
 
 from api.dataexport.models import DataExportRequest
@@ -313,3 +314,8 @@ def crawl_account_hierarchy(provider_uuid=None):
             )
             skipped += 1
     LOG.info(f"Account hierarchy crawler finished. {processed} processed and {skipped} skipped")
+
+
+@app.task(name="masu.celery.tasks.create_schema", queue_name="create_schema")
+def create_schema(schema_name, verbosity):
+    call_command("migrate_schemas", schema_name=schema_name, interactive=False, verbosity=verbosity)
