@@ -30,6 +30,7 @@ from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.utils import InterfaceError
 from django.db.utils import OperationalError
+from django.db.utils import ProgrammingError
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
@@ -102,6 +103,21 @@ class HttpResponseFailedDependency(JsonResponse):
         super().__init__(data)
 
 
+class HttpResponseZeroState(JsonResponse):
+    """A subclass of HttpResponse to return a blank response."""
+
+    status_code = HTTPStatus.OK
+
+    def __init__(self):
+        """Create JSON response body."""
+        data = {
+            "meta": {"count": 0},
+            "links": {"first": None, "next": None, "previous": None, "last": None},
+            "data": [],
+        }
+        super().__init__(data)
+
+
 class KokuTenantMiddleware(BaseTenantMiddleware):
     """A subclass of the Django-tenant-schemas tenant middleware.
     Determines which schema to use based on the customer's schema
@@ -118,6 +134,9 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
             DB_CONNECTION_ERRORS_COUNTER.inc()
             LOG.error("KokuTenantMiddleware InterfaceError exception: %s", exception)
             return HttpResponseFailedDependency({"source": "Database", "exception": exception})
+        elif isinstance(exception, ProgrammingError):
+            LOG.error("KokuTenantMiddleware ProgrammingError exception: %s", exception)
+            return HttpResponseZeroState()
 
     def process_request(self, request):
         """Check before super."""
