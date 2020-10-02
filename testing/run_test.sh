@@ -9,6 +9,14 @@ if [ $HOST == 'Linux' ]; then
     FLAGS=':Z'
 fi
 
+if [ "x$E2E_REPO" != "x" ]; then
+    if [ $(stat -c %a $HOME/.kube/config) != "660" ]; then
+        # kubeconfig needs to be readable inside the iqe container for the oc command to work.
+        chmod 660 $HOME/.kube/config
+    fi
+    E2E_MOUNT="-v $HOME/.kube:/iqe_venv/.kube${FLAGS} -v $E2E_REPO:/e2e-deploy${FLAGS} -w /e2e-deploy"
+fi
+
 main() {
     if command -v docker > /dev/null 2>&1; then
         CONTAINER_RUNTIME=docker
@@ -38,6 +46,7 @@ main() {
                            -v $SCRIPTPATH/local_providers/aws_local_5:/tmp/local_bucket_5${FLAGS} \
                            -v $SCRIPTPATH/local_providers/azure_local:/tmp/local_container${FLAGS} \
                            -v $SCRIPTPATH/pvc_dir/insights_local:/var/tmp/masu/insights_local${FLAGS} \
+                           $E2E_MOUNT \
                            $IMAGE \
                            $COMMAND
 }
