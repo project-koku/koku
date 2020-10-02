@@ -3,8 +3,8 @@
 
 -- node label line items by day presto sql
 -- still using a "temp" table here because there is no guarantee how big this might get
-DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{schema | sqlsafe}};
-CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{schema | sqlsafe}} AS (
+DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{uuid | sqlsafe}};
+CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{uuid | sqlsafe}} AS (
     SELECT {{cluster_id}} as "cluster_id",
            date(nli.interval_start) as "usage_start",
            max(nli.node) as "node",
@@ -25,8 +25,8 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{schema
 
 -- cluster daily cappacity presto sql
 -- still using a "temp" table here because there is no guarantee how big this might get
-DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{schema | sqlsafe}};
-CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{schema | sqlsafe}} as (
+DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}};
+CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}} as (
     SELECT {{cluster_id}} as "cluster_id",
            date(cc.interval_start) as usage_start,
            max(cc.source) as "source",
@@ -124,7 +124,7 @@ SELECT uuid() as "uuid",
        max(cc.cluster_capacity_cpu_core_seconds) / 3600.0 as "cluster_capacity_cpu_core_hours",
        max(cc.cluster_capacity_memory_byte_seconds) / 3600.0 * power(2, -30) as "cluster_capacity_memory_gigabyte_hours",
        li.source as "source_uuid",
-       json_parse('{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}') as infrastructure_usage_cost
+       '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost
   FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items as "li"
   LEFT
   JOIN hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{schema | sqlsafe}} as "nli"
