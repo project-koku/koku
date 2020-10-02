@@ -196,7 +196,7 @@ class CommonUtilTests(MasuTestCase):
         account = "10001"
         provider_type = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        start_date = datetime.datetime.utcnow().date()
+        start_date = datetime.utcnow().date()
         expected_path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
         expected_path = (
             f"{expected_path_prefix}/{account}/{provider_type}/"
