@@ -66,7 +66,6 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
-    "tenant_schemas",
     # django
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -87,6 +86,7 @@ INSTALLED_APPS = [
     "reporting_common",
     "cost_models",
     "sources",
+    "tenant_schemas",
 ]
 
 SHARED_APPS = (

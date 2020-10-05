@@ -16,9 +16,9 @@
 #
 """Models for OCP on AWS tables."""
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import JSONField
 
 VIEWS = (
     "reporting_ocpallcostlineitem_daily_summary",
