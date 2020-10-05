@@ -207,23 +207,52 @@ class RbacServiceTest(TestCase):
     def test_process_acls_multiple(self):
         """Test function of _process_acls with a bad permission format."""
         acls = [
-            {"permission": "cost-management:provider:read", "resourceDefinitions": []},
+            {"permission": "cost-management:cost_model:read", "resourceDefinitions": []},
             {
-                "permission": "cost-management:provider:write",
+                "permission": "cost-management:cost_model:write",
                 "resourceDefinitions": [
-                    {"attributeFilter": {"key": "cost-management.provider", "operation": "in", "value": "1,3,5"}}
+                    {"attributeFilter": {"key": "cost-management.cost_model", "operation": "in", "value": "1,3,5"}}
                 ],
             },
             {
-                "permission": "cost-management:provider:write",
+                "permission": "cost-management:cost_model:write",
                 "resourceDefinitions": [
-                    {"attributeFilter": {"key": "cost-management.provider", "operation": "equal", "value": "8"}}
+                    {"attributeFilter": {"key": "cost-management.cost_model", "operation": "equal", "value": "8"}}
                 ],
             },
         ]
         access = _process_acls(acls)
         expected = {
-            "provider": [
+            "cost_model": [
+                {"operation": "read", "resources": ["*"]},
+                {"operation": "write", "resources": ["1", "3", "5"]},
+                {"operation": "write", "resources": ["8"]},
+            ]
+        }
+        print()
+        print(access)
+        self.assertEqual(access, expected)
+
+    def test_process_acls_rate_to_cost_model_substitution(self):
+        """Test function of _process_acls with a bad permission format."""
+        acls = [
+            {"permission": "cost-management:rate:read", "resourceDefinitions": []},
+            {
+                "permission": "cost-management:rate:write",
+                "resourceDefinitions": [
+                    {"attributeFilter": {"key": "cost-management.rate", "operation": "in", "value": "1,3,5"}}
+                ],
+            },
+            {
+                "permission": "cost-management:rate:write",
+                "resourceDefinitions": [
+                    {"attributeFilter": {"key": "cost-management.rate", "operation": "equal", "value": "8"}}
+                ],
+            },
+        ]
+        access = _process_acls(acls)
+        expected = {
+            "cost_model": [
                 {"operation": "read", "resources": ["*"]},
                 {"operation": "write", "resources": ["1", "3", "5"]},
                 {"operation": "write", "resources": ["8"]},
@@ -246,7 +275,6 @@ class RbacServiceTest(TestCase):
         rw_access = {"write": [], "read": []}
         read_access = {"read": []}
         expected = {
-            "provider": rw_access,
             "cost_model": rw_access,
             "aws.account": read_access,
             "aws.organizational_unit": read_access,
@@ -264,7 +292,6 @@ class RbacServiceTest(TestCase):
         rw_access = {"write": [], "read": []}
         read_access = {"read": []}
         expected = {
-            "provider": rw_access,
             "cost_model": rw_access,
             "aws.account": read_access,
             "aws.organizational_unit": read_access,
@@ -282,7 +309,6 @@ class RbacServiceTest(TestCase):
         rw_access = {"write": ["1", "3"], "read": ["1", "3"]}
         read_access = {"read": ["1", "3"]}
         expected = {
-            "provider": rw_access,
             "cost_model": rw_access,
             "aws.account": read_access,
             "aws.organizational_unit": read_access,
@@ -302,7 +328,6 @@ class RbacServiceTest(TestCase):
         rw_access = {"write": ["1", "3"], "read": ["1", "3", "2"]}
         read_access = {"read": ["2"]}
         expected = {
-            "provider": rw_access,
             "cost_model": rw_access,
             "aws.account": read_access,
             "aws.organizational_unit": read_access,
@@ -316,14 +341,29 @@ class RbacServiceTest(TestCase):
     def test_apply_access_limited(self):
         """Test handling of limited resource access data for apply access method."""
         processed_acls = {
-            "provider": [{"operation": "write", "resources": ["1", "3"]}, {"operation": "read", "resources": ["2"]}]
+            "cost_model": [{"operation": "write", "resources": ["1", "3"]}, {"operation": "read", "resources": ["2"]}]
         }
         res_access = _apply_access(processed_acls)
         op_access = {"write": ["1", "3"], "read": ["1", "3", "2"]}
+        no_access = {"read": []}
+        expected = {
+            "cost_model": op_access,
+            "aws.account": no_access,
+            "aws.organizational_unit": no_access,
+            "azure.subscription_guid": no_access,
+            "openshift.cluster": no_access,
+            "openshift.node": no_access,
+            "openshift.project": no_access,
+        }
+        self.assertEqual(res_access, expected)
+
+    def test_apply_access_limited_no_read_write(self):
+        """Test handling of limited resource access data for apply access method."""
+        processed_acls = {}
+        res_access = _apply_access(processed_acls)
         no_rw_access = {"write": [], "read": []}
         no_access = {"read": []}
         expected = {
-            "provider": op_access,
             "cost_model": no_rw_access,
             "aws.account": no_access,
             "aws.organizational_unit": no_access,
@@ -337,7 +377,6 @@ class RbacServiceTest(TestCase):
     def test_apply_case(self):
         """Test apply with mixed condition."""
         processed_acls = {
-            "provider": [{"operation": "*", "resources": ["*"]}],
             "cost_model": [{"operation": "*", "resources": ["*"]}],
             "aws.account": [{"operation": "read", "resources": ["myaccount"]}],
         }
@@ -346,7 +385,6 @@ class RbacServiceTest(TestCase):
         rw_access = {"write": ["*"], "read": ["*"]}
         no_access = {"read": []}
         expected = {
-            "provider": rw_access,
             "cost_model": rw_access,
             "aws.account": op_access,
             "aws.organizational_unit": no_access,
@@ -375,7 +413,6 @@ class RbacServiceTest(TestCase):
         mock_user.identity_header = {"encoded": "dGVzdCBoZWFkZXIgZGF0YQ=="}
         access = rbac.get_access_for_user(mock_user)
         expected = {
-            "provider": {"write": [], "read": []},
             "cost_model": {"write": [], "read": []},
             "aws.account": {"read": ["123456"]},
             "aws.organizational_unit": {"read": []},
