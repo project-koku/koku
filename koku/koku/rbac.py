@@ -75,6 +75,9 @@ def _process_acls(acls):
     access = {}
     for acl in acls:
         permission = acl.get("permission")
+        # Support the legacy term "rate" for cost_model permissions
+        if "cost-management:rate" in permission:
+            permission = permission.replace("rate", "cost_model")
         resource_definitions = acl.get("resourceDefinitions", [])
         try:
             res_typ, operation = _extract_permission_data(permission)
