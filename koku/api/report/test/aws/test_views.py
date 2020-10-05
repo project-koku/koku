@@ -21,6 +21,7 @@ import logging
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+from rest_framework_csv.renderers import CSVRenderer
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
@@ -189,6 +190,23 @@ class AWSReportViewTest(IamTestCase):
 
         self.assertEqual(expected_unit, result_unit)
         self.assertEqual(report_total * 1e9, result_total)
+
+    @RbacPermissions(
+        {
+            "aws.account": {"read": ["*"]},
+            "aws.organizational_unit": {"read": ["R_001", "OU_001", "OU_002", "OU_003", "OU_004", "OU_005"]},
+        }
+    )
+    def test_execute_query_csv_w_multi_group_by_rbac_explicit_access(self):
+        """Test that a csv will be returned with an account group-by AND an org_unit group-by."""
+        qs = "?group_by[org_unit_id]=OU_001&group_by[account]=9999999999990"
+        url = reverse("reports-aws-costs") + qs
+        client = APIClient(HTTP_ACCEPT="text/csv")
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.accepted_media_type, "text/csv")
+        self.assertIsInstance(response.accepted_renderer, CSVRenderer)
+        self.assertTrue(0 < len(response.data))
 
     @RbacPermissions(
         {

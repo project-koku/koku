@@ -25,7 +25,7 @@ from os import remove
 from tempfile import gettempdir
 from uuid import uuid4
 
-import pandas as pd
+import ciso8601
 from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
@@ -35,7 +35,7 @@ from masu.config import Config
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
 from masu.util.ocp.common import process_openshift_datetime
-from masu.util.ocp.common import process_openshift_labels
+
 
 LOG = logging.getLogger(__name__)
 
@@ -166,10 +166,10 @@ def get_column_converters(provider_type, **kwargs):
     converters = {}
     if provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
         converters = {
-            "bill/BillingPeriodStartDate": pd.to_datetime,
-            "bill/BillingPeriodEndDate": pd.to_datetime,
-            "lineItem/UsageStartDate": pd.to_datetime,
-            "lineItem/UsageEndDate": pd.to_datetime,
+            "bill/BillingPeriodStartDate": ciso8601.parse_datetime,
+            "bill/BillingPeriodEndDate": ciso8601.parse_datetime,
+            "lineItem/UsageStartDate": ciso8601.parse_datetime,
+            "lineItem/UsageEndDate": ciso8601.parse_datetime,
             "lineItem/UsageAmount": safe_float,
             "lineItem/NormalizationFactor": safe_float,
             "lineItem/NormalizedUsageAmount": safe_float,
@@ -182,7 +182,7 @@ def get_column_converters(provider_type, **kwargs):
         }
     elif provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
         converters = {
-            "UsageDateTime": pd.to_datetime,
+            "UsageDateTime": ciso8601.parse_datetime,
             "UsageQuantity": safe_float,
             "ResourceRate": safe_float,
             "PreTaxCost": safe_float,
@@ -194,7 +194,6 @@ def get_column_converters(provider_type, **kwargs):
             "report_period_end": process_openshift_datetime,
             "interval_start": process_openshift_datetime,
             "interval_end": process_openshift_datetime,
-            "node_labels": process_openshift_labels,
             "pod_usage_cpu_core_seconds": safe_float,
             "pod_request_cpu_core_seconds": safe_float,
             "pod_limit_cpu_core_seconds": safe_float,
@@ -205,13 +204,10 @@ def get_column_converters(provider_type, **kwargs):
             "node_capacity_cpu_core_seconds": safe_float,
             "node_capacity_memory_bytes": safe_float,
             "node_capacity_memory_byte_seconds": safe_float,
-            "pod_labels": process_openshift_labels,
             "persistentvolumeclaim_capacity_bytes": safe_float,
             "persistentvolumeclaim_capacity_byte_seconds": safe_float,
             "volume_request_storage_byte_seconds": safe_float,
             "persistentvolumeclaim_usage_byte_seconds": safe_float,
-            "persistentvolume_labels": process_openshift_labels,
-            "persistentvolumeclaim_labels": process_openshift_labels,
         }
     return converters
 

@@ -35,6 +35,12 @@ OC_TEMPLATE_DIR = $(TOPDIR)/openshift
 OC_PARAM_DIR = $(OC_TEMPLATE_DIR)/parameters
 OC_TEMPLATES = $(wildcard $(OC_TEMPLATE_DIR))
 
+# Docker compose specific file
+ifdef compose_file
+    DOCKER_COMPOSE = docker-compose -f $(compose_file)
+else
+	DOCKER_COMPOSE = docker-compose
+endif
 
 # Platform differences
 #
@@ -75,6 +81,7 @@ help:
 	@echo "                                          @param tree_yml - (optional) Tree yaml file. Default: 'scripts/aws_org_tree.yml'."
 	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
 	@echo "                                          @param nise_yml - (optional) Nise yaml file. Defaults to nise static yaml."
+	@echo "                                          @param start_date - (optional) Date delta zero in the aws_org_tree.yml"
 	@echo "  backup-local-db-dir                   make a backup copy PostgreSQL database directory (pg_data.bak)"
 	@echo "  restore-local-db-dir                  overwrite the local PostgreSQL database directory with pg_data.bak"
 	@echo "  collect-static                        collect static files to host"
@@ -155,10 +162,11 @@ create-test-customer-no-sources: run-migrations docker-up-koku
 
 load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
+	make load-aws-org-unit-tree
 
 load-aws-org-unit-tree:
 	@if [ $(shell $(PYTHON) -c 'import sys; print(sys.version_info[0])') = '3' ] ; then \
-		$(PYTHON) $(TOPDIR)/scripts/insert_aws_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml) ; \
+		$(PYTHON) $(TOPDIR)/scripts/insert_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml) start_date=$(start_date) ; \
 	else \
 		echo "This make target requires python3." ; \
 	fi
@@ -248,21 +256,21 @@ oc-delete-e2e:
 ### Docker-compose Commands ###
 ###############################
 
-docker-down: docker-presto-down
-	docker-compose down -v
+docker-down:
+	$(DOCKER_COMPOSE) down -v
 	$(PREFIX) make clear-testing
 
 docker-down-db:
-	docker-compose rm -s -v -f db
+	$(DOCKER_COMPOSE) rm -s -v -f db
 
 docker-logs:
-	docker-compose logs -f koku-server koku-worker masu-server
+	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server
 
 docker-presto-logs:
-	docker-compose -f ./testing/compose_files/docker-compose-presto.yml logs -f
+	$(DOCKER_COMPOSE) -f ./testing/compose_files/docker-compose-presto.yml logs -f
 
 docker-rabbit:
-	docker-compose up -d rabbit
+	$(DOCKER_COMPOSE) up -d rabbit
 
 docker-reinitdb: docker-down-db remove-db docker-up-db run-migrations docker-restart-koku create-test-customer-no-sources
 	@echo "Local database re-initialized with a test customer."
@@ -271,14 +279,14 @@ docker-reinitdb-with-sources: docker-down-db remove-db docker-up-db run-migratio
 	@echo "Local database re-initialized with a test customer and sources."
 
 docker-shell:
-	docker-compose run --service-ports koku-server
+	$(DOCKER_COMPOSE) run --service-ports koku-server
 
 docker-test-all:
 	docker-compose -f koku-test.yml up --build
 
 docker-restart-koku:
 	@if [ -n "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
-         docker-compose restart koku-server masu-server koku-worker koku-beat koku-listener ; \
+         $(DOCKER_COMPOSE) restart koku-server masu-server koku-worker koku-beat koku-listener ; \
          make _koku-wait ; \
          echo " koku is available" ; \
      else \
@@ -288,7 +296,7 @@ docker-restart-koku:
 docker-up-koku:
 	@if [ -z "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
          echo "Starting koku_server ..." ; \
-         docker-compose up $(build) -d koku-server ; \
+         $(DOCKER_COMPOSE) up $(build) -d koku-server ; \
          make _koku-wait ; \
      fi
 	@echo " koku is available!"
@@ -301,18 +309,18 @@ _koku-wait:
      done
 
 docker-up:
-	docker-compose up --build -d
+	$(DOCKER_COMPOSE) up --build -d
 
 docker-up-no-build:
-	docker-compose up -d
+	$(DOCKER_COMPOSE) up -d
 
 docker-up-min:
-	docker-compose up --build -d db redis koku-server masu-server koku-worker
+	$(DOCKER_COMPOSE) up --build -d db redis koku-server masu-server koku-worker
 
 docker-up-min-presto: docker-presto-up docker-up-min
 
 docker-up-db:
-	docker-compose up -d db
+	$(DOCKER_COMPOSE) up -d db
 	@until pg_isready -h $${POSTGRES_SQL_SERVICE_HOST:-localhost} -p $${POSTGRES_SQL_SERVICE_PORT:-15432} >/dev/null ; do \
 	    printf '.'; \
 	    sleep 0.5 ; \
@@ -320,7 +328,7 @@ docker-up-db:
 	@echo ' PostgreSQL is available!'
 
 docker-up-db-monitor:
-	docker-compose up --build -d grafana
+	$(DOCKER_COMPOSE) up --build -d grafana
 	@echo "Monitor is up at localhost:3001  User=admin  Password=admin12"
 
 _set-test-dir-permissions:
@@ -342,13 +350,16 @@ docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 docker-metastore-setup:
 	@cp -fr deploy/metastore/ testing/metastore/
 	@cp -fr deploy/hadoop/ testing/hadoop/
-	@sed -i "" 's/s3path/$(shell echo $(or $(s3bucket),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
-	@sed -i "" 's/s3path/$(shell echo $(or $(s3bucket),metastore))/g' testing/metastore/hive-config/hive-site.xml
+	@sed -i "" 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
+	@sed -i "" 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/metastore/hive-config/hive-site.xml
+	@sed -i "" 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' testing/metastore/hive-config/hive-site.xml
+	@sed -i "" 's/s3access/$(shell echo $(or $(S3_ACCESS_KEY),localhost))/g' testing/metastore/hive-config/hive-site.xml
+	@sed -i "" 's/s3secret/$(shell echo $(or $(S3_SECRET),localhost))/g' testing/metastore/hive-config/hive-site.xml
 
 docker-presto-setup:
 	@cp -fr deploy/presto/ testing/presto/
 	@cp -fr deploy/hadoop/ testing/hadoop/
-	@sed -i "" 's/s3path/$(shell echo $(or $(s3bucket),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
+	@sed -i "" 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
 
 docker-presto-cleanup:
 	@rm -fr testing/parquet_data testing/hadoop testing/metastore testing/presto
@@ -386,8 +397,7 @@ ifndef bucket
 	$(error param bucket is not set)
 endif
 	(printenv AWS_RESOURCE_NAME > /dev/null 2>&1) || (echo 'AWS_RESOURCE_NAME is not set in .env' && exit 1)
-	curl -d '{"name": "$(aws_name)", "source_type": "AWS", "authentication": {"resource_name": "${AWS_RESOURCE_NAME}"}, "billing_source": {"bucket": "$(bucket)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
-
+	curl -d '{"name": "$(aws_name)", "source_type": "AWS", "authentication": {"credentials": {"role_arn":"${AWS_RESOURCE_NAME}"}}, "billing_source": {"data_source": {"bucket": "$(bucket)"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
 
 ###################################################
 #  This section is for larger data volume testing
@@ -482,23 +492,23 @@ endif
 
 
 backup-local-db-dir:
-	docker-compose stop db
+	$(DOCKER_COMPOSE) stop db
 	@cd $(TOPDIR)
 	@echo "Copying pg_data to pg_data.bak..."
 	@$(PREFIX) cp -rp ./pg_data ./pg_data.bak
 	@cd - >/dev/null
-	docker-compose start db
+	$(DOCKER_COMPOSE) start db
 
 
 restore-local-db-dir:
 	@cd $(TOPDIR)
 	@if [ -d ./pg_data.bak ] ; then \
-	    docker-compose stop db ; \
+	    $(DOCKER_COMPOSE) stop db ; \
 	    echo "Removing pg_data..." ; \
 	    $(PREFIX) rm -rf ./pg_data ; \
 	    echo "Renaming pg_data.bak to pg_data..." ; \
 	    $(PREFIX) mv -f ./pg_data.bak ./pg_data ; \
-	    docker-compose start db ; \
+	    $(DOCKER_COMPOSE) start db ; \
 	    echo "NOTE :: Migrations may need to be run." ; \
 	else \
 	    echo "NOTE :: There is no pg_data.bak dir to restore from." ; \

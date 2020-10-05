@@ -16,6 +16,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 import random
+import uuid
 from datetime import datetime
 from unittest import TestCase
 from unittest.mock import Mock
@@ -32,6 +33,7 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external import AWS_REGIONS
 from masu.external.date_accessor import DateAccessor
+from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 from masu.test.external.downloader.aws import fake_aws_account_id
@@ -449,15 +451,40 @@ class TestAWSUtils(MasuTestCase):
                             with patch("masu.util.aws.common.open"):
                                 with patch("masu.util.aws.common.BytesIO"):
                                     with patch("masu.util.aws.common.copy_data_to_s3_bucket"):
-                                        result = utils.convert_csv_to_parquet(
-                                            "request_id",
-                                            "s3_csv_path",
-                                            "s3_parquet_path",
-                                            "local_path",
-                                            "manifest_id",
-                                            "csv_filename.csv.gz",
-                                        )
-                                        self.assertTrue(result)
+                                        with patch("masu.util.aws.common.create_parquet_table"):
+                                            result = utils.convert_csv_to_parquet(
+                                                "request_id",
+                                                "s3_csv_path",
+                                                "s3_parquet_path",
+                                                "local_path",
+                                                "manifest_id",
+                                                "csv_filename.csv.gz",
+                                            )
+                                            self.assertTrue(result)
+
+    @patch.object(ReportParquetProcessorBase, "create_table")
+    def test_create_parquet_table(self, mock_create_table):
+        """Test create_parquet_table function."""
+        test_matrix = [
+            {"provider_uuid": str(self.aws_provider_uuid), "expected_create": True},
+            {"provider_uuid": str(self.ocp_provider_uuid), "expected_create": True},
+            {"provider_uuid": str(self.azure_provider_uuid), "expected_create": True},
+            {"provider_uuid": str(uuid.uuid4()), "expected_create": False},
+        ]
+        account = 10001
+        manifest_id = "1"
+        s3_parquet_path = "data/to/parquet"
+        output_file = "local_path/file.parquet"
+        report_type = None
+
+        for test in test_matrix:
+            provider_uuid = test.get("provider_uuid")
+            utils.create_parquet_table(account, provider_uuid, manifest_id, s3_parquet_path, output_file, report_type)
+            if test.get("expected_create"):
+                mock_create_table.assert_called()
+            else:
+                mock_create_table.assert_not_called()
+            mock_create_table.reset_mock()
 
 
 class AwsArnTest(TestCase):

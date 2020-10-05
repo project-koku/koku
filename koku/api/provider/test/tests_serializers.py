@@ -76,6 +76,8 @@ class ProviderSerializerTest(IamTestCase):
     def test_create_all_providers(self):
         """Tests that adding all unique providers together is successful."""
         list_of_uuids = []
+        initial_date_updated = self.customer.date_updated
+        self.assertIsNotNone(initial_date_updated)
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             serializer = ProviderSerializer(
                 data=self.generic_providers[Provider.PROVIDER_AZURE], context=self.request_context
@@ -112,6 +114,8 @@ class ProviderSerializerTest(IamTestCase):
 
         for a, b in permutations(list_of_uuids, 2):
             self.assertNotEqual(a, b)
+
+        self.assertGreater(self.customer.date_updated, initial_date_updated)
 
     def test_create_provider_fails_user(self):
         """Test creating a provider fails with no user."""

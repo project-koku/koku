@@ -70,7 +70,7 @@ BEGIN
         END IF;
     END IF;
 
-    action_stmt = 'CREATE TABLE ' ||
+    action_stmt = 'CREATE TABLE IF NOT EXISTS ' ||
                     quote_ident(schema) || '.' || quote_ident(table_partition) ||
                     ' PARTITION OF ' ||
                     quote_ident(schema) || '.' || quote_ident(partitioned_table);
@@ -107,7 +107,9 @@ BEGIN
                     'JOIN pg_attribute a ' ||
                       'ON a.attrelid = p.partrelid ' ||
                      'AND a.attnum = any(string_to_array(p.partattrs::text, '' '')::smallint[]) ' ||
-                   'WHERE p.partrelid = ' || quote_literal(schema || '.'::text || partitioned_table) || '::regclass ;';
+                   'WHERE p.partrelid = ' ||
+                          quote_literal(schema || '.'::text || partitioned_table) || '::regclass ' ||
+                      'ON CONFLICT (schema_name, table_name) DO NOTHING ;';
     EXECUTE action_stmt;
 
     IF ( _commit = true )

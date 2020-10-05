@@ -42,7 +42,6 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
         sum(li.usage_quantity * su.multiplier) AS usage_quantity,
         max(su.unit_of_measure) as unit_of_measure,
         sum(pretax_cost) AS pretax_cost,
-        offer_id,
         cost_entry_product_id,
         li.meter_id,
         max(su.currency) as currency,
@@ -70,7 +69,6 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
     GROUP BY li.usage_date,
         li.cost_entry_bill_id,
         li.cost_entry_product_id,
-        li.offer_id,
         li.tags,
         li.subscription_guid,
         p.resource_location,
@@ -94,15 +92,6 @@ WHERE usage_start >= {{start_date}}
     {% endif %}
 ;
 
--- This procedure will scan the temp table for distinct start-of-month usage_start dates
--- and create any missing table partitions
-CALL public.create_date_partitions(
-        'reporting_azurecostentrylineitem_daily_summary_{{uuid | sqlsafe}}',
-        'usage_start',
-        '{{schema | sqlsafe}}',
-        'reporting_azurecostentrylineitem_daily_summary'
-    );
-
 -- Populate the daily summary line item data
 INSERT INTO {{schema | safe}}.reporting_azurecostentrylineitem_daily_summary (
     cost_entry_bill_id,
@@ -110,7 +99,6 @@ INSERT INTO {{schema | safe}}.reporting_azurecostentrylineitem_daily_summary (
     resource_location,
     service_name,
     meter_id,
-    offer_id,
     pretax_cost,
     usage_quantity,
     usage_start,
@@ -129,7 +117,6 @@ INSERT INTO {{schema | safe}}.reporting_azurecostentrylineitem_daily_summary (
         resource_location,
         service_name,
         meter_id,
-        offer_id,
         pretax_cost,
         usage_quantity,
         usage_start,

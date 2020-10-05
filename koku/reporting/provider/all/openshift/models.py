@@ -16,9 +16,9 @@
 #
 """Models for OCP on AWS tables."""
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import JSONField
 
 VIEWS = (
     "reporting_ocpallcostlineitem_daily_summary",
@@ -72,7 +72,7 @@ class OCPAllCostLineItemDailySummary(models.Model):
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = ArrayField(models.CharField(max_length=253, null=False))
 
-    node = models.CharField(max_length=253, null=False)
+    node = models.CharField(max_length=253, null=True)
 
     resource_id = models.CharField(max_length=253, null=True)
 
@@ -459,7 +459,7 @@ class OCPAllCostLineItemProjectDailySummary(models.Model):
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
 
-    node = models.CharField(max_length=253, null=False)
+    node = models.CharField(max_length=253, null=True)
 
     pod_labels = JSONField(null=True)
 

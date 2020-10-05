@@ -26,6 +26,7 @@ from pathlib import Path
 import boto3
 import pandas as pd
 from botocore.exceptions import ClientError
+from botocore.exceptions import EndpointConnectionError
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from tenant_schemas.utils import schema_context
@@ -34,6 +35,9 @@ from api.common import log_json
 from api.models import Provider
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
+from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
+from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util import common as utils
 
 LOG = logging.getLogger(__name__)
@@ -293,7 +297,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
     """
     Copies data to s3 bucket file
     """
-    if not settings.ENABLE_S3_ARCHIVING:
+    if not (settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING):
         return None
 
     upload = None
@@ -306,7 +310,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
         if manifest_id:
             put_value["Metadata"] = {"ManifestId": str(manifest_id)}
         upload.put(**put_value)
-    except ClientError as err:
+    except (EndpointConnectionError, ClientError) as err:
         msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
         LOG.info(log_json(request_id, msg, context))
     return upload
@@ -318,7 +322,7 @@ def copy_local_report_file_to_s3_bucket(
     """
     Copies local report file to s3 bucket
     """
-    if s3_path and settings.ENABLE_S3_ARCHIVING:
+    if s3_path and (settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING):
         LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         with open(full_file_path, "rb") as fin:
             data = BytesIO(fin.read())
@@ -329,7 +333,7 @@ def get_file_keys_from_s3_with_manifest_id(request_id, s3_path, manifest_id, con
     """
     Get all files in a given prefix that match the given manifest_id.
     """
-    if not settings.ENABLE_S3_ARCHIVING:
+    if not settings.ENABLE_PARQUET_PROCESSING:
         return []
 
     keys = []
@@ -345,7 +349,7 @@ def get_file_keys_from_s3_with_manifest_id(request_id, s3_path, manifest_id, con
                 key = existing_object.key
                 if manifest == manifest_id_str:
                     keys.append(key)
-        except ClientError as err:
+        except (EndpointConnectionError, ClientError) as err:
             msg = f"Unable to find data in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
             LOG.info(log_json(request_id, msg, context))
     return keys
@@ -355,7 +359,7 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
     """
     Removes all files in a given prefix if they are not within the given set.
     """
-    if not settings.ENABLE_S3_ARCHIVING:
+    if not (settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING):
         return []
 
     removed = []
@@ -375,7 +379,7 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
             if removed:
                 msg = f"Removed files from s3 bucket {settings.S3_BUCKET_NAME}: {','.join(removed)}."
                 LOG.info(log_json(request_id, msg, context))
-        except ClientError as err:
+        except (EndpointConnectionError, ClientError) as err:
             msg = f"Unable to remove data in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
             LOG.info(log_json(request_id, msg, context))
     return removed
@@ -397,6 +401,25 @@ def aws_post_processor(data_frame):
     return data_frame
 
 
+def create_parquet_table(account, provider_uuid, manifest_id, s3_parquet_path, output_file, report_type):
+    """Create parquet table."""
+    provider = None
+    with ProviderDBAccessor(provider_uuid) as provider_accessor:
+        provider = provider_accessor.get_provider()
+
+    if provider:
+        if provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+            processor = AWSReportParquetProcessor(manifest_id, account, s3_parquet_path, provider_uuid, output_file)
+        elif provider.type in (Provider.PROVIDER_OCP,):
+            processor = OCPReportParquetProcessor(
+                manifest_id, account, s3_parquet_path, provider_uuid, output_file, report_type
+            )
+        elif provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            processor = AzureReportParquetProcessor(manifest_id, account, s3_parquet_path, provider_uuid, output_file)
+
+        processor.create_table()
+
+
 def convert_csv_to_parquet(  # noqa: C901
     request_id,
     s3_csv_path,
@@ -407,6 +430,7 @@ def convert_csv_to_parquet(  # noqa: C901
     converters={},
     post_processor=None,
     context={},
+    report_type=None,
 ):
     """
     Convert CSV files to parquet on S3.
@@ -475,6 +499,10 @@ def convert_csv_to_parquet(  # noqa: C901
         msg = f"File {csv_filename} could not be written as parquet to S3 {s3_key}. Reason: {str(err)}"
         LOG.warn(log_json(request_id, msg, context))
         return False
+
+    create_parquet_table(
+        context.get("account"), context.get("provider_uuid"), manifest_id, s3_parquet_path, output_file, report_type
+    )
 
     shutil.rmtree(local_path, ignore_errors=True)
     return True

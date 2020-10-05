@@ -40,6 +40,10 @@ from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
 from api.report.ocp.view import OCPVolumeView
+from api.resource_types.aws_accounts.view import AWSAccountView
+from api.resource_types.aws_org_unit.view import AWSOrganizationalUnitView
+from api.resource_types.azure_subscription_guid.view import AzureSubscriptionGuidView
+from api.resource_types.view import ResourceTypeView
 from api.settings.view import SettingsView
 from api.status.views import StatusView
 from api.tags.all.openshift.view import OCPAllTagView

@@ -19,9 +19,9 @@ import logging
 from uuid import uuid4
 
 from django.conf import settings
-from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db import transaction
+from django.db.models import JSONField
 
 LOG = logging.getLogger(__name__)
 
@@ -118,6 +118,12 @@ class Provider(models.Model):
     setup_complete = models.BooleanField(default=False)
 
     created_timestamp = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+
+    # We update the record on the provider when we update data.
+    # This helps capture events like the updates following a cost model
+    # CRUD operation that triggers cost model cost summarization,
+    # but not on a specific manifest, so no manifest timestamp is updated
+    data_updated_timestamp = models.DateTimeField(null=True)
 
     active = models.BooleanField(default=True)
 

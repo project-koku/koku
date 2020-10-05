@@ -20,14 +20,17 @@ from django.views.decorators.cache import cache_page
 from django.views.generic.base import RedirectView
 from rest_framework.routers import DefaultRouter
 
+from api.views import AWSAccountView
 from api.views import AWSCostView
 from api.views import AWSInstanceTypeView
+from api.views import AWSOrganizationalUnitView
 from api.views import AWSOrgView
 from api.views import AWSStorageView
 from api.views import AWSTagView
 from api.views import AzureCostView
 from api.views import AzureInstanceTypeView
 from api.views import AzureStorageView
+from api.views import AzureSubscriptionGuidView
 from api.views import AzureTagView
 from api.views import cloud_accounts
 from api.views import DataExportRequestViewSet
@@ -50,6 +53,7 @@ from api.views import OCPMemoryView
 from api.views import OCPTagView
 from api.views import OCPVolumeView
 from api.views import openapi
+from api.views import ResourceTypeView
 from api.views import SettingsView
 from api.views import StatusView
 from koku.cache import AWS_CACHE_PREFIX
@@ -269,5 +273,17 @@ urlpatterns = [
     path("settings/", SettingsView.as_view(), name="settings"),
     path("settings", RedirectView.as_view(pattern_name="settings"), name="settings-redirect"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
+    path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
+    path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
+    path(
+        "resource-types/aws-organizational-units/",
+        AWSOrganizationalUnitView.as_view(),
+        name="aws-organizational-units",
+    ),
+    path(
+        "resource-types/azure-subscription-guids/",
+        AzureSubscriptionGuidView.as_view(),
+        name="azure-subscription-guids",
+    ),
 ]
 urlpatterns += ROUTER.urls

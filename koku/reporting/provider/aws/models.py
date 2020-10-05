@@ -15,10 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Models for AWS cost entry tables."""
+from uuid import uuid4
+
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import JSONField
 
 
 class AWSCostEntryBill(models.Model):
@@ -289,8 +291,15 @@ class AWSTagsValues(models.Model):
         """Meta for AWSTagsValues."""
 
         db_table = "reporting_awstags_values"
+        unique_together = ("key", "value")
+        indexes = [models.Index(fields=["key"], name="aws_tags_value_key_idx")]
 
-    value = models.CharField(max_length=253, unique=True)
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+
+    key = models.TextField()
+    value = models.TextField()
+    usage_account_ids = ArrayField(models.TextField())
+    account_aliases = ArrayField(models.TextField())
 
 
 class AWSTagsSummary(models.Model):
@@ -302,13 +311,12 @@ class AWSTagsSummary(models.Model):
         db_table = "reporting_awstags_summary"
         unique_together = ("key", "cost_entry_bill", "usage_account_id")
 
-    id = models.BigAutoField(primary_key=True)
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
 
-    key = models.CharField(max_length=253)
-    values = ArrayField(models.CharField(max_length=253))
-    values_mtm = models.ManyToManyField(AWSTagsValues)
+    key = models.TextField()
+    values = ArrayField(models.TextField())
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE)
-    usage_account_id = models.CharField(max_length=50, null=True)
+    usage_account_id = models.TextField(null=True)
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
 
 

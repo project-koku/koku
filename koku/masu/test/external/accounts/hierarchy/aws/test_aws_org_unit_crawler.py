@@ -80,6 +80,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
     def setUp(self):
         """Set up test case."""
         super().setUp()
+        self.schema = "acct12345"
         self.paginator_dict = {
             "r-0": {
                 "OrganizationalUnits": [
@@ -94,24 +95,19 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             "sou-0": {"OrganizationalUnits": []},
         }
         self.account = {
-            "authentication": fake_arn(service="iam", generate_account_id=True),
+            "credentials": {"role_arn": fake_arn(service="iam", generate_account_id=True)},
             "customer_name": CUSTOMER_NAME,
             "billing_source": BUCKET,
             "provider_type": P_TYPE,
             "schema_name": self.schema,
             "provider_uuid": P_UUID,
         }
-        with schema_context(self.schema):
-            # Delete the rows created by the koku_test_runner. This next test suite
-            # is intended to test how the crawler inserts the data into the database
-            # which is easier to do without preloaded data.
-            AWSOrganizationalUnit.objects.all().delete()
 
     def test_initializer(self):
         """Test AWSOrgUnitCrawler initializer."""
         unit_crawler = AWSOrgUnitCrawler(self.account)
         result_auth_cred = unit_crawler._auth_cred
-        expected_auth_cred = self.account.get("authentication")
+        expected_auth_cred = self.account.get("credentials", {}).get("role_arn")
         self.assertEqual(result_auth_cred, expected_auth_cred)
         self.assertIsNone(unit_crawler._client)
 
