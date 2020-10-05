@@ -137,9 +137,7 @@ class Migration(migrations.Migration):
                 ("partition_col", models.TextField(validators=[reporting.partition.models.validate_not_empty])),
                 (
                     "partition_parameters",
-                    django.contrib.postgres.fields.jsonb.JSONField(
-                        validators=[reporting.partition.models.validate_not_empty]
-                    ),
+                    django.db.models.JSONField(validators=[reporting.partition.models.validate_not_empty]),
                 ),
             ],
             options={"db_table": "partitioned_tables"},

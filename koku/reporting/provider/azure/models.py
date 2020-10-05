@@ -18,8 +18,8 @@
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.db import models
+from django.db.models import JSONField
 
 VIEWS = (
     "reporting_azure_compute_summary",
