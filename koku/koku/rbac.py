@@ -40,7 +40,6 @@ RESOURCE_TYPES = {
     "openshift.cluster": ["read"],
     "openshift.node": ["read"],
     "openshift.project": ["read"],
-    "provider": ["read", "write"],
     "cost_model": ["read", "write"],
 }
 
