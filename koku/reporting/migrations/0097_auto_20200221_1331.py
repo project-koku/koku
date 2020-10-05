@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             fields=[
                 ("id", models.BigAutoField(primary_key=True, serialize=False)),
                 ("node", models.CharField(max_length=253, null=True)),
-                ("node_labels", django.contrib.postgres.fields.jsonb.JSONField(null=True)),
+                ("node_labels", django.db.models.JSONField(null=True)),
                 (
                     "report",
                     models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="reporting.OCPUsageReport"),
