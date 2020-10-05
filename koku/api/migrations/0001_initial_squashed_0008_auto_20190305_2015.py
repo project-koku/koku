@@ -61,7 +61,7 @@ class Migration(migrations.Migration):
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("uuid", models.UUIDField(default=uuid.uuid4, editable=False, unique=True)),
                 ("provider_resource_name", models.TextField(null=True, unique=True)),
-                ("credentials", django.contrib.postgres.fields.jsonb.JSONField(default=dict, null=True)),
+                ("credentials", django.db.models.JSONField(default=dict, null=True)),
             ],
         ),
         migrations.AddConstraint(
@@ -77,7 +77,7 @@ class Migration(migrations.Migration):
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("uuid", models.UUIDField(default=uuid.uuid4, editable=False, unique=True)),
                 ("bucket", models.CharField(max_length=63, null=True)),
-                ("data_source", django.contrib.postgres.fields.jsonb.JSONField(default=dict, null=True)),
+                ("data_source", django.db.models.JSONField(default=dict, null=True)),
             ],
         ),
         migrations.AddConstraint(
@@ -123,7 +123,7 @@ class Migration(migrations.Migration):
             fields=[
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("uuid", models.UUIDField(default=uuid.uuid4, editable=False, unique=True)),
-                ("preference", django.contrib.postgres.fields.jsonb.JSONField()),
+                ("preference", django.db.models.JSONField()),
                 ("name", models.CharField(default=uuid.uuid4, max_length=255)),
                 ("description", models.CharField(max_length=255, null=True)),
                 ("user", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="api.User")),

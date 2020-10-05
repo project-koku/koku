@@ -19,9 +19,9 @@ import logging
 from uuid import uuid4
 
 from django.conf import settings
-from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db import transaction
+from django.db.models import JSONField
 
 LOG = logging.getLogger(__name__)
 

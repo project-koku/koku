@@ -18,14 +18,13 @@
 import os
 
 from django.conf import settings
-from django.contrib.postgres.fields.jsonb import KeyTextTransform
-from django.contrib.postgres.fields.jsonb import KeyTransform
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
 from django.db import OperationalError
 from django.db.migrations.executor import MigrationExecutor
 from django.db.models import DecimalField
 from django.db.models.aggregates import Func
+from django.db.models.fields.json import KeyTextTransform
 
 from .env import ENVIRONMENT
 
@@ -101,17 +100,6 @@ class KeyDecimalTransform(KeyTextTransform):
 
     output_field = DecimalField()
 
-    def as_sql(self, compiler, connection):
-        key_transforms = [self.key_name]
-        previous = self.lhs
-        while isinstance(previous, KeyTransform):
-            key_transforms.insert(0, previous.key_name)
-            previous = previous.lhs
-        lhs, params = compiler.compile(previous)
-        if len(key_transforms) > 1:
-            return f"({lhs} {self.nested_operator} %s)", [key_transforms] + params
-        try:
-            lookup = int(self.key_name)
-        except ValueError:
-            lookup = self.key_name
-        return f"({lhs} {self.operator} %s)::numeric", tuple(params) + (lookup,)
+    def as_postgresql(self, compiler, connection):
+        sqlpart, params = super().as_postgresql(compiler, connection)
+        return sqlpart + "::numeric", params
