@@ -103,15 +103,29 @@ class OrganizationsViewTest(IamTestCase):
         paginator = get_paginator(params, 0)
         self.assertIsInstance(paginator, ReportRankedPagination)
 
-    @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["R_001", "OU_001"]}})
-    def test_endpoint_rbac_ou_restrictions(self):
+    @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["R_001"]}})
+    def test_endpoint_rbac_ou_restrictions_root_node(self):
+        """Test limited access results in only the ous that the user can see."""
+        # Note: if they have access to the root node then they should have access
+        # to the entire tree.
+        url = reverse("aws-org-unit")
+        response = self.client.get(url, **self.headers)
+        accounts, ous = _calculate_accounts_and_subous(response.data.get("data"))
+        for org in ous:
+            self.assertIn(org, ["R_001", "OU_001", "OU_002", "OU_003", "OU_005"])
+        for account in ["account 002", "account 001", "Root A Test"]:
+            self.assertIn(account, accounts)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["OU_001"]}})
+    def test_endpoint_rbac_ou_restrictions_child_node(self):
         """Test limited access results in only the ous that the user can see."""
         url = reverse("aws-org-unit")
         response = self.client.get(url, **self.headers)
         accounts, ous = _calculate_accounts_and_subous(response.data.get("data"))
         for org in ous:
-            self.assertIn(org, ["R_001", "OU_001"])
-        for account in ["account 002", "account 001", "Root A Test"]:
+            self.assertIn(org, ["OU_001", "OU_005"])
+        for account in ["account 002", "account 001", "account 005"]:
             self.assertIn(account, accounts)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
