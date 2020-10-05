@@ -17,10 +17,13 @@
 """Query parameter parsing for query handler."""
 import copy
 import logging
+import operator
 from collections import OrderedDict
+from functools import reduce
 from pprint import pformat
 
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 from django.utils.translation import ugettext as _
 from querystring_parser import parser
 from rest_framework.serializers import ValidationError
@@ -31,6 +34,7 @@ from api.models import User
 from api.provider.models import Provider
 from api.report.queries import ReportQueryHandler
 from reporting.models import OCPAllCostLineItemDailySummary
+from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
 
@@ -182,6 +186,42 @@ class QueryParameters:
                 access.extend(self.provider_resource_list[p])
         return access
 
+    def _check_org_unit_tree_hierarchy(self, group_by, access_list):
+        """Checks the hierarchy of the tree to see if user has access to the org unit."""
+        ou_group_by_key = None
+        org_unit_group_by_keys = ["org_unit_id", "or:org_unit_id"]
+        for group_key_option in org_unit_group_by_keys:
+            if group_key_option in group_by:
+                ou_group_by_key = group_key_option
+        # Check the RBAC access.
+        # Note that the RBAC access for organizational units should follow the hierarchical
+        # structure of the tree. Therefore, as long as the user has access to the root nodes
+        # passed in by group_by[org_unit_id] then the user automatically has access to all
+        # the sub orgs.
+        if ou_group_by_key:
+            if access_list and "*" not in access_list:
+                allowed_ous = (
+                    AWSOrganizationalUnit.objects.filter(
+                        reduce(operator.or_, (Q(org_unit_path__icontains=rbac) for rbac in access_list))
+                    )
+                    .filter(account_alias__isnull=True)
+                    .order_by("org_unit_id", "-created_timestamp")
+                    .distinct("org_unit_id")
+                )
+                # only change the acces_list if sub_orgs were found
+                if allowed_ous:
+                    access_list = list(allowed_ous.values_list("org_unit_id", flat=True))
+                group_by_list = group_by.get(ou_group_by_key)
+                # if there is a difference between group_by keys & new access list then raise 403
+                if set(group_by.get(ou_group_by_key)).difference(set(access_list)):
+                    LOG.warning(
+                        "User does not have permissions for the requested params: %s. Current access: %s.",
+                        group_by_list,
+                        access_list,
+                    )
+                    raise PermissionDenied()
+        return access_list
+
     def _set_access(self, provider, filter_key, access_key, raise_exception=True):
         """Alter query parameters based on user access."""
         access_list = self.access.get(access_key, {}).get("read", [])
@@ -191,6 +231,13 @@ class QueryParameters:
 
         # check group by
         group_by = self.parameters.get("group_by", {})
+        if access_key == "aws.organizational_unit":
+            if "org_unit_id" in group_by or "or:org_unit_id" in group_by:
+                # Only check the tree hierarchy if we are grouping by org units.
+                # we will want to overwrite the access_list here to include the sub orgs in
+                # the hierarchy for later checks regarding filtering.
+                access_list = self._check_org_unit_tree_hierarchy(group_by, access_list)
+
         if group_by.get(filter_key):
             items = set(group_by.get(filter_key))
             result = get_replacement_result(items, access_list, raise_exception)
