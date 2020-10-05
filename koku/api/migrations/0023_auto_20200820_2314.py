@@ -15,13 +15,9 @@ class Migration(migrations.Migration):
         migrations.RemoveField(model_name="providerauthentication", name="provider_resource_name"),
         migrations.RemoveField(model_name="providerbillingsource", name="bucket"),
         migrations.AlterField(
-            model_name="providerauthentication",
-            name="credentials",
-            field=django.contrib.postgres.fields.jsonb.JSONField(default=dict),
+            model_name="providerauthentication", name="credentials", field=django.db.models.JSONField(default=dict)
         ),
         migrations.AlterField(
-            model_name="providerbillingsource",
-            name="data_source",
-            field=django.contrib.postgres.fields.jsonb.JSONField(default=dict),
+            model_name="providerbillingsource", name="data_source", field=django.db.models.JSONField(default=dict)
         ),
     ]

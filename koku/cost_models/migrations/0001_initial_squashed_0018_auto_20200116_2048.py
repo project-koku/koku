@@ -64,12 +64,10 @@ class Migration(migrations.Migration):
                 ),
                 ("created_timestamp", models.DateTimeField()),
                 ("updated_timestamp", models.DateTimeField()),
-                ("rates", django.contrib.postgres.fields.jsonb.JSONField(default=dict)),
+                ("rates", django.db.models.JSONField(default=dict)),
                 (
                     "markup",
-                    django.contrib.postgres.fields.jsonb.JSONField(
-                        default=dict, encoder=django.core.serializers.json.DjangoJSONEncoder
-                    ),
+                    django.db.models.JSONField(default=dict, encoder=django.core.serializers.json.DjangoJSONEncoder),
                 ),
             ],
             options={"db_table": "cost_model_audit"},
@@ -97,12 +95,10 @@ class Migration(migrations.Migration):
                 ),
                 ("created_timestamp", models.DateTimeField(auto_now_add=True)),
                 ("updated_timestamp", models.DateTimeField(auto_now=True)),
-                ("rates", django.contrib.postgres.fields.jsonb.JSONField(default=dict)),
+                ("rates", django.db.models.JSONField(default=dict)),
                 (
                     "markup",
-                    django.contrib.postgres.fields.jsonb.JSONField(
-                        default=dict, encoder=django.core.serializers.json.DjangoJSONEncoder
-                    ),
+                    django.db.models.JSONField(default=dict, encoder=django.core.serializers.json.DjangoJSONEncoder),
                 ),
             ],
             options={"db_table": "cost_model", "ordering": ["name"]},
