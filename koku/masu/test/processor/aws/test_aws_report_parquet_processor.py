@@ -22,6 +22,7 @@ from tenant_schemas.utils import schema_context
 from api.utils import DateHelper
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.test import MasuTestCase
+from reporting.models import PartitionedTable
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
@@ -87,3 +88,20 @@ class AWSReportProcessorParquetTest(MasuTestCase):
                 provider=self.aws_provider,
             )
             self.assertIsNotNone(bill.first())
+
+    def test_get_or_create_postgres_partition(self):
+        """Test that a Postgres daily summary partition is created."""
+        bill_date = DateHelper().next_month_start
+        pg_table = self.processor.postgres_summary_table._meta.db_table
+        table_name = f"{pg_table}_{bill_date.strftime('%Y_%m')}"
+        expected_log = (
+            f"INFO:masu.processor.report_parquet_processor_base:"
+            f"Created a new parttiion for {pg_table} : {table_name}"
+        )
+
+        with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
+            self.processor.get_or_create_postgres_partition(bill_date)
+            self.assertIn(expected_log, logger.output)
+
+        with schema_context(self.schema):
+            self.assertNotEqual(PartitionedTable.objects.filter(table_name=table_name).count(), 0)

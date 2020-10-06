@@ -126,6 +126,3 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
             self.processor.create_table()
             self.assertIn(expected_log, logger.output)
             self.assertIn(expected_table_log, logger.output)
-
-    def test_get_or_create_postgres_partition(self):
-        """Test that a Postgres daily summary partition is created."""

@@ -40,8 +40,8 @@ class AWSReportParquetSummaryUpdater:
             (str, str): A start date and end date.
 
         """
-        LOG.info("update_daily_tables for: %s-%s", str(start_date), str(end_date))
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
+        LOG.info("update_daily_tables for: %s-%s", str(start_date), str(end_date))
 
         return start_date, end_date
 
