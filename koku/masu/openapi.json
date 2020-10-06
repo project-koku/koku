@@ -451,6 +451,19 @@
           "summary": "Create aws org unit tree from json",
           "operationId": "crawlAccountHierarchyPost",
           "description": "Return tree json.",
+          "parameters": [
+            {
+              "name": "provider_uuid",
+              "in": "query",
+              "description": "The provider UUID",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid",
+                "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+              }
+            }
+          ],
           "requestBody": {
             "required": true,
             "content": {

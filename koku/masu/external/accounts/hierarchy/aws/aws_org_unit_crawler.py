@@ -24,6 +24,7 @@ from botocore.exceptions import ParamValidationError
 from django.db import transaction
 from tenant_schemas.utils import schema_context
 
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.accounts.hierarchy.account_crawler import AccountCrawler
 from masu.external.date_accessor import DateAccessor
 from masu.util.aws import common as utils
@@ -51,6 +52,12 @@ class AWSOrgUnitCrawler(AccountCrawler):
         self._structure_yesterday = None
         self.account_id = None
         self.errors_raised = False
+        self.provider = self.get_provider()
+
+    def get_provider(self):
+        """Given the provider_uuid it returns the provider object."""
+        with ProviderDBAccessor(self.account.get("provider_uuid")) as provider_accessor:
+            return provider_accessor.get_provider()
 
     @transaction.atomic
     def crawl_account_hierarchy(self):
@@ -230,6 +237,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
                     account_alias.account_alias = account_name
                     account_alias.save()
 
+            # If we add provider here right now it will duplicate the entries
             org_unit, created = AWSOrganizationalUnit.objects.get_or_create(
                 org_unit_name=unit_name,
                 org_unit_id=unit_id,
@@ -263,6 +271,12 @@ class AWSOrgUnitCrawler(AccountCrawler):
                     )
                 )
                 org_unit.deleted_timestamp = None
+                org_unit.save()
+            # Since we didn't add the provider foreign key initially
+            # we need to add a bit of self healing here to repair the
+            # nodes that are currently in customer's databases.
+            if not org_unit.provider and self.provider:
+                org_unit.provider = self.provider
                 org_unit.save()
             return org_unit
 

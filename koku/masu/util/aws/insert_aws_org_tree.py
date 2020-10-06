@@ -22,6 +22,7 @@ from datetime import timedelta
 import ciso8601
 from tenant_schemas.utils import schema_context
 
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from reporting.provider.aws.models import AWSAccountAlias
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
@@ -37,7 +38,7 @@ class InsertAwsOrgTreeError(Exception):
 class InsertAwsOrgTree:
     """Insert aws org tree abstract class."""
 
-    def __init__(self, schema, start_date=None):
+    def __init__(self, schema, provider_uuid, start_date=None):
         self.schema = schema
         self.start_date = start_date
         self.yesterday_accounts = []
@@ -45,6 +46,12 @@ class InsertAwsOrgTree:
         self.today_accounts = []
         self.today_orgs = []
         self.account_alias_mapping = {}
+        self.provider = self.get_provider(provider_uuid)
+
+    def get_provider(self, provider_uuid):
+        """Returns the provider given the provider_uuid."""
+        with ProviderDBAccessor(provider_uuid) as provider_accessor:
+            return provider_accessor.get_provider()
 
     def calculate_date(self, day_delta):
         """Calculate the date based off of a delta and a range start date."""
@@ -66,6 +73,7 @@ class InsertAwsOrgTree:
                 org_unit_path=org_node["org_path"],
                 level=org_node["level"],
                 account_alias=None,
+                provider=self.provider,
             )
             if created:
                 org_unit.created_timestamp = date
@@ -92,6 +100,7 @@ class InsertAwsOrgTree:
                 org_unit_path=org_node["org_path"],
                 level=org_node["level"],
                 account_alias=account_alias,
+                provider=self.provider,
             )
             if created:
                 org_unit.created_timestamp = date
