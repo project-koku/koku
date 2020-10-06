@@ -523,7 +523,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
 
-    def populate_line_item_daily_summary_table_presto(self, start_date, end_date, cluster_id, markup_value):
+    def populate_line_item_daily_summary_table_presto(
+        self, start_date, end_date, report_period_id, cluster_id, cluster_alias, markup_value
+    ):
         """Populate the daily aggregate of line items table.
 
         Args:
@@ -551,7 +553,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "uuid": transaction_uuid,
             "start_date": start_date,
             "end_date": end_date,
+            "report_period_id": report_period_id,
             "cluster_id": cluster_id,
+            "cluster_alias": cluster_alias,
             "schema": self.schema,
             "markup": markup_value or 0,
         }
@@ -560,7 +564,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
 
-    def populate_storage_line_item_daily_summary_table_presto(self, start_date, end_date, cluster_id, markup_value):
+    def populate_storage_line_item_daily_summary_table_presto(
+        self, start_date, end_date, report_period_id, cluster_id, cluster_alias, markup_value
+    ):
         """Populate the daily aggregate of storage line items table.
 
         Args:
@@ -586,7 +592,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "uuid": str(uuid.uuid4()).replace("-", "_"),
             "start_date": start_date,
             "end_date": end_date,
+            "report_period_id": report_period_id,
             "cluster_id": cluster_id,
+            "cluster_alias": cluster_alias,
             "schema": self.schema,
             "markup": markup_value or 0,
         }

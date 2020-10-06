@@ -25,6 +25,7 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
+from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
 
 LOG = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ class OCPReportParquetSummaryUpdater:
         self._provider = provider
         self._manifest = manifest
         self._cluster_id = get_cluster_id_from_provider(self._provider.uuid)
+        self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
         self._date_accessor = DateAccessor()
 
     def update_daily_tables(self, start_date, end_date):
@@ -84,6 +86,10 @@ class OCPReportParquetSummaryUpdater:
             report_periods = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
             with schema_context(self._schema):
                 report_period_ids = [report_period.id for report_period in report_periods]
+                report_date_map = {
+                    (report_period.report_period_start, report_period.report_period_end): report_period.id
+                    for report_period in report_periods
+                }
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
                     "Updating OpenShift report summary tables for \n\tSchema: %s "
@@ -94,9 +100,24 @@ class OCPReportParquetSummaryUpdater:
                     start,
                     end,
                 )
-                accessor.populate_line_item_daily_summary_table_presto(start, end, self._cluster_id, markup_value)
+
+                # Find the associated report_period_id for the date range
+                #
+                report_period_id = None
+                for report_date_range, rp_id in report_date_map.items():
+                    rps, rpe = report_date_range
+                    if (rps <= end) and (rpe >= start):
+                        report_period_id = rp_id
+                if report_period_id is None:
+                    msg = f"Cannot determine report_period_id from date range {start} - {end}"
+                    LOG.error(msg)
+                    raise ValueError(msg)
+
+                accessor.populate_line_item_daily_summary_table_presto(
+                    start, end, report_period_id, self._cluster_id, self._cluster_alias, markup_value
+                )
                 accessor.populate_storage_line_item_daily_summary_table_presto(
-                    start, end, self._cluster_id, markup_value
+                    start, end, report_period_id, self._cluster_id, self._cluster_alias, markup_value
                 )
             accessor.populate_pod_label_summary_table_presto(report_period_ids)
             accessor.populate_volume_label_summary_table_presto(report_period_ids)
