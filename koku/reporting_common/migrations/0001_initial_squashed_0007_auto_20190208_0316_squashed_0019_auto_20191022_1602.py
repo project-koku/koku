@@ -11,21 +11,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    replaces = [
-        ("reporting_common", "0001_initial_squashed_0007_auto_20190208_0316"),
-        ("reporting_common", "0008_auto_20190412_1330"),
-        ("reporting_common", "0009_costusagereportstatus_history"),
-        ("reporting_common", "0010_remove_costusagereportstatus_history"),
-        ("reporting_common", "0011_auto_20190723_1655"),
-        ("reporting_common", "0012_auto_20190812_1805"),
-        ("reporting_common", "0013_auto_20190823_1442"),
-        ("reporting_common", "0014_auto_20190820_1513"),
-        ("reporting_common", "0015_auto_20190827_1536"),
-        ("reporting_common", "0016_auto_20190829_2053"),
-        ("reporting_common", "0017_auto_20190923_1410"),
-        ("reporting_common", "0018_auto_20190923_1838"),
-        ("reporting_common", "0019_auto_20191022_1602"),
-    ]
+    replaces = []
 
     dependencies = [("api", "0001_initial_squashed_0008_auto_20190305_2015")]
 
