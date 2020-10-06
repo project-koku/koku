@@ -894,6 +894,8 @@ class AWSOrganizationalUnit(models.Model):
 
     deleted_timestamp = models.DateField(null=True)
 
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
+
     def __str__(self):
         """Convert to string."""
         return (
