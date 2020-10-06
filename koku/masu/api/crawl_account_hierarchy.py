@@ -39,13 +39,14 @@ LOG = logging.getLogger(__name__)
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def crawl_account_hierarchy(request):
     """Return crawl account hierarchy async task ID."""
-    if request.method == "GET":
-        params = request.query_params
-        provider_uuid = params.get("provider_uuid")
-        if provider_uuid is None:
-            errmsg = "provider_uuid is a required parameter."
-            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+    # Require provider_uuid parameter for both GET & POST method
+    params = request.query_params
+    provider_uuid = params.get("provider_uuid")
+    if provider_uuid is None:
+        errmsg = "provider_uuid is a required parameter."
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
+    if request.method == "GET":
         # Note: That we need to check that the provider uuid exists here, because the
         # Orchestrator.get_accounts will return all accounts if the provider_uuid does
         # not exist.
@@ -70,8 +71,10 @@ def crawl_account_hierarchy(request):
             errmsg = "Unexpected json structure. Can not find days key."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
         if data.get("start_date"):
-            insert_obj = InsertAwsOrgTree(schema=schema_name, start_date=data.get("start_date"))
+            insert_obj = InsertAwsOrgTree(
+                schema=schema_name, provider_uuid=provider_uuid, start_date=data.get("start_date")
+            )
         else:
-            insert_obj = InsertAwsOrgTree(schema=schema_name)
+            insert_obj = InsertAwsOrgTree(schema=schema_name, provider_uuid=provider_uuid)
         insert_obj.insert_tree(day_list=days_list)
         return Response(data)

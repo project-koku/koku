@@ -29,7 +29,6 @@ from django_filters import CharFilter
 from django_filters import FilterSet
 from django_filters import UUIDFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import mixins
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.exceptions import APIException
@@ -103,14 +102,7 @@ class CostModelProviderMethodException(APIException):
         self.detail = {"detail": force_text(message)}
 
 
-class CostModelViewSet(
-    mixins.CreateModelMixin,
-    mixins.DestroyModelMixin,
-    mixins.ListModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.UpdateModelMixin,
-    viewsets.GenericViewSet,
-):
+class CostModelViewSet(viewsets.ModelViewSet):
     """CostModel View.
 
     A viewset that provides default `create()`, `destroy`, `retrieve()`,
@@ -146,12 +138,13 @@ class CostModelViewSet(
         queryset = CostModel.objects.all()
         self.check_fields(self.request.query_params, CostModel, CostModelQueryException)
         if not self.request.user.admin:
-            read_access_list = self.request.user.access.get("rate").get("read")
+            read_access_list = self.request.user.access.get("cost_model").get("read")
             if "*" not in read_access_list:
                 try:
                     queryset = self.queryset.filter(uuid__in=read_access_list)
                 except ValidationError as queryset_error:
                     LOG.error(queryset_error)
+                    raise queryset_error
         return queryset
 
     @method_decorator(never_cache)

@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
                 ("node", models.CharField(max_length=253, null=True)),
                 ("usage_start", models.DateTimeField()),
                 ("usage_end", models.DateTimeField()),
-                ("node_labels", django.contrib.postgres.fields.jsonb.JSONField(null=True)),
+                ("node_labels", django.db.models.JSONField(null=True)),
                 ("total_seconds", models.IntegerField()),
                 (
                     "report_period",

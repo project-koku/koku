@@ -18,9 +18,9 @@
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import JSONField
 
 
 PRESTO_LINE_ITEM_TABLE = "aws_line_items"
@@ -896,6 +896,8 @@ class AWSOrganizationalUnit(models.Model):
     created_timestamp = models.DateField(auto_now_add=True)
 
     deleted_timestamp = models.DateField(null=True)
+
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         """Convert to string."""
