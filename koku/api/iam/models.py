@@ -45,7 +45,7 @@ class User(models.Model):
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(blank=True)
     date_created = models.DateTimeField(auto_now_add=True)
-    is_active = models.NullBooleanField(default=True)
+    is_active = models.BooleanField(default=True, null=True)
     customer = models.ForeignKey("Customer", null=True, on_delete=models.CASCADE)
 
     def __init__(self, *args, **kwargs):
