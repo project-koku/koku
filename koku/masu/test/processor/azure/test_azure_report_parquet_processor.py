@@ -21,6 +21,7 @@ from api.utils import DateHelper
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.test import MasuTestCase
 from reporting.provider.azure.models import AzureCostEntryBill
+from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import PRESTO_LINE_ITEM_TABLE
 
 
@@ -44,6 +45,10 @@ class AzureReportParquetProcessorTest(MasuTestCase):
         """Test the Azure table name generation."""
         self.assertEqual(self.processor._table_name, PRESTO_LINE_ITEM_TABLE)
 
+    def test_postgres_summary_table(self):
+        """Test that the correct table is returned."""
+        self.assertEqual(self.processor.postgres_summary_table, AzureCostEntryLineItemDailySummary)
+
     def test_create_bill(self):
         """Test that a bill is created in the Postgres database."""
         bill_date = DateHelper().this_month_start
@@ -51,6 +56,20 @@ class AzureReportParquetProcessorTest(MasuTestCase):
         end_date = DateHelper().this_month_end
 
         self.processor.create_bill(bill_date.date())
+
+        with schema_context(self.schema):
+            bill = AzureCostEntryBill.objects.filter(
+                billing_period_start=start_date, billing_period_end=end_date, provider=self.azure_provider_uuid
+            )
+            self.assertIsNotNone(bill.first())
+
+    def test_create_bill_with_string_arg(self):
+        """Test that a bill is created in the Postgres database."""
+        bill_date = DateHelper().this_month_start
+        start_date = bill_date
+        end_date = DateHelper().this_month_end
+
+        self.processor.create_bill(str(bill_date.date()))
 
         with schema_context(self.schema):
             bill = AzureCostEntryBill.objects.filter(

@@ -23,6 +23,7 @@ from unittest.mock import patch
 import pandas as pd
 from django.test.utils import override_settings
 
+from masu.processor.report_parquet_processor_base import PostgresSummaryTableError
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.test import MasuTestCase
 
@@ -85,6 +86,11 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         """Test the generate_column_list helper."""
         self.assertEqual(len(self.processor._generate_column_list()), len(self.csv_col_names))
 
+    def test_postgres_summary_table(self):
+        """Test that the unimplemented property raises an error."""
+        with self.assertRaises(PostgresSummaryTableError):
+            self.processor.postgres_summary_table
+
     @override_settings(S3_BUCKET_NAME="test-bucket")
     @patch("masu.processor.aws.aws_report_parquet_processor.ReportParquetProcessorBase._execute_sql")
     def test_generate_create_table_sql(self, mock_execute):
@@ -104,3 +110,22 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         for other_col in self.other_columns:
             self.assertIn(f"{other_col} varchar", generated_sql)
         self.assertTrue(generated_sql.endswith(expected_end))
+
+    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
+    def test_create_table(self, mock_execute):
+        """Test the Presto/Hive create table method."""
+        expected_log = (
+            "INFO:masu.processor.report_parquet_processor_base:"
+            f"CALL system.sync_partition_metadata('{self.processor._schema_name}', "
+            f"'{self.processor._table_name}', 'FULL')"
+        )
+        expected_table_log = (
+            f"INFO:masu.processor.report_parquet_processor_base:Presto Table: {self.processor._table_name} created."
+        )
+        with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
+            self.processor.create_table()
+            self.assertIn(expected_log, logger.output)
+            self.assertIn(expected_table_log, logger.output)
+
+    def test_get_or_create_postgres_partition(self):
+        """Test that a Postgres daily summary partition is created."""

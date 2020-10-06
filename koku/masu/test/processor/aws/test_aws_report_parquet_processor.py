@@ -23,6 +23,7 @@ from api.utils import DateHelper
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.test import MasuTestCase
 from reporting.provider.aws.models import AWSCostEntryBill
+from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
 
 
@@ -45,6 +46,10 @@ class AWSReportProcessorParquetTest(MasuTestCase):
         """Test the AWS table name generation."""
         self.assertEqual(self.processor._table_name, PRESTO_LINE_ITEM_TABLE)
 
+    def test_postgres_summary_table(self):
+        """Test that the correct table is returned."""
+        self.assertEqual(self.processor.postgres_summary_table, AWSCostEntryLineItemDailySummary)
+
     @patch("masu.processor.aws.aws_report_parquet_processor.AWSReportParquetProcessor._execute_sql")
     def test_create_bill(self, mock_execute_sql):
         """Test that a bill is created in the Postgres database."""
@@ -55,6 +60,25 @@ class AWSReportProcessorParquetTest(MasuTestCase):
         mock_execute_sql.return_value = [[account_id]]
 
         self.processor.create_bill(bill_date.date())
+        with schema_context(self.schema):
+            bill = AWSCostEntryBill.objects.filter(
+                billing_period_start=start_date,
+                billing_period_end=end_date,
+                payer_account_id=account_id,
+                provider=self.aws_provider,
+            )
+            self.assertIsNotNone(bill.first())
+
+    @patch("masu.processor.aws.aws_report_parquet_processor.AWSReportParquetProcessor._execute_sql")
+    def test_create_bill_with_string_arg(self, mock_execute_sql):
+        """Test that a bill is created in the Postgres database."""
+        bill_date = DateHelper().this_month_start
+        start_date = bill_date
+        end_date = DateHelper().this_month_end
+        account_id = "9999999999"
+        mock_execute_sql.return_value = [[account_id]]
+
+        self.processor.create_bill(str(bill_date.date()))
         with schema_context(self.schema):
             bill = AWSCostEntryBill.objects.filter(
                 billing_period_start=start_date,
