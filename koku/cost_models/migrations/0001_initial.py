@@ -7,6 +7,10 @@ import django.db.models.deletion
 from django.db import migrations
 from django.db import models
 
+# Functions from the following migrations need manual copying.
+# Move them and any dependencies into this file, then update the
+# RunPython operations to refer to the local versions:
+
 
 class Migration(migrations.Migration):
 
@@ -105,4 +109,38 @@ class Migration(migrations.Migration):
             model_name="costmodel", index=models.Index(fields=["updated_timestamp"], name="updated_timestamp_idx")
         ),
         migrations.AlterUniqueTogether(name="costmodelmap", unique_together={("provider_uuid", "cost_model")}),
+        ###### begin customization; preserve this if you squash migrations ######
+        migrations.RunSQL(
+            sql="""
+            CREATE OR REPLACE FUNCTION process_cost_model_audit() RETURNS TRIGGER AS $cost_model_audit$
+                DECLARE
+                    provider_uuids uuid[];
+                BEGIN
+                    --
+                    -- Create a row in cost_model_audit to reflect the operation performed on cost_model,
+                    -- make use of the special variable TG_OP to work out the operation.
+                    --
+                    IF (TG_OP = 'DELETE') THEN
+                        provider_uuids := (SELECT array_agg(provider_uuid) FROM cost_model_map WHERE cost_model_id = OLD.uuid);
+                        INSERT INTO cost_model_audit SELECT nextval('cost_model_audit_id_seq'), 'DELETE', now(), provider_uuids, OLD.*;
+                        RETURN OLD;
+                    ELSIF (TG_OP = 'UPDATE') THEN
+                        provider_uuids := (SELECT array_agg(provider_uuid) FROM cost_model_map WHERE cost_model_id = NEW.uuid);
+                        INSERT INTO cost_model_audit SELECT nextval('cost_model_audit_id_seq'), 'UPDATE', now(), provider_uuids, NEW.*;
+                        RETURN NEW;
+                    ELSIF (TG_OP = 'INSERT') THEN
+                        provider_uuids := (SELECT array_agg(provider_uuid) FROM cost_model_map WHERE cost_model_id = NEW.uuid);
+                        INSERT INTO cost_model_audit SELECT nextval('cost_model_audit_id_seq'), 'INSERT', now(), provider_uuids, NEW.*;
+                        RETURN NEW;
+                    END IF;
+                    RETURN NULL; -- result is ignored since this is an AFTER trigger
+                END;
+            $cost_model_audit$ LANGUAGE plpgsql;
+
+            CREATE TRIGGER cost_model_audit
+            AFTER INSERT OR UPDATE OR DELETE ON cost_model
+                FOR EACH ROW EXECUTE PROCEDURE process_cost_model_audit();
+            """
+        ),
+        ###### end customization ######
     ]
