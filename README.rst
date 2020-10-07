@@ -218,11 +218,11 @@ This will rebuild the tox virtual env and then run all tests.
 
 To run unit tests specifically::
 
-    tox -e py36
+    tox -e py38
 
 To run a specific subset of unit tests, you can pass a particular module path to tox. To do this, use positional args using the -- separator. For example::
 
-    tox -e py36 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
+    tox -e py38 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
 
 To run IQE Smoke, Vortex or API tests, while on the Red Hat network and koku deployed via docker-compose run::
 

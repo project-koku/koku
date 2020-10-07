@@ -356,7 +356,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         )
         postgres_cur = postgres_conn.cursor()
         postgres_cur.execute(sql)
-        postgres_cur.fetchall()
+        return postgres_cur.fetchall()
 
     def get_existing_partitions(self, table):
         if isinstance(table, str):

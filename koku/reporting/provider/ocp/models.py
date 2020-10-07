@@ -19,9 +19,9 @@ from decimal import Decimal
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import JSONField
 
 PRESTO_LINE_ITEM_TABLE_MAP = {
     "pod_usage": "openshift_pod_usage_line_items",
@@ -328,10 +328,10 @@ class OCPUsagePodLabelSummary(models.Model):
     """A collection of all current existing tag key and values."""
 
     class Meta:
-        """Meta for OCPUsageTagSummary."""
+        """Meta for OCPUsagePodLabelSummary."""
 
         db_table = "reporting_ocpusagepodlabel_summary"
-        unique_together = ("key", "report_period", "namespace")
+        unique_together = ("key", "report_period", "namespace", "node")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
@@ -439,7 +439,7 @@ class OCPStorageVolumeLabelSummary(models.Model):
         """Meta for OCPStorageVolumeLabelSummary."""
 
         db_table = "reporting_ocpstoragevolumelabel_summary"
-        unique_together = ("key", "report_period", "namespace")
+        unique_together = ("key", "report_period", "namespace", "node")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 

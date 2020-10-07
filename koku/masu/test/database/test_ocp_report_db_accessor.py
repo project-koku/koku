@@ -346,10 +346,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
             self.assertEqual(result_start_date, start_date.date())
             self.assertEqual(result_end_date, end_date.date())
+            pod_entry = query.filter(data_source="Pod").first()
+            storage_entry = query.filter(data_source="Storage").first()
 
-            entry = query.first()
-
-        summary_columns = [
+        pod_summary_columns = [
             "cluster_id",
             "namespace",
             "node",
@@ -368,8 +368,27 @@ class OCPReportDBAccessorTest(MasuTestCase):
             "usage_start",
         ]
 
-        for column in summary_columns:
-            self.assertIsNotNone(getattr(entry, column))
+        storage_summary_columns = [
+            "cluster_id",
+            "namespace",
+            "node",
+            "persistentvolume",
+            "persistentvolumeclaim",
+            "persistentvolumeclaim_capacity_gigabyte",
+            "persistentvolumeclaim_capacity_gigabyte_months",
+            "persistentvolumeclaim_usage_gigabyte_months",
+            "storageclass",
+            "volume_labels",
+            "volume_request_storage_gigabyte_months",
+            "usage_end",
+            "usage_start",
+        ]
+
+        for column in pod_summary_columns:
+            print((column, getattr(pod_entry, column)))
+            self.assertIsNotNone(getattr(pod_entry, column))
+        for column in storage_summary_columns:
+            self.assertIsNotNone(getattr(storage_entry, column))
 
     def test_populate_pod_label_summary_table(self):
         """Test that the pod label summary table is populated."""

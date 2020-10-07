@@ -214,7 +214,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
             "openshift.node": {"read": ["999999999999"]},
             "openshift.project": {"read": ["999999999999"]},
             "provider": {"read": ["999999999999"], "write": []},
-            "rate": {"read": ["999999999999"], "write": []},
+            "cost_model": {"read": ["999999999999"], "write": []},
         }
         get_access_mock.return_value = mock_access
 

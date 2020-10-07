@@ -18,9 +18,9 @@
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import JSONField
 
 
 PRESTO_LINE_ITEM_TABLE = "aws_line_items"
@@ -39,8 +39,8 @@ class AWSCostEntryBill(models.Model):
         unique_together = ("bill_type", "payer_account_id", "billing_period_start", "provider")
 
     billing_resource = models.CharField(max_length=50, default="aws", null=False)
-    bill_type = models.CharField(max_length=50, null=False)
-    payer_account_id = models.CharField(max_length=50, null=False)
+    bill_type = models.CharField(max_length=50, null=True)
+    payer_account_id = models.CharField(max_length=50, null=True)
     billing_period_start = models.DateTimeField(null=False)
     billing_period_end = models.DateTimeField(null=False)
     summary_data_creation_datetime = models.DateTimeField(null=True)
@@ -896,6 +896,8 @@ class AWSOrganizationalUnit(models.Model):
     created_timestamp = models.DateField(auto_now_add=True)
 
     deleted_timestamp = models.DateField(null=True)
+
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         """Convert to string."""

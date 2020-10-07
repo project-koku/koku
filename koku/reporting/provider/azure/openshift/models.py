@@ -18,9 +18,9 @@
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import JSONField
 
 VIEWS = (
     "reporting_ocpazure_compute_summary",
@@ -99,8 +99,6 @@ class OCPAzureCostLineItemDailySummary(models.Model):
 
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
 
-    offer_id = models.PositiveIntegerField(null=True)
-
     currency = models.TextField(null=True)
 
     unit_of_measure = models.TextField(null=True)
@@ -174,8 +172,6 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
 
     unit_of_measure = models.TextField(null=True)
 
-    offer_id = models.PositiveIntegerField(null=True)
-
     currency = models.TextField(null=True)
 
     pretax_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
@@ -215,7 +211,7 @@ class OCPAzureTagsSummary(models.Model):
         """Meta for AzureTagsSummary."""
 
         db_table = "reporting_ocpazuretags_summary"
-        unique_together = ("key", "cost_entry_bill", "report_period", "subscription_guid", "namespace")
+        unique_together = ("key", "cost_entry_bill", "report_period", "subscription_guid", "namespace", "node")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
