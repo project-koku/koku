@@ -25,6 +25,7 @@ import pandas as pd
 from django.conf import settings
 
 from api.common import log_json
+from api.provider.models import Provider
 from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
@@ -88,7 +89,9 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
         daily_files = divide_csv_daily(filepath, filename)
         for daily_file in daily_files:
             # Push to S3
-            s3_csv_path = get_path_prefix(account, provider_uuid, start_date, Config.CSV_DATA_TYPE)
+            s3_csv_path = get_path_prefix(
+                account, Provider.PROVIDER_OCP, provider_uuid, start_date, Config.CSV_DATA_TYPE
+            )
             copy_local_report_file_to_s3_bucket(
                 request_id,
                 s3_csv_path,

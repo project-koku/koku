@@ -447,6 +447,49 @@
             "Crawl Account Hierarchy"
           ]
         },
+        "post": {
+          "summary": "Create aws org unit tree from json",
+          "operationId": "crawlAccountHierarchyPost",
+          "description": "Return tree json.",
+          "parameters": [
+            {
+              "name": "provider_uuid",
+              "in": "query",
+              "description": "The provider UUID",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid",
+                "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrawlAccountHierarchyPost"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Return tree json.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/CrawlAccountHierarchyPostResponse"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Crawl Account Hierarchy"
+          ]
+        },
         "parameters": []
       }
     },
@@ -497,6 +540,102 @@
             "action": {
               "type": "string",
               "enum": ["create", "delete"]
+            }
+          }
+        },
+        "CrawlAccountHierarchyPost":{
+          "type": "object",
+          "properties": {
+            "schema": {
+              "type": "string",
+              "example": "acct12345"
+            },
+            "start_date": {
+              "type": "string",
+              "example": "2020-09-01"
+            },
+            "account_structure": {
+              "type": "object",
+              "properties": {
+                "days": {
+                  "type": "array",
+                  "items": {"type": "object"},
+                  "example": [
+                    {"day":{
+                      "date": "-90",
+                      "nodes": [
+                        {
+                          "organizational_unit": "None",
+                          "org_unit_id": "ROOT_O1",
+                          "org_unit_name": "Root",
+                          "accounts": [{"account_alias_id": "90", "account_alias_name": "ROOT TEST"}]
+                        },
+                        {
+                          "organizational_unit": "None",
+                          "org_unit_id": "OU_01",
+                          "org_unit_name": "Dept OU_01",
+                          "parent_path": "ROOT_O1",
+                          "accounts": [
+                              {"account_alias_id": "91", "account_alias_name": "acct 01"},
+                              {"account_alias_id": "92", "account_alias_name": "acct 02"}
+                          ]
+                        },
+                        {
+                          "organizational_unit": "None",
+                          "org_unit_id": "OU_02",
+                          "org_unit_name": "Dept OU_02",
+                          "parent_path": "ROOT_O1"
+                        }
+                      ]
+                    }
+                  }
+                ]
+                }
+              }
+            }
+          }
+        },
+        "CrawlAccountHierarchyPostResponse":{
+          "type": "object",
+          "properties": {
+            "account_structure": {
+              "type": "object",
+              "properties": {
+                "days": {
+                  "type": "array",
+                  "items": {"type": "object"},
+                  "example": [
+                    {"day":{
+                      "date": "-90",
+                      "nodes": [
+                        {
+                          "organizational_unit": "None",
+                          "org_unit_id": "ROOT_O1",
+                          "org_unit_name": "Root",
+                          "accounts": [{"account_alias_id": "90", "account_alias_name": "ROOT TEST"}]
+                        },
+                        {
+                          "organizational_unit": "None",
+                          "org_unit_id": "OU_01",
+                          "org_unit_name": "Dept OU_01",
+                          "parent_path": "ROOT_O1",
+                          "accounts": [
+                              {"account_alias_id": "91", "account_alias_name": "acct 01"},
+                              {"account_alias_id": "92", "account_alias_name": "acct 02"}
+                          ]
+                        },
+                        {
+                          "organizational_unit": "None",
+                          "org_unit_id": "OU_02",
+                          "org_unit_name": "Dept OU_02",
+                          "parent_path": "ROOT_O1"
+                        }
+                      ]
+                    }
+                  }
+                ]
+                }
+              }
             }
           }
         },

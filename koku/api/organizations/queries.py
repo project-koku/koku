@@ -17,6 +17,8 @@
 """Query Handling for Organizations."""
 import copy
 import logging
+import operator
+from functools import reduce
 
 from django.db.models import F
 from django.db.models import Q
@@ -131,12 +133,6 @@ class OrgQueryHandler(QueryHandler):
                 for item in filter_value:
                     q_filter = QueryFilter(parameter=item, **filter_obj)
                     filters.add(q_filter)
-            access = self.parameters.get_access(filter_key)
-            filt = self.FILTER_MAP.get(filter_key)
-            if access and filt:
-                filt["operation"] = "in"
-                q_filter = QueryFilter(parameter=access, **filt)
-                filters.add(q_filter)
 
         # Update filters that specifiy and or or in the query parameter
         and_composed_filters = self._set_operator_specified_filters("and")
@@ -276,11 +272,12 @@ class OrgQueryHandler(QueryHandler):
                     acceptable_ous = self.access.get("aws.organizational_unit", {}).get("read", [])
                     if acceptable_ous and "*" not in acceptable_ous:
                         allowed_ids_query = source.get("db_table").objects
-                        allowed_ids_query = allowed_ids_query.filter(org_unit_id__in=acceptable_ous).filter(
-                            remove_accounts
-                        )
+                        allowed_ids_query = allowed_ids_query.filter(
+                            reduce(operator.or_, (Q(org_unit_path__icontains=rbac) for rbac in acceptable_ous))
+                        ).filter(remove_accounts)
                         allowed_ids = allowed_ids_query.values_list("id", flat=True)
                         org_ids = list(set(org_ids) & set(allowed_ids))
+                        org_unit_query = org_unit_query.filter(id__in=org_ids)
                 org_id_list.extend(org_ids)
                 # Note: you want to collect the org_id_list before you implement the self.query_filter
                 # so that way the get_sub_ou list will still work when you do filter[org_unit_id]=OU_002

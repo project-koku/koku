@@ -1,7 +1,7 @@
-from django.contrib.postgres.fields.jsonb import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import JSONField
 
 
 def validate_not_empty(value):
@@ -13,6 +13,8 @@ class PartitionedTable(models.Model):
     """
     Tracking table for table partitions
     """
+
+    RANGE = "range"
 
     class Meta:
         db_table = "partitioned_tables"
@@ -36,3 +38,5 @@ class PartitionedTable(models.Model):
     partition_col = models.TextField(null=False, validators=[validate_not_empty])
     # Parameters used when creating partition (partition key values or range)
     partition_parameters = JSONField(null=False, validators=[validate_not_empty])
+    # active flag will attach/detach partition
+    active = models.BooleanField(null=False, default=True)

@@ -19,12 +19,18 @@ import logging
 
 import prestodb
 import pyarrow.parquet as pq
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
+from reporting.models import PartitionedTable
 
 LOG = logging.getLogger(__name__)
+
+
+class PostgresSummaryTableError(Exception):
+    """Postgres summary table is not defined."""
 
 
 class ReportParquetProcessorBase:
@@ -49,6 +55,11 @@ class ReportParquetProcessorBase:
         self._date_columns = date_columns
         self._table_name = table_name
 
+    @property
+    def postgres_summary_table(self):
+        """Return error if unimplemented in subclass."""
+        raise PostgresSummaryTableError("This must be a property on the sub class.")
+
     def _execute_sql(self, sql, schema_name):  # pragma: no cover
         """Execute presto SQL."""
         with prestodb.dbapi.connect(
@@ -62,10 +73,7 @@ class ReportParquetProcessorBase:
 
     def _get_provider(self):
         """Retrieve the postgres provider id."""
-        with schema_context(self._schema_name):
-            obj = Provider.objects.get(uuid=self._provider_uuid)
-            return obj
-        return None
+        return Provider.objects.get(uuid=self._provider_uuid)
 
     def _create_schema(self,):
         """Create presto schema."""
@@ -95,10 +103,11 @@ class ReportParquetProcessorBase:
             sql += f"{norm_col} {col_type}"
             if idx < (len(parquet_columns) - 1):
                 sql += ","
-        sql += ",year varchar, month varchar"
+        sql += ",source varchar, year varchar, month varchar"
 
         sql += (
-            f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET', partitioned_by=ARRAY['year', 'month'])"
+            f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET',"
+            " partitioned_by=ARRAY['source', 'year', 'month'])"
         )
         LOG.info(f"Create Parquet Table SQL: {sql}")
         return sql
@@ -114,3 +123,26 @@ class ReportParquetProcessorBase:
         self._execute_sql(sql, schema)
 
         LOG.info(f"Presto Table: {self._table_name} created.")
+
+    def get_or_create_postgres_partition(self, bill_date, **kwargs):
+        """Make sure we have a Postgres partition for a billing period."""
+        table_name = self.postgres_summary_table._meta.db_table
+        partition_type = kwargs.get("partition_type", PartitionedTable.RANGE)
+        partition_column = kwargs.get("partition_column", "usage_start")
+
+        with schema_context(self._schema_name):
+            record, created = PartitionedTable.objects.get_or_create(
+                schema_name=self._schema_name,
+                table_name=f"{table_name}_{bill_date.strftime('%Y_%m')}",
+                partition_of_table_name=table_name,
+                partition_type=partition_type,
+                partition_col=partition_column,
+                partition_parameters={
+                    "default": False,
+                    "from": str(bill_date),
+                    "to": str(bill_date + relativedelta(months=1)),
+                },
+                active=True,
+            )
+            if created:
+                LOG.info(f"Created a new parttiion for {record.partition_of_table_name} : {record.table_name}")

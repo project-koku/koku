@@ -22,6 +22,7 @@ import os
 import shutil
 
 from api.common import log_json
+from api.provider.models import Provider
 from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
@@ -77,8 +78,8 @@ class AzureLocalReportDownloader(AzureReportDownloader):
 
         if not os.path.exists(local_path):
             msg = f"Unable to find manifest: {local_path}."
-            LOG.error(log_json(self.request_id, msg, self.context))
-            return manifest
+            LOG.info(log_json(self.request_id, msg, self.context))
+            return manifest, None
 
         manifest_modified_timestamp = None
         report_names = os.listdir(local_path)
@@ -129,7 +130,9 @@ class AzureLocalReportDownloader(AzureReportDownloader):
             shutil.copy2(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
             # Push to S3
-            s3_csv_path = get_path_prefix(self.account, self._provider_uuid, start_date, Config.CSV_DATA_TYPE)
+            s3_csv_path = get_path_prefix(
+                self.account, Provider.PROVIDER_AZURE_LOCAL, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
+            )
             copy_local_report_file_to_s3_bucket(
                 self.request_id, s3_csv_path, full_file_path, local_filename, manifest_id, start_date, self.context
             )

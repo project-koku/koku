@@ -1,5 +1,3 @@
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsafe}} AS (
     WITH cte_array_agg_keys AS (
         SELECT array_agg(key) as key_array
@@ -84,15 +82,6 @@ WHERE usage_start >= {{start_date}}
     AND cluster_id = {{cluster_id}}
     AND data_source = 'Storage'
 ;
-
--- This procedure will scan the temp table for distinct start-of-month usage_start dates
--- and create any missing table partitions
-CALL public.create_date_partitions(
-        'reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsafe}}',
-        'usage_start',
-        '{{schema | sqlsafe}}',
-        'reporting_ocpusagelineitem_daily_summary'
-    );
 
 -- Populate the daily aggregate line item data
 -- THIS IS A PARTITONED TABLE

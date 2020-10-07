@@ -27,6 +27,7 @@ from dateutil.relativedelta import relativedelta
 from faker import Faker
 from tenant_schemas.utils import schema_context
 
+from api.provider.models import Provider
 from masu.config import Config
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -334,7 +335,9 @@ class TestAWSUtils(MasuTestCase):
 
         date_accessor = DateAccessor()
         start_date = date_accessor.today_with_timezone("utc").replace(day=1)
-        s3_csv_path = get_path_prefix("account", "provider_uuid", start_date, Config.CSV_DATA_TYPE)
+        s3_csv_path = get_path_prefix(
+            "account", Provider.PROVIDER_AWS, "provider_uuid", start_date, Config.CSV_DATA_TYPE
+        )
         expected_key = "removed_key"
         mock_object = Mock(metadata={}, key=expected_key)
         mock_summary = Mock()

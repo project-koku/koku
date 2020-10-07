@@ -84,16 +84,10 @@ DEPLOY_PROJECT=hccm
 # location of commands
 OC=$(which oc)
 OCDEPLOYER=$(which ocdeployer)
-IQE=$(which iqe)
-
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    KOKU_SECRETS=$PWD/e2e-secrets.yml
-else
-    KOKU_SECRETS=$(dirname $(readlink -f $0))/e2e-secrets.yml
-fi
-
-UDT_SRR="$(dirname ${KOKU_SECRETS})/update_e2e_srr.py"
-
+SCRIPT_DIR="$( pushd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+IQE_CONTAINER="$SCRIPT_DIR/../testing/run_test.sh"
+KOKU_SECRETS="$SCRIPT_DIR/e2e-secrets.yml"
+UDT_SRR="$SCRIPT_DIR/update_e2e_srr.py"
 
 ### validation
 function check_var() {
@@ -225,10 +219,10 @@ done
 ### deploy application
 if [[ ${DEPLOY_HCCM_OPTIONAL} ]]; then
     echo "Creating HCCM & HCCM-Optional application."
-    ${IQE} oc deploy -t templates -s hccm,hccm-optional -e dev-self-contained hccm --secrets-src-project ${SECRETS_PROJECT} || true
+    ${IQE_CONTAINER} "iqe oc deploy -t templates -s hccm,hccm-optional -e dev-self-contained hccm --secrets-src-project ${SECRETS_PROJECT}" || true
 else
     echo "Creating HCCM application."
-    ${IQE} oc deploy -t templates -s hccm -e dev-self-contained hccm --secrets-src-project ${SECRETS_PROJECT} || true
+    ${IQE_CONTAINER} "iqe oc deploy -t templates -s hccm -e dev-self-contained hccm --secrets-src-project ${SECRETS_PROJECT}" || true
 fi
 
 ### expose API route

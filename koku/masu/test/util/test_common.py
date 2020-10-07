@@ -29,6 +29,7 @@ from django.test import TestCase
 
 import masu.util.common as common_utils
 from api.models import Provider
+from masu.config import Config
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
 from masu.test import MasuTestCase
@@ -189,6 +190,49 @@ class CommonUtilTests(MasuTestCase):
         expected = '{"a": "b", "c": "d"}'
         out = common_utils.safe_dict(expected)
         self.assertEqual(out, expected)
+
+    def test_get_path_prefix(self):
+        """Test that path prefix is returned."""
+        account = "10001"
+        provider_type = Provider.PROVIDER_AWS
+        provider_uuid = self.aws_provider_uuid
+        start_date = datetime.utcnow().date()
+        expected_path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
+        expected_path = (
+            f"{expected_path_prefix}/{account}/{provider_type}/"
+            f"source={provider_uuid}/year={start_date.year}/month={start_date.month}"
+        )
+
+        path = common_utils.get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet")
+        self.assertEqual(path, expected_path)
+
+        # Test with report_type
+        report_type = "pod_report"
+        expected_path = (
+            f"{expected_path_prefix}/{account}/{provider_type}/{report_type}/"
+            f"source={provider_uuid}/year={start_date.year}/month={start_date.month}"
+        )
+        path = common_utils.get_path_prefix(
+            account, provider_type, provider_uuid, start_date, "parquet", report_type=report_type
+        )
+        self.assertEqual(path, expected_path)
+
+    def test_get_hive_table_path(self):
+        """Test that we resolve the path for a Hive table."""
+        account = "10001"
+        provider_type = Provider.PROVIDER_AWS
+
+        expected_path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
+        expected_path = f"{expected_path_prefix}/{account}/{provider_type}"
+
+        path = common_utils.get_hive_table_path(account, provider_type)
+        self.assertEqual(path, expected_path)
+
+        # Test with report_type
+        report_type = "pod_report"
+        expected_path = f"{expected_path_prefix}/{account}/{provider_type}/{report_type}"
+        path = common_utils.get_hive_table_path(account, provider_type, report_type=report_type)
+        self.assertEqual(path, expected_path)
 
 
 class NamedTemporaryGZipTests(TestCase):

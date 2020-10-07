@@ -22,6 +22,7 @@ import time
 from decimal import Decimal
 from decimal import InvalidOperation
 
+import ciso8601
 from celery import chain
 from celery.utils.log import get_task_logger
 from dateutil import parser
@@ -335,9 +336,10 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
         )
 
     dh = DateHelper(utc=True)
-    prev_month_start_day = dh.last_month_start.replace(tzinfo=None)
-    start_date_obj = datetime.datetime.strptime(start_date, "%Y-%m-%d")
-    if manifest_id and (start_date_obj <= prev_month_start_day):
+    prev_month_start_day = dh.last_month_start.replace(tzinfo=None).date()
+    if isinstance(start_date, str):
+        start_date = ciso8601.parse_datetime(start_date).date()
+    if manifest_id and (start_date <= prev_month_start_day):
         # We want make sure that the manifest_id is not none, because
         # we only want to call the delete line items after the summarize_reports
         # task above

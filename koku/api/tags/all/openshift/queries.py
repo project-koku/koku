@@ -19,6 +19,7 @@ from copy import deepcopy
 
 from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import TextField
 from django.db.models import Value
 
 from api.models import Provider
@@ -46,27 +47,17 @@ class OCPAllTagQueryHandler(TagQueryHandler):
         },
     ]
     TAGS_VALUES_SOURCE = [
-        {"db_table": OCPAzureTagsValues, "fields": ["ocpazuretagssummary__key"]},
-        {"db_table": OCPAWSTagsValues, "fields": ["ocpawstagssummary__key"]},
+        {"db_table": OCPAzureTagsValues, "fields": ["key"]},
+        {
+            "db_table": OCPAWSTagsValues,
+            "fields": ["key"],
+            "annotations": {
+                "usage_account_ids": F("subscription_guids"),
+                "account_aliases": Value("", output_field=TextField()),
+            },
+        },
     ]
     SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["account", "cluster"]
-    FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
-    FILTER_MAP.update(
-        {
-            "account": [
-                {
-                    "field": "account_alias__account_alias",
-                    "operation": "icontains",
-                    "composition_key": "account_filter",
-                },
-                {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
-            ],
-            "cluster": [
-                {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
-                {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
-            ],
-        }
-    )
 
     def __init__(self, parameters):
         """Establish OCP on All infrastructure tag query handler.
@@ -75,6 +66,53 @@ class OCPAllTagQueryHandler(TagQueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
+        self._parameters = parameters
         self._mapper = OCPAllProviderMap(provider=self.provider, report_type=parameters.report_type)
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
+
+    @property
+    def filter_map(self):
+        """Establish which filter map to use based on tag API."""
+        filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
+        if self._parameters.get_filter("value"):
+            filter_map.update(
+                {
+                    "account": [
+                        {"field": "account_aliases", "operation": "icontains", "composition_key": "account_filter"},
+                        {"field": "usage_account_ids", "operation": "icontains", "composition_key": "account_filter"},
+                    ],
+                    "project": {"field": "namespaces", "operation": "icontains"},
+                    "cluster": [
+                        {"field": "cluster_ids", "operation": "icontains", "composition_key": "cluster_filter"},
+                        {"field": "cluster_aliases", "operation": "icontains", "composition_key": "cluster_filter"},
+                    ],
+                }
+            )
+        else:
+            filter_map.update(
+                {
+                    "account": [
+                        {
+                            "field": "account_alias__account_alias",
+                            "operation": "icontains",
+                            "composition_key": "account_filter",
+                        },
+                        {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
+                    ],
+                    "project": {"field": "namespace", "operation": "icontains"},
+                    "cluster": [
+                        {
+                            "field": "report_period__cluster_id",
+                            "operation": "icontains",
+                            "composition_key": "cluster_filter",
+                        },
+                        {
+                            "field": "report_period__cluster_alias",
+                            "operation": "icontains",
+                            "composition_key": "cluster_filter",
+                        },
+                    ],
+                }
+            )
+        return filter_map

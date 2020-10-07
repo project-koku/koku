@@ -3,52 +3,56 @@ WITH cte_tag_value AS (
         value,
         li.cost_entry_bill_id,
         li.usage_account_id,
+        li.report_period_id,
         max(li.account_alias_id) as account_alias_id,
         project as namespace,
-        max(li.cluster_id) as cluster_id,
-        max(li.cluster_alias) as cluster_alias
+        node
     FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary AS li,
         jsonb_each_text(li.tags) labels,
         unnest(li.namespace) projects(project)
-    GROUP BY key, value, li.cost_entry_bill_id, li.usage_account_id, project
+    GROUP BY key, value, li.cost_entry_bill_id, li.usage_account_id, li.report_period_id, project, li.node
 ),
 cte_values_agg AS (
     SELECT key,
         array_agg(DISTINCT value) as values,
         cost_entry_bill_id,
+        report_period_id,
         usage_account_id,
         max(account_alias_id) as account_alias_id,
-        max(cluster_id) as cluster_id,
-        max(cluster_alias) as cluster_alias,
-        namespace
+        namespace,
+        node
     FROM cte_tag_value
-    GROUP BY key, cost_entry_bill_id, usage_account_id, namespace
+    GROUP BY key, cost_entry_bill_id, report_period_id, usage_account_id, namespace, node
 )
 , ins1 AS (
-    INSERT INTO {{schema | sqlsafe}}.reporting_ocpawstags_summary (key, cost_entry_bill_id, usage_account_id, account_alias_id, namespace, cluster_id, cluster_alias, values)
-    SELECT key,
+    INSERT INTO {{schema | sqlsafe}}.reporting_ocpawstags_summary (uuid, key, values, cost_entry_bill_id, report_period_id, usage_account_id, account_alias_id, namespace, node)
+    SELECT uuid_generate_v4() as uuid,
+        key,
+        values,
         cost_entry_bill_id,
+        report_period_id,
         usage_account_id,
         account_alias_id,
         namespace,
-        cluster_id,
-        cluster_alias,
-        values
+        node
     FROM cte_values_agg
-    ON CONFLICT (key, cost_entry_bill_id, usage_account_id, namespace) DO UPDATE SET values=EXCLUDED.values
-    RETURNING key, id as key_id
+    ON CONFLICT (key, cost_entry_bill_id, report_period_id, usage_account_id, namespace, node) DO UPDATE SET values=EXCLUDED.values
     )
-, ins2 AS (
-   INSERT INTO {{schema | sqlsafe}}.reporting_ocpawstags_values (value)
-   SELECT DISTINCT d.value
-   FROM cte_tag_value d
-   ON CONFLICT (value) DO UPDATE SET value=EXCLUDED.value
-   RETURNING value, id AS values_id
-    )
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpawstags_summary_values_mtm (ocpawstagssummary_id, ocpawstagsvalues_id)
-SELECT DISTINCT ins1.key_id, ins2.values_id
-FROM cte_tag_value d
-INNER JOIN ins1 ON d.key = ins1.key
-INNER JOIN ins2 ON d.value = ins2.value
-ON CONFLICT (ocpawstagssummary_id, ocpawstagsvalues_id) DO NOTHING
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpawstags_values (uuid, key, value, usage_account_ids, account_aliases, cluster_ids, cluster_aliases, namespaces, nodes)
+SELECT uuid_generate_v4() as uuid,
+    tv.key,
+    tv.value,
+    array_agg(DISTINCT tv.usage_account_id) as usage_account_ids,
+    array_agg(DISTINCT aa.account_alias) as account_aliases,
+    array_agg(DISTINCT rp.cluster_id) as cluster_ids,
+    array_agg(DISTINCT rp.cluster_alias) as cluster_aliases,
+    array_agg(DISTINCT tv.namespace) as namespaces,
+    array_agg(DISTINCT tv.node) as nodes
+FROM cte_tag_value AS tv
+JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
+    ON tv.report_period_id = rp.id
+LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
+    ON tv.usage_account_id = aa.account_id
+GROUP BY tv.key, tv.value
+ON CONFLICT (key, value) DO UPDATE SET usage_account_ids=EXCLUDED.usage_account_ids, namespaces=EXCLUDED.namespaces, nodes=EXCLUDED.nodes, cluster_ids=EXCLUDED.cluster_ids, cluster_aliases=EXCLUDED.cluster_aliases
 ;
