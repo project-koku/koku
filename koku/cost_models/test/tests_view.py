@@ -388,10 +388,10 @@ class CostModelViewTests(IamTestCase):
         self.initialize_request(context={"request_context": request_context, "user_data": user_data})
 
         test_matrix = [
-            {"access": {"rate": {"read": [], "write": []}}, "expected_response": status.HTTP_403_FORBIDDEN},
-            {"access": {"rate": {"read": ["*"], "write": []}}, "expected_response": status.HTTP_200_OK},
+            {"access": {"cost_model": {"read": [], "write": []}}, "expected_response": status.HTTP_403_FORBIDDEN},
+            {"access": {"cost_model": {"read": ["*"], "write": []}}, "expected_response": status.HTTP_200_OK},
             {
-                "access": {"rate": {"read": ["not-a-uuid"], "write": []}},
+                "access": {"cost_model": {"read": ["not-a-uuid"], "write": []}},
                 "expected_response": status.HTTP_500_INTERNAL_SERVER_ERROR,
             },
         ]
@@ -429,10 +429,10 @@ class CostModelViewTests(IamTestCase):
         self.initialize_request(context={"request_context": request_context, "user_data": user_data})
 
         test_matrix = [
-            {"access": {"rate": {"read": [], "write": []}}, "expected_response": status.HTTP_403_FORBIDDEN},
-            {"access": {"rate": {"read": ["*"], "write": []}}, "expected_response": status.HTTP_200_OK},
+            {"access": {"cost_model": {"read": [], "write": []}}, "expected_response": status.HTTP_403_FORBIDDEN},
+            {"access": {"cost_model": {"read": ["*"], "write": []}}, "expected_response": status.HTTP_200_OK},
             {
-                "access": {"rate": {"read": [str(cost_model_uuid)], "write": []}},
+                "access": {"cost_model": {"read": [str(cost_model_uuid)], "write": []}},
                 "expected_response": status.HTTP_200_OK,
             },
         ]
@@ -475,17 +475,17 @@ class CostModelViewTests(IamTestCase):
         # POST tests
         test_matrix = [
             {
-                "access": {"rate": {"read": [], "write": []}},
+                "access": {"cost_model": {"read": [], "write": []}},
                 "expected_response": status.HTTP_403_FORBIDDEN,
                 "metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR},
             },
             {
-                "access": {"rate": {"read": ["*"], "write": ["*"]}},
+                "access": {"cost_model": {"read": ["*"], "write": ["*"]}},
                 "expected_response": status.HTTP_201_CREATED,
                 "metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_REQUEST_HOUR},
             },
             {
-                "access": {"rate": {"read": ["*"], "write": ["*"]}},
+                "access": {"cost_model": {"read": ["*"], "write": ["*"]}},
                 "expected_response": status.HTTP_201_CREATED,
                 "metric": {"name": metric_constants.OCP_METRIC_MEM_GB_REQUEST_HOUR},
             },
@@ -509,18 +509,18 @@ class CostModelViewTests(IamTestCase):
 
         # PUT tests
         test_matrix = [
-            {"access": {"rate": {"read": [], "write": []}}, "expected_response": status.HTTP_403_FORBIDDEN},
+            {"access": {"cost_model": {"read": [], "write": []}}, "expected_response": status.HTTP_403_FORBIDDEN},
             {
-                "access": {"rate": {"read": ["*"], "write": [str(other_cost_models[0])]}},
+                "access": {"cost_model": {"read": ["*"], "write": [str(other_cost_models[0])]}},
                 "expected_response": status.HTTP_403_FORBIDDEN,
             },
             {
-                "access": {"rate": {"read": ["*"], "write": ["*"]}},
+                "access": {"cost_model": {"read": ["*"], "write": ["*"]}},
                 "expected_response": status.HTTP_200_OK,
                 "value": round(Decimal(random.random()), 6),
             },
             {
-                "access": {"rate": {"read": ["*"], "write": [str(cost_model_uuid)]}},
+                "access": {"cost_model": {"read": ["*"], "write": [str(cost_model_uuid)]}},
                 "expected_response": status.HTTP_200_OK,
                 "value": round(Decimal(random.random()), 6),
             },
@@ -543,22 +543,22 @@ class CostModelViewTests(IamTestCase):
         # DELETE tests
         test_matrix = [
             {
-                "access": {"rate": {"read": [], "write": []}},
+                "access": {"cost_model": {"read": [], "write": []}},
                 "expected_response": status.HTTP_403_FORBIDDEN,
                 "cost_model_uuid": cost_model_uuid,
             },
             {
-                "access": {"rate": {"read": ["*"], "write": [str(other_cost_models[0])]}},
+                "access": {"cost_model": {"read": ["*"], "write": [str(other_cost_models[0])]}},
                 "expected_response": status.HTTP_403_FORBIDDEN,
                 "cost_model_uuid": cost_model_uuid,
             },
             {
-                "access": {"rate": {"read": ["*"], "write": ["*"]}},
+                "access": {"cost_model": {"read": ["*"], "write": ["*"]}},
                 "expected_response": status.HTTP_204_NO_CONTENT,
                 "cost_model_uuid": cost_model_uuid,
             },
             {
-                "access": {"rate": {"read": ["*"], "write": [str(other_cost_models[0])]}},
+                "access": {"cost_model": {"read": ["*"], "write": [str(other_cost_models[0])]}},
                 "expected_response": status.HTTP_204_NO_CONTENT,
                 "cost_model_uuid": other_cost_models[0],
             },

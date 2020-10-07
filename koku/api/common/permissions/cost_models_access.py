@@ -41,11 +41,11 @@ class CostModelsAccessPermission(permissions.BasePermission):
             return False
 
         if request.method in permissions.SAFE_METHODS:
-            rates_read = request.user.access.get("rate", {}).get("read", [])
+            rates_read = request.user.access.get("cost_model", {}).get("read", [])
             if rates_read:
                 return True
         else:
-            rates_write = request.user.access.get("rate", {}).get("write", [])
+            rates_write = request.user.access.get("cost_model", {}).get("write", [])
             if "*" in rates_write:
                 return True
             if self.get_uuid_from_url(request) in rates_write:
