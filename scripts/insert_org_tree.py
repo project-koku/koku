@@ -56,15 +56,29 @@ class UploadAwsTree:
         # Collect account ids to be used for nise cmd later on
         return json.loads(json.dumps(tree_yaml_content))
 
-    def upload_tree(self):
+    def upload_tree(self, provider_uuid):
         """Creates the curl command"""
         aws_org_tree_json = self.convert_tree_yaml_to_json(self.tree_yaml)
-        url = f"http://{self.masu_host}:{self.masu_port}/api/cost-management/v1/crawl_account_hierarchy/"
+        url = f"http://{self.masu_host}:{self.masu_port}/api/cost-management/v1/crawl_account_hierarchy/?provider_uuid={provider_uuid}"  # noqa: E501
         try:
             requests.post(url, json=aws_org_tree_json)
         except Exception as e:
             msg = ("Error: uploading to endpoint", f"post_url: {url}" f"response: {e}")
             raise UploadAwsTreeError(err_msg=msg)
+
+    def create_aws_source(self, koku_host, koku_port):
+        """Creates the aws source."""
+        source_url = f"http://{koku_host}:{koku_port}/api/cost-management/v1/sources/"
+        json_info = {
+            "name": "aws_org_tree",
+            "source_type": "AWS-local",
+            "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/LocalAWSSource"}},
+            "billing_source": {"data_source": {"bucket": "/tmp/local_bucket_1"}},
+        }
+        LOG.info("Creating a source with the following information:\n" f"\t{json_info}")
+        source_info = requests.post(source_url, json=json_info)
+        source_data = source_info.json()
+        return source_data["uuid"]
 
     def run_nise_command(self, nise_yaml, koku_host, koku_port):
         """Updates configures nise, creates aws source and runs download."""
@@ -75,16 +89,6 @@ class UploadAwsTree:
         )
         LOG.info("Running the following Nise command:\n" f"\t{nise_command}")
         os.system(nise_command)
-        # Add aws source
-        source_url = f"http://{koku_host}:{koku_port}/api/cost-management/v1/sources/"
-        json_info = {
-            "name": "aws_org_tree",
-            "source_type": "AWS-local",
-            "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/LocalAWSSource"}},
-            "billing_source": {"data_source": {"bucket": "/tmp/local_bucket_1"}},
-        }
-        LOG.info("Creating a source with the following information:\n" f"\t{json_info}")
-        requests.post(source_url, json=json_info)
         LOG.info("Triggering the masu download")
         download_url = f"http://{self.masu_host}:{self.masu_port}/api/cost-management/v1/download/"
         requests.get(download_url)
@@ -116,5 +120,6 @@ if "__main__" in __name__:
         elif arg_key == "start_date" and arg_value != "":
             start_date = arg_value
     upload_obj = UploadAwsTree(tree_yaml, schema, masu_host, masu_port, start_date)
-    upload_obj.upload_tree()
+    source_uuid = upload_obj.create_aws_source(koku_host, koku_port)
+    upload_obj.upload_tree(provider_uuid=source_uuid)
     upload_obj.run_nise_command(nise_yaml, koku_host, koku_port)

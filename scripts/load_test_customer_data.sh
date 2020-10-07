@@ -129,11 +129,14 @@ curl --header "Content-Type: application/json" \
   http://$MASU_API$API_PATH_PREFIX/v1/enabled_tags/
 
 if [[ $USE_OC == 1 ]]; then
-    WORKER_POD="${KOKU_WORKER_POD_NAME:-koku-worker-0}"
+    OC=$(which oc)
+    WORKER_POD=$($OC get pods -o custom-columns=POD:.metadata.name,STATUS:.status.phase --field-selector=status.phase=Running | grep koku-worker | awk '{print $1}')
+    echo "uploading data to $WORKER_POD"
     oc rsync --delete $KOKU_PATH/testing/pvc_dir/insights_local ${WORKER_POD}:/tmp
     for SOURCEDIR in $(ls -1d $KOKU_PATH/testing/local_providers/aws_local*)
     do
-        DESTDIR="${WORKER_POD}:$(echo $SOURCEDIR | sed 's#'$KOKU_PATH'#/tmp' | sed 's/aws_local/local_bucket/')"
+        DESTDIR="${WORKER_POD}:$(echo $SOURCEDIR | sed s#$KOKU_PATH/testing/local_providers/aws_local#/tmp/local_bucket#)"
+        echo "uploading nise data from $SOURCEDIR to $DESTDIR"
         oc rsync --delete $SOURCEDIR $DESTDIR
     done
     oc rsync --delete $KOKU_PATH/testing/local_providers/azure_local/* ${WORKER_POD}:/tmp/local_container
