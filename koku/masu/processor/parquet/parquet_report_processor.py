@@ -332,7 +332,7 @@ class ParquetReportProcessor:
             report_file = []
         else:
             report_file = [self._report_file]
-        report_file
+
         LOG.info(f"Parquet conversion: start_date = {str(self._start_date)}. File: {str(self._report_file)}")
         if self._start_date:
             start_date_str = self._start_date.strftime("%Y-%m-%d")
