@@ -278,7 +278,7 @@ class CostModelDBAccessor(KokuDBAccess):
     @property
     def tag_default_supplementary_rates(self):
         """
-        Return the default infrastructure rates for each key that has a defined rate
+        Return the default supplementary rates for each key that has a defined rate
         It is returned in the format
         {
             metric: {
@@ -293,7 +293,7 @@ class CostModelDBAccessor(KokuDBAccess):
         for key, value in self.tag_based_price_list.items():
             if metric_constants.SUPPLEMENTARY_COST_TYPE in value.get("tag_rates").keys():
                 tag_dict = {}
-                for tag in value.get("tag_rates").get(metric_constants.SUPLLEMENTARY_COST_TYPE):
+                for tag in value.get("tag_rates").get(metric_constants.SUPPLEMENTARY_COST_TYPE):
                     tag_key = tag.get("tag_key")
                     tag_keys_to_ignore = list(tag.get("tag_values").keys())
                     default_value = tag.get("tag_key_default")

@@ -301,11 +301,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._cluster_id,
         )
         self._update_usage_costs(start_date, end_date)
-        self._update_tag_usage_costs(start_date, end_date)
-        self._update_tag_usage_default_costs(start_date, end_date)
         self._update_markup_cost(start_date, end_date)
         self._update_monthly_cost(start_date, end_date)
-        self._update_monthly_tag_based_cost(start_date, end_date)
+        # only update based on tag rates if there are tag rates
+        # this also lets costs get removed if there is no tiered rate and then add to them if there is a tag_rate
+        if self._tag_infra_rates != {} or self._tag_supplementary_rates != {}:
+            self._update_tag_usage_costs(start_date, end_date)
+            self._update_tag_usage_default_costs(start_date, end_date)
+            self._update_monthly_tag_based_cost(start_date, end_date)
 
         with OCPReportDBAccessor(self._schema) as accessor:
             report_periods = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)

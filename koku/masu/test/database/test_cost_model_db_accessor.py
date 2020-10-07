@@ -270,3 +270,143 @@ class CostModelDBAccessorNoCostModel(MasuTestCase):
         with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             self.assertFalse(markup)
+
+
+class CostModelDBAccessorTagRatesTest(MasuTestCase):
+    """Test Cases for the CostModelDBAccessor object with tag rates."""
+
+    KEY_VALUE_PAIRS = {
+        "breakfast": ["pancakes", "waffles", "syrup"],
+        "lunch": ["soup", "salad", "sandwich"],
+        "dinner": ["steak", "chicken", "tacos"],
+    }
+
+    def build_tag_rates(self):
+        """Returns rate_list to use to build cost model and mapping of expected values."""
+        # Get defaults from constants.py
+        cost_type_defaults = dict()
+        for metric in metric_constants.COST_MODEL_METRIC_MAP:
+            cost_type_defaults[metric["metric"]] = metric["default_cost_type"]
+        mapping = dict()
+        rates = []
+        metric_names = [
+            "cpu_core_usage_per_hour",
+            "memory_gb_usage_per_hour",
+            "cpu_core_request_per_hour",
+            "memory_gb_request_per_hour",
+            "storage_gb_usage_per_month",
+            "storage_gb_request_per_month",
+            "node_cost_per_month",
+        ]
+        mapping = {}
+        for metric_name in metric_names:
+            cost_type = random.choice(["Infrastructure", "Supplementary"])
+            tag_key_dict = {}
+            tag_vals_list = []
+            default_other_keys = []
+            tag_key = random.choice(list(self.KEY_VALUE_PAIRS))
+            tag_vals = self.KEY_VALUE_PAIRS.get(tag_key)
+            map_vals = {}
+            for idx, tag_value_name in enumerate(tag_vals[0:2]):
+                value = round(random.uniform(1, 5), 2)
+                if idx == 0:
+                    default = True
+                    default_value = value
+                else:
+                    default = False
+                default_other_keys.append(tag_value_name)
+                map_vals[tag_value_name] = value
+                val_dict = {"tag_value": tag_value_name, "value": value, "default": default}
+                tag_vals_list.append(val_dict)
+            tag_key_dict = {"tag_key": tag_key, "tag_values": tag_vals_list}
+            rate = {"metric": {"name": metric_name}, "tag_rates": [tag_key_dict], "cost_type": cost_type}
+            rates.append(rate)
+            mapping[metric_name] = {
+                "tag_key": tag_key,
+                "cost_type": cost_type,
+                "tag_values": map_vals,
+                "default_value": default_value,
+                "default_other_keys": default_other_keys,
+            }
+        return rates, mapping
+
+    def setUp(self):
+        """Set up a test with database objects."""
+        super().setUp()
+        self.provider_uuid = self.ocp_provider_uuid
+        self.schema = "acct10001"
+        self.creator = ReportObjectCreator(self.schema)
+
+        reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
+        report = self.creator.create_ocp_report(reporting_period)
+        self.creator.create_ocp_usage_line_item(reporting_period, report)
+        self.creator.create_ocp_node_label_line_item(reporting_period, report)
+        self.rates, self.mapping = self.build_tag_rates()
+        self.cost_model = self.creator.create_cost_model(self.provider_uuid, Provider.PROVIDER_OCP, self.rates)
+
+    def test_initializer(self):
+        """Test initializer."""
+        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+            self.assertEqual(cost_model_accessor.provider_uuid, self.provider_uuid)
+
+    def test_infrastructure_tag_rates(self):
+        """Test infrastructure rates property."""
+        cost_type = "Infrastructure"
+
+        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+            result_infra_rates = cost_model_accessor.tag_infrastructure_rates
+            for metric_name in result_infra_rates.keys():
+                expected_key = self.mapping.get(metric_name).get("tag_key")
+                expected_vals = self.mapping.get(metric_name).get("tag_values")
+                expected_cost_type = self.mapping.get(metric_name).get("cost_type")
+                expected_dict = {expected_key: expected_vals}
+                self.assertEqual(result_infra_rates.get(metric_name), expected_dict)
+                self.assertEqual(expected_cost_type, cost_type)
+
+    def test_supplementary_tag_rates(self):
+        """Test supplementary rates property."""
+        cost_type = "Supplementary"
+
+        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+            result_infra_rates = cost_model_accessor.tag_supplementary_rates
+            for metric_name in result_infra_rates.keys():
+                expected_key = self.mapping.get(metric_name).get("tag_key")
+                expected_vals = self.mapping.get(metric_name).get("tag_values")
+                expected_cost_type = self.mapping.get(metric_name).get("cost_type")
+                expected_dict = {expected_key: expected_vals}
+                self.assertEqual(result_infra_rates.get(metric_name), expected_dict)
+                self.assertEqual(expected_cost_type, cost_type)
+
+    def test_default_infrastructure_rates(self):
+        """Tests that the proper keys and values are added for the default rates"""
+        cost_type = "Infrastructure"
+
+        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+            result_infra_rates = cost_model_accessor.tag_default_infrastructure_rates
+            for metric_name in result_infra_rates.keys():
+                expected_key = self.mapping.get(metric_name).get("tag_key")
+                expected_default_value = self.mapping.get(metric_name).get("default_value")
+                expected_default_keys = self.mapping.get(metric_name).get("default_other_keys")
+                expected_cost_type = self.mapping.get(metric_name).get("cost_type")
+                expected_dict = {
+                    expected_key: {"default_value": expected_default_value, "defined_keys": expected_default_keys}
+                }
+                self.assertEqual(result_infra_rates.get(metric_name), expected_dict)
+                self.assertEqual(expected_cost_type, cost_type)
+
+    def test_default_supplementary_rates(self):
+        """Tests that the proper keys and values are added for the default rates"""
+        cost_type = "Supplementary"
+
+        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+            result_infra_rates = cost_model_accessor.tag_default_supplementary_rates
+            for metric_name in result_infra_rates.keys():
+                expected_key = self.mapping.get(metric_name).get("tag_key")
+                expected_default_value = self.mapping.get(metric_name).get("default_value")
+                expected_default_keys = self.mapping.get(metric_name).get("default_other_keys")
+                expected_cost_type = self.mapping.get(metric_name).get("cost_type")
+                expected_dict = {
+                    expected_key: {"default_value": expected_default_value, "defined_keys": expected_default_keys}
+                }
+                self.assertEqual(result_infra_rates.get(metric_name), expected_dict)
+                self.assertEqual(expected_cost_type, cost_type)
