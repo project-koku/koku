@@ -88,7 +88,7 @@ class ResourceTypeView(APIView):
             }
             cost_model_dict = {
                 "value": "rate",
-                "path": "/api/cost-management/v1/resource-types/rates/",
+                "path": "/api/cost-management/v1/resource-types/cost-models/",
                 "count": cost_model_count,
             }
             data = [
