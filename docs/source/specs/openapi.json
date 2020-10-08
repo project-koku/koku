@@ -1726,6 +1726,278 @@
                 }]
             }
         },
+        "/resource-types/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Resource Types For RBAC",
+                "operationId": "listResourceTypes",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypeListPagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/aws-accounts/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Resource Types For RBAC",
+                "operationId": "listAwsAccountsForResourceType",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/aws-organizational-units/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Resource Types For RBAC",
+                "operationId": "listAwsOrgUnitsForResourceType",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/azure-subscription-guids/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Resource Types For RBAC",
+                "operationId": "listAzureSubGuidsForResourceType",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/openshift-clusters/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Resource Types For RBAC",
+                "operationId": "listOpenShiftClustersForResourceType",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/openshift-nodes/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "listOpenShiftNodesForResourceType",
+                "operationId": "listOpenS",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/openshift-projects/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Resource Types For RBAC",
+                "operationId": "listOpenShiftProjectsForResourceType",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/cost-models/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Resource Types For RBAC",
+                "operationId": "listCostModelsForResourceType",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/sources/": {
             "get": {
                 "tags": [
@@ -3014,6 +3286,25 @@
                 "schema": {
                     "type": "boolean"
                 }
+            },
+            "QueryValue": {
+                "in": "query",
+                "name": "value",
+                "required": false,
+                "description": "Parameter for matching the value data using a contains.",
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "QueryOrder" : {
+                "in": "query",
+                "name": "ordering",
+                "required": false,
+                "description": "Parameter for ordering the value data.",
+                "schema": {
+                    "type": "string",
+                    "enum": ["value", "-value"]
+                }
             }
         },
         "securitySchemes": {
@@ -3414,6 +3705,66 @@
                         }
                     }
                 ]
+            },
+            "ResourceTypeListPagination": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ListPagination"
+                  },
+                  {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/ResourceTypeListOut"
+                                }
+                            }
+                        }
+                    }
+                ],
+            },
+            "ResourceTypePagination": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ListPagination"
+                  },
+                  {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/ResourceTypeOut"
+                                }
+                            }
+                        }
+                    }
+                ],
+            },
+            "ResourceTypeOut": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    }
+                }
+            },
+            "ResourceTypeListOut": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "count": {
+                        "type": "integer"
+                    }
+                }
             },
             "Source": {
                 "required": [
