@@ -16,9 +16,11 @@
 #
 """Common util functions."""
 import datetime
+import json
 import logging
 import re
 
+import ciso8601
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
@@ -107,3 +109,30 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
             bills = bills.all()
 
     return bills
+
+
+def azure_date_converter(date):
+    """Convert Azure date fields properly."""
+    try:
+        new_date = ciso8601.parse_datetime(date)
+    except ValueError:
+        date_split = date.split("/")
+        new_date_str = date_split[2] + date_split[0] + date_split[1]
+        new_date = ciso8601.parse_datetime(new_date_str)
+    return new_date
+
+
+def azure_json_converter(tag_str):
+    """Convert either Azure JSON field format to proper JSON."""
+    tag_dict = {}
+    try:
+        if "{" in tag_str:
+            tag_dict = json.loads(tag_str)
+        tags = tag_str.split('","')
+        for tag in tags:
+            key, value = tag.split(": ")
+            tag_dict[key.strip('"')] = value.strip('"')
+    except (ValueError, TypeError):
+        pass
+
+    return json.dumps(tag_dict)
