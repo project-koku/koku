@@ -18,17 +18,17 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily
     markup_cost
 )
 WITH cte_line_items AS (
-    SELECT date(usagedatetime) as usage_date,
+    SELECT date(coalesce(date, usagedatetime)) as usage_date,
         INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
-        subscriptionguid as subscription_guid,
+        coalesce(subscriptionid, subscriptionguid) as subscription_guid,
         resourcelocation as resource_location,
-        servicename as service_name,
+        coalesce(servicename, metercategory) as service_name,
         json_extract_scalar(json_parse(additionalinfo), '$.ServiceType') as instance_type,
-        cast(usagequantity as DECIMAL(24,9)) as usage_quantity,
-        cast(pretaxcost as DECIMAL(24,9)) as pretax_cost,
-        currency as currency,
+        cast(coalesce(quantity, usagequantity) as DECIMAL(24,9)) as usage_quantity,
+        cast(coalesce(costinbillingcurrency, pretaxcost) as DECIMAL(24,9)) as pretax_cost,
+        coalesce(billingcurrencycode, currency) as currency,
         json_parse(tags) as tags,
-        instanceid as instance_id,
+        coalesce(resourceid, instanceid) as instance_id,
         cast(source as UUID) as source_uuid,
         CASE
             WHEN split_part(unitofmeasure, ' ', 2) != '' AND NOT (unitofmeasure = '100 Hours' AND metercategory='Virtual Machines')
@@ -48,8 +48,8 @@ WITH cte_line_items AS (
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'
-        AND date(usagedatetime) >= date('{{start_date | sqlsafe}}')
-        AND date(usagedatetime) <= date('{{end_date | sqlsafe}}')
+        AND date(coalesce(date, usagedatetime)) >= date('{{start_date | sqlsafe}}')
+        AND date(coalesce(date, usagedatetime)) <= date('{{end_date | sqlsafe}}')
 )
 SELECT uuid() as uuid,
     li.usage_date AS usage_start,
