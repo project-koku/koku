@@ -89,6 +89,8 @@ INSTALLED_APPS = [
     "sources",
 ]
 
+SILENCED_SYSTEM_CHECKS = ["tenant_schemas.W001"]
+
 SHARED_APPS = (
     "tenant_schemas",
     "api",
