@@ -60,7 +60,7 @@ class User(models.Model):
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(blank=True)
     date_created = models.DateTimeField(auto_now_add=True)
-    is_active = models.NullBooleanField(default=True)
+    is_active = models.BooleanField(default=True, null=True)
     customer = models.ForeignKey("Customer", null=True, on_delete=models.CASCADE)
 
     def __init__(self, *args, **kwargs):
@@ -74,8 +74,16 @@ class User(models.Model):
         ordering = ["username"]
 
 
-class SpeedyTenantMixin(TenantMixin):
+class Tenant(TenantMixin):
+    """The model used to create a tenant schema."""
+
     _TEMPLATE_SCHEMA = os.environ.get("TEMPLATE_SCHEMA", "tenant_tmpl")
+
+    # Override the mixin domain url to make it nullable, non-unique
+    domain_url = None
+
+    # Delete all schemas when a tenant is removed
+    auto_drop_schema = True
 
     def _verify_clone_func(self):
         sql = """
@@ -139,13 +147,3 @@ select public.clone_schema(%s, %s, add_tenant => false, include_recs => true) as
             conn.set_schema_to_public()
 
         return result[0] or False
-
-
-class Tenant(SpeedyTenantMixin):
-    """The model used to create a tenant schema."""
-
-    # Override the mixin domain url to make it nullable, non-unique
-    domain_url = None
-
-    # Delete all schemas when a tenant is removed
-    auto_drop_schema = True
