@@ -16,11 +16,12 @@
 #
 """Models for OCP cost entry tables."""
 from decimal import Decimal
+from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import JSONField
 
 
 class OCPUsageReportPeriod(models.Model):
@@ -304,26 +305,35 @@ class OCPTagsValues(models.Model):
         """Meta for OCPUsageTagValues."""
 
         db_table = "reporting_ocptags_values"
+        unique_together = ("key", "value")
+        indexes = [models.Index(fields=["key"], name="openshift_tags_value_key_idx")]
 
-    value = models.CharField(max_length=253, unique=True)
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+
+    key = models.TextField()
+    value = models.TextField()
+    cluster_ids = ArrayField(models.TextField())
+    cluster_aliases = ArrayField(models.TextField())
+    namespaces = ArrayField(models.TextField())
+    nodes = ArrayField(models.TextField(), null=True)
 
 
 class OCPUsagePodLabelSummary(models.Model):
     """A collection of all current existing tag key and values."""
 
     class Meta:
-        """Meta for OCPUsageTagSummary."""
+        """Meta for OCPUsagePodLabelSummary."""
 
         db_table = "reporting_ocpusagepodlabel_summary"
-        unique_together = ("key", "report_period", "namespace")
+        unique_together = ("key", "report_period", "namespace", "node")
 
-    id = models.BigAutoField(primary_key=True)
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
 
-    key = models.CharField(max_length=253)
-    values = ArrayField(models.CharField(max_length=253))
-    values_mtm = models.ManyToManyField(OCPTagsValues)
+    key = models.TextField()
+    values = ArrayField(models.TextField())
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
-    namespace = models.CharField(max_length=253)
+    namespace = models.TextField()
+    node = models.TextField(null=True)
 
 
 class OCPStorageLineItem(models.Model):
@@ -423,15 +433,15 @@ class OCPStorageVolumeLabelSummary(models.Model):
         """Meta for OCPStorageVolumeLabelSummary."""
 
         db_table = "reporting_ocpstoragevolumelabel_summary"
-        unique_together = ("key", "report_period", "namespace")
+        unique_together = ("key", "report_period", "namespace", "node")
 
-    id = models.BigAutoField(primary_key=True)
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
 
-    key = models.CharField(max_length=253)
-    values = ArrayField(models.CharField(max_length=253))
-    values_mtm = models.ManyToManyField(OCPTagsValues)
+    key = models.TextField()
+    values = ArrayField(models.TextField())
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
-    namespace = models.CharField(max_length=253)
+    namespace = models.TextField()
+    node = models.TextField(null=True)
 
 
 class OCPNodeLabelLineItem(models.Model):

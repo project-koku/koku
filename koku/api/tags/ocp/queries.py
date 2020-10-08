@@ -48,9 +48,7 @@ class OCPTagQueryHandler(TagQueryHandler):
             "annotations": {"enabled": Exists(enabled)},
         },
     ]
-    TAGS_VALUES_SOURCE = [
-        {"db_table": OCPTagsValues, "fields": ["ocpusagepodlabelsummary__key", "ocpstoragevolumelabelsummary__key"]}
-    ]
+    TAGS_VALUES_SOURCE = [{"db_table": OCPTagsValues, "fields": ["key"]}]
     SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["project", "enabled", "cluster"]
     FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
     FILTER_MAP.update(
@@ -75,6 +73,7 @@ class OCPTagQueryHandler(TagQueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
+        self._parameters = parameters
         if not hasattr(self, "_mapper"):
             self._mapper = OCPProviderMap(provider=self.provider, report_type=parameters.report_type)
 
@@ -82,3 +81,39 @@ class OCPTagQueryHandler(TagQueryHandler):
             parameters.set_filter(**{"enabled": True})
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
+
+    @property
+    def filter_map(self):
+        """Establish which filter map to use based on tag API."""
+        filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
+        if self._parameters.get_filter("value"):
+            filter_map.update(
+                {
+                    "project": {"field": "namespaces", "operation": "icontains"},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    "cluster": [
+                        {"field": "cluster_ids", "operation": "icontains", "composition_key": "cluster_filter"},
+                        {"field": "cluster_aliases", "operation": "icontains", "composition_key": "cluster_filter"},
+                    ],
+                }
+            )
+        else:
+            filter_map.update(
+                {
+                    "project": {"field": "namespace", "operation": "icontains"},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    "cluster": [
+                        {
+                            "field": "report_period__cluster_id",
+                            "operation": "icontains",
+                            "composition_key": "cluster_filter",
+                        },
+                        {
+                            "field": "report_period__cluster_alias",
+                            "operation": "icontains",
+                            "composition_key": "cluster_filter",
+                        },
+                    ],
+                }
+            )
+        return filter_map

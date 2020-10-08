@@ -254,10 +254,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
         handler.key = key
         with tenant_context(self.tenant):
             storage_tags = (
-                OCPTagsValues.objects.filter(ocpstoragevolumelabelsummary__key__exact=key, value__icontains=value)
-                .values("value")
-                .distinct()
-                .all()
+                OCPTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
             )
             tag_values = [tag.get("value") for tag in storage_tags]
         expected = {"key": key, "values": tag_values}
@@ -276,17 +273,11 @@ class OCPTagQueryHandlerTest(IamTestCase):
         handler = OCPTagQueryHandler(query_params)
         with tenant_context(self.tenant):
             storage_tags = (
-                OCPTagsValues.objects.filter(ocpstoragevolumelabelsummary__key__exact=key, value__icontains=value)
-                .values("value")
-                .distinct()
-                .all()
+                OCPTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
             )
             storage_values = [tag.get("value") for tag in storage_tags]
             usage_tags = (
-                OCPTagsValues.objects.filter(ocpusagepodlabelsummary__key__exact=key, value__icontains=value)
-                .values("value")
-                .distinct()
-                .all()
+                OCPTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
             )
             usage_values = [tag.get("value") for tag in usage_tags]
             # remove duplicates from the values

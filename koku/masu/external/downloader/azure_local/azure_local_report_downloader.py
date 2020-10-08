@@ -77,8 +77,8 @@ class AzureLocalReportDownloader(AzureReportDownloader):
 
         if not os.path.exists(local_path):
             msg = f"Unable to find manifest: {local_path}."
-            LOG.error(log_json(self.request_id, msg, self.context))
-            return manifest
+            LOG.info(log_json(self.request_id, msg, self.context))
+            return manifest, None
 
         manifest_modified_timestamp = None
         report_names = os.listdir(local_path)

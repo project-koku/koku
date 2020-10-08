@@ -22,6 +22,7 @@ from django.test import TestCase
 from faker import Faker
 from rest_framework.exceptions import ValidationError
 
+from api.iam.models import Tenant
 from api.models import Provider
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_builder import ProviderBuilderError
@@ -66,6 +67,16 @@ class ProviderBuilderTest(TestCase):
 
     def test_create_provider(self):
         """Test to create a provider."""
+        # Delete tenants
+        Tenant.objects.all().delete()
+        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            mock_source = MockSourceObject(self.name, self.provider_type, self.authentication, self.billing_source)
+            provider = client.create_provider_from_source(mock_source)
+            self.assertEqual(provider.name, self.name)
+
+    def test_create_provider_no_tenant(self):
+        """Test to create a provider after tenant was removed."""
         client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             mock_source = MockSourceObject(self.name, self.provider_type, self.authentication, self.billing_source)
