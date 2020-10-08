@@ -15,10 +15,25 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Models for identity and access management."""
+import logging
+import os
 from uuid import uuid4
 
 from django.db import models
+from django.db import transaction
 from tenant_schemas.models import TenantMixin
+from tenant_schemas.postgresql_backend.base import _check_schema_name
+from tenant_schemas.utils import schema_exists
+
+from koku.migration_sql_helpers import apply_sql_file
+from koku.migration_sql_helpers import find_db_functions_dir
+
+
+LOG = logging.getLogger(__name__)
+
+
+class CloneSchemaError(Exception):
+    pass
 
 
 class Customer(models.Model):
@@ -59,7 +74,74 @@ class User(models.Model):
         ordering = ["username"]
 
 
-class Tenant(TenantMixin):
+class SpeedyTenantMixin(TenantMixin):
+    _TEMPLATE_SCHEMA = os.environ.get("TEMPLATE_SCHEMA", "tenant_tmpl")
+
+    def _verify_clone_func(self):
+        sql = """
+select (count(*) > 0) as "func_exists"
+  from pg_proc
+ where pronamespace = 'public'::regnamespace
+   and proname = 'clone_schema';
+"""
+        with transaction.atomic():
+            conn = transaction.get_connection()
+            cur = conn.cursor()
+            cur.execute(sql)
+            result = cur.fetchone()
+            cur.close()
+
+            if not result or not result[0]:
+                LOG.info('Creating "public.clone_schema" DB function')
+                func_dir = find_db_functions_dir()
+                clone_script = os.path.join(func_dir, "clone_schema.sql")
+                apply_sql_file(conn, clone_script)
+
+    def _verify_template(self, verbosity=1):
+        LOG.info(f'Verify that template schema "{self._TEMPLATE_SCHEMA}" exists')
+        _schema = self.schema_name
+        self.schema_name = self._TEMPLATE_SCHEMA
+        super().create_schema(check_if_exists=True, sync_schema=True, verbosity=verbosity)
+        self.schema_name = _schema
+
+    def create_schema(self, check_if_exists=False, sync_schema=True, verbosity=1):
+        # Verify name structure
+        _check_schema_name(self.schema_name)
+
+        # Make sure all of our special pieces are in play
+        self._verify_clone_func()
+        self._verify_template(verbosity=verbosity)
+
+        # ignoring check_if_exists flag -- ALWAYS CHECK!
+        if schema_exists(self.schema_name):
+            return False
+
+        # Clone the schema
+        with transaction.atomic():
+            conn = transaction.get_connection()
+            cur = conn.cursor()
+
+            # This db func will clone the schema objects
+            # bypassing the time it takes to run migrations
+            sql = """
+select public.clone_schema(%s, %s, add_tenant => false, include_recs => true) as "clone_result";
+"""
+            cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
+            result = cur.fetchone()
+            cur.close()
+
+            result = result[0] if result else False
+            if not result or not result[0]:
+                # Error creating schema
+                conn.rollback()
+                raise CloneSchemaError(f'Schema "{self.schema_name} creation has failed! Check DB logs!')
+
+            conn.set_schema_to_public()
+
+        return result[0] or False
+
+
+class Tenant(SpeedyTenantMixin):
     """The model used to create a tenant schema."""
 
     # Override the mixin domain url to make it nullable, non-unique
