@@ -773,7 +773,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                     line_item.infrastructure_monthly_cost = (
                                         Coalesce(
                                             line_item.infrastructure_monthly_cost,
-                                            Value(0),
+                                            Value(0.0),
                                             output_field=DecimalField(),
                                         )
                                         + rate_value
@@ -782,7 +782,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                     LOG.info("Node (%s) has a monthly supplemenarty cost of %s.", node, rate_value)
                                     line_item.supplementary_monthly_cost = (
                                         Coalesce(
-                                            line_item.supplementary_monthly_cost, Value(0), output_field=DecimalField()
+                                            line_item.supplementary_monthly_cost,
+                                            Value(0.0),
+                                            output_field=DecimalField(),
                                         )
                                         + rate_value
                                     )
@@ -873,7 +875,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                     line_item.infrastructure_monthly_cost = (
                                         Coalesce(
                                             line_item.infrastructure_monthly_cost,
-                                            Value(0),
+                                            Value(0.0),
                                             output_field=DecimalField(),
                                         )
                                         + rate_value
@@ -886,7 +888,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                     )
                                     line_item.supplementary_monthly_cost = (
                                         Coalesce(
-                                            line_item.supplementary_monthly_cost, Value(0), output_field=DecimalField()
+                                            line_item.supplementary_monthly_cost,
+                                            Value(0.0),
+                                            output_field=DecimalField(),
                                         )
                                         + rate_value
                                     )
