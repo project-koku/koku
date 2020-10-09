@@ -1152,6 +1152,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     key_value_pair = []
                     tag_vals = tags.get(tag_key)
                     rate_value = tag_vals.get("default_value", 0)
+                    if rate_value == 0:
+                        continue
                     value_names = tag_vals.get("defined_keys", [])
                     for value_to_skip in value_names:
                         key_value_pair.append(f'{{"{tag_key}": "{value_to_skip}"}}')

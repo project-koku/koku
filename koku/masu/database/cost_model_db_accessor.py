@@ -179,6 +179,7 @@ class CostModelDBAccessor(KokuDBAccess):
             for tag in rate.get("tag_rates"):
                 tag_rate_dict = {}
                 tag_key = tag.get("tag_key")
+                default_rate = 0
                 for tag_rate in tag.get("tag_values"):
                     rate_value = tag_rate.get("value")
                     unit = tag_rate.get("unit")
