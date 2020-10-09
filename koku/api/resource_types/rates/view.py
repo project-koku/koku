@@ -13,8 +13,10 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""View for AWS accounts."""
-from django.db.models import F
+"""View for Resource Types Cost Model."""
+from django.db.models import CharField
+from django.db.models import Value as V
+from django.db.models.functions import Concat
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import filters
@@ -23,13 +25,17 @@ from rest_framework import generics
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.aws.models import AWSCostSummaryByAccount
+from cost_models.models import CostModel
 
 
-class AWSAccountView(generics.ListAPIView):
-    """API GET list view for AWS accounts."""
+class CostModelResourceTypesView(generics.ListAPIView):
+    """API GET for resource types cost model view."""
 
-    queryset = AWSCostSummaryByAccount.objects.annotate(**{"value": F("usage_account_id")}).values("value").distinct()
+    queryset = (
+        CostModel.objects.all()
+        .annotate(value=Concat("uuid", V(" ("), "name", V(")"), output_field=CharField()))
+        .values("value")
+    )
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
     filter_backends = [filters.OrderingFilter]
