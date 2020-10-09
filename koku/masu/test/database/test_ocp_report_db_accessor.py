@@ -944,7 +944,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+        self.cluster_id = "OCP-on-Azure"
         with schema_context(self.schema):
             k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
             c_a = k_v.get("cluster_alias")
@@ -987,7 +987,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+        self.cluster_id = "OCP-on-Azure"
         with schema_context(self.schema):
             # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
             k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
@@ -1004,6 +1004,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.accessor.populate_monthly_tag_cost(
                 "Node", "Supplementary", node_tag_rates, start_date, end_date, self.cluster_id, c_a
             )
+            print("\n\n\n\n\n")
+            print(
+                OCPUsageLineItemDailySummary.objects.filter(
+                    cluster_id=self.cluster_id, pod_labels__contains='{"app":"banking"}'
+                ).values("pod_labels")
+            )
+            print("\n\n\n\n\n")
+            print(c_a)
             # assert that after the update, there are now the monthly values for
             # the three different nodes that have a value
             self.assertEqual(qset.count(), 3)
@@ -1024,7 +1032,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+        self.cluster_id = "OCP-on-Azure"
         with schema_context(self.schema):
             # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
             k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
@@ -1066,7 +1074,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+        self.cluster_id = "OCP-on-Azure"
         with schema_context(self.schema):
             # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
             k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
@@ -1105,7 +1113,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+        self.cluster_id = "OCP-on-Azure"
         with schema_context(self.schema):
             # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
             k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
@@ -1149,7 +1157,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+        self.cluster_id = "OCP-on-Azure"
         with schema_context(self.schema):
             # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
             k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
@@ -1185,7 +1193,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+        self.cluster_id = "OCP-on-Azure"
         with schema_context(self.schema):
             # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
             k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
@@ -1227,7 +1235,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+        self.cluster_id = "OCP-on-Azure"
         with schema_context(self.schema):
             # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
             k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
@@ -1268,7 +1276,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+        self.cluster_id = "OCP-on-Azure"
         with schema_context(self.schema):
             # define the two usage types to test
             usage_types = {"Infrastructure": "infrastructure_usage_cost", "Supplementary": "supplementary_usage_cost"}
@@ -1377,7 +1385,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+        self.cluster_id = "OCP-on-Azure"
         with schema_context(self.schema):
             # define the two usage types to test
             usage_types = {"Infrastructure": "infrastructure_usage_cost", "Supplementary": "supplementary_usage_cost"}

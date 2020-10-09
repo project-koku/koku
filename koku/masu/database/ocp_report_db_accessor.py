@@ -657,7 +657,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
                     )
 
-    def populate_monthly_tag_cost(self, cost_type, rate_type, rate, start_date, end_date, cluster_id, cluster_alias):
+    def populate_monthly_tag_cost(
+        self, cost_type, rate_type, rate_dict, start_date, end_date, cluster_id, cluster_alias
+    ):
         """
         Populate the monthly cost of a customer based on tag rates.
 
@@ -679,11 +681,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             LOG.info("Populating monthly tag based cost from %s to %s.", first_curr_month, first_next_month)
             if cost_type == "Node":
                 self.tag_upsert_monthly_node_cost_line_item(
-                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
                 )
             elif cost_type == "Cluster":
                 self.tag_upsert_monthly_cluster_cost_line_item(
-                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
                 )
 
     def upsert_monthly_node_cost_line_item(
@@ -721,7 +723,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     line_item.supplementary_monthly_cost = node_cost
                 line_item.save()
 
-    def tag_upsert_monthly_node_cost_line_item(self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate):
+    def tag_upsert_monthly_node_cost_line_item(
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
+    ):
         """
         Update or insert daily summary line item for node cost.
 
@@ -733,9 +737,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
         with schema_context(self.schema):
             for node in unique_nodes:
-                if rate is not None:
-                    for tag_key in rate:
-                        tag_values = rate.get(tag_key)
+                if rate_dict is not None:
+                    for tag_key in rate_dict:
+                        tag_values = rate_dict.get(tag_key)
                         for value_name, rate_value in tag_values.items():
                             # this makes sure that there is an entry for that node
                             # that contains the specified key_value pair
@@ -823,7 +827,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 line_item.save()
 
     def tag_upsert_monthly_cluster_cost_line_item(
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
     ):
         """
         Update or insert a daily summary line item for cluster cost based on tag rates.
@@ -834,9 +838,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
         if report_period:
             with schema_context(self.schema):
-                if rate is not None:
-                    for tag_key in rate:
-                        tag_values = rate.get(tag_key)
+                if rate_dict is not None:
+                    for tag_key in rate_dict:
+                        tag_values = rate_dict.get(tag_key)
                         for value_name, rate_value in tag_values.items():
                             # this makes sure that there is an entry for that node
                             # that contains the specified key_value pair
