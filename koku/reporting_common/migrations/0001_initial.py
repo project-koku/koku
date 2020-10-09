@@ -4,6 +4,10 @@ import django.utils.timezone
 from django.db import migrations
 from django.db import models
 
+# Functions from the following migrations need manual copying.
+# Move them and any dependencies into this file, then update the
+# RunPython operations to refer to the local versions:
+
 
 class Migration(migrations.Migration):
 
@@ -23,6 +27,20 @@ class Migration(migrations.Migration):
     dependencies = [("api", "0001_initial")]
 
     operations = [
+        ###### begin customization; preserve this if you squash migrations ######
+        migrations.RunSQL(
+            """
+            DROP TABLE IF EXISTS "worker_cache_table";
+            CREATE TABLE "worker_cache_table" (
+                "cache_key" varchar(255) NOT NULL PRIMARY KEY,
+                "value" text NOT NULL,
+                "expires" timestamp with time zone NOT NULL
+            );
+            DROP INDEX IF EXISTS "worker_cache_table_expires";
+            CREATE INDEX "worker_cache_table_expires" ON "worker_cache_table" ("expires");
+            """
+        ),
+        ###### end customization ######
         migrations.CreateModel(
             name="CostUsageReportManifest",
             fields=[
