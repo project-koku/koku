@@ -16,6 +16,7 @@
 #
 """Database accessor for OCP report data."""
 import datetime
+import json
 import logging
 import pkgutil
 import uuid
@@ -656,6 +657,37 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
                     )
 
+    def populate_monthly_tag_cost(
+        self, cost_type, rate_type, rate_dict, start_date, end_date, cluster_id, cluster_alias
+    ):
+        """
+        Populate the monthly cost of a customer based on tag rates.
+
+        Right now this is just the node/month cost. Calculated from
+        tag value cost * number_unique_nodes for each tag key value pair
+        that is found on a line item with that node.
+        """
+        if isinstance(start_date, str):
+            start_date = parse(start_date).date()
+        if isinstance(end_date, str):
+            end_date = parse(end_date).date()
+
+        # usage_start, usage_end are date types
+        first_month = datetime.datetime(*start_date.replace(day=1).timetuple()[:3]).replace(tzinfo=pytz.UTC)
+        end_date = datetime.datetime(*end_date.timetuple()[:3]).replace(hour=23, minute=59, second=59, tzinfo=pytz.UTC)
+        # Calculate monthly cost for each month from start date to end date for each tag key:value pair in the rate
+        for curr_month in rrule(freq=MONTHLY, until=end_date, dtstart=first_month):
+            first_curr_month, first_next_month = month_date_range_tuple(curr_month)
+            LOG.info("Populating monthly tag based cost from %s to %s.", first_curr_month, first_next_month)
+            if cost_type == "Node":
+                self.tag_upsert_monthly_node_cost_line_item(
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
+                )
+            elif cost_type == "Cluster":
+                self.tag_upsert_monthly_cluster_cost_line_item(
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
+                )
+
     def upsert_monthly_node_cost_line_item(
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, node_cost
     ):
@@ -691,6 +723,77 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     line_item.supplementary_monthly_cost = node_cost
                 line_item.save()
 
+    def tag_upsert_monthly_node_cost_line_item(
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
+    ):
+        """
+        Update or insert daily summary line item for node cost.
+
+        It checks to see if a line item exists for each node
+        that contains the tag key:value pair,
+        if it does then the price is added to the monthly cost.
+        """
+        unique_nodes = self.get_distinct_nodes(start_date, end_date, cluster_id)
+        report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
+        with schema_context(self.schema):
+            for node in unique_nodes:
+                if rate_dict is not None:
+                    for tag_key in rate_dict:
+                        tag_values = rate_dict.get(tag_key)
+                        for value_name, rate_value in tag_values.items():
+                            # this makes sure that there is an entry for that node
+                            # that contains the specified key_value pair
+                            item_check = OCPUsageLineItemDailySummary.objects.filter(
+                                usage_start__gte=start_date,
+                                usage_end__lte=end_date,
+                                report_period=report_period,
+                                cluster_id=cluster_id,
+                                cluster_alias=cluster_alias,
+                                node=node,
+                                pod_labels__contains={tag_key: value_name},
+                            ).first()
+                            if item_check:
+                                line_item = OCPUsageLineItemDailySummary.objects.filter(
+                                    usage_start=start_date,
+                                    usage_end=start_date,
+                                    report_period=report_period,
+                                    cluster_id=cluster_id,
+                                    cluster_alias=cluster_alias,
+                                    monthly_cost_type="Node",
+                                    node=node,
+                                ).first()
+                                if not line_item:
+                                    line_item = OCPUsageLineItemDailySummary(
+                                        usage_start=start_date,
+                                        usage_end=start_date,
+                                        report_period=report_period,
+                                        cluster_id=cluster_id,
+                                        cluster_alias=cluster_alias,
+                                        monthly_cost_type="Node",
+                                        node=node,
+                                    )
+                                if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                                    LOG.info("Node (%s) has a monthly infrastructure cost of %s.", node, rate_value)
+                                    line_item.infrastructure_monthly_cost = (
+                                        Coalesce(
+                                            line_item.infrastructure_monthly_cost,
+                                            Value(0.0),
+                                            output_field=DecimalField(),
+                                        )
+                                        + rate_value
+                                    )
+                                elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                                    LOG.info("Node (%s) has a monthly supplemenarty cost of %s.", node, rate_value)
+                                    line_item.supplementary_monthly_cost = (
+                                        Coalesce(
+                                            line_item.supplementary_monthly_cost,
+                                            Value(0.0),
+                                            output_field=DecimalField(),
+                                        )
+                                        + rate_value
+                                    )
+                                line_item.save()
+
     def upsert_monthly_cluster_cost_line_item(
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, cluster_cost
     ):
@@ -722,6 +825,80 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     LOG.info("Cluster (%s) has a monthly supplemenarty cost of %s.", cluster_id, cluster_cost)
                     line_item.supplementary_monthly_cost = cluster_cost
                 line_item.save()
+
+    def tag_upsert_monthly_cluster_cost_line_item(
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
+    ):
+        """
+        Update or insert a daily summary line item for cluster cost based on tag rates.
+        It checks to see if a line item exists for the cluster
+        that contains the tag key:value pair,
+        if it does then the price is added to the monthly cost.
+        """
+        report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
+        if report_period:
+            with schema_context(self.schema):
+                if rate_dict is not None:
+                    for tag_key in rate_dict:
+                        tag_values = rate_dict.get(tag_key)
+                        for value_name, rate_value in tag_values.items():
+                            # this makes sure that there is an entry for that node
+                            # that contains the specified key_value pair
+                            item_check = line_item = OCPUsageLineItemDailySummary.objects.filter(
+                                usage_start__gte=start_date,
+                                usage_end__lte=end_date,
+                                report_period=report_period,
+                                cluster_id=cluster_id,
+                                cluster_alias=cluster_alias,
+                                pod_labels__contains={tag_key: value_name},
+                            ).first()
+                            if item_check:
+                                line_item = OCPUsageLineItemDailySummary.objects.filter(
+                                    usage_start=start_date,
+                                    usage_end=start_date,
+                                    report_period=report_period,
+                                    cluster_id=cluster_id,
+                                    cluster_alias=cluster_alias,
+                                    monthly_cost_type="Cluster",
+                                ).first()
+                                if not line_item:
+                                    line_item = OCPUsageLineItemDailySummary(
+                                        usage_start=start_date,
+                                        usage_end=start_date,
+                                        report_period=report_period,
+                                        cluster_id=cluster_id,
+                                        cluster_alias=cluster_alias,
+                                        monthly_cost_type="Cluster",
+                                    )
+                                if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                                    LOG.info(
+                                        "Cluster (%s) has a monthly infrastructure cost of %s from tag rates.",
+                                        cluster_id,
+                                        rate_value,
+                                    )
+                                    line_item.infrastructure_monthly_cost = (
+                                        Coalesce(
+                                            line_item.infrastructure_monthly_cost,
+                                            Value(0.0),
+                                            output_field=DecimalField(),
+                                        )
+                                        + rate_value
+                                    )
+                                elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                                    LOG.info(
+                                        "Cluster (%s) has a monthly supplemenarty cost of %s from tag rates.",
+                                        cluster_id,
+                                        rate_value,
+                                    )
+                                    line_item.supplementary_monthly_cost = (
+                                        Coalesce(
+                                            line_item.supplementary_monthly_cost,
+                                            Value(0.0),
+                                            output_field=DecimalField(),
+                                        )
+                                        + rate_value
+                                    )
+                                line_item.save()
 
     def remove_monthly_cost(self, start_date, end_date, cluster_id, cost_type):
         """Delete all monthly costs of a specific type over a date range."""
@@ -855,3 +1032,155 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 ),
             ),
         )
+
+    def populate_tag_usage_costs(  # noqa: C901
+        self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
+    ):
+        """
+        Update the reporting_ocpusagelineitem_daily_summary table with
+        usage costs based on tag rates.
+        Due to the way the tag_keys are stored it loops through all of
+        the tag keys to filter and update costs.
+
+        The data structure for infrastructure and supplementary rates are
+        a dictionary that include the metric name, the tag key,
+        the tag value names, and the tag value, for example:
+            {'cpu_core_usage_per_hour': {
+                'app': {
+                    'far': '0.2000000000', 'manager': '100.0000000000', 'walk': '5.0000000000'
+                    }
+                }
+            }
+        """
+        # defines the usage type for each metric
+        metric_usage_type_map = {
+            "cpu_core_usage_per_hour": "cpu",
+            "cpu_core_request_per_hour": "cpu",
+            "memory_gb_usage_per_hour": "memory",
+            "memory_gb_request_per_hour": "memory",
+            "storage_gb_usage_per_month": "storage",
+            "storage_gb_request_per_month": "storage",
+        }
+        # define the rates so the loop can operate on both rate types
+        rate_types = [
+            {"rates": infrastructure_rates, "sql_file": "sql/infrastructure_tag_rates.sql"},
+            {"rates": supplementary_rates, "sql_file": "sql/supplementary_tag_rates.sql"},
+        ]
+        # Cast start_date and end_date to date object, if they aren't already
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
+        # updates costs from tags
+        for rate_type in rate_types:
+            rate = rate_type.get("rates")
+            sql_file = rate_type.get("sql_file")
+            for metric in rate:
+                tags = rate.get(metric, {})
+                usage_type = metric_usage_type_map.get(metric)
+                table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+                for tag_key in tags:
+                    tag_vals = tags.get(tag_key, {})
+                    value_names = list(tag_vals.keys())
+                    for val_name in value_names:
+                        rate_value = tag_vals[val_name]
+                        key_value_pair = f'{{"{tag_key}": "{val_name}"}}'
+                        tag_rates_sql = pkgutil.get_data("masu.database", sql_file)
+                        tag_rates_sql = tag_rates_sql.decode("utf-8")
+                        tag_rates_sql_params = {
+                            "start_date": start_date,
+                            "end_date": end_date,
+                            "rate": rate_value,
+                            "cluster_id": cluster_id,
+                            "schema": self.schema,
+                            "usage_type": usage_type,
+                            "metric": metric,
+                            "k_v_pair": key_value_pair,
+                        }
+                        tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
+                            tag_rates_sql, tag_rates_sql_params
+                        )
+                        self._execute_raw_sql_query(
+                            table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
+                        )
+
+    def populate_tag_usage_default_costs(  # noqa: C901
+        self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
+    ):
+        """
+        Update the reporting_ocpusagelineitem_daily_summary table
+        with usage costs based on tag rates.
+
+        The data structure for infrastructure and supplementary rates
+        are a dictionary that includes the metric, the tag key,
+        the default value, and the values for that key that have
+        rates defined and do not need the default applied,
+        for example:
+            {
+                'cpu_core_usage_per_hour': {
+                    'app': {
+                        'default_value': '100.0000000000', 'defined_keys': ['far', 'manager', 'walk']
+                    }
+                }
+            }
+        """
+        # defines the usage type for each metric
+        metric_usage_type_map = {
+            "cpu_core_usage_per_hour": "cpu",
+            "cpu_core_request_per_hour": "cpu",
+            "memory_gb_usage_per_hour": "memory",
+            "memory_gb_request_per_hour": "memory",
+            "storage_gb_usage_per_month": "storage",
+            "storage_gb_request_per_month": "storage",
+        }
+        # define the rates so the loop can operate on both rate types
+        rate_types = [
+            {"rates": infrastructure_rates, "sql_file": "sql/default_infrastructure_tag_rates.sql"},
+            {"rates": supplementary_rates, "sql_file": "sql/default_supplementary_tag_rates.sql"},
+        ]
+        # Cast start_date and end_date to date object, if they aren't already
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
+
+        # updates costs from tags
+        for rate_type in rate_types:
+            rate = rate_type.get("rates")
+            sql_file = rate_type.get("sql_file")
+            for metric in rate:
+                tags = rate.get(metric, {})
+                usage_type = metric_usage_type_map.get(metric)
+                table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+                for tag_key in tags:
+                    key_value_pair = []
+                    tag_vals = tags.get(tag_key)
+                    rate_value = tag_vals.get("default_value", 0)
+                    if rate_value == 0:
+                        continue
+                    value_names = tag_vals.get("defined_keys", [])
+                    for value_to_skip in value_names:
+                        key_value_pair.append(f'{{"{tag_key}": "{value_to_skip}"}}')
+                    json.dumps(key_value_pair)
+                    tag_rates_sql = pkgutil.get_data("masu.database", sql_file)
+                    tag_rates_sql = tag_rates_sql.decode("utf-8")
+                    tag_rates_sql_params = {
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "rate": rate_value,
+                        "cluster_id": cluster_id,
+                        "schema": self.schema,
+                        "usage_type": usage_type,
+                        "metric": metric,
+                        "k_v_pair": key_value_pair,
+                    }
+                    tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
+                        tag_rates_sql, tag_rates_sql_params
+                    )
+                    self._execute_raw_sql_query(
+                        table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
+                    )
