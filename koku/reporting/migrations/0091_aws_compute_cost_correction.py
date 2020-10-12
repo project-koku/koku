@@ -4,7 +4,9 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0090_ocpallcostlineitemdailysummary_ocpallcostlineitemprojectdailysummary")]
+    dependencies = [
+        ("reporting", "0001_squashed_0090_ocpallcostlineitemdailysummary_ocpallcostlineitemprojectdailysummary")
+    ]
 
     operations = [
         migrations.RunSQL(
