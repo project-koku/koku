@@ -1042,6 +1042,55 @@ class OCPReportDBAccessorTest(MasuTestCase):
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
             self.assertEqual(rate_total, qset_total)
 
+    def test_populate_monthly_tag_cost_pvc_infrastructure_cost(self):
+        """
+        Test that the monthly infrastructure cost row for PVCs in the summary table
+        is populated when given tag based rates.
+        """
+        key_value_pairs = {"app": ["banking", "mobile", "weather"]}
+        node_tag_rates = {}
+        rate_total = 0
+        for key, values in key_value_pairs.items():
+            values_dict = {}
+            for value in values:
+                node_rate = random.randrange(1, 100)
+                values_dict[value] = node_rate
+                if value == "mobile":
+                    rate_total += node_rate
+                rate_total += node_rate
+            node_tag_rates[key] = values_dict
+
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+        self.cluster_id = "OCP-on-Azure"
+        with schema_context(self.schema):
+            k_v = (
+                OCPUsageLineItemDailySummary.objects.filter(volume_labels__contains={"app": "banking"})
+                .values()
+                .first()
+            )
+            c_a = k_v.get("cluster_alias")
+
+            qset = OCPUsageLineItemDailySummary.objects.filter(
+                cluster_id=self.cluster_id, infrastructure_monthly_cost__isnull=False, monthly_cost_type="PVC"
+            ).values("infrastructure_monthly_cost")
+            # assert that there are no infrastructure monthly node costs currently on our cluster id
+            self.assertEqual(qset.count(), 0)
+            # call populate monthly tag_cost with the rates defined above
+            self.accessor.populate_monthly_tag_cost(
+                "PVC", "Infrastructure", node_tag_rates, start_date, end_date, self.cluster_id, c_a
+            )
+
+            # assert that after the update, there are now the monthly values
+            # for the three different nodes that have a value
+            self.assertEqual(qset.count(), 4)
+            qset_total = 0
+            for value in qset:
+                qset_total += value.get("infrastructure_monthly_cost")
+            # assert that the total value of the qset costs is equal to the total costs from the tag rates
+            self.assertEqual(rate_total, qset_total)
+
     def test_populate_monthly_tag_cost_node_supplementary_cost(self):
         """
         Test that the monthly supplementary cost row for nodes in the summary table

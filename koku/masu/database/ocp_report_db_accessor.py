@@ -878,7 +878,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                 cluster_id=cluster_id,
                                 cluster_alias=cluster_alias,
                                 persistentvolumeclaim=pvc,
-                                pod_labels__contains={tag_key: value_name},
+                                volume_labels__contains={tag_key: value_name},
                             ).first()
                             if item_check:
                                 line_item = OCPUsageLineItemDailySummary.objects.filter(
