@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Django database settings."""
+import json
 import os
 
 from django.conf import settings
@@ -27,6 +28,8 @@ from django.db.models.aggregates import Func
 from django.db.models.fields.json import KeyTextTransform
 
 from .env import ENVIRONMENT
+from .migration_sql_helpers import apply_sql_file
+from .migration_sql_helpers import find_db_functions_dir
 
 engines = {
     "sqlite": "django.db.backends.sqlite3",
@@ -70,6 +73,34 @@ def config():
     return _cert_config(db_config, database_cert)
 
 
+def migrations_sproc_exists(connection):
+    sql = """
+select p.pronamespace::regnamespace::text || '.' || p.proname ||
+       '(' || pg_get_function_arguments(p.oid) || ')' as funcsig
+  from pg_proc p
+ where pronamespace = 'public'::regnamespace
+   and proname = 'app_migration_check';
+"""
+    with connection.cursor() as cur:
+        cur.execute(sql)
+        res = cur.fetchone()
+
+    return bool(res) and res[0] == "public.app_migration_check(leaf_migrations jsonb, _verbose boolean DEFAULT false)"
+
+
+def install_migrations_sproc(connection):
+    db_funcs_dir = find_db_functions_dir()
+    migration_check_sql = os.path.join(db_funcs_dir, "app_migration_check_func.sql")
+    apply_sql_file(connection, migration_check_sql)
+
+
+def check_migrattions_sproc(connection, targets):
+    with connection.cursor() as cur:
+        cur.execute("SELECT public.app_migration_check(%s::jsonb);", (json.dumps(dict(targets)),))
+        res = cur.fetchone()
+        return bool(res) and res[0]
+
+
 def check_migrations():
     """
     Check the status of database migrations.
@@ -84,7 +115,11 @@ def check_migrations():
         connection.prepare_database()
         executor = MigrationExecutor(connection)
         targets = executor.loader.graph.leaf_nodes()
-        return not executor.migration_plan(targets)
+
+        if not migrations_sproc_exists(connection):
+            install_migrations_sproc(connection)
+
+        return check_migrattions_sproc(connection, targets)
     except OperationalError:
         return False
 
