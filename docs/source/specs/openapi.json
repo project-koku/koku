@@ -3724,7 +3724,7 @@
                             }
                         }
                     }
-                ],
+                ]
             },
             "ResourceTypePagination": {
                 "allOf": [{
@@ -3744,7 +3744,7 @@
                             }
                         }
                     }
-                ],
+                ]
             },
             "ResourceTypeOut": {
                 "properties": {
