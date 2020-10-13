@@ -88,7 +88,7 @@ select p.pronamespace::regnamespace::text || '.' || p.proname ||
        '(' || pg_get_function_arguments(p.oid) || ')' as funcsig
   from pg_proc p
  where pronamespace = 'public'::regnamespace
-   and proname = 'app_migration_check';
+   and proname = 'app_needs_migrations';
 """
     with connection.cursor() as cur:
         cur.execute(sql)
@@ -115,7 +115,7 @@ def verify_migrations_dbfunc(connection):
 
 def check_migrattions_dbfunc(connection, targets):
     """
-    Check the state of the migrations using the app_migration_check
+    Check the state of the migrations using the app_needs_migrations
     database function.
     The database function returns true if the migrations NEED to be run else false.
     """

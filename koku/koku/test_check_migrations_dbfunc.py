@@ -28,7 +28,7 @@ def execute(conn, sql, values=None):
 
 class TestCheckMigrationDBFunc(IamTestCase):
     def drop_check_func(self):
-        execute(conn, "drop function if exists public.app_migration_check(jsonb, boolean);")
+        execute(conn, "drop function if exists public.app_needs_migrations(jsonb, boolean);")
 
     def get_public_latest_migrations(self):
         cur = execute(
@@ -56,7 +56,7 @@ select app,
         kdb.verify_migrations_dbfunc(conn)
         latest_migrations = self.get_public_latest_migrations()
         res = kdb.check_migrattions_dbfunc(conn, latest_migrations)
-        self.assertEqual(res, False)
+        self.assertEqual(res, True)
 
     def test_migration_check_do_run(self):
         kdb.verify_migrations_dbfunc(conn)
@@ -66,11 +66,11 @@ select app,
         # that is not recorded in the database migrations tables
         latest_migrations.append(("__eek", "0999_eek_1"))
         res = kdb.check_migrattions_dbfunc(conn, latest_migrations)
-        self.assertEqual(res, True)
+        self.assertEqual(res, False)
 
         # Test that migrations should be run when the leaf migrations are greater than
         # the latest migrations recorded in the database
         latest_migrations.pop()  # remove "__eek" app from list
         latest_migrations[0] = (latest_migrations[0][0], "0999_eek")
         res = kdb.check_migrattions_dbfunc(conn, latest_migrations)
-        self.assertEqual(res, True)
+        self.assertEqual(res, False)

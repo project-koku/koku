@@ -19,7 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 -- leaf_migrations (jsonb) = leaf migration names by app from the django code
 --    Ex: '{<django-app>: <latest-leaf-migration-name>}'
 -- Set _verbose to true to see notices raised during execution
-DROP FUNCTION IF EXISTS public.app_migration_check(jsonb, boolean);
+DROP FUNCTION IF EXISTS public.app_needs_migrations(jsonb, boolean);
 
 CREATE OR REPLACE FUNCTION public.app_needs_migrations(leaf_migrations jsonb, _verbose boolean DEFAULT false)
 RETURNS boolean AS $BODY$
