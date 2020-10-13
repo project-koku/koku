@@ -1,3 +1,4 @@
+import calendar
 import logging
 
 import ciso8601
@@ -22,12 +23,50 @@ class AWSReportParquetSummaryUpdater:
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
-        if isinstance(start_date, str):
-            start_date = ciso8601.parse_datetime(start_date).date()
-        if isinstance(end_date, str):
-            end_date = ciso8601.parse_datetime(end_date).date()
+        with AWSReportDBAccessor(self._schema) as accessor:
+            # This is the normal processing route
+            if self._manifest:
+                # Override the bill date to correspond with the manifest
+                bill_date = self._manifest.billing_period_start_datetime.date()
+                bills = accessor.get_cost_entry_bills_query_by_provider(self._provider.uuid)
+                bills = bills.filter(billing_period_start=bill_date).all()
+                first_bill = bills.filter(billing_period_start=bill_date).first()
+                do_month_update = False
+                with schema_context(self._schema):
+                    if first_bill:
+                        do_month_update = self._determine_if_full_summary_update_needed(first_bill)
+                if do_month_update:
+                    last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
+                    start_date = bill_date
+                    end_date = bill_date.replace(day=last_day_of_month)
+                    LOG.info("Overriding start and end date to process full month.")
+            else:
+                if isinstance(start_date, str):
+                    start_date = ciso8601.parse_datetime(start_date).date()
+                if isinstance(end_date, str):
+                    end_date = ciso8601.parse_datetime(end_date).date()
 
         return start_date, end_date
+
+    def _determine_if_full_summary_update_needed(self, bill):
+        """Decide whether to update summary tables for full billing period."""
+        now_utc = self._date_accessor.today_with_timezone("UTC")
+
+        summary_creation = bill.summary_data_creation_datetime
+        finalized_datetime = bill.finalized_datetime
+
+        is_newly_finalized = False
+        if finalized_datetime is not None:
+            is_newly_finalized = finalized_datetime.date() == now_utc.date()
+
+        is_new_bill = summary_creation is None
+
+        # Do a full month update if we just finished processing a finalized
+        # bill or we just finished processing a bill for the first time
+        if is_newly_finalized or is_new_bill:
+            return True
+
+        return False
 
     def update_daily_tables(self, start_date, end_date):
         """Populate the daily tables for reporting.
