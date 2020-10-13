@@ -1765,7 +1765,7 @@
                 "tags": [
                     "Resource Type"
                 ],
-                "summary": "List Resource Types For RBAC",
+                "summary": "List AWS Accounts For RBAC",
                 "operationId": "listAwsAccountsForResourceType",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1799,7 +1799,7 @@
                 "tags": [
                     "Resource Type"
                 ],
-                "summary": "List Resource Types For RBAC",
+                "summary": "List AWS Organizational Units For RBAC",
                 "operationId": "listAwsOrgUnitsForResourceType",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1833,7 +1833,7 @@
                 "tags": [
                     "Resource Type"
                 ],
-                "summary": "List Resource Types For RBAC",
+                "summary": "List Azure Subscription Guids For RBAC",
                 "operationId": "listAzureSubGuidsForResourceType",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1867,7 +1867,7 @@
                 "tags": [
                     "Resource Type"
                 ],
-                "summary": "List Resource Types For RBAC",
+                "summary": "List OpenShift Clusters For RBAC",
                 "operationId": "listOpenShiftClustersForResourceType",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1901,8 +1901,8 @@
                 "tags": [
                     "Resource Type"
                 ],
-                "summary": "listOpenShiftNodesForResourceType",
-                "operationId": "listOpenS",
+                "summary": "List OpenShift Nodes For RBAC",
+                "operationId": "listOpenShiftNodesForResourceTypes",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryOffset"
                     },
@@ -1935,7 +1935,7 @@
                 "tags": [
                     "Resource Type"
                 ],
-                "summary": "List Resource Types For RBAC",
+                "summary": "List OpenShift Projects For RBAC",
                 "operationId": "listOpenShiftProjectsForResourceType",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1969,7 +1969,7 @@
                 "tags": [
                     "Resource Type"
                 ],
-                "summary": "List Resource Types For RBAC",
+                "summary": "List Cost Models For RBAC",
                 "operationId": "listCostModelsForResourceType",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryOffset"
