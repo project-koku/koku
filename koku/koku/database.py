@@ -16,12 +16,14 @@
 #
 """Django database settings."""
 import json
+import logging
 import os
 
 from django.conf import settings
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
 from django.db import OperationalError
+from django.db import transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.db.models import DecimalField
 from django.db.models.aggregates import Func
@@ -30,6 +32,9 @@ from django.db.models.fields.json import KeyTextTransform
 from .env import ENVIRONMENT
 from .migration_sql_helpers import apply_sql_file
 from .migration_sql_helpers import find_db_functions_dir
+
+
+LOG = logging.getLogger(__name__)
 
 engines = {
     "sqlite": "django.db.backends.sqlite3",
@@ -73,7 +78,11 @@ def config():
     return _cert_config(db_config, database_cert)
 
 
-def migrations_sproc_exists(connection):
+def dbfunc_exists(connection, function_signature):
+    """
+    Test that the migration check database function exists by
+    checking the existence of the function signature.
+    """
     sql = """
 select p.pronamespace::regnamespace::text || '.' || p.proname ||
        '(' || pg_get_function_arguments(p.oid) || ')' as funcsig
@@ -85,20 +94,39 @@ select p.pronamespace::regnamespace::text || '.' || p.proname ||
         cur.execute(sql)
         res = cur.fetchone()
 
-    return bool(res) and res[0] == "public.app_migration_check(leaf_migrations jsonb, _verbose boolean DEFAULT false)"
+    return bool(res) and res[0] == function_signature
 
 
-def install_migrations_sproc(connection):
+def install_migrations_dbfunc(connection):
+    """
+    Install the migration check database function
+    """
     db_funcs_dir = find_db_functions_dir()
-    migration_check_sql = os.path.join(db_funcs_dir, "app_migration_check_func.sql")
-    apply_sql_file(connection, migration_check_sql)
+    migration_check_sql = os.path.join(db_funcs_dir, "app_needs_migrations_func.sql")
+    LOG.info("Installing migration check db function")
+    apply_sql_file(connection.schema_editor(), migration_check_sql, True)
 
 
-def check_migrattions_sproc(connection, targets):
+def verify_migrations_dbfunc(connection):
+    func_sig = "public.app_needs_migrations(leaf_migrations jsonb, _verbose boolean DEFAULT false)"
+    if not dbfunc_exists(connection, func_sig):
+        install_migrations_dbfunc(connection)
+
+
+def check_migrattions_dbfunc(connection, targets):
+    """
+    Check the state of the migrations using the app_migration_check
+    database function.
+    The database function returns true if the migrations NEED to be run else false.
+    """
+    LOG.info("Checking app migrations via database function")
     with connection.cursor() as cur:
-        cur.execute("SELECT public.app_migration_check(%s::jsonb);", (json.dumps(dict(targets)),))
+        cur.execute("SELECT public.app_needs_migrations(%s::jsonb);", (json.dumps(dict(targets)),))
         res = cur.fetchone()
-        return bool(res) and res[0]
+        ret = not (bool(res) and res[0])
+
+    LOG.info(f"Migrations should {'not ' if ret else ''}be run.")
+    return ret
 
 
 def check_migrations():
@@ -115,11 +143,11 @@ def check_migrations():
         connection.prepare_database()
         executor = MigrationExecutor(connection)
         targets = executor.loader.graph.leaf_nodes()
+        with transaction.atomic():
+            verify_migrations_dbfunc(connection)
+            res = check_migrattions_dbfunc(connection, targets)
 
-        if not migrations_sproc_exists(connection):
-            install_migrations_sproc(connection)
-
-        return check_migrattions_sproc(connection, targets)
+        return res
     except OperationalError:
         return False
 

@@ -14,24 +14,24 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
--- Function public.app_migration_check(leaf_migrations, _verbose)
+-- Function public.app_needs_migrations(leaf_migrations, _verbose)
 -- Returns bool: true = run migrations; false = migrations up-to-date
 -- leaf_migrations (jsonb) = leaf migration names by app from the django code
 --    Ex: '{<django-app>: <latest-leaf-migration-name>}'
 -- Set _verbose to true to see notices raised during execution
 DROP FUNCTION IF EXISTS public.app_migration_check(jsonb, boolean);
 
-CREATE OR REPLACE FUNCTION public.app_migration_check(leaf_migrations jsonb, _verbose boolean DEFAULT false)
+CREATE OR REPLACE FUNCTION public.app_needs_migrations(leaf_migrations jsonb, _verbose boolean DEFAULT false)
 RETURNS boolean AS $BODY$
 DECLARE
     schema_rec record;
-    app_key text;
-    app_keys text[];
+    leaf_app_key text;
+    leaf_app_keys text[];
     latest_migrations jsonb;
     do_migrations boolean := false;
 BEGIN
     SELECT array_agg(k)
-      INTO app_keys
+      INTO leaf_app_keys
       FROM jsonb_object_keys(leaf_migrations) k;
 
     FOR schema_rec IN
@@ -45,6 +45,7 @@ BEGIN
                     else schema_name
                END::text
     LOOP
+        /* Get the latest recorded migrations by app for this tenant schema */
         IF _verbose
         THEN
             RAISE NOTICE 'Checking %', schema_rec.schema_name;
@@ -58,29 +59,39 @@ BEGIN
                        ') AS x ;'
            INTO latest_migrations;
 
-        FOREACH app_key IN ARRAY app_keys
+        /* Loop through leaf apps */
+        FOREACH leaf_app_key IN ARRAY leaf_app_keys
         LOOP
-            IF latest_migrations ? app_key
+            /* test that app exists or not */
+            IF latest_migrations ? leaf_app_key
             THEN
+                /* App exists! Test if the leaf migration name is greater than the last recorded migration for the app */
                 IF _verbose
                 THEN
-                    RAISE NOTICE '    checking %.% > %.%', app_key, leaf_migrations->>app_key, app_key, latest_migrations->>app_key;
+                    RAISE NOTICE '    checking %.% > %.%',
+                                 leaf_app_key,
+                                 leaf_migrations->>leaf_app_key,
+                                 leaf_app_key,
+                                 latest_migrations->>leaf_app_key;
                 END IF;
-                IF leaf_migrations->>app_key > latest_migrations->>app_key
+                IF leaf_migrations->>leaf_app_key > latest_migrations->>leaf_app_key
                 THEN
+                    /* leaf ahead of last recorded. run migrations! */
                     do_migrations = true;
                     EXIT;
                 END IF;
             ELSE
+                /* App does not exist, run migrations! */
                 IF _verbose
                 THEN
-                    RAISE NOTICE '    app % missing from schema', app_key;
+                    RAISE NOTICE '    app % missing from schema', leaf_app_key;
                 END IF;
                 do_migrations = true;
                 EXIT;
             END IF;
         END LOOP;
 
+        /* Stop processing if we are going to run migrations */
         EXIT WHEN do_migrations;
     END LOOP;
 
