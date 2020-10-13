@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""View for AWS accounts."""
+"""View for Openshift nodes."""
 from django.db.models import F
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
@@ -23,13 +23,13 @@ from rest_framework import generics
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.aws.models import AWSCostSummaryByAccount
+from reporting.provider.ocp.models import OCPCostSummaryByNode
 
 
-class AWSAccountView(generics.ListAPIView):
-    """API GET list view for AWS accounts."""
+class OCPNodesView(generics.ListAPIView):
+    """API GET list view for Openshift nodes."""
 
-    queryset = AWSCostSummaryByAccount.objects.annotate(**{"value": F("usage_account_id")}).values("value").distinct()
+    queryset = OCPCostSummaryByNode.objects.annotate(**{"value": F("node")}).values("value").distinct()
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
     filter_backends = [filters.OrderingFilter]

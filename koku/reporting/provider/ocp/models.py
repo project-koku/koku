@@ -29,6 +29,16 @@ PRESTO_LINE_ITEM_TABLE_MAP = {
     "node_labels": "openshift_node_labels_line_items",
 }
 
+VIEWS = (
+    "reporting_ocp_cost_summary",
+    "reporting_ocp_cost_summary_by_node",
+    "reporting_ocp_cost_summary_by_project",
+    "reporting_ocp_pod_summary",
+    "reporting_ocp_pod_summary_by_project",
+    "reporting_ocp_volume_summary",
+    "reporting_ocp_volume_summary_by_project",
+)
+
 
 class OCPUsageReportPeriod(models.Model):
     """The report period information for a Operator Metering report.
