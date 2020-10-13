@@ -236,7 +236,7 @@ def provider_post_delete_callback(*args, **kwargs):
     customer.date_updated = DateHelper().now_utc
     customer.save()
 
-    if settings.ENABLE_S3_ARCHIVING:
+    if settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING:
         # Local import of task function to avoid potential import cycle.
         from masu.celery.tasks import delete_archived_data
 
