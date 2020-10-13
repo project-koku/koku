@@ -1368,7 +1368,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     for word, qset in mapper.items():
                         existing_dict = results_dict.get(word)
                         for i in qset:
-                            exist = existing_dict.get(i.get("id"))
+                            exist = existing_dict.get(i.get("uuid"))
                             exist["after"] = i.get(field)
 
                     # assert that after the update, the appropriate values were added to each usage_cost
@@ -1451,7 +1451,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                             hours = i.get(cost_fields[1])
                             if hours is None:
                                 hours = 0
-                            temp_dict[i.get("id")] = {
+                            temp_dict[i.get("uuid")] = {
                                 "before": i.get(field, 0),
                                 "hours": hours,
                                 "usage_start": i.get("usage_start"),
@@ -1480,7 +1480,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     for word, qset in mapper.items():
                         existing_dict = results_dict.get(word)
                         for i in qset:
-                            exist = existing_dict.get(i.get("id"))
+                            exist = existing_dict.get(i.get("uuid"))
                             exist["after"] = i.get(field)
 
                     # assert that after the update, the appropriate values were added to each usage_cost
