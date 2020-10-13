@@ -26,6 +26,7 @@ from tenant_schemas.utils import schema_context
 from api.models import Provider
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from reporting.provider.azure.models import PRESTO_COLUMNS
 
 LOG = logging.getLogger(__name__)
 
@@ -136,3 +137,12 @@ def azure_json_converter(tag_str):
         pass
 
     return json.dumps(tag_dict)
+
+
+def azure_post_processor(data_frame):
+    """Guarantee column order for Azure parquet files"""
+    columns = list(data_frame)
+    if "MeterSubcategory" in columns:
+        data_frame["MeterSubCategory"] = data_frame["MeterSubcategory"]
+        data_frame.drop(columns=["MeterSubcategory"])
+    return data_frame.reindex(columns=PRESTO_COLUMNS)
