@@ -18,7 +18,6 @@
 import logging
 
 import ciso8601
-import pyarrow.parquet as pq
 import pytz
 from tenant_schemas.utils import schema_context
 
@@ -29,23 +28,6 @@ from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import PRESTO_LINE_ITEM_TABLE
 
 LOG = logging.getLogger(__name__)
-
-PRESTO_ADDITIONAL_COLUMNS = {
-    "UsageDateTime",
-    "UsageQuantity",
-    "PreTaxCost",
-    "InstanceId",
-    "SubscriptionGuid",
-    "ServiceName",
-    "Date",
-    "Quantity",
-    "CostInBillingCurrency",
-    "ResourceId",
-    "SubscriptionId",
-    "MeterCategory",
-    "BillingCurrencyCode",
-    "Currency",
-}
 
 
 class AzureReportParquetProcessor(ReportParquetProcessorBase):
@@ -74,14 +56,6 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
     def postgres_summary_table(self):
         """Return the mode for the source specific summary table."""
         return AzureCostEntryLineItemDailySummary
-
-    def _generate_column_list(self):
-        """Generate column list based on parquet file."""
-        parquet_file = self._parquet_path
-        column_names = pq.ParquetFile(parquet_file).schema.names
-        additional_columns = list(PRESTO_ADDITIONAL_COLUMNS.difference(column_names))
-        column_names.extend(additional_columns)
-        return column_names
 
     def create_bill(self, bill_date):
         """Create bill postgres entry."""
