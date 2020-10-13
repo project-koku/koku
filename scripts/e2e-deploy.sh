@@ -137,6 +137,7 @@ Building your environment using these settings:
     DEPLOY_PROJECT=${DEPLOY_PROJECT}
     SECRETS_PROJECT=${SECRETS_PROJECT}
     DEPLOY_HCCM_OPTIONAL=${DEPLOY_HCCM_OPTIONAL}
+    DEPLOY_SOURCES=${DEPLOY_SOURCES}
 
 EOF
 
@@ -145,14 +146,18 @@ pushd $E2E_REPO
 ### ensure we're logged in
 ${OC} login -u ${OCP_USER} -p ${OCP_PASSWORD} $OPENSHIFT_API_URL
 
-### create projects
-for project in "${SECRETS_PROJECT}" "${BUILDFACTORY_PROJECT}" "${DEPLOY_PROJECT}"; do
-    VALIDATE="${OC} get project/${project} -o name"
-    echo "Checking if project ${project} exists."
+function check_project_exists() {
+    VALIDATE="${OC} get project/$1 -o name"
+    echo "Checking if project $1 exists."
     if [ "$($VALIDATE)x" != "x" ]; then
-        echo "Project '${project}' already exists. Exiting."
+        echo "Project '$1' already exists. Exiting."
         exit 1
     fi
+}
+
+### create projects
+for project in "${SECRETS_PROJECT}" "${BUILDFACTORY_PROJECT}" "${DEPLOY_PROJECT}"; do
+    check_project_exists ${project}
     ${OC} new-project ${project}
 done
 
@@ -195,13 +200,16 @@ ${OC} policy add-role-to-user system:image-puller system:serviceaccount:${DEPLOY
 # Until we come up with a more intelligent design, the user will need to spot
 # build failures and elect to not continue the deploy when prompted.
 echo "Creating builds in project ${BUILDFACTORY_PROJECT}"
+DEPLOY_LIST="hccm"
 if [[ ${DEPLOY_HCCM_OPTIONAL} ]]; then
-    echo "Building HCCM and HCCM-OPTIONAL"
-    ${OCDEPLOYER} deploy -s hccm,hccm-optional -t buildfactory ${BUILDFACTORY_PROJECT} || true
-else
-    echo "Building HCCM only"
-    ${OCDEPLOYER} deploy -s hccm -t buildfactory ${BUILDFACTORY_PROJECT} || true
+    DEPLOY_LIST="${DEPLOY_LIST},hccm-optional"
 fi
+if [[ ${DEPLOY_SOURCES} ]]; then
+    DEPLOY_LIST="${DEPLOY_LIST},sources"
+fi
+
+echo "Building ${DEPLOY_LIST}"
+${OCDEPLOYER} deploy -s ${DEPLOY_LIST} -t buildfactory ${BUILDFACTORY_PROJECT} || true
 
 # wait until builds are finished if ocdeployer timedout
 CMD="${OC} get build -o name -n ${BUILDFACTORY_PROJECT} --field-selector status!=Complete,status!=Cancelled,status!=Failed"
@@ -216,13 +224,17 @@ EOM
     sleep 90
 done
 
-### deploy application
+### deploy applications
+if [[ ${DEPLOY_SOURCES} ]]; then
+    echo "Creating sources application."
+    ${IQE_CONTAINER} "iqe oc deploy -t templates -s sources,platform-mq -e dev-self-contained ${DEPLOY_PROJECT} --secrets-src-project ${SECRETS_PROJECT}" || true
+fi
 if [[ ${DEPLOY_HCCM_OPTIONAL} ]]; then
     echo "Creating HCCM & HCCM-Optional application."
-    ${IQE_CONTAINER} "iqe oc deploy -t templates -s hccm,hccm-optional -e dev-self-contained hccm --secrets-src-project ${SECRETS_PROJECT}" || true
+    ${IQE_CONTAINER} "iqe oc deploy -t templates -s hccm,hccm-optional -e dev-self-contained ${DEPLOY_PROJECT} --secrets-src-project ${SECRETS_PROJECT}" || true
 else
     echo "Creating HCCM application."
-    ${IQE_CONTAINER} "iqe oc deploy -t templates -s hccm -e dev-self-contained hccm --secrets-src-project ${SECRETS_PROJECT}" || true
+    ${IQE_CONTAINER} "iqe oc deploy -t templates -s hccm -e dev-self-contained ${DEPLOY_PROJECT} --secrets-src-project ${SECRETS_PROJECT}" || true
 fi
 
 ### expose API route
