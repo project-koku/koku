@@ -1322,13 +1322,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     # get the three querysets to be evaluated based on the pod_labels
                     banking_qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id, pod_labels__contains={"app": "banking"}
-                    ).values(field, "id", cost_fields[1], "usage_start")
+                    ).values(field, "uuid", cost_fields[1], "usage_start")
                     mobile_qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id, pod_labels__contains={"app": "mobile"}
-                    ).values(field, "id", cost_fields[1], "usage_start")
+                    ).values(field, "uuid", cost_fields[1], "usage_start")
                     weather_qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id, pod_labels__contains={"app": "weather"}
-                    ).values(field, "id", cost_fields[1], "usage_start")
+                    ).values(field, "uuid", cost_fields[1], "usage_start")
 
                     # populate a results dictionary for each item in the querysets using the cost before the update
                     results_dict = {}
@@ -1339,7 +1339,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                             hours = i.get(cost_fields[1])
                             if hours is None:
                                 hours = 0
-                            temp_dict[i.get("id")] = {
+                            temp_dict[i.get("uuid")] = {
                                 "before": i.get(field),
                                 "hours": hours,
                                 "usage_start": i.get("usage_start"),
@@ -1354,13 +1354,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     # get the three querysets to be evaluated based on the pod_labels after the update
                     banking_qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id, pod_labels__contains={"app": "banking"}
-                    ).values(field, "id", cost_fields[1], "usage_start")
+                    ).values(field, "uuid", cost_fields[1], "usage_start")
                     mobile_qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id, pod_labels__contains={"app": "mobile"}
-                    ).values(field, "id", cost_fields[1], "usage_start")
+                    ).values(field, "uuid", cost_fields[1], "usage_start")
                     weather_qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id, pod_labels__contains={"app": "weather"}
-                    ).values(field, "id", cost_fields[1], "usage_start")
+                    ).values(field, "uuid", cost_fields[1], "usage_start")
 
                     # update the querysets stored in mapper
                     mapper = {"banking": banking_qset, "mobile": mobile_qset, "weather": weather_qset}
@@ -1434,13 +1434,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     # get the three querysets to be evaluated based on the pod_labels
                     banking_qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id, pod_labels__contains={"app": "banking"}
-                    ).values(field, "id", cost_fields[1], "usage_start")
+                    ).values(field, "uuid", cost_fields[1], "usage_start")
                     mobile_qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id, pod_labels__contains={"app": "mobile"}
-                    ).values(field, "id", cost_fields[1], "usage_start")
+                    ).values(field, "uuid", cost_fields[1], "usage_start")
                     weather_qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id, pod_labels__contains={"app": "weather"}
-                    ).values(field, "id", cost_fields[1], "usage_start")
+                    ).values(field, "uuid", cost_fields[1], "usage_start")
 
                     # populate a results dictionary for each item in the querysets using the cost before the update
                     results_dict = {}
@@ -1466,13 +1466,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     # get the three querysets to be evaluated based on the pod_labels after the update
                     banking_qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id, pod_labels__contains={"app": "banking"}
-                    ).values(field, "id", cost_fields[1], "usage_start")
+                    ).values(field, "uuid", cost_fields[1], "usage_start")
                     mobile_qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id, pod_labels__contains={"app": "mobile"}
-                    ).values(field, "id", cost_fields[1], "usage_start")
+                    ).values(field, "uuid", cost_fields[1], "usage_start")
                     weather_qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id, pod_labels__contains={"app": "weather"}
-                    ).values(field, "id", cost_fields[1], "usage_start")
+                    ).values(field, "uuid", cost_fields[1], "usage_start")
 
                     # update the querysets stored in mapper
                     mapper = {"banking": banking_qset, "mobile": mobile_qset, "weather": weather_qset}
