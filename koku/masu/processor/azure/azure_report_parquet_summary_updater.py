@@ -1,3 +1,4 @@
+import calendar
 import logging
 
 import ciso8601
@@ -22,10 +23,28 @@ class AzureReportParquetSummaryUpdater:
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
-        if isinstance(start_date, str):
-            start_date = ciso8601.parse_datetime(start_date).date()
-        if isinstance(end_date, str):
-            end_date = ciso8601.parse_datetime(end_date).date()
+        with AzureReportDBAccessor(self._schema) as accessor:
+            # This is the normal processing route
+            if self._manifest:
+                # Override the bill date to correspond with the manifest
+                bill_date = self._manifest.billing_period_start_datetime.date()
+                bills = accessor.get_cost_entry_bills_query_by_provider(self._provider.uuid)
+                bills = bills.filter(billing_period_start=bill_date).all()
+                first_bill = bills.filter(billing_period_start=bill_date).first()
+                do_month_update = False
+                with schema_context(self._schema):
+                    if first_bill:
+                        do_month_update = first_bill.summary_data_creation_datetime is None
+                if do_month_update:
+                    last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
+                    start_date = bill_date
+                    end_date = bill_date.replace(day=last_day_of_month)
+                    LOG.info("Overriding start and end date to process full month.")
+            else:
+                if isinstance(start_date, str):
+                    start_date = ciso8601.parse_datetime(start_date).date()
+                if isinstance(end_date, str):
+                    end_date = ciso8601.parse_datetime(end_date).date()
 
         return start_date, end_date
 
@@ -67,7 +86,7 @@ class AzureReportParquetSummaryUpdater:
             with schema_context(self._schema):
                 bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
                 bill_ids = [str(bill.id) for bill in bills]
-                current_bill_id = bills.first().id
+                current_bill_id = bills.first().id if bills else None
 
             # for start, end in date_range_pair(start_date, end_date):
             LOG.info(
