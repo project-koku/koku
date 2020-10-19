@@ -246,7 +246,7 @@ BEGIN
                ct.conname as "constraint_name",
                'ALTER TABLE ' || quote_ident(dest_schema) || '.' || quote_ident(rn.relname) ||
                             ' ADD CONSTRAINT ' || quote_ident(ct.conname) || ' ' ||
-                            replace(pg_get_constraintdef(ct.oid), source_schema || '.', dest_schema || '.' ||
+                            replace(pg_get_constraintdef(ct.oid), source_schema || '.', dest_schema || '.') ||
                             ' ;' as "alter_stmt"
           FROM pg_constraint ct
           JOIN pg_class rn
