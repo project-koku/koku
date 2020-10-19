@@ -936,6 +936,7 @@ class AWSOrganizationalUnit(models.Model):
             )
         )
 
+
 class AWSEnabledTagKeys(models.Model):
     """A collection of the current enabled tag keys."""
 

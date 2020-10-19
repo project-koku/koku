@@ -385,6 +385,7 @@ class AzureDatabaseSummary(models.Model):
     currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
+
 class AzureEnabledTagKeys(models.Model):
     """A collection of the current enabled tag keys."""
 
