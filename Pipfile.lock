@@ -1806,12 +1806,8 @@
             "version": "==1.25.11"
         },
         "v": {
-            "hashes": [
-                "sha256:2d5a8f79a36aaebe62ef2c7068e3ec7f86656078202edabfdbf74715dc822d36",
-                "sha256:cd6b6b20b4a611f209c88bcdfb7211321f85662efb2bdd53a7b40314d0a84618"
-            ],
-            "index": "pypi",
-            "version": "==0.0.0"
+            "hashes": [],
+            "version": "==4.0.0"
         },
         "virtualenv": {
             "hashes": [
