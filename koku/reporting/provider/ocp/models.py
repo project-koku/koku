@@ -201,8 +201,12 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     """
 
-    MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"))
-    MONTHLY_COST_RATE_MAP = {"Node": "node_cost_per_month", "Cluster": "cluster_cost_per_month"}
+    MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"), ("PVC", "PVC"))
+    MONTHLY_COST_RATE_MAP = {
+        "Node": "node_cost_per_month",
+        "Cluster": "cluster_cost_per_month",
+        "PVC": "pvc_cost_per_month",
+    }
 
     class Meta:
         """Meta for OCPUsageLineItemDailySummary."""
