@@ -440,8 +440,10 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mock_update_monthly.assert_any_call(
             "Cluster", None, None, start_date, end_date, self.cluster_id, updater._cluster_alias
         )
-        # assert that the call was only made twice
-        self.assertEqual(mock_update_monthly.call_count, 2)
+        mock_update_monthly.assert_any_call(
+            "PVC", None, None, start_date, end_date, self.cluster_id, updater._cluster_alias
+        )
+        self.assertEqual(mock_update_monthly.call_count, 3)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_monthly_tag_cost")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
@@ -467,8 +469,10 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mock_update_monthly.assert_any_call(
             "Cluster", "Supplementary", "a tag rate", start_date, end_date, self.cluster_id, updater._cluster_alias
         )
-        # assert that the call was only made twice
-        self.assertEqual(mock_update_monthly.call_count, 2)
+        mock_update_monthly.assert_any_call(
+            "PVC", None, None, start_date, end_date, self.cluster_id, updater._cluster_alias
+        )
+        self.assertEqual(mock_update_monthly.call_count, 3)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_tag_usage_costs")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
