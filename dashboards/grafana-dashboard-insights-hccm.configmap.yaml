@@ -3234,7 +3234,7 @@ data:
             "query": "cost-management-stage, cost-management-prod",
             "skipUrlSync": false,
             "type": "custom"
-          }
+          },
           {
             "current": {
               "selected": true,
