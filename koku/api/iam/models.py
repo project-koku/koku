@@ -19,18 +19,15 @@ import logging
 import os
 from uuid import uuid4
 
+from django.db import connection as conn
 from django.db import models
-from django.db import ProgrammingError as DJProgrammingError
-from django.db import transaction
-from psycopg2.errors import ProgrammingError as PGProgrammingError  # pylint: disable=no-name-in-module
-from psycopg2.errors import UndefinedObject  # pylint: disable=no-name-in-module
 from tenant_schemas.models import TenantMixin
 from tenant_schemas.postgresql_backend.base import _check_schema_name
 from tenant_schemas.utils import schema_exists
 
+from koku.database import dbfunc_exists
 from koku.migration_sql_helpers import apply_sql_file
 from koku.migration_sql_helpers import find_db_functions_dir
-from koku.migration_sql_helpers import function_exists
 
 
 LOG = logging.getLogger(__name__)
@@ -112,13 +109,15 @@ class Tenant(TenantMixin):
 
     def _check_clone_func(self):
         LOG.info(f'Verify that clone function "{self._CLONE_SCHEMA_FUNC_SIG}" exists')
-        res = function_exists(self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG)
+        res = dbfunc_exists(
+            conn, self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG
+        )
         if not res:
             LOG.warning(f'Clone function "{self._CLONE_SCHEMA_FUNC_SIG}" does not exist')
             LOG.info(f'Creating clone function "{self._CLONE_SCHEMA_FUNC_SIG}"')
-            apply_sql_file(transaction.get_connection().schema_editor(), self._CLONE_SCHEMA_FUNC_FILENAME)
-            res = function_exists(
-                self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG
+            apply_sql_file(conn.schema_editor(), self._CLONE_SCHEMA_FUNC_FILENAME)
+            res = dbfunc_exists(
+                conn, self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG
             )
         return res
 
@@ -135,8 +134,6 @@ class Tenant(TenantMixin):
 
     def _clone_schema(self):
         result = None
-        conn = transaction.get_connection()
-
         with conn.cursor() as cur:
             # This db func will clone the schema objects
             # bypassing the time it takes to run migrations
@@ -144,16 +141,10 @@ class Tenant(TenantMixin):
 select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
 """
             LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}" with data')
-            try:
-                cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
-            except (UndefinedObject, PGProgrammingError, DJProgrammingError) as e:
-                excmsg = f"{e.__class__.__name__} :: {e}"
-                LOG.critical(excmsg)
-                raise CloneSchemaError(excmsg)
-            else:
-                result = cur.fetchone()
+            cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
+            result = cur.fetchone()
 
-            conn.set_schema_to_public()
+        conn.set_schema_to_public()
 
         return result[0] if result else False
 
@@ -189,7 +180,7 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
 
         # Clone the schema. The database function will check
         # that the source schema exists and the destination schema does not.
-        result = self._clone_schema()
+        self._clone_schema()
         LOG.info(f'Successful clone of "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
 
-        return result
+        return True

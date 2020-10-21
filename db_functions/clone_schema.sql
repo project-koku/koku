@@ -37,7 +37,7 @@ BEGIN
       WHERE nspname = source_schema;
     IF NOT FOUND
     THEN
-        RAISE EXCEPTION 'Source schema "%" does not exist.', source_schema USING ERRCODE = 'undefined_object';
+        RAISE WARNING 'Source schema "%" does not exist.', source_schema;
         RETURN false;
     END IF;
 
