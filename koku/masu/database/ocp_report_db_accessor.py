@@ -895,6 +895,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                 ).first()
                                 if not line_item:
                                     line_item = OCPUsageLineItemDailySummary(
+                                        uuid=uuid.uuid4(),
                                         usage_start=start_date,
                                         usage_end=start_date,
                                         report_period=report_period,
@@ -942,6 +943,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 ).first()
                 if not line_item:
                     line_item = OCPUsageLineItemDailySummary(
+                        uuid=uuid.uuid4(),
                         usage_start=start_date,
                         usage_end=start_date,
                         report_period=report_period,
