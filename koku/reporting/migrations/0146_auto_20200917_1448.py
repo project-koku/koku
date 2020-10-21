@@ -18,7 +18,7 @@ def add_views(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0144_auto_20201007_1441")]
+    dependencies = [("reporting", "0145_awsenabledtagkeys_azureenabledtagkeys")]
 
     operations = [
         migrations.RunSQL(
