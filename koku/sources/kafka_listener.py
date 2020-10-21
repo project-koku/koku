@@ -70,6 +70,8 @@ SOURCES_AWS_SOURCE_NAME = "amazon"
 SOURCES_AWS_LOCAL_SOURCE_NAME = "amazon-local"
 SOURCES_AZURE_SOURCE_NAME = "azure"
 SOURCES_AZURE_LOCAL_SOURCE_NAME = "azure-local"
+SOURCES_GCP_SOURCE_NAME = "google"
+SOURCES_GCP_LOCAL_SOURCE_NAME = "google-local"
 
 SOURCE_PROVIDER_MAP = {
     SOURCES_OCP_SOURCE_NAME: Provider.PROVIDER_OCP,
@@ -77,6 +79,8 @@ SOURCE_PROVIDER_MAP = {
     SOURCES_AWS_LOCAL_SOURCE_NAME: Provider.PROVIDER_AWS_LOCAL,
     SOURCES_AZURE_SOURCE_NAME: Provider.PROVIDER_AZURE,
     SOURCES_AZURE_LOCAL_SOURCE_NAME: Provider.PROVIDER_AZURE_LOCAL,
+    SOURCES_GCP_SOURCE_NAME: Provider.PROVIDER_GCP,
+    SOURCES_GCP_LOCAL_SOURCE_NAME: Provider.PROVIDER_GCP_LOCAL
 }
 
 
@@ -255,6 +259,8 @@ def get_authentication(source_type, sources_network):
         credentials = sources_network.get_aws_credentials()
     elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
         credentials = sources_network.get_azure_credentials()
+    elif source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+        credentials = sources_network.get_gcp_credentials()
     else:
         LOG.error(f"Unexpected source type: {source_type}")
         return credentials
