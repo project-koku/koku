@@ -42,16 +42,6 @@ select app,
         )
         return cur.fetchall()
 
-    def test_migration_check_dbfunc_exists(self):
-        func_sig = "public.app_needs_migrations(leaf_migrations jsonb, _verbose boolean DEFAULT false)"
-        self.drop_check_func()
-        res = kdb.dbfunc_exists(conn, func_sig)
-        self.assertEqual(res, False)
-
-        kdb.install_migrations_dbfunc(conn)
-        res = kdb.dbfunc_exists(conn, func_sig)
-        self.assertEqual(res, True)
-
     def test_migration_check_do_not_run(self):
         kdb.verify_migrations_dbfunc(conn)
         latest_migrations = self.get_public_latest_migrations()
@@ -74,3 +64,25 @@ select app,
         latest_migrations[0] = (latest_migrations[0][0], "0999_eek")
         res = kdb.check_migrattions_dbfunc(conn, latest_migrations)
         self.assertEqual(res, False)
+
+    def test_function_not_exists(self):
+        """
+        Test datbase function not found
+        """
+        res = kdb.dbfunc_exists(conn, "public", "___no_func_here___", "public.___no_func_here___(eek text, ook text)")
+        self.assertFalse(res)
+
+    def test_function_exists(self):
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+create function public.__eek(param1 text) returns text as $BODY$
+begin
+    return param1;
+end;
+$BODY$ language plpgsql;"""
+            )
+            res = kdb.dbfunc_exists(conn, "public", "__eek", "public.__eek(param1 text)")
+            cur.execute("""drop function public.__eek(text);""")
+
+        self.assertTrue(res)
