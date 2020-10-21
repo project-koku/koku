@@ -24,8 +24,10 @@ from api.models import Provider
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
+from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
+from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
@@ -216,10 +218,14 @@ class ReportDownloader:
 
         with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
             stored_etag = stats_recorder.get_etag()
-            file_name, etag, _ = self._downloader.download_file(
-                report, stored_etag, manifest_id=manifest_id, start_date=date_time
-            )
-            stats_recorder.update(etag=etag)
+            try:
+                file_name, etag, _ = self._downloader.download_file(
+                    report, stored_etag, manifest_id=manifest_id, start_date=date_time
+                )
+                stats_recorder.update(etag=etag)
+            except (AWSReportDownloaderNoFileError, AzureReportDownloaderError) as error:
+                LOG.warning(f"Unable to download report file: {report}. Reason: {str(error)}")
+                return {}
 
         return {
             "file": file_name,
