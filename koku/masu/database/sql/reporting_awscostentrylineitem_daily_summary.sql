@@ -1,5 +1,27 @@
 -- Place our query for data with no tags in a temporary table
 CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sqlsafe}} AS (
+    WITH cte_array_agg_keys AS (
+        SELECT array_agg(key) as key_array
+        FROM reporting_awsenabledtagkeys
+    ),
+    cte_filtered_tags AS (
+        SELECT id,
+            jsonb_object_agg(key,value) as aws_tags
+        FROM (
+            SELECT lid.id,
+                lid.tags as aws_tags,
+                aak.key_array
+            FROM reporting_awscostentrylineitem_daily lid
+            JOIN cte_array_agg_keys aak
+                ON 1=1
+            WHERE (
+                    lid.tags ?| aak.key_array
+                )
+        ) AS lid,
+        jsonb_each_text(lid.aws_tags) AS labels
+        WHERE key = ANY (key_array)
+        GROUP BY id
+    )
     SELECT li.cost_entry_bill_id,
         li.usage_start,
         li.usage_end,
@@ -28,6 +50,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
         ab.provider_id as source_uuid,
         0.0::decimal as markup_cost
     FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily AS li
+    LEFT JOIN cte_filtered_tags AS fvl
+        ON li.id = fvl.id
     JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
         ON li.cost_entry_product_id = p.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrypricing as pr

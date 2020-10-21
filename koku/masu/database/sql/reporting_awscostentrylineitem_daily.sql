@@ -121,5 +121,14 @@ INSERT INTO {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily (
     FROM reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}}
 ;
 
+INSERT INTO reporting_awsenabledtagkeys (
+    key
+)
+    SELECT distinct(key)
+    FROM reporting_awscostentrylineitem_daily as li, jsonb_each_text(li.tags) labels
+    WHERE NOT EXISTS
+    (SELECT KEY from reporting_awsenabledtagkeys)
+;
+
 TRUNCATE TABLE reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}};
 DROP TABLE reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}};
