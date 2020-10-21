@@ -115,7 +115,7 @@ class Tenant(TenantMixin):
         if not res:
             LOG.warning(f'Clone function "{self._CLONE_SCHEMA_FUNC_SIG}" does not exist')
             LOG.info(f'Creating clone function "{self._CLONE_SCHEMA_FUNC_SIG}"')
-            apply_sql_file(conn.schema_editor(), self._CLONE_SCHEMA_FUNC_FILENAME)
+            apply_sql_file(conn.schema_editor(), self._CLONE_SCHEMA_FUNC_FILENAME, literal_placeholder=True)
             res = dbfunc_exists(
                 conn, self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG
             )
