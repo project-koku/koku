@@ -84,12 +84,28 @@ def _azure_provider_ready_for_create(provider):
     return False
 
 
+def _gcp_provider_ready_for_create(provider):
+    """Determine if GCP provider is ready for provider creation."""
+    if (
+        provider.source_id
+        and provider.name
+        and provider.auth_header
+        and provider.billing_source
+        and provider.authentication
+        and not provider.koku_uuid
+    ):
+        return True
+    return False
+
+
 SCREEN_MAP = {
     Provider.PROVIDER_AWS: _aws_provider_ready_for_create,
     Provider.PROVIDER_AWS_LOCAL: _aws_provider_ready_for_create,
     Provider.PROVIDER_OCP: _ocp_provider_ready_for_create,
     Provider.PROVIDER_AZURE: _azure_provider_ready_for_create,
     Provider.PROVIDER_AZURE_LOCAL: _azure_provider_ready_for_create,
+    Provider.PROVIDER_GCP: _gcp_provider_ready_for_create,
+    Provider.PROVIDER_GCP_LOCAL: _gcp_provider_ready_for_create
 }
 
 

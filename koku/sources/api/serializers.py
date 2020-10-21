@@ -44,6 +44,8 @@ ALLOWED_BILLING_SOURCE_PROVIDERS = (
     Provider.PROVIDER_AWS_LOCAL,
     Provider.PROVIDER_AZURE,
     Provider.PROVIDER_AZURE_LOCAL,
+    Provider.PROVIDER_GCP,
+    Provider.PROVIDER_GCP_LOCAL
 )
 ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
 
@@ -101,6 +103,15 @@ class SourcesSerializer(serializers.ModelSerializer):
                 raise SourcesStorageError("Missing AZURE resource_group")
             if not data_source.get("storage_account"):
                 raise SourcesStorageError("Missing AZURE storage_account")
+        elif provider_type == Provider.PROVIDER_GCP:
+            data_source = billing_source.get("data_source")
+            if not data_source:
+                raise SourcesStorageError("Missing GCP data_source.")
+            if not data_source.get("dataset"):
+                raise SourcesStorageError("Missing GCP dataset")
+            if not data_source.get("table_id"):
+                raise SourcesStorageError("Missing GCP table_id")
+
 
     def _update_billing_source(self, instance, billing_source):
         if instance.source_type not in ALLOWED_BILLING_SOURCE_PROVIDERS:
