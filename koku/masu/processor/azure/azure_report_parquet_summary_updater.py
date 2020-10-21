@@ -40,11 +40,11 @@ class AzureReportParquetSummaryUpdater:
                     start_date = bill_date
                     end_date = bill_date.replace(day=last_day_of_month)
                     LOG.info("Overriding start and end date to process full month.")
-            else:
-                if isinstance(start_date, str):
-                    start_date = ciso8601.parse_datetime(start_date).date()
-                if isinstance(end_date, str):
-                    end_date = ciso8601.parse_datetime(end_date).date()
+
+        if isinstance(start_date, str):
+            start_date = ciso8601.parse_datetime(start_date).date()
+        if isinstance(end_date, str):
+            end_date = ciso8601.parse_datetime(end_date).date()
 
         return start_date, end_date
 
