@@ -439,3 +439,26 @@ class TagQueryHandler(QueryHandler):
         self.query_data = query_data
 
         return self._format_query_response()
+
+    def set_access_filters(self, access, filt, filters):
+        """
+        Sets the access filters to ensure RBAC restrictions given the users access,
+        the current filter and the filter collection. This maintains the filter operation
+        for a value search because it has to search an array field.
+        Args:
+            access (list) the list containing the users relevant access
+            filt (list or dict) contains the filters that need
+            filters (QueryFilterCollection) the filter collection to add the new filters to
+        returns:
+            None
+        """
+        if self._parameters.get_filter("value"):
+            if isinstance(filt, list):
+                for _filt in filt:
+                    q_filter = QueryFilter(parameter=access, **_filt)
+                    filters.add(q_filter)
+            else:
+                q_filter = QueryFilter(parameter=access, **filt)
+                filters.add(q_filter)
+        else:
+            super().set_access_filters(access, filt, filters)
