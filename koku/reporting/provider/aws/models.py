@@ -938,3 +938,15 @@ class AWSOrganizationalUnit(models.Model):
                 self.deleted_timestamp,
             )
         )
+
+
+class AWSEnabledTagKeys(models.Model):
+    """A collection of the current enabled tag keys."""
+
+    class Meta:
+        """Meta for AWSEnabledTagKeys."""
+
+        db_table = "reporting_awsenabledtagkeys"
+
+    id = models.BigAutoField(primary_key=True)
+    key = models.CharField(max_length=253, unique=True)
