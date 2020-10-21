@@ -45,6 +45,7 @@ from reporting.provider.aws.models import AWSCostSummaryByAccount
 from reporting.provider.aws.models import AWSCostSummaryByRegion
 from reporting.provider.aws.models import AWSCostSummaryByService
 from reporting.provider.aws.models import AWSDatabaseSummary
+from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import AWSNetworkSummary
 from reporting.provider.aws.models import AWSOrganizationalUnit
 from reporting.provider.aws.models import AWSStorageSummary
@@ -73,6 +74,7 @@ from reporting.provider.azure.models import AzureCostSummaryByAccount
 from reporting.provider.azure.models import AzureCostSummaryByLocation
 from reporting.provider.azure.models import AzureCostSummaryByService
 from reporting.provider.azure.models import AzureDatabaseSummary
+from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.azure.models import AzureMeter
 from reporting.provider.azure.models import AzureNetworkSummary
 from reporting.provider.azure.models import AzureStorageSummary
