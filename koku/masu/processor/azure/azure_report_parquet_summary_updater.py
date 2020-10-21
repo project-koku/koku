@@ -7,6 +7,7 @@ from tenant_schemas.utils import schema_context
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.util.common import determine_if_full_summary_update_needed
 
 LOG = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class AzureReportParquetSummaryUpdater:
                 do_month_update = False
                 with schema_context(self._schema):
                     if first_bill:
-                        do_month_update = first_bill.summary_data_creation_datetime is None
+                        do_month_update = determine_if_full_summary_update_needed(first_bill)
                 if do_month_update:
                     last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
                     start_date = bill_date
@@ -59,8 +60,8 @@ class AzureReportParquetSummaryUpdater:
             (str, str): A start date and end date.
 
         """
-        LOG.info("update_daily_tables for: %s-%s", str(start_date), str(end_date))
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
+        LOG.info("update_daily_tables for: %s-%s", str(start_date), str(end_date))
 
         return start_date, end_date
 

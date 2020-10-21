@@ -7,6 +7,7 @@ from tenant_schemas.utils import schema_context
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.util.common import determine_if_full_summary_update_needed
 
 LOG = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class AWSReportParquetSummaryUpdater:
                 do_month_update = False
                 with schema_context(self._schema):
                     if first_bill:
-                        do_month_update = self._determine_if_full_summary_update_needed(first_bill)
+                        do_month_update = determine_if_full_summary_update_needed(first_bill)
                 if do_month_update:
                     last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
                     start_date = bill_date
@@ -47,26 +48,6 @@ class AWSReportParquetSummaryUpdater:
             end_date = ciso8601.parse_datetime(end_date).date()
 
         return start_date, end_date
-
-    def _determine_if_full_summary_update_needed(self, bill):
-        """Decide whether to update summary tables for full billing period."""
-        now_utc = self._date_accessor.today_with_timezone("UTC")
-
-        summary_creation = bill.summary_data_creation_datetime
-        finalized_datetime = bill.finalized_datetime
-
-        is_newly_finalized = False
-        if finalized_datetime is not None:
-            is_newly_finalized = finalized_datetime.date() == now_utc.date()
-
-        is_new_bill = summary_creation is None
-
-        # Do a full month update if we just finished processing a finalized
-        # bill or we just finished processing a bill for the first time
-        if is_newly_finalized or is_new_bill:
-            return True
-
-        return False
 
     def update_daily_tables(self, start_date, end_date):
         """Populate the daily tables for reporting.

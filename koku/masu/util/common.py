@@ -31,6 +31,7 @@ from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
@@ -325,3 +326,19 @@ def get_hive_table_path(account, provider_type, report_type=None):
     if report_type:
         table_path += f"/{report_type}"
     return table_path
+
+
+def determine_if_full_summary_update_needed(bill):
+    """Decide whether to update summary tables for full billing period."""
+    now_utc = DateHelper().now_utc
+    is_new_bill = bill.summary_data_creation_datetime is None
+    is_current_month = (
+        bill.billing_period_start.year == now_utc.year and bill.billing_period_start.month == now_utc.month
+    )
+
+    # Do a full month update if this is the first time we've seen the current month's data
+    # or if it is from a previous month
+    if is_new_bill or not is_current_month:
+        return True
+
+    return False
