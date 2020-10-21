@@ -165,7 +165,7 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
         if not ret:
             errmsg = "Missing clone_schema function even after re-applying the function SQL file."
             LOG.critical(errmsg)
-            return CloneSchemaFuncMissing(errmsg)
+            raise CloneSchemaFuncMissing(errmsg)
 
         ret = self._verify_template(verbosity=verbosity)
         if not ret:
