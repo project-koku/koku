@@ -25,6 +25,7 @@ from api.models import Provider
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
+from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
@@ -248,3 +249,31 @@ class ReportDownloaderTest(MasuTestCase):
         with patch.object(AWSReportDownloader, "get_manifest_context_for_date", return_value=mock_manifest):
             manifest = downloader.download_manifest(mock_date)
             self.assertEqual(manifest, mock_manifest)
+
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
+    def test_download_reports_download_error(self, mock_dl_init, mock_dl):
+        """Test download reports when an error is encountered."""
+        downloader = self.create_downloader(Provider.PROVIDER_AWS)
+        manifest_id = 99
+        baker.make(CostUsageReportManifest, id=manifest_id)
+        assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
+        compression = "GZIP"
+        mock_date = FAKE.date()
+        mock_full_file_path = "/full/path/to/file.csv"
+        mock_dl.return_value = (mock_full_file_path, "fake_etag")
+
+        report_context = {
+            "date": mock_date,
+            "manifest_id": manifest_id,
+            "compression": compression,
+            "assembly_id": assembly_id,
+            "current_file": f"/my/{assembly_id}/koku-1.csv.gz",
+        }
+
+        with patch(
+            "masu.external.report_downloader.AWSReportDownloader.download_file",
+            side_effect=AWSReportDownloaderNoFileError,
+        ):
+            result = downloader.download_report(report_context)
+            self.assertEquals(result, {})
