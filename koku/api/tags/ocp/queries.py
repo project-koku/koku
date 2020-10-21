@@ -49,7 +49,7 @@ class OCPTagQueryHandler(TagQueryHandler):
         },
     ]
     TAGS_VALUES_SOURCE = [{"db_table": OCPTagsValues, "fields": ["key"]}]
-    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["project", "enabled", "cluster"]
+    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["project", "enabled", "cluster", "node"]
     FILTER_MAP = deepcopy(TagQueryHandler.FILTER_MAP)
     FILTER_MAP.update(
         {
@@ -63,6 +63,7 @@ class OCPTagQueryHandler(TagQueryHandler):
                     "composition_key": "cluster_filter",
                 },
             ],
+            "node": {"field": "node", "operation": "icontains"},
         }
     )
 
@@ -89,12 +90,13 @@ class OCPTagQueryHandler(TagQueryHandler):
         if self._parameters.get_filter("value"):
             filter_map.update(
                 {
-                    "project": {"field": "namespaces", "operation": "icontains"},
+                    "project": {"field": "namespaces", "operation": "contained_by"},
                     "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
                     "cluster": [
-                        {"field": "cluster_ids", "operation": "icontains", "composition_key": "cluster_filter"},
-                        {"field": "cluster_aliases", "operation": "icontains", "composition_key": "cluster_filter"},
+                        {"field": "cluster_ids", "operation": "contained_by", "composition_key": "cluster_filter"},
+                        {"field": "cluster_aliases", "operation": "contained_by", "composition_key": "cluster_filter"},
                     ],
+                    "node": {"field": "nodes", "operation": "contained_by"},
                 }
             )
         else:
@@ -114,6 +116,7 @@ class OCPTagQueryHandler(TagQueryHandler):
                             "composition_key": "cluster_filter",
                         },
                     ],
+                    "node": {"field": "node", "operation": "icontains"},
                 }
             )
         return filter_map

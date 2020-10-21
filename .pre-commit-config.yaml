@@ -28,3 +28,12 @@ repos:
   rev: v0.0.3
   hooks:
     - id: check-pipfile-lock
+- repo: local
+  hooks:
+    - id: validate-dashboards
+      name: Validate Grafana Dashboards
+      description: Ensures dashboard files are valid JSON
+      entry: scripts/validate_dashboards.sh
+      language: script
+      pass_filenames: false
+      files: dashboards\/.*\.yaml

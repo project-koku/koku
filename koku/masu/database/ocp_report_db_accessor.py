@@ -616,6 +616,22 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             )
             return [node[0] for node in unique_nodes]
 
+    def get_distinct_pvcs(self, start_date, end_date, cluster_id):
+        """Return a list of pvcs for a cluster between given dates."""
+        with schema_context(self.schema):
+            unique_pvcs = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=start_date,
+                    usage_start__lt=end_date,
+                    cluster_id=cluster_id,
+                    persistentvolumeclaim__isnull=False,
+                    node__isnull=False,
+                )
+                .values_list("persistentvolumeclaim")
+                .distinct()
+            )
+            return [pvc[0] for pvc in unique_pvcs]
+
     def populate_monthly_cost(self, cost_type, rate_type, rate, start_date, end_date, cluster_id, cluster_alias):
         """
         Populate the monthly cost of a customer.
@@ -656,6 +672,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     self.upsert_monthly_cluster_cost_line_item(
                         first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
                     )
+            elif cost_type == "PVC":
+                if rate is None:
+                    self.remove_monthly_cost(first_curr_month, first_next_month, cluster_id, cost_type)
+                else:
+                    self.upsert_monthly_pvc_cost_line_item(
+                        first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
+                    )
 
     def populate_monthly_tag_cost(
         self, cost_type, rate_type, rate_dict, start_date, end_date, cluster_id, cluster_alias
@@ -685,6 +708,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 )
             elif cost_type == "Cluster":
                 self.tag_upsert_monthly_cluster_cost_line_item(
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
+                )
+            elif cost_type == "PVC":
+                self.tag_upsert_monthly_pvc_cost_line_item(
                     first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
                 )
 
@@ -827,6 +854,108 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                     LOG.info("Cluster (%s) has a monthly supplemenarty cost of %s.", cluster_id, cluster_cost)
                     line_item.supplementary_monthly_cost = cluster_cost
+                line_item.save()
+
+    def tag_upsert_monthly_pvc_cost_line_item(
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
+    ):
+        """
+        Update or insert daily summary line item for PVC cost.
+
+        It checks to see if a line item exists for each PVC
+        that contains the tag key:value pair,
+        if it does then the price is added to the monthly cost.
+        """
+        unique_pvcs = self.get_distinct_pvcs(start_date, end_date, cluster_id)
+        report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
+        with schema_context(self.schema):
+            for pvc in unique_pvcs:
+                if rate_dict is not None:
+                    for tag_key in rate_dict:
+                        tag_values = rate_dict.get(tag_key)
+                        for value_name, rate_value in tag_values.items():
+                            item_check = OCPUsageLineItemDailySummary.objects.filter(
+                                usage_start__gte=start_date,
+                                usage_end__lte=end_date,
+                                report_period=report_period,
+                                cluster_id=cluster_id,
+                                cluster_alias=cluster_alias,
+                                persistentvolumeclaim=pvc,
+                                volume_labels__contains={tag_key: value_name},
+                            ).first()
+                            if item_check:
+                                line_item = OCPUsageLineItemDailySummary.objects.filter(
+                                    usage_start=start_date,
+                                    usage_end=start_date,
+                                    report_period=report_period,
+                                    cluster_id=cluster_id,
+                                    cluster_alias=cluster_alias,
+                                    monthly_cost_type="PVC",
+                                    persistentvolumeclaim=pvc,
+                                ).first()
+                                if not line_item:
+                                    line_item = OCPUsageLineItemDailySummary(
+                                        usage_start=start_date,
+                                        usage_end=start_date,
+                                        report_period=report_period,
+                                        cluster_id=cluster_id,
+                                        cluster_alias=cluster_alias,
+                                        monthly_cost_type="PVC",
+                                        persistentvolumeclaim=pvc,
+                                    )
+                                if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                                    LOG.info("PVC (%s) has a monthly infrastructure cost of %s.", pvc, rate_value)
+                                    line_item.infrastructure_monthly_cost = (
+                                        Coalesce(
+                                            line_item.infrastructure_monthly_cost,
+                                            Value(0.0),
+                                            output_field=DecimalField(),
+                                        )
+                                        + rate_value
+                                    )
+                                elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                                    LOG.info("PVC (%s) has a monthly supplemenarty cost of %s.", pvc, rate_value)
+                                    line_item.supplementary_monthly_cost = (
+                                        Coalesce(
+                                            line_item.supplementary_monthly_cost,
+                                            Value(0.0),
+                                            output_field=DecimalField(),
+                                        )
+                                        + rate_value
+                                    )
+                                line_item.save()
+
+    def upsert_monthly_pvc_cost_line_item(self, start_date, end_date, cluster_id, cluster_alias, rate_type, pvc_cost):
+        """Update or insert daily summary line item for pvc cost."""
+        unique_pvcs = self.get_distinct_pvcs(start_date, end_date, cluster_id)
+        report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
+        with schema_context(self.schema):
+            for pvc in unique_pvcs:
+                line_item = OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start=start_date,
+                    usage_end=start_date,
+                    report_period=report_period,
+                    cluster_id=cluster_id,
+                    cluster_alias=cluster_alias,
+                    monthly_cost_type="PVC",
+                    persistentvolumeclaim=pvc,
+                ).first()
+                if not line_item:
+                    line_item = OCPUsageLineItemDailySummary(
+                        usage_start=start_date,
+                        usage_end=start_date,
+                        report_period=report_period,
+                        cluster_id=cluster_id,
+                        cluster_alias=cluster_alias,
+                        monthly_cost_type="PVC",
+                        persistentvolumeclaim=pvc,
+                    )
+                if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                    LOG.info("PVC (%s) has a monthly infrastructure cost of %s.", pvc, pvc_cost)
+                    line_item.infrastructure_monthly_cost = pvc_cost
+                elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                    LOG.info("PVC (%s) has a monthly supplemenarty cost of %s.", pvc, pvc_cost)
+                    line_item.supplementary_monthly_cost = pvc_cost
                 line_item.save()
 
     def tag_upsert_monthly_cluster_cost_line_item(
