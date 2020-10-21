@@ -20,16 +20,31 @@ import os
 from uuid import uuid4
 
 from django.db import models
+from django.db import ProgrammingError as DJProgrammingError
 from django.db import transaction
+from psycopg2.errors import ProgrammingError as PGProgrammingError  # pylint: disable=no-name-in-module
+from psycopg2.errors import UndefinedObject  # pylint: disable=no-name-in-module
 from tenant_schemas.models import TenantMixin
 from tenant_schemas.postgresql_backend.base import _check_schema_name
 from tenant_schemas.utils import schema_exists
+
+from koku.migration_sql_helpers import apply_sql_file
+from koku.migration_sql_helpers import find_db_functions_dir
+from koku.migration_sql_helpers import function_exists
 
 
 LOG = logging.getLogger(__name__)
 
 
 class CloneSchemaError(Exception):
+    pass
+
+
+class CloneSchemaFuncMissing(CloneSchemaError):
+    pass
+
+
+class CloneSchemaTemplateMissing(CloneSchemaError):
     pass
 
 
@@ -74,7 +89,20 @@ class User(models.Model):
 class Tenant(TenantMixin):
     """The model used to create a tenant schema."""
 
+    # Sometimes the Tenant model can seemingly return funky results,
+    # so the template schema name is going to get more inline with the
+    # customer account schema names
     _TEMPLATE_SCHEMA = os.environ.get("TEMPLATE_SCHEMA", "template0")
+    _CLONE_SCHEMA_FUNC_FILENAME = os.path.join(find_db_functions_dir(), "clone_schema.sql")
+    _CLONE_SCHEMA_FUNC_SCHEMA = "public"
+    _CLONE_SHEMA_FUNC_NAME = "clone_schema"
+    _CLONE_SCHEMA_FUNC_SIG = (
+        f"{_CLONE_SCHEMA_FUNC_SCHEMA}.{_CLONE_SHEMA_FUNC_NAME}("
+        "source_schema text, dest_schema text, "
+        "copy_data boolean DEFAULT false, "
+        "_verbose boolean DEFAULT false"
+        ")"
+    )
 
     # Override the mixin domain url to make it nullable, non-unique
     domain_url = None
@@ -83,75 +111,85 @@ class Tenant(TenantMixin):
     auto_drop_schema = True
 
     def _check_clone_func(self):
-        func_sig = (
-            "public.clone_schema(source_schema text, dest_schema text, "
-            "copy_data boolean DEFAULT false, "
-            "_verbose boolean DEFAULT false)"
-        )
-        sql = """
-select pronamespace::regnamespace::text || '.' || proname || '(' || pg_get_function_arguments(oid) || ')'
-  from pg_proc
- where pronamespace = 'public'::regnamespace
-   and proname = 'clone_schema';
-"""
-        conn = transaction.get_connection()
-        cur = conn.cursor()
-        cur.execute(sql)
-        result = cur.fetchone()
-        cur.close()
-        if (not result) or (result[0] != func_sig):
-            raise CloneSchemaError('Database Function "public.clone_schema" not found')
+        LOG.info(f'Verify that clone function "{self._CLONE_SCHEMA_FUNC_SIG}" exists')
+        res = function_exists(self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG)
+        if not res:
+            LOG.warning(f'Clone function "{self._CLONE_SCHEMA_FUNC_SIG}" does not exist')
+            LOG.info(f'Creating clone function "{self._CLONE_SCHEMA_FUNC_SIG}"')
+            apply_sql_file(transaction.get_connection().schema_editor(), self._CLONE_SCHEMA_FUNC_FILENAME)
+            res = function_exists(
+                self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG
+            )
+        return res
 
     def _verify_template(self, verbosity=1):
         LOG.info(f'Verify that template schema "{self._TEMPLATE_SCHEMA}" exists')
-        _schema = self.schema_name
-        self.schema_name = self._TEMPLATE_SCHEMA
-        ret = super().create_schema(check_if_exists=True, sync_schema=True, verbosity=verbosity)
-        self.schema_name = _schema
-        return ret
+        # This is using the teanant table data as the source of truth which can be dangerous.
+        # If this becomes unreliable, then the database itself should be the source of truth
+        # and extra code must be written to handle the sync of the table data to the state of
+        # the database.
+        template_schema = self.__class__.objects.get_or_create(schema_name=self._TEMPLATE_SCHEMA)
+
+        # Strict check here! Both the record and the schema *should* exist!
+        return template_schema and schema_exists(self._TEMPLATE_SCHEMA)
+
+    def _clone_schema(self):
+        result = None
+        conn = transaction.get_connection()
+
+        with conn.cursor() as cur:
+            # This db func will clone the schema objects
+            # bypassing the time it takes to run migrations
+            sql = """
+select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
+"""
+            LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}" with data')
+            try:
+                cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
+            except (UndefinedObject, PGProgrammingError, DJProgrammingError) as e:
+                excmsg = f"{e.__class__.__name__} :: {e}"
+                LOG.critical(excmsg)
+                raise CloneSchemaError(excmsg)
+            else:
+                result = cur.fetchone()
+
+            conn.set_schema_to_public()
+
+        return result[0] if result else False
 
     def create_schema(self, check_if_exists=True, sync_schema=True, verbosity=1):
-        if self.schema_name == "public":
-            LOG.info("Using superclass for public schema creation")
+        """
+        If schema is "public" or matches _TEMPLATE_SCHEMA, then use the superclass' create_schema() method.
+        Else, verify the template and inputs and use the database clone function.
+        """
+        if self.schema_name in ("public", self._TEMPLATE_SCHEMA):
+            LOG.info(f'Using superclass for "{self.schema_name}" schema creation')
             return super().create_schema(check_if_exists=True, sync_schema=sync_schema, verbosity=verbosity)
 
         # Verify name structure
         _check_schema_name(self.schema_name)
 
         # Make sure all of our special pieces are in play
-        self._check_clone_func()
-        ret = self._verify_template(verbosity=verbosity)
-        if self.schema_name == self._TEMPLATE_SCHEMA:
-            return ret
+        ret = self._check_clone_func()
+        if not ret:
+            errmsg = "Missing clone_schema function even after re-applying the function SQL file."
+            LOG.critical(errmsg)
+            return CloneSchemaFuncMissing(errmsg)
 
-        # ignoring check_if_exists flag -- ALWAYS CHECK!
+        ret = self._verify_template(verbosity=verbosity)
+        if not ret:
+            errmsg = f'Template schema "{self._TEMPLATE_SCHEMA}" does not exist'
+            LOG.critical(errmsg)
+            raise CloneSchemaTemplateMissing(errmsg)
+
+        # Always check to see if the schema exists!
         if schema_exists(self.schema_name):
+            LOG.warning(f'Schema "{self.schema_name}" already exists.')
             return False
 
-        # Clone the schema
-        conn = transaction.get_connection()
-        with transaction.atomic():
-            cur = conn.cursor()
-
-            # This db func will clone the schema objects
-            # bypassing the time it takes to run migrations
-            sql = """
-select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
-"""
-            LOG.info(f"Cloning template schema {self._TEMPLATE_SCHEMA} to {self.schema_name} with data")
-            cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
-            result = cur.fetchone()
-            cur.close()
-
-            result = result[0] if result else False
-            if not result:
-                # Error creating schema
-                conn.rollback()
-                LOG.error(f"Error cloning template schema {self._TEMPLATE_SCHEMA}")
-                raise CloneSchemaError(f'Schema "{self.schema_name} creation has failed! Check DB logs!')
-            else:
-                LOG.info(f"Successful clone of {self._TEMPLATE_SCHEMA} to {self.schema_name}")
-
-            conn.set_schema_to_public()
+        # Clone the schema. The database function will check
+        # that the source schema exists and the destination schema does not.
+        result = self._clone_schema()
+        LOG.info(f'Successful clone of "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
 
         return result

@@ -17,10 +17,33 @@
 import logging
 import os
 
+from django.db import transaction
 from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 
 
 LOG = logging.getLogger(__name__)
+
+
+def function_exists(func_schema, func_name, func_sig):
+    """
+    Check existence of function by looking for function name in function schema
+    and testing result against the supplied function signature.
+    """
+    sql = """
+select pronamespace::regnamespace::text || '.' || proname || '(' || pg_get_function_arguments(oid) || ')'
+  from pg_proc
+ where pronamespace = %s::regnamespace
+   and proname = %s;
+"""
+    result = None
+    conn = transaction.get_connection()
+    with conn.cursor() as cur:
+        cur.execute(sql, [func_schema, func_name])
+        result = cur.fetchone()
+
+    result = False if result is None else (result[0] == func_sig)
+
+    return result
 
 
 def find_db_functions_dir(db_func_dir_name="db_functions"):

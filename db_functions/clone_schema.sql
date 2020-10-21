@@ -29,6 +29,7 @@ DECLARE
     dest_obj text;
     ix_stmt text;
     seqval bigint;
+    tenant_ident text[];
 BEGIN
     /* Check if source schema exists */
     PERFORM oid
@@ -36,7 +37,7 @@ BEGIN
       WHERE nspname = source_schema;
     IF NOT FOUND
     THEN
-        RAISE EXCEPTION 'Source schema % does not exist.', source_schema USING ERRCODE = 'undefined_object';
+        RAISE EXCEPTION 'Source schema "%" does not exist.', source_schema USING ERRCODE = 'undefined_object';
         RETURN false;
     END IF;
 
@@ -46,7 +47,7 @@ BEGIN
       WHERE nspname = dest_schema;
     IF FOUND
     THEN
-        RAISE INFO 'Destination schema % already exists.', dest_schema;
+        RAISE INFO 'Destination schema "%" already exists.', dest_schema;
         RETURN false;
     END IF;
 
@@ -57,7 +58,7 @@ BEGIN
      */
     IF _verbose
     THEN
-        RAISE INFO 'Creating schema %', quote_ident(dest_schema);
+        RAISE INFO 'Creating schema "%"', quote_ident(dest_schema);
     END IF;
 
     EXECUTE 'CREATE SCHEMA ' || quote_ident(dest_schema) || ' ;';
@@ -67,7 +68,7 @@ BEGIN
      */
     IF _verbose
     THEN
-        RAISE INFO 'Creating sequences for %', dest_schema;
+        RAISE INFO 'Creating sequences for "%"', dest_schema;
     END IF;
     FOR object_rec IN
         SELECT c.relname as "sequence_name",
@@ -85,7 +86,7 @@ BEGIN
     LOOP
         IF _verbose
         THEN
-            RAISE INFO '    %.%', quote_ident(dest_schema), quote_ident(object_rec.sequence_name);
+            RAISE INFO '    "%"."%"', quote_ident(dest_schema), quote_ident(object_rec.sequence_name);
         END IF;
         EXECUTE 'CREATE SEQUENCE IF NOT EXISTS ' ||
                 quote_ident(dest_schema) || '.' || quote_ident(object_rec.sequence_name) ||
@@ -112,7 +113,7 @@ BEGIN
      */
     IF _verbose
     THEN
-        RAISE INFO 'Creating tables for %', dest_schema;
+        RAISE INFO 'Creating tables for "%"', dest_schema;
     END IF;
     FOR object_rec IN
         SELECT t.oid as "obj_id",
@@ -160,7 +161,7 @@ BEGIN
         THEN
             IF _verbose
             THEN
-                RAISE INFO '    % (partitioned table)', dest_obj;
+                RAISE INFO '    "%" (partitioned table)', dest_obj;
             END IF;
             EXECUTE 'CREATE TABLE IF NOT EXISTS ' || dest_obj || ' (LIKE ' || source_obj || ' INCLUDING ALL) ' ||
                     'PARTITION BY ' || object_rec.partition_type ||
@@ -169,7 +170,7 @@ BEGIN
         THEN
             IF _verbose
             THEN
-                RAISE INFO '    % (table partition)', dest_obj;
+                RAISE INFO '    "%" (table partition)', dest_obj;
             END IF;
             EXECUTE 'CREATE TABLE IF NOT EXISTS ' || dest_obj || ' PARTITION OF ' ||
                     quote_ident(dest_schema) || '.' || quote_ident(object_rec.partitioned_table) || ' ' ||
@@ -177,7 +178,7 @@ BEGIN
         ELSE
             IF _verbose
             THEN
-                RAISE INFO '    % (table)', dest_obj;
+                RAISE INFO '    "%" (table)', dest_obj;
             END IF;
             EXECUTE 'CREATE TABLE IF NOT EXISTS ' || dest_obj || ' (LIKE ' || source_obj || ' INCLUDING ALL) ;';
         END IF;
@@ -239,7 +240,7 @@ BEGIN
      */
     IF _verbose
     THEN
-        RAISE INFO 'Create foriegn key constraints for tables in %', dest_schema;
+        RAISE INFO 'Create foriegn key constraints for tables in "%"', dest_schema;
     END IF;
     FOR object_rec IN
         SELECT rn.relname as "table_name",
@@ -268,7 +269,7 @@ BEGIN
      */
     IF _verbose
     THEN
-        RAISE INFO 'Creating views for %', dest_schema;
+        RAISE INFO 'Creating views for "%"', dest_schema;
     END IF;
     FOR object_rec IN
         WITH RECURSIVE view_deps as (
@@ -334,7 +335,7 @@ BEGIN
     LOOP
         IF _verbose
         THEN
-            RAISE INFO '    % %', object_rec.view_kind, object_rec.view_name;
+            RAISE INFO '    "%" "%"', object_rec.view_kind, object_rec.view_name;
         END IF;
         EXECUTE 'CREATE ' || object_rec.view_kind || ' ' ||
                 quote_ident(dest_schema) || '.' || quote_ident(object_rec.view_name) || ' AS ' ||
@@ -358,7 +359,7 @@ BEGIN
      */
     IF _verbose
     THEN
-        RAISE INFO 'Create functions, procedures for %', dest_schema;
+        RAISE INFO 'Create functions, procedures for "%"', dest_schema;
     END IF;
     FOR object_rec IN
         SELECT proname as "func_name",
@@ -375,7 +376,7 @@ BEGIN
     LOOP
         IF _verbose
         THEN
-            RAISE INFO '    % %', object_rec.func_type, object_rec.func_name;
+            RAISE INFO '    "%" "%"', object_rec.func_type, object_rec.func_name;
         END IF;
         EXECUTE object_rec.func_stmt;
     END LOOP;
@@ -385,7 +386,7 @@ BEGIN
      */
     IF _verbose
     THEN
-        RAISE INFO 'Create triggers on objects in %', dest_schema;
+        RAISE INFO 'Create triggers on objects in "%"', dest_schema;
     END IF;
     FOR object_rec IN
         SELECT t.oid as "trigger_id",
@@ -401,7 +402,7 @@ BEGIN
     LOOP
         IF _verbose
         THEN
-            RAISE INFO '    %.%', object_rec.table_name, object_rec.trigger_name;
+            RAISE INFO '    "%"."%"', object_rec.table_name, object_rec.trigger_name;
         END IF;
         EXECUTE object_rec.trigger_def;
     END LOOP;
