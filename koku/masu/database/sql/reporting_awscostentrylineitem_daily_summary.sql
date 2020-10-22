@@ -2,7 +2,7 @@
 CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sqlsafe}} AS (
     WITH cte_array_agg_keys AS (
         SELECT array_agg(key) as key_array
-        FROM reporting_awsenabledtagkeys
+        FROM {{schema | sqlsafe}}.reporting_awsenabledtagkeys
     ),
     cte_filtered_tags AS (
         SELECT id,
@@ -11,7 +11,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
             SELECT lid.id,
                 lid.tags as aws_tags,
                 aak.key_array
-            FROM reporting_awscostentrylineitem_daily lid
+            FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily lid
             JOIN cte_array_agg_keys aak
                 ON 1=1
             WHERE (
@@ -30,7 +30,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
         li.usage_account_id,
         max(aa.id) as account_alias_id,
         li.availability_zone,
-        li.tags,
+        fvl.aws_tags as tags,
         p.region,
         p.instance_type,
         pr.unit,
@@ -83,7 +83,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
         p.region,
         p.instance_type,
         pr.unit,
-        li.tags,
+        fvl.aws_tags,
         ab.provider_id
 )
 ;
