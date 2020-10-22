@@ -24,8 +24,7 @@ class GCPProviderTestCase(TestCase):
 
     @patch("providers.gcp.provider.discovery")
     @patch("providers.gcp.provider.google.auth.default")
-    @patch("providers.gcp.provider.storage")
-    def test_cost_usage_source_is_reachable_valid(self, mock_storage, mock_auth, mock_discovery):
+    def test_cost_usage_source_is_reachable_valid(self, mock_auth, mock_discovery):
         """Test that cost_usage_source_is_reachable succeeds."""
         gcp_creds = MagicMock()
         mock_auth.return_value = (gcp_creds, MagicMock())
@@ -44,8 +43,7 @@ class GCPProviderTestCase(TestCase):
 
     @patch("providers.gcp.provider.discovery")
     @patch("providers.gcp.provider.google.auth.default")
-    @patch("providers.gcp.provider.storage")
-    def test_cost_usage_source_missing_required_permission(self, mock_storage, mock_auth, mock_discovery):
+    def test_cost_usage_source_missing_required_permission(self, mock_auth, mock_discovery):
         """Test that cost_usage_source_is_reachable succeeds."""
         missing_permissions = [REQUIRED_IAM_PERMISSIONS[0]]
         mock_auth.return_value = (MagicMock(), MagicMock())
@@ -60,8 +58,7 @@ class GCPProviderTestCase(TestCase):
 
     @patch("providers.gcp.provider.discovery")
     @patch("providers.gcp.provider.google.auth.default")
-    @patch("providers.gcp.provider.storage")
-    def test_cost_usage_source_raise_google_cloud_error(self, mock_storage, mock_auth, mock_discovery):
+    def test_cost_usage_source_raise_google_cloud_error(self, mock_auth, mock_discovery):
         """Test that cost_usage_source_is_reachable succeeds."""
         err_msg = "GCP Error"
         mock_discovery.build.side_effect = GoogleCloudError(err_msg)
