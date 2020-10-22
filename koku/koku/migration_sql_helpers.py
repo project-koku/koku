@@ -14,9 +14,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+import logging
 import os
 
 from django.db.backends.base.schema import BaseDatabaseSchemaEditor
+
+
+LOG = logging.getLogger(__name__)
 
 
 def find_db_functions_dir(db_func_dir_name="db_functions"):
@@ -54,7 +58,11 @@ def apply_sql_file(conn, path, literal_placeholder=False):
     if literal_placeholder:
         sqlbuff = sqlbuff.replace("%", "%%")
     if isinstance(conn, BaseDatabaseSchemaEditor):
-        conn.execute(sqlbuff)
+        try:
+            conn.execute(sqlbuff)
+        except Exception as e:  # Log statement buffer on *any* exception
+            LOG.error(f"Error {e.__class__.__name__} applying SQL buffer: {os.linesep}{sqlbuff}")
+            raise e
     else:
         raise TypeError(f'Cannot apply SQL file "{path}" with instance of "{conn.__class__.__name__}"')
 

@@ -28,8 +28,31 @@ DECLARE
     leaf_app_key text;
     leaf_app_keys text[];
     latest_migrations jsonb;
+    required_tables int := 0;
     do_migrations boolean := false;
 BEGIN
+    /*
+     * Verify that the necessary tables are present
+     */
+    SELECT count(*)
+      INTO required_tables
+      FROM pg_class c
+      JOIN pg_namespace n
+        ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public'
+       AND c.relname in ('api_tenant', 'django_migrations');
+
+    /*
+     * If migrations have been run against public, then we expect to find both tables
+     */
+    IF required_tables != 2
+    THEN
+        RETURN true;
+    END IF;
+
+    /*
+     * setup app keys for processing
+     */
     SELECT array_agg(k)
       INTO leaf_app_keys
       FROM jsonb_object_keys(leaf_migrations) k;

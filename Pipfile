@@ -66,7 +66,6 @@ model-bakery = ">=1.1"
 koku-nise = ">=2.2"
 pre-commit = ">=2.0"
 responses = ">=0.10"
-v = {editable = true,version = "*"}
 
 [requires]
 python_version = "3.8"

@@ -35,7 +35,7 @@ mgmt_services/cost-mgmt:koku/python-django-tenant-schemas:1.10.0.pipfile
 mgmt_services/cost-mgmt:koku/python-djangorestframework:3.12.1.pipfile
 mgmt_services/cost-mgmt:koku/python-djangorestframework-csv:2.1.0.pipfile
 mgmt_services/cost-mgmt:koku/python-flake8:3.8.4.pipfile
-mgmt_services/cost-mgmt:koku/python-google-api-core:1.22.4.pipfile
+mgmt_services/cost-mgmt:koku/python-google-api-core:1.23.0.pipfile
 mgmt_services/cost-mgmt:koku/python-google-auth:1.22.1.pipfile
 mgmt_services/cost-mgmt:koku/python-google-cloud-core:1.4.3.pipfile
 mgmt_services/cost-mgmt:koku/python-google-cloud-storage:1.19.1.pipfile
