@@ -105,7 +105,7 @@ SCREEN_MAP = {
     Provider.PROVIDER_AZURE: _azure_provider_ready_for_create,
     Provider.PROVIDER_AZURE_LOCAL: _azure_provider_ready_for_create,
     Provider.PROVIDER_GCP: _gcp_provider_ready_for_create,
-    Provider.PROVIDER_GCP_LOCAL: _gcp_provider_ready_for_create
+    Provider.PROVIDER_GCP_LOCAL: _gcp_provider_ready_for_create,
 }
 
 
