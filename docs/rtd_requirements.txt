@@ -1,5 +1,4 @@
--i http://localhost:3141/root/pypi/+simple/
---trusted-host localhost:3141
+-i https://pypi.python.org/simple
 adal==1.2.4
 amqp==2.6.1
 asgiref==3.2.10
@@ -12,8 +11,8 @@ azure-mgmt-storage==11.2.0
 azure-storage-blob==12.5.0
 beautifulsoup4==4.9.3
 billiard==3.6.3.0
-boto3==1.16.0
-botocore==1.19.0
+boto3==1.16.2
+botocore==1.19.2
 bs4==0.0.1
 cachetools==4.1.1
 celery-prometheus-exporter==1.7.0
@@ -37,12 +36,15 @@ djangorestframework-csv==2.1.0
 djangorestframework==3.12.1
 flake8==3.8.4
 google-api-core==1.23.0
+google-api-python-client==1.12.4
+google-auth-httplib2==0.0.4
 google-auth==1.22.1
 google-cloud-core==1.4.3
 google-cloud-storage==1.19.1
 google-resumable-media==0.4.1
 googleapis-common-protos==1.52.0
 gunicorn==20.0.4
+httplib2==0.18.1
 idna==2.10
 importlib-metadata==2.0.0
 isodate==0.6.0
@@ -80,15 +82,16 @@ querystring-parser==1.2.4
 redis==3.5.3
 requests-oauthlib==1.3.0
 requests==2.24.0
-rsa==4.6; python_version >= '3.5'
+rsa==4.6 ; python_version >= '3.5'
 s3transfer==0.3.3
 sentry-sdk==0.19.1
 six==1.15.0
-soupsieve==2.0.1; python_version >= '3.0'
+soupsieve==2.0.1 ; python_version >= '3.0'
 sqlparse==0.4.1
 ujson==4.0.1
 unicodecsv==0.14.1
-urllib3==1.25.11; python_version != '3.4'
+uritemplate==3.0.1
+urllib3==1.25.11 ; python_version != '3.4'
 vine==1.3.0
 watchtower==0.8.0
 whitenoise==5.2.0
