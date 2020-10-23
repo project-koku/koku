@@ -1,5 +1,5 @@
 -i https://pypi.python.org/simple
-adal==1.2.4
+adal==1.2.5
 amqp==2.6.1
 asgiref==3.2.10
 azure-common==1.1.25
@@ -11,8 +11,8 @@ azure-mgmt-storage==11.2.0
 azure-storage-blob==12.5.0
 beautifulsoup4==4.9.3
 billiard==3.6.3.0
-boto3==1.16.2
-botocore==1.19.2
+boto3==1.16.3
+botocore==1.19.3
 bs4==0.0.1
 cachetools==4.1.1
 celery-prometheus-exporter==1.7.0
@@ -36,7 +36,7 @@ djangorestframework-csv==2.1.0
 djangorestframework==3.12.1
 flake8==3.8.4
 google-api-core==1.23.0
-google-api-python-client==1.12.4
+google-api-python-client==1.12.5
 google-auth-httplib2==0.0.4
 google-auth==1.22.1
 google-cloud-core==1.4.3
