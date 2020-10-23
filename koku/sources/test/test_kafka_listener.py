@@ -205,6 +205,17 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             "account_id": "acct10001",
             "offset": 12,
         }
+        self.gcp_source = {
+            "source_id": 13,
+            "source_uuid": uuid4(),
+            "name": "Provider GCP",
+            "source_type": "GCP",
+            "authentication": {"credentials": {"project_id": "test_project"}},
+            "billing_source": {"data_source": {"dataset": "test_dataset", "table_id": "test_table_id"}},
+            "auth_header": Config.SOURCES_FAKE_HEADER,
+            "account_id": "acct10001",
+            "offset": 12,
+        }
 
     def test_execute_koku_provider_op_create(self):
         """Test to execute Koku Operations to sync with Sources for creation."""
@@ -551,6 +562,65 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertEqual(source_obj.name, source_name)
         self.assertEqual(source_obj.source_type, Provider.PROVIDER_AWS)
         self.assertEqual(source_obj.authentication, {"credentials": {"role_arn": authentication}})
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_sources_network_info_sync_gcp(self):
+        """Test to get additional Source context from Sources API for GCP."""
+        test_source_id = self.gcp_source.get("source_id")
+        provider = Sources(**self.gcp_source)
+        provider.save()
+
+        test_auth_header = Config.SOURCES_FAKE_HEADER
+        source_name = "GCP Source"
+        source_uid = faker.uuid4()
+        authentication = "project_id_test"
+        source_type_id = 1
+        mock_source_name = "google"
+        resource_id = 2
+        authentication_id = 3
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/sources/{test_source_id}",
+                status_code=200,
+                json={"name": source_name, "source_type_id": source_type_id, "uid": source_uid},
+            )
+            m.get(
+                f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
+                status_code=200,
+                json={"data": [{"name": mock_source_name}]},
+            )
+            m.get(
+                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
+                status_code=200,
+                json={"data": [{"id": resource_id}]},
+            )
+            m.get(
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
+                status_code=200,
+                json={"data": [{"id": resource_id}]},
+            )
+            m.get(
+                (
+                    f"http://www.sources.com/api/v1.0/authentications?"
+                    f"[authtype]=project_id&[resource_id]={resource_id}"
+                ),
+                status_code=200,
+                json={"data": [{"id": authentication_id}]},
+            )
+            m.get(
+                (
+                    f"http://www.sources.com/internal/v1.0/authentications/{authentication_id}"
+                    f"?expose_encrypted_attribute[]=password"
+                ),
+                status_code=200,
+                json={"password": authentication},
+            )
+            source_integration.sources_network_info(test_source_id, test_auth_header)
+
+        source_obj = Sources.objects.get(source_id=test_source_id)
+        self.assertEqual(source_obj.name, source_name)
+        self.assertEqual(source_obj.source_type, Provider.PROVIDER_GCP)
+        self.assertEqual(source_obj.authentication, {"credentials": {"project_id": authentication}})
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_sources_network_info_sync_aws_local(self):
