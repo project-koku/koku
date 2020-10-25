@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Data Driven Component Generation for Tag Management Settings."""
+from django.conf import settings
 from django.test import RequestFactory
 from rest_framework.serializers import ValidationError
 from tenant_schemas.utils import schema_context
@@ -49,30 +50,35 @@ obtainTagKeysProvidersParams = {
         "tag_view": OCPTagView,
         "query_handler": OCPTagQueryHandler,
         "enabled_tag_keys": OCPEnabledTagKeys,
-    },
-    "aws": {
-        "provider": Provider.PROVIDER_AWS,
-        "title": "Amazon Web Services tags",
-        "leftLabel": "Available tags",
-        "rightLabel": "Tags for reporting",
-        "tag_view": AWSTagView,
-        "query_handler": AWSTagQueryHandler,
-        "enabled_tag_keys": AWSEnabledTagKeys,
-    },
-    "azure": {
-        "provider": Provider.PROVIDER_AZURE,
-        "title": "Azure tags",
-        "leftLabel": "Available tags",
-        "rightLabel": "Tags for reporting",
-        "tag_view": AzureTagView,
-        "query_handler": AzureTagQueryHandler,
-        "enabled_tag_keys": AzureEnabledTagKeys,
-    },
+    }
 }
+if settings.DEVELOPMENT:
+    obtainTagKeysProvidersParams.update(
+        {
+            "aws": {
+                "provider": Provider.PROVIDER_AWS,
+                "title": "Amazon Web Services tags",
+                "leftLabel": "Available tags",
+                "rightLabel": "Tags for reporting",
+                "tag_view": AWSTagView,
+                "query_handler": AWSTagQueryHandler,
+                "enabled_tag_keys": AWSEnabledTagKeys,
+            },
+            "azure": {
+                "provider": Provider.PROVIDER_AZURE,
+                "title": "Azure tags",
+                "leftLabel": "Available tags",
+                "rightLabel": "Tags for reporting",
+                "tag_view": AzureTagView,
+                "query_handler": AzureTagQueryHandler,
+                "enabled_tag_keys": AzureEnabledTagKeys,
+            },
+        }
+    )
 
 
 class TagManagementSettings:
-    """Class for generating OpenShift settings."""
+    """Class for generating tag management settings."""
 
     def __init__(self, request):
         """Initialize settings object with incoming request."""
@@ -112,15 +118,15 @@ class TagManagementSettings:
 
     def _build_tag_key(self):
         """
-        Generate tag_key tab component
+        Generate tag management form component
 
         Returns:
             (Dict) - Tab Item
         """
-        tag_key_text_name = f"{self._get_tag_management_prefix('openshift')}.form-text"
+        tag_key_text_name = f"{SETTINGS_PREFIX}.tag_management.form-text"
         tag_key_text_context = (
-            "Enable your OpenShift label names or Amazon Web Services or Azure tag keys to be used for report"
-            + " grouping and filtering. <link>Learn more</link>"
+            "Enable your data source labels to be used as tag keys for report grouping and filtering."
+            + " Changes will be reflected within 24 hours. <link>Learn more</link>"
         )
         doc_link = dict(
             href=generate_doc_link("managing_cost_data_using_tagging/configuring_tags_and_labels_in_cost_management")
@@ -159,7 +165,7 @@ class TagManagementSettings:
 
     def build_settings(self):
         """
-        Generate OpenShift settings
+        Generate tag management settings
 
         Returns:
             (List) - List of setting items
@@ -218,5 +224,5 @@ class TagManagementSettings:
         Returns:
             (Bool) - True, if a setting had an effect, False otherwise
         """
-        openshift_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
-        return self._tag_key_handler(openshift_settings)
+        tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
+        return self._tag_key_handler(tg_mgmt_settings)

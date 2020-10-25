@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Settings views."""
+from django.conf import settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -56,7 +57,8 @@ class SettingsViewTest(IamTestCase):
         primary_object = data[0]
         tg_mngmnt_subform_fields = primary_object.get("fields")
         self.assertIsNotNone(tg_mngmnt_subform_fields)
-        self.assertEqual(len(tg_mngmnt_subform_fields), 7)
+        fields_len = 7 if settings.DEVELOPMENT else 3
+        self.assertEqual(len(tg_mngmnt_subform_fields), fields_len)
         tg_mngmnt_dual_list = next(
             (field for field in tg_mngmnt_subform_fields if field["component"] == "dual-list-select"), None
         )
