@@ -25,16 +25,6 @@ cte_values_agg AS (
         ON tv.usage_account_id = aa.account_id
     GROUP BY key, cost_entry_bill_id, usage_account_id, aa.id
 )
-, enabled_tags_insert AS (
-    INSERT INTO {{schema | sqlsafe}}.reporting_awsenabledtagkeys (key)
-    SELECT DISTINCT(key)
-    FROM cte_tag_value
-    WHERE NOT EXISTS (
-        SELECT key from {{schema | sqlsafe}}.reporting_awsenabledtagkeys
-        WHERE key = cte_tag_value.key
-    )
-    AND NOT key = ANY(SELECT DISTINCT(key) FROM {{schema | sqlsafe}}.reporting_awstags_summary)
-)
 , ins1 AS (
     INSERT INTO {{schema | sqlsafe}}.reporting_awstags_summary (uuid, key, cost_entry_bill_id, usage_account_id, account_alias_id, values)
     SELECT uuid_generate_v4() as uuid,
