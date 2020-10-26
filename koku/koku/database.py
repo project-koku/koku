@@ -78,7 +78,7 @@ def config():
     return _cert_config(db_config, database_cert)
 
 
-def dbfunc_exists(connection, function_signature):
+def dbfunc_exists(connection, function_schema, function_name, function_signature):
     """
     Test that the migration check database function exists by
     checking the existence of the function signature.
@@ -87,11 +87,11 @@ def dbfunc_exists(connection, function_signature):
 select p.pronamespace::regnamespace::text || '.' || p.proname ||
        '(' || pg_get_function_arguments(p.oid) || ')' as funcsig
   from pg_proc p
- where pronamespace = 'public'::regnamespace
-   and proname = 'app_needs_migrations';
+ where pronamespace = %s::regnamespace
+   and proname = %s;
 """
     with connection.cursor() as cur:
-        cur.execute(sql)
+        cur.execute(sql, (function_schema, function_name))
         res = cur.fetchone()
 
     return bool(res) and res[0] == function_signature
@@ -109,7 +109,7 @@ def install_migrations_dbfunc(connection):
 
 def verify_migrations_dbfunc(connection):
     func_sig = "public.app_needs_migrations(leaf_migrations jsonb, _verbose boolean DEFAULT false)"
-    if not dbfunc_exists(connection, func_sig):
+    if not dbfunc_exists(connection, "public", "app_needs_migrations", func_sig):
         install_migrations_dbfunc(connection)
 
 

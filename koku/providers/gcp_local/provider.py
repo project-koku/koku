@@ -16,7 +16,7 @@ class GCPLocalProvider(GCPProvider):
     def cost_usage_source_is_reachable(self, credentials, data_source):
         """Verify that GCP local bucket name is given."""
         if not data_source:
-            key = "bucket"
-            message = "Bucket is a required parameter for GCP."
+            key = "table_id"
+            message = "Project id is a required parameter for GCP."
             raise serializers.ValidationError(error_obj(key, message))
         return True
