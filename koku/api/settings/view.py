@@ -25,10 +25,10 @@ from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
 from api.common.permissions.settings_access import SettingsAccessPermission
-from api.settings.ocp import OpenShiftSettings
+from api.settings.tag_management import TagManagementSettings
 
 LOG = logging.getLogger(__name__)
-SETTINGS_GENERATORS = {"OCP": OpenShiftSettings}
+SETTINGS_GENERATORS = {"tag-management": TagManagementSettings}
 
 
 class SettingsView(APIView):
@@ -61,5 +61,4 @@ class SettingsView(APIView):
         for settings_clazz in SETTINGS_GENERATORS.values():
             instance = settings_clazz(request)
             settings += instance.build_settings()
-
         return settings
