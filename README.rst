@@ -136,6 +136,21 @@ Run OCP Scenario
     - http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/memory/
     - http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/compute/
 
+Run GCP Scenario
+^^^^^^^^^^^^^^^^
+
+1. Set Environment variables::
+
+    GCP_DATASET - The name of the BigQuery dataset in your GCP setup.
+    GCP_TABLE_ID - The identifier for the table you are pulling for the billing information.
+    GCP_PROJECT_ID - The identifier for the GCP project.
+
+2. Create GCP source::
+
+    make gcp-source gcp_name=my_gcp_source
+
+3. Verify provider exists by visiting http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_gcp_source
+
 Stopping Koku using Docker Compose
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 To bring down all the docker containers, run the following command::
