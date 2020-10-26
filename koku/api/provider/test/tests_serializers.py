@@ -367,7 +367,9 @@ class ProviderSerializerTest(IamTestCase):
             "name": "test_provider_one",
             "type": Provider.PROVIDER_GCP.lower(),
             "authentication": {"credentials": {"project_id": "gcp_project"}},
-            "billing_source": {"data_source": {"bucket": "test_bucket", "report_prefix": "precious"}},
+            "billing_source": {
+                "data_source": {"dataset": "test_dataset", "table_id": "test_table_id", "report_prefix": "precious"}
+            },
         }
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             serializer = ProviderSerializer(data=provider, context=self.request_context)
@@ -464,7 +466,7 @@ class ProviderSerializerTest(IamTestCase):
         self.assertEqual(e.exception.status_code, 400)
         self.assertEqual(
             str(e.exception.detail["billing_source"]["data_source"]["provider.data_source"][0]),
-            "One or more required fields is invalid/missing. Required fields are ['bucket']",
+            "One or more required fields is invalid/missing. Required fields are ['dataset', 'table_id']",
         )
 
     def test_create_gcp_provider_validate_report_prefix_too_long(self):
@@ -475,7 +477,8 @@ class ProviderSerializerTest(IamTestCase):
             "authentication": {"credentials": {"project_id": "gcp_project"}},
             "billing_source": {
                 "data_source": {
-                    "bucket": "precious-taters",
+                    "dataset": "test_dataset",
+                    "table_id": "test_table_id",
                     "report_prefix": "an-unnecessarily-long-prefix-that-is-here-simply-for-the-purpose-of"
                     "testing-the-custom-validator-the-checks-for-too-long-of-a-report_prefix",
                 }
@@ -491,24 +494,6 @@ class ProviderSerializerTest(IamTestCase):
             str(e.exception.detail["billing_source"]["data_source"]["data_source.report_prefix"][0]),
             f"Ensure this field has no more than {REPORT_PREFIX_MAX_LENGTH} characters.",
         )
-
-    def test_create_gcp_provider_duplicate_bucket(self):
-        """Test that the same blank billing entry is used for all OCP providers."""
-        provider = {
-            "name": "test_provider_one",
-            "type": Provider.PROVIDER_GCP.lower(),
-            "authentication": {"credentials": {"project_id": "gcp_project"}},
-            "billing_source": {"data_source": {"bucket": "test_bucket"}},
-        }
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            serializer = ProviderSerializer(data=provider, context=self.request_context)
-            if serializer.is_valid(raise_exception=True):
-                serializer.save()
-
-            with self.assertRaises(ValidationError):
-                serializer = ProviderSerializer(data=provider, context=self.request_context)
-                if serializer.is_valid(raise_exception=True):
-                    serializer.save()
 
     def test_create_provider_invalid_type(self):
         """Test that an invalid provider type is not validated."""
