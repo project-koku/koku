@@ -18,10 +18,10 @@
     "default": {
         "adal": {
             "hashes": [
-                "sha256:7a15d22b1ee7ce1be92441199958748982feba6b7dec35fbf60f9b607bad1bc0",
-                "sha256:b332316f54d947f39acd9628e7d61d90f6e54d413d6f97025a51482c96bac6bc"
+                "sha256:7492aff8f0ba7dd4e1c477303295c645141540fff34c3ca6de0a0b0e6c1c122a",
+                "sha256:8003ba03ef04170195b3eddda8a5ab43649ef2c5f0287023d515affb1ccfcfc3"
             ],
-            "version": "==1.2.4"
+            "version": "==1.2.5"
         },
         "amqp": {
             "hashes": [
@@ -989,10 +989,10 @@
     "develop": {
         "adal": {
             "hashes": [
-                "sha256:7a15d22b1ee7ce1be92441199958748982feba6b7dec35fbf60f9b607bad1bc0",
-                "sha256:b332316f54d947f39acd9628e7d61d90f6e54d413d6f97025a51482c96bac6bc"
+                "sha256:7492aff8f0ba7dd4e1c477303295c645141540fff34c3ca6de0a0b0e6c1c122a",
+                "sha256:8003ba03ef04170195b3eddda8a5ab43649ef2c5f0287023d515affb1ccfcfc3"
             ],
-            "version": "==1.2.4"
+            "version": "==1.2.5"
         },
         "alabaster": {
             "hashes": [
