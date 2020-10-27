@@ -29,7 +29,7 @@ from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParqu
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
 from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
-from masu.processor.ocp.ocp_report_summary_updater import OCPReportParquetSummaryUpdater
+from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdater
 from masu.processor.ocp.ocp_report_summary_updater import OCPReportSummaryUpdater
 
 LOG = logging.getLogger(__name__)
@@ -89,19 +89,8 @@ class ReportSummaryUpdater:
 
         """
         if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            if settings.ENABLE_PARQUET_PROCESSING:
-                return (
-                    AWSReportParquetSummaryUpdater(self._schema, self._provider, self._manifest),
-                    OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
-                )
-            return (
-                AWSReportSummaryUpdater(self._schema, self._provider, self._manifest),
-                OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
-            )
-        if self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            return (
-                AzureReportSummaryUpdater(self._schema, self._provider, self._manifest),
-                OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+            report_summary_updater = (
+                AWSReportParquetSummaryUpdater if settings.ENABLE_PARQUET_PROCESSING else AWSReportSummaryUpdater
             )
         elif self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             report_summary_updater = AzureReportSummaryUpdater
