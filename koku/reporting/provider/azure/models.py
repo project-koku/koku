@@ -18,8 +18,8 @@
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.db import models
+from django.db.models import JSONField
 
 VIEWS = (
     "reporting_azure_compute_summary",
@@ -384,3 +384,15 @@ class AzureDatabaseSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
+
+
+class AzureEnabledTagKeys(models.Model):
+    """A collection of the current enabled tag keys."""
+
+    class Meta:
+        """Meta for AzureEnabledTagKeys."""
+
+        db_table = "reporting_azureenabledtagkeys"
+
+    id = models.BigAutoField(primary_key=True)
+    key = models.CharField(max_length=253, unique=True)

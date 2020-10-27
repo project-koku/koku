@@ -415,3 +415,81 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             # Usage cost
             self.assertNotEqual(pod_line_item.supplementary_usage_cost.get("cpu"), 0)
             self.assertNotEqual(volume_line_item.supplementary_usage_cost.get("storage"), 0)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_monthly_tag_cost")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_tag_update_monthly_cost_infrastructure(self, mock_cost_accessor, mock_update_monthly):
+        """Test that populate_monthly_tag_cost is called with the correct cost_type and rate."""
+        # using a string instead of an actual rate for the purposes of testing that the function is called
+        mock_cost_accessor.return_value.__enter__.return_value.tag_infrastructure_rates = {
+            "node_cost_per_month": "a tag rate"
+        }
+        mock_cost_accessor.return_value.__enter__.return_value.tag_supplementary_rates = {}
+
+        usage_period = self.accessor.get_current_usage_period()
+        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
+        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._update_monthly_tag_based_cost(start_date, end_date)
+
+        # assert that the Node call includes relevant information and Cluster call has nothing
+        # since there was no Cluster related cost
+        mock_update_monthly.assert_any_call(
+            "Node", "Infrastructure", "a tag rate", start_date, end_date, self.cluster_id, updater._cluster_alias
+        )
+        mock_update_monthly.assert_any_call(
+            "Cluster", None, None, start_date, end_date, self.cluster_id, updater._cluster_alias
+        )
+        mock_update_monthly.assert_any_call(
+            "PVC", None, None, start_date, end_date, self.cluster_id, updater._cluster_alias
+        )
+        self.assertEqual(mock_update_monthly.call_count, 3)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_monthly_tag_cost")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_tag_update_monthly_cost_supplementary(self, mock_cost_accessor, mock_update_monthly):
+        """Test that _update_monthly_tag_based_cost is called with the correct cost_type and rate."""
+        # using a string instead of an actual rate for the purposes of testing that the function is called
+        mock_cost_accessor.return_value.__enter__.return_value.tag_infrastructure_rates = {}
+        mock_cost_accessor.return_value.__enter__.return_value.tag_supplementary_rates = {
+            "cluster_cost_per_month": "a tag rate"
+        }
+
+        usage_period = self.accessor.get_current_usage_period()
+        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
+        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._update_monthly_tag_based_cost(start_date, end_date)
+
+        # assert that the Cluster call includes relevant information and Node call has nothing
+        # since there was no Node related cost
+        mock_update_monthly.assert_any_call(
+            "Node", None, None, start_date, end_date, self.cluster_id, updater._cluster_alias
+        )
+        mock_update_monthly.assert_any_call(
+            "Cluster", "Supplementary", "a tag rate", start_date, end_date, self.cluster_id, updater._cluster_alias
+        )
+        mock_update_monthly.assert_any_call(
+            "PVC", None, None, start_date, end_date, self.cluster_id, updater._cluster_alias
+        )
+        self.assertEqual(mock_update_monthly.call_count, 3)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_tag_usage_costs")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_update_tag_usage_costs(self, mock_cost_accessor, mock_update_usage):
+        """Test that populate_tag_usage_cost is called with the correct cost_type and rate."""
+        # using a string instead of an actual rate for the purposes of testing that the function is called
+        infrastructure_rates = {"cpu_core_usage_per_hour": "another tag rate"}
+        supplementary_rates = {"memory_gb_usage_per_hour": "a tag rate"}
+        mock_cost_accessor.return_value.__enter__.return_value.tag_infrastructure_rates = infrastructure_rates
+        mock_cost_accessor.return_value.__enter__.return_value.tag_supplementary_rates = supplementary_rates
+
+        usage_period = self.accessor.get_current_usage_period()
+        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
+        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._update_tag_usage_costs(start_date, end_date)
+        # assert that populate_tag_usage_costs was called with the correct info
+        mock_update_usage.assert_called_once_with(
+            infrastructure_rates, supplementary_rates, start_date, end_date, self.cluster_id
+        )

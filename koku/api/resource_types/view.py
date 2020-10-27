@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""View for organizations."""
+"""View for Resource Types."""
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework.views import APIView
@@ -88,7 +88,7 @@ class ResourceTypeView(APIView):
             }
             cost_model_dict = {
                 "value": "rate",
-                "path": "/api/cost-management/v1/resource-types/rates/",
+                "path": "/api/cost-management/v1/resource-types/cost-models/",
                 "count": cost_model_count,
             }
             data = [

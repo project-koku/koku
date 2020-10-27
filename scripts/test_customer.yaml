@@ -48,6 +48,16 @@ customer:
           storage_account:
             local_dir: '/tmp/local_container'
             container: ''
+    - gcp_source:
+      source_name: Test GCP source
+      source_type: 'GCP-local'
+      authentication:
+        credentials:
+          project_id: 'example-project-id'
+      billing_source:
+        data_source:
+          dataset: 'example-dataset-name'
+          table_id: 'example-table-id'
 koku:
   host: localhost
   port: 8000

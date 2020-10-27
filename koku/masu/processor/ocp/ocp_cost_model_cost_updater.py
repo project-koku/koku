@@ -52,7 +52,11 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
         with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
             self._infra_rates = cost_model_accessor.infrastructure_rates
+            self._tag_infra_rates = cost_model_accessor.tag_infrastructure_rates
+            self._tag_default_infra_rates = cost_model_accessor.tag_default_infrastructure_rates
             self._supplementary_rates = cost_model_accessor.supplementary_rates
+            self._tag_supplementary_rates = cost_model_accessor.tag_supplementary_rates
+            self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
 
     @staticmethod
     def _normalize_tier(input_tier):
@@ -211,11 +215,66 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         except OCPCostModelCostUpdaterError as error:
             LOG.error("Unable to update monthly costs. Error: %s", str(error))
 
+    def _update_monthly_tag_based_cost(self, start_date, end_date):
+        """Update the monthly cost for a period of time based on tag rates."""
+        try:
+            with OCPReportDBAccessor(self._schema) as report_accessor:
+                for cost_type, rate_term in OCPUsageLineItemDailySummary.MONTHLY_COST_RATE_MAP.items():
+                    rate_type = None
+                    rate = None
+                    if self._tag_infra_rates.get(rate_term):
+                        rate_type = metric_constants.INFRASTRUCTURE_COST_TYPE
+                        rate = self._tag_infra_rates.get(rate_term)
+                    elif self._tag_supplementary_rates.get(rate_term):
+                        rate_type = metric_constants.SUPPLEMENTARY_COST_TYPE
+                        rate = self._tag_supplementary_rates.get(rate_term)
+
+                    log_msg = "Updating"
+                    if rate is None:
+                        log_msg = "Removing"
+
+                    LOG.info(
+                        log_msg + " tag based monthly %s cost for"
+                        "\n\tSchema: %s \n\t%s Provider: %s (%s) \n\tDates: %s - %s",
+                        cost_type,
+                        self._schema,
+                        self._provider.type,
+                        self._provider.name,
+                        self._provider_uuid,
+                        start_date,
+                        end_date,
+                    )
+
+                    report_accessor.populate_monthly_tag_cost(
+                        cost_type, rate_type, rate, start_date, end_date, self._cluster_id, self._cluster_alias
+                    )
+
+        except OCPCostModelCostUpdaterError as error:
+            LOG.error("Unable to update monthly costs. Error: %s", str(error))
+
     def _update_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary usage costs."""
         with OCPReportDBAccessor(self._schema) as report_accessor:
             report_accessor.populate_usage_costs(
                 self._infra_rates, self._supplementary_rates, start_date, end_date, self._cluster_id
+            )
+
+    def _update_tag_usage_costs(self, start_date, end_date):
+        """Update infrastructure and supplementary tag based usage costs."""
+        with OCPReportDBAccessor(self._schema) as report_accessor:
+            report_accessor.populate_tag_usage_costs(
+                self._tag_infra_rates, self._tag_supplementary_rates, start_date, end_date, self._cluster_id
+            )
+
+    def _update_tag_usage_default_costs(self, start_date, end_date):
+        """Update infrastructure and supplementary tag based usage costs based on default values."""
+        with OCPReportDBAccessor(self._schema) as report_accessor:
+            report_accessor.populate_tag_usage_default_costs(
+                self._tag_default_infra_rates,
+                self._tag_default_supplementary_rates,
+                start_date,
+                end_date,
+                self._cluster_id,
             )
 
     def update_summary_cost_model_costs(self, start_date, end_date):
@@ -244,6 +303,12 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         self._update_usage_costs(start_date, end_date)
         self._update_markup_cost(start_date, end_date)
         self._update_monthly_cost(start_date, end_date)
+        # only update based on tag rates if there are tag rates
+        # this also lets costs get removed if there is no tiered rate and then add to them if there is a tag_rate
+        if self._tag_infra_rates != {} or self._tag_supplementary_rates != {}:
+            self._update_tag_usage_costs(start_date, end_date)
+            self._update_tag_usage_default_costs(start_date, end_date)
+            self._update_monthly_tag_based_cost(start_date, end_date)
 
         with OCPReportDBAccessor(self._schema) as accessor:
             report_periods = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)

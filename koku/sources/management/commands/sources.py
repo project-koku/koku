@@ -45,4 +45,6 @@ class Command(BaseCommand):
 
         LOG.info("Starting Sources Client Server")
         options["use_reloader"] = False
+        options.pop("skip_checks", None)
+
         call_command("runserver", addrport, *args, **options)
