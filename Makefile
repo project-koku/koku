@@ -143,6 +143,8 @@ help:
 	@echo "  aws-source                            Create aws source using environment variables"
 	@echo "      aws_name=<source_name>              @param - Required. Name of the source"
 	@echo "      bucket=<bucket_name>                @param - Required. Name of the bucket"
+	@echo "  gcp-source                            Create gcp source using environment variables"
+	@echo "      gcp_name=<source_name>              @param - Required. Name of the source"
 
 ### General Commands ###
 
@@ -421,6 +423,17 @@ ifndef bucket
 endif
 	(printenv AWS_RESOURCE_NAME > /dev/null 2>&1) || (echo 'AWS_RESOURCE_NAME is not set in .env' && exit 1)
 	curl -d '{"name": "$(aws_name)", "source_type": "AWS", "authentication": {"credentials": {"role_arn":"${AWS_RESOURCE_NAME}"}}, "billing_source": {"data_source": {"bucket": "$(bucket)"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
+
+gcp-source:
+ifndef gcp_name
+	$(error param gcp_name is not set)
+endif
+# Required environment variables are: [GCP_DATASET, GCP_TABLE_ID, GCP_PROJECT_ID]
+	(printenv GCP_DATASET > /dev/null 2>&1) || (echo 'GCP_DATASET is not set in .env' && exit 1)
+	(printenv GCP_TABLE_ID > /dev/null 2>&1) || (echo 'GCP_TABLE_ID is not set in .env' && exit 1)
+	(printenv GCP_PROJECT_ID > /dev/null 2>&1) || (echo 'GCP_PROJECT_ID is not set in .env' && exit 1)
+	curl -d '{"name": "$(gcp_name)", "source_type": "GCP", "authentication": {"credentials": {"project_id":"${GCP_PROJECT_ID}"}}, "billing_source": {"data_source": {"table_id": "${GCP_PROJECT_ID}", "dataset": "${GCP_DATASET}"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
+
 
 ###################################################
 #  This section is for larger data volume testing
