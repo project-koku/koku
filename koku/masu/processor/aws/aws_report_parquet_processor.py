@@ -15,12 +15,19 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Processor for AWS Parquet files."""
+import ciso8601
+import pytz
+from tenant_schemas.utils import schema_context
+
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
+from masu.util import common as utils
+from reporting.provider.aws.models import AWSCostEntryBill
+from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
+from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
 
 
 class AWSReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
-        aws_table_name = f"acct{account}.source_{provider_uuid.replace('-', '_')}_manifest_{manifest_id}"
         numeric_columns = [
             "lineitem_normalizationfactor",
             "lineitem_normalizedusageamount",
@@ -46,5 +53,43 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
             parquet_local_path=parquet_local_path,
             numeric_columns=numeric_columns,
             date_columns=date_columns,
-            table_name=aws_table_name,
+            table_name=PRESTO_LINE_ITEM_TABLE,
         )
+
+    @property
+    def postgres_summary_table(self):
+        """Return the mode for the source specific summary table."""
+        return AWSCostEntryLineItemDailySummary
+
+    def create_bill(self, bill_date):
+        """Create bill postgres entry."""
+        if isinstance(bill_date, str):
+            bill_date = ciso8601.parse_datetime(bill_date)
+        report_date_range = utils.month_date_range(bill_date)
+        start_date, end_date = report_date_range.split("-")
+
+        start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
+        end_date_utc = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
+
+        sql = f"""
+            SELECT DISTINCT bill_payeraccountid
+            FROM {self._table_name}
+            WHERE source = '{self._provider_uuid}'
+                AND year = '{bill_date.year}'
+                AND month = '{bill_date.month}'
+        """
+
+        rows = self._execute_sql(sql, self._schema_name)
+        payer_account_id = None
+        if rows:
+            payer_account_id = rows[0][0]
+
+        provider = self._get_provider()
+
+        with schema_context(self._schema_name):
+            AWSCostEntryBill.objects.get_or_create(
+                billing_period_start=start_date_utc,
+                billing_period_end=end_date_utc,
+                payer_account_id=payer_account_id,
+                provider=provider,
+            )

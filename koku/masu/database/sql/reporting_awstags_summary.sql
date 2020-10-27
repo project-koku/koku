@@ -3,7 +3,7 @@ WITH cte_tag_value AS (
         value,
         li.cost_entry_bill_id,
         li.usage_account_id
-    FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily AS li,
+    FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary AS li,
         jsonb_each_text(li.tags) labels
     {% if bill_ids %}
     WHERE li.cost_entry_bill_id IN (

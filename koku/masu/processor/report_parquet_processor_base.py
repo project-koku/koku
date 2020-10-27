@@ -19,9 +19,18 @@ import logging
 
 import prestodb
 import pyarrow.parquet as pq
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from tenant_schemas.utils import schema_context
+
+from api.models import Provider
+from reporting.models import PartitionedTable
 
 LOG = logging.getLogger(__name__)
+
+
+class PostgresSummaryTableError(Exception):
+    """Postgres summary table is not defined."""
 
 
 class ReportParquetProcessorBase:
@@ -46,6 +55,11 @@ class ReportParquetProcessorBase:
         self._date_columns = date_columns
         self._table_name = table_name
 
+    @property
+    def postgres_summary_table(self):
+        """Return error if unimplemented in subclass."""
+        raise PostgresSummaryTableError("This must be a property on the sub class.")
+
     def _execute_sql(self, sql, schema_name):  # pragma: no cover
         """Execute presto SQL."""
         with prestodb.dbapi.connect(
@@ -55,6 +69,11 @@ class ReportParquetProcessorBase:
             cur.execute(sql)
             rows = cur.fetchall()
             LOG.debug(f"_execute_sql rows: {str(rows)}. Type: {type(rows)}")
+        return rows
+
+    def _get_provider(self):
+        """Retrieve the postgres provider id."""
+        return Provider.objects.get(uuid=self._provider_uuid)
 
     def _create_schema(self,):
         """Create presto schema."""
@@ -65,15 +84,14 @@ class ReportParquetProcessorBase:
     def _generate_column_list(self):
         """Generate column list based on parquet file."""
         parquet_file = self._parquet_path
-        table = pq.read_table(parquet_file)
-        return table.column_names
+        return pq.ParquetFile(parquet_file).schema.names
 
     def _generate_create_table_sql(self):
         """Generate SQL to create table."""
         parquet_columns = self._generate_column_list()
         s3_path = f"{settings.S3_BUCKET_NAME}/{self._s3_path}"
 
-        sql = f"CREATE TABLE IF NOT EXISTS {self._table_name} ("
+        sql = f"CREATE TABLE IF NOT EXISTS {self._schema_name}.{self._table_name} ("
 
         for idx, col in enumerate(parquet_columns):
             norm_col = col.replace("/", "_").replace(":", "_").lower()
@@ -85,9 +103,13 @@ class ReportParquetProcessorBase:
             sql += f"{norm_col} {col_type}"
             if idx < (len(parquet_columns) - 1):
                 sql += ","
+        sql += ",source varchar, year varchar, month varchar"
 
-        sql += f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET')"
-        LOG.debug(f"Create Parquet Table SQL: {sql}")
+        sql += (
+            f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET',"
+            " partitioned_by=ARRAY['source', 'year', 'month'])"
+        )
+        LOG.info(f"Create Parquet Table SQL: {sql}")
         return sql
 
     def create_table(self):
@@ -95,4 +117,32 @@ class ReportParquetProcessorBase:
         schema = self._create_schema()
         sql = self._generate_create_table_sql()
         self._execute_sql(sql, schema)
+
+        sql = f"CALL system.sync_partition_metadata('{self._schema_name}', '{self._table_name}', 'FULL')"
+        LOG.info(sql)
+        self._execute_sql(sql, schema)
+
         LOG.info(f"Presto Table: {self._table_name} created.")
+
+    def get_or_create_postgres_partition(self, bill_date, **kwargs):
+        """Make sure we have a Postgres partition for a billing period."""
+        table_name = self.postgres_summary_table._meta.db_table
+        partition_type = kwargs.get("partition_type", PartitionedTable.RANGE)
+        partition_column = kwargs.get("partition_column", "usage_start")
+
+        with schema_context(self._schema_name):
+            record, created = PartitionedTable.objects.get_or_create(
+                schema_name=self._schema_name,
+                table_name=f"{table_name}_{bill_date.strftime('%Y_%m')}",
+                partition_of_table_name=table_name,
+                partition_type=partition_type,
+                partition_col=partition_column,
+                partition_parameters={
+                    "default": False,
+                    "from": str(bill_date),
+                    "to": str(bill_date + relativedelta(months=1)),
+                },
+                active=True,
+            )
+            if created:
+                LOG.info(f"Created a new parttiion for {record.partition_of_table_name} : {record.table_name}")
