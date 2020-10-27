@@ -39,12 +39,6 @@ VIEWS = (
     "reporting_ocp_volume_summary_by_project",
 )
 
-PRESTO_LINE_ITEM_TABLE_MAP = {
-    "pod_usage": "openshift_pod_usage_line_items",
-    "storage_usage": "openshift_storage_usage_line_items",
-    "node_labels": "openshift_node_labels_line_items",
-}
-
 
 class OCPUsageReportPeriod(models.Model):
     """The report period information for a Operator Metering report.

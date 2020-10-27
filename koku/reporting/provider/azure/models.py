@@ -24,9 +24,6 @@ from django.db.models import JSONField
 
 PRESTO_LINE_ITEM_TABLE = "azure_line_items"
 
-
-PRESTO_LINE_ITEM_TABLE = "azure_line_items"
-
 VIEWS = (
     "reporting_azure_compute_summary",
     "reporting_azure_cost_summary",

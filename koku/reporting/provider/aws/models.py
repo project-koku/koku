@@ -43,9 +43,6 @@ VIEWS = (
 PRESTO_LINE_ITEM_TABLE = "aws_line_items"
 
 
-PRESTO_LINE_ITEM_TABLE = "aws_line_items"
-
-
 class AWSCostEntryBill(models.Model):
     """The billing information for a Cost Usage Report.
 
