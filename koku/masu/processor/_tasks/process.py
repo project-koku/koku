@@ -74,6 +74,7 @@ def _process_report_file(schema_name, provider, report_dict):
             provider=provider,
             provider_uuid=provider_uuid,
             manifest_id=manifest_id,
+            context=report_dict,
         )
 
         processor.process()

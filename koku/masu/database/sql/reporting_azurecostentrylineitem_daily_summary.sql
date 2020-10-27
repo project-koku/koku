@@ -30,7 +30,8 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
             )
             {% endif %}
     )
-    SELECT cost_entry_bill_id,
+    SELECT uuid_generate_v4() as uuid,
+        cost_entry_bill_id,
         li.usage_date AS usage_start,
         li.usage_date AS usage_end,
         subscription_guid, -- account ID
@@ -94,6 +95,7 @@ WHERE usage_start >= {{start_date}}
 
 -- Populate the daily summary line item data
 INSERT INTO {{schema | safe}}.reporting_azurecostentrylineitem_daily_summary (
+    uuid,
     cost_entry_bill_id,
     subscription_guid,
     resource_location,
@@ -112,7 +114,8 @@ INSERT INTO {{schema | safe}}.reporting_azurecostentrylineitem_daily_summary (
     source_uuid,
     markup_cost
 )
-    SELECT cost_entry_bill_id,
+    SELECT uuid,
+        cost_entry_bill_id,
         subscription_guid,
         resource_location,
         service_name,
