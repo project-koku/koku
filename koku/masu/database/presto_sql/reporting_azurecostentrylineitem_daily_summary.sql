@@ -44,7 +44,7 @@ WITH cte_line_items AS (
                 THEN  split_part(unitofmeasure, ' ', 2)
             ELSE unitofmeasure
         END as unit_of_measure
-    FROM hive.acct10001.azure_line_items
+    FROM hive.{{schema | sqlsafe}}.azure_line_items
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'
