@@ -258,26 +258,13 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             "source_uuid": source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
+            "markup": markup_value if markup_value else 0,
+            "bill_id": bill_id,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
         LOG.info(f"Summary SQL: {str(summary_sql)}")
         self._execute_presto_raw_sql_query(self.schema, summary_sql)
-
-        insert_sql = pkgutil.get_data(
-            "masu.database", "presto_sql/reporting_awscostentrylineitem_daily_summary_insert.sql"
-        )
-        insert_sql = insert_sql.decode("utf-8")
-        insert_sql_params = {
-            "uuid": uuid_str,
-            "schema": self.schema,
-            "source_uuid": source_uuid,
-            "markup": markup_value if markup_value else 0,
-            "bill_id": bill_id,
-        }
-        insert_sql, insert_sql_params = self.jinja_sql.prepare_query(insert_sql, insert_sql_params)
-        LOG.info(f"Insert SQL: {str(insert_sql)}")
-        self._execute_presto_raw_sql_query(self.schema, insert_sql)
 
     def mark_bill_as_finalized(self, bill_id):
         """Mark a bill in the database as finalized."""

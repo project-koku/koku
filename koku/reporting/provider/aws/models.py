@@ -18,9 +18,29 @@
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import JSONField
+
+VIEWS = (
+    "reporting_aws_compute_summary",
+    "reporting_aws_compute_summary_by_account",
+    "reporting_aws_compute_summary_by_region",
+    "reporting_aws_compute_summary_by_service",
+    "reporting_aws_cost_summary",
+    "reporting_aws_cost_summary_by_account",
+    "reporting_aws_cost_summary_by_region",
+    "reporting_aws_cost_summary_by_service",
+    "reporting_aws_storage_summary",
+    "reporting_aws_storage_summary_by_account",
+    "reporting_aws_storage_summary_by_region",
+    "reporting_aws_storage_summary_by_service",
+    "reporting_aws_database_summary",
+    "reporting_aws_network_summary",
+)
+
+
+PRESTO_LINE_ITEM_TABLE = "aws_line_items"
 
 
 PRESTO_LINE_ITEM_TABLE = "aws_line_items"
@@ -39,8 +59,8 @@ class AWSCostEntryBill(models.Model):
         unique_together = ("bill_type", "payer_account_id", "billing_period_start", "provider")
 
     billing_resource = models.CharField(max_length=50, default="aws", null=False)
-    bill_type = models.CharField(max_length=50, null=False)
-    payer_account_id = models.CharField(max_length=50, null=False)
+    bill_type = models.CharField(max_length=50, null=True)
+    payer_account_id = models.CharField(max_length=50, null=True)
     billing_period_start = models.DateTimeField(null=False)
     billing_period_end = models.DateTimeField(null=False)
     summary_data_creation_datetime = models.DateTimeField(null=True)
@@ -897,6 +917,8 @@ class AWSOrganizationalUnit(models.Model):
 
     deleted_timestamp = models.DateField(null=True)
 
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
+
     def __str__(self):
         """Convert to string."""
         return (
@@ -919,3 +941,15 @@ class AWSOrganizationalUnit(models.Model):
                 self.deleted_timestamp,
             )
         )
+
+
+class AWSEnabledTagKeys(models.Model):
+    """A collection of the current enabled tag keys."""
+
+    class Meta:
+        """Meta for AWSEnabledTagKeys."""
+
+        db_table = "reporting_awsenabledtagkeys"
+
+    id = models.BigAutoField(primary_key=True)
+    key = models.CharField(max_length=253, unique=True)

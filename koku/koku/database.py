@@ -15,19 +15,26 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Django database settings."""
+import json
+import logging
 import os
 
 from django.conf import settings
-from django.contrib.postgres.fields.jsonb import KeyTextTransform
-from django.contrib.postgres.fields.jsonb import KeyTransform
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
 from django.db import OperationalError
+from django.db import transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.db.models import DecimalField
 from django.db.models.aggregates import Func
+from django.db.models.fields.json import KeyTextTransform
 
 from .env import ENVIRONMENT
+from .migration_sql_helpers import apply_sql_file
+from .migration_sql_helpers import find_db_functions_dir
+
+
+LOG = logging.getLogger(__name__)
 
 engines = {
     "sqlite": "django.db.backends.sqlite3",
@@ -71,6 +78,57 @@ def config():
     return _cert_config(db_config, database_cert)
 
 
+def dbfunc_exists(connection, function_schema, function_name, function_signature):
+    """
+    Test that the migration check database function exists by
+    checking the existence of the function signature.
+    """
+    sql = """
+select p.pronamespace::regnamespace::text || '.' || p.proname ||
+       '(' || pg_get_function_arguments(p.oid) || ')' as funcsig
+  from pg_proc p
+ where pronamespace = %s::regnamespace
+   and proname = %s;
+"""
+    with connection.cursor() as cur:
+        cur.execute(sql, (function_schema, function_name))
+        res = cur.fetchone()
+
+    return bool(res) and res[0] == function_signature
+
+
+def install_migrations_dbfunc(connection):
+    """
+    Install the migration check database function
+    """
+    db_funcs_dir = find_db_functions_dir()
+    migration_check_sql = os.path.join(db_funcs_dir, "app_needs_migrations_func.sql")
+    LOG.info("Installing migration check db function")
+    apply_sql_file(connection.schema_editor(), migration_check_sql, True)
+
+
+def verify_migrations_dbfunc(connection):
+    func_sig = "public.app_needs_migrations(leaf_migrations jsonb, _verbose boolean DEFAULT false)"
+    if not dbfunc_exists(connection, "public", "app_needs_migrations", func_sig):
+        install_migrations_dbfunc(connection)
+
+
+def check_migrattions_dbfunc(connection, targets):
+    """
+    Check the state of the migrations using the app_needs_migrations
+    database function.
+    The database function returns true if the migrations NEED to be run else false.
+    """
+    LOG.info("Checking app migrations via database function")
+    with connection.cursor() as cur:
+        cur.execute("SELECT public.app_needs_migrations(%s::jsonb);", (json.dumps(dict(targets)),))
+        res = cur.fetchone()
+        ret = not (bool(res) and res[0])
+
+    LOG.info(f"Migrations should {'not ' if ret else ''}be run.")
+    return ret
+
+
 def check_migrations():
     """
     Check the status of database migrations.
@@ -85,7 +143,11 @@ def check_migrations():
         connection.prepare_database()
         executor = MigrationExecutor(connection)
         targets = executor.loader.graph.leaf_nodes()
-        return not executor.migration_plan(targets)
+        with transaction.atomic():
+            verify_migrations_dbfunc(connection)
+            res = check_migrattions_dbfunc(connection, targets)
+
+        return res
     except OperationalError:
         return False
 
@@ -101,17 +163,6 @@ class KeyDecimalTransform(KeyTextTransform):
 
     output_field = DecimalField()
 
-    def as_sql(self, compiler, connection):
-        key_transforms = [self.key_name]
-        previous = self.lhs
-        while isinstance(previous, KeyTransform):
-            key_transforms.insert(0, previous.key_name)
-            previous = previous.lhs
-        lhs, params = compiler.compile(previous)
-        if len(key_transforms) > 1:
-            return f"({lhs} {self.nested_operator} %s)", [key_transforms] + params
-        try:
-            lookup = int(self.key_name)
-        except ValueError:
-            lookup = self.key_name
-        return f"({lhs} {self.operator} %s)::numeric", tuple(params) + (lookup,)
+    def as_postgresql(self, compiler, connection):
+        sqlpart, params = super().as_postgresql(compiler, connection)
+        return sqlpart + "::numeric", params

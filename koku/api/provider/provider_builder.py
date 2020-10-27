@@ -112,7 +112,10 @@ class ProviderBuilder:
         """Call to create provider."""
         connection.set_schema_to_public()
         context, customer, _ = self._create_context()
-        tenant = Tenant.objects.get(schema_name=customer.schema_name)
+        tenant, created = Tenant.objects.get_or_create(schema_name=customer.schema_name)
+        if created:
+            msg = f"Created tenant {customer.schema_name}"
+            LOG.info(msg)
         provider_type = source.source_type
         json_data = {
             "name": source.name,

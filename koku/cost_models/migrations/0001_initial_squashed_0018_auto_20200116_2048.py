@@ -10,26 +10,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    replaces = [
-        ("cost_models", "0001_initial"),
-        ("cost_models", "0002_auto_20181205_1810"),
-        ("cost_models", "0003_auto_20190213_2040"),
-        ("cost_models", "0004_auto_20190301_1850"),
-        ("cost_models", "0005_auto_20190422_1415"),
-        ("cost_models", "0006_auto_20190531_1850"),
-        ("cost_models", "0007_auto_20190613_0057"),
-        ("cost_models", "0008_auto_20190812_1805"),
-        ("cost_models", "0009_auto_20190823_1442"),
-        ("cost_models", "0010_auto_20190827_1536"),
-        ("cost_models", "0011_costmodelaudit"),
-        ("cost_models", "0012_auto_20190905_1920"),
-        ("cost_models", "0013_costmodel_markup"),
-        ("cost_models", "0014_costmodelaudit_markup"),
-        ("cost_models", "0015_auto_20190923_1410"),
-        ("cost_models", "0016_auto_20190925_1545"),
-        ("cost_models", "0017_auto_20191212_1835"),
-        ("cost_models", "0018_auto_20200116_2048"),
-    ]
+    replaces = []
 
     dependencies = []
 
@@ -64,12 +45,10 @@ class Migration(migrations.Migration):
                 ),
                 ("created_timestamp", models.DateTimeField()),
                 ("updated_timestamp", models.DateTimeField()),
-                ("rates", django.contrib.postgres.fields.jsonb.JSONField(default=dict)),
+                ("rates", django.db.models.JSONField(default=dict)),
                 (
                     "markup",
-                    django.contrib.postgres.fields.jsonb.JSONField(
-                        default=dict, encoder=django.core.serializers.json.DjangoJSONEncoder
-                    ),
+                    django.db.models.JSONField(default=dict, encoder=django.core.serializers.json.DjangoJSONEncoder),
                 ),
             ],
             options={"db_table": "cost_model_audit"},
@@ -97,12 +76,10 @@ class Migration(migrations.Migration):
                 ),
                 ("created_timestamp", models.DateTimeField(auto_now_add=True)),
                 ("updated_timestamp", models.DateTimeField(auto_now=True)),
-                ("rates", django.contrib.postgres.fields.jsonb.JSONField(default=dict)),
+                ("rates", django.db.models.JSONField(default=dict)),
                 (
                     "markup",
-                    django.contrib.postgres.fields.jsonb.JSONField(
-                        default=dict, encoder=django.core.serializers.json.DjangoJSONEncoder
-                    ),
+                    django.db.models.JSONField(default=dict, encoder=django.core.serializers.json.DjangoJSONEncoder),
                 ),
             ],
             options={"db_table": "cost_model", "ordering": ["name"]},

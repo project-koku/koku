@@ -18,8 +18,11 @@
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.db import models
+from django.db.models import JSONField
+
+
+PRESTO_LINE_ITEM_TABLE = "azure_line_items"
 
 
 PRESTO_LINE_ITEM_TABLE = "azure_line_items"
@@ -117,7 +120,6 @@ class AzureCostEntryLineItemDaily(models.Model):
     usage_date = models.DateField(null=False)
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    offer_id = models.PositiveIntegerField(null=True)
 
 
 class AzureCostEntryLineItemDailySummary(models.Model):
@@ -151,7 +153,6 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    offer_id = models.PositiveIntegerField(null=True)
     currency = models.TextField(null=True)
     instance_ids = ArrayField(models.TextField(), null=True)
     instance_count = models.IntegerField(null=True)
@@ -389,3 +390,15 @@ class AzureDatabaseSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
+
+
+class AzureEnabledTagKeys(models.Model):
+    """A collection of the current enabled tag keys."""
+
+    class Meta:
+        """Meta for AzureEnabledTagKeys."""
+
+        db_table = "reporting_azureenabledtagkeys"
+
+    id = models.BigAutoField(primary_key=True)
+    key = models.CharField(max_length=253, unique=True)

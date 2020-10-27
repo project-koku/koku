@@ -20,6 +20,7 @@ import decimal
 import random
 import string
 from decimal import Decimal
+from unittest.mock import patch
 
 import django.apps
 from dateutil import relativedelta
@@ -31,9 +32,11 @@ from django.db.models import Sum
 from django.db.models.query import QuerySet
 from tenant_schemas.utils import schema_context
 
+from api.utils import DateHelper
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_db_accessor_base import ReportSchema
@@ -650,14 +653,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         ce_table = getattr(self.accessor.report_schema, ce_table_name)
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
 
-        for _ in range(10):
-            bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
-            cost_entry = self.creator.create_cost_entry(bill)
-            product = self.creator.create_cost_entry_product()
-            pricing = self.creator.create_cost_entry_pricing()
-            reservation = self.creator.create_cost_entry_reservation()
-            self.creator.create_cost_entry_line_item(bill, cost_entry, product, pricing, reservation)
-
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
@@ -680,9 +675,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
+            summary_table.objects.all().delete()
             initial_count = query.count()
 
-        self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
         with schema_context(self.schema):
             self.assertNotEqual(query.count(), initial_count)
@@ -694,7 +689,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.assertEqual(result_start_date, start_date.date())
             self.assertEqual(result_end_date, end_date.date())
 
-            entry = query.order_by("-uuid")
+            entry = query.first()
 
             summary_columns = [
                 "usage_start",
@@ -702,14 +697,10 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 "usage_account_id",
                 "product_code",
                 "product_family",
-                "availability_zone",
                 "region",
-                "instance_type",
                 "unit",
                 "resource_count",
                 "usage_amount",
-                "normalization_factor",
-                "normalized_usage_amount",
                 "currency_code",
                 "unblended_rate",
                 "unblended_cost",
@@ -719,9 +710,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 "public_on_demand_rate",
                 "tags",
             ]
-
             for column in summary_columns:
-                self.assertIsNotNone(getattr(entry.first(), column))
+                self.assertIsNotNone(getattr(entry, column))
 
             found_keys = []
             found_values = []
@@ -741,14 +731,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
         bill_ids = None
 
-        for _ in range(10):
-            bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
-            cost_entry = self.creator.create_cost_entry(bill)
-            product = self.creator.create_cost_entry_product()
-            pricing = self.creator.create_cost_entry_pricing()
-            reservation = self.creator.create_cost_entry_reservation()
-            self.creator.create_cost_entry_line_item(bill, cost_entry, product, pricing, reservation)
-
         table_name = AWS_CUR_TABLE_MAP["line_item"]
         tag_query = self.accessor._get_db_obj_query(table_name)
         possible_keys = []
@@ -767,9 +749,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
+            summary_table.objects.all().delete()
             initial_count = query.count()
 
-        self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
         with schema_context(self.schema):
             self.assertNotEqual(query.count(), initial_count)
@@ -781,7 +763,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.assertEqual(result_start_date, start_date.date())
             self.assertEqual(result_end_date, end_date.date())
 
-            entry = query.order_by("-uuid")
+            entry = query.first()
 
             summary_columns = [
                 "usage_start",
@@ -789,14 +771,10 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 "usage_account_id",
                 "product_code",
                 "product_family",
-                "availability_zone",
                 "region",
-                "instance_type",
                 "unit",
                 "resource_count",
                 "usage_amount",
-                "normalization_factor",
-                "normalized_usage_amount",
                 "currency_code",
                 "unblended_rate",
                 "unblended_cost",
@@ -808,7 +786,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             ]
 
             for column in summary_columns:
-                self.assertIsNotNone(getattr(entry.first(), column))
+                self.assertIsNotNone(getattr(entry, column))
 
             found_keys = []
             found_values = []
@@ -987,3 +965,34 @@ class AWSReportDBAccessorTest(MasuTestCase):
             )
             actual_markup = query.get("markup_cost__sum")
             self.assertAlmostEqual(actual_markup, expected_markup, 6)
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    def test_populate_line_item_daily_summary_table_presto(self, mock_presto):
+        """Test that we construst our SQL and query using Presto."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
+        with schema_context(self.schema):
+            current_bill_id = bills.first().id if bills else None
+
+        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
+            markup = cost_model_accessor.markup
+            markup_value = float(markup.get("value", 0)) / 100
+
+        self.accessor.populate_line_item_daily_summary_table_presto(
+            start_date, end_date, self.aws_provider_uuid, current_bill_id, markup_value
+        )
+        mock_presto.assert_called()
+
+    @patch("masu.database.report_db_accessor_base.prestodb.dbapi.connect")
+    def test_execute_presto_raw_sql_query(self, mock_connect):
+        """Test the presto execute method."""
+        mock_sql = "SELECT number FROM table"
+        mock_result = [[1], [2]]
+        mock_connect.return_value.cursor.return_value.fetchall.return_value = mock_result
+
+        result = self.accessor._execute_presto_raw_sql_query(self.schema, mock_sql)
+
+        self.assertEqual(result, mock_result)

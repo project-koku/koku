@@ -17,8 +17,11 @@
 """Test the ReportProcessor object."""
 from unittest.mock import patch
 
+from django.test import override_settings
+
 from api.models import Provider
 from masu.exceptions import MasuProcessingError
+from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 from masu.processor.report_processor import ReportProcessor
 from masu.processor.report_processor import ReportProcessorError
 from masu.test import MasuTestCase
@@ -178,3 +181,17 @@ class ReportProcessorTest(MasuTestCase):
         )
         with self.assertRaises(ReportProcessorError):
             processor.remove_processed_files("/my/report/file")
+
+    @override_settings(ENABLE_PARQUET_PROCESSING=True)
+    def test_set_processor_parquet(self):
+        """Test that the Parquet class is returned."""
+        processor = ReportProcessor(
+            schema_name=self.schema,
+            report_path="/my/report/file",
+            compression="GZIP",
+            provider=Provider.PROVIDER_AWS,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=None,
+            context={"request_id": 1},
+        )
+        self.assertIsInstance(processor._processor, ParquetReportProcessor)

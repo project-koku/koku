@@ -73,10 +73,7 @@ class ReportParquetProcessorBase:
 
     def _get_provider(self):
         """Retrieve the postgres provider id."""
-        with schema_context(self._schema_name):
-            obj = Provider.objects.get(uuid=self._provider_uuid)
-            return obj
-        return None
+        return Provider.objects.get(uuid=self._provider_uuid)
 
     def _create_schema(self,):
         """Create presto schema."""
@@ -87,7 +84,7 @@ class ReportParquetProcessorBase:
     def _generate_column_list(self):
         """Generate column list based on parquet file."""
         parquet_file = self._parquet_path
-        return pq.ParquetFile(parquet_file).schema_arrow.names
+        return pq.ParquetFile(parquet_file).schema.names
 
     def _generate_create_table_sql(self):
         """Generate SQL to create table."""

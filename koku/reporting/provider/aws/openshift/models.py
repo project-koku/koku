@@ -18,9 +18,20 @@
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import JSONField
+
+VIEWS = (
+    "reporting_ocpaws_compute_summary",
+    "reporting_ocpaws_cost_summary",
+    "reporting_ocpaws_cost_summary_by_account",
+    "reporting_ocpaws_cost_summary_by_region",
+    "reporting_ocpaws_cost_summary_by_service",
+    "reporting_ocpaws_storage_summary",
+    "reporting_ocpaws_database_summary",
+    "reporting_ocpaws_network_summary",
+)
 
 
 class OCPAWSCostLineItemDailySummary(models.Model):
@@ -222,7 +233,7 @@ class OCPAWSTagsSummary(models.Model):
         """Meta for OCPUsageTagSummary."""
 
         db_table = "reporting_ocpawstags_summary"
-        unique_together = ("key", "cost_entry_bill", "report_period", "usage_account_id", "namespace")
+        unique_together = ("key", "cost_entry_bill", "report_period", "usage_account_id", "namespace", "node")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 

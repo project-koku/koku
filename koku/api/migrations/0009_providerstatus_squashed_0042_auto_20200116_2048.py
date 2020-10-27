@@ -25,47 +25,9 @@ def seed_cost_management_aws_account_id(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    replaces = [
-        ("api", "0009_providerstatus"),
-        ("api", "0010_costmodelmetricsmap"),
-        ("api", "0011_auto_20190613_1554"),
-        ("api", "0012_auto_20190723_1655"),
-        ("api", "0013_auto_20190812_1815"),
-        ("api", "0014_auto_20190807_1420"),
-        ("api", "0015_dataexportrequest"),
-        ("api", "0016_dataexportrequest_bucket_name"),
-        ("api", "0017_auto_20190823_1442"),
-        ("api", "0018_auto_20190827_1536"),
-        ("api", "0019_auto_20190912_1853"),
-        ("api", "0020_sources"),
-        ("api", "0021_auto_20190917_1757"),
-        ("api", "0022_auto_20190923_1410"),
-        ("api", "0023_auto_20190923_1810"),
-        ("api", "0024_auto_20190925_1914"),
-        ("api", "0025_sources_endpoint_id"),
-        ("api", "0026_auto_20191003_2339"),
-        ("api", "0027_auto_20191008_1905"),
-        ("api", "0028_cloud_account"),
-        ("api", "0029_cloud_account_seeder"),
-        ("api", "0030_auto_20191022_1602"),
-        ("api", "0031_auto_20191022_1615"),
-        ("api", "0032_auto_20191022_1620"),
-        ("api", "0033_auto_20191022_1635"),
-        ("api", "0034_provider_active"),
-        ("api", "0035_auto_20191108_1914"),
-        ("api", "0036_auto_20191113_2029"),
-        ("api", "0037_auto_20191120_1538"),
-        ("api", "0038_sources_source_uuid"),
-        ("api", "0039_auto_20191121_2154"),
-        ("api", "0040_auto_20191121_2154"),
-        ("api", "0041_sources_account_id"),
-        ("api", "0042_auto_20200116_2048"),
-    ]
+    replaces = []
 
-    dependencies = [
-        ("api", "0001_initial_squashed_0008_auto_20190305_2015"),
-        ("reporting_common", "0001_initial_squashed_0007_auto_20190208_0316_squashed_0019_auto_20191022_1602"),
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
@@ -170,8 +132,8 @@ class Migration(migrations.Migration):
                 ("source_id", models.IntegerField(primary_key=True, serialize=False)),
                 ("name", models.CharField(max_length=256, null=True)),
                 ("source_type", models.CharField(max_length=50)),
-                ("authentication", django.contrib.postgres.fields.jsonb.JSONField(default=dict)),
-                ("billing_source", django.contrib.postgres.fields.jsonb.JSONField(default=dict, null=True)),
+                ("authentication", django.db.models.JSONField(default=dict)),
+                ("billing_source", django.db.models.JSONField(default=dict, null=True)),
                 ("koku_uuid", models.CharField(max_length=512, null=True, unique=True)),
                 ("auth_header", models.TextField(null=True)),
                 ("pending_delete", models.BooleanField(default=False)),

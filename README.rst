@@ -136,6 +136,21 @@ Run OCP Scenario
     - http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/memory/
     - http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/compute/
 
+Run GCP Scenario
+^^^^^^^^^^^^^^^^
+
+1. Set Environment variables::
+
+    GCP_DATASET - The name of the BigQuery dataset in your GCP setup.
+    GCP_TABLE_ID - The identifier for the table you are pulling for the billing information.
+    GCP_PROJECT_ID - The identifier for the GCP project.
+
+2. Create GCP source::
+
+    make gcp-source gcp_name=my_gcp_source
+
+3. Verify provider exists by visiting http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_gcp_source
+
 Stopping Koku using Docker Compose
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 To bring down all the docker containers, run the following command::
@@ -218,11 +233,11 @@ This will rebuild the tox virtual env and then run all tests.
 
 To run unit tests specifically::
 
-    tox -e py36
+    tox -e py38
 
 To run a specific subset of unit tests, you can pass a particular module path to tox. To do this, use positional args using the -- separator. For example::
 
-    tox -e py36 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
+    tox -e py38 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
 
 To run IQE Smoke, Vortex or API tests, while on the Red Hat network and koku deployed via docker-compose run::
 

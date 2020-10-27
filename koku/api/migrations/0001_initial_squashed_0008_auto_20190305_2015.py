@@ -30,16 +30,7 @@ def migrate_customer_schema_name(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    replaces = [
-        ("api", "0001_initial"),
-        ("api", "0002_auto_20180926_1905"),
-        ("api", "0003_auto_20181008_1819"),
-        ("api", "0004_auto_20181012_1507"),
-        ("api", "0005_auto_20181109_2121"),
-        ("api", "0006_delete_rate"),
-        ("api", "0007_auto_20181213_1940"),
-        ("api", "0008_auto_20190305_2015"),
-    ]
+    replaces = []
 
     dependencies = []
 
@@ -61,7 +52,7 @@ class Migration(migrations.Migration):
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("uuid", models.UUIDField(default=uuid.uuid4, editable=False, unique=True)),
                 ("provider_resource_name", models.TextField(null=True, unique=True)),
-                ("credentials", django.contrib.postgres.fields.jsonb.JSONField(default=dict, null=True)),
+                ("credentials", django.db.models.JSONField(default=dict, null=True)),
             ],
         ),
         migrations.AddConstraint(
@@ -77,7 +68,7 @@ class Migration(migrations.Migration):
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("uuid", models.UUIDField(default=uuid.uuid4, editable=False, unique=True)),
                 ("bucket", models.CharField(max_length=63, null=True)),
-                ("data_source", django.contrib.postgres.fields.jsonb.JSONField(default=dict, null=True)),
+                ("data_source", django.db.models.JSONField(default=dict, null=True)),
             ],
         ),
         migrations.AddConstraint(
@@ -123,7 +114,7 @@ class Migration(migrations.Migration):
             fields=[
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("uuid", models.UUIDField(default=uuid.uuid4, editable=False, unique=True)),
-                ("preference", django.contrib.postgres.fields.jsonb.JSONField()),
+                ("preference", django.db.models.JSONField()),
                 ("name", models.CharField(default=uuid.uuid4, max_length=255)),
                 ("description", models.CharField(max_length=255, null=True)),
                 ("user", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="api.User")),

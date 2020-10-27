@@ -89,8 +89,19 @@ class ReportSummaryUpdater:
 
         """
         if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            report_summary_updater = (
-                AWSReportParquetSummaryUpdater if settings.ENABLE_PARQUET_PROCESSING else AWSReportSummaryUpdater
+            if settings.ENABLE_PARQUET_PROCESSING:
+                return (
+                    AWSReportParquetSummaryUpdater(self._schema, self._provider, self._manifest),
+                    OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+                )
+            return (
+                AWSReportSummaryUpdater(self._schema, self._provider, self._manifest),
+                OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+            )
+        if self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            return (
+                AzureReportSummaryUpdater(self._schema, self._provider, self._manifest),
+                OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
             )
         elif self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             report_summary_updater = AzureReportSummaryUpdater

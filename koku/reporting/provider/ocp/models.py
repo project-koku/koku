@@ -19,9 +19,25 @@ from decimal import Decimal
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import JSONField
+
+PRESTO_LINE_ITEM_TABLE_MAP = {
+    "pod_usage": "openshift_pod_usage_line_items",
+    "storage_usage": "openshift_storage_usage_line_items",
+    "node_labels": "openshift_node_labels_line_items",
+}
+
+VIEWS = (
+    "reporting_ocp_cost_summary",
+    "reporting_ocp_cost_summary_by_node",
+    "reporting_ocp_cost_summary_by_project",
+    "reporting_ocp_pod_summary",
+    "reporting_ocp_pod_summary_by_project",
+    "reporting_ocp_volume_summary",
+    "reporting_ocp_volume_summary_by_project",
+)
 
 PRESTO_LINE_ITEM_TABLE_MAP = {
     "pod_usage": "openshift_pod_usage_line_items",
@@ -197,8 +213,12 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     """
 
-    MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"))
-    MONTHLY_COST_RATE_MAP = {"Node": "node_cost_per_month", "Cluster": "cluster_cost_per_month"}
+    MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"), ("PVC", "PVC"))
+    MONTHLY_COST_RATE_MAP = {
+        "Node": "node_cost_per_month",
+        "Cluster": "cluster_cost_per_month",
+        "PVC": "pvc_cost_per_month",
+    }
 
     class Meta:
         """Meta for OCPUsageLineItemDailySummary."""
@@ -328,10 +348,10 @@ class OCPUsagePodLabelSummary(models.Model):
     """A collection of all current existing tag key and values."""
 
     class Meta:
-        """Meta for OCPUsageTagSummary."""
+        """Meta for OCPUsagePodLabelSummary."""
 
         db_table = "reporting_ocpusagepodlabel_summary"
-        unique_together = ("key", "report_period", "namespace")
+        unique_together = ("key", "report_period", "namespace", "node")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
@@ -439,7 +459,7 @@ class OCPStorageVolumeLabelSummary(models.Model):
         """Meta for OCPStorageVolumeLabelSummary."""
 
         db_table = "reporting_ocpstoragevolumelabel_summary"
-        unique_together = ("key", "report_period", "namespace")
+        unique_together = ("key", "report_period", "namespace", "node")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
