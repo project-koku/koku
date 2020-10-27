@@ -244,7 +244,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         filters = create_filter("Pod", start_date, end_date, cluster_id)
         with schema_context(self.schema):
             reports = self._get_reports(table, filters)
-            return {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
+            return {entry.uuid: entry.pod_usage_cpu_core_hours for entry in reports}
 
     def _get_reports(self, table, filters=None):
         """Return requested reports from given table.
@@ -270,7 +270,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         filters = create_filter("Pod", start_date, end_date, cluster_id)
         with schema_context(self.schema):
             reports = self._get_reports(table, filters)
-            return {entry.id: entry.pod_request_cpu_core_hours for entry in reports}
+            return {entry.uuid: entry.pod_request_cpu_core_hours for entry in reports}
 
     def get_pod_usage_memory_gigabyte_hours(self, start_date, end_date, cluster_id=None):
         """Make a mapping of memory_usage hours."""
@@ -278,7 +278,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         filters = create_filter("Pod", start_date, end_date, cluster_id)
         with schema_context(self.schema):
             reports = self._get_reports(table, filters)
-            return {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
+            return {entry.uuid: entry.pod_usage_memory_gigabyte_hours for entry in reports}
 
     def get_pod_request_memory_gigabyte_hours(self, start_date, end_date, cluster_id=None):
         """Make a mapping of memory_request_hours."""
@@ -286,7 +286,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         filters = create_filter("Pod", start_date, end_date, cluster_id)
         with schema_context(self.schema):
             reports = self._get_reports(table, filters)
-            return {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
+            return {entry.uuid: entry.pod_request_memory_gigabyte_hours for entry in reports}
 
     def get_persistentvolumeclaim_usage_gigabyte_months(self, start_date, end_date, cluster_id=None):
         """Make a mapping of persistentvolumeclaim_usage_gigabyte_months."""
@@ -294,7 +294,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         filters = create_filter("Storage", start_date, end_date, cluster_id)
         with schema_context(self.schema):
             reports = self._get_reports(table, filters)
-            return {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
+            return {entry.uuid: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
 
     def get_volume_request_storage_gigabyte_months(self, start_date, end_date, cluster_id=None):
         """Make a mapping of volume_request_storage_gigabyte_months."""
@@ -302,7 +302,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         filters = create_filter("Storage", start_date, end_date, cluster_id)
         with schema_context(self.schema):
             reports = self._get_reports(table, filters)
-            return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
+            return {entry.uuid: entry.volume_request_storage_gigabyte_months for entry in reports}
 
     def populate_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of line items table.
@@ -734,6 +734,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 ).first()
                 if not line_item:
                     line_item = OCPUsageLineItemDailySummary(
+                        uuid=uuid.uuid4(),
                         usage_start=start_date,
                         usage_end=start_date,
                         report_period=report_period,
@@ -791,6 +792,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                 ).first()
                                 if not line_item:
                                     line_item = OCPUsageLineItemDailySummary(
+                                        uuid=uuid.uuid4(),
                                         usage_start=start_date,
                                         usage_end=start_date,
                                         report_period=report_period,
@@ -838,6 +840,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 ).first()
                 if not line_item:
                     line_item = OCPUsageLineItemDailySummary(
+                        uuid=uuid.uuid4(),
                         usage_start=start_date,
                         usage_end=start_date,
                         report_period=report_period,
@@ -892,6 +895,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                 ).first()
                                 if not line_item:
                                     line_item = OCPUsageLineItemDailySummary(
+                                        uuid=uuid.uuid4(),
                                         usage_start=start_date,
                                         usage_end=start_date,
                                         report_period=report_period,
@@ -939,6 +943,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 ).first()
                 if not line_item:
                     line_item = OCPUsageLineItemDailySummary(
+                        uuid=uuid.uuid4(),
                         usage_start=start_date,
                         usage_end=start_date,
                         report_period=report_period,
@@ -992,6 +997,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                 ).first()
                                 if not line_item:
                                     line_item = OCPUsageLineItemDailySummary(
+                                        uuid=uuid.uuid4(),
                                         usage_start=start_date,
                                         usage_end=start_date,
                                         report_period=report_period,

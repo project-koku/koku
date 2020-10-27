@@ -23,6 +23,12 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import JSONField
 
+PRESTO_LINE_ITEM_TABLE_MAP = {
+    "pod_usage": "openshift_pod_usage_line_items",
+    "storage_usage": "openshift_storage_usage_line_items",
+    "node_labels": "openshift_node_labels_line_items",
+}
+
 VIEWS = (
     "reporting_ocp_cost_summary",
     "reporting_ocp_cost_summary_by_node",
@@ -223,7 +229,7 @@ class OCPUsageLineItemDailySummary(models.Model):
 
         managed = False
 
-    id = models.BigAutoField(primary_key=True)
+    uuid = models.UUIDField(primary_key=True)
 
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 

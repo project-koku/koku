@@ -1,14 +1,14 @@
 UPDATE {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 SET supplementary_usage_cost = other_sub.supplementary_usage_cost
 FROM (
-    SELECT sub.id,
+    SELECT sub.uuid,
         jsonb_object_agg(key,
             CASE
             WHEN key = {{usage_type}} THEN value::numeric + coalesce(({{rate}}::numeric * usage), 0.0)
             ELSE value::numeric
             END) as supplementary_usage_cost
     FROM (
-        SELECT lids.id,
+        SELECT lids.uuid,
             key,
             value,
             CASE
@@ -28,6 +28,6 @@ FROM (
             AND NOT lids.pod_labels @> {{pair}}
             {% endfor %}
     ) AS sub
-    GROUP BY sub.id
+    GROUP BY sub.uuid
 ) other_sub
-WHERE lids.id = other_sub.id
+WHERE lids.uuid = other_sub.uuid
