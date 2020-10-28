@@ -148,9 +148,6 @@ CREATE TEMPORARY TABLE reporting_aws_with_enabled_tags_{{uuid | sqlsafe}} AS (
             aws.tax_type,
             fvl.aws_tags as tags
         FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws
-        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
-            ON aws.resource_id = ocp.resource_id
-                AND aws.usage_start = ocp.usage_start
         LEFT JOIN cte_filtered_aws_tags as fvl
             ON aws.id = fvl.id
 )
