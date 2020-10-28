@@ -26,6 +26,7 @@ from botocore.exceptions import ClientError
 from django.conf import settings
 
 from api.common import log_json
+from api.provider.models import Provider
 from masu.config import Config
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.downloader_interface import DownloaderInterface
@@ -259,7 +260,9 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.debug("Downloading key: %s to file path: %s", key, full_file_path)
             self.s3_client.download_file(self.report.get("S3Bucket"), key, full_file_path)
             # Push to S3
-            s3_csv_path = get_path_prefix(self.account, self._provider_uuid, start_date, Config.CSV_DATA_TYPE)
+            s3_csv_path = get_path_prefix(
+                self.account, Provider.PROVIDER_AWS, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
+            )
             utils.copy_local_report_file_to_s3_bucket(
                 self.request_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context
             )
