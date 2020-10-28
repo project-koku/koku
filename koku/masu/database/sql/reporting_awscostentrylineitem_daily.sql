@@ -125,7 +125,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_awsenabledtagkeys (
     key
 )
     SELECT DISTINCT(key)
-    FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as li, jsonb_each_text(li.tags) labels
+    FROM reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}} as li, jsonb_each_text(li.tags) labels
     WHERE NOT EXISTS(
         SELECT key
         FROM {{schema | sqlsafe}}.reporting_awsenabledtagkeys

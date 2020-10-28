@@ -14,9 +14,15 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
             FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily lid
             JOIN cte_array_agg_keys aak
                 ON 1=1
-            WHERE (
-                    lid.tags ?| aak.key_array
-                )
+            WHERE lid.tags ?| aak.key_array
+                AND lid.usage_start >= {{start_date}}::date
+                AND lid.usage_start <= {{end_date}}::date
+                {% if bill_ids %}
+                AND lid.cost_entry_bill_id IN (
+                    {%- for bill_id in bill_ids  -%}
+                        {{bill_id}}{% if not loop.last %},{% endif %}
+                    {%- endfor -%})
+                {% endif %}
         ) AS lid,
         jsonb_each_text(lid.aws_tags) AS labels
         WHERE key = ANY (key_array)
