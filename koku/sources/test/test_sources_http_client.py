@@ -327,6 +327,39 @@ class SourcesHTTPClientTest(TestCase):
                 client.get_gcp_credentials()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_gcp_credentials_no_password(self):
+        """Test to get GCP project id from authentication service with auth not containing password."""
+        resource_id = 2
+        authentication_id = 3
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={self.source_id}",
+                status_code=200,
+                json={"data": []},
+            )
+            m.get(
+                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}",
+                status_code=200,
+                json={"data": [{"id": resource_id}]},
+            )
+            m.get(
+                (f"http://www.sources.com/api/v1.0/authentications?" f"[authtype]=arn&[resource_id]={resource_id}"),
+                status_code=200,
+                json={"data": []},
+            )
+            m.get(
+                (
+                    f"http://www.sources.com/internal/v1.0/authentications/{authentication_id}"
+                    f"?expose_encrypted_attribute[]=password"
+                ),
+                status_code=200,
+                json={"other": self.authentication},
+            )
+            with self.assertRaises(SourcesHTTPClientError):
+                client.get_gcp_credentials()
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_get_aws_credentials_no_endpoint(self):
         """Test to get AWS Role ARN from authentication service with no endpoint."""
 
