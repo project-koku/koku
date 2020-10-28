@@ -344,7 +344,10 @@ class SourcesHTTPClientTest(TestCase):
                 json={"data": [{"id": resource_id}]},
             )
             m.get(
-                (f"http://www.sources.com/api/v1.0/authentications?" f"[authtype]=project_id&[resource_id]={resource_id}"),
+                (
+                    f"http://www.sources.com/api/v1.0/authentications?"
+                    f"[authtype]=project_id&[resource_id]={resource_id}"
+                ),
                 status_code=200,
                 json={"data": [{"id": authentication_id}]},
             )
