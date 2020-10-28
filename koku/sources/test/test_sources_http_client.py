@@ -357,7 +357,6 @@ class SourcesHTTPClientTest(TestCase):
                 json={"other": self.authentication},
             )
             with self.assertRaises(SourcesHTTPClientError):
-                import pdb; pdb.set_trace()
                 client.get_gcp_credentials()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
