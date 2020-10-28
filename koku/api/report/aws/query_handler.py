@@ -275,7 +275,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         # Next we want to loop through each sub_org and execute the query for it
         if org_unit_applied:
             for sub_org_name, value in sub_orgs_dict.items():
-                sub_org_id, _ = value
+                sub_org_id, sub_org_path = value
                 if self.parameters.get_filter("org_unit_id"):
                     self.parameters.parameters["filter"].pop("org_unit_id")
                 if self.parameters.get_filter("org_unit_single_level"):
@@ -288,7 +288,10 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 if self.access:
                     org_access = self.access.get("aws.organizational_unit", {}).get("read", [])
                 if org_access is None or (sub_org_id in org_access or "*" in org_access):
-                    self.parameters.set_filter(org_unit_id=[sub_org_id])
+                    # We need need to use the sub org path here because if we use the org unit id
+                    # it will grab partial data from other orgs if the org unit is moved during
+                    # the report period.
+                    self.parameters.set_filter(org_unit_id=[sub_org_path])
                 self.query_filter = self._get_filter()
                 sub_query_data, sub_query_sum = self.execute_individual_query(org_unit_applied)
                 query_sum = self.total_sum(sub_query_sum, query_sum)
