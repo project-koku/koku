@@ -4,9 +4,11 @@ SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 IMAGE="docker-registry.upshift.redhat.com/insights-qe/iqe-tests"
 
 FLAGS=
+PREFIX=
 HOST=$(uname)
 if [ $HOST == 'Linux' ]; then
     FLAGS=':Z'
+    PREFIX=sudo
 fi
 
 if [ "x$E2E_REPO" != "x" ]; then
@@ -20,13 +22,17 @@ fi
 main() {
     if command -v docker > /dev/null 2>&1; then
         CONTAINER_RUNTIME=docker
+        if [ $HOST == 'Linux' ]; then
+            if [ "$(stat -c %G $HOME/.kube/config)" != "root" ]; then
+                $PREFIX chgrp root $HOME/.kube/config
+            fi
+        fi
     elif command -v podman > /dev/null 2>&1; then
         CONTAINER_RUNTIME=podman
     else
         echo "Please install podman or docker first"
         exit 1
     fi
-
 
     $CONTAINER_RUNTIME pull $IMAGE
 
@@ -49,6 +55,14 @@ main() {
                            $E2E_MOUNT \
                            $IMAGE \
                            $COMMAND
+
+    if [ "$CONTAINER_RUNTIME" == "docker" ]; then
+        if [ $HOST == 'Linux' ]; then
+            if [ "$(stat -c %G $HOME/.kube/config)" == "root" ]; then
+                $PREFIX chgrp $USER $HOME/.kube/config
+            fi
+        fi
+    fi
 }
 
 main
