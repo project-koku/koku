@@ -336,7 +336,7 @@ class SourcesHTTPClientTest(TestCase):
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={self.source_id}",
                 status_code=200,
-                json={"data": []},
+                json={"data": [{"id": resource_id}]},
             )
             m.get(
                 f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}",
@@ -344,9 +344,9 @@ class SourcesHTTPClientTest(TestCase):
                 json={"data": [{"id": resource_id}]},
             )
             m.get(
-                (f"http://www.sources.com/api/v1.0/authentications?" f"[authtype]=arn&[resource_id]={resource_id}"),
+                (f"http://www.sources.com/api/v1.0/authentications?" f"[authtype]=project_id&[resource_id]={resource_id}"),
                 status_code=200,
-                json={"data": []},
+                json={"data": [{"id": authentication_id}]},
             )
             m.get(
                 (
@@ -357,6 +357,7 @@ class SourcesHTTPClientTest(TestCase):
                 json={"other": self.authentication},
             )
             with self.assertRaises(SourcesHTTPClientError):
+                import pdb; pdb.set_trace()
                 client.get_gcp_credentials()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
