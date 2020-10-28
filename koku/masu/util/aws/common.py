@@ -19,12 +19,9 @@ import datetime
 import json
 import logging
 import re
-import shutil
 from io import BytesIO
-from pathlib import Path
 
 import boto3
-import pandas as pd
 from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from dateutil.relativedelta import relativedelta
@@ -35,14 +32,9 @@ from api.common import log_json
 from api.models import Provider
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
-from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
-from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util import common as utils
 
 LOG = logging.getLogger(__name__)
-CSV_GZIP_EXT = ".csv.gz"
-CSV_EXT = ".csv"
 
 
 def get_assume_role_session(arn, session="MasuSession"):
@@ -329,32 +321,6 @@ def copy_local_report_file_to_s3_bucket(
             copy_data_to_s3_bucket(request_id, s3_path, local_filename, data, manifest_id, context)
 
 
-def get_file_keys_from_s3_with_manifest_id(request_id, s3_path, manifest_id, context={}):
-    """
-    Get all files in a given prefix that match the given manifest_id.
-    """
-    if not settings.ENABLE_PARQUET_PROCESSING:
-        return []
-
-    keys = []
-    if s3_path:
-        try:
-            s3_resource = get_s3_resource()
-            existing_objects = s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
-            for obj_summary in existing_objects:
-                existing_object = obj_summary.Object()
-                metadata = existing_object.metadata
-                manifest = metadata.get("manifestid")
-                manifest_id_str = str(manifest_id)
-                key = existing_object.key
-                if manifest == manifest_id_str:
-                    keys.append(key)
-        except (EndpointConnectionError, ClientError) as err:
-            msg = f"Unable to find data in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
-            LOG.info(log_json(request_id, msg, context))
-    return keys
-
-
 def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context={}):
     """
     Removes all files in a given prefix if they are not within the given set.
@@ -399,113 +365,6 @@ def aws_post_processor(data_frame):
     )
     data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
     return data_frame
-
-
-def create_parquet_table(account, provider_uuid, manifest_id, s3_parquet_path, output_file, report_type):
-    """Create parquet table."""
-    provider = None
-    with ProviderDBAccessor(provider_uuid) as provider_accessor:
-        provider = provider_accessor.get_provider()
-
-    if provider:
-        if provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            processor = AWSReportParquetProcessor(manifest_id, account, s3_parquet_path, provider_uuid, output_file)
-        elif provider.type in (Provider.PROVIDER_OCP,):
-            processor = OCPReportParquetProcessor(
-                manifest_id, account, s3_parquet_path, provider_uuid, output_file, report_type
-            )
-        elif provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            processor = AzureReportParquetProcessor(manifest_id, account, s3_parquet_path, provider_uuid, output_file)
-
-        processor.create_table()
-
-
-def convert_csv_to_parquet(  # noqa: C901
-    request_id,
-    s3_csv_path,
-    s3_parquet_path,
-    local_path,
-    manifest_id,
-    csv_filename,
-    converters={},
-    post_processor=None,
-    context={},
-    report_type=None,
-):
-    """
-    Convert CSV files to parquet on S3.
-    """
-    if s3_csv_path is None or s3_parquet_path is None or local_path is None:
-        msg = (
-            f"Invalid paths provided to convert_csv_to_parquet."
-            f"CSV path={s3_csv_path}, Parquet path={s3_parquet_path}, and local_path={local_path}."
-        )
-        LOG.error(log_json(request_id, msg, context))
-        return False
-
-    msg = f"Running convert_csv_to_parquet on file {csv_filename} in S3 path {s3_csv_path}."
-    LOG.info(log_json(request_id, msg, context))
-
-    kwargs = {}
-    parquet_file = None
-    csv_file = f"{s3_csv_path}/{csv_filename}"
-    if csv_filename.lower().endswith(CSV_EXT):
-        ext = -1 * len(CSV_EXT)
-        parquet_file = f"{csv_filename[:ext]}.parquet"
-    elif csv_filename.lower().endswith(CSV_GZIP_EXT):
-        ext = -1 * len(CSV_GZIP_EXT)
-        parquet_file = f"{csv_filename[:ext]}.parquet"
-        kwargs = {"compression": "gzip"}
-    else:
-        msg = f"File {csv_filename} is not valid CSV. Conversion to parquet skipped."
-        LOG.warn(log_json(request_id, msg, context))
-        return False
-
-    Path(local_path).mkdir(parents=True, exist_ok=True)
-    tmpfile = f"{local_path}/{csv_filename}"
-    try:
-        s3_resource = get_s3_resource()
-        csv_obj = s3_resource.Object(bucket_name=settings.S3_BUCKET_NAME, key=csv_file)
-        csv_obj.download_file(tmpfile)
-    except Exception as err:
-        shutil.rmtree(local_path, ignore_errors=True)
-        msg = f"File {csv_filename} could not obtained for parquet conversion. Reason: {str(err)}"
-        LOG.warn(log_json(request_id, msg, context))
-        return False
-
-    output_file = f"{local_path}/{parquet_file}"
-    try:
-        col_names = pd.read_csv(tmpfile, nrows=0, **kwargs).columns
-        converters.update({col: str for col in col_names if col not in converters})
-        data_frame = pd.read_csv(tmpfile, converters=converters, **kwargs)
-        if post_processor:
-            data_frame = post_processor(data_frame)
-        data_frame.to_parquet(output_file, allow_truncated_timestamps=True, coerce_timestamps="ms")
-    except Exception as err:
-        shutil.rmtree(local_path, ignore_errors=True)
-        msg = f"File {csv_filename} could not be written as parquet to temp file {output_file}. Reason: {str(err)}"
-        LOG.warn(log_json(request_id, msg, context))
-        return False
-
-    try:
-        with open(output_file, "rb") as fin:
-            data = BytesIO(fin.read())
-            copy_data_to_s3_bucket(
-                request_id, s3_parquet_path, parquet_file, data, manifest_id=manifest_id, context=context
-            )
-    except Exception as err:
-        shutil.rmtree(local_path, ignore_errors=True)
-        s3_key = f"{s3_parquet_path}/{parquet_file}"
-        msg = f"File {csv_filename} could not be written as parquet to S3 {s3_key}. Reason: {str(err)}"
-        LOG.warn(log_json(request_id, msg, context))
-        return False
-
-    create_parquet_table(
-        context.get("account"), context.get("provider_uuid"), manifest_id, s3_parquet_path, output_file, report_type
-    )
-
-    shutil.rmtree(local_path, ignore_errors=True)
-    return True
 
 
 # pylint: disable=too-few-public-methods

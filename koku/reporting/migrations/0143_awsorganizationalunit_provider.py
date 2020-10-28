@@ -9,7 +9,7 @@ import reporting.partition.models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0029_auto_20200921_2016"), ("reporting", "0142_auto_20201002_1925")]
+    dependencies = [("api", "0029_auto_20200921_2016"), ("reporting", "0001_initial")]
 
     operations = [
         migrations.AddField(

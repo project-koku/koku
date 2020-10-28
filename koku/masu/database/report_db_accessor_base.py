@@ -22,6 +22,7 @@ from decimal import InvalidOperation
 
 import ciso8601
 import django.apps
+import prestodb
 from dateutil.relativedelta import relativedelta
 from django.db import connection
 from django.db import transaction
@@ -347,6 +348,15 @@ class ReportDBAccessorBase(KokuDBAccess):
             cursor.db.set_schema(self.schema)
             cursor.execute(sql, params=bind_params)
         LOG.info("Finished updating %s.", table)
+
+    def _execute_presto_raw_sql_query(self, schema, sql):
+        """Run a SQL statement using Presto."""
+        postgres_conn = prestodb.dbapi.connect(
+            host="presto", port=8080, user="admin", catalog="postgres", schema=schema
+        )
+        postgres_cur = postgres_conn.cursor()
+        postgres_cur.execute(sql)
+        return postgres_cur.fetchall()
 
     def get_existing_partitions(self, table):
         if isinstance(table, str):
