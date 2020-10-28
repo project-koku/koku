@@ -101,7 +101,7 @@ CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
 CREATE TEMPORARY TABLE reporting_aws_with_enabled_tags_{{uuid | sqlsafe}} AS (
     WITH cte_array_agg_keys AS (
         SELECT array_agg(key) as key_array
-        FROM reporting_awsenabledtagkeys
+        FROM {{schema | sqlsafe}}.reporting_awsenabledtagkeys
     ),
     cte_filtered_aws_tags AS (
         SELECT id,
@@ -110,7 +110,7 @@ CREATE TEMPORARY TABLE reporting_aws_with_enabled_tags_{{uuid | sqlsafe}} AS (
             SELECT lid.id,
                 lid.tags as aws_tags,
                 aak.key_array
-            FROM reporting_awscostentrylineitem_daily lid
+            FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily lid
             JOIN cte_array_agg_keys aak
                 ON 1=1
             WHERE (
@@ -147,7 +147,10 @@ CREATE TEMPORARY TABLE reporting_aws_with_enabled_tags_{{uuid | sqlsafe}} AS (
             aws.public_on_demand_rate,
             aws.tax_type,
             fvl.aws_tags as tags
-        FROM reporting_awscostentrylineitem_daily as aws
+        FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
+            ON aws.resource_id = ocp.resource_id
+                AND aws.usage_start = ocp.usage_start
         LEFT JOIN cte_filtered_aws_tags as fvl
             ON aws.id = fvl.id
 )
