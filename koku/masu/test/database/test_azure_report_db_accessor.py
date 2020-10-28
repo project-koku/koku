@@ -159,7 +159,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.assertEqual(result_start_date, start_date)
             self.assertEqual(result_end_date, end_date)
 
-            entry = query.order_by("-id")
+            entry = query.order_by("-uuid")
 
             summary_columns = [
                 "usage_start",

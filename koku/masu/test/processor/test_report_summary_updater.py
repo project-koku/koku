@@ -19,11 +19,14 @@ import datetime
 from unittest.mock import patch
 from uuid import uuid4
 
+from django.test import override_settings
+
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
 from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
 from masu.processor.ocp.ocp_report_summary_updater import OCPReportSummaryUpdater
@@ -190,3 +193,10 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         manifest_id = manifest.id
         with self.assertRaises(ReportSummaryUpdaterError):
             ReportSummaryUpdater(self.schema, no_provider_uuid, manifest_id)
+
+    @override_settings(ENABLE_PARQUET_PROCESSING=True)
+    def test_aws_parquet_summary_updater(self):
+        """Test that the AWSReportParquetSummaryUpdater is returned."""
+        updater = ReportSummaryUpdater(self.schema, self.aws_provider_uuid)
+
+        self.assertIsInstance(updater._updater, AWSReportParquetSummaryUpdater)

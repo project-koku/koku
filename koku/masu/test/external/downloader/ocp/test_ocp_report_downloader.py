@@ -23,11 +23,14 @@ from datetime import datetime
 from unittest.mock import patch
 
 import pandas as pd
+from django.test.utils import override_settings
 from faker import Faker
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
+from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
 from masu.external.downloader.ocp.ocp_report_downloader import divide_csv_daily
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.report_downloader import ReportDownloader
@@ -216,3 +219,20 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.assertEqual(result.get("assembly_id"), assembly_id)
         self.assertEqual(result.get("compression"), compression)
         self.assertIsNotNone(result.get("files"))
+
+    @override_settings(ENABLE_S3_ARCHIVING=True)
+    @override_settings(ENABLE_PARQUET_PROCESSING=True)
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.os")
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.copy_local_report_file_to_s3_bucket")
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.divide_csv_daily")
+    def test_create_daily_archives(self, mock_divide, mock_s3_copy, mock_os):
+        """Test that this method returns a file list."""
+        start_date = DateHelper().this_month_start
+        daily_files = [{"filename": "file_one"}, {"filename": "file_two"}]
+        expected_filenames = ["file_one", "file_two"]
+
+        mock_divide.return_value = daily_files
+
+        result = create_daily_archives(1, "10001", self.ocp_provider_uuid, "file", "path", 1, start_date)
+
+        self.assertEqual(result, expected_filenames)

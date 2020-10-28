@@ -22,7 +22,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
         WHERE key = ANY (key_array)
         GROUP BY id
     )
-    SELECT li.cost_entry_bill_id,
+    SELECT uuid_generate_v4() as uuid,
+        li.cost_entry_bill_id,
         li.usage_start,
         li.usage_end,
         li.product_code,
@@ -102,6 +103,7 @@ WHERE li.usage_start >= {{start_date}}
 
 -- Populate the daily aggregate line item data
 INSERT INTO {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary (
+    uuid,
     cost_entry_bill_id,
     usage_start,
     usage_end,
@@ -130,7 +132,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary (
     source_uuid,
     markup_cost
 )
-SELECT cost_entry_bill_id,
+SELECT uuid,
+        cost_entry_bill_id,
         usage_start,
         usage_end,
         product_code,
