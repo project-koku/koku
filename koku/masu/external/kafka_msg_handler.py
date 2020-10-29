@@ -716,6 +716,10 @@ def listen_for_messages(msg, consumer):
         LOG.error(f"[listen_for_messages] Report processing error: {str(error)}")
         LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
         consumer.commit()
+    except NotImplementedError as error:
+        LOG.info(f"[listen_for_messages] NotImplementedError: {str(error)}")
+        LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
+        consumer.commit()
     except Exception as error:
         LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)
 

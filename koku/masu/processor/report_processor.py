@@ -132,6 +132,8 @@ class ReportProcessor:
             return self._processor.process()
         except (InterfaceError, DjangoInterfaceError, OperationalError) as err:
             raise ReportProcessorDBError(str(err))
+        except NotImplementedError as err:
+            raise err
         except Exception as err:
             raise ReportProcessorError(str(err))
 
