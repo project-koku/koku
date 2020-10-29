@@ -237,14 +237,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 },
                 "side_effect": ReportProcessorError,
             },
-            {
-                "test_value": {
-                    "account": "10001",
-                    "category": "tar",
-                    "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
-                },
-                "side_effect": NotImplementedError,
-            },
         ]
         for test in test_matrix:
             msg = MockMessage(
@@ -391,6 +383,19 @@ class KafkaMsgHandlerTest(MasuTestCase):
         with patch("masu.external.kafka_msg_handler._process_report_file") as mock_process:
             msg_handler.process_report("request_id", report_meta)
             mock_process.assert_called()
+
+    @patch("masu.external.kafka_msg_handler._process_report_file", side_effect=NotImplementedError)
+    def test_process_report_not_implemented_error(self, _):
+        """Test report processing."""
+        report_meta = {
+            "schema_name": "test_schema",
+            "manifest_id": "1",
+            "provider_uuid": uuid.uuid4(),
+            "provider_type": "OCP",
+            "compression": "UNCOMPRESSED",
+            "file": "/path/to/file.csv",
+        }
+        self.assertTrue(msg_handler.process_report("request_id", report_meta))
 
     def test_summarize_manifest(self):
         """Test report summarization."""

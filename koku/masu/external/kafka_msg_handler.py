@@ -551,7 +551,11 @@ def process_report(request_id, report):
         "provider_type": "OCP",
         "start_date": date,
     }
-    return _process_report_file(schema_name, provider_type, report_dict)
+    try:
+        return _process_report_file(schema_name, provider_type, report_dict)
+    except NotImplementedError as err:
+        LOG.info(f"NotImplementedError: {str(err)}")
+        return True
 
 
 def report_metas_complete(report_metas):
@@ -714,10 +718,6 @@ def listen_for_messages(msg, consumer):
         rewind_consumer_to_retry(consumer, topic_partition)
     except ReportProcessorError as error:
         LOG.error(f"[listen_for_messages] Report processing error: {str(error)}")
-        LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
-        consumer.commit()
-    except NotImplementedError as error:
-        LOG.info(f"[listen_for_messages] NotImplementedError: {str(error)}")
         LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
         consumer.commit()
     except Exception as error:
