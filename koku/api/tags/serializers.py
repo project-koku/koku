@@ -99,6 +99,7 @@ class AWSFilterSerializer(FilterSerializer):
     """Serializer for handling tag query parameter filter."""
 
     account = StringOrListField(child=serializers.CharField(), required=False)
+    enabled = serializers.BooleanField(default=True, required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the AWSFilterSerializer."""
