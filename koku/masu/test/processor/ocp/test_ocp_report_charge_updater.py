@@ -486,9 +486,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
         updater._update_monthly_tag_based_cost(start_date, end_date)
 
-        # assert that the Cluster call includes relevant information and Node call has nothing
-        # since there was no Node related cost
-        # assert that the Node call includes relevant information and the call for cluster and pvc
+        # assert that the Cluster call includes relevant information and the call for node and pvc
         # do not happen since they did not have a rate included
         mock_update_monthly.assert_called_once_with(
             "Cluster", "Supplementary", "a tag rate", start_date, end_date, self.cluster_id, updater._cluster_alias
