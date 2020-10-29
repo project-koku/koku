@@ -445,6 +445,19 @@ class TestProcessorTasks(MasuTestCase):
 
     @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks._get_report_files")
+    @patch("masu.processor.tasks._process_report_file", side_effect=NotImplementedError)
+    def test_get_report_process_not_implemented_error(
+        self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove
+    ):
+        """Test raising processor exception is handled."""
+        mock_get_files.return_value = {"file": self.fake.word(), "compression": "PLAIN"}
+
+        get_report_files(**self.get_report_args)
+        mock_cache_remove.assert_called()
+
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.tasks._get_report_files", side_effect=Exception("Mocked download error!"))
     def test_get_report_broad_exception(self, mock_get_files, mock_inspect, mock_cache_remove):
         """Test raising download broad exception is handled."""
