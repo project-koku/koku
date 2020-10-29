@@ -77,6 +77,9 @@ class OCPReportProcessorTest(MasuTestCase):
         )
         cls.storage_report_path = "./koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_storage.csv"
         cls.node_report_path = "./koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_node_labels.csv"
+        cls.namespace_report_path = (
+            "./koku/masu/test/data/ocp/434eda91-885b-40b2-8733-7a21fad62b56_namespace_labels.csv"
+        )
         cls.unknown_report = "./koku/masu/test/data/test_cur.csv"
         cls.test_report_gzip_path = "./koku/masu/test/data/test_cur.csv.gz"
 
@@ -110,11 +113,13 @@ class OCPReportProcessorTest(MasuTestCase):
         self.test_report = f"{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv"
         self.storage_report = f"{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_storage.csv"
         self.node_report = f"{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_node_labels.csv"
+        self.namespace_report = f"{self.temp_dir}/434eda91-885b-40b2-8733-7a21fad62b56_namespace_labels.csv"
         self.test_report_gzip = f"{self.temp_dir}/test_cur.csv.gz"
         self.cluster_alias = "My OCP cluster"
         shutil.copy2(self.test_report_path, self.test_report)
         shutil.copy2(self.storage_report_path, self.storage_report)
         shutil.copy2(self.node_report_path, self.node_report)
+        shutil.copy2(self.namespace_report_path, self.namespace_report)
         shutil.copy2(self.test_report_gzip_path, self.test_report_gzip)
 
         self.manifest_dict = {
@@ -180,6 +185,14 @@ class OCPReportProcessorTest(MasuTestCase):
             provider_uuid=self.ocp_provider_uuid,
         )
         self.assertEqual(node_label_processor.report_type, OCPReportTypes.NODE_LABELS)
+
+        with self.assertRaises(NotImplementedError):
+            OCPReportProcessor(
+                schema_name="acct10001",
+                report_path=self.namespace_report,
+                compression=UNCOMPRESSED,
+                provider_uuid=self.ocp_provider_uuid,
+            )
 
         with self.assertRaises(OCPReportProcessorError):
             OCPReportProcessor(
