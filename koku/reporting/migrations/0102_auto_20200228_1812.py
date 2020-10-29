@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="ocpusagelineitemdailysummary",
             name="infrastructure_usage_cost",
-            field=django.contrib.postgres.fields.jsonb.JSONField(null=True),
+            field=django.db.models.JSONField(null=True),
         ),
         migrations.AddField(
             model_name="ocpusagelineitemdailysummary",
@@ -62,6 +62,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="ocpusagelineitemdailysummary",
             name="supplementary_usage_cost",
-            field=django.contrib.postgres.fields.jsonb.JSONField(null=True),
+            field=django.db.models.JSONField(null=True),
         ),
     ]

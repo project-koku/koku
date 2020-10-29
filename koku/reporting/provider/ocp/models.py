@@ -19,9 +19,19 @@ from decimal import Decimal
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import JSONField
+
+VIEWS = (
+    "reporting_ocp_cost_summary",
+    "reporting_ocp_cost_summary_by_node",
+    "reporting_ocp_cost_summary_by_project",
+    "reporting_ocp_pod_summary",
+    "reporting_ocp_pod_summary_by_project",
+    "reporting_ocp_volume_summary",
+    "reporting_ocp_volume_summary_by_project",
+)
 
 
 class OCPUsageReportPeriod(models.Model):
@@ -191,8 +201,12 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     """
 
-    MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"))
-    MONTHLY_COST_RATE_MAP = {"Node": "node_cost_per_month", "Cluster": "cluster_cost_per_month"}
+    MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"), ("PVC", "PVC"))
+    MONTHLY_COST_RATE_MAP = {
+        "Node": "node_cost_per_month",
+        "Cluster": "cluster_cost_per_month",
+        "PVC": "pvc_cost_per_month",
+    }
 
     class Meta:
         """Meta for OCPUsageLineItemDailySummary."""

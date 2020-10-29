@@ -143,8 +143,11 @@ class crawlAccountHierarchyTest(MasuTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_require_schema_on_post(self, _):
         """Test the POST crawl_account_hierarchy endpoint requires schema."""
+        params = {"provider_uuid": self.aws_test_provider_uuid}
+        query_string = urlencode(params)
+        url = reverse("crawl_account_hierarchy") + "?" + query_string
         tree_json = {}
-        response = self.client.post(reverse("crawl_account_hierarchy"), tree_json, content_type="application/json")
+        response = self.client.post(url, tree_json, content_type="application/json")
         body = response.json()
         errmsg = body.get("Error")
         expected_errmsg = "schema is a required parameter."
@@ -152,12 +155,24 @@ class crawlAccountHierarchyTest(MasuTestCase):
         self.assertEqual(errmsg, expected_errmsg)
 
     @patch("koku.middleware.MASU", return_value=True)
+    def test_require_provider_uuid_on_post(self, _):
+        """Test the POST crawl_account_hierarchy endpoint requires schema."""
+        tree_json = {}
+        response = self.client.post(reverse("crawl_account_hierarchy"), tree_json, content_type="application/json")
+        body = response.json()
+        errmsg = body.get("Error")
+        expected_errmsg = "provider_uuid is a required parameter."
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(errmsg, expected_errmsg)
+
+    @patch("koku.middleware.MASU", return_value=True)
     def test_bad_tree_structure(self, _):
         """Test the POST crawl_account_hierarchy endpoint requires schema."""
+        params = {"provider_uuid": self.aws_test_provider_uuid}
+        query_string = urlencode(params)
+        url = reverse("crawl_account_hierarchy") + "?" + query_string
         del self.tree_json["account_structure"]["days"]
-        response = self.client.post(
-            reverse("crawl_account_hierarchy"), self.tree_json, content_type="application/json"
-        )
+        response = self.client.post(url, self.tree_json, content_type="application/json")
         body = response.json()
         errmsg = body.get("Error")
         expected_errmsg = "Unexpected json structure. Can not find days key."
@@ -167,11 +182,12 @@ class crawlAccountHierarchyTest(MasuTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_successful_post_upload(self, _):
         """Test the POST crawl_account_hierarchy endpoint requires schema."""
+        params = {"provider_uuid": self.aws_test_provider_uuid}
+        query_string = urlencode(params)
+        url = reverse("crawl_account_hierarchy") + "?" + query_string
         schema = "acct12345"
         self.tree_json["schema"] = schema
-        response = self.client.post(
-            reverse("crawl_account_hierarchy"), self.tree_json, content_type="application/json"
-        )
+        response = self.client.post(url, self.tree_json, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         with schema_context(schema):
             cur_count = AWSOrganizationalUnit.objects.count()
@@ -185,13 +201,14 @@ class crawlAccountHierarchyTest(MasuTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_successful_post_upload_with_start_date(self, _):
         """Test the POST crawl_account_hierarchy endpoint requires schema."""
+        params = {"provider_uuid": self.aws_test_provider_uuid}
+        query_string = urlencode(params)
+        url = reverse("crawl_account_hierarchy") + "?" + query_string
         start_date = str(datetime.today().date())
         self.tree_json["start_date"] = start_date
         with schema_context(self.schema):
             AWSOrganizationalUnit.objects.all().delete()
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 0)
-        response = self.client.post(
-            reverse("crawl_account_hierarchy"), self.tree_json, content_type="application/json"
-        )
+        response = self.client.post(url, self.tree_json, content_type="application/json")
         self.assertEqual(response.status_code, 200)

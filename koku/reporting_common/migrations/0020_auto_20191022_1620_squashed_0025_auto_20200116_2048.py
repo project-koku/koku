@@ -9,14 +9,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    replaces = [
-        ("reporting_common", "0020_auto_20191022_1620"),
-        ("reporting_common", "0021_auto_20191022_1635"),
-        ("reporting_common", "0022_add_gcp_column_maps"),
-        ("reporting_common", "0023_costusagereportmanifest_task"),
-        ("reporting_common", "0024_costusagereportmanifest_manifest_completed_datetime"),
-        ("reporting_common", "0025_auto_20200116_2048"),
-    ]
+    replaces = []
 
     dependencies = [
         ("reporting_common", "0001_initial_squashed_0007_auto_20190208_0316_squashed_0019_auto_20191022_1602")

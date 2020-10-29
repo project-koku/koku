@@ -16,9 +16,9 @@
 #
 """Models for OCP on AWS tables."""
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import JSONField
 
 VIEWS = (
     "reporting_ocpallcostlineitem_daily_summary",
@@ -46,7 +46,7 @@ class OCPAllCostLineItemDailySummary(models.Model):
         indexes = [
             models.Index(fields=["usage_start"], name="ocpall_usage_idx"),
             models.Index(fields=["namespace"], name="ocpall_namespace_idx"),
-            models.Index(fields=["node"], name="ocpall_node_idx", opclasses=["varcahr_pattern_ops"]),
+            models.Index(fields=["node"], name="ocpall_node_idx", opclasses=["varchar_pattern_ops"]),
             models.Index(fields=["resource_id"], name="ocpall_resource_idx"),
             GinIndex(fields=["tags"], name="ocpall_tags_idx"),
             models.Index(fields=["product_family"], name="ocpall_product_family_idx"),

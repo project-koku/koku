@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Settings views."""
+from django.conf import settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -54,10 +55,14 @@ class SettingsViewTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertEqual(len(data), 1)
         primary_object = data[0]
-        ocp_subform_fields = primary_object.get("fields")
-        self.assertIsNotNone(ocp_subform_fields)
-        self.assertEqual(len(ocp_subform_fields), 2)
-        return ocp_subform_fields[1]
+        tg_mngmnt_subform_fields = primary_object.get("fields")
+        self.assertIsNotNone(tg_mngmnt_subform_fields)
+        fields_len = 7 if settings.DEVELOPMENT else 3
+        self.assertEqual(len(tg_mngmnt_subform_fields), fields_len)
+        tg_mngmnt_dual_list = next(
+            (field for field in tg_mngmnt_subform_fields if field["component"] == "dual-list-select"), None
+        )
+        return tg_mngmnt_dual_list
 
     def test_get_settings_ocp_tag_enabled(self):
         """Test that a GET settings call returns expected format."""
@@ -88,7 +93,19 @@ class SettingsViewTest(IamTestCase):
         query_output = handler.execute_query()
         tag = query_output.get("data")[0]
 
-        body = {"api": {"settings": {"openshift": {"tag-management": {"enabled": [tag]}}}}}
+        body = {"api": {"settings": {"tag-management": {"openshift": {"enabled": [tag]}}}}}
+        response = self.post_settings(body)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response = self.get_settings()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        duallist = self.get_duallist_from_response(response)
+        enabled = duallist.get("initialValue")
+        self.assertIn(tag, enabled)
+
+        tag = query_output.get("data")[1]
+
+        body = {"api": {"settings": {"tag-management": {"openshift": {"enabled": [tag]}}}}}
         response = self.post_settings(body)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -102,7 +119,7 @@ class SettingsViewTest(IamTestCase):
         """Test setting OCP tags as enabled with invalid tag key."""
         tag = "Invalid_tag_key_test"
 
-        body = {"api": {"settings": {"openshift": {"tag-management": {"enabled": [tag]}}}}}
+        body = {"api": {"settings": {"tag-management": {"openshift": {"enabled": [tag]}}}}}
         response = self.post_settings(body)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 

@@ -17,6 +17,8 @@
 """AWS Query Handling for Reports."""
 import copy
 import logging
+import operator
+from functools import reduce
 
 from django.core.exceptions import FieldDoesNotExist
 from django.db.models import F
@@ -534,6 +536,21 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         returns:
             None
         """
+        # Note that the RBAC access for organizational units should follow the hierarchical
+        # structure of the tree. Therefore, as long as the user has access to the root nodes
+        # passed in by group_by[org_unit_id] then the user automatically has access to all
+        # the sub orgs.
+        if access and "*" not in access:
+            allowed_ous = (
+                AWSOrganizationalUnit.objects.filter(
+                    reduce(operator.or_, (Q(org_unit_path__icontains=rbac) for rbac in access))
+                )
+                .filter(account_alias__isnull=True)
+                .order_by("org_unit_id", "-created_timestamp")
+                .distinct("org_unit_id")
+            )
+            if allowed_ous:
+                access = list(allowed_ous.values_list("org_unit_id", flat=True))
         if not isinstance(filt, list) and filt["field"] == "organizational_unit__org_unit_path":
             filt["field"] = "organizational_unit__org_unit_id"
         super().set_access_filters(access, filt, filters)

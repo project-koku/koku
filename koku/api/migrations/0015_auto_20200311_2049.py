@@ -10,8 +10,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(
-            model_name="sources",
-            name="status",
-            field=django.contrib.postgres.fields.jsonb.JSONField(default=dict, null=True),
+            model_name="sources", name="status", field=django.db.models.JSONField(default=dict, null=True)
         )
     ]
