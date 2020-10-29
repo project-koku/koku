@@ -107,6 +107,19 @@ class ReportProcessorTest(MasuTestCase):
                 manifest_id=None,
             )
 
+    @patch("masu.processor.aws.aws_report_processor.AWSReportProcessor.__init__", side_effect=NotImplementedError)
+    def test_initializer_not_implemented_error(self, fake_processor):
+        """Test to initializer with error."""
+        with self.assertRaises(NotImplementedError):
+            ReportProcessor(
+                schema_name=self.schema,
+                report_path="/my/report/file",
+                compression="GZIP",
+                provider=Provider.PROVIDER_AWS,
+                provider_uuid=self.aws_provider_uuid,
+                manifest_id=None,
+            )
+
     def test_initializer_invalid_provider(self):
         """Test to initializer with invalid provider."""
         with self.assertRaises(ReportProcessorError):

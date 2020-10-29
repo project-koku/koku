@@ -54,6 +54,8 @@ class ReportProcessor:
         self.context = context
         try:
             self._processor = self._set_processor()
+        except NotImplementedError as err:
+            raise err
         except Exception as err:
             raise ReportProcessorError(str(err))
 

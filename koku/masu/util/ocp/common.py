@@ -36,10 +36,11 @@ LOG = logging.getLogger(__name__)
 class OCPReportTypes(Enum):
     """Types of OCP report files."""
 
+    UNKNOWN = 0
     CPU_MEM_USAGE = 1
     STORAGE = 2
     NODE_LABELS = 3
-    UNKNOWN = 4
+    NAMESPACE_LABELS = 4
 
 
 STORAGE_COLUMNS = [
@@ -91,10 +92,20 @@ NODE_LABEL_COLUMNS = [
     "node_labels",
 ]
 
+NAMESPACE_LABEL_COLUMNS = [
+    "report_period_start",
+    "report_period_end",
+    "interval_start",
+    "interval_end",
+    "namespace",
+    "namespace_labels",
+]
+
 REPORT_TYPES = {
     "storage_usage": {"columns": STORAGE_COLUMNS, "enum": OCPReportTypes.STORAGE},
     "pod_usage": {"columns": CPU_MEM_USAGE_COLUMNS, "enum": OCPReportTypes.CPU_MEM_USAGE},
     "node_labels": {"columns": NODE_LABEL_COLUMNS, "enum": OCPReportTypes.NODE_LABELS},
+    "namespace_labels": {"columns": NAMESPACE_LABEL_COLUMNS, "enum": OCPReportTypes.NAMESPACE_LABELS},
 }
 
 
