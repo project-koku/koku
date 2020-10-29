@@ -237,6 +237,14 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 },
                 "side_effect": ReportProcessorError,
             },
+            {
+                "test_value": {
+                    "account": "10001",
+                    "category": "tar",
+                    "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
+                },
+                "side_effect": NotImplementedError,
+            },
         ]
         for test in test_matrix:
             msg = MockMessage(
