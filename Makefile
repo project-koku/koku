@@ -158,7 +158,7 @@ lint:
 	pre-commit run --all-files
 
 clear-testing:
-	$(PYTHON) $(TOPDIR)/scripts/clear_testing.py -p $(TOPDIR)/testing
+	$(PREFIX) $(PYTHON) $(TOPDIR)/scripts/clear_testing.py -p $(TOPDIR)/testing
 
 create-test-customer: run-migrations docker-up-koku
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
