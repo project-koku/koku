@@ -220,34 +220,38 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         try:
             with OCPReportDBAccessor(self._schema) as report_accessor:
                 for cost_type, rate_term in OCPUsageLineItemDailySummary.MONTHLY_COST_RATE_MAP.items():
-                    rate_type = None
-                    rate = None
-                    if self._tag_infra_rates.get(rate_term):
-                        rate_type = metric_constants.INFRASTRUCTURE_COST_TYPE
-                        rate = self._tag_infra_rates.get(rate_term)
-                    elif self._tag_supplementary_rates.get(rate_term):
-                        rate_type = metric_constants.SUPPLEMENTARY_COST_TYPE
-                        rate = self._tag_supplementary_rates.get(rate_term)
+                    for rate_type in [
+                        metric_constants.INFRASTRUCTURE_COST_TYPE,
+                        metric_constants.SUPPLEMENTARY_COST_TYPE,
+                    ]:
+                        if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                            if not self._tag_infra_rates.get(rate_term, {}):
+                                continue
+                            rate = self._tag_infra_rates.get(rate_term)
+                        else:
+                            if not self._tag_supplementary_rates.get(rate_term, {}):
+                                continue
+                            rate = self._tag_supplementary_rates.get(rate_term)
 
-                    log_msg = "Updating"
-                    if rate is None:
-                        log_msg = "Removing"
+                        log_msg = "Updating"
+                        if rate is None:
+                            log_msg = "Removing"
 
-                    LOG.info(
-                        log_msg + " tag based monthly %s cost for"
-                        "\n\tSchema: %s \n\t%s Provider: %s (%s) \n\tDates: %s - %s",
-                        cost_type,
-                        self._schema,
-                        self._provider.type,
-                        self._provider.name,
-                        self._provider_uuid,
-                        start_date,
-                        end_date,
-                    )
+                        LOG.info(
+                            log_msg + " tag based monthly %s cost for"
+                            "\n\tSchema: %s \n\t%s Provider: %s (%s) \n\tDates: %s - %s",
+                            cost_type,
+                            self._schema,
+                            self._provider.type,
+                            self._provider.name,
+                            self._provider_uuid,
+                            start_date,
+                            end_date,
+                        )
 
-                    report_accessor.populate_monthly_tag_cost(
-                        cost_type, rate_type, rate, start_date, end_date, self._cluster_id, self._cluster_alias
-                    )
+                        report_accessor.populate_monthly_tag_cost(
+                            cost_type, rate_type, rate, start_date, end_date, self._cluster_id, self._cluster_alias
+                        )
 
         except OCPCostModelCostUpdaterError as error:
             LOG.error("Unable to update monthly costs. Error: %s", str(error))
