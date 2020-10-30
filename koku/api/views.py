@@ -18,6 +18,12 @@
 # flake8: noqa
 from api.cloud_accounts.views import cloud_accounts
 from api.dataexport.views import DataExportRequestViewSet
+from api.forecast.views import AWSCostForecastView
+from api.forecast.views import AzureCostForecastView
+from api.forecast.views import OCPAllCostForecastView
+from api.forecast.views import OCPAWSCostForecastView
+from api.forecast.views import OCPAzureCostForecastView
+from api.forecast.views import OCPCostForecastView
 from api.metrics.views import metrics
 from api.openapi.view import openapi
 from api.organizations.aws.view import AWSOrgView
