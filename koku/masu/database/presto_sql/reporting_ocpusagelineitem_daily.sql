@@ -57,6 +57,27 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}}
 
 
 -- Delete the old block of data (if any) based on the usage range
+-- Inserting a record in this log will trigger a delete against the specified table
+-- in the same schema as the log table with the specified where_clause
+INSERT
+  INTO postgres.{{schema | sqlsafe}}.presto_delete_wrapper_log
+       (
+           id,
+           action_ts,
+           table_name,
+           where_clause,
+           result_rows
+       )
+VALUES (
+    uuid(),
+    now(),
+    'reporting_ocpusagelineitem_daily_summary',
+    'where usage start >= ''{{start_date}}'' and usage_start <= ''{{end_date}}'' ' ||
+    'and cluster_id = {{cluster_id}} and data_source = ''Pod'''
+)
+;
+
+/*
 DELETE
   FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
  WHERE usage_start >= {{start_date}}
@@ -64,6 +85,8 @@ DELETE
    AND cluster_id = {{cluster_id}}
    AND data_source = 'Pod'
 ;
+*/
+
 
 -- This is the target summarization sql
 -- It combines the prior daily summarization query with the final summarization query
