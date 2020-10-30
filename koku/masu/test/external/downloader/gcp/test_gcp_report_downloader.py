@@ -1,5 +1,4 @@
 """Test the GCPReportDownloader class."""
-# import hashlib
 import shutil
 from datetime import datetime
 from unittest.mock import patch
@@ -15,14 +14,7 @@ from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownload
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
 from masu.test import MasuTestCase
 
-# from unittest.mock import Mock
-# from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderNoFileError
-
 FAKE = Faker()
-
-
-def raise_vaildation_error(msg):
-    raise ValidationError(msg=msg)
 
 
 class GCPReportDownloaderTest(MasuTestCase):
@@ -134,128 +126,27 @@ class GCPReportDownloaderTest(MasuTestCase):
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider")
     def test_download_with_unreachable_source(self, gcp_provider):
+        """Assert errors correctly when source is unreachable."""
         gcp_provider.return_value.cost_usage_source_is_reachable.side_effect = ValidationError
         billing_source = {"table_id": FAKE.slug(), "dataset": FAKE.slug()}
         credentials = {"project_id": FAKE.slug()}
         with self.assertRaises(GCPReportDownloaderError):
             GCPReportDownloader(FAKE.name(), billing_source, credentials=credentials)
 
-    # @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")
-    # def test_generate_etag(self, mock_bigquery):
-    #     expected_etag = hashlib.md5(str(self.today.date()).encode()).hexdigest()
-    #     mock_bigquery.client.return_value.get_table.return_vlaue.modified.return_value = self.today
-    #     downloader = self.create_gcp_downloader_with_mocked_values()
-    #     result_etag = downloader._generate_etag()
-    #     self.assertEqual(expected_etag, result_etag)
-
-    # Coverage left to do:
-    # 102-107, 124-151, 271, 270->271
-
-    # @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
-    # def test_download_file_without_etag(self, mock_makedirs):
-    #     """Assert download_file downloads and returns local path with GCP's etag."""
-    #     key = FAKE.file_path()
-    #     expected_etag = FAKE.slug()
-    #     mock_blob = MockBlob(etag=expected_etag)
-    #     expected_full_local_path = FAKE.file_path()
-    #     downloader = self.create_gcp_downloader_with_mocked_values()
-    #     with patch.object(downloader, "_bucket_info") as mock_bucket_info, patch.object(
-    #         downloader, "_get_local_file_path"
-    #     ) as mock_get_local_path:
-    #         mock_bucket_info.get_blob.return_value = mock_blob
-    #         mock_get_local_path.return_value = expected_full_local_path
-    #         results = downloader.download_file(key)
-    #         mock_bucket_info.get_blob.assert_called_with(key)
-    #     mock_blob.download_to_filename.assert_called_with(expected_full_local_path)
-    #     mock_makedirs.assert_called()
-    #     self.assertEqual(results, (expected_full_local_path, expected_etag))
-
-    # @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
-    # def test_download_file_with_mismatched_etag(self, mock_makedirs):
-    #     """
-    #     Assert download_file downloads and returns local path with GCP's etag.
-
-    #     This is basically identical to test_download_file_without_etag's behavior,
-    #     but this behavior may change in the future if we decide to introduce some
-    #     kind of alternate flow or error handling when the remote blog's etag does
-    #     not match our stored etag.
-    #     """
-    #     key = FAKE.file_path()
-    #     stored_etag = FAKE.slug()
-    #     expected_etag = FAKE.slug()
-    #     self.assertNotEqual(stored_etag, expected_etag)
-    #     mock_blob = MockBlob(etag=expected_etag)
-    #     expected_full_local_path = FAKE.file_path()
-    #     downloader = self.create_gcp_downloader_with_mocked_values()
-    #     with patch.object(downloader, "_bucket_info") as mock_bucket_info, patch.object(
-    #         downloader, "_get_local_file_path"
-    #     ) as mock_get_local_path:
-    #         mock_bucket_info.get_blob.return_value = mock_blob
-    #         mock_get_local_path.return_value = expected_full_local_path
-    #         results = downloader.download_file(key, stored_etag)
-    #         mock_bucket_info.get_blob.assert_called_with(key)
-    #     mock_blob.download_to_filename.assert_called_with(expected_full_local_path)
-    #     mock_makedirs.assert_called()
-    #     self.assertEqual(results, (expected_full_local_path, expected_etag))
-
-    # def test_get_local_directory_path(self):
-    #     """Assert expected local directory path construction."""
-    #     customer_name = "Bilbo/Baggins"
-    #     bucket_name = "Bag/End"
-    #     data_dir = "/The/Shire"
-    #     expected_directory_path = "/The/Shire/Bilbo_Baggins/gcp/Bag_End"
-    #     downloader = self.create_gcp_downloader_with_mocked_values(
-    #         customer_name=customer_name, bucket_name=bucket_name
-    #     )
-    #     with patch("masu.external.downloader.gcp.gcp_report_downloader.DATA_DIR", new=data_dir):
-    #         actual_directory_path = downloader._get_local_directory_path()
-    #     self.assertEqual(actual_directory_path, expected_directory_path)
-
-    # def test_get_local_file_path(self):
-    #     """Assert expected local file path construction."""
-    #     directory_path = FAKE.file_path()
-    #     key = "Samwise/Gamgee"
-    #     expected_file_name = "Samwise_Gamgee"
-    #     downloader = self.create_gcp_downloader_with_mock_gcp_storage()
-    #     actual_local_file_path = downloader._get_local_file_path(directory_path, key)
-    #     self.assertTrue(actual_local_file_path.startswith(directory_path))
-    #     self.assertTrue(actual_local_file_path.endswith(expected_file_name))
-    #     self.assertNotIn(key, actual_local_file_path)
-
-    # def test_get_manifest_context_for_date_with_files(self):
-    #     """Assert get_report_context_for_date returns a "report" dict if files are found."""
-    #     start_date = datetime(2019, 9, 1)
-    #     assembly_id = FAKE.uuid4()
-    #     file_count = 10
-    #     file_names = [FAKE.file_name() for _ in range(file_count)]
-    #     manifest = {
-    #         "assembly_id": assembly_id,
-    #         "start_date": start_date,
-    #         "compression": UNCOMPRESSED,
-    #         "file_names": file_names,
-    #     }
-    #     manifest_id = FAKE.pyint()
-    #     downloader = self.create_gcp_downloader_with_mock_gcp_storage()
-    #     with patch.object(downloader, "_generate_monthly_pseudo_manifest") as mock_generate_manifest, patch.object(
-    #         downloader, "_get_existing_manifest_db_id"
-    #     ) as mock_get_manifest, patch.object(downloader, "_process_manifest_db_record") as mock_process:
-    #         mock_generate_manifest.return_value = manifest
-    #         mock_process.return_value = manifest_id
-
-    #         result = downloader.get_manifest_context_for_date(start_date)
-    #         mock_generate_manifest.assert_called_with(start_date)
-    #         mock_get_manifest.assert_not_called()
-    #         mock_process.assert_called_with(assembly_id, start_date, file_count)
-
-    #     self.assertEqual(result.get("assembly_id"), assembly_id)
-    #     self.assertEqual(result.get("compression"), UNCOMPRESSED)
-    #     self.assertIsNotNone(result.get("files"))
-
-    # def test_get_report_context_for_date_empty_if_already_processed(self):
-    #     """Assert get_report_context_for_date creates returns {} if already processed."""
-    #     start_date = Mock()
-    #     downloader = self.create_gcp_downloader_with_mock_gcp_storage()
-    #     with patch.object(downloader, "_generate_monthly_pseudo_manifest") as mock_generate_manifest:
-    #         result = downloader.get_manifest_context_for_date(start_date)
-    #         mock_generate_manifest.assert_called_with(start_date)
-    #     self.assertEqual(result, {})
+    def test_get_manifest_context_for_date(self):
+        """Test successful return of get manifest context for date."""
+        start_date = datetime(2019, 2, 1)
+        csv_file = f"{self.etag}_{self.today.date()}.csv"
+        expected_files = [{"key": csv_file, "local_file": csv_file}]
+        p_uuid = uuid4()
+        expected_assembly_id = f"{p_uuid}:{self.etag}:1"
+        downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=p_uuid)
+        with patch(
+            "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._process_manifest_db_record",
+            return_value=2,
+        ):
+            report_dict = downloader.get_manifest_context_for_date(start_date)
+        self.assertEqual(report_dict.get("manifest_id"), 2)
+        self.assertEqual(report_dict.get("files"), expected_files)
+        self.assertEqual(report_dict.get("compression"), UNCOMPRESSED)
+        self.assertEqual(report_dict.get("assembly_id"), expected_assembly_id)

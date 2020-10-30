@@ -125,29 +125,23 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_dict = {}
         manifest_dict = self._generate_monthly_pseudo_manifest(date)
 
-        if manifest_dict:
-            file_names_count = len(manifest_dict["file_names"])
-            if not file_names_count:
-                msg = (
-                    f'No relevant files found for month starting {manifest_dict["start_date"]}'
-                    f' for customer "{self.customer_name}",'
-                    f" provider_uuid {self._provider_uuid},"
-                )
-                LOG.info(log_json(self.request_id, msg, self.context))
-                return {}
-            dh = DateHelper()
-            manifest_id = self._process_manifest_db_record(
-                manifest_dict["assembly_id"], manifest_dict["start_date"], file_names_count, dh.today
-            )
+        file_names_count = len(manifest_dict["file_names"])
+        dh = DateHelper()
+        manifest_id = self._process_manifest_db_record(
+            manifest_dict["assembly_id"], manifest_dict["start_date"], file_names_count, dh.today
+        )
 
-            report_dict["manifest_id"] = manifest_id
-            report_dict["assembly_id"] = manifest_dict.get("assembly_id")
-            report_dict["compression"] = manifest_dict.get("compression")
-            files_list = [
-                {"key": key, "local_file": self.get_local_file_for_report(key)}
-                for key in manifest_dict.get("file_names")
-            ]
-            report_dict["files"] = files_list
+        report_dict["manifest_id"] = manifest_id
+        report_dict["assembly_id"] = manifest_dict.get("assembly_id")
+        report_dict["compression"] = manifest_dict.get("compression")
+        files_list = [
+            {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest_dict.get("file_names")
+        ]
+        report_dict["files"] = files_list
+        LOG.info("\n")
+        LOG.info("report_dict")
+        LOG.info(report_dict)
+        LOG.info("\n")
         return report_dict
 
     def _generate_monthly_pseudo_manifest(self, start_date):
