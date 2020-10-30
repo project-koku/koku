@@ -84,7 +84,6 @@ class CostModelDBAccessor(KokuDBAccess):
                 format_tiered_rates = {f"{metric_cost_type}": rate.get("tiered_rates")}
                 rate["tiered_rates"] = format_tiered_rates
                 metric_rate_map[metric_name] = rate
-        self.tag_based_price_list.items()
         return metric_rate_map
 
     @property
@@ -191,9 +190,16 @@ class CostModelDBAccessor(KokuDBAccess):
                 tag_rates_list.append(
                     {"tag_key": tag_key, "tag_values": tag_rate_dict, "tag_key_default": default_rate}
                 )
-            format_tag_rates = {f"{metric_cost_type}": tag_rates_list}
-            rate["tag_rates"] = format_tag_rates
-            metric_rate_map[metric_name] = rate
+            if metric_name in metric_rate_map.keys():
+                tag_rates = metric_rate_map.get(metric_name)
+                existing_cost_dict = tag_rates.get("tag_rates")
+                existing_cost_dict[f"{metric_cost_type}"] = tag_rates_list
+                tag_rates["tag_rates"] = existing_cost_dict
+                metric_rate_map[metric_name] = tag_rates
+            else:
+                format_tag_rates = {f"{metric_cost_type}": tag_rates_list}
+                rate["tag_rates"] = format_tag_rates
+                metric_rate_map[metric_name] = rate
         return metric_rate_map
 
     @property
