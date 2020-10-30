@@ -250,12 +250,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         today = datetime.datetime.today().date()
         query_date = today - datetime.timedelta(days=3)
         client = bigquery.Client()
-        table_name = ".".join(
-            [self.credentials.get("project_id"), self.data_source.get("dataset"), self.data_source.get("table_id")]
-        )
         query = f"""
         SELECT {",".join(self.gcp_big_query_columns)}
-        FROM {table_name}
+        FROM {self.table_name}
         WHERE DATE(_PARTITIONTIME) >= '{query_date}'
         """
         query_job = client.query(query)
