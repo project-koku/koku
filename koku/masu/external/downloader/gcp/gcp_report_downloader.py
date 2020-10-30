@@ -1,20 +1,21 @@
 """GCP Report Downloader."""
+import csv
+import datetime
+import hashlib
 import logging
 import os
 
 from dateutil.relativedelta import relativedelta
-from dateutil.rrule import DAILY
-from dateutil.rrule import rrule
-from google.cloud import storage
+from google.cloud import bigquery
 from rest_framework.exceptions import ValidationError
 
 from api.common import log_json
+from api.utils import DateHelper
 from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from providers.gcp.provider import GCPProvider
-
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     GCP Cost and Usage Report Downloader.
 
     For configuration of GCP, see
-    https://cloud.google.com/billing/docs/how-to/export-data-file
+    https://cloud.google.com/billing/docs/how-to/export-data-bigquery
     """
 
     def __init__(self, customer_name, data_source, **kwargs):
@@ -47,19 +48,63 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         super().__init__(**kwargs)
 
-        self.bucket_name = data_source.get("bucket")
-        self.report_prefix = data_source.get("report_prefix", "")
         self.customer_name = customer_name.replace(" ", "_")
+        self.credentials = kwargs.get("credentials", {})
+        self.data_source = data_source
         self._provider_uuid = kwargs.get("provider_uuid")
-
+        self.gcp_big_query_columns = [
+            "billing_account_id",
+            "service.id",
+            "service.description",
+            "sku.id",
+            "sku.description",
+            "usage_start_time",
+            "usage_end_time",
+            "project.id",
+            "project.name",
+            "project.labels",
+            "project.ancestry_numbers",
+            "labels",
+            "system_labels",
+            "location.location",
+            "location.country",
+            "location.region",
+            "location.zone",
+            "export_time",
+            "cost",
+            "currency",
+            "currency_conversion_rate",
+            "usage.amount",
+            "usage.unit",
+            "usage.amount_in_pricing_units",
+            "usage.pricing_unit",
+            "credits",
+            "invoice.month",
+            "cost_type",
+        ]
+        self.table_name = ".".join(
+            [self.credentials.get("project_id"), self.data_source.get("dataset"), self.data_source.get("table_id")]
+        )
         try:
-            GCPProvider().cost_usage_source_is_reachable(None, data_source)
-            self._storage_client = storage.Client()
-            self._bucket_info = self._storage_client.lookup_bucket(self.bucket_name)
+            GCPProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
+            self.etag = self._generate_etag()
         except ValidationError as ex:
-            msg = f"GCP bucket {self.bucket_name} for customer {customer_name} is not reachable. Error: {str(ex)}"
+            msg = f"GCP source ({self._provider_uuid}) for {customer_name} is not reachable. Error: {str(ex)}"
             LOG.error(log_json(self.request_id, msg, self.context))
             raise GCPReportDownloaderError(str(ex))
+
+    def _generate_etag(self):
+        """
+        Generate the etag to be used for the download report & assembly_id.
+        To generate the etag, we use BigQuery to collect the last modified
+        date to the table and md5 hash it.
+        """
+        client = bigquery.Client()
+        billing_table_obj = client.get_table(self.table_name)
+        last_modified = billing_table_obj.modified
+        modified_hash = hashlib.md5(str(last_modified).encode())
+        modified_hash = modified_hash.hexdigest()
+        return modified_hash
 
     def get_manifest_context_for_date(self, date):
         """
@@ -87,12 +132,12 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     f'No relevant files found for month starting {manifest_dict["start_date"]}'
                     f' for customer "{self.customer_name}",'
                     f" provider_uuid {self._provider_uuid},"
-                    f" and bucket_name: {self.bucket_name}"
                 )
                 LOG.info(log_json(self.request_id, msg, self.context))
                 return {}
+            dh = DateHelper()
             manifest_id = self._process_manifest_db_record(
-                manifest_dict["assembly_id"], manifest_dict["start_date"], file_names_count
+                manifest_dict["assembly_id"], manifest_dict["start_date"], file_names_count, dh.today
             )
 
             report_dict["manifest_id"] = manifest_id
@@ -123,9 +168,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         # end date is effectively the inclusive "end of the month" from the start.
         end_date = start_date + relativedelta(months=1) - relativedelta(days=1)
 
-        file_names = self._get_relevant_file_names(start_date, end_date)
-        file_count = len(file_names)
-        fake_assembly_id = self._generate_assembly_id(start_date, end_date, file_count)
+        file_names = self._get_relevant_file_names()
+        fake_assembly_id = self._generate_assembly_id(len(file_names))
 
         manifest_data = {
             "assembly_id": fake_assembly_id,
@@ -136,29 +180,25 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         }
         return manifest_data
 
-    def _generate_assembly_id(self, start_date, end_date, file_count):
+    def _generate_assembly_id(self, file_count):
         """
         Generate an assembly ID for use in manifests.
 
-        We need an "assembly ID" value that is unique to this provider and date range.
-        This is used as an identifier to ensure we don't needlessly re-fetch files.
-        e.g. "5:2019-08-01:2019-08-31:30"
-
-        Args:
-            start_date (datetime.datetime): start of reporting period
-            end_date (datetime.datetime): end of reporting period
-            file_count (int): count of files found for this reporting period
+        The assembly id is a unique identifier to ensure we don't needlessly
+        re-fetch data with BigQuery because it cost the costomer money.
+        We use BigQuery to collect the last modified date of the table and md5
+        hash it.
+            Format: {provider_id}:(etag}:{file_count}
+            e.g. "5:36c75d88da6262dedbc2e1b6147e6d38:1"
 
         Returns:
-            str unique to this provider and date range.
+            str unique to this provider and GCP table and last modified date
 
         """
-        fake_assembly_id = ":".join(
-            [str(self._provider_uuid), start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"), str(file_count)]
-        )
+        fake_assembly_id = ":".join([str(self._provider_uuid), self.etag, str(file_count)])
         return fake_assembly_id
 
-    def _get_relevant_file_names(self, start_date, end_date):
+    def _get_relevant_file_names(self):
         """
         Generate a list of relevant file names for the manifest's dates.
 
@@ -174,37 +214,11 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             list of relevant file (blob) names found in the GCP storage bucket.
 
         """
-        dates = rrule(DAILY, dtstart=start_date, until=end_date)
-        dates_as_strings = [date.strftime("%Y-%m-%d") for date in dates]
-        available_file_names = self._get_bucket_file_names()
-        relevant_file_names = set()
-        prefix = f"{self.report_prefix}-" if self.report_prefix else ""
-
-        for file_name in available_file_names:
-            for date_string in dates_as_strings:
-                if file_name == f"{prefix}{date_string}.csv":
-                    relevant_file_names.add(file_name)
-                    break
-
-        return list(relevant_file_names)
-
-    def _get_bucket_file_names(self):
-        """
-        Get list of all file (blob) names in the GCP storage bucket.
-
-        Unfortunately, we have to iterate through *all* blobs in the bucket
-        because there does not exist any meaningful filtering or ordering when
-        requesting the list from GCP. As a future enhancement, this list could
-        be stuffed into a short-lived cache so we don't have to fetch the list
-        over and over again from GCP for similar subsequent requests.
-
-        Returns:
-            List of file (blob) names in the bucket. Not filtered!
-
-        """
-        bucket_blobs = self._bucket_info.list_blobs()
-        names = [blob.name for blob in bucket_blobs]
-        return names
+        relevant_file_names = list()
+        dh = DateHelper()
+        today = dh.today.strftime("%Y-%m-%d")
+        relevant_file_names.append(f"{self.etag}_{today}.csv")
+        return relevant_file_names
 
     def get_local_file_for_report(self, report):
         """
@@ -233,25 +247,33 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             tuple(str, str) with the local filesystem path to file and GCP's etag.
 
         """
-        blob = self._bucket_info.get_blob(key)
-        if not blob:
-            raise GCPReportDownloaderNoFileError(f'No blob found in bucket "{self.bucket_name}" with name "{key}"')
-
-        if stored_etag is not None and stored_etag != blob.etag:
-            # Should we abort download here? Just log a warning for now...
-            msg = f"etag for {key} is {blob.etag}, but stored etag is {stored_etag}"
-            LOG.warning(log_json(self.request_id, msg, self.context))
-
+        today = datetime.datetime.today().date()
+        query_date = today - datetime.timedelta(days=3)
+        client = bigquery.Client()
+        table_name = ".".join(
+            [self.credentials.get("project_id"), self.data_source.get("dataset"), self.data_source.get("table_id")]
+        )
+        query = f"""
+        SELECT {",".join(self.gcp_big_query_columns)}
+        FROM {table_name}
+        WHERE DATE(_PARTITIONTIME) >= '{query_date}'
+        """
+        query_job = client.query(query)
         directory_path = self._get_local_directory_path()
         full_local_path = self._get_local_file_path(directory_path, key)
         os.makedirs(directory_path, exist_ok=True)
         msg = f"Downloading {key} to {full_local_path}"
         LOG.info(log_json(self.request_id, msg, self.context))
-        blob.download_to_filename(full_local_path)
+        with open(full_local_path, "w") as f:
+            writer = csv.writer(f)
+            writer.writerow(self.gcp_big_query_columns)
+            for row in query_job:
+                writer.writerow(row)
 
-        msg = f"Returning full_file_path: {full_local_path}, etag: {blob.etag}"
+        msg = f"Returning full_file_path: {full_local_path}"
         LOG.info(log_json(self.request_id, msg, self.context))
-        return full_local_path, blob.etag
+        dh = DateHelper()
+        return full_local_path, self.etag, dh.today
 
     def _get_local_directory_path(self):
         """
@@ -262,8 +284,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         safe_customer_name = self.customer_name.replace("/", "_")
-        safe_bucket_name = self.bucket_name.replace("/", "_")
-        directory_path = os.path.join(DATA_DIR, safe_customer_name, "gcp", safe_bucket_name)
+        directory_path = os.path.join(DATA_DIR, safe_customer_name, "gcp")
         return directory_path
 
     def _get_local_file_path(self, directory_path, key):
