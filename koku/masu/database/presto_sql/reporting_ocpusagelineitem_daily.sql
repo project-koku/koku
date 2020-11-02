@@ -59,6 +59,7 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}}
 -- Delete the old block of data (if any) based on the usage range
 -- Inserting a record in this log will trigger a delete against the specified table
 -- in the same schema as the log table with the specified where_clause
+-- start_date and end_date MUST be strings in order for this to work properly.
 INSERT
   INTO postgres.{{schema | sqlsafe}}.presto_delete_wrapper_log
        (
@@ -72,8 +73,8 @@ VALUES (
     uuid(),
     now(),
     'reporting_ocpusagelineitem_daily_summary',
-    'where usage start >= ''{{start_date}}'' and usage_start <= ''{{end_date}}'' ' ||
-    'and cluster_id = {{cluster_id}} and data_source = ''Pod'''
+    'where usage start >= '{{start_date}}'::date and usage_start <= '{{end_date}}'::date ' ||
+    'and cluster_id = '{{cluster_id}}' and data_source = ''Pod'''
 )
 ;
 
