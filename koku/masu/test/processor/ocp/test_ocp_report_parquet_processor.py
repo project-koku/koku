@@ -55,8 +55,7 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         """Test that a bill is created in the Postgres database."""
         bill_date = DateHelper().this_month_start + relativedelta(months=1)
         start_date = bill_date
-        end_date = DateHelper().this_month_end + relativedelta(months=1)
-
+        end_date = DateHelper().this_month_start + relativedelta(months=2) - relativedelta(days=1)
         self.processor.create_bill(bill_date.date())
 
         with schema_context(self.schema):
@@ -72,7 +71,7 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         """Test that a bill is created in the Postgres database."""
         bill_date = DateHelper().this_month_start + relativedelta(months=1)
         start_date = bill_date
-        end_date = DateHelper().this_month_end + relativedelta(months=1)
+        end_date = DateHelper().this_month_start + relativedelta(months=2) - relativedelta(days=1)
 
         self.processor.create_bill(str(bill_date.date()))
 
