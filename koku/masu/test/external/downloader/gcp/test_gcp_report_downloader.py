@@ -5,6 +5,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from faker import Faker
+from google.cloud.exceptions import GoogleCloudError
 from rest_framework.exceptions import ValidationError
 
 from api.utils import DateHelper
@@ -68,6 +69,44 @@ class GCPReportDownloaderTest(MasuTestCase):
                 credentials=credentials,
             )
         return downloader
+
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider")
+    def test_generate_etag_big_query_client_error(self, gcp_provider):
+        """Test BigQuery client is handled correctly in generate etag method."""
+        billing_source = {"table_id": FAKE.slug(), "dataset": FAKE.slug()}
+        credentials = {"project_id": FAKE.slug()}
+        err_msg = "GCP Error"
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
+            bigquery.Client.side_effect = GoogleCloudError(err_msg)
+            with self.assertRaisesRegexp(GCPReportDownloaderError, err_msg):
+                GCPReportDownloader(
+                    customer_name=FAKE.name(),
+                    data_source=billing_source,
+                    provider_uuid=uuid4(),
+                    credentials=credentials,
+                )
+
+    def test_download_file_query_client_error(self):
+        """Test BigQuery client is handled correctly in download file method."""
+        key = "test_key.csv"
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        err_msg = "GCP Error"
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
+            bigquery.client.return_value.query.side_effect = GoogleCloudError(err_msg)
+            downloader.download_file(key)
+
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")
+    def test_download_file_failure_on_file_open(self, mock_bigquery, mock_makedirs):
+        """Assert download_file successful scenario"""
+        mock_bigquery.client.return_value.query.return_value = ["This", "test"]
+        key = "test_key.csv"
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.open") as mock_open:
+            err_msg = "bad open"
+            mock_open.side_effect = IOError(err_msg)
+            with self.assertRaisesRegexp(GCPReportDownloaderError, err_msg):
+                downloader.download_file(key)
 
     def test_generate_monthly_pseudo_manifest(self):
         """Assert _generate_monthly_pseudo_manifest returns a manifest-like dict."""

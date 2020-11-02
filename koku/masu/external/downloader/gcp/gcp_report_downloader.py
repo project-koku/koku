@@ -7,6 +7,7 @@ import os
 
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
+from google.cloud.exceptions import GoogleCloudError
 from rest_framework.exceptions import ValidationError
 
 from api.common import log_json
@@ -23,10 +24,6 @@ LOG = logging.getLogger(__name__)
 
 class GCPReportDownloaderError(Exception):
     """GCP Report Downloader error."""
-
-
-class GCPReportDownloaderNoFileError(Exception):
-    """GCP Report Downloader error for missing file."""
 
 
 class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
@@ -99,11 +96,20 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         To generate the etag, we use BigQuery to collect the last modified
         date to the table and md5 hash it.
         """
-        client = bigquery.Client()
-        billing_table_obj = client.get_table(self.table_name)
-        last_modified = billing_table_obj.modified
-        modified_hash = hashlib.md5(str(last_modified).encode())
-        modified_hash = modified_hash.hexdigest()
+        try:
+            client = bigquery.Client()
+            billing_table_obj = client.get_table(self.table_name)
+            last_modified = billing_table_obj.modified
+            modified_hash = hashlib.md5(str(last_modified).encode())
+            modified_hash = modified_hash.hexdigest()
+        except GoogleCloudError as err:
+            err_msg = (
+                "Could not obtain last modified date for BigQuery table."
+                f"\n  Provider: {self._provider_uuid}"
+                f"\n  Customer: {self.customer_name}"
+                f"\n  Response: {err.message}"
+            )
+            raise GCPReportDownloaderError(err_msg)
         return modified_hash
 
     def get_manifest_context_for_date(self, date):
@@ -138,10 +144,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest_dict.get("file_names")
         ]
         report_dict["files"] = files_list
-        LOG.info("\n")
-        LOG.info("report_dict")
-        LOG.info(report_dict)
-        LOG.info("\n")
         return report_dict
 
     def _generate_monthly_pseudo_manifest(self, start_date):
@@ -243,23 +245,42 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         today = datetime.datetime.today().date()
         query_date = today - datetime.timedelta(days=3)
-        client = bigquery.Client()
-        query = f"""
-        SELECT {",".join(self.gcp_big_query_columns)}
-        FROM {self.table_name}
-        WHERE DATE(_PARTITIONTIME) >= '{query_date}'
-        """
-        query_job = client.query(query)
+        try:
+            client = bigquery.Client()
+            query = f"""
+            SELECT {",".join(self.gcp_big_query_columns)}
+            FROM {self.table_name}
+            WHERE DATE(_PARTITIONTIME) >= '{query_date}'
+            """
+            query_job = client.query(query)
+        except GoogleCloudError as err:
+            err_msg = (
+                "Could not query table for billing information."
+                f"\n  Provider: {self._provider_uuid}"
+                f"\n  Customer: {self.customer_name}"
+                f"\n  Response: {err.message}"
+            )
+            LOG.warning(err_msg)
+            raise GCPReportDownloaderError(err_msg)
         directory_path = self._get_local_directory_path()
         full_local_path = self._get_local_file_path(directory_path, key)
         os.makedirs(directory_path, exist_ok=True)
         msg = f"Downloading {key} to {full_local_path}"
         LOG.info(log_json(self.request_id, msg, self.context))
-        with open(full_local_path, "w") as f:
-            writer = csv.writer(f)
-            writer.writerow(self.gcp_big_query_columns)
-            for row in query_job:
-                writer.writerow(row)
+        try:
+            with open(full_local_path, "w") as f:
+                writer = csv.writer(f)
+                writer.writerow(self.gcp_big_query_columns)
+                for row in query_job:
+                    writer.writerow(row)
+        except (OSError, IOError) as exc:
+            err_msg = (
+                "Could not create GCP billing data csv file."
+                f"\n  Provider: {self._provider_uuid}"
+                f"\n  Customer: {self.customer_name}"
+                f"\n  Response: {exc}"
+            )
+            raise GCPReportDownloaderError(err_msg)
 
         msg = f"Returning full_file_path: {full_local_path}"
         LOG.info(log_json(self.request_id, msg, self.context))
