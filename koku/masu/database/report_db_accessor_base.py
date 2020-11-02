@@ -16,6 +16,7 @@
 #
 """Database accessor for report data."""
 import logging
+import os
 import uuid
 from decimal import Decimal
 from decimal import InvalidOperation
@@ -23,6 +24,7 @@ from decimal import InvalidOperation
 import ciso8601
 import django.apps
 import prestodb
+import sqlparse
 from dateutil.relativedelta import relativedelta
 from django.db import connection
 from django.db import transaction
@@ -349,14 +351,70 @@ class ReportDBAccessorBase(KokuDBAccess):
             cursor.execute(sql, params=bind_params)
         LOG.info("Finished updating %s.", table)
 
-    def _execute_presto_raw_sql_query(self, schema, sql):
+    def _prestodb_connect(self, **connect_args):
+        """
+        Establish a prestodb connection.
+        Keyword Params (required):
+            schema (str) : prestodb schema
+        Keyword Params (optional):
+            host (str) : prestodb hostname
+            port (int) : prestodb port
+            user (str) : prestodb user
+            catalog (str) : prestodb catalog
+        Returns:
+            prestodb.dbapi.Connection : connection to prestodb if successful
+        """
+        presto_connect_args = {
+            "host": connect_args.get("host", os.environ.get("PRESTO_HOST", "presto")),
+            "port": connect_args.get("port", os.environ.get("PRESTO_PORT", 8080)),
+            "user": connect_args.get("user", os.environ.get("PRESTO_USER", "admin")),
+            "catalog": connect_args.get("catalog", os.environ.get("PRESTO_DEFAULT_CATALOG", "postgres")),
+            "schema": connect_args["schema"],
+        }
+        conn = prestodb.dbapi.connect(**presto_connect_args)
+        return conn
+
+    def _prestodb_execute(self, presto_conn, sql, bind_params=None, preprocessor=None):
+        """
+        Pass in a buffer of one or more semicolon-terminated prestodb SQL statements and it
+        will be parsed into individual statements for execution. If preprocessor is None,
+        then the resulting SQL and bind parameters are used. If a preprocessor is needed,
+        then it should be a callable taking two positional arguments and returning a 2-element tuple:
+            pre_process(sql, parameters) -> (processed_sql, processed_parameters)
+        Parameters:
+            presto_conn (prestodb.dbapi.Connection) : Connection to presto
+            sql (str) : Buffer of one or more semicolon-terminated SQL statements.
+            bind_params (Iterable, dict, None) : Parameters used in the SQL or None if no parameters
+            preprocessor (Callable, None) : callable taking two args and returning a 2-element tuple
+        Returns:
+            list : Results of each successful SQL statement executed.
+        """
+        results = []
+        for p_stmt in sqlparse.split(sql):
+            p_stmt = str(p_stmt).strip()
+            if p_stmt:
+                # Presto dbapi interface chokes on semicolon statement terminator
+                if p_stmt.endswith(";"):
+                    p_stmt = p_stmt[:-1]
+
+                # This is typically for jinjasql templated sql
+                if preprocessor:
+                    stmt, params = preprocessor(p_stmt, bind_params)
+                else:
+                    stmt, params = p_stmt, bind_params
+
+                presto_cur = presto_conn.cursor()
+                presto_cur.execute(stmt, params)
+                results.extend(presto_cur.fetchall())
+
+        return results
+
+    def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None):
         """Run a SQL statement using Presto."""
-        postgres_conn = prestodb.dbapi.connect(
-            host="presto", port=8080, user="admin", catalog="postgres", schema=schema
-        )
-        postgres_cur = postgres_conn.cursor()
-        postgres_cur.execute(sql)
-        return postgres_cur.fetchall()
+        presto_conn = prestodb.dbapi.connect(host="presto", port=8080, user="admin", catalog="postgres", schema=schema)
+        presto_cur = presto_conn.cursor()
+        presto_cur.execute(sql, bind_params)
+        return presto_cur.fetchall()
 
     def get_existing_partitions(self, table):
         if isinstance(table, str):

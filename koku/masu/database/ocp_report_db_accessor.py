@@ -545,10 +545,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         if isinstance(start_date, datetime.datetime):
             start_date = start_date.date()
             end_date = end_date.date()
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        # table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
-        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagelineitem_daily_summary.sql")
-        summary_sql = summary_sql.decode("utf-8")
+        tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagelineitem_daily_summary.sql")
+        tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
         transaction_uuid = str(uuid.uuid4()).replace("-", "_")
         summary_sql_params = {
             "uuid": transaction_uuid,
@@ -559,10 +559,16 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "cluster_alias": cluster_alias,
             "schema": self.schema,
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        self._execute_raw_sql_query(
-            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+
+        presto_conn = self._prestodb_connect(schema=self.schema)
+        self._prestodb_execute(
+            presto_conn, tmpl_summary_sql, bind_params=summary_sql_params, preprocessor=self.jinja_sql.prepare_query
         )
+        presto_conn.close()
+        # summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        # self._execute_raw_sql_query(
+        #     table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+        # )
 
     def populate_storage_line_item_daily_summary_table_presto(
         self, start_date, end_date, report_period_id, cluster_id, cluster_alias
@@ -584,10 +590,12 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         if isinstance(start_date, datetime.datetime):
             start_date = start_date.date()
             end_date = end_date.date()
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        # table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
-        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpstoragelineitem_daily_summary.sql")
-        summary_sql = summary_sql.decode("utf-8")
+        tmpl_summary_sql = pkgutil.get_data(
+            "masu.database", "presto_sql/reporting_ocpstoragelineitem_daily_summary.sql"
+        )
+        tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
         summary_sql_params = {
             "uuid": str(uuid.uuid4()).replace("-", "_"),
             "start_date": start_date,
@@ -597,8 +605,14 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "cluster_alias": cluster_alias,
             "schema": self.schema,
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        self._execute_raw_sql_query(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
+
+        presto_conn = self._prestodb_connect(schema=self.schema)
+        self._prestodb_execute(
+            presto_conn, tmpl_summary_sql, bind_params=summary_sql_params, preprocessor=self.jinja_sql.prepare_query
+        )
+        presto_conn.close()
+        # summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        # self._execute_raw_sql_query(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
 
     def update_summary_infrastructure_cost(self, cluster_id, start_date, end_date):
         """Populate the infrastructure costs on the daily usage summary table.
