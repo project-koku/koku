@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Red Hat, Inc.
+# Copyright 2020 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -14,10 +14,25 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Tags module."""
-from .all.openshift.queries import OCPAllTagQueryHandler  # noqa: F401
-from .aws.openshift.queries import OCPAWSTagQueryHandler  # noqa: F401
-from .aws.queries import AWSTagQueryHandler  # noqa: F401
-from .azure.openshift.queries import OCPAzureTagQueryHandler  # noqa: F401
-from .azure.queries import AzureTagQueryHandler  # noqa: F401
-from .ocp.queries import OCPTagQueryHandler  # noqa: F401
+"""Forecast unit tests."""
+from unittest import TestCase
+
+from forecast import Forecast
+
+
+class ForecastTest(TestCase):
+    """Tests the Forecast class."""
+
+    def test_constructor(self):
+        """Test the constructor."""
+        params = {}
+        instance = Forecast(params)
+        self.assertIsInstance(instance, Forecast)
+
+    def test_predict(self):
+        """Test that predict() returns expected values."""
+        expected = [1, 2, 3, 4, 5]
+        params = {}
+        instance = Forecast(params)
+        results = instance.predict()
+        self.assertEqual([item.get("value") for item in results], expected)

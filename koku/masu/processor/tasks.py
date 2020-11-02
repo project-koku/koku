@@ -204,6 +204,9 @@ def get_report_files(
             LOG.error(str(processing_error))
             WorkerCache().remove_task_from_cache(cache_key)
             raise processing_error
+        except NotImplementedError as err:
+            LOG.info(str(err))
+            WorkerCache().remove_task_from_cache(cache_key)
 
         WorkerCache().remove_task_from_cache(cache_key)
 

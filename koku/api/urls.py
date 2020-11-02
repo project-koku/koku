@@ -21,12 +21,14 @@ from django.views.generic.base import RedirectView
 from rest_framework.routers import DefaultRouter
 
 from api.views import AWSAccountView
+from api.views import AWSCostForecastView
 from api.views import AWSCostView
 from api.views import AWSInstanceTypeView
 from api.views import AWSOrganizationalUnitView
 from api.views import AWSOrgView
 from api.views import AWSStorageView
 from api.views import AWSTagView
+from api.views import AzureCostForecastView
 from api.views import AzureCostView
 from api.views import AzureInstanceTypeView
 from api.views import AzureStorageView
@@ -36,19 +38,23 @@ from api.views import cloud_accounts
 from api.views import CostModelResourceTypesView
 from api.views import DataExportRequestViewSet
 from api.views import metrics
+from api.views import OCPAllCostForecastView
 from api.views import OCPAllCostView
 from api.views import OCPAllInstanceTypeView
 from api.views import OCPAllStorageView
 from api.views import OCPAllTagView
+from api.views import OCPAWSCostForecastView
 from api.views import OCPAWSCostView
 from api.views import OCPAWSInstanceTypeView
 from api.views import OCPAWSStorageView
 from api.views import OCPAWSTagView
+from api.views import OCPAzureCostForecastView
 from api.views import OCPAzureCostView
 from api.views import OCPAzureInstanceTypeView
 from api.views import OCPAzureStorageView
 from api.views import OCPAzureTagView
 from api.views import OCPClustersView
+from api.views import OCPCostForecastView
 from api.views import OCPCostView
 from api.views import OCPCpuView
 from api.views import OCPMemoryView
@@ -293,5 +299,23 @@ urlpatterns = [
     path("resource-types/openshift-projects/", OCPProjectsView.as_view(), name="openshift-projects"),
     path("resource-types/openshift-nodes/", OCPNodesView.as_view(), name="openshift-nodes"),
     path("resource-types/cost-models/", CostModelResourceTypesView.as_view(), name="cost-models"),
+    path("forecasts/aws/costs/", AWSCostForecastView.as_view(), name="aws-cost-forecasts"),
+    path("forecasts/azure/costs/", AzureCostForecastView.as_view(), name="azure-cost-forecasts"),
+    path("forecasts/openshift/costs/", OCPCostForecastView.as_view(), name="openshift-cost-forecasts"),
+    path(
+        "forecasts/openshift/infrastructures/aws/costs/",
+        OCPAWSCostForecastView.as_view(),
+        name="openshift-aws-cost-forecasts",
+    ),
+    path(
+        "forecasts/openshift/infrastructures/azure/costs/",
+        OCPAzureCostForecastView.as_view(),
+        name="openshift-azure-cost-forecasts",
+    ),
+    path(
+        "forecasts/openshift/infrastructures/all/costs/",
+        OCPAllCostForecastView.as_view(),
+        name="openshift-all-cost-forecasts",
+    ),
 ]
 urlpatterns += ROUTER.urls

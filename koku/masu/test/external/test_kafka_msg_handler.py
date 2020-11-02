@@ -384,6 +384,19 @@ class KafkaMsgHandlerTest(MasuTestCase):
             msg_handler.process_report("request_id", report_meta)
             mock_process.assert_called()
 
+    @patch("masu.external.kafka_msg_handler._process_report_file", side_effect=NotImplementedError)
+    def test_process_report_not_implemented_error(self, _):
+        """Test report processing."""
+        report_meta = {
+            "schema_name": "test_schema",
+            "manifest_id": "1",
+            "provider_uuid": uuid.uuid4(),
+            "provider_type": "OCP",
+            "compression": "UNCOMPRESSED",
+            "file": "/path/to/file.csv",
+        }
+        self.assertTrue(msg_handler.process_report("request_id", report_meta))
+
     def test_summarize_manifest(self):
         """Test report summarization."""
         report_meta = {
