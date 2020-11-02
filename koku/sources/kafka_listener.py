@@ -43,6 +43,7 @@ from api.provider.models import Sources
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.prometheus_stats import SOURCES_KAFKA_LOOP_RETRY
 from masu.prometheus_stats import SOURCES_PROVIDER_OP_RETRY_LOOP_COUNTER
+from providers.provider_errors import SkipStatusPush
 from sources import storage
 from sources.api.status import check_kafka_connection
 from sources.config import Config
@@ -556,6 +557,8 @@ def execute_koku_provider_op(msg):
         )
         LOG.warning(err_msg)
         sources_client.set_source_status(account_error)
+    except SkipStatusPush as error:
+        LOG.info(f"Platform sources status push skipped. Reason: {str(error)}")
 
 
 def _requeue_provider_sync_message(priority, msg, queue):

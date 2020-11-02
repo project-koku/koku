@@ -444,7 +444,7 @@ class SourcesSerializerTests(IamTestCase):
             {
                 "provider_type": Provider.PROVIDER_GCP,
                 "billing_source": {"data_source": {"dataset": "test_dataset"}},
-                "exception": True,
+                "exception": False,
             },
             {
                 "provider_type": Provider.PROVIDER_GCP,

@@ -17,6 +17,10 @@
 """Provider error constants."""
 
 
+class SkipStatusPush(Exception):
+    """Raise when platform source status should be skipped."""
+
+
 class ProviderErrors:
     """Error keys for provider account checks."""
 

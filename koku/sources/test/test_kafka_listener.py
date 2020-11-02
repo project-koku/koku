@@ -40,6 +40,7 @@ from api.provider.provider_builder import ProviderBuilderError
 from koku.middleware import IdentityHeaderMiddleware
 from masu.prometheus_stats import WORKER_REGISTRY
 from providers.provider_access import ProviderAccessor
+from providers.provider_errors import SkipStatusPush
 from sources import storage
 from sources.config import Config
 from sources.kafka_listener import process_message
@@ -313,6 +314,18 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         response = Provider.objects.get(uuid=uuid)
         self.assertEqual(response.billing_source.data_source.get("bucket"), "new-bucket")
+
+    def test_execute_koku_provider_op_skip_status(self):
+        """Test to execute Koku Operations to sync with Sources and not push status."""
+        source_id = self.aws_source.get("source_id")
+        provider = Sources(**self.aws_source)
+        provider.save()
+
+        msg = {"operation": "create", "provider": provider, "offset": provider.offset}
+        with patch.object(SourcesHTTPClient, "set_source_status"):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", side_effect=SkipStatusPush):
+                source_integration.execute_koku_provider_op(msg)
+        self.assertEqual(Sources.objects.get(source_id=source_id).status, {})
 
     def test_get_sources_msg_data(self):
         """Test to get sources details from msg."""

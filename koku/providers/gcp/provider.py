@@ -2,14 +2,17 @@
 import logging
 
 import google.auth
+from google.cloud import bigquery
 from google.cloud.exceptions import GoogleCloudError
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from rest_framework import serializers
 
+from ..provider_errors import SkipStatusPush
 from ..provider_interface import ProviderInterface
 from api.common import error_obj
 from api.models import Provider
+from api.provider.models import Sources
 
 LOG = logging.getLogger(__name__)
 
@@ -22,6 +25,24 @@ class GCPProvider(ProviderInterface):
     def name(self):
         """Return name of the provider."""
         return Provider.PROVIDER_GCP
+
+    def get_table_id(self, data_set):
+        """Get the billing table from a dataset in the format projectID.dataset"""
+        client = bigquery.Client()
+        for table in client.list_tables(data_set):
+            if "gcp_billing_export" in table.full_table_id:
+                full_table_id = table.full_table_id.replace(":", ".")
+                _, _, table_id = full_table_id.split(".")
+                return table_id
+        return None
+
+    def update_source_data_source(self, credentials, data_source):
+        """Update data_source."""
+        try:
+            update_query = Sources.objects.filter(authentication={"credentials": credentials})
+            update_query.update(billing_source={"data_source": data_source})
+        except Sources.DoesNotExist:
+            LOG.info("Source not found, unable to update data source.")
 
     def cost_usage_source_is_reachable(self, credentials, data_source):
         """
@@ -56,6 +77,16 @@ class GCPProvider(ProviderInterface):
             key = "authentication.project_id"
             LOG.info(error_obj(key, reason))
             raise serializers.ValidationError(error_obj(key, reason))
+
+        if not data_source.get("table_id"):
+            proj_table = f"{credentials.get('project_id')}.{data_source.get('dataset')}"
+            bigquery_table_id = self.get_table_id(proj_table)
+            if bigquery_table_id:
+                data_source["table_id"] = bigquery_table_id
+                self.update_source_data_source(credentials, data_source)
+            else:
+                raise SkipStatusPush("Table ID not ready.")
+
         return True
 
     def infra_type_implementation(self, provider_uuid, tenant):

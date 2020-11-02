@@ -177,6 +177,13 @@ class SourcesStatusTest(IamTestCase):
                 "authentication": {"credentials": {"cluster_id": "cluster_id"}},
                 "offset": 1,
             },
+            {
+                "name": "New GCP Mock Test Source",
+                "source_type": Provider.PROVIDER_GCP,
+                "authentication": {"credentials": {"project_id": "test_project_id"}},
+                "billing_source": {"data_source": {"dataset": "test_dataset", "table_id": "test_table"}},
+                "offset": 1,
+            },
         ]
         for i, test in enumerate(test_matrix):
             with self.subTest(test=test):
