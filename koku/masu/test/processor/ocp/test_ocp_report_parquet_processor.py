@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the OCPReportParquetProcessor."""
-from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
@@ -53,9 +52,9 @@ class OCPReportProcessorParquetTest(MasuTestCase):
 
     def test_create_bill(self):
         """Test that a bill is created in the Postgres database."""
-        bill_date = DateHelper().this_month_start + relativedelta(months=1)
+        bill_date = DateHelper().next_month_start
         start_date = bill_date
-        end_date = DateHelper().this_month_start + relativedelta(months=2) - relativedelta(days=1)
+        end_date = DateHelper().next_month_end
         self.processor.create_bill(bill_date.date())
 
         with schema_context(self.schema):
@@ -69,9 +68,9 @@ class OCPReportProcessorParquetTest(MasuTestCase):
 
     def test_create_bill_with_string_arg(self):
         """Test that a bill is created in the Postgres database."""
-        bill_date = DateHelper().this_month_start + relativedelta(months=1)
+        bill_date = DateHelper().next_month_start
         start_date = bill_date
-        end_date = DateHelper().this_month_start + relativedelta(months=2) - relativedelta(days=1)
+        end_date = DateHelper().next_month_end
 
         self.processor.create_bill(str(bill_date.date()))
 
