@@ -1,5 +1,7 @@
 /*
- * Process OCP Usage Data
+ * Process OCP Usage Data Processing SQL
+ * This SQL will utilize Presto for the raw line-item data aggregating
+ * and store the results into the koku database summary tables.
  */
 
 -- Using the convention of a double-underscore prefix to denote a temp table.

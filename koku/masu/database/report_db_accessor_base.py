@@ -30,6 +30,7 @@ from django.db import connection
 from django.db import transaction
 from tenant_schemas.utils import schema_context
 
+from koku.presto_database import sql_mogrify
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
 from reporting.models import PartitionedTable
@@ -393,7 +394,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         for p_stmt in sqlparse.split(sql):
             p_stmt = str(p_stmt).strip()
             if p_stmt:
-                # Presto dbapi interface chokes on semicolon statement terminator
+                # A semicolon statement terminator is invalid in the Presto dbapi interface
                 if p_stmt.endswith(";"):
                     p_stmt = p_stmt[:-1]
 
@@ -404,7 +405,10 @@ class ReportDBAccessorBase(KokuDBAccess):
                     stmt, params = p_stmt, bind_params
 
                 presto_cur = presto_conn.cursor()
-                presto_cur.execute(stmt, params)
+                # prestodb.Cursor.execute does not use parameters.
+                # The sql_mogrify function will do any needed parameter substitution
+                # and only returns the SQL with parameters formatted inline.
+                presto_cur.execute(sql_mogrify(stmt, params))
                 results.extend(presto_cur.fetchall())
 
         return results

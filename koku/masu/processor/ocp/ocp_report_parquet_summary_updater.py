@@ -139,9 +139,9 @@ class OCPReportParquetSummaryUpdater:
             accessor.populate_line_item_daily_summary_table_presto(
                 start_date, end_date, current_report_period_id, self._cluster_id, self._cluster_alias
             )
-            accessor.populate_storage_line_item_daily_summary_table_presto(
-                start_date, end_date, current_report_period_id, self._cluster_id, self._cluster_alias
-            )
+            # accessor.populate_storage_line_item_daily_summary_table_presto(
+            #     start_date, end_date, current_report_period_id, self._cluster_id, self._cluster_alias
+            # )
             accessor.populate_pod_label_summary_table_presto(current_report_period_id)
             accessor.populate_volume_label_summary_table_presto(current_report_period_id)
 

@@ -547,54 +547,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             end_date = end_date.date()
         # table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
-        tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagelineitem_daily_summary.sql")
-        tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
-        transaction_uuid = str(uuid.uuid4()).replace("-", "_")
-        summary_sql_params = {
-            "uuid": transaction_uuid,
-            "start_date": start_date,
-            "end_date": end_date,
-            "report_period_id": report_period_id,
-            "cluster_id": cluster_id,
-            "cluster_alias": cluster_alias,
-            "schema": self.schema,
-        }
-
-        presto_conn = self._prestodb_connect(schema=self.schema)
-        self._prestodb_execute(
-            presto_conn, tmpl_summary_sql, bind_params=summary_sql_params, preprocessor=self.jinja_sql.prepare_query
-        )
-        presto_conn.close()
-        # summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        # self._execute_raw_sql_query(
-        #     table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
-        # )
-
-    def populate_storage_line_item_daily_summary_table_presto(
-        self, start_date, end_date, report_period_id, cluster_id, cluster_alias
-    ):
-        """Populate the daily aggregate of storage line items table.
-
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-            cluster_id (String) Cluster Identifier
-        Returns
-            (None)
-
-        """
-        # Cast start_date and end_date to date object, if they aren't already
-        if isinstance(start_date, str):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
-        if isinstance(start_date, datetime.datetime):
-            start_date = start_date.date()
-            end_date = end_date.date()
-        # table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-
-        tmpl_summary_sql = pkgutil.get_data(
-            "masu.database", "presto_sql/reporting_ocpstoragelineitem_daily_summary.sql"
-        )
+        tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocp_lineitem_daily_summary.sql")
         tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
         summary_sql_params = {
             "uuid": str(uuid.uuid4()).replace("-", "_"),
@@ -604,15 +557,29 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
             "schema": self.schema,
+            "year": start_date.year,
+            "month": start_date.month,
         }
 
         presto_conn = self._prestodb_connect(schema=self.schema)
-        self._prestodb_execute(
-            presto_conn, tmpl_summary_sql, bind_params=summary_sql_params, preprocessor=self.jinja_sql.prepare_query
-        )
-        presto_conn.close()
+        try:
+            self._prestodb_execute(
+                presto_conn,
+                tmpl_summary_sql,
+                bind_params=summary_sql_params,
+                preprocessor=self.jinja_sql.prepare_query,
+            )
+        except Exception as e:
+            presto_conn.rollback()
+            raise e
+        else:
+            presto_conn.commit()
+        finally:
+            presto_conn.close()
         # summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        # self._execute_raw_sql_query(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
+        # self._execute_raw_sql_query(
+        #     table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+        # )
 
     def update_summary_infrastructure_cost(self, cluster_id, start_date, end_date):
         """Populate the infrastructure costs on the daily usage summary table.
