@@ -1,5 +1,5 @@
 -- Place our query in a temporary table
-CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe}} AS (
+CREATE TEMPORARY TABLE __reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe}} AS (
     WITH cte_array_agg_keys AS (
         SELECT array_agg(key) as key_array
         FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys
@@ -14,8 +14,8 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
             FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily lid
             JOIN cte_array_agg_keys aak
                 ON 1=1
-            WHERE lid.usage_start >= {{start_date}}
-                AND lid.usage_start <= {{end_date}}
+            WHERE lid.usage_start >= DATE {{start_date}}
+                AND lid.usage_start <= DATE {{end_date}}
                 AND lid.cluster_id = {{cluster_id}}
                 AND lid.pod_labels ?| aak.key_array
         ) AS lid,
@@ -46,7 +46,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
         max(li.cluster_capacity_cpu_core_seconds) / 3600 as cluster_capacity_cpu_core_hours,
         max(li.cluster_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as cluster_capacity_memory_gigabyte_hours,
         ab.provider_id as source_uuid,
-        '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost
+        '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily AS li
     LEFT JOIN cte_filtered_pod_labels AS fpl
         ON li.id = fpl.id

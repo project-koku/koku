@@ -24,6 +24,7 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{uuid |
 ;
 
 
+-- Storage node label line items
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__volume_nodes_{{uuid | sqlsafe}};
 CREATE TABLE hive.{{schema | sqlsafe}}.__volume_nodes_{{uuid | sqlsafe}} as (
     SELECT sli.namespace,
