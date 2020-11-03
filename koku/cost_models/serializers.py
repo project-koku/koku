@@ -419,6 +419,25 @@ class CostModelSerializer(serializers.Serializer):
             internal_map[value] = key
         return internal_map
 
+    @staticmethod
+    def _validate_tag_rates_one_metric_per_cost_type(tag_rate_list):
+        """Validates that the tag rates is only allowed to have one metric per cost type."""
+        tag_metrics = dict()
+        for cost_type in metric_constants.COST_TYPE_CHOICES:
+            cost_type = cost_type[0]
+            tag_metrics[cost_type] = []
+        for rate in tag_rate_list:
+            rate_metric_name = rate.get("metric", {}).get("name")
+            rate_cost_type = rate.get("cost_type")
+            if rate_metric_name in tag_metrics[rate_cost_type]:
+                error_msg = (
+                    "tag_rates must not have duplicate metrics for the same cost type. "
+                    f"Metric {rate_metric_name} is duplicated for cost type {rate_cost_type}."
+                )
+                raise serializers.ValidationError(error_msg)
+            else:
+                tag_metrics[rate_cost_type].append(rate_metric_name)
+
     def validate(self, data):
         """Validate that the source type is acceptable."""
         # The cost model has markup, no rates, and is for a valid non-OpenShift source type
@@ -458,10 +477,15 @@ class CostModelSerializer(serializers.Serializer):
     def validate_rates(self, rates):
         """Run validation for rates."""
         validated_rates = []
+        tag_rates = []
         for rate in rates:
             serializer = RateSerializer(data=rate)
             serializer.is_valid(raise_exception=True)
             validated_rates.append(serializer.validated_data)
+            if rate.get("tag_rates"):
+                tag_rates.append(rate)
+        if tag_rates:
+            CostModelSerializer._validate_tag_rates_one_metric_per_cost_type(tag_rates)
         return validated_rates
 
     def create(self, validated_data):

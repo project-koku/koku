@@ -15,6 +15,8 @@ CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
         ) AS tags
         JOIN {{schema | sqlsafe}}.reporting_awscostentrybill AS b
             ON tags.cost_entry_bill_id = b.id
+        JOIN {{schema | sqlsafe}}.reporting_awsenabledtagkeys as enabled_tags
+            ON lower(enabled_tags.key) = lower(tags.key)
         {% if bill_ids %}
         WHERE b.id IN (
             {%- for bill_id in bill_ids -%}
@@ -94,6 +96,68 @@ CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
 )
 ;
 
+-- Selects the data from aws daily and includes only
+-- the enabled tags in the results
+CREATE TEMPORARY TABLE reporting_aws_with_enabled_tags_{{uuid | sqlsafe}} AS (
+    WITH cte_array_agg_keys AS (
+        SELECT array_agg(key) as key_array
+        FROM {{schema | sqlsafe}}.reporting_awsenabledtagkeys
+    ),
+    cte_filtered_aws_tags AS (
+        SELECT id,
+            jsonb_object_agg(key,value) as aws_tags
+        FROM (
+            SELECT lid.id,
+                lid.tags as aws_tags,
+                aak.key_array
+            FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily lid
+            JOIN cte_array_agg_keys aak
+                ON 1=1
+            WHERE lid.tags ?| aak.key_array
+                AND lid.usage_start >= {{start_date}}::date
+                AND lid.usage_start <= {{end_date}}::date
+                {% if bill_ids %}
+                AND lid.cost_entry_bill_id IN (
+                    {%- for bill_id in bill_ids  -%}
+                        {{bill_id}}{% if not loop.last %},{% endif %}
+                    {%- endfor -%})
+                {% endif %}
+        ) AS lid,
+        jsonb_each_text(lid.aws_tags) AS labels
+        WHERE key = ANY (key_array)
+        GROUP BY id
+    )
+    SELECT aws.id,
+            aws.cost_entry_bill_id,
+            aws.cost_entry_product_id,
+            aws.cost_entry_pricing_id,
+            aws.cost_entry_reservation_id,
+            aws.line_item_type,
+            aws.usage_account_id,
+            aws.usage_start,
+            aws.usage_end,
+            aws.product_code,
+            aws.usage_type,
+            aws.operation,
+            aws.availability_zone,
+            aws.resource_id,
+            aws.usage_amount,
+            aws.normalization_factor,
+            aws.normalized_usage_amount,
+            aws.currency_code,
+            aws.unblended_rate,
+            aws.unblended_cost,
+            aws.blended_rate,
+            aws.blended_cost,
+            aws.public_on_demand_cost,
+            aws.public_on_demand_rate,
+            aws.tax_type,
+            fvl.aws_tags as tags
+        FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws
+        LEFT JOIN cte_filtered_aws_tags as fvl
+            ON aws.id = fvl.id
+)
+;
 -- We use a LATERAL JOIN here to get the JSON tags split out into key, value
 -- columns. We reference this split multiple times so we put it in a
 -- TEMPORARY TABLE for re-use
@@ -103,7 +167,7 @@ CREATE TEMPORARY TABLE reporting_aws_tags_{{uuid | sqlsafe}} AS (
         SELECT aws.*,
             lower(aws.tags::text)::jsonb as lower_tags,
             row_number() OVER (PARTITION BY aws.id ORDER BY aws.id) as row_number
-            FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws
+            FROM reporting_aws_with_enabled_tags_{{uuid | sqlsafe}} as aws
             JOIN matched_tags_{{uuid | sqlsafe}} as tag
                 ON aws.cost_entry_bill_id = tag.cost_entry_bill_id
                     AND aws.tags @> tag.tag
@@ -257,7 +321,7 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
             aws.public_on_demand_rate,
             aws.tax_type,
             aws.tags
-        FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws
+        FROM reporting_aws_with_enabled_tags_{{uuid | sqlsafe}} as aws
         JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
             ON aws.resource_id = ocp.resource_id
                 AND aws.usage_start = ocp.usage_start

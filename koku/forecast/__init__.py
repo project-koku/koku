@@ -14,10 +14,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Tags module."""
-from .all.openshift.queries import OCPAllTagQueryHandler  # noqa: F401
-from .aws.openshift.queries import OCPAWSTagQueryHandler  # noqa: F401
-from .aws.queries import AWSTagQueryHandler  # noqa: F401
-from .azure.openshift.queries import OCPAzureTagQueryHandler  # noqa: F401
-from .azure.queries import AzureTagQueryHandler  # noqa: F401
-from .ocp.queries import OCPTagQueryHandler  # noqa: F401
+"""Forecasting Module."""
+from .forecast import AWSForecast  # noqa: F401
+from .forecast import AzureForecast  # noqa: F401
+from .forecast import Forecast  # noqa: F401
+from .forecast import OCPAllForecast  # noqa: F401
+from .forecast import OCPAWSForecast  # noqa: F401
+from .forecast import OCPAzureForecast  # noqa: F401
+from .forecast import OCPForecast  # noqa: F401

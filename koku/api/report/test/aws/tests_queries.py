@@ -1428,6 +1428,23 @@ class AWSReportQueryTest(IamTestCase):
                         org_values = org_entity.get("values", [])[0]
                         self.assertEqual(org_values.get("alias"), expected_alias)
 
+    def test_filter_and_group_by_org_unit_match(self):
+        """Test that the cost group_by and filter match."""
+        org_unit_id_list = list(self.ou_to_account_subou_map.keys())
+        with tenant_context(self.tenant):
+            for org_unit_id in org_unit_id_list:
+                filter_url = f"?filter[org_unit_id]={org_unit_id}"
+                filter_params = self.mocked_query_params(filter_url, AWSCostView, "costs")
+                filter_handler = AWSReportQueryHandler(filter_params)
+                filter_total = filter_handler.execute_query().get("total", None)
+                self.assertIsNotNone(filter_total)
+                group_url = f"?group_by[org_unit_id]={org_unit_id}"
+                group_params = self.mocked_query_params(group_url, AWSCostView, "costs")
+                group_handler = AWSReportQueryHandler(group_params)
+                group_total = group_handler.execute_query().get("total", None)
+                self.assertIsNotNone(filter_total)
+                self.assertEqual(filter_total, group_total)
+
     def test_multi_group_by_parent_and_child(self):
         """Test that cost is not calculated twice in a multiple group by of parent and child."""
         with tenant_context(self.tenant):
