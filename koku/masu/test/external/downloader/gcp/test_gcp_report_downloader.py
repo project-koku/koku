@@ -86,14 +86,17 @@ class GCPReportDownloaderTest(MasuTestCase):
                     credentials=credentials,
                 )
 
-    def test_download_file_query_client_error(self):
-        """Test BigQuery client is handled correctly in download file method."""
-        key = "test_key.csv"
-        downloader = self.create_gcp_downloader_with_mocked_values()
-        err_msg = "GCP Error"
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider")
+    def test_generate_etag(self, gcp_provider):
+        """Test BigQuery client is handled correctly in generate etag method."""
+        billing_source = {"table_id": FAKE.slug(), "dataset": FAKE.slug()}
+        credentials = {"project_id": FAKE.slug()}
         with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
-            bigquery.client.return_value.query.side_effect = GoogleCloudError(err_msg)
-            downloader.download_file(key)
+            bigquery.Client.return_value.get_table.return_value.modified.return_value = self.today
+            downloader = GCPReportDownloader(
+                customer_name=FAKE.name(), data_source=billing_source, provider_uuid=uuid4(), credentials=credentials
+            )
+            self.assertIsNotNone(downloader.etag)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
     @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")
@@ -162,6 +165,17 @@ class GCPReportDownloaderTest(MasuTestCase):
             self.assertEqual(etag, self.etag)
             self.assertEqual(date, self.today)
             self.assertEqual(full_path, expected_full_path)
+
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.open")
+    def test_download_file_query_client_error(self, mock_open):
+        """Test BigQuery client is handled correctly in download file method."""
+        key = "test_key.csv"
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        err_msg = "GCP Error"
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
+            bigquery.Client.side_effect = GoogleCloudError(err_msg)
+            with self.assertRaisesRegexp(GCPReportDownloaderError, err_msg):
+                downloader.download_file(key)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider")
     def test_download_with_unreachable_source(self, gcp_provider):
