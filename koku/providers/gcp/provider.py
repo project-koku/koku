@@ -13,7 +13,7 @@ from api.models import Provider
 
 LOG = logging.getLogger(__name__)
 
-REQUIRED_IAM_PERMISSIONS = ["bigquery.jobs.create", "bigquery.tables.getData"]
+REQUIRED_IAM_PERMISSIONS = ["bigquery.jobs.create", "bigquery.tables.getData", "bigquery.tables.get"]
 
 
 class GCPProvider(ProviderInterface):
@@ -28,7 +28,7 @@ class GCPProvider(ProviderInterface):
         Verify that the GCP bucket exists and is reachable.
 
         Args:
-            credentials (object): a dictionary containing project_id
+            credentials (dict): a dictionary containing project_id
             data_source (dict): not used; only present for interface compatibility
 
         """
