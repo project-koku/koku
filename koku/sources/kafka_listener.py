@@ -261,7 +261,10 @@ def get_authentication(source_type, sources_network):
     elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
         credentials = sources_network.get_azure_credentials()
     elif source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-        credentials = sources_network.get_gcp_credentials()
+        try:
+            credentials = sources_network.get_gcp_credentials()
+        except SourcesHTTPClientError as error:
+            LOG.warning(str(error))
     else:
         LOG.error(f"Unexpected source type: {source_type}")
         return credentials
