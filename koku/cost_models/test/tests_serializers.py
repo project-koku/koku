@@ -596,3 +596,27 @@ class CostModelSerializerTest(IamTestCase):
         result_err_msg = serializer.errors["rates"][0]["non_field_errors"][0]
         expected_err_msg = "Set either 'tiered_rates' or 'tag_rates' but not both"
         self.assertEqual(result_err_msg, expected_err_msg)
+
+    def test_tag_rates_error_on_duplicate_metric_per_cost_type(self):
+        """Test that specifying both tiered and tag rates fails."""
+        tag_values_kwargs = [{"value": 0.2}]
+        cost_model = {
+            "name": "Test Cost Model",
+            "description": "Test",
+            "source_type": Provider.PROVIDER_OCP,
+            "providers": [{"uuid": self.provider.uuid, "name": self.provider.name}],
+            "markup": {"value": 10, "unit": "percent"},
+            "rates": [
+                {"metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR}},
+                {"metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR}},
+            ],
+        }
+        cost_model["rates"][0]["tag_rates"] = [format_tag_rate(tag_values=tag_values_kwargs)]
+        cost_model["rates"][1]["tag_rates"] = [format_tag_rate(tag_values=tag_values_kwargs)]
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=cost_model)
+            with self.assertRaises(serializers.ValidationError):
+                self.assertFalse(serializer.is_valid(raise_exception=True))
+        result_err_msg = str(serializer.errors["rates"])
+        expected_sub_string = "tag_rates must not have duplicate metrics for the same cost type."
+        self.assertIn(expected_sub_string, result_err_msg)
