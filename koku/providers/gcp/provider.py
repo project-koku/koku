@@ -16,7 +16,12 @@ from api.provider.models import Sources
 
 LOG = logging.getLogger(__name__)
 
-REQUIRED_IAM_PERMISSIONS = ["bigquery.jobs.create", "bigquery.tables.getData", "bigquery.tables.list", "bigquery.tables.get"]
+REQUIRED_IAM_PERMISSIONS = [
+    "bigquery.jobs.create",
+    "bigquery.tables.getData",
+    "bigquery.tables.list",
+    "bigquery.tables.get",
+]
 
 
 class GCPProvider(ProviderInterface):
