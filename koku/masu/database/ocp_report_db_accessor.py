@@ -625,7 +625,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     usage_start__lt=end_date,
                     cluster_id=cluster_id,
                     persistentvolumeclaim__isnull=False,
-                    node__isnull=False,
                 )
                 .values_list("persistentvolumeclaim")
                 .distinct()
@@ -712,6 +711,41 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 )
             elif cost_type == "PVC":
                 self.tag_upsert_monthly_pvc_cost_line_item(
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
+                )
+
+    def populate_monthly_tag_default_cost(
+        self, cost_type, rate_type, rate_dict, start_date, end_date, cluster_id, cluster_alias
+    ):
+        """
+        Populate the monthly default cost of a customer based on tag rates.
+
+        Right now this is just the node/month cost. Calculated from
+        tag value cost * number_unique_nodes for each tag key value pair
+        that is found on a line item with that node.
+        """
+        if isinstance(start_date, str):
+            start_date = parse(start_date).date()
+        if isinstance(end_date, str):
+            end_date = parse(end_date).date()
+
+        # usage_start, usage_end are date types
+        first_month = datetime.datetime(*start_date.replace(day=1).timetuple()[:3]).replace(tzinfo=pytz.UTC)
+        end_date = datetime.datetime(*end_date.timetuple()[:3]).replace(hour=23, minute=59, second=59, tzinfo=pytz.UTC)
+        # Calculate monthly cost for each month from start date to end date for each tag key:value pair in the rate
+        for curr_month in rrule(freq=MONTHLY, until=end_date, dtstart=first_month):
+            first_curr_month, first_next_month = month_date_range_tuple(curr_month)
+            LOG.info("Populating monthly tag based default cost from %s to %s.", first_curr_month, first_next_month)
+            if cost_type == "Node":
+                self.tag_upsert_monthly_default_node_cost_line_item(
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
+                )
+            elif cost_type == "Cluster":
+                self.tag_upsert_monthly_default_cluster_cost_line_item(
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
+                )
+            elif cost_type == "PVC":
+                self.tag_upsert_monthly_default_pvc_cost_line_item(
                     first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
                 )
 
@@ -823,6 +857,85 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                     )
                                 line_item.save()
 
+    def tag_upsert_monthly_default_node_cost_line_item(
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
+    ):
+        """
+        Update or insert daily summary line item for node cost.
+
+        It checks to see if a line item exists for each node
+        that contains the tag key:value pair,
+        if it does then the price is added to the monthly cost.
+        """
+        unique_nodes = self.get_distinct_nodes(start_date, end_date, cluster_id)
+        report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
+        with schema_context(self.schema):
+            for node in unique_nodes:
+                if rate_dict is not None:
+                    for tag_key in rate_dict:
+                        tag_values = rate_dict.get(tag_key)
+                        tag_default = tag_values.get("default_value")
+                        values_to_skip = tag_values.get("defined_keys")
+                        item_check = OCPUsageLineItemDailySummary.objects.filter(
+                            usage_start__gte=start_date,
+                            usage_end__lte=end_date,
+                            report_period=report_period,
+                            cluster_id=cluster_id,
+                            cluster_alias=cluster_alias,
+                            node=node,
+                            pod_labels__has_key=tag_key,
+                        )
+                        for value in values_to_skip:
+                            item_check = item_check.exclude(pod_labels__contains={tag_key: value})
+                        # this won't run if there are no matching items and item_check will continue to be
+                        # filtered until there are no items left
+                        while item_check:
+                            # get the first value for our tag key and exclude it from the queryset for the next check
+                            # will remove values until there are none left
+                            tag_key_value = item_check.first().pod_labels.get(tag_key)
+                            item_check = item_check.exclude(pod_labels__contains={tag_key: tag_key_value})
+                            line_item = OCPUsageLineItemDailySummary.objects.filter(
+                                usage_start=start_date,
+                                usage_end=start_date,
+                                report_period=report_period,
+                                cluster_id=cluster_id,
+                                cluster_alias=cluster_alias,
+                                monthly_cost_type="Node",
+                                node=node,
+                            ).first()
+                            if not line_item:
+                                line_item = OCPUsageLineItemDailySummary(
+                                    uuid=uuid.uuid4(),
+                                    usage_start=start_date,
+                                    usage_end=start_date,
+                                    report_period=report_period,
+                                    cluster_id=cluster_id,
+                                    cluster_alias=cluster_alias,
+                                    monthly_cost_type="Node",
+                                    node=node,
+                                )
+                            if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                                LOG.info(
+                                    "Node (%s) has a default monthly infrastructure cost of %s.", node, tag_default
+                                )
+                                line_item.infrastructure_monthly_cost = (
+                                    Coalesce(
+                                        line_item.infrastructure_monthly_cost, Value(0.0), output_field=DecimalField()
+                                    )
+                                    + tag_default
+                                )
+                            elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                                LOG.info(
+                                    "Node (%s) has a default monthly supplemenarty cost of %s.", node, tag_default
+                                )
+                                line_item.supplementary_monthly_cost = (
+                                    Coalesce(
+                                        line_item.supplementary_monthly_cost, Value(0.0), output_field=DecimalField()
+                                    )
+                                    + tag_default
+                                )
+                            line_item.save()
+
     def upsert_monthly_cluster_cost_line_item(
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, cluster_cost
     ):
@@ -925,6 +1038,81 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                         + rate_value
                                     )
                                 line_item.save()
+
+    def tag_upsert_monthly_default_pvc_cost_line_item(
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
+    ):
+        """
+        Update or insert daily summary line item for node cost.
+
+        It checks to see if a line item exists for each node
+        that contains the tag key:value pair,
+        if it does then the price is added to the monthly cost.
+        """
+        unique_pvcs = self.get_distinct_pvcs(start_date, end_date, cluster_id)
+        report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
+        with schema_context(self.schema):
+            for pvc in unique_pvcs:
+                if rate_dict is not None:
+                    for tag_key in rate_dict:
+                        tag_values = rate_dict.get(tag_key)
+                        tag_default = tag_values.get("default_value")
+                        values_to_skip = tag_values.get("defined_keys")
+                        item_check = OCPUsageLineItemDailySummary.objects.filter(
+                            usage_start__gte=start_date,
+                            usage_end__lte=end_date,
+                            report_period=report_period,
+                            cluster_id=cluster_id,
+                            cluster_alias=cluster_alias,
+                            persistentvolumeclaim=pvc,
+                            volume_labels__has_key=tag_key,
+                        )
+                        for value in values_to_skip:
+                            item_check = item_check.exclude(volume_labels__contains={tag_key: value})
+                        # this won't run if there are no matching items and item_check will continue to be
+                        # filtered until there are no items left
+                        while item_check:
+                            # get the first value for our tag key and exclude it from the queryset for the next check
+                            # will remove values until there are none left
+                            tag_key_value = item_check.first().volume_labels.get(tag_key)
+                            item_check = item_check.exclude(volume_labels__contains={tag_key: tag_key_value})
+                            line_item = OCPUsageLineItemDailySummary.objects.filter(
+                                usage_start=start_date,
+                                usage_end=start_date,
+                                report_period=report_period,
+                                cluster_id=cluster_id,
+                                cluster_alias=cluster_alias,
+                                monthly_cost_type="PVC",
+                                persistentvolumeclaim=pvc,
+                            ).first()
+                            if not line_item:
+                                line_item = OCPUsageLineItemDailySummary(
+                                    uuid=uuid.uuid4(),
+                                    usage_start=start_date,
+                                    usage_end=start_date,
+                                    report_period=report_period,
+                                    cluster_id=cluster_id,
+                                    cluster_alias=cluster_alias,
+                                    monthly_cost_type="PVC",
+                                    persistentvolumeclaim=pvc,
+                                )
+                            if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                                LOG.info("PVC (%s) has a default monthly infrastructure cost of %s.", pvc, tag_default)
+                                line_item.infrastructure_monthly_cost = (
+                                    Coalesce(
+                                        line_item.infrastructure_monthly_cost, Value(0.0), output_field=DecimalField()
+                                    )
+                                    + tag_default
+                                )
+                            elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                                LOG.info("PVC (%s) has a default monthly supplemenarty cost of %s.", pvc, tag_default)
+                                line_item.supplementary_monthly_cost = (
+                                    Coalesce(
+                                        line_item.supplementary_monthly_cost, Value(0.0), output_field=DecimalField()
+                                    )
+                                    + tag_default
+                                )
+                            line_item.save()
 
     def upsert_monthly_pvc_cost_line_item(self, start_date, end_date, cluster_id, cluster_alias, rate_type, pvc_cost):
         """Update or insert daily summary line item for pvc cost."""
@@ -1034,6 +1222,80 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                         + rate_value
                                     )
                                 line_item.save()
+
+    def tag_upsert_monthly_default_cluster_cost_line_item(
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
+    ):
+        """
+        Update or insert daily summary line item for cluster cost.
+
+        It checks to see if a line item exists for each cluster
+        that contains the tag key:value pair,
+        if it does then the price is added to the monthly cost.
+        """
+        report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
+        with schema_context(self.schema):
+            if rate_dict is not None:
+                for tag_key in rate_dict:
+                    tag_values = rate_dict.get(tag_key)
+                    tag_default = tag_values.get("default_value")
+                    values_to_skip = tag_values.get("defined_keys")
+                    item_check = OCPUsageLineItemDailySummary.objects.filter(
+                        usage_start__gte=start_date,
+                        usage_end__lte=end_date,
+                        report_period=report_period,
+                        cluster_id=cluster_id,
+                        cluster_alias=cluster_alias,
+                        pod_labels__has_key=tag_key,
+                    )
+                    for value in values_to_skip:
+                        item_check = item_check.exclude(pod_labels__contains={tag_key: value})
+                    # this won't run if there are no matching items and item_check will continue to be
+                    # filtered until there are no items left
+                    while item_check:
+                        # get the first value for our tag key and exclude it from the queryset for the next check
+                        # will remove values until there are none left
+                        tag_key_value = item_check.first().pod_labels.get(tag_key)
+                        item_check = item_check.exclude(pod_labels__contains={tag_key: tag_key_value})
+                        line_item = OCPUsageLineItemDailySummary.objects.filter(
+                            usage_start=start_date,
+                            usage_end=start_date,
+                            report_period=report_period,
+                            cluster_id=cluster_id,
+                            cluster_alias=cluster_alias,
+                            monthly_cost_type="Cluster",
+                        ).first()
+                        if not line_item:
+                            line_item = OCPUsageLineItemDailySummary(
+                                uuid=uuid.uuid4(),
+                                usage_start=start_date,
+                                usage_end=start_date,
+                                report_period=report_period,
+                                cluster_id=cluster_id,
+                                cluster_alias=cluster_alias,
+                                monthly_cost_type="Cluster",
+                            )
+                        if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                            LOG.info(
+                                "Cluster (%s) has a default monthly infrastructure cost of %s.",
+                                cluster_id,
+                                tag_default,
+                            )
+                            line_item.infrastructure_monthly_cost = (
+                                Coalesce(
+                                    line_item.infrastructure_monthly_cost, Value(0.0), output_field=DecimalField()
+                                )
+                                + tag_default
+                            )
+                        elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                            LOG.info(
+                                "Cluster (%s) has a default monthly supplemenarty cost of %s.", cluster_id, tag_default
+                            )
+                            line_item.supplementary_monthly_cost = (
+                                Coalesce(line_item.supplementary_monthly_cost, Value(0.0), output_field=DecimalField())
+                                + tag_default
+                            )
+                        line_item.save()
 
     def remove_monthly_cost(self, start_date, end_date, cluster_id, cost_type):
         """Delete all monthly costs of a specific type over a date range."""
