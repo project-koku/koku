@@ -108,9 +108,18 @@ TENANT_APPS = ("reporting", "cost_models")
 
 DEFAULT_FILE_STORAGE = "tenant_schemas.storage.TenantFileSystemStorage"
 
+ACCOUNT_ENHANCED_METRICS = ENVIRONMENT.bool("ACCOUNT_ENHANCED_METRICS", default=False)
+
+PROMETHEUS_BEFORE_MIDDLEWARE = "django_prometheus.middleware.PrometheusBeforeMiddleware"
+PROMETHEUS_AFTER_MIDDLEWARE = "django_prometheus.middleware.PrometheusAfterMiddleware"
+
+if ACCOUNT_ENHANCED_METRICS:
+    PROMETHEUS_BEFORE_MIDDLEWARE = "koku.middleware.AccountEnhancedMetricsBeforeMiddleware"
+    PROMETHEUS_AFTER_MIDDLEWARE = "koku.middleware.AccountEnhancedMetricsAfterMiddleware"
+
 ### Middleware setup
 MIDDLEWARE = [
-    "django_prometheus.middleware.PrometheusBeforeMiddleware",
+    PROMETHEUS_BEFORE_MIDDLEWARE,
     "corsheaders.middleware.CorsMiddleware",
     "koku.middleware.DisableCSRF",
     "django.middleware.security.SecurityMiddleware",
@@ -122,7 +131,7 @@ MIDDLEWARE.extend(
         "koku.middleware.KokuTenantMiddleware",
         "django.middleware.clickjacking.XFrameOptionsMiddleware",
         "whitenoise.middleware.WhiteNoiseMiddleware",
-        "django_prometheus.middleware.PrometheusAfterMiddleware",
+        PROMETHEUS_AFTER_MIDDLEWARE,
     ]
 )
 
