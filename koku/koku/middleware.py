@@ -33,6 +33,9 @@ from django.db.utils import OperationalError
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
+from django_prometheus.middleware import Metrics
+from django_prometheus.middleware import PrometheusAfterMiddleware
+from django_prometheus.middleware import PrometheusBeforeMiddleware
 from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.middleware import BaseTenantMiddleware
@@ -59,6 +62,12 @@ MASU = settings.MASU
 SOURCES = settings.SOURCES
 UNIQUE_ACCOUNT_COUNTER = Counter("hccm_unique_account", "Unique Account Counter")
 UNIQUE_USER_COUNTER = Counter("hccm_unique_user", "Unique User Counter", ["account", "user"])
+
+EXTENDED_METRICS = [
+    "django_http_requests_latency_seconds_by_view_method",
+    "django_http_responses_total_by_status_view_method",
+    "django_http_requests_total_by_view_transport_method",
+]
 
 
 def is_no_auth(request):
@@ -366,3 +375,32 @@ class DisableCSRF(MiddlewareMixin):
             request (object): The request object
         """
         setattr(request, "_dont_enforce_csrf_checks", True)
+
+
+class AccountEnhancedMetrics(Metrics):
+    def register_metric(self, metric_cls, name, documentation, labelnames=(), **kwargs):
+        if name in EXTENDED_METRICS:
+            labelnames += ("account",)
+        return super().register_metric(metric_cls, name, documentation, labelnames=labelnames, **kwargs)
+
+
+class AccountEnhancedMetricsBeforeMiddleware(PrometheusBeforeMiddleware):
+    metrics_cls = AccountEnhancedMetrics
+
+
+class AccountEnhancedMetricsAfterMiddleware(PrometheusAfterMiddleware):
+    metrics_cls = AccountEnhancedMetrics
+
+    def label_metric(self, metric, request, response=None, **labels):
+        new_labels = labels
+        if metric._name in EXTENDED_METRICS:
+            account = "unknown"
+            identity_header = request.user.identity_header.get("decoded", {})
+            if identity_header:
+                try:
+                    account = identity_header.get("identity", {}).get("account_number", "unknown")
+                except ValueError:
+                    pass
+            new_labels = {"account": account}
+            new_labels.update(labels)
+        return super().label_metric(metric, request, response=response, **new_labels)
