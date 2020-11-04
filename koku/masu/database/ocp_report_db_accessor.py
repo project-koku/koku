@@ -545,7 +545,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         if isinstance(start_date, datetime.datetime):
             start_date = start_date.date()
             end_date = end_date.date()
-        # table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
         tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocp_lineitem_daily_summary.sql")
         tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
@@ -557,8 +556,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
             "schema": self.schema,
-            "year": start_date.year,
-            "month": start_date.month,
+            "year": str(start_date.year),
+            "months": tuple(str(m) for m in sorted(set(range(start_date.month, end_date.month + 1)))),
         }
 
         presto_conn = self._prestodb_connect(schema=self.schema)
@@ -576,10 +575,26 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             presto_conn.commit()
         finally:
             presto_conn.close()
-        # summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        # self._execute_raw_sql_query(
-        #     table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
-        # )
+
+    def populate_pod_label_summary_table_presto(self, report_period_ids):
+        """Populate the line item aggregated totals data table."""
+        table_name = OCP_REPORT_TABLE_MAP["pod_label_summary"]
+
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagepodlabel_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {"schema": self.schema, "report_period_ids": report_period_ids}
+        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
+        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+
+    def populate_volume_label_summary_table_presto(self, report_period_ids):
+        """Populate the OCP volume label summary table."""
+        table_name = OCP_REPORT_TABLE_MAP["volume_label_summary"]
+
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {"schema": self.schema, "report_period_ids": report_period_ids}
+        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
+        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def update_summary_infrastructure_cost(self, cluster_id, start_date, end_date):
         """Populate the infrastructure costs on the daily usage summary table.
@@ -640,26 +655,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def populate_volume_label_summary_table(self, report_period_ids):
-        """Populate the OCP volume label summary table."""
-        table_name = OCP_REPORT_TABLE_MAP["volume_label_summary"]
-
-        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql")
-        agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "report_period_ids": report_period_ids}
-        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
-        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
-
-    def populate_pod_label_summary_table_presto(self, report_period_ids):
-        """Populate the line item aggregated totals data table."""
-        table_name = OCP_REPORT_TABLE_MAP["pod_label_summary"]
-
-        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagepodlabel_summary.sql")
-        agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "report_period_ids": report_period_ids}
-        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
-        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
-
-    def populate_volume_label_summary_table_presto(self, report_period_ids):
         """Populate the OCP volume label summary table."""
         table_name = OCP_REPORT_TABLE_MAP["volume_label_summary"]
 

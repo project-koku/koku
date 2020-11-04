@@ -24,11 +24,11 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{uuid |
            max(nli.year) as "year",
            max(nli.month) as "month"
       FROM hive.{{schema | sqlsafe}}.openshift_node_labels_line_items as "nli"
-     WHERE nli.source = UUID {{source}}
+     WHERE nli.source = {{source}}
        AND nli.year = {{year}}
-       AND nli.month = {{month}}
-       AND date(nli.interval_start) >= DATE {{start_date}}
-       AND date(nli.interval_start) <= DATE {{end_date}}
+       AND nli.month in {{months}}
+       AND nli.interval_start >= TIMESTAMP {{start_date}}
+       AND nli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
      GROUP
         BY 1, 2, 4
 )
@@ -59,9 +59,9 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}}
                       max(li.node_capacity_cpu_core_seconds) as "max_cluster_capacity_cpu_core_seconds",
                       max(li.node_capacity_memory_byte_seconds) as "max_cluster_capacity_memory_byte_seconds"
                  FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items AS li
-                WHERE li.source = UUID {{source}}
+                WHERE li.source = {{source}}
                   AND li.year = {{year}}
-                  AND li.month = {{month}}
+                  AND li.month in {{months}}
                   AND date(li.interval_start) >= DATE {{start_date}}
                   AND date(li.interval_start) <= DATE {{end_date}}
                 GROUP
