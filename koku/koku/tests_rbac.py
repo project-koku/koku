@@ -229,8 +229,6 @@ class RbacServiceTest(TestCase):
                 {"operation": "write", "resources": ["8"]},
             ]
         }
-        print()
-        print(access)
         self.assertEqual(access, expected)
 
     def test_process_acls_attributeFilter_value_list(self):
@@ -257,8 +255,6 @@ class RbacServiceTest(TestCase):
                 {"operation": "write", "resources": ["1", "3", "5"]},
             ]
         }
-        print()
-        print(access)
         self.assertEqual(access, expected)
 
     def test_process_acls_rate_to_cost_model_substitution(self):
@@ -286,8 +282,6 @@ class RbacServiceTest(TestCase):
                 {"operation": "write", "resources": ["8"]},
             ]
         }
-        print()
-        print(access)
         self.assertEqual(access, expected)
 
     def test_get_operation_invalid_res_type(self):
