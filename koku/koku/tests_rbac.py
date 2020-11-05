@@ -233,6 +233,34 @@ class RbacServiceTest(TestCase):
         print(access)
         self.assertEqual(access, expected)
 
+    def test_process_acls_attributeFilter_value_list(self):
+        """Test that we correctly handle a list of values."""
+        acls = [
+            {"permission": "cost-management:cost_model:read", "resourceDefinitions": []},
+            {
+                "permission": "cost-management:cost_model:write",
+                "resourceDefinitions": [
+                    {
+                        "attributeFilter": {
+                            "key": "cost-management.cost_model",
+                            "operation": "in",
+                            "value": ["1", "3", "5"],
+                        }
+                    }
+                ],
+            },
+        ]
+        access = _process_acls(acls)
+        expected = {
+            "cost_model": [
+                {"operation": "read", "resources": ["*"]},
+                {"operation": "write", "resources": ["1", "3", "5"]},
+            ]
+        }
+        print()
+        print(access)
+        self.assertEqual(access, expected)
+
     def test_process_acls_rate_to_cost_model_substitution(self):
         """Test function of _process_acls with a bad permission format."""
         acls = [
