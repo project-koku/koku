@@ -186,7 +186,7 @@ class TagManagementSettings:
         updated = [False] * len(obtainTagKeysProvidersParams)
         for ix, providerName in enumerate(obtainTagKeysProvidersParams):
             provider_in_settings = settings.get(providerName)
-            if not provider_in_settings:
+            if provider_in_settings is None:
                 continue
             enabled_tags = provider_in_settings.get("enabled", [])
             remove_tags = []
