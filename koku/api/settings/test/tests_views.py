@@ -115,6 +115,38 @@ class SettingsViewTest(IamTestCase):
         enabled = duallist.get("initialValue")
         self.assertIn(tag, enabled)
 
+        # Verify that disabling tags for a different source type does not clear openshift tags.
+        body = {"api": {"settings": {"tag-management": {"aws": {"enabled": []}}}}}
+        response = self.post_settings(body)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response = self.get_settings()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        duallist = self.get_duallist_from_response(response)
+        enabled = duallist.get("initialValue")
+        self.assertIn(tag, enabled)
+
+        body = {"api": {"settings": {"tag-management": {"openshift": {"enabled": []}}}}}
+        response = self.post_settings(body)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response = self.get_settings()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        duallist = self.get_duallist_from_response(response)
+        enabled = duallist.get("initialValue")
+        self.assertEqual([], enabled)
+
+        # DDF will give an empty dictionary when disabling all
+        body = {"api": {"settings": {"tag-management": {"openshift": {}}}}}
+        response = self.post_settings(body)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response = self.get_settings()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        duallist = self.get_duallist_from_response(response)
+        enabled = duallist.get("initialValue")
+        self.assertEqual([], enabled)
+
     def test_post_settings_ocp_tag_enabled_invalid_tag(self):
         """Test setting OCP tags as enabled with invalid tag key."""
         tag = "Invalid_tag_key_test"
