@@ -548,6 +548,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocp_lineitem_daily_summary.sql")
         tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
+        months = tuple(str(m) for m in sorted(set(range(start_date.month, end_date.month + 1))))
         summary_sql_params = {
             "uuid": str(uuid.uuid4()).replace("-", "_"),
             "start_date": start_date,
@@ -558,7 +559,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "schema": self.schema,
             "source": source,
             "year": str(start_date.year),
-            "months": tuple(str(m) for m in sorted(set(range(start_date.month, end_date.month + 1)))),
+            "months": f"('{months[0]}')" if len(months) == 1 else months,
         }
 
         presto_conn = self._prestodb_connect(schema=self.schema)
@@ -579,22 +580,35 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def populate_pod_label_summary_table_presto(self, report_period_ids, start_date, end_date, source):
         """Populate the line item aggregated totals data table."""
-        table_name = OCP_REPORT_TABLE_MAP["pod_label_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagepodlabel_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
+        months = tuple(str(m) for m in sorted(set(range(start_date.month, end_date.month + 1))))
         agg_sql_params = {
             "uuid": uuid.uuid4(),
             "schema": self.schema,
-            "report_period_ids": report_period_ids,
+            "report_period_ids": (
+                f"({report_period_ids[0]})" if len(report_period_ids) == 1 else tuple(report_period_ids)
+            ),
             "start_date": start_date,
             "end_date": end_date,
             "source": source,
             "year": start_date.year,
-            "months": tuple(str(m) for m in sorted(set(range(start_date.month, end_date.month + 1)))),
+            "months": f"('{months[0]}')" if len(months) == 1 else months,
         }
-        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
-        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+
+        presto_conn = self._prestodb_connect(schema=self.schema)
+        try:
+            self._prestodb_execute(
+                presto_conn, agg_sql, bind_params=agg_sql_params, preprocessor=self.jinja_sql.prepare_query
+            )
+        except Exception as e:
+            presto_conn.rollback()
+            raise e
+        else:
+            presto_conn.commit()
+        finally:
+            presto_conn.close()
 
     def populate_volume_label_summary_table_presto(self, report_period_ids):
         """Populate the OCP volume label summary table."""
