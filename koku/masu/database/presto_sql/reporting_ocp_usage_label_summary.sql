@@ -181,8 +181,7 @@ SELECT DISTINCT
        lsg.label_value
   FROM hive.{{schema | sqlsafe}}.__label_summary_gather_{{uuid | sqlsafe}} lsg
   JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagereportperiod prp
-    ON prp.report_period_start >= TIMESTAMP {{start_date}}
-   AND prp.report_period_start < date_add('second', 1, TIMESTAMP {{end_date}})
+    ON prp.id in {{report_period_ids}}
    AND lsg.interval_start >= prp.report_period_start
    AND lsg.interval_start <= prp.report_period_end
 ;

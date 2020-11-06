@@ -108,7 +108,7 @@ class OCPReportParquetSummaryUpdater:
             with schema_context(self._schema):
                 report_periods = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
                 current_report_period_id = report_periods.first().id if report_periods else None
-                # report_period_ids = [report_period.id for report_period in report_periods]
+                report_period_ids = [report_period.id for report_period in report_periods]
                 # report_date_map = {
                 #     (report_period.report_period_start, report_period.report_period_end): report_period.id
                 #     for report_period in report_periods
@@ -137,13 +137,20 @@ class OCPReportParquetSummaryUpdater:
             #     raise ValueError(msg)
 
             accessor.populate_line_item_daily_summary_table_presto(
-                start_date, end_date, current_report_period_id, self._cluster_id, self._cluster_alias
+                start_date,
+                end_date,
+                current_report_period_id,
+                self._cluster_id,
+                self._cluster_alias,
+                self._provider.uuid,
             )
             # accessor.populate_storage_line_item_daily_summary_table_presto(
             #     start_date, end_date, current_report_period_id, self._cluster_id, self._cluster_alias
             # )
-            accessor.populate_pod_label_summary_table_presto(current_report_period_id)
-            accessor.populate_volume_label_summary_table_presto(current_report_period_id)
+            accessor.populate_pod_label_summary_table_presto(
+                report_period_ids, start_date, end_date, self._provider.uuid
+            )
+            # accessor.populate_volume_label_summary_table_presto(current_report_period_id)
 
             for period in report_periods:
                 if period.summary_data_creation_datetime is None:
