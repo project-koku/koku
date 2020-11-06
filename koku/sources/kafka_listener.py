@@ -43,6 +43,7 @@ from api.provider.models import Sources
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.prometheus_stats import SOURCES_KAFKA_LOOP_RETRY
 from masu.prometheus_stats import SOURCES_PROVIDER_OP_RETRY_LOOP_COUNTER
+from providers.provider_errors import SkipStatusPush
 from sources import storage
 from sources.api.status import check_kafka_connection
 from sources.config import Config
@@ -70,6 +71,8 @@ SOURCES_AWS_SOURCE_NAME = "amazon"
 SOURCES_AWS_LOCAL_SOURCE_NAME = "amazon-local"
 SOURCES_AZURE_SOURCE_NAME = "azure"
 SOURCES_AZURE_LOCAL_SOURCE_NAME = "azure-local"
+SOURCES_GCP_SOURCE_NAME = "google"
+SOURCES_GCP_LOCAL_SOURCE_NAME = "google-local"
 
 SOURCE_PROVIDER_MAP = {
     SOURCES_OCP_SOURCE_NAME: Provider.PROVIDER_OCP,
@@ -77,6 +80,8 @@ SOURCE_PROVIDER_MAP = {
     SOURCES_AWS_LOCAL_SOURCE_NAME: Provider.PROVIDER_AWS_LOCAL,
     SOURCES_AZURE_SOURCE_NAME: Provider.PROVIDER_AZURE,
     SOURCES_AZURE_LOCAL_SOURCE_NAME: Provider.PROVIDER_AZURE_LOCAL,
+    SOURCES_GCP_SOURCE_NAME: Provider.PROVIDER_GCP,
+    SOURCES_GCP_LOCAL_SOURCE_NAME: Provider.PROVIDER_GCP_LOCAL,
 }
 
 
@@ -255,6 +260,11 @@ def get_authentication(source_type, sources_network):
         credentials = sources_network.get_aws_credentials()
     elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
         credentials = sources_network.get_azure_credentials()
+    elif source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+        try:
+            credentials = sources_network.get_gcp_credentials()
+        except SourcesHTTPClientError as error:
+            LOG.warning(str(error))
     else:
         LOG.error(f"Unexpected source type: {source_type}")
         return credentials
@@ -550,6 +560,8 @@ def execute_koku_provider_op(msg):
         )
         LOG.warning(err_msg)
         sources_client.set_source_status(account_error)
+    except SkipStatusPush as error:
+        LOG.info(f"Platform sources status push skipped. Reason: {str(error)}")
 
 
 def _requeue_provider_sync_message(priority, msg, queue):
