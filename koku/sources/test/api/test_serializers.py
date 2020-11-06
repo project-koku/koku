@@ -436,6 +436,22 @@ class SourcesSerializerTests(IamTestCase):
                 "billing_source": {"data_source": {"storage_account": "bar"}},
                 "exception": True,
             },
+            {
+                "provider_type": Provider.PROVIDER_GCP,
+                "billing_source": {"data_source": {"dataset": "test_dataset", "table_id": "test_table_id"}},
+                "exception": False,
+            },
+            {
+                "provider_type": Provider.PROVIDER_GCP,
+                "billing_source": {"data_source": {"dataset": "test_dataset"}},
+                "exception": False,
+            },
+            {
+                "provider_type": Provider.PROVIDER_GCP,
+                "billing_source": {"data_source": {"table_id": "test_table_id"}},
+                "exception": True,
+            },
+            {"provider_type": Provider.PROVIDER_GCP, "billing_source": {}, "exception": True},
         ]
 
         for test in test_matrix:
