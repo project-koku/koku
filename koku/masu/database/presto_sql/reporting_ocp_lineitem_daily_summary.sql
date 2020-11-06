@@ -91,7 +91,7 @@ VALUES (
     uuid(),
     now(),
     'reporting_ocpusagelineitem_daily_summary',
-    'where usage start >= '{{start_date}}'::date ' ||
+    'where usage_start >= '{{start_date}}'::date ' ||
       'and usage_start <= '{{end_date}}'::date ' ||
       'and cluster_id = '{{cluster_id}}' ' ||
       'and data_source = ''Pod'''
