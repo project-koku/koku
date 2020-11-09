@@ -83,6 +83,8 @@ def _process_report_file(schema_name, provider, report_dict):
             stats_recorder.clear_last_started_datetime()
         raise processing_error
     except NotImplementedError as err:
+        with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
+            stats_recorder.log_last_completed_datetime()
         raise err
 
     with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
