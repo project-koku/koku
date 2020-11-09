@@ -380,7 +380,7 @@ class DisableCSRF(MiddlewareMixin):
 class AccountEnhancedMetrics(Metrics):
     def register_metric(self, metric_cls, name, documentation, labelnames=(), **kwargs):
         if name in EXTENDED_METRICS:
-            labelnames += ("account",)
+            labelnames.extend(("account",))
         return super().register_metric(metric_cls, name, documentation, labelnames=labelnames, **kwargs)
 
 
