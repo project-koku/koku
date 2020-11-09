@@ -466,7 +466,7 @@ class ProviderSerializerTest(IamTestCase):
         self.assertEqual(e.exception.status_code, 400)
         self.assertEqual(
             str(e.exception.detail["billing_source"]["data_source"]["provider.data_source"][0]),
-            "One or more required fields is invalid/missing. Required fields are ['dataset', 'table_id']",
+            "One or more required fields is invalid/missing. Required fields are ['dataset']",
         )
 
     def test_create_gcp_provider_validate_report_prefix_too_long(self):
