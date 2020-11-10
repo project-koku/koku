@@ -176,6 +176,13 @@ def get_report_files(
             WorkerCache().remove_task_from_cache(cache_key)
             return None
 
+        report_meta = {
+            "schema_name": schema_name,
+            "provider_type": provider_type,
+            "provider_uuid": provider_uuid,
+            "manifest_id": report_dict.get("manifest_id"),
+        }
+
         try:
             stmt = (
                 f"Processing starting:\n"
@@ -191,13 +198,6 @@ def get_report_files(
             report_dict["provider_type"] = provider_type
 
             _process_report_file(schema_name, provider_type, report_dict)
-
-            report_meta = {
-                "schema_name": schema_name,
-                "provider_type": provider_type,
-                "provider_uuid": provider_uuid,
-                "manifest_id": report_dict.get("manifest_id"),
-            }
 
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
