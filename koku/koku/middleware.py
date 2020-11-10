@@ -378,6 +378,8 @@ class DisableCSRF(MiddlewareMixin):
 
 
 class AccountEnhancedMetrics(Metrics):
+    """A metric with an account label."""
+
     def register_metric(self, metric_cls, name, documentation, labelnames=(), **kwargs):
         if name in EXTENDED_METRICS:
             labelnames.extend(("account",))
@@ -385,10 +387,14 @@ class AccountEnhancedMetrics(Metrics):
 
 
 class AccountEnhancedMetricsBeforeMiddleware(PrometheusBeforeMiddleware):
+    """Set the metric class for account enhanced in before middlemware."""
+
     metrics_cls = AccountEnhancedMetrics
 
 
 class AccountEnhancedMetricsAfterMiddleware(PrometheusAfterMiddleware):
+    """Add specific account label to metrics on API calls."""
+
     metrics_cls = AccountEnhancedMetrics
 
     def label_metric(self, metric, request, response=None, **labels):
