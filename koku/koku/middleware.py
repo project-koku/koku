@@ -395,10 +395,10 @@ class AccountEnhancedMetricsAfterMiddleware(PrometheusAfterMiddleware):
         new_labels = labels
         if metric._name in EXTENDED_METRICS:
             account = "unknown"
-            identity_header = request.user.identity_header.get("decoded", {})
+            identity_header = request.user.identity_header
             if identity_header:
                 try:
-                    account = identity_header.get("identity", {}).get("account_number", "unknown")
+                    account = identity_header.get("decoded", {}).get("identity", {}).get("account_number", "unknown")
                 except ValueError:
                     pass
             new_labels = {"account": account}
