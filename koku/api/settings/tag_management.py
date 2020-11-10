@@ -50,20 +50,20 @@ obtainTagKeysProvidersParams = {
         "tag_view": OCPTagView,
         "query_handler": OCPTagQueryHandler,
         "enabled_tag_keys": OCPEnabledTagKeys,
-    }
+    },
+    "aws": {
+        "provider": Provider.PROVIDER_AWS,
+        "title": "Amazon Web Services tags",
+        "leftLabel": "Available tags",
+        "rightLabel": "Tags for reporting",
+        "tag_view": AWSTagView,
+        "query_handler": AWSTagQueryHandler,
+        "enabled_tag_keys": AWSEnabledTagKeys,
+    },
 }
 if settings.DEVELOPMENT:
     obtainTagKeysProvidersParams.update(
         {
-            "aws": {
-                "provider": Provider.PROVIDER_AWS,
-                "title": "Amazon Web Services tags",
-                "leftLabel": "Available tags",
-                "rightLabel": "Tags for reporting",
-                "tag_view": AWSTagView,
-                "query_handler": AWSTagQueryHandler,
-                "enabled_tag_keys": AWSEnabledTagKeys,
-            },
             "azure": {
                 "provider": Provider.PROVIDER_AZURE,
                 "title": "Azure tags",
@@ -72,7 +72,7 @@ if settings.DEVELOPMENT:
                 "tag_view": AzureTagView,
                 "query_handler": AzureTagQueryHandler,
                 "enabled_tag_keys": AzureEnabledTagKeys,
-            },
+            }
         }
     )
 
