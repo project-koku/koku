@@ -148,12 +148,19 @@ class TagRateSerializer(serializers.Serializer):
             raise serializers.ValidationError(err_msg)
         validated_rates = []
         true_defaults = []
+        check_duplicate_values = []
         for tag_value in tag_values:
             serializer = TagRateValueSerializer(data=tag_value)
             serializer.is_valid(raise_exception=True)
             is_default = tag_value.get("default")
             if is_default in [True, "true", "True"]:
                 true_defaults.append(is_default)
+            value = tag_value.get("tag_value")
+            if value in check_duplicate_values:
+                err_msg = f"Duplicate tag_value ({value})."
+                raise serializers.ValidationError(err_msg)
+            else:
+                check_duplicate_values.append(value)
             validated_rates.append(serializer.validated_data)
         if len(true_defaults) > 1:
             err_msg = "Only one tag_value per tag_key can be marked as a default."
@@ -185,7 +192,7 @@ class RateSerializer(serializers.Serializer):
     cost_type = serializers.ChoiceField(choices=metric_constants.COST_TYPE_CHOICES)
     description = serializers.CharField(allow_blank=True, max_length=100, required=False)
     tiered_rates = serializers.ListField(required=False)
-    tag_rates = serializers.ListField(required=False)
+    tag_rates = serializers.DictField(required=False)
 
     @property
     def metric_map(self):
@@ -261,14 +268,13 @@ class RateSerializer(serializers.Serializer):
             RateSerializer._validate_no_tier_gaps(sorted_tiers)
             RateSerializer._validate_no_tier_overlaps(sorted_tiers)
 
-    def validate_tag_rates(self, tag_rates):
+    def validate_tag_rates(self, tag_rate):
         """Run validation for rates."""
-        validated_rates = []
-        for rate in tag_rates:
-            serializer = TagRateSerializer(data=rate)
+        if tag_rate:
+            serializer = TagRateSerializer(data=tag_rate)
             serializer.is_valid(raise_exception=True)
-            validated_rates.append(serializer.validated_data)
-        return validated_rates
+            return serializer.validated_data
+        return tag_rate
 
     def validate_tiered_rates(self, tiered_rates):
         """Force validation of tiered rates."""
@@ -293,7 +299,7 @@ class RateSerializer(serializers.Serializer):
     def validate(self, data):
         """Validate that a rate must be defined."""
         tiered_rates = self.validate_tiered_rates(data.get("tiered_rates", []))
-        tag_rates = self.validate_tag_rates(data.get("tag_rates", []))
+        tag_rates = self.validate_tag_rates(data.get("tag_rates", {}))
         if tiered_rates:
             data["tiered_rates"] = tiered_rates
         if tag_rates:
@@ -307,10 +313,10 @@ class RateSerializer(serializers.Serializer):
         data["cost_type"] = self.validate_cost_type(data.get("metric").get("name"), data.get("cost_type"))
 
         if any(data.get(rate_key) is not None for rate_key in self.RATE_TYPES):
-            if tiered_rates == [] and tag_rates == []:
-                error_msg = f"{rate_keys_str} cannot be an empty list"
+            if tiered_rates == [] and tag_rates == {}:
+                error_msg = f"{rate_keys_str} cannot be empty."
                 raise serializers.ValidationError(error_msg)
-            elif tiered_rates != [] and tag_rates != []:
+            elif tiered_rates != [] and tag_rates != {}:
                 error_msg = f"Set either '{self.RATE_TYPES[0]}' or '{self.RATE_TYPES[1]}' but not both"
                 raise serializers.ValidationError(error_msg)
             elif tiered_rates is not None and tiered_rates != []:
@@ -353,13 +359,12 @@ class RateSerializer(serializers.Serializer):
             out.update({"tiered_rates": tiered_rates, "cost_type": rate_obj.get("cost_type")})
             return out
 
-        tag_rates = rate_obj.get("tag_rates", [])
-        if tag_rates:
-            for rate in tag_rates:
-                tag_values = rate.get("tag_values", [])
-                for tag_value in tag_values:
-                    TagRateSerializer._convert_to_decimal(tag_value)
-            out.update({"tag_rates": tag_rates, "cost_type": rate_obj.get("cost_type")})
+        tag_rate = rate_obj.get("tag_rates", {})
+        if tag_rate:
+            tag_values = tag_rate.get("tag_values", [])
+            for tag_value in tag_values:
+                TagRateSerializer._convert_to_decimal(tag_value)
+            out.update({"tag_rates": tag_rate, "cost_type": rate_obj.get("cost_type")})
         return out
 
     def to_internal_value(self, data):
@@ -420,23 +425,27 @@ class CostModelSerializer(serializers.Serializer):
         return internal_map
 
     @staticmethod
-    def _validate_tag_rates_one_metric_per_cost_type(tag_rate_list):
-        """Validates that the tag rates is only allowed to have one metric per cost type."""
+    def _validate_one_unique_tag_key_per_metric_per_cost_type(tag_rate_list):
+        """Validates that the tag rates has one unique tag_key per metric per cost_type."""
         tag_metrics = dict()
         for cost_type in metric_constants.COST_TYPE_CHOICES:
             cost_type = cost_type[0]
-            tag_metrics[cost_type] = []
+            tag_metrics[cost_type] = {}
         for rate in tag_rate_list:
             rate_metric_name = rate.get("metric", {}).get("name")
             rate_cost_type = rate.get("cost_type")
-            if rate_metric_name in tag_metrics[rate_cost_type]:
-                error_msg = (
-                    "tag_rates must not have duplicate metrics for the same cost type. "
-                    f"Metric {rate_metric_name} is duplicated for cost type {rate_cost_type}."
-                )
-                raise serializers.ValidationError(error_msg)
+            rate_tag_key = rate.get("tag_rates", {}).get("tag_key")
+            tag_keys = tag_metrics[rate_cost_type].get(rate_metric_name)
+            err_msg = (
+                f"Duplicate tag_key ({rate_tag_key}) per cost_type ({rate_cost_type}) for metric ({rate_metric_name})."
+            )
+            if tag_keys:
+                if rate_tag_key in tag_keys:
+                    raise serializers.ValidationError(err_msg)
+                else:
+                    tag_keys.append(rate_tag_key)
             else:
-                tag_metrics[rate_cost_type].append(rate_metric_name)
+                tag_metrics[rate_cost_type][rate_metric_name] = [rate_tag_key]
 
     def validate(self, data):
         """Validate that the source type is acceptable."""
@@ -485,7 +494,7 @@ class CostModelSerializer(serializers.Serializer):
             if rate.get("tag_rates"):
                 tag_rates.append(rate)
         if tag_rates:
-            CostModelSerializer._validate_tag_rates_one_metric_per_cost_type(tag_rates)
+            CostModelSerializer._validate_one_unique_tag_key_per_metric_per_cost_type(tag_rates)
         return validated_rates
 
     def create(self, validated_data):

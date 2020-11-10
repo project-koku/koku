@@ -319,7 +319,7 @@ class CostModelDBAccessorTagRatesTest(MasuTestCase):
                     val_dict = {"tag_value": tag_value_name, "value": value, "default": default}
                     tag_vals_list.append(val_dict)
                 tag_key_dict = {"tag_key": tag_key, "tag_values": tag_vals_list}
-                rate = {"metric": {"name": metric_name}, "tag_rates": [tag_key_dict], "cost_type": cost_type}
+                rate = {"metric": {"name": metric_name}, "tag_rates": tag_key_dict, "cost_type": cost_type}
                 rates.append(rate)
                 if mapping.get(metric_name):
                     existing_dict = mapping.get(metric_name)
