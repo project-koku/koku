@@ -407,6 +407,28 @@ BEGIN
         EXECUTE object_rec.trigger_def;
     END LOOP;
 
+    /*
+     *  Create rules
+     */
+    IF _verbose
+    THEN
+        RAISE INFO 'Creating rules on objects in "%"', dest_schema;
+    END IF;
+    FOR object_rec IN
+        SELECT tablename,
+               rulename,
+               replace(definition, source_schema || '.', dest_schema || '.') as "rule_def"
+          FROM pg_rules
+         WHERE schemaname = source_schema
+    LOOP
+        IF _verbose
+        THEN
+            RAISE INFO '    RULE "%" on "%"', object_rec.rulename, object_rec.tablename;
+        END IF;
+        EXECUTE object_rec.rule_def;
+    END LOOP;
+
+
     RETURN true;
 END;
 $$ LANGUAGE plpgsql;

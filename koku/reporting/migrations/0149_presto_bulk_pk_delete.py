@@ -4,7 +4,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0147_auto_20201028_1305")]
+    dependencies = [("reporting", "0148_presto_delete_log")]
 
     operations = [
         migrations.RunSQL(

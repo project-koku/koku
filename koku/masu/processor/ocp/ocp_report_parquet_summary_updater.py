@@ -101,6 +101,7 @@ class OCPReportParquetSummaryUpdater:
             (str, str) A start date and end date.
 
         """
+        LOG.critical("Executing :: OCPReportParquetSummaryUpdater.update_summary_tables()")
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
         report_periods = None
@@ -135,7 +136,9 @@ class OCPReportParquetSummaryUpdater:
             #     msg = f"Cannot determine report_period_id from date range {start} - {end}"
             #     LOG.error(msg)
             #     raise ValueError(msg)
-
+            LOG.critical(
+                f"Calling accessor.populate_line_item_daily_summary_table_presto({start_date},{end_date},{current_report_period_id},{self._cluster_id},{self._cluster_alias},{self._provider.uuid})"  # noqa: E501
+            )
             accessor.populate_line_item_daily_summary_table_presto(
                 start_date,
                 end_date,
@@ -147,6 +150,9 @@ class OCPReportParquetSummaryUpdater:
             # accessor.populate_storage_line_item_daily_summary_table_presto(
             #     start_date, end_date, current_report_period_id, self._cluster_id, self._cluster_alias
             # )
+            LOG.critical(
+                f"Calling accessor.populate_pod_label_summary_table_presto({report_period_ids}, {start_date},{end_date},{self._provider.uuid})"  # noqa: E501
+            )
             accessor.populate_pod_label_summary_table_presto(
                 report_period_ids, start_date, end_date, self._provider.uuid
             )

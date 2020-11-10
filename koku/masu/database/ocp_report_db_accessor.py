@@ -538,6 +538,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        LOG.critical("001 :: Executing :: OCPReportDBAccessor.populate_line_item_daily_summary_table_presto()")
         # Cast start_date to date
         if isinstance(start_date, str):
             start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
@@ -548,7 +549,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocp_lineitem_daily_summary.sql")
         tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
-        months = tuple(str(m) for m in sorted(set(range(start_date.month, end_date.month + 1))))
         summary_sql_params = {
             "uuid": str(uuid.uuid4()).replace("-", "_"),
             "start_date": start_date,
@@ -557,9 +557,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
             "schema": self.schema,
-            "source": source,
+            "source": str(source),
             "year": str(start_date.year),
-            "months": f"('{months[0]}')" if len(months) == 1 else months,
+            "months": tuple(str(m) for m in sorted(set(range(start_date.month, end_date.month + 1)))),
         }
 
         presto_conn = self._prestodb_connect(schema=self.schema)
@@ -580,10 +580,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def populate_pod_label_summary_table_presto(self, report_period_ids, start_date, end_date, source):
         """Populate the line item aggregated totals data table."""
-
+        LOG.critical("002 :: Executing :: OCPReportDBAccessor.populate_pod_label_summary_table_presto()")
         agg_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagepodlabel_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        months = tuple(str(m) for m in sorted(set(range(start_date.month, end_date.month + 1))))
         agg_sql_params = {
             "uuid": uuid.uuid4(),
             "schema": self.schema,
@@ -592,9 +591,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             ),
             "start_date": start_date,
             "end_date": end_date,
-            "source": source,
+            "source": str(source),
             "year": start_date.year,
-            "months": f"('{months[0]}')" if len(months) == 1 else months,
+            "months": tuple(str(m) for m in sorted(set(range(start_date.month, end_date.month + 1)))),
         }
 
         presto_conn = self._prestodb_connect(schema=self.schema)
@@ -612,6 +611,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def populate_volume_label_summary_table_presto(self, report_period_ids):
         """Populate the OCP volume label summary table."""
+        LOG.critical("002 :: WHY ARE YOU CALLING A METHOD THAT DOES NOTHING????")
         return None
         # table_name = OCP_REPORT_TABLE_MAP["volume_label_summary"]
 

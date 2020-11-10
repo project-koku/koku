@@ -51,7 +51,7 @@ SELECT pl.interval_start,
                         FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items opu
                        WHERE opu.source = {{source}}
                          AND opu.year = {{year}}
-                         AND opu.month in {{months}}
+                         AND opu.month in {{months | inclause}}
                          AND opu.interval_start >= TIMESTAMP {{start_date}}
                          AND opu.interval_start < date_add('second', 1, TIMESTAMP {{end_date}})
                        UNION
@@ -65,7 +65,7 @@ SELECT pl.interval_start,
                          AND opu1.node = nl.node
                        WHERE nl.source = {{source}}
                          AND nl.year = {{year}}
-                         AND nl.month in {{months}}
+                         AND nl.month in {{months | inclause}}
                          AND nl.interval_start >= TIMESTAMP {{start_date}}
                          AND nl.interval_start < date_add('second', 1, TIMESTAMP {{end_date}})
                          AND nl.node_labels != '{}'
@@ -107,7 +107,7 @@ SELECT vl.interval_start,
                          AND opu.pod = ops.pod
                        WHERE ops.source = {{source}}
                          AND ops.year = {{year}}
-                         AND ops.month in {{months}}
+                         AND ops.month in {{months | inclause}}
                          AND ops.interval_start >= TIMESTAMP {{start_date}}
                          AND ops.interval_start < date_add('second', 1, TIMESTAMP {{end_date}})
                        UNION
@@ -122,7 +122,7 @@ SELECT vl.interval_start,
                          AND opu.pod = opsc.pod
                        WHERE opsc.source = {{source}}
                          AND opsc.year = {{year}}
-                         AND opsc.month in {{months}}
+                         AND opsc.month in {{months | inclause}}
                          AND opsc.interval_start >= TIMESTAMP {{start_date}}
                          AND opsc.interval_start < date_add('second', 1, TIMESTAMP {{end_date}})
                        UNION
@@ -139,7 +139,7 @@ SELECT vl.interval_start,
                          AND ops1.pod = opu1.pod
                        WHERE nl.source = {{source}}
                          AND nl.year = {{year}}
-                         AND nl.month in {{months}}
+                         AND nl.month in {{months | inclause}}
                          AND nl.interval_start >= TIMESTAMP {{start_date}}
                          AND nl.interval_start < date_add('second', 1, TIMESTAMP {{end_date}})
                          AND nl.node_labels != '{}'

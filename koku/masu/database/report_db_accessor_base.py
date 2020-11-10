@@ -28,6 +28,8 @@ import sqlparse
 from dateutil.relativedelta import relativedelta
 from django.db import connection
 from django.db import transaction
+from jinjasql.core import JinjaSqlException
+from prestodb.exceptions import PrestoQueryError
 from tenant_schemas.utils import schema_context
 
 from koku.presto_database import sql_mogrify
@@ -391,8 +393,11 @@ class ReportDBAccessorBase(KokuDBAccess):
             list : Results of each successful SQL statement executed.
         """
         results = []
+        stmt_count = 0
         for p_stmt in sqlparse.split(sql):
+            stmt_count = stmt_count + 1
             p_stmt = str(p_stmt).strip()
+            LOG.critical(f"{stmt_count} Presto SQL statement exists? {bool(p_stmt)}")
             if p_stmt:
                 # A semicolon statement terminator is invalid in the Presto dbapi interface
                 if p_stmt.endswith(";"):
@@ -400,7 +405,12 @@ class ReportDBAccessorBase(KokuDBAccess):
 
                 # This is typically for jinjasql templated sql
                 if preprocessor:
-                    stmt, params = preprocessor(p_stmt, bind_params)
+                    try:
+                        stmt, params = preprocessor(p_stmt, bind_params)
+                    except JinjaSqlException as e:
+                        LOG.error(f"Preprocessor Error : {str(e)}")
+                        LOG.error(f"Statement template : {p_stmt}")
+                        LOG.error(f"Parameters : {bind_params}")
                 else:
                     stmt, params = p_stmt, bind_params
 
@@ -408,9 +418,16 @@ class ReportDBAccessorBase(KokuDBAccess):
                 # prestodb.Cursor.execute does not use parameters.
                 # The sql_mogrify function will do any needed parameter substitution
                 # and only returns the SQL with parameters formatted inline.
-                presto_cur.execute(sql_mogrify(stmt, params))
-                results.extend(presto_cur.fetchall())
+                LOG.critical(f"{stmt_count} Executing statement")
+                presto_stmt = sql_mogrify(stmt, params)
+                try:
+                    presto_cur.execute(presto_stmt)
+                    results.extend(presto_cur.fetchall())
+                except PrestoQueryError as e:
+                    LOG.error(f"Presto Query Error : {str(e)}{os.linesep}{presto_stmt}")
+                    raise e
 
+        LOG.critical(f"Results: {results}")
         return results
 
     def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None):

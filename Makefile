@@ -385,14 +385,14 @@ docker-presto-setup:
 	@$(SED_IN_PLACE) -e 's/DATABASE_PASSWORD/$(shell echo $(or $(DATABASE_PASSWORD),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
 
 docker-presto-cleanup:
-	@$(PREFIX) rm -fr ./testing/hadoop ./testing/metastore ./testing/presto
+	$(PREFIX) rm -fr ./testing/hadoop ./testing/metastore ./testing/presto
 	make clear-testing
 
 docker-presto-up: docker-metastore-setup docker-presto-setup
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d
 
 docker-presto-down:
-	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down
+	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down -v
 	make docker-presto-cleanup
 
 ### Source targets ###
