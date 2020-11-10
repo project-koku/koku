@@ -19,7 +19,8 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__label_summary_gather_{{uuid | sqlsafe}}
     node varchar,
     label_key varchar,
     label_value varchar
-);
+)
+;
 
 
 /*
@@ -160,7 +161,8 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__label_summary_{{uuid | sqlsafe}} (
     node varchar,
     label_key varchar,
     label_value varchar
-);
+)
+;
 
 INSERT INTO hive.{{schema | sqlsafe}}.__label_summary_{{uuid | sqlsafe}} (
     report_period_id,
@@ -181,7 +183,7 @@ SELECT DISTINCT
        lsg.label_value
   FROM hive.{{schema | sqlsafe}}.__label_summary_gather_{{uuid | sqlsafe}} lsg
   JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagereportperiod prp
-    ON prp.id in {{report_period_ids}}
+    ON prp.id in {{report_period_ids | inclause}}
    AND lsg.interval_start >= prp.report_period_start
    AND lsg.interval_start <= prp.report_period_end
 ;
@@ -277,7 +279,7 @@ SELECT uuid() as "uuid",
                   node,
                   label_key as "key",
                   array_agg(label_value) as "values"
-             FROM hive.{{schema | sqlsafe}}.__label_summary
+             FROM hive.{{schema | sqlsafe}}.__label_summary_{{uuid | sqlsafe}}
             GROUP
                BY 1, 2, 3, 4
        ) as "als"
@@ -395,7 +397,7 @@ SELECT uuid() as "uuid",
                   array_agg(distinct cluster_alias) as "cluster_aliases",
                   array_agg(distinct namespace) as "namespaces",
                   array_agg(distinct node) as "nodes"
-             FROM hive.{{schema | sqlsafe}}.__label_summary
+             FROM hive.{{schema | sqlsafe}}.__label_summary_{{uuid | sqlsafe}}
             GROUP
                BY label_key,
                   label_value

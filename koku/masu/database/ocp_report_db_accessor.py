@@ -581,18 +581,16 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     def populate_pod_label_summary_table_presto(self, report_period_ids, start_date, end_date, source):
         """Populate the line item aggregated totals data table."""
         LOG.critical("002 :: Executing :: OCPReportDBAccessor.populate_pod_label_summary_table_presto()")
-        agg_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagepodlabel_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocp_usage_label_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {
-            "uuid": uuid.uuid4(),
+            "uuid": str(uuid.uuid4()).replace("-", "_"),
             "schema": self.schema,
-            "report_period_ids": (
-                f"({report_period_ids[0]})" if len(report_period_ids) == 1 else tuple(report_period_ids)
-            ),
+            "report_period_ids": tuple(report_period_ids),
             "start_date": start_date,
             "end_date": end_date,
             "source": str(source),
-            "year": start_date.year,
+            "year": str(start_date.year),
             "months": tuple(str(m) for m in sorted(set(range(start_date.month, end_date.month + 1)))),
         }
 
