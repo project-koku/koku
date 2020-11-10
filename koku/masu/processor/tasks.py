@@ -570,7 +570,7 @@ SELECT s.relname as "table_name",
                 table_name, n_live_tup, table_options = table
                 try:
                     table_scale_option = Decimal(table_options.get("autovacuum_vacuum_scale_factor", no_scale))
-                except InvalidOperation:
+                except (InvalidOperation, AttributeError):
                     table_scale_option = no_scale
 
                 for threshold, scale in scale_table:
