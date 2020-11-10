@@ -381,6 +381,7 @@ class AccountEnhancedMetrics(Metrics):
     """A metric with an account label."""
 
     def register_metric(self, metric_cls, name, documentation, labelnames=(), **kwargs):
+        """Override the metric registration to include an account label."""
         if name in EXTENDED_METRICS:
             labelnames.extend(("account",))
         return super().register_metric(metric_cls, name, documentation, labelnames=labelnames, **kwargs)
@@ -398,6 +399,7 @@ class AccountEnhancedMetricsAfterMiddleware(PrometheusAfterMiddleware):
     metrics_cls = AccountEnhancedMetrics
 
     def label_metric(self, metric, request, response=None, **labels):
+        """Add an account label to a prometheus metric."""
         new_labels = labels
         if metric._name in EXTENDED_METRICS:
             account = "unknown"
