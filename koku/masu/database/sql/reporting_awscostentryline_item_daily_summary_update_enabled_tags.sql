@@ -38,6 +38,14 @@ cte_joined_tags AS (
         FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary AS lids
         LEFT JOIN cte_filtered_tags AS ft
             ON lids.uuid = ft.uuid
+        WHERE lids.usage_start >= date({{start_date}})
+            AND lids.usage_start <= date({{end_date}})
+            {% if bill_ids %}
+            AND lids.cost_entry_bill_id IN (
+                {%- for bill_id in bill_ids  -%}
+                    {{bill_id}}{% if not loop.last %},{% endif %}
+                {%- endfor -%})
+            {% endif %}
     ) AS f
 )
 UPDATE {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary AS lids
