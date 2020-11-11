@@ -1,36 +1,51 @@
 import datetime
 import uuid
 
-import jinjasql
-from requests.exceptions import HTTPError
+from jinjasql import JinjaSql
+from prestodb.dbapi import Connection
+from prestodb.dbapi import Cursor
 
 from . import presto_database as kpdb
 from api.iam.test.iam_test_case import IamTestCase
 
 
-class TestPrestoDatabaseUtils(IamTestCase):
-    def test_bad_conninfo(self):
-        """
-        Test to make sure that bad presto connection args will throw an exception
-        """
-        conn = kpdb.connect(port=19999, host="no/host/here!", schema="eek")
-        cur = conn.cursor()
-        with self.assertRaises(HTTPError):
-            cur.execute("show tables")
+class FakePrestoCur(Cursor):
+    def __init__(self, *args, **kwargs):
+        pass
 
+    def execute(self, *args, **kwargs):
+        pass
+
+    def fetchall(self):
+        return [["eek"]]
+
+
+class FakePrestoConn(Connection):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def cursor(self):
+        return FakePrestoCur()
+
+    def rollback(self):
+        pass
+
+    def commit(self):
+        pass
+
+    def close(self):
+        pass
+
+
+class TestPrestoDatabaseUtils(IamTestCase):
     def test_connect(self):
         """
-        Test connection to presto
+        Test connection to presto returns presto.dbapi.Connection instance
         """
-        conn = kpdb.connect(schema=self.schema_name)
-        cur = conn.cursor()
-        exc = None
-        try:
-            cur.execute("show tables")
-        except Exception as e:
-            exc = e
-
-        self.assertIsNone(exc)
+        conn = kpdb.connect(schema=self.schema_name, catalog="hive")
+        self.assertTrue(isinstance(conn, Connection))
+        self.assertEqual(conn.schema, self.schema_name)
+        self.assertEqual(conn.catalog, "hive")
 
     def test_sql_mogrify(self):
         """
@@ -69,7 +84,10 @@ class TestPrestoDatabaseUtils(IamTestCase):
             self.assertEqual(test.sql_verify, test.sql_result)
 
     def test_execute(self):
-        conn = kpdb.connect(schema=self.schema_name)
+        """
+        Test that a successful call to execute will return a list of results
+        """
+        conn = FakePrestoConn()
         exc = None
         try:
             res = kpdb.execute(conn, """show tables""")
@@ -77,8 +95,12 @@ class TestPrestoDatabaseUtils(IamTestCase):
             exc = e
         self.assertIsNone(exc)
         self.assertTrue(isinstance(res, list))
+        self.assertEqual(1, len(res))
 
     def test_executescript(self):
+        """
+        Test execution of a buffer containing multiple statements
+        """
         sqlscript = """
 drop table if exists hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}};
 create table hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}}
@@ -98,12 +120,36 @@ select t_data from hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}} where i_d
 
 drop table if exists hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}};
 """
-        conn = kpdb.connect(schema=self.schema_name)
+        conn = FakePrestoConn()
         params = {
             "uuid": str(uuid.uuid4()).replace("-", "_"),
             "schema": self.schema_name,
             "int_data": 255,
             "txt_data": "This is a test",
         }
-        results = kpdb.executescript(conn, sqlscript, params=params, preprocessor=jinjasql.JinjaSql().prepare_query)
-        self.assertEqual(results, [[True], [True], [1], [1], ["This is a test"], [True]])
+        results = kpdb.executescript(conn, sqlscript, params=params, preprocessor=JinjaSql().prepare_query)
+        self.assertEqual(results, [["eek"], ["eek"], ["eek"], ["eek"], ["eek"], ["eek"]])
+
+    def test_executescript_err(self):
+        """
+        Test executescript will raise a preprocessor error
+        """
+        conn = FakePrestoConn()
+        sqlscript = """
+select * from eek where val1 in {{val_list}};
+"""
+        params = {"val_list": (1, 2, 3, 4, 5)}
+        with self.assertRaises(kpdb.PreprocessStatementError):
+            kpdb.executescript(conn, sqlscript, params=params, preprocessor=JinjaSql().prepare_query)
+
+    def test_executescript_no_preprocess(self):
+        """
+        Test executescript will raise a preprocessor error
+        """
+        sqlscript = """
+select x from y;
+select a from b;
+"""
+        conn = FakePrestoConn()
+        res = kpdb.executescript(conn, sqlscript)
+        self.assertEqual(res, [["eek"], ["eek"]])

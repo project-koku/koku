@@ -15,18 +15,42 @@ NAMED_VARS = re.compile(r"%(.+)s")
 EOT = re.compile(r",\s*\)$")  # pylint: disable=anomalous-backslash-in-string
 
 
-def type_transform(v):
+class PreprocessStatementError(Exception):
+    pass
+
+
+def _type_transform(v):
+    """
+    Simple transform to change various Python types to a PrestoSQL token for
+    insert into a statement. No casts are emitted.
+    Params:
+        v (various) : Query parameter value
+    Returns:
+        str : Proper string representation of value for a PrestoSQL query.
+    """
     if v is None:
+        # convert None to keyword null
         return "null"
     elif isinstance(v, (int, float, Decimal, complex, bool, list)):
+        # Convert to string without surrounding quotes making a bare token
         return str(v)
     elif isinstance(v, tuple):
+        # Convert to string without surrounding quotes making a bare token
+        # Also convert (val,) to (val) for length 1 tuples
         return EOT.sub(")", str(v))
     else:
+        # Convert to string *with* surrounding single-quote characters
         return f"'{str(v)}'"
 
 
-def has_params(sql):
+def _has_params(sql):
+    """
+    Detect parameter substitution tokens in a PrestoSQL statement
+    Params:
+        sql (str) : PrestoSQL statement
+    Returns:
+        bool : True if substitution tokens found else False
+    """
     return bool(POSITIONAL_VARS.search(sql)) or bool(NAMED_VARS.search(sql))
 
 
@@ -34,16 +58,19 @@ def sql_mogrify(sql, params=None):
     """
     Cheap version of psycopg2.Cursor.mogrify method. Does not inject type casting.
     None type will be converted to "null"
-    int, float, Decimal, complex, bool types will be converted to string
+    int, float, Decimal, complex, bool, list, tuple types will be converted to string
     All other types will be converted to strings surrounded by single-quote characters
     Params:
         sql (str) : SQL formatted for the driver using %s or %(name)s placeholders
+        params (list, tuple, dict) : Parameter values
+    Returns:
+        str : SQL statement with parameter values substituted
     """
-    if params is not None and has_params(sql):
+    if params is not None and _has_params(sql):
         if isinstance(params, dict):
-            mog_params = {k: type_transform(v) for k, v in params.items()}
+            mog_params = {k: _type_transform(v) for k, v in params.items()}
         else:
-            mog_params = tuple(type_transform(p) for p in params)
+            mog_params = tuple(_type_transform(p) for p in params)
 
         return sql % mog_params
     else:
@@ -73,6 +100,40 @@ def connect(**connect_args):
     return conn
 
 
+def _fetchall(presto_cur):
+    """
+    Wrapper around the prestodb.dbapi.Cursor.fetchall() method
+    Params:
+        presto_cur (presto.dbapi.Cursor) : Presto cursor that has already called the execute method
+    Returns:
+        list : Results of cursor execution and results fetch
+    """
+    return presto_cur.fetchall()
+
+
+def _cursor(presto_conn):
+    """
+    Wrapper around the prestodb.dbapi.Connection.cursor() method
+    Params:
+        presto_conn (prestodb.dbapi.Connection) Active presto connection
+    Returns:
+        prestodb.dbapi.Cursor : Cursor for the connection
+    """
+    return presto_conn.cursor()
+
+
+def _execute(presto_cur, presto_stmt):
+    """
+    Wrapper around the prestodb.dbapi.Cursor.execute() method
+    Params:
+        presto_cur (prestodb.dbapi.Cursor) presto connection cursor
+    Returns:
+        prestodb.dbapi.Cursor : Cursor after execute method called
+    """
+    presto_cur.execute(presto_stmt)
+    return presto_cur
+
+
 def execute(presto_conn, sql, params=None):
     """
     Pass in a buffer of one or more semicolon-terminated prestodb SQL statements and it
@@ -91,11 +152,11 @@ def execute(presto_conn, sql, params=None):
     # The sql_mogrify function will do any needed parameter substitution
     # and only returns the SQL with parameters formatted inline.
     presto_stmt = sql_mogrify(sql, params)
-    presto_cur = presto_conn.cursor()
+    presto_cur = _cursor(presto_conn)
     try:
         LOG.debug(f"Executing PRESTO SQL: {presto_stmt}")
-        presto_cur.execute(presto_stmt)
-        results = presto_cur.fetchall()
+        presto_cur = _execute(presto_cur, presto_stmt)
+        results = _fetchall(presto_cur)
     except PrestoQueryError as e:
         LOG.error(f"Presto Query Error : {str(e)}{os.linesep}{presto_stmt}")
         raise e
@@ -139,9 +200,10 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
                     LOG.error(f"Preprocessor Error ({e.__class__.__name__}) : {str(e)}")
                     LOG.error(f"Statement template : {p_stmt}")
                     LOG.error(f"Parameters : {params}")
-                    raise e
+                    exc_type = e.__class__.__name__
+                    raise PreprocessStatementError(f"{exc_type} :: {e}")
             else:
-                stmt, params = p_stmt, s_params
+                stmt, s_params = p_stmt, params
 
             results.extend(execute(presto_conn, stmt, params=s_params))
 
