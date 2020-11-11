@@ -56,6 +56,7 @@ from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import get_report_files
+from masu.processor.tasks import normalize_table_options
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
@@ -1090,6 +1091,16 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
             self.assertIn(expected, logger.output)
+
+    def test_autovacuum_tune_schema_normalize(self):
+        """Test that the autovacuum tuning runs."""
+        test_matrix = [
+            {"table_options": None, "expected": {}},
+            {"table_options": "{}", "expected": {}},
+            {"table_options": {"foo": "bar"}, "expected": {"foo": "bar"}},
+        ]
+        for test in test_matrix:
+            self.assertEquals(normalize_table_options(test.get("table_options")), test.get("expected"))
 
     def test_autovacuum_tune_schedule(self):
         vh = next(iter(koku_celery.app.conf.beat_schedule["vacuum-schemas"]["schedule"].hour))
