@@ -558,6 +558,7 @@ SELECT s.relname as "table_name",
         scale_table = [[int(e[0]), Decimal(str(e[1]))] for e in autovacuum_settings]
 
     scale_table.sort(key=lambda e: e[0], reverse=True)
+    info_msg = "autovacuum_tune_schema({}) : table: {}; n_live_tup: {}; table_options: {}"
 
     # Execute the scale based on table analyzsis
     with schema_context(schema_name):
@@ -568,6 +569,9 @@ SELECT s.relname as "table_name",
             for table in tables:
                 scale_factor = zero
                 table_name, n_live_tup, table_options = table
+                LOG.info(info_msg.format(schema_name, table_name, n_live_tup, table_options))
+                if not isinstance(table_options, dict):
+                    LOG.warning(f"table_options type = {type(table_options)}")
                 try:
                     table_scale_option = Decimal(table_options.get("autovacuum_vacuum_scale_factor", no_scale))
                 except (InvalidOperation, AttributeError):
