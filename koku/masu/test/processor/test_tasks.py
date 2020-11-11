@@ -315,7 +315,7 @@ class ProcessReportFileTests(MasuTestCase):
             _process_report_file(schema_name, provider, report_dict)
 
         mock_stats_acc.log_last_started_datetime.assert_called()
-        mock_stats_acc.log_last_completed_datetime.assert_not_called()
+        mock_stats_acc.log_last_completed_datetime.assert_called()
         shutil.rmtree(report_dir)
 
     @patch("masu.processor._tasks.process.ReportProcessor")
