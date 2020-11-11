@@ -212,6 +212,38 @@ class SourcesHTTPClient:
 
         raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
 
+    def get_gcp_credentials(self):
+        """Get the GCP credentials from Sources Authentication service."""
+        url = "{}/applications?filter[source_id]={}".format(self._base_url, str(self._source_id))
+
+        r = self._get_network_response(url, self._identity_header, "Unable to GCP credentials")
+        endpoint_response = r.json()
+        if endpoint_response.get("data"):
+            resource_id = endpoint_response.get("data")[0].get("id")
+        else:
+            raise SourcesHTTPClientError(f"Unable to get GCP credentials for Source: {self._source_id}")
+
+        authentications_str = "{}/authentications?[authtype]=project_id&[resource_id]={}"
+        authentications_url = authentications_str.format(self._base_url, str(resource_id))
+        r = self._get_network_response(authentications_url, self._identity_header, "Unable to GCP credentials")
+        authentications_response = r.json()
+        if not authentications_response.get("data"):
+            raise SourcesHTTPClientError(f"Unable to get GCP credentials for Source: {self._source_id}")
+        authentications_id = authentications_response.get("data")[0].get("id")
+
+        authentications_internal_url = "{}/authentications/{}?expose_encrypted_attribute[]=password".format(
+            self._internal_url, str(authentications_id)
+        )
+        r = self._get_network_response(
+            authentications_internal_url, self._identity_header, "Unable to GCP Credentials"
+        )
+        authentications_internal_response = r.json()
+        password = authentications_internal_response.get("password")
+        if password:
+            return {"project_id": password}
+
+        raise SourcesHTTPClientError(f"Unable to get GCP credentials for Source: {self._source_id}")
+
     def get_azure_credentials(self):
         """Get the Azure Credentials from Sources Authentication service."""
         urls = [

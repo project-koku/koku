@@ -511,3 +511,22 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mock_update_usage.assert_called_once_with(
             infrastructure_rates, supplementary_rates, start_date, end_date, self.cluster_id
         )
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_monthly_tag_default_cost")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_tag_update_monthly_cost_supplementary_no_match(self, mock_cost_accessor, mock_update_monthly):
+        """Test that _update_monthly_tag_based_default_cost is not called when there is no rate for the metric"""
+        # using a string instead of an actual rate for the purposes of testing that the function is called
+        mock_cost_accessor.return_value.__enter__.return_value.tag_default_infrastructure_rates = {}
+        mock_cost_accessor.return_value.__enter__.return_value.tag_default_supplementary_rates = {
+            "node_cost_per_month": "a node cost"
+        }
+
+        start_date = "2020-10-01"
+        end_date = "2020-11-01"
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._update_monthly_tag_based_default_cost(start_date, end_date)
+
+        # assert that the Cluster call includes relevant information and the call for node and pvc
+        # do not happen since they did not have a rate included
+        mock_update_monthly.assert_called_once()

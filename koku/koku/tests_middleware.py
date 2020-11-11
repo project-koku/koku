@@ -26,10 +26,14 @@ from cachetools import TTLCache
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db.utils import OperationalError
+from django.test.utils import modify_settings
 from django.test.utils import override_settings
+from django.urls import reverse
+from django_prometheus.testutils import PrometheusTestCaseMixin
 from faker import Faker
 from requests.exceptions import ConnectionError
 from rest_framework import status
+from rest_framework.test import APIClient
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.models import Customer
@@ -37,6 +41,7 @@ from api.iam.models import Tenant
 from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
 from koku import middleware as MD
+from koku.middleware import EXTENDED_METRICS
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
@@ -365,3 +370,28 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         with self.assertLogs(logger="koku.middleware", level=logging.WARNING):
             middleware = IdentityHeaderMiddleware()
             middleware.process_request(mock_request)
+
+
+class AccountEnhancedMiddlewareTest(PrometheusTestCaseMixin, IamTestCase):
+    """Test middleware to add account info to Prometheus API metrics."""
+
+    @modify_settings(
+        MIDDLEWARE={
+            "append": "koku.middleware.AccountEnhancedMetricsAfterMiddleware",
+            "prepend": "koku.middleware.AccountEnhancedMetricsBeforeMiddleware",
+            "remove": [
+                "django_prometheus.middleware.PrometheusBeforeMiddleware",
+                "django_prometheus.middleware.PrometheusAfterMiddleware",
+            ],
+        }
+    )
+    def test_label_metric(self):
+        """Test that the metric comes back with the account label."""
+        url = reverse("reports-openshift-costs")
+        client = APIClient()
+        client.get(url, **self.headers)
+
+        registry = self.saveRegistry()
+        for metric in registry:
+            if metric.name in EXTENDED_METRICS:
+                self.assertIn("account", metric.samples[0].labels)

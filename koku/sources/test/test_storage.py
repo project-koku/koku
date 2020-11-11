@@ -290,6 +290,32 @@ class SourcesStorageTest(TestCase):
                 ),
                 "expected_response": {"operation": "create", "offset": 3},
             },
+            {
+                "provider": MockProvider(
+                    3,
+                    "GCP Provider",
+                    Provider.PROVIDER_GCP,
+                    {"project_id": "test-project"},
+                    {"data_source": {"dataset": "test-dataset", "table_id": "test-tableid"}},
+                    "authheader",
+                    3,
+                    False,
+                ),
+                "expected_response": {"operation": "create", "offset": 3},
+            },
+            {
+                "provider": MockProvider(
+                    3,
+                    "GCP Provider",
+                    Provider.PROVIDER_GCP,
+                    {"project_id": "test-project"},
+                    None,
+                    "authheader",
+                    1,
+                    False,
+                ),
+                "expected_response": {},
+            },
         ]
 
         for test in test_matrix:
