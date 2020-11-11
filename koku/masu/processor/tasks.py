@@ -515,7 +515,7 @@ def autovacuum_tune_schema(schema_name):  # noqa: C901
     table_sql = """
 SELECT s.relname as "table_name",
        s.n_live_tup,
-       coalesce(table_options.options, '{}'::jsonb) as "options"
+       coalesce(table_options.options, '{}'::jsonb)::jsonb as "options"
   FROM pg_stat_user_tables s
   LEFT
   JOIN (
