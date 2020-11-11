@@ -98,7 +98,6 @@ class ReportSummaryUpdater:
             report_summary_updater = (
                 OCPReportParquetSummaryUpdater if settings.ENABLE_PARQUET_PROCESSING else OCPReportSummaryUpdater
             )
-            LOG.critical(f"OCP report_summary_updater class = {report_summary_updater.__name__}")
         else:
             return (None, None)
 

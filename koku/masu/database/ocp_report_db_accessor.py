@@ -33,6 +33,7 @@ from django.db.models.functions import Coalesce
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
+import koku.presto_database as kpdb
 from api.metrics import constants as metric_constants
 from koku.database import JSONBBuildObject
 from masu.config import Config
@@ -538,7 +539,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        LOG.critical("001 :: Executing :: OCPReportDBAccessor.populate_line_item_daily_summary_table_presto()")
         # Cast start_date to date
         if isinstance(start_date, str):
             start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
@@ -562,13 +562,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "months": tuple(str(m) for m in sorted(set(range(start_date.month, end_date.month + 1)))),
         }
 
-        presto_conn = self._prestodb_connect(schema=self.schema)
+        presto_conn = kpdb.connect(schema=self.schema)
         try:
-            self._prestodb_execute(
-                presto_conn,
-                tmpl_summary_sql,
-                bind_params=summary_sql_params,
-                preprocessor=self.jinja_sql.prepare_query,
+            kpdb.executescript(
+                presto_conn, tmpl_summary_sql, params=summary_sql_params, preprocessor=self.jinja_sql.prepare_query
             )
         except Exception as e:
             presto_conn.rollback()
@@ -580,7 +577,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def populate_pod_label_summary_table_presto(self, report_period_ids, start_date, end_date, source):
         """Populate the line item aggregated totals data table."""
-        LOG.critical("002 :: Executing :: OCPReportDBAccessor.populate_pod_label_summary_table_presto()")
         agg_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocp_usage_label_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {
@@ -594,11 +590,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "months": tuple(str(m) for m in sorted(set(range(start_date.month, end_date.month + 1)))),
         }
 
-        presto_conn = self._prestodb_connect(schema=self.schema)
+        presto_conn = kpdb.connect(schema=self.schema)
         try:
-            self._prestodb_execute(
-                presto_conn, agg_sql, bind_params=agg_sql_params, preprocessor=self.jinja_sql.prepare_query
-            )
+            kpdb.executescript(presto_conn, agg_sql, params=agg_sql_params, preprocessor=self.jinja_sql.prepare_query)
         except Exception as e:
             presto_conn.rollback()
             raise e
@@ -609,15 +603,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def populate_volume_label_summary_table_presto(self, report_period_ids):
         """Populate the OCP volume label summary table."""
-        LOG.critical("002 :: WHY ARE YOU CALLING A METHOD THAT DOES NOTHING????")
         return None
-        # table_name = OCP_REPORT_TABLE_MAP["volume_label_summary"]
-
-        # agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql")
-        # agg_sql = agg_sql.decode("utf-8")
-        # agg_sql_params = {"schema": self.schema, "report_period_ids": report_period_ids}
-        # agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
-        # self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def update_summary_infrastructure_cost(self, cluster_id, start_date, end_date):
         """Populate the infrastructure costs on the daily usage summary table.

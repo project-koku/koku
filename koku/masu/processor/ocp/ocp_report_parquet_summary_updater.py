@@ -101,63 +101,46 @@ class OCPReportParquetSummaryUpdater:
             (str, str) A start date and end date.
 
         """
-        LOG.critical("Executing :: OCPReportParquetSummaryUpdater.update_summary_tables()")
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
         report_periods = None
         with OCPReportDBAccessor(self._schema) as accessor:
             with schema_context(self._schema):
                 report_periods = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
-                current_report_period_id = report_periods.first().id if report_periods else None
                 report_period_ids = [report_period.id for report_period in report_periods]
-                # report_date_map = {
-                #     (report_period.report_period_start, report_period.report_period_end): report_period.id
-                #     for report_period in report_periods
-                # }
-            # for start, end in date_range_pair(start_date, end_date):
-            LOG.info(
-                "Updating OpenShift report summary tables for \n\tSchema: %s "
-                "\n\tProvider: %s \n\tCluster: %s \n\tDates: %s - %s",
-                self._schema,
-                self._provider.uuid,
-                self._cluster_id,
-                start_date,
-                end_date,
-            )
 
-            # Find the associated report_period_id for the date range
-            #
-            # report_period_id = None
-            # for report_date_range, rp_id in report_date_map.items():
-            #     rps, rpe = report_date_range
-            #     if (rps <= end) and (rpe >= start):
-            #         report_period_id = rp_id
-            # if report_period_id is None:
-            #     msg = f"Cannot determine report_period_id from date range {start} - {end}"
-            #     LOG.error(msg)
-            #     raise ValueError(msg)
-            LOG.critical(
-                f"Calling accessor.populate_line_item_daily_summary_table_presto({start_date},{end_date},{current_report_period_id},{self._cluster_id},{self._cluster_alias},{self._provider.uuid})"  # noqa: E501
-            )
-            accessor.populate_line_item_daily_summary_table_presto(
-                start_date,
-                end_date,
-                current_report_period_id,
-                self._cluster_id,
-                self._cluster_alias,
-                self._provider.uuid,
-            )
-            # accessor.populate_storage_line_item_daily_summary_table_presto(
-            #     start_date, end_date, current_report_period_id, self._cluster_id, self._cluster_alias
-            # )
-            LOG.critical(
-                f"Calling accessor.populate_pod_label_summary_table_presto({report_period_ids}, {start_date},{end_date},{self._provider.uuid})"  # noqa: E501
+            for report_period in report_periods:
+                LOG.info(
+                    "Updating OpenShift report summary tables for \n\tSchema: %s "
+                    "\n\tProvider: %s \n\tCluster: %s \n\tReport Period ID: %s \n\tDates: %s - %s",
+                    self._schema,
+                    self._provider.uuid,
+                    self._cluster_id,
+                    report_period.id,
+                    report_period.report_period_start.date(),
+                    report_period.report_period_end.date(),
+                )
+                # This will process POD and STORAGE together
+                accessor.populate_line_item_daily_summary_table_presto(
+                    report_period.report_period_start.date(),
+                    report_period.report_period_end.date(),
+                    report_period.id,
+                    self._cluster_id,
+                    self._cluster_alias,
+                    self._provider.uuid,
+                )
+
+            # This will process POD and STORAGE together
+            LOG.info(
+                "Updating OpenShift label summary tables for \n\tSchema: %s " "\n\tReport Period IDs: %s",
+                self._schema,
+                report_period.id,
             )
             accessor.populate_pod_label_summary_table_presto(
                 report_period_ids, start_date, end_date, self._provider.uuid
             )
-            # accessor.populate_volume_label_summary_table_presto(current_report_period_id)
 
+            LOG.info("Updating OpenShift report periods")
             for period in report_periods:
                 if period.summary_data_creation_datetime is None:
                     period.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")

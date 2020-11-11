@@ -16,23 +16,18 @@
 #
 """Database accessor for report data."""
 import logging
-import os
 import uuid
 from decimal import Decimal
 from decimal import InvalidOperation
 
 import ciso8601
 import django.apps
-import prestodb
-import sqlparse
 from dateutil.relativedelta import relativedelta
 from django.db import connection
 from django.db import transaction
-from jinjasql.core import JinjaSqlException
-from prestodb.exceptions import PrestoQueryError
 from tenant_schemas.utils import schema_context
 
-from koku.presto_database import sql_mogrify
+import koku.presto_database as kpdb
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
 from reporting.models import PartitionedTable
@@ -354,85 +349,9 @@ class ReportDBAccessorBase(KokuDBAccess):
             cursor.execute(sql, params=bind_params)
         LOG.info("Finished updating %s.", table)
 
-    def _prestodb_connect(self, **connect_args):
-        """
-        Establish a prestodb connection.
-        Keyword Params (required):
-            schema (str) : prestodb schema
-        Keyword Params (optional):
-            host (str) : prestodb hostname
-            port (int) : prestodb port
-            user (str) : prestodb user
-            catalog (str) : prestodb catalog
-        Returns:
-            prestodb.dbapi.Connection : connection to prestodb if successful
-        """
-        presto_connect_args = {
-            "host": connect_args.get("host", os.environ.get("PRESTO_HOST", "presto")),
-            "port": connect_args.get("port", os.environ.get("PRESTO_PORT", 8080)),
-            "user": connect_args.get("user", os.environ.get("PRESTO_USER", "admin")),
-            "catalog": connect_args.get("catalog", os.environ.get("PRESTO_DEFAULT_CATALOG", "postgres")),
-            "schema": connect_args["schema"],
-        }
-        conn = prestodb.dbapi.connect(**presto_connect_args)
-        return conn
-
-    def _prestodb_execute(self, presto_conn, sql, bind_params=None, preprocessor=None):
-        """
-        Pass in a buffer of one or more semicolon-terminated prestodb SQL statements and it
-        will be parsed into individual statements for execution. If preprocessor is None,
-        then the resulting SQL and bind parameters are used. If a preprocessor is needed,
-        then it should be a callable taking two positional arguments and returning a 2-element tuple:
-            pre_process(sql, parameters) -> (processed_sql, processed_parameters)
-        Parameters:
-            presto_conn (prestodb.dbapi.Connection) : Connection to presto
-            sql (str) : Buffer of one or more semicolon-terminated SQL statements.
-            bind_params (Iterable, dict, None) : Parameters used in the SQL or None if no parameters
-            preprocessor (Callable, None) : callable taking two args and returning a 2-element tuple
-        Returns:
-            list : Results of each successful SQL statement executed.
-        """
-        results = []
-        stmt_count = 0
-        for p_stmt in sqlparse.split(sql):
-            stmt_count = stmt_count + 1
-            p_stmt = str(p_stmt).strip()
-            LOG.critical(f"{stmt_count} Presto SQL statement exists? {bool(p_stmt)}")
-            if p_stmt:
-                # A semicolon statement terminator is invalid in the Presto dbapi interface
-                if p_stmt.endswith(";"):
-                    p_stmt = p_stmt[:-1]
-
-                # This is typically for jinjasql templated sql
-                if preprocessor:
-                    try:
-                        stmt, params = preprocessor(p_stmt, bind_params)
-                    except JinjaSqlException as e:
-                        LOG.error(f"Preprocessor Error : {str(e)}")
-                        LOG.error(f"Statement template : {p_stmt}")
-                        LOG.error(f"Parameters : {bind_params}")
-                else:
-                    stmt, params = p_stmt, bind_params
-
-                presto_cur = presto_conn.cursor()
-                # prestodb.Cursor.execute does not use parameters.
-                # The sql_mogrify function will do any needed parameter substitution
-                # and only returns the SQL with parameters formatted inline.
-                LOG.critical(f"{stmt_count} Executing statement")
-                presto_stmt = sql_mogrify(stmt, params)
-                try:
-                    presto_cur.execute(presto_stmt)
-                    results.extend(presto_cur.fetchall())
-                except PrestoQueryError as e:
-                    LOG.error(f"Presto Query Error : {str(e)}{os.linesep}{presto_stmt}")
-                    raise e
-
-        LOG.critical(f"Results: {results}")
-        return results
-
     def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None):
-        """Run a SQL statement using Presto."""
-        presto_conn = prestodb.dbapi.connect(host="presto", port=8080, user="admin", catalog="postgres", schema=schema)
+        """Execute a single presto query"""
+        presto_conn = kpdb.connect(schema=schema)
         presto_cur = presto_conn.cursor()
         presto_cur.execute(sql, bind_params)
         return presto_cur.fetchall()
