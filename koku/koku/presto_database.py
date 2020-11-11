@@ -62,7 +62,6 @@ def connect(**connect_args):
     Returns:
         prestodb.dbapi.Connection : connection to prestodb if successful
     """
-    LOG.critical(f"connect() :: {connect_args}")
     presto_connect_args = {
         "host": connect_args.get("host") or os.environ.get("PRESTO_HOST") or "presto",
         "port": connect_args.get("port") or os.environ.get("PRESTO_PORT") or 8080,
