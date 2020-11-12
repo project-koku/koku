@@ -44,6 +44,8 @@ ALLOWED_BILLING_SOURCE_PROVIDERS = (
     Provider.PROVIDER_AWS_LOCAL,
     Provider.PROVIDER_AZURE,
     Provider.PROVIDER_AZURE_LOCAL,
+    Provider.PROVIDER_GCP,
+    Provider.PROVIDER_GCP_LOCAL,
 )
 ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
 
@@ -87,7 +89,7 @@ class SourcesSerializer(serializers.ModelSerializer):
         """Get the source_uuid."""
         return obj.source_uuid
 
-    def _validate_billing_source(self, provider_type, billing_source):
+    def _validate_billing_source(self, provider_type, billing_source):  # noqa: C901
         """Validate billing source parameters."""
         if provider_type == Provider.PROVIDER_AWS:
             # TODO: Remove `and not billing_source.get("bucket")` if UI is updated to send "data_source" field
@@ -101,6 +103,12 @@ class SourcesSerializer(serializers.ModelSerializer):
                 raise SourcesStorageError("Missing AZURE resource_group")
             if not data_source.get("storage_account"):
                 raise SourcesStorageError("Missing AZURE storage_account")
+        elif provider_type == Provider.PROVIDER_GCP:
+            data_source = billing_source.get("data_source")
+            if not data_source:
+                raise SourcesStorageError("Missing GCP data_source.")
+            if not data_source.get("dataset"):
+                raise SourcesStorageError("Missing GCP dataset")
 
     def _update_billing_source(self, instance, billing_source):
         if instance.source_type not in ALLOWED_BILLING_SOURCE_PROVIDERS:
