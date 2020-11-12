@@ -17,6 +17,12 @@ create table if not exists presto_pk_delete_wrapper_log (
     pk_value text not null,
     pk_value_cast text not null
 );
+comment on table presto_pk_delete_wrapper_log is 'Table to hold primary key values to use when bulk-deleting using the presto delete wrapper log';
+comment on column presto_pk_delete_wrapper_log.transaction_id is 'Presto transaction identifier';
+comment on column presto_pk_delete_wrapper_log.table_name is 'Target table in which the primary key values reside';
+comment on column presto_pk_delete_wrapper_log.pk_column is 'Name of the primary key column for the target table';
+comment on column presto_pk_delete_wrapper_log.pk_value is 'String representation of the primary key value';
+comment on column presto_pk_delete_wrapper_log.pk_value_cast is 'Data type to which the string primary key value should be cast';
 
 create index presto_pk_delete_wrapper_log_tx on presto_pk_delete_wrapper_log (transaction_id, table_name);
 """

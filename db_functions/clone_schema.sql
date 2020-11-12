@@ -428,6 +428,47 @@ BEGIN
         EXECUTE object_rec.rule_def;
     END LOOP;
 
+    /*
+     * Create comments
+     */
+    IF _verbose
+    THEN
+        RAISE INFO 'Creating comments on objects in "%"', dest_schema;
+    END IF;
+    FOR object_rec IN
+        select t.oid,
+               coalesce(c.attnum, -1) as "attnum",
+               t.relkind,
+               t.relname as "table_name",
+               case when c.attname is not null then '."' || c.attname || '"' else '' end::text as "column_name",
+               case when c.attname is null
+                         then case t.relkind
+                                   when 'm' then 'MATERIALIZED VIEW'
+                                   when 'v' then 'VIEW'
+                                   else 'TABLE'
+                              end::text
+                         else 'COLUMN' end::text as "comment_type",
+               d.description
+          from pg_description d
+          join pg_class t
+            on t.oid = d.objoid
+          left
+          join pg_attribute c
+            on c.attrelid = t.oid
+           and c.attnum = d.objsubid
+         where t.relnamespace = source_schema::regnamespace
+           and t.relkind = any('{r,p,v,m}'::text[])
+         order
+            by t.oid, "attnum"
+    LOOP
+        IF _verbose AND (object_rec.attnum = -1)
+        THEN
+            RAISE INFO '    % %', object_rec.comment_type, object_rec.table_name || object_rec.column_name;
+        END IF;
+        EXECUTE 'COMMENT ON ' || object_rec.comment_type || ' ' ||
+                         quote_ident(dest_schema) || '.' || quote_ident(object_rec.table_name) || object_rec.column_name || ' ' ||
+                         'IS ' || quote_literal(object_rec.description) || ' ;';
+    END LOOP;
 
     RETURN true;
 END;

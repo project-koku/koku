@@ -145,6 +145,7 @@ create rule ins_reporting_ocpusagelineitem_daily_summary_presto as
            NEW.report_period_id,
            NEW.uuid
        );
+comment on view reporting_ocpusagelineitem_daily_summary_presto is 'Interface to reporting_ocpusagelineitem_daily_summary table for Presto';
 """
         ),
     ]
