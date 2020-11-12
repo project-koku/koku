@@ -27,15 +27,6 @@ class FakePrestoConn(Connection):
     def cursor(self):
         return FakePrestoCur()
 
-    def rollback(self):
-        pass
-
-    def commit(self):
-        pass
-
-    def close(self):
-        pass
-
 
 class TestPrestoDatabaseUtils(IamTestCase):
     def test_connect(self):
@@ -82,20 +73,6 @@ class TestPrestoDatabaseUtils(IamTestCase):
         for test in tests:
             test.sql_result = kpdb.sql_mogrify(test.sql_test, test.params)
             self.assertEqual(test.sql_verify, test.sql_result)
-
-    def test_execute(self):
-        """
-        Test that a successful call to execute will return a list of results
-        """
-        conn = FakePrestoConn()
-        exc = None
-        try:
-            res = kpdb.execute(conn, """show tables""")
-        except Exception as e:
-            exc = e
-        self.assertIsNone(exc)
-        self.assertTrue(isinstance(res, list))
-        self.assertEqual(1, len(res))
 
     def test_executescript(self):
         """
