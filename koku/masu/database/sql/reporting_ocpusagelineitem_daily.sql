@@ -27,8 +27,8 @@ CREATE TEMPORARY TABLE ocp_cluster_capacity_{{uuid | sqlsafe}} AS (
 -- Place our query in a temporary table
 CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
     SELECT  li.report_period_id,
-        'eek-cluster-id' as "cluster_id", --rp.cluster_id,
-        coalesce(max(p.name), 'eek-cluster-id') as cluster_alias, -- coalesce(max(p.name), rp.cluster_id) as cluster_alias,
+        rp.cluster_id,
+        coalesce(max(p.name), rp.cluster_id) as cluster_alias,
         date(ur.interval_start) as usage_start,
         date(ur.interval_start) as usage_end,
         li.namespace,
