@@ -601,10 +601,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         finally:
             presto_conn.close()
 
-    def populate_volume_label_summary_table_presto(self, report_period_ids):
-        """Populate the OCP volume label summary table."""
-        return None
-
     def update_summary_infrastructure_cost(self, cluster_id, start_date, end_date):
         """Populate the infrastructure costs on the daily usage summary table.
 

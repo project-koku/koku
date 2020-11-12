@@ -86,7 +86,7 @@ class OCPReportParquetSummaryUpdater:
 
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
-        LOG.info("update_daily_tables for: %s-%s", str(start_date), str(end_date))
+        LOG.info("NO-OP update_daily_tables for: %s-%s", str(start_date), str(end_date))
 
         return start_date, end_date
 
