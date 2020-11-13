@@ -1,7 +1,8 @@
--i https://pypi.python.org/simple
+-i http://localhost:3141/root/pypi/+simple/
+--trusted-host localhost:3141
 adal==1.2.5
-amqp==2.6.1
-asgiref==3.2.10
+amqp==2.6.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
+asgiref==3.3.0; python_version >= '3.5'
 azure-common==1.1.25
 azure-core==1.8.2
 azure-mgmt-core==1.2.1
@@ -11,8 +12,8 @@ azure-mgmt-storage==11.2.0
 azure-storage-blob==12.5.0
 beautifulsoup4==4.9.3
 billiard==3.6.3.0
-boto3==1.16.8
-botocore==1.19.8
+boto3==1.16.10
+botocore==1.19.10
 bs4==0.0.1
 cachetools==4.1.1
 celery-prometheus-exporter==1.7.0
@@ -21,9 +22,9 @@ certifi==2020.6.20
 cffi==1.14.3
 chardet==3.0.4
 ciso8601==2.1.3
-click==7.1.2
+click==7.1.2; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
 confluent-kafka==1.5.0
-cryptography==3.2.1
+cryptography==3.2.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
 django-cors-headers==3.5.0
 django-environ==0.4.5
 django-extensions==3.0.9
@@ -31,71 +32,74 @@ django-filter==2.4.0
 django-prometheus==2.1.0
 django-redis==4.12.1
 django-tenant-schemas==1.10.0
-django==3.1.2
+django==3.1.3
 djangorestframework-csv==2.1.0
 djangorestframework==3.12.1
 flake8==3.8.4
-google-api-core[grpc]==1.23.0
+google-api-core[grpc]==1.23.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 google-api-python-client==1.12.5
 google-auth-httplib2==0.0.4
 google-auth==1.23.0
 google-cloud-bigquery==2.2.0
-google-cloud-core==1.4.3
-google-crc32c==1.0.0 ; python_version >= '3.5'
-google-resumable-media==1.1.0
-googleapis-common-protos==1.52.0
+google-cloud-core==1.4.3; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+google-crc32c==1.0.0; python_version >= '3.5'
+google-resumable-media==1.1.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+googleapis-common-protos==1.52.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 grpcio==1.33.2
 gunicorn==20.0.4
 httplib2==0.18.1
-idna==2.10
+idna==2.10; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 importlib-metadata==2.0.0
 isodate==0.6.0
-jinja2==2.11.2
+jinja2==2.11.2; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
 jinjasql==0.1.8
-jmespath==0.10.0
+jmespath==0.10.0; python_version >= '2.6' and python_version not in '3.0, 3.1, 3.2, 3.3'
 kafka-python==2.0.2
 kombu==4.6.11
-markupsafe==1.1.1
+markupsafe==1.1.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 mccabe==0.6.1
 msrest==0.6.19
 msrestazure==0.6.4
-numpy==1.19.3
-oauthlib==3.1.0
-ordered-set==4.0.2
-packaging==20.4
-pandas==1.1.3
+numpy==1.19.4; python_version >= '3.6'
+oauthlib==3.1.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+ordered-set==4.0.2; python_version >= '3.5'
+packaging==20.4; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+pandas==1.1.4
+patsy==0.5.1
 pint==0.16.1
 presto-python-client==0.7.0
 prometheus-client==0.8.0
 proto-plus==1.11.0
 protobuf==3.13.0
 psutil==5.7.3
-psycopg2-binary==2.8.6
+psycopg2-binary==2.8.6; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 pyarrow==2.0.0
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
-pycodestyle==2.6.0
-pycparser==2.20
-pyflakes==2.2.0
+pycodestyle==2.6.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+pycparser==2.20; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+pyflakes==2.2.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 pyjwt==1.7.1
-pyparsing==2.4.7
+pyparsing==2.4.7; python_version >= '2.6' and python_version not in '3.0, 3.1, 3.2, 3.3'
 python-dateutil==2.8.1
-pytz==2020.1
+pytz==2020.4
 querystring-parser==1.2.4
-redis==3.5.3
+redis==3.5.3; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
 requests-oauthlib==1.3.0
 requests==2.24.0
-rsa==4.6 ; python_version >= '3.5'
+rsa==4.6; python_version >= '3.5'
 s3transfer==0.3.3
-sentry-sdk==0.19.1
-six==1.15.0
-soupsieve==2.0.1 ; python_version >= '3.0'
-sqlparse==0.4.1
+scipy==1.5.3
+sentry-sdk==0.19.2
+six==1.15.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+soupsieve==2.0.1; python_version >= '3.0'
+sqlparse==0.4.1; python_version >= '3.5'
+statsmodels==0.12.1
 ujson==4.0.1
 unicodecsv==0.14.1
-uritemplate==3.0.1
-urllib3==1.25.11 ; python_version != '3.4'
-vine==1.3.0
+uritemplate==3.0.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+urllib3==1.25.11; python_version != '3.4'
+vine==1.3.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 watchtower==1.0.0
 whitenoise==5.2.0
-zipp==3.4.0
+zipp==3.4.0; python_version >= '3.6'
