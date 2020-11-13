@@ -18,10 +18,14 @@
 import logging
 from copy import deepcopy
 
+from django.db.models import Exists
+from django.db.models import OuterRef
+
 from api.models import Provider
 from api.report.azure.provider_map import AzureProviderMap
 from api.tags.queries import TagQueryHandler
 from reporting.models import AzureTagsSummary
+from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.azure.models import AzureTagsValues
 
 
@@ -32,9 +36,16 @@ class AzureTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for Azure."""
 
     provider = Provider.PROVIDER_AZURE
-    data_sources = [{"db_table": AzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
+    enabled = AzureEnabledTagKeys.objects.filter(key=OuterRef("key"))
+    data_sources = [
+        {
+            "db_table": AzureTagsSummary,
+            "db_column_period": "cost_entry_bill__billing_period",
+            "annotations": {"enabled": Exists(enabled)},
+        }
+    ]
     TAGS_VALUES_SOURCE = [{"db_table": AzureTagsValues, "fields": ["key"]}]
-    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["subscription_guid"]
+    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["subscription_guid", "enabled"]
 
     def __init__(self, parameters):
         """Establish Azure report query handler.
@@ -46,6 +57,8 @@ class AzureTagQueryHandler(TagQueryHandler):
         self._parameters = parameters
         if not hasattr(self, "_mapper"):
             self._mapper = AzureProviderMap(provider=self.provider, report_type=parameters.report_type)
+        if parameters.get_filter("enabled") is None:
+            parameters.set_filter(**{"enabled": True})
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
 
@@ -54,7 +67,17 @@ class AzureTagQueryHandler(TagQueryHandler):
         """Establish which filter map to use based on tag API."""
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
         if self._parameters.get_filter("value"):
-            filter_map.update({"subscription_guid": {"field": "subscription_guids", "operation": "icontains"}})
+            filter_map.update(
+                {
+                    "subscription_guid": {"field": "subscription_guids", "operation": "icontains"},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                }
+            )
         else:
-            filter_map.update({"subscription_guid": {"field": "subscription_guid", "operation": "icontains"}})
+            filter_map.update(
+                {
+                    "subscription_guid": {"field": "subscription_guid", "operation": "icontains"},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                }
+            )
         return filter_map
