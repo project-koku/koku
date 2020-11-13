@@ -50,20 +50,20 @@ obtainTagKeysProvidersParams = {
         "tag_view": OCPTagView,
         "query_handler": OCPTagQueryHandler,
         "enabled_tag_keys": OCPEnabledTagKeys,
-    }
+    },
+    "aws": {
+        "provider": Provider.PROVIDER_AWS,
+        "title": "Amazon Web Services tags",
+        "leftLabel": "Available tags",
+        "rightLabel": "Tags for reporting",
+        "tag_view": AWSTagView,
+        "query_handler": AWSTagQueryHandler,
+        "enabled_tag_keys": AWSEnabledTagKeys,
+    },
 }
 if settings.DEVELOPMENT:
     obtainTagKeysProvidersParams.update(
         {
-            "aws": {
-                "provider": Provider.PROVIDER_AWS,
-                "title": "Amazon Web Services tags",
-                "leftLabel": "Available tags",
-                "rightLabel": "Tags for reporting",
-                "tag_view": AWSTagView,
-                "query_handler": AWSTagQueryHandler,
-                "enabled_tag_keys": AWSEnabledTagKeys,
-            },
             "azure": {
                 "provider": Provider.PROVIDER_AZURE,
                 "title": "Azure tags",
@@ -72,7 +72,7 @@ if settings.DEVELOPMENT:
                 "tag_view": AzureTagView,
                 "query_handler": AzureTagQueryHandler,
                 "enabled_tag_keys": AzureEnabledTagKeys,
-            },
+            }
         }
     )
 
@@ -185,7 +185,10 @@ class TagManagementSettings:
         """
         updated = [False] * len(obtainTagKeysProvidersParams)
         for ix, providerName in enumerate(obtainTagKeysProvidersParams):
-            enabled_tags = settings.get(providerName, {}).get("enabled", [])
+            provider_in_settings = settings.get(providerName)
+            if provider_in_settings is None:
+                continue
+            enabled_tags = provider_in_settings.get("enabled", [])
             remove_tags = []
             tag_view = obtainTagKeysProvidersParams[providerName]["tag_view"]
             query_handler = obtainTagKeysProvidersParams[providerName]["query_handler"]

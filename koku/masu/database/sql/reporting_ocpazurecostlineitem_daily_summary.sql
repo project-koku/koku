@@ -12,6 +12,8 @@ CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
         ) AS tags
         JOIN {{schema | sqlsafe}}.reporting_azurecostentrybill AS b
             ON tags.cost_entry_bill_id = b.id
+        JOIN {{schema | sqlsafe}}.reporting_azureenabledtagkeys as enabled_tags
+            ON lower(enabled_tags.key) = lower(tags.key)
         {% if bill_ids %}
         WHERE b.id IN (
             {%- for bill_id in bill_ids -%}
@@ -96,6 +98,55 @@ CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
 )
 ;
 
+
+-- Selects the data from azure daily and includes only
+-- the enabled tags in the results
+CREATE TEMPORARY TABLE reporting_azure_with_enabled_tags_{{uuid | sqlsafe}} AS (
+    WITH cte_array_agg_keys AS (
+        SELECT array_agg(key) as key_array
+        FROM {{schema | sqlsafe}}.reporting_azureenabledtagkeys
+    ),
+    cte_filtered_azure_tags AS (
+        SELECT id,
+            jsonb_object_agg(key,value) as azure_tags
+        FROM (
+            SELECT lid.id,
+                lid.tags as azure_tags,
+                aak.key_array
+            FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily lid
+            JOIN cte_array_agg_keys aak
+                ON 1=1
+            WHERE lid.tags ?| aak.key_array
+                AND lid.usage_date >= {{start_date}}::date
+                AND lid.usage_date <= {{end_date}}::date
+                --azure_where_clause
+                {% if bill_ids %}
+                AND lid.cost_entry_bill_id IN (
+                    {%- for bill_id in bill_ids -%}
+                    {{bill_id}}{% if not loop.last %},{% endif %}
+                    {%- endfor -%}
+                )
+                {% endif %}
+        ) AS lid,
+        jsonb_each_text(lid.azure_tags) AS labels
+        WHERE key = ANY (key_array)
+        GROUP BY id
+    )
+    SELECT azure.id,
+            azure.cost_entry_bill_id,
+            azure.cost_entry_product_id,
+            azure.meter_id,
+            azure.subscription_guid,
+            azure.usage_date,
+            azure.usage_quantity,
+            azure.pretax_cost,
+            fvl.azure_tags as tags
+    FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure
+    LEFT JOIN cte_filtered_azure_tags as fvl
+        ON azure.id = fvl.id
+)
+;
+
 CREATE TEMPORARY TABLE reporting_azure_tags_{{uuid | sqlsafe}} AS (
     SELECT azure.*
     FROM (
@@ -104,7 +155,7 @@ CREATE TEMPORARY TABLE reporting_azure_tags_{{uuid | sqlsafe}} AS (
             row_number() OVER (PARTITION BY azure.id ORDER BY azure.id) as row_number,
             tag.key,
             tag.value
-            FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure
+            FROM reporting_azure_with_enabled_tags_{{uuid | sqlsafe}} as azure
             JOIN matched_tags_{{uuid | sqlsafe}} as tag
                 ON azure.cost_entry_bill_id = tag.cost_entry_bill_id
                     AND azure.tags @> tag.tag
@@ -155,7 +206,7 @@ CREATE TEMPORARY TABLE reporting_azure_special_case_tags_{{uuid | sqlsafe}} AS (
     SELECT azure.*,
         lower(tag.key) as key,
         lower(tag.value) as value
-    FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure
+    FROM reporting_azure_with_enabled_tags_{{uuid | sqlsafe}} as azure
     JOIN cte_tag_options as tag
             ON azure.cost_entry_bill_id = tag.cost_entry_bill_id
                 AND azure.tags @> tag.tag
@@ -241,7 +292,7 @@ CREATE TEMPORARY TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} 
             azure.usage_quantity,
             azure.pretax_cost,
             azure.tags
-        FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure
+        FROM reporting_azure_with_enabled_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice as aps
             ON azure.cost_entry_product_id = aps.id
         JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
@@ -594,7 +645,7 @@ CREATE TEMPORARY TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}
             azure.usage_quantity,
             azure.pretax_cost,
             azure.tags
-        FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure
+        FROM reporting_azure_with_enabled_tags_{{uuid | sqlsafe}} as azure
         JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice as aps
             ON azure.cost_entry_product_id = aps.id
         JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
