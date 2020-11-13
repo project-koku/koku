@@ -567,17 +567,22 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "months": (str(start_date.month),),
         }
 
+        LOG.info("PRESTO OCP: Connect")
         presto_conn = kpdb.connect(schema=self.schema)
         try:
+            LOG.info("PRESTO OCP: executing SQL buffer for OCP usage processing")
             kpdb.executescript(
                 presto_conn, tmpl_summary_sql, params=summary_sql_params, preprocessor=self.jinja_sql.prepare_query
             )
         except Exception as e:
             presto_conn.rollback()
+            LOG.error(f"PRESTO OCP ERROR : {e}")
             raise e
         else:
+            LOG.info("PRESTO OCP: Commit actions")
             presto_conn.commit()
         finally:
+            LOG.info("PRESTO OCP: Close connection")
             presto_conn.close()
 
     def populate_pod_label_summary_table_presto(self, report_period_ids, start_date, end_date, source):
@@ -614,15 +619,20 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "months": (str(start_date.month),),
         }
 
+        LOG.info("PRESTO OCP: Connect")
         presto_conn = kpdb.connect(schema=self.schema)
         try:
+            LOG.info("PRESTO: executing SQL buffer for OCP tag/label processing")
             kpdb.executescript(presto_conn, agg_sql, params=agg_sql_params, preprocessor=self.jinja_sql.prepare_query)
         except Exception as e:
             presto_conn.rollback()
+            LOG.error(f"PRESTO OCP ERROR : {e}")
             raise e
         else:
+            LOG.info("PRESTO OCP: Commit actions")
             presto_conn.commit()
         finally:
+            LOG.info("PRESTO OCP: Close connection")
             presto_conn.close()
 
     def update_summary_infrastructure_cost(self, cluster_id, start_date, end_date):
