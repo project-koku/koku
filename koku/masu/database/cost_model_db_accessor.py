@@ -175,8 +175,8 @@ class CostModelDBAccessor(KokuDBAccess):
                     if metric_name == default_metric.get("metric"):
                         metric_cost_type = default_metric.get("default_cost_type")
             tag_rates_list = []
-            tag_rate_dict = {}
             tag = rate.get("tag_rates")
+            tag_rate_dict = {}
             tag_key = tag.get("tag_key")
             default_rate = 0
             for tag_rate in tag.get("tag_values"):

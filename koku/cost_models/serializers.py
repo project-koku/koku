@@ -203,11 +203,10 @@ class RateSerializer(serializers.Serializer):
     @staticmethod
     def _convert_to_decimal(rate):
         for decimal_key in RateSerializer.DECIMALS:
-            if decimal_key in rate:
-                value = rate.get(decimal_key)
-                if value is not None:
-                    decimal_value = Decimal(value)
-                    rate[decimal_key] = decimal_value
+            value = rate.get(decimal_key)
+            if value:
+                decimal_value = Decimal(value)
+                rate[decimal_key] = decimal_value
         return rate
 
     @staticmethod
