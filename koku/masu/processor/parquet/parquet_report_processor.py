@@ -39,6 +39,7 @@ from masu.util.aws.common import aws_post_processor
 from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import get_s3_resource
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
+from masu.util.azure.common import azure_post_processor
 from masu.util.common import get_column_converters
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
@@ -141,6 +142,8 @@ class ParquetReportProcessor:
 
         if provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
             post_processor = aws_post_processor
+        elif provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
+            post_processor = azure_post_processor
 
         failed_conversion = []
         for csv_filename in files:
