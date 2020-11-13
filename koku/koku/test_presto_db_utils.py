@@ -3,29 +3,10 @@ import uuid
 
 from jinjasql import JinjaSql
 from prestodb.dbapi import Connection
-from prestodb.dbapi import Cursor
 
 from . import presto_database as kpdb
+from api.iam.test.iam_test_case import FakePrestoConn
 from api.iam.test.iam_test_case import IamTestCase
-
-
-class FakePrestoCur(Cursor):
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def execute(self, *args, **kwargs):
-        pass
-
-    def fetchall(self):
-        return [["eek"]]
-
-
-class FakePrestoConn(Connection):
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def cursor(self):
-        return FakePrestoCur()
 
 
 class TestPrestoDatabaseUtils(IamTestCase):

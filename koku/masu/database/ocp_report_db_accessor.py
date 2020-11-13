@@ -35,6 +35,7 @@ from tenant_schemas.utils import schema_context
 
 import koku.presto_database as kpdb
 from api.metrics import constants as metric_constants
+from api.utils import DateHelper
 from koku.database import JSONBBuildObject
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
@@ -74,6 +75,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         super().__init__(schema)
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self.jinja_sql = JinjaSql()
+        self.date_helper = DateHelper()
 
     def get_current_usage_report(self):
         """Get the most recent usage report object."""
@@ -533,7 +535,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         Args:
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
-            cluster_id (String) Cluster Identifier
+            report_period_id (int) : report period for which we are processing
+            cluster_id (str) : Cluster Identifier
+            cluster_alias (str) : Cluster alias
+            source (UUID) : provider uuid
 
         Returns
             (None)
@@ -559,7 +564,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "schema": self.schema,
             "source": str(source),
             "year": str(start_date.year),
-            "months": tuple(str(m) for m in sorted(set(range(start_date.month, end_date.month + 1)))),
+            "months": (str(start_date.month),),
         }
 
         presto_conn = kpdb.connect(schema=self.schema)
@@ -576,7 +581,26 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             presto_conn.close()
 
     def populate_pod_label_summary_table_presto(self, report_period_ids, start_date, end_date, source):
-        """Populate the line item aggregated totals data table."""
+        """
+        Populate label usage summary tables
+
+        Args:
+            report_period_ids (list(int)) : List of report_period_ids for processing
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+            source (UUID) : provider uuid
+
+        Returns
+            (None)
+        """
+        # Cast start_date to date
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
+
         agg_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocp_usage_label_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {
@@ -587,7 +611,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "end_date": end_date,
             "source": str(source),
             "year": str(start_date.year),
-            "months": tuple(str(m) for m in sorted(set(range(start_date.month, end_date.month + 1)))),
+            "months": (str(start_date.month),),
         }
 
         presto_conn = kpdb.connect(schema=self.schema)
