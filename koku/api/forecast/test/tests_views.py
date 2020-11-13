@@ -55,6 +55,29 @@ class AWSCostForecastViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    @RbacPermissions({"aws.account": {"read": ["123", "456"]}})
+    def test_get_forecast_limited_access_fail(self):
+        """Test that getting a forecast with limited access returns empty result."""
+        url = reverse("aws-cost-forecasts")
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data.get("meta").get("count"), 0)
+        self.assertEqual(response.data.get("data"), [])
+
+    # these account numbers are based on the contents of api/report/test/aws_static_data.yml
+    @RbacPermissions(
+        {"aws.account": {"read": ["9999999999991"], "aws.organizational_unit": {"read": ["9999999999991"]}}}
+    )
+    def test_get_forecast_limited_access_pass(self):
+        """Test that getting a forecast with limited access returns valid result."""
+        url = reverse("aws-cost-forecasts")
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreater(response.data.get("meta").get("count"), 0)
+        self.assertNotEqual(response.data.get("data"), [])
+
     @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["*"]}})
     def test_get_forecast_date_filter(self):
         """Test that getting a forecast works with datetime filters."""
