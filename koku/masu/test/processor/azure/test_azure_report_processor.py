@@ -54,6 +54,7 @@ class AzureReportProcessorTest(MasuTestCase):
         _report_tables = copy.deepcopy(AZURE_REPORT_TABLE_MAP)
         _report_tables.pop("line_item_daily_summary", None)
         _report_tables.pop("tags_summary", None)
+        _report_tables.pop("enabled_tag_keys", None)
         _report_tables.pop("ocp_on_azure_daily_summary", None)
         _report_tables.pop("ocp_on_azure_project_daily_summary", None)
         _report_tables.pop("ocp_on_azure_tags_summary", None)
