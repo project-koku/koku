@@ -1639,6 +1639,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         "schema": self.schema,
                         "usage_type": usage_type,
                         "metric": metric,
+                        "tag_key": tag_key,
                         "k_v_pair": key_value_pair,
                     }
                     tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
