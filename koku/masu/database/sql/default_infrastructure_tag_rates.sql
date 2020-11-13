@@ -24,6 +24,7 @@ FROM (
         WHERE lids.cluster_id = {{cluster_id}}
             AND lids.usage_start >= {{start_date}}
             AND lids.usage_start <= {{end_date}}
+            AND lids.pod_labels ? {{tag_key}}
             {% for pair in k_v_pair %}
             AND NOT lids.pod_labels @> {{pair}}
             {% endfor %}
