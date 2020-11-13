@@ -428,3 +428,83 @@ class CostModelDBAccessorTagRatesTest(MasuTestCase):
                 }
                 self.assertEqual(result_suppla_rates.get(metric_name), expected_dict)
                 self.assertEqual(expected_cost_type, cost_type)
+
+
+class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
+    """Test Cases for the CostModelDBAccessor object with tag rates."""
+
+    def setUp(self):
+        """Set up a test with database objects."""
+        super().setUp()
+        self.provider_uuid = self.ocp_provider_uuid
+        self.schema = "acct10001"
+        self.creator = ReportObjectCreator(self.schema)
+
+        reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
+        report = self.creator.create_ocp_report(reporting_period)
+        self.creator.create_ocp_usage_line_item(reporting_period, report)
+        self.creator.create_ocp_node_label_line_item(reporting_period, report)
+        self.rates = [
+            {
+                "metric": {
+                    "name": "node_cost_per_month",
+                    "label_metric": "Node",
+                    "label_measurement": "Currency",
+                    "label_measurement_unit": "node-month",
+                },
+                "description": "",
+                "tag_rates": {
+                    "tag_key": "app",
+                    "tag_values": [
+                        {
+                            "unit": "USD",
+                            "usage": {"unit": "USD", "usage_end": "2020-11-11", "usage_start": "2020-11-11"},
+                            "value": 123,
+                            "default": True,
+                            "tag_value": "smoke",
+                            "description": "",
+                        }
+                    ],
+                },
+                "cost_type": "Infrastructure",
+            },
+            {
+                "metric": {
+                    "name": "node_cost_per_month",
+                    "label_metric": "Node",
+                    "label_measurement": "Currency",
+                    "label_measurement_unit": "node-month",
+                },
+                "description": "",
+                "tag_rates": {
+                    "tag_key": "web",
+                    "tag_values": [
+                        {
+                            "unit": "USD",
+                            "usage": {"unit": "USD", "usage_end": "2020-11-11", "usage_start": "2020-11-11"},
+                            "value": 456,
+                            "default": True,
+                            "tag_value": "smoker",
+                            "description": "",
+                        }
+                    ],
+                },
+                "cost_type": "Infrastructure",
+            },
+        ]
+        self.cost_model = self.creator.create_cost_model(self.provider_uuid, Provider.PROVIDER_OCP, self.rates)
+
+    def test_initializer(self):
+        """Test initializer."""
+        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+            self.assertEqual(cost_model_accessor.provider_uuid, self.provider_uuid)
+
+    def test_price_list_existing_metric_different_key(self):
+        """
+        Tests that the proper keys and values are added for the rates if
+        different keys are used for the same metric
+        """
+        expected = {"app": {"smoke": 123}, "web": {"smoker": 456}}
+        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+            result_infra_rates = cost_model_accessor.tag_infrastructure_rates.get("node_cost_per_month")
+            self.assertEqual(result_infra_rates, expected)

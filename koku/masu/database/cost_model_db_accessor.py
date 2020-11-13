@@ -191,9 +191,14 @@ class CostModelDBAccessor(KokuDBAccess):
             if metric_name in metric_rate_map.keys():
                 tag_rates = metric_rate_map.get(metric_name)
                 existing_cost_dict = tag_rates.get("tag_rates")
-                existing_cost_dict[f"{metric_cost_type}"] = tag_rates_list
-                tag_rates["tag_rates"] = existing_cost_dict
-                metric_rate_map[metric_name] = tag_rates
+                if existing_cost_dict.get(metric_cost_type):
+                    existing_list = existing_cost_dict.get(metric_cost_type)
+                    existing_list.extend(tag_rates_list)
+                    existing_cost_dict[f"{metric_cost_type}"] = existing_list
+                else:
+                    existing_cost_dict[f"{metric_cost_type}"] = tag_rates_list
+                    tag_rates["tag_rates"] = existing_cost_dict
+                    metric_rate_map[metric_name] = tag_rates
             else:
                 format_tag_rates = {f"{metric_cost_type}": tag_rates_list}
                 rate["tag_rates"] = format_tag_rates
