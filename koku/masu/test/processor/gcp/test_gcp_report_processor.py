@@ -9,6 +9,7 @@ from unittest.mock import patch
 import numpy as np
 import pytz
 from dateutil import parser
+from django.db.utils import InternalError
 from faker import Faker
 from tenant_schemas.utils import schema_context
 
@@ -104,7 +105,7 @@ class GCPReportProcessorTest(MasuTestCase):
 
     def test_create_gcp_cost_entry_bill(self):
         """Test calling _get_or_create_cost_entry_bill on an entry bill that doesn't exist creates it."""
-        bill_row = {"Start Time": "2019-09-17T00:00:00-07:00"}
+        bill_row = {"invoice.month": "202011"}
         entry_bill_id = self.processor._get_or_create_cost_entry_bill(bill_row, self.accessor)
 
         with schema_context(self.schema):
@@ -112,7 +113,7 @@ class GCPReportProcessorTest(MasuTestCase):
 
     def test_get_gcp_cost_entry_bill(self):
         """Test calling _get_or_create_cost_entry_bill on an entry bill that exists fetches its id."""
-        start_time = "2019-09-17T00:00:00-07:00"
+        start_time = "2020-11-01 00:00:00+00"
         report_date_range = utils.month_date_range(parser.parse(start_time))
         start_date, end_date = report_date_range.split("-")
 
@@ -123,19 +124,12 @@ class GCPReportProcessorTest(MasuTestCase):
             entry_bill = GCPCostEntryBill.objects.create(
                 provider=self.gcp_provider, billing_period_start=start_date_utc, billing_period_end=end_date_utc
             )
-        entry_bill_id = self.processor._get_or_create_cost_entry_bill(
-            {"Start Time": datetime.strftime(start_date_utc, "%Y-%m-%d %H:%M%z")}, self.accessor
-        )
+        entry_bill_id = self.processor._get_or_create_cost_entry_bill({"invoice.month": "202011"}, self.accessor)
         self.assertEquals(entry_bill.id, entry_bill_id)
 
     def test_create_gcp_project(self):
         """Test calling _get_or_create_gcp_project on a project id that doesn't exist creates it."""
-        project_data = {
-            "Project ID": fake.word(),
-            "Account ID": fake.word(),
-            "Project Number": fake.pyint(),
-            "Project Name": fake.word(),
-        }
+        project_data = {"project.id": fake.word(), "billing_account_id": fake.word(), "project.name": fake.word()}
         project_id = self.processor._get_or_create_gcp_project(project_data, self.accessor)
         with schema_context(self.schema):
             self.assertTrue(GCPProject.objects.filter(id=project_id).exists())
@@ -145,17 +139,9 @@ class GCPReportProcessorTest(MasuTestCase):
         project_id = fake.word()
         account_id = fake.word()
         with schema_context(self.schema):
-            project = GCPProject.objects.create(
-                project_id=project_id, account_id=account_id, project_number=fake.pyint(), project_name=fake.word()
-            )
+            project = GCPProject.objects.create(project_id=project_id, account_id=account_id, project_name=fake.word())
         fetched_project_id = self.processor._get_or_create_gcp_project(
-            {
-                "Project ID": project_id,
-                "Account ID": fake.word(),
-                "Project Number": fake.pyint(),
-                "Project Name": fake.word(),
-            },
-            self.accessor,
+            {"project.id": project_id, "billing_account_id": fake.word(), "project.name": fake.word()}, self.accessor
         )
         self.assertEquals(fetched_project_id, project.id)
         with schema_context(self.schema):
@@ -164,31 +150,14 @@ class GCPReportProcessorTest(MasuTestCase):
             gcp_project = GCPProject.objects.get(id=project.id)
             self.assertEquals(gcp_project.account_id, account_id)
 
-    def test_gcp_process_twice(self):
-        """Test the processing of an GCP file again, results in the same amount of objects."""
+    def test_gcp_process_can_run_twice(self):
+        """Test that row duplicates are inserted into the DB when process called twice."""
         self.processor.process()
-        with schema_context(self.schema):
-            num_line_items = len(GCPCostEntryLineItemDaily.objects.all())
-            num_projects = len(GCPProject.objects.all())
-            num_bills = len(GCPCostEntryBill.objects.all())
-
-        # Why another processor instance? because calling process() with the same processor instance fails
-        # django.db.utils.InternalError: no such savepoint.
-
         shutil.copy2(self.test_report_path, self.test_report)
-
-        processor = GCPReportProcessor(
-            schema_name=self.schema,
-            report_path=self.test_report,
-            compression=UNCOMPRESSED,
-            provider_uuid=self.gcp_provider.uuid,
-            manifest_id=self.manifest.id,
-        )
-        processor.process()
-        with schema_context(self.schema):
-            self.assertEquals(num_line_items, len(GCPCostEntryLineItemDaily.objects.all()))
-            self.assertEquals(num_projects, len(GCPProject.objects.all()))
-            self.assertEquals(num_bills, len(GCPCostEntryBill.objects.all()))
+        try:
+            self.processor.process()
+        except InternalError:
+            self.fail("failed to call process twice.")
 
     def test_consolidate_line_items(self):
         """Test that logic for consolidating lines work."""
