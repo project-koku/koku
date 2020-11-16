@@ -34,6 +34,12 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             bills = self._get_db_obj_query(table_name).values(*columns)
             return {(bill["billing_period_start"], bill["provider_id"]): bill["id"] for bill in bills}
 
+    def get_cost_entry_bills_query_by_provider(self, provider_uuid):
+        """Return all cost entry bills for the specified provider."""
+        table_name = GCPCostEntryBill
+        with schema_context(self.schema):
+            return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
+
     def mark_bill_as_finalized(self, bill_id):
         """Mark a bill in the database as finalized."""
         table_name = GCPCostEntryBill
