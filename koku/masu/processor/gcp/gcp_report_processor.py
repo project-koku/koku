@@ -3,6 +3,7 @@ import logging
 from collections import OrderedDict
 from datetime import datetime
 from numbers import Number
+from os import path
 from os import remove
 
 import pandas
@@ -39,6 +40,8 @@ class ProcessedGCPReport:
         """Clear a batch of rows after they've been saved."""
         self.line_items = []
         self.unique_line_items = {}
+        self.projects = {}
+        self.products = {}
 
 
 class GCPReportProcessor(ReportProcessorBase):
@@ -74,6 +77,7 @@ class GCPReportProcessor(ReportProcessorBase):
             self.report_schema = report_db.report_schema
             self.existing_bill_map = report_db.get_cost_entry_bills()
             self.existing_product_map = report_db.get_products()
+            self.existing_projects_map = report_db.get_projects()
 
         LOG.info("Initialized report processor for file: %s and schema: %s", report_path, self._schema)
 
@@ -136,7 +140,7 @@ class GCPReportProcessor(ReportProcessorBase):
         data = self._get_data_for_table(row, table_name._meta.db_table)
         data = report_db_accessor.clean_data(data, table_name._meta.db_table)
 
-        key = data["project_id"]
+        key = (data["account_id"], data["project_id"])
         if key in self.processed_report.projects:
             return self.processed_report.projects[key]
 
@@ -214,9 +218,24 @@ class GCPReportProcessor(ReportProcessorBase):
                 consolidated_line_item[key] += line2[key]
         return consolidated_line_item
 
+    def _update_mappings(self):
+        """Update cache of database objects for reference."""
+        self.existing_product_map.update(self.processed_report.products)
+        self.existing_projects_map.update(self.processed_report.projects)
+        self.processed_report.remove_processed_rows()
+
     def process(self):
         """Process GCP billing file."""
         row_count = 0
+
+        if not path.exists(self._report_path):
+            LOG.info(
+                "Skip processing for file: %s and schema: %s as it was not found on disk.",
+                self._report_name,
+                self._schema,
+            )
+            return False
+        self._delete_line_items(GCPReportDBAccessor)
 
         # Read the csv in batched chunks.
         report_csv = pandas.read_csv(self._report_path, chunksize=self._batch_size, compression="infer")
@@ -261,7 +280,7 @@ class GCPReportProcessor(ReportProcessorBase):
                 report_db.merge_temp_table(self.line_item_table_name, temp_table, self.line_item_columns)
 
                 row_count += len(self.processed_report.line_items)
-                self.processed_report.remove_processed_rows()
+                self._update_mappings()
 
             LOG.info("Completed report processing for file: %s and schema: %s", self._report_name, self._schema)
 

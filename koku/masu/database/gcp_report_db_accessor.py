@@ -8,6 +8,7 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryProductService
+from reporting.provider.gcp.models import GCPProject
 
 LOG = logging.getLogger(__name__)
 
@@ -50,3 +51,12 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             products = self._get_db_obj_query(table_name, columns=columns).all()
 
             return {(product["service_id"], product["sku_id"]): product["id"] for product in products}
+
+    def get_projects(self):
+        """Make a mapping of projects to project objects."""
+        table_name = GCPProject
+        with schema_context(self.schema):
+            columns = ["account_id", "project_id", "id"]
+            projects = self._get_db_obj_query(table_name, columns=columns).all()
+
+            return {(project["account_id"], project["project_id"]): project["id"] for project in projects}
