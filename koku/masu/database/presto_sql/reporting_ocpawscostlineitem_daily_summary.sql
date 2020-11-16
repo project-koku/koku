@@ -15,6 +15,8 @@ CREATE TABLE matched_tags_{{uuid | sqlsafe}} AS (
         ) AS tags
         JOIN postgres.{{schema | sqlsafe}}.reporting_awscostentrybill AS b
             ON tags.cost_entry_bill_id = b.id
+        JOIN postgres.{{schema | sqlsafe}}.reporting_awsenabledtagkeys as enabled_tags
+            ON lower(enabled_tags.key) = lower(tags.key)
         {% if bill_ids %}
         WHERE b.id IN (
             {%- for bill_id in bill_ids -%}
@@ -100,9 +102,10 @@ CREATE TABLE reporting_aws_tags_{{uuid | sqlsafe}} AS (
     SELECT aws.*
     FROM (
         SELECT INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.identity_lineitemid as line_item_id,
             aws.lineitem_resourceid as resource_id,
-            aws.lineitem_usagestartdate as usage_start,
-            aws.lineitem_usageenddate as usage_end,
+            date(aws.lineitem_usagestartdate) as usage_start,
+            date(aws.lineitem_usageenddate) as usage_end,
             aws.lineitem_productcode as product_code,
             aws.product_productfamily as product_family,
             aws.product_instancetype as instance_type,
@@ -114,12 +117,13 @@ CREATE TABLE reporting_aws_tags_{{uuid | sqlsafe}} AS (
             aws.lineitem_normalizedusageamount as normalized_usage_amount,
             aws.lineitem_currencycode as currency_code,
             aws.lineitem_unblendedcost as unblended_cost,
+            json_parse(resourcetags) as tags,
             lower(resourcetags) as lower_tags,
             row_number() OVER (PARTITION BY aws.identity_lineitemid ORDER BY aws.identity_lineitemid) as row_number
             FROM hive.{{schema | sqlsafe}}.aws_line_items as aws
             JOIN matched_tags_{{uuid | sqlsafe}} as tag
                 ON json_extract_scalar(aws.resourcetags, '$.' || tag.key) = tag.value
-            WHERE aws.source = '{{source_uuid | sqlsafe}}'
+            WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
                 AND aws.year = '{{year | sqlsafe}}'
                 AND aws.month = '{{month | sqlsafe}}'
                 AND date(aws.lineitem_usagestartdate) >= date('{{start_date | sqlsafe}}')
@@ -130,34 +134,153 @@ CREATE TABLE reporting_aws_tags_{{uuid | sqlsafe}} AS (
 ;
 
 CREATE TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}} AS (
-    WITH cte_tag_options AS (
-        SELECT '{"' || key || '": "' || value || '"}' as tag,
-            lower(key) as key,
-            lower(value) as value,
-            cost_entry_bill_id
-        FROM (
-            SELECT key,
-                value,
-                ts.cost_entry_bill_id
-            FROM postgres.{{schema | sqlsafe}}.reporting_awstags_summary AS ts
-                CROSS JOIN UNNEST("values") AS v(value)
-            --aws_where_clause
-            {% if bill_ids %}
-            WHERE ts.cost_entry_bill_id IN (
-                {%- for bill_id in bill_ids -%}
-                {{bill_id}}{% if not loop.last %},{% endif %}
-                {%- endfor -%}
-            )
-            {% endif %}
-        ) AS keyval
-        WHERE lower(key) IN ('openshift_cluster', 'openshift_node', 'openshift_project')
-    )
-    SELECT aws.*
-    FROM (
-        SELECT INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+    SELECT INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+        aws.identity_lineitemid as line_item_id,
+        aws.lineitem_resourceid as resource_id,
+        date(aws.lineitem_usagestartdate) as usage_start,
+        date(aws.lineitem_usageenddate) as usage_end,
+        aws.lineitem_productcode as product_code,
+        aws.product_productfamily as product_family,
+        aws.product_instancetype as instance_type,
+        aws.lineitem_usageaccountid as usage_account_id,
+        aws.lineitem_availabilityzone as availability_zone,
+        aws.product_region as region,
+        aws.pricing_unit as unit,
+        aws.lineitem_usageamount as usage_amount,
+        aws.lineitem_normalizedusageamount as normalized_usage_amount,
+        aws.lineitem_currencycode as currency_code,
+        aws.lineitem_unblendedcost as unblended_cost,
+        json_parse(resourcetags) as tags,
+        lower(aws.resourcetags) as lower_tags
+    FROM hive.{{schema | sqlsafe}}.aws_line_items as aws
+    WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
+        AND aws.year = '{{year | sqlsafe}}'
+        AND aws.month = '{{month | sqlsafe}}'
+        AND date(aws.lineitem_usagestartdate) >= date('{{start_date | sqlsafe}}')
+        AND date(aws.lineitem_usagestartdate) <= date('{{end_date | sqlsafe}}')
+        AND (
+            strpos(lower(resourcetags), 'openshift_cluster') != 0
+            OR strpos(lower(resourcetags), 'openshift_node') != 0
+            OR strpos(lower(resourcetags), 'openshift_project') != 0
+        )
+)
+;
+
+CREATE TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
+    SELECT cast(ocp.uuid AS VARCHAR) AS ocp_id,
+        ocp.usage_start,
+        ocp.report_period_id,
+        ocp.cluster_id,
+        ocp.cluster_alias,
+        ocp.namespace,
+        ocp.node,
+        ocp.persistentvolumeclaim,
+        ocp.persistentvolume,
+        ocp.storageclass,
+        ocp.persistentvolumeclaim_capacity_gigabyte,
+        ocp.persistentvolumeclaim_capacity_gigabyte_months,
+        ocp.volume_request_storage_gigabyte_months,
+        ocp.persistentvolumeclaim_usage_gigabyte_months,
+        json_format(ocp.volume_labels) as volume_labels,
+        lower(tag.key) as key,
+        lower(tag.value) as value,
+        lower(tag.tag) as tag
+    FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN matched_tags_{{uuid | sqlsafe}} AS tag
+        ON ocp.report_period_id = tag.report_period_id
+        AND json_extract_scalar(ocp.volume_labels, '$.' || tag.key) = tag.value
+    WHERE ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+        AND ocp.data_source = 'Storage'
+        AND date(ocp.usage_start) >= date('{{start_date | sqlsafe}}')
+        AND date(ocp.usage_start) <= date('{{end_date | sqlsafe}}')
+)
+;
+
+CREATE TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
+    SELECT cast(ocp.uuid AS VARCHAR) AS ocp_id,
+        ocp.usage_start,
+        ocp.report_period_id,
+        ocp.cluster_id,
+        ocp.cluster_alias,
+        ocp.namespace,
+        ocp.node,
+        json_format(ocp.pod_labels) as pod_labels,
+        ocp.pod_usage_cpu_core_hours,
+        ocp.pod_request_cpu_core_hours,
+        ocp.pod_limit_cpu_core_hours,
+        ocp.pod_usage_memory_gigabyte_hours,
+        ocp.pod_request_memory_gigabyte_hours,
+        ocp.node_capacity_cpu_cores,
+        ocp.node_capacity_cpu_core_hours,
+        ocp.node_capacity_memory_gigabytes,
+        ocp.node_capacity_memory_gigabyte_hours,
+        ocp.cluster_capacity_cpu_core_hours,
+        ocp.cluster_capacity_memory_gigabyte_hours,
+        lower(tag.key) as key,
+        lower(tag.value) as value,
+        lower(tag.tag) as tag
+    FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN matched_tags_{{uuid | sqlsafe}} AS tag
+        ON ocp.report_period_id = tag.report_period_id
+        AND json_extract_scalar(ocp.pod_labels, '$.' || tag.key) = tag.value
+    WHERE ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+        AND ocp.data_source = 'Pod'
+        AND date(ocp.usage_start) >= date('{{start_date | sqlsafe}}')
+        AND date(ocp.usage_start) <= date('{{end_date | sqlsafe}}')
+)
+;
+
+-- CREATE TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
+--     SELECT ocp.*,
+--         lower(tag.key) as key,
+--         lower(tag.value) as value,
+--         lower(tag.tag) as tag
+--     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items as ocp
+--     JOIN matched_tags_{{uuid | sqlsafe}} AS tag
+--         ON ocp.report_period_id = tag.report_period_id
+--             AND strpos(ocp.pod_labels, tag.tag) != 0
+--             -- AND ocp.pod_labels @> tag.tag
+--     WHERE ocp.usage_start >= date('{{start_date | sqlsafe}}')
+--         AND ocp.usage_start <= date('{{end_date | sqlsafe}}')
+--         --ocp_where_clause
+--         {% if cluster_id %}
+--         AND cluster_id = {{cluster_id}}
+--         {% endif %}
+-- )
+-- ;
+
+
+-- no need to wait for commit
+DROP TABLE matched_tags_{{uuid | sqlsafe}};
+
+
+-- First we match OCP pod data to AWS data using a direct
+-- resource id match. This usually means OCP node -> AWS EC2 instance ID.
+CREATE TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS (
+    WITH cte_resource_id_matched AS (
+        SELECT cast(ocp.uuid AS VARCHAR) AS ocp_id,
+            ocp.report_period_id,
+            ocp.cluster_id,
+            ocp.cluster_alias,
+            ocp.namespace,
+            ocp.node,
+            json_format(ocp.pod_labels) as pod_labels,
+            ocp.pod_usage_cpu_core_hours,
+            ocp.pod_request_cpu_core_hours,
+            ocp.pod_limit_cpu_core_hours,
+            ocp.pod_usage_memory_gigabyte_hours,
+            ocp.pod_request_memory_gigabyte_hours,
+            ocp.node_capacity_cpu_cores,
+            ocp.node_capacity_cpu_core_hours,
+            ocp.node_capacity_memory_gigabytes,
+            ocp.node_capacity_memory_gigabyte_hours,
+            ocp.cluster_capacity_cpu_core_hours,
+            ocp.cluster_capacity_memory_gigabyte_hours,
+            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.identity_lineitemid as aws_id,
             aws.lineitem_resourceid as resource_id,
-            aws.lineitem_usagestartdate as usage_start,
-            aws.lineitem_usageenddate as usage_end,
+            date(aws.lineitem_usagestartdate) as usage_start,
+            date(aws.lineitem_usageenddate) as usage_end,
             aws.lineitem_productcode as product_code,
             aws.product_productfamily as product_family,
             aws.product_instancetype as instance_type,
@@ -169,146 +292,30 @@ CREATE TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}} AS (
             aws.lineitem_normalizedusageamount as normalized_usage_amount,
             aws.lineitem_currencycode as currency_code,
             aws.lineitem_unblendedcost as unblended_cost,
-            lower(resourcetags) as lower_tags,
-            lower(tag.key) as key,
-            lower(tag.value) as value,
-            row_number() OVER (PARTITION BY aws.identity_lineitemid ORDER BY aws.identity_lineitemid) as row_number
+            aws.resourcetags as tags
         FROM hive.{{schema | sqlsafe}}.aws_line_items as aws
-        JOIN cte_tag_options as tag
-            ON json_extract_scalar(lower(aws.resourcetags), '$.' || tag.key) = tag.value
-        WHERE aws.source = '{{source_uuid | sqlsafe}}'
-            AND aws.year = '{{year | sqlsafe}}'
-            AND aws.month = '{{month | sqlsafe}}'
+        JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+            ON aws.lineitem_resourceid = ocp.resource_id
+                AND date(aws.lineitem_usagestartdate) = ocp.usage_start
+        WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
+                AND aws.year = '{{year | sqlsafe}}'
+                AND aws.month = '{{month | sqlsafe}}'
             AND date(aws.lineitem_usagestartdate) >= date('{{start_date | sqlsafe}}')
             AND date(aws.lineitem_usagestartdate) <= date('{{end_date | sqlsafe}}')
-    ) AS aws
-    WHERE aws.row_number = 1
-)
-;
-
-CREATE TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
-    WITH cte_node_labels AS (
-        SELECT node_labels
-    )
-    SELECT ocp.*,
-        lower(tag.key) as key,
-        lower(tag.value) as value,
-        lower(tag.tag) as tag
-    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items as ocp
-    JOIN matched_tags_{{uuid | sqlsafe}} AS tag
-        ON json_extract_scalar(ocp.persistentvolumeclaim_labels, '$.' || tag.key) = tag.value
-    WHERE ocp.source = '{{source_uuid | sqlsafe}}'
-        AND ocp.year = '{{year | sqlsafe}}'
-        AND ocp.month = '{{month | sqlsafe}}'
-        AND date(ocp.interval_start) >= date('{{start_date | sqlsafe}}')
-        AND date(ocp.interval_start) <= date('{{end_date | sqlsafe}}')
-)
-;
-
-CREATE TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
-    SELECT ocp.*,
-        lower(tag.key) as key,
-        lower(tag.value) as value,
-        lower(tag.tag) as tag
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items as ocp
-    JOIN matched_tags_{{uuid | sqlsafe}} AS tag
-        ON ocp.report_period_id = tag.report_period_id
-            AND strpos(ocp.pod_labels, tag.tag) != 0
-            -- AND ocp.pod_labels @> tag.tag
-    WHERE ocp.usage_start >= {{start_date}}::date
-        AND ocp.usage_start <= {{end_date}}::date
-        --ocp_where_clause
-        {% if cluster_id %}
-        AND cluster_id = {{cluster_id}}
-        {% endif %}
-)
-;
-
-
--- no need to wait for commit
-TRUNCATE TABLE matched_tags_{{uuid | sqlsafe}};
-DROP TABLE matched_tags_{{uuid | sqlsafe}};
-
-
--- First we match OCP pod data to AWS data using a direct
--- resource id match. This usually means OCP node -> AWS EC2 instance ID.
-CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS (
-    WITH cte_resource_id_matched AS (
-        SELECT ocp.id AS ocp_id,
-            ocp.report_period_id,
-            ocp.cluster_id,
-            ocp.cluster_alias,
-            ocp.namespace,
-            ocp.pod,
-            ocp.node,
-            ocp.pod_labels,
-            ocp.pod_usage_cpu_core_seconds,
-            ocp.pod_request_cpu_core_seconds,
-            ocp.pod_limit_cpu_core_seconds,
-            ocp.pod_usage_memory_byte_seconds,
-            ocp.pod_request_memory_byte_seconds,
-            ocp.node_capacity_cpu_cores,
-            ocp.node_capacity_cpu_core_seconds,
-            ocp.node_capacity_memory_bytes,
-            ocp.node_capacity_memory_byte_seconds,
-            ocp.cluster_capacity_cpu_core_seconds,
-            ocp.cluster_capacity_memory_byte_seconds,
-            aws.id AS aws_id,
-            aws.cost_entry_bill_id,
-            aws.cost_entry_product_id,
-            aws.cost_entry_pricing_id,
-            aws.cost_entry_reservation_id,
-            aws.line_item_type,
-            aws.usage_account_id,
-            aws.usage_start,
-            aws.usage_end,
-            aws.product_code,
-            aws.usage_type,
-            aws.operation,
-            aws.availability_zone,
-            aws.resource_id,
-            aws.usage_amount,
-            aws.normalization_factor,
-            aws.normalized_usage_amount,
-            aws.currency_code,
-            aws.unblended_rate,
-            aws.unblended_cost,
-            aws.blended_rate,
-            aws.blended_cost,
-            aws.public_on_demand_cost,
-            aws.public_on_demand_rate,
-            aws.tax_type,
-            aws.tags
-        FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws
-        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
-            ON aws.resource_id = ocp.resource_id
-                AND aws.usage_start = ocp.usage_start
-        WHERE aws.usage_start >= {{start_date}}::date
-            AND aws.usage_start <= {{end_date}}::date
-            -- aws_where_clause
-            {% if bill_ids %}
-            AND cost_entry_bill_id IN (
-                {%- for bill_id in bill_ids -%}
-                {{bill_id}}{% if not loop.last %},{% endif %}
-                {%- endfor -%}
-            )
-            {% endif %}
-            --ocp_where_clause
-            {% if cluster_id %}
-            AND cluster_id = {{cluster_id}}
-            {% endif %}
+            AND ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+            AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
+            AND ocp.usage_start <= date('{{end_date | sqlsafe}}')
+            AND ocp.data_source = 'Pod'
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_resource_id_matched
         GROUP BY aws_id
     )
     SELECT rm.*,
-        (rm.pod_usage_cpu_core_seconds / rm.node_capacity_cpu_core_seconds) * rm.unblended_cost as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        (rm.pod_usage_cpu_core_hours / rm.node_capacity_cpu_core_hours) * rm.unblended_cost as project_cost,
+        shared.shared_projects
     FROM cte_resource_id_matched AS rm
     JOIN cte_number_of_shared AS shared
         ON rm.aws_id = shared.aws_id
@@ -317,284 +324,240 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
 
 -- Next we match where the AWS tag is the special openshift_project key
 -- and the value matches an OpenShift project name
-INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
+INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}}
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT cast(ocp.uuid AS VARCHAR) AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
-            ocp.pod_labels,
-            ocp.pod_usage_cpu_core_seconds,
-            ocp.pod_request_cpu_core_seconds,
-            ocp.pod_limit_cpu_core_seconds,
-            ocp.pod_usage_memory_byte_seconds,
-            ocp.pod_request_memory_byte_seconds,
+            json_format(ocp.pod_labels) as pod_labels,
+            ocp.pod_usage_cpu_core_hours,
+            ocp.pod_request_cpu_core_hours,
+            ocp.pod_limit_cpu_core_hours,
+            ocp.pod_usage_memory_gigabyte_hours,
+            ocp.pod_request_memory_gigabyte_hours,
             ocp.node_capacity_cpu_cores,
-            ocp.node_capacity_cpu_core_seconds,
-            ocp.node_capacity_memory_bytes,
-            ocp.node_capacity_memory_byte_seconds,
-            ocp.cluster_capacity_cpu_core_seconds,
-            ocp.cluster_capacity_memory_byte_seconds,
-            aws.id AS aws_id,
-            aws.cost_entry_bill_id,
-            aws.cost_entry_product_id,
-            aws.cost_entry_pricing_id,
-            aws.cost_entry_reservation_id,
-            aws.line_item_type,
-            aws.usage_account_id,
+            ocp.node_capacity_cpu_core_hours,
+            ocp.node_capacity_memory_gigabytes,
+            ocp.node_capacity_memory_gigabyte_hours,
+            ocp.cluster_capacity_cpu_core_hours,
+            ocp.cluster_capacity_memory_gigabyte_hours,
+            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.line_item_id as aws_id,
+            aws.resource_id,
             aws.usage_start,
             aws.usage_end,
             aws.product_code,
-            aws.usage_type,
-            aws.operation,
+            aws.product_family,
+            aws.instance_type,
+            aws.usage_account_id,
             aws.availability_zone,
-            aws.resource_id,
+            aws.region,
+            aws.unit,
             aws.usage_amount,
-            aws.normalization_factor,
             aws.normalized_usage_amount,
             aws.currency_code,
-            aws.unblended_rate,
             aws.unblended_cost,
-            aws.blended_rate,
-            aws.blended_cost,
-            aws.public_on_demand_cost,
-            aws.public_on_demand_rate,
-            aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
-            ON aws.key = 'openshift_project' AND aws.value = lower(ocp.namespace)
+        JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+            ON json_extract_scalar(aws.lower_tags, '$.openshift_project') = lower(ocp.namespace)
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
-            ON rm.aws_id = aws.id
-        WHERE aws.usage_start >= {{start_date}}::date
-            AND aws.usage_start <= {{end_date}}::date
+            ON rm.aws_id = aws.line_item_id
+        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
+            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
             AND rm.aws_id IS NULL
+            AND ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+            AND ocp.data_source = 'Pod'
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
-)
 ;
 
 -- Next we match where the AWS tag is the special openshift_node key
 -- and the value matches an OpenShift node name
-INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
+INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}}
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT cast(ocp.uuid AS VARCHAR) AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
-            ocp.pod_labels,
-            ocp.pod_usage_cpu_core_seconds,
-            ocp.pod_request_cpu_core_seconds,
-            ocp.pod_limit_cpu_core_seconds,
-            ocp.pod_usage_memory_byte_seconds,
-            ocp.pod_request_memory_byte_seconds,
+            json_format(ocp.pod_labels) as pod_labels,
+            ocp.pod_usage_cpu_core_hours,
+            ocp.pod_request_cpu_core_hours,
+            ocp.pod_limit_cpu_core_hours,
+            ocp.pod_usage_memory_gigabyte_hours,
+            ocp.pod_request_memory_gigabyte_hours,
             ocp.node_capacity_cpu_cores,
-            ocp.node_capacity_cpu_core_seconds,
-            ocp.node_capacity_memory_bytes,
-            ocp.node_capacity_memory_byte_seconds,
-            ocp.cluster_capacity_cpu_core_seconds,
-            ocp.cluster_capacity_memory_byte_seconds,
-            aws.id AS aws_id,
-            aws.cost_entry_bill_id,
-            aws.cost_entry_product_id,
-            aws.cost_entry_pricing_id,
-            aws.cost_entry_reservation_id,
-            aws.line_item_type,
-            aws.usage_account_id,
+            ocp.node_capacity_cpu_core_hours,
+            ocp.node_capacity_memory_gigabytes,
+            ocp.node_capacity_memory_gigabyte_hours,
+            ocp.cluster_capacity_cpu_core_hours,
+            ocp.cluster_capacity_memory_gigabyte_hours,
+            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.line_item_id as aws_id,
+            aws.resource_id,
             aws.usage_start,
             aws.usage_end,
             aws.product_code,
-            aws.usage_type,
-            aws.operation,
+            aws.product_family,
+            aws.instance_type,
+            aws.usage_account_id,
             aws.availability_zone,
-            aws.resource_id,
+            aws.region,
+            aws.unit,
             aws.usage_amount,
-            aws.normalization_factor,
             aws.normalized_usage_amount,
             aws.currency_code,
-            aws.unblended_rate,
             aws.unblended_cost,
-            aws.blended_rate,
-            aws.blended_cost,
-            aws.public_on_demand_cost,
-            aws.public_on_demand_rate,
-            aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
-            ON aws.key = 'openshift_node' AND aws.value = lower(ocp.node)
+        JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+            ON json_extract_scalar(aws.lower_tags, '$.openshift_node') = lower(ocp.node)
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
-            ON rm.aws_id = aws.id
-        WHERE aws.usage_start >= {{start_date}}::date
-            AND aws.usage_start <= {{end_date}}::date
+            ON rm.aws_id = aws.line_item_id
+        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
+            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
             AND rm.aws_id IS NULL
+            AND ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+            AND ocp.data_source = 'Pod'
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
-)
 ;
 
 -- Next we match where the AWS tag is the special openshift_cluster key
 -- and the value matches an OpenShift cluster name
- INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
+ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}}
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT cast(ocp.uuid AS VARCHAR) AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
-            ocp.pod_labels,
-            ocp.pod_usage_cpu_core_seconds,
-            ocp.pod_request_cpu_core_seconds,
-            ocp.pod_limit_cpu_core_seconds,
-            ocp.pod_usage_memory_byte_seconds,
-            ocp.pod_request_memory_byte_seconds,
+            json_format(ocp.pod_labels) as pod_labels,
+            ocp.pod_usage_cpu_core_hours,
+            ocp.pod_request_cpu_core_hours,
+            ocp.pod_limit_cpu_core_hours,
+            ocp.pod_usage_memory_gigabyte_hours,
+            ocp.pod_request_memory_gigabyte_hours,
             ocp.node_capacity_cpu_cores,
-            ocp.node_capacity_cpu_core_seconds,
-            ocp.node_capacity_memory_bytes,
-            ocp.node_capacity_memory_byte_seconds,
-            ocp.cluster_capacity_cpu_core_seconds,
-            ocp.cluster_capacity_memory_byte_seconds,
-            aws.id AS aws_id,
-            aws.cost_entry_bill_id,
-            aws.cost_entry_product_id,
-            aws.cost_entry_pricing_id,
-            aws.cost_entry_reservation_id,
-            aws.line_item_type,
-            aws.usage_account_id,
+            ocp.node_capacity_cpu_core_hours,
+            ocp.node_capacity_memory_gigabytes,
+            ocp.node_capacity_memory_gigabyte_hours,
+            ocp.cluster_capacity_cpu_core_hours,
+            ocp.cluster_capacity_memory_gigabyte_hours,
+            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.line_item_id as aws_id,
+            aws.resource_id,
             aws.usage_start,
             aws.usage_end,
             aws.product_code,
-            aws.usage_type,
-            aws.operation,
+            aws.product_family,
+            aws.instance_type,
+            aws.usage_account_id,
             aws.availability_zone,
-            aws.resource_id,
+            aws.region,
+            aws.unit,
             aws.usage_amount,
-            aws.normalization_factor,
             aws.normalized_usage_amount,
             aws.currency_code,
-            aws.unblended_rate,
             aws.unblended_cost,
-            aws.blended_rate,
-            aws.blended_cost,
-            aws.public_on_demand_cost,
-            aws.public_on_demand_rate,
-            aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
-            ON (aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_id)
-                OR aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_alias))
+        JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+            ON json_extract_scalar(aws.lower_tags, '$.openshift_cluster') IN (lower(ocp.cluster_id), lower(ocp.cluster_alias))
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
-            ON rm.aws_id = aws.id
-        WHERE aws.usage_start >= {{start_date}}::date
-            AND aws.usage_start <= {{end_date}}::date
+            ON rm.aws_id = aws.line_item_id
+        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
+            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
             AND rm.aws_id IS NULL
+            AND ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+            AND ocp.data_source = 'Pod'
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
-)
 ;
 
 -- Next we match where the pod label key and value
 -- and AWS tag key and value match directly
- INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
+ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}}
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
             ocp.pod_labels,
-            ocp.pod_usage_cpu_core_seconds,
-            ocp.pod_request_cpu_core_seconds,
-            ocp.pod_limit_cpu_core_seconds,
-            ocp.pod_usage_memory_byte_seconds,
-            ocp.pod_request_memory_byte_seconds,
+            ocp.pod_usage_cpu_core_hours,
+            ocp.pod_request_cpu_core_hours,
+            ocp.pod_limit_cpu_core_hours,
+            ocp.pod_usage_memory_gigabyte_hours,
+            ocp.pod_request_memory_gigabyte_hours,
             ocp.node_capacity_cpu_cores,
-            ocp.node_capacity_cpu_core_seconds,
-            ocp.node_capacity_memory_bytes,
-            ocp.node_capacity_memory_byte_seconds,
-            ocp.cluster_capacity_cpu_core_seconds,
-            ocp.cluster_capacity_memory_byte_seconds,
-            aws.id AS aws_id,
-            aws.cost_entry_bill_id,
-            aws.cost_entry_product_id,
-            aws.cost_entry_pricing_id,
-            aws.cost_entry_reservation_id,
-            aws.line_item_type,
-            aws.usage_account_id,
+            ocp.node_capacity_cpu_core_hours,
+            ocp.node_capacity_memory_gigabytes,
+            ocp.node_capacity_memory_gigabyte_hours,
+            ocp.cluster_capacity_cpu_core_hours,
+            ocp.cluster_capacity_memory_gigabyte_hours,
+            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.line_item_id as aws_id,
+            aws.resource_id,
             aws.usage_start,
             aws.usage_end,
             aws.product_code,
-            aws.usage_type,
-            aws.operation,
+            aws.product_family,
+            aws.instance_type,
+            aws.usage_account_id,
             aws.availability_zone,
-            aws.resource_id,
+            aws.region,
+            aws.unit,
             aws.usage_amount,
-            aws.normalization_factor,
             aws.normalized_usage_amount,
             aws.currency_code,
-            aws.unblended_rate,
             aws.unblended_cost,
-            aws.blended_rate,
-            aws.blended_cost,
-            aws.public_on_demand_cost,
-            aws.public_on_demand_rate,
-            aws.tax_type,
             aws.tags
         FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
@@ -603,98 +566,85 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             -- ON aws.lower_tags @> ocp.tag
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
-            ON rm.aws_id = aws.id
-        WHERE aws.usage_start >= {{start_date}}::date
-            AND aws.usage_start <= {{end_date}}::date
+            ON rm.aws_id = aws.line_item_id
+        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
+            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
             AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
-)
 ;
 
 -- no need to wait for commit
-TRUNCATE TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}};
 DROP TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}};
 
 
 -- First we match where the AWS tag is the special openshift_project key
 -- and the value matches an OpenShift project name
-CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS (
+CREATE TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT cast(ocp.uuid AS VARCHAR) AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
             ocp.persistentvolumeclaim,
             ocp.persistentvolume,
             ocp.storageclass,
-            ocp.persistentvolumeclaim_capacity_bytes,
-            ocp.persistentvolumeclaim_capacity_byte_seconds,
-            ocp.volume_request_storage_byte_seconds,
-            ocp.persistentvolumeclaim_usage_byte_seconds,
-            ocp.persistentvolume_labels,
-            ocp.persistentvolumeclaim_labels,
-            aws.id AS aws_id,
-            aws.cost_entry_bill_id,
-            aws.cost_entry_product_id,
-            aws.cost_entry_pricing_id,
-            aws.cost_entry_reservation_id,
-            aws.line_item_type,
-            aws.usage_account_id,
+            ocp.persistentvolumeclaim_capacity_gigabyte,
+            ocp.persistentvolumeclaim_capacity_gigabyte_months,
+            ocp.volume_request_storage_gigabyte_months,
+            ocp.persistentvolumeclaim_usage_gigabyte_months,
+            json_format(ocp.volume_labels) as volume_labels,
+            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.line_item_id as aws_id,
+            aws.resource_id,
             aws.usage_start,
             aws.usage_end,
             aws.product_code,
-            aws.usage_type,
-            aws.operation,
+            aws.product_family,
+            aws.instance_type,
+            aws.usage_account_id,
             aws.availability_zone,
-            aws.resource_id,
+            aws.region,
+            aws.unit,
             aws.usage_amount,
-            aws.normalization_factor,
             aws.normalized_usage_amount,
             aws.currency_code,
-            aws.unblended_rate,
             aws.unblended_cost,
-            aws.blended_rate,
-            aws.blended_cost,
-            aws.public_on_demand_cost,
-            aws.public_on_demand_rate,
-            aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
-            ON aws.key = 'openshift_project' AND aws.value = lower(ocp.namespace)
+        JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+            ON json_extract_scalar(aws.lower_tags, '$.openshift_project') = lower(ocp.namespace)
                 AND aws.usage_start = ocp.usage_start
-        WHERE aws.usage_start >= {{start_date}}::date
-            AND aws.usage_start <= {{end_date}}::date
+        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
+            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
+            AND ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+            AND ocp.data_source = 'Storage'
+            AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
+            AND ocp.usage_start <= date('{{end_date | sqlsafe}}')
 
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
@@ -703,203 +653,168 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
 
 -- Next we match where the AWS tag is the special openshift_node key
 -- and the value matches an OpenShift node name
-INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
+INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}}
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT cast(ocp.uuid AS VARCHAR) AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
             ocp.persistentvolumeclaim,
             ocp.persistentvolume,
             ocp.storageclass,
-            ocp.persistentvolumeclaim_capacity_bytes,
-            ocp.persistentvolumeclaim_capacity_byte_seconds,
-            ocp.volume_request_storage_byte_seconds,
-            ocp.persistentvolumeclaim_usage_byte_seconds,
-            ocp.persistentvolume_labels,
-            ocp.persistentvolumeclaim_labels,
-            aws.id AS aws_id,
-            aws.cost_entry_bill_id,
-            aws.cost_entry_product_id,
-            aws.cost_entry_pricing_id,
-            aws.cost_entry_reservation_id,
-            aws.line_item_type,
-            aws.usage_account_id,
+            ocp.persistentvolumeclaim_capacity_gigabyte,
+            ocp.persistentvolumeclaim_capacity_gigabyte_months,
+            ocp.volume_request_storage_gigabyte_months,
+            ocp.persistentvolumeclaim_usage_gigabyte_months,
+            json_format(ocp.volume_labels) as volume_labels,
+            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.line_item_id as aws_id,
+            aws.resource_id,
             aws.usage_start,
             aws.usage_end,
             aws.product_code,
-            aws.usage_type,
-            aws.operation,
+            aws.product_family,
+            aws.instance_type,
+            aws.usage_account_id,
             aws.availability_zone,
-            aws.resource_id,
+            aws.region,
+            aws.unit,
             aws.usage_amount,
-            aws.normalization_factor,
             aws.normalized_usage_amount,
             aws.currency_code,
-            aws.unblended_rate,
             aws.unblended_cost,
-            aws.blended_rate,
-            aws.blended_cost,
-            aws.public_on_demand_cost,
-            aws.public_on_demand_rate,
-            aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
-            ON aws.key = 'openshift_node' AND aws.value = lower(ocp.node)
+        JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+            ON json_extract_scalar(aws.lower_tags, '$.openshift_node') = lower(ocp.node)
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
-            ON rm.aws_id = aws.id
-        WHERE aws.usage_start >= {{start_date}}::date
-            AND aws.usage_start <= {{end_date}}::date
+            ON rm.aws_id = aws.line_item_id
+        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
+            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
             AND rm.aws_id IS NULL
+            AND ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+            AND ocp.data_source = 'Storage'
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
-)
 ;
 
 -- Next we match where the AWS tag is the special openshift_cluster key
 -- and the value matches an OpenShift cluster name
- INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
+ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}}
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT cast(ocp.uuid AS VARCHAR) AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
             ocp.persistentvolumeclaim,
             ocp.persistentvolume,
             ocp.storageclass,
-            ocp.persistentvolumeclaim_capacity_bytes,
-            ocp.persistentvolumeclaim_capacity_byte_seconds,
-            ocp.volume_request_storage_byte_seconds,
-            ocp.persistentvolumeclaim_usage_byte_seconds,
-            ocp.persistentvolume_labels,
-            ocp.persistentvolumeclaim_labels,
-            aws.id AS aws_id,
-            aws.cost_entry_bill_id,
-            aws.cost_entry_product_id,
-            aws.cost_entry_pricing_id,
-            aws.cost_entry_reservation_id,
-            aws.line_item_type,
-            aws.usage_account_id,
+            ocp.persistentvolumeclaim_capacity_gigabyte,
+            ocp.persistentvolumeclaim_capacity_gigabyte_months,
+            ocp.volume_request_storage_gigabyte_months,
+            ocp.persistentvolumeclaim_usage_gigabyte_months,
+            json_format(ocp.volume_labels) as volume_labels,
+            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.line_item_id as aws_id,
+            aws.resource_id,
             aws.usage_start,
             aws.usage_end,
             aws.product_code,
-            aws.usage_type,
-            aws.operation,
+            aws.product_family,
+            aws.instance_type,
+            aws.usage_account_id,
             aws.availability_zone,
-            aws.resource_id,
+            aws.region,
+            aws.unit,
             aws.usage_amount,
-            aws.normalization_factor,
             aws.normalized_usage_amount,
             aws.currency_code,
-            aws.unblended_rate,
             aws.unblended_cost,
-            aws.blended_rate,
-            aws.blended_cost,
-            aws.public_on_demand_cost,
-            aws.public_on_demand_rate,
-            aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
-            ON (aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_id)
-                OR aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_alias))
+        JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+            ON json_extract_scalar(aws.lower_tags, '$.openshift_cluster') IN (lower(ocp.cluster_id), lower(ocp.cluster_alias))
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
-            ON rm.aws_id = aws.id
-        WHERE aws.usage_start >= {{start_date}}::date
-            AND aws.usage_start <= {{end_date}}::date
+            ON rm.aws_id = aws.line_item_id
+        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
+            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
             AND rm.aws_id IS NULL
+            AND ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+            AND ocp.data_source = 'Storage'
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
-)
+
 ;
 
 -- no need to wait for commit
-TRUNCATE TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}};
-DROP TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}};
+DROP TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}}
+;
 
 
 -- Then we match for OpenShift volume data where the volume label key and value
 -- and AWS tag key and value match directly
- INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
+ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}}
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
             ocp.persistentvolumeclaim,
             ocp.persistentvolume,
             ocp.storageclass,
-            ocp.persistentvolumeclaim_capacity_bytes,
-            ocp.persistentvolumeclaim_capacity_byte_seconds,
-            ocp.volume_request_storage_byte_seconds,
-            ocp.persistentvolumeclaim_usage_byte_seconds,
-            ocp.persistentvolume_labels,
-            ocp.persistentvolumeclaim_labels,
-            aws.id AS aws_id,
-            aws.cost_entry_bill_id,
-            aws.cost_entry_product_id,
-            aws.cost_entry_pricing_id,
-            aws.cost_entry_reservation_id,
-            aws.line_item_type,
-            aws.usage_account_id,
+            ocp.persistentvolumeclaim_capacity_gigabyte,
+            ocp.persistentvolumeclaim_capacity_gigabyte_months,
+            ocp.volume_request_storage_gigabyte_months,
+            ocp.persistentvolumeclaim_usage_gigabyte_months,
+            ocp.volume_labels,
+            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.line_item_id as aws_id,
+            aws.resource_id,
             aws.usage_start,
             aws.usage_end,
             aws.product_code,
-            aws.usage_type,
-            aws.operation,
+            aws.product_family,
+            aws.instance_type,
+            aws.usage_account_id,
             aws.availability_zone,
-            aws.resource_id,
+            aws.region,
+            aws.unit,
             aws.usage_amount,
-            aws.normalization_factor,
             aws.normalized_usage_amount,
             aws.currency_code,
-            aws.unblended_rate,
             aws.unblended_cost,
-            aws.blended_rate,
-            aws.blended_cost,
-            aws.public_on_demand_cost,
-            aws.public_on_demand_rate,
-            aws.tax_type,
             aws.tags
         FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
@@ -908,34 +823,32 @@ DROP TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}};
                 -- ON aws.lower_tags @> ocp.tag
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
-            ON rm.aws_id = aws.id
-        WHERE aws.usage_start >= {{start_date}}::date
-            AND aws.usage_start <= {{end_date}}::date
+            ON rm.aws_id = aws.line_item_id
+        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
+            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
             AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
-)
+
 ;
 
 -- no need to wait for commit
-TRUNCATE TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}};
-DROP TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}};
+DROP TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}}
+;
 
-TRUNCATE TABLE reporting_aws_tags_{{uuid | sqlsafe}};
-DROP TABLE reporting_aws_tags_{{uuid | sqlsafe}};
+DROP TABLE reporting_aws_tags_{{uuid | sqlsafe}}
+;
 
 
 -- The full summary data for Openshift pod<->AWS and
@@ -943,73 +856,52 @@ DROP TABLE reporting_aws_tags_{{uuid | sqlsafe}};
 -- with a GROUP BY using the AWS ID to deduplicate
 -- the AWS data. This should ensure that we never double count
 -- AWS cost or usage.
-CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}} AS (
+CREATE TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}} AS (
     WITH cte_pod_project_cost AS (
-        SELECT pc.aws_id,
-            jsonb_object_agg(pc.namespace, pc.pod_cost) as project_costs
-        FROM (
-            SELECT li.aws_id,
-                li.namespace,
-                sum(pod_cost) as pod_cost
-            FROM reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} as li
-            GROUP BY li.aws_id, li.namespace
-        ) AS pc
-        GROUP BY pc.aws_id
+        SELECT li.aws_id,
+            map_agg(li.namespace, li.project_cost) as project_costs
+        FROM reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} as li
+        GROUP BY li.aws_id
     ),
     cte_storage_project_cost AS (
-        SELECT pc.aws_id,
-            jsonb_object_agg(pc.namespace, pc.pod_cost) as project_costs
-        FROM (
-            SELECT li.aws_id,
-                li.namespace,
-                sum(pod_cost) as pod_cost
-            FROM reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} as li
-            GROUP BY li.aws_id, li.namespace
-        ) AS pc
-        GROUP BY pc.aws_id
+        SELECT li.aws_id,
+            map_agg(li.namespace, li.project_cost) as project_costs
+        FROM reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} as li
+        GROUP BY li.aws_id
     )
     SELECT max(li.report_period_id) as report_period_id,
         max(li.cluster_id) as cluster_id,
         max(li.cluster_alias) as cluster_alias,
         array_agg(DISTINCT li.namespace) as namespace,
-        array_agg(DISTINCT li.pod) as pod,
         max(li.node) as node,
         max(li.resource_id) as resource_id,
         max(li.usage_start) as usage_start,
         max(li.usage_end) as usage_end,
         max(li.product_code) as product_code,
-        max(p.product_family) as product_family,
-        max(p.instance_type) as instance_type,
+        max(li.product_family) as product_family,
+        max(li.instance_type) as instance_type,
         max(li.cost_entry_bill_id) as cost_entry_bill_id,
         max(li.usage_account_id) as usage_account_id,
         max(aa.id) as account_alias_id,
         max(li.availability_zone) as availability_zone,
-        max(p.region) as region,
-        max(pr.unit) as unit,
+        max(li.region) as region,
+        max(li.unit) as unit,
         li.tags,
         max(li.usage_amount) as usage_amount,
         max(li.normalized_usage_amount) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
         max(li.unblended_cost) as unblended_cost,
-        max(li.unblended_cost) * {{markup}}::numeric as markup_cost,
+        max(li.unblended_cost) * cast({{markup}} as decimal(24,9)) as markup_cost,
         max(li.shared_projects) as shared_projects,
         pc.project_costs as project_costs,
-        ab.provider_id as source_uuid
+        '{{aws_source_uuid | sqlsafe}}' as source_uuid
     FROM reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} as li
-    JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
-        ON li.cost_entry_product_id = p.id
     JOIN cte_pod_project_cost as pc
         ON li.aws_id = pc.aws_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrypricing as pr
-        ON li.cost_entry_pricing_id = pr.id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
+    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as ab
-        ON li.cost_entry_bill_id = ab.id
-    WHERE li.usage_start >= {{start_date}}::date
-        AND li.usage_start <= {{end_date}}::date
     -- Dedup on AWS line item so we never double count usage or cost
-    GROUP BY li.aws_id, li.tags, pc.project_costs, ab.provider_id
+    GROUP BY li.aws_id, li.tags, pc.project_costs
 
     UNION
 
@@ -1017,46 +909,37 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         max(li.cluster_id) as cluster_id,
         max(li.cluster_alias) as cluster_alias,
         array_agg(DISTINCT li.namespace) as namespace,
-        array_agg(DISTINCT li.pod) as pod,
         max(li.node) as node,
         max(li.resource_id) as resource_id,
         max(li.usage_start) as usage_start,
         max(li.usage_end) as usage_end,
         max(li.product_code) as product_code,
-        max(p.product_family) as product_family,
-        max(p.instance_type) as instance_type,
+        max(li.product_family) as product_family,
+        max(li.instance_type) as instance_type,
         max(li.cost_entry_bill_id) as cost_entry_bill_id,
         max(li.usage_account_id) as usage_account_id,
         max(aa.id) as account_alias_id,
         max(li.availability_zone) as availability_zone,
-        max(p.region) as region,
-        max(pr.unit) as unit,
+        max(li.region) as region,
+        max(li.unit) as unit,
         li.tags,
         max(li.usage_amount) as usage_amount,
         max(li.normalized_usage_amount) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
         max(li.unblended_cost) as unblended_cost,
-        max(li.unblended_cost) * {{markup}}::numeric as markup_cost,
+        max(li.unblended_cost) * cast({{markup}} as decimal(24,9)) as markup_cost,
         max(li.shared_projects) as shared_projects,
         pc.project_costs,
-        ab.provider_id as source_uuid
+        '{{aws_source_uuid | sqlsafe}}' as source_uuid
     FROM reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS li
-    JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
-        ON li.cost_entry_product_id = p.id
     JOIN cte_storage_project_cost AS pc
         ON li.aws_id = pc.aws_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrypricing as pr
-        ON li.cost_entry_pricing_id = pr.id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
+    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
     LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.aws_id = li.aws_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as ab
-        ON li.cost_entry_bill_id = ab.id
-    WHERE li.usage_start >= {{start_date}}::date
-        AND li.usage_start <= {{end_date}}::date
         AND ulid.aws_id IS NULL
-    GROUP BY li.aws_id, li.tags, pc.project_costs, ab.provider_id
+    GROUP BY li.aws_id, li.tags, pc.project_costs
 )
 ;
 
@@ -1068,58 +951,47 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
 -- point of view. Here usage and cost are divided by the
 -- number of pods sharing the cost so the values turn out the
 -- same when reported.
-CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}} AS (
+CREATE TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}} AS (
     SELECT li.report_period_id,
         li.cluster_id,
         li.cluster_alias,
         'Pod' as data_source,
         li.namespace,
-        li.pod,
         li.node,
         li.pod_labels,
         max(li.resource_id) as resource_id,
         max(li.usage_start) as usage_start,
         max(li.usage_end) as usage_end,
         max(li.product_code) as product_code,
-        max(p.product_family) as product_family,
-        max(p.instance_type) as instance_type,
+        max(li.product_family) as product_family,
+        max(li.instance_type) as instance_type,
         max(li.cost_entry_bill_id) as cost_entry_bill_id,
         max(li.usage_account_id) as usage_account_id,
         max(aa.id) as account_alias_id,
         max(li.availability_zone) as availability_zone,
-        max(p.region) as region,
-        max(pr.unit) as unit,
+        max(li.region) as region,
+        max(li.unit) as unit,
         sum(li.usage_amount / li.shared_pods) as usage_amount,
         sum(li.normalized_usage_amount / li.shared_pods) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
         sum(li.unblended_cost / li.shared_pods) as unblended_cost,
-        sum(li.unblended_cost / li.shared_pods) * {{markup}}::numeric as markup_cost,
+        sum(li.unblended_cost / li.shared_pods) * cast({{markup}} as decimal(24,9)) as markup_cost,
         max(li.shared_pods) as shared_pods,
-        li.pod_cost,
-        li.pod_cost * {{markup}}::numeric as project_markup_cost,
-        ab.provider_id as source_uuid
+        li.project_cost,
+        li.project_cost * cast({{markup}} as decimal(24,9)) as project_markup_cost,
+        '{{aws_source_uuid | sqlsafe}}' as source_uuid
     FROM reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} as li
-    JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
-        ON li.cost_entry_product_id = p.id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrypricing as pr
-        ON li.cost_entry_pricing_id = pr.id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
+    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as ab
-        ON li.cost_entry_bill_id = ab.id
-    WHERE li.usage_start >= {{start_date}}::date
-        AND li.usage_start <= {{end_date}}::date
     -- Grouping by OCP this time for the by project view
     GROUP BY li.report_period_id,
         li.ocp_id,
         li.cluster_id,
         li.cluster_alias,
         li.namespace,
-        li.pod,
         li.node,
         li.pod_labels,
-        li.pod_cost,
-        ab.provider_id
+        li.project_cost
 
     UNION
 
@@ -1128,68 +1000,54 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         li.cluster_alias,
         'Storage' as data_source,
         li.namespace,
-        li.pod,
         li.node,
-        li.persistentvolume_labels || li.persistentvolumeclaim_labels as pod_labels,
+        li.volume_labels as pod_labels,
         NULL as resource_id,
         max(li.usage_start) as usage_start,
         max(li.usage_end) as usage_end,
         max(li.product_code) as product_code,
-        max(p.product_family) as product_family,
-        max(p.instance_type) as instance_type,
+        max(li.product_family) as product_family,
+        max(li.instance_type) as instance_type,
         max(li.cost_entry_bill_id) as cost_entry_bill_id,
         max(li.usage_account_id) as usage_account_id,
         max(aa.id) as account_alias_id,
         max(li.availability_zone) as availability_zone,
-        max(p.region) as region,
-        max(pr.unit) as unit,
+        max(li.region) as region,
+        max(li.unit) as unit,
         sum(li.usage_amount / li.shared_pods) as usage_amount,
         sum(li.normalized_usage_amount / li.shared_pods) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
         sum(li.unblended_cost / li.shared_pods) as unblended_cost,
-        sum(li.unblended_cost / li.shared_pods) * {{markup}}::numeric as markup_cost,
+        sum(li.unblended_cost / li.shared_pods) * cast({{markup}} as decimal(24,9)) as markup_cost,
         max(li.shared_pods) as shared_pods,
-        li.pod_cost,
-        li.pod_cost * {{markup}}::numeric as project_markup_cost,
-        ab.provider_id as source_uuid
+        li.project_cost,
+        li.project_cost * cast({{markup}} as decimal(24,9)) as project_markup_cost,
+        '{{aws_source_uuid | sqlsafe}}' as source_uuid
     FROM reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS li
-    JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
-        ON li.cost_entry_product_id = p.id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrypricing as pr
-        ON li.cost_entry_pricing_id = pr.id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
+    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
     LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.aws_id = li.aws_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as ab
-        ON li.cost_entry_bill_id = ab.id
-    WHERE li.usage_start >= {{start_date}}::date
-        AND li.usage_start <= {{end_date}}::date
-        AND ulid.aws_id IS NULL
+    WHERE ulid.aws_id IS NULL
     GROUP BY li.ocp_id,
         li.report_period_id,
         li.cluster_id,
         li.cluster_alias,
         li.namespace,
-        li.pod,
         li.node,
-        li.persistentvolume_labels,
-        li.persistentvolumeclaim_labels,
-        li.pod_cost,
-        ab.provider_id
+        li.volume_labels,
+        li.project_cost
 )
 ;
 
 -- no need to wait for commit
-TRUNCATE TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}};
 DROP TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}};
 
-TRUNCATE TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}};
 DROP TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}};
 
 
 -- Clear out old entries first
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary
+DELETE FROM postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary
 WHERE usage_start >= {{start_date}}
     AND usage_start <= {{end_date}}
     --aws_where_clause
@@ -1207,12 +1065,11 @@ WHERE usage_start >= {{start_date}}
 ;
 
 -- Populate the daily aggregate line item data
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
+INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
     report_period_id,
     cluster_id,
     cluster_alias,
     namespace,
-    pod,
     node,
     resource_id,
     usage_start,
@@ -1240,7 +1097,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
         cluster_id,
         cluster_alias,
         namespace,
-        pod,
         node,
         resource_id,
         usage_start,
@@ -1267,11 +1123,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
 ;
 
 -- no need to wait for commit
-TRUNCATE TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}};
 DROP TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}};
 
 
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary
+DELETE FROM postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary
 WHERE usage_start >= {{start_date}}
     AND usage_start <= {{end_date}}
     --aws_where_clause
@@ -1288,13 +1143,12 @@ WHERE usage_start >= {{start_date}}
     {% endif %}
 ;
 
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary (
+INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary (
     report_period_id,
     cluster_id,
     cluster_alias,
     data_source,
     namespace,
-    pod,
     node,
     pod_labels,
     resource_id,
@@ -1314,7 +1168,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
     currency_code,
     unblended_cost,
     markup_cost,
-    pod_cost,
+    project_cost,
     project_markup_cost,
     source_uuid
 )
@@ -1323,7 +1177,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
         cluster_alias,
         data_source,
         namespace,
-        pod,
         node,
         pod_labels,
         resource_id,
@@ -1343,14 +1196,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
         currency_code,
         unblended_cost,
         markup_cost,
-        pod_cost,
+        project_cost,
         project_markup_cost,
         source_uuid
     FROM reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}}
 ;
 
-DROP INDEX IF EXISTS aws_tags_gin_idx;
-
 -- no need to wait for commit
-TRUNCATE TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}};
 DROP TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}};
