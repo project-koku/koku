@@ -4,7 +4,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0149_presto_bulk_pk_delete")]
+    dependencies = [("reporting", "0150_presto_bulk_pk_delete")]
 
     operations = [
         migrations.RunSQL(
