@@ -24,12 +24,16 @@ import pytz
 from django.utils import timezone
 
 from api.forecast.views import AWSCostForecastView
+from api.forecast.views import AzureCostForecastView
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.report.test.tests_queries import assertSameQ
 from api.utils import DateHelper
 from forecast import AWSForecast
+from forecast import AzureForecast
+
+LOG = logging.getLogger(__name__)
 
 
 class MockDateHelper(DateHelper):
@@ -292,3 +296,36 @@ class AWSForecastTest(IamTestCase):
         instance.set_access_filters(access, filt, filters)
         self.assertIsInstance(filters, QueryFilterCollection)
         assertSameQ(filters.compose(), expected.compose())
+
+
+class AzureForecastTest(IamTestCase):
+    """Tests the AzureForecast class."""
+
+    def test_predict_flat(self):
+        """Test that predict() returns expected values for flat costs."""
+        dh = DateHelper()
+
+        expected = []
+        for n in range(0, 10):
+            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+
+        mocked_table = Mock()
+        mocked_table.objects.filter.return_value.order_by.return_value.annotate.return_value.values.return_value = (  # noqa: E501
+            expected
+        )
+        mocked_table.len = len(expected)
+
+        params = self.mocked_query_params("?", AzureCostForecastView)
+        instance = AzureForecast(params)
+
+        instance.cost_summary_table = mocked_table
+
+        results = instance.predict()
+
+        for item in results:
+            self.assertRegex(item.get("date"), r"\d{4}-\d{2}-\d{2}")
+            self.assertAlmostEqual(float(item.get("value")), 5, delta=0.0001)
+            self.assertAlmostEqual(float(item.get("confidence_max")), 5, delta=0.0001)
+            self.assertAlmostEqual(float(item.get("confidence_min")), 5, delta=0.0001)
+            self.assertAlmostEqual(float(item.get("rsquared")), 1, delta=0.0001)
+            self.assertGreaterEqual(float(item.get("pvalues")), 0)
