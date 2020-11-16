@@ -17,20 +17,36 @@
 """OCP-on-Azure Tag Query Handling."""
 from copy import deepcopy
 
+from django.db.models import Exists
+from django.db.models import OuterRef
+
 from api.models import Provider
 from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.queries import TagQueryHandler
 from reporting.models import OCPAzureTagsSummary
+from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.azure.openshift.models import OCPAzureTagsValues
+from reporting.provider.ocp.models import OCPEnabledTagKeys
 
 
 class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
     """Handles tag queries and responses for OCP-on-Azure."""
 
     provider = Provider.OCP_AZURE
-    data_sources = [{"db_table": OCPAzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
+    data_sources = [
+        {
+            "db_table": OCPAzureTagsSummary,
+            "db_column_period": "cost_entry_bill__billing_period",
+            "annotations": {"enabled": Exists(AzureEnabledTagKeys.objects.filter(key=OuterRef("key")))},
+        },
+        {
+            "db_table": OCPAzureTagsSummary,
+            "db_column_period": "cost_entry_bill__billing_period",
+            "annotations": {"enabled": Exists(OCPEnabledTagKeys.objects.filter(key=OuterRef("key")))},
+        },
+    ]
     TAGS_VALUES_SOURCE = [{"db_table": OCPAzureTagsValues, "fields": ["key"]}]
     SUPPORTED_FILTERS = AzureTagQueryHandler.SUPPORTED_FILTERS + OCPTagQueryHandler.SUPPORTED_FILTERS
 
@@ -43,8 +59,8 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
         """
         self._parameters = parameters
         self._mapper = OCPAzureProviderMap(provider=self.provider, report_type=parameters.report_type)
-        if "enabled" in self.SUPPORTED_FILTERS:
-            self.SUPPORTED_FILTERS.remove("enabled")
+        if parameters.get_filter("enabled") is None:
+            parameters.set_filter(**{"enabled": True})
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
 
@@ -61,6 +77,7 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
                         {"field": "cluster_ids", "operation": "icontains", "composition_key": "cluster_filter"},
                         {"field": "cluster_aliases", "operation": "icontains", "composition_key": "cluster_filter"},
                     ],
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
                 }
             )
         else:
@@ -80,6 +97,7 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
                             "composition_key": "cluster_filter",
                         },
                     ],
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
                 }
             )
         return filter_map
