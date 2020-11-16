@@ -87,7 +87,7 @@ class ResourceTypeView(APIView):
                 "count": ocp_project_count,
             }
             cost_model_dict = {
-                "value": "rate",
+                "value": "cost_model",
                 "path": "/api/cost-management/v1/resource-types/cost-models/",
                 "count": cost_model_count,
             }
