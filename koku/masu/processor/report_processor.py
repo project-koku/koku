@@ -75,7 +75,7 @@ class ReportProcessor:
             (Object) : Provider-specific report processor
 
         """
-        if settings.ENABLE_PARQUET_PROCESSING and self.provider_type not in (Provider.PROVIDER_OCP,):
+        if settings.ENABLE_PARQUET_PROCESSING:
             return ParquetReportProcessor(
                 schema_name=self.schema_name,
                 report_path=self.report_path,
