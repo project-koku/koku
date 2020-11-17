@@ -144,6 +144,7 @@ class TagManagementSettings:
                 "filterValueText": "Remove your filter to see all enabled tag keys",
                 "filterOptionsText": "Remove your filter to see all available tag keys",
                 "initialValue": enabled,
+                "clearedValue": [],
             }
             dual_list_name = f"{self._get_tag_management_prefix(providerName)}.enabled"
             dual_list_title = obtainTagKeysProvidersParams[providerName]["title"]
