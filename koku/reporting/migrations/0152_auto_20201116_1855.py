@@ -22,7 +22,7 @@ def add_views(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0149_auto_20201112_1414")]
+    dependencies = [("reporting", "0151_ocp_summary_table_presto_interface")]
 
     operations = [
         migrations.RunSQL(
