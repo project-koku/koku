@@ -129,10 +129,11 @@ def azure_json_converter(tag_str):
     try:
         if "{" in tag_str:
             tag_dict = json.loads(tag_str)
-        tags = tag_str.split('","')
-        for tag in tags:
-            key, value = tag.split(": ")
-            tag_dict[key.strip('"')] = value.strip('"')
+        else:
+            tags = tag_str.split('","')
+            for tag in tags:
+                key, value = tag.split(": ")
+                tag_dict[key.strip('"')] = value.strip('"')
     except (ValueError, TypeError):
         pass
 
