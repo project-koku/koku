@@ -16,6 +16,10 @@ create table if not exists presto_delete_wrapper_log (
     where_clause text not null,
     result_rows bigint
 );
+comment on table presto_delete_wrapper_log is 'Table to log and execute delete statements initiated from Presto';
+comment on column presto_delete_wrapper_log.table_name is 'Target table from which to delete';
+comment on column presto_delete_wrapper_log.where_clause is 'Where clause for delete action';
+comment on column presto_delete_wrapper_log.result_rows is 'Number of records affected by the delete action';
 """
         ),
         migrations.RunSQL(
