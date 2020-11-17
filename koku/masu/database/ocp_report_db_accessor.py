@@ -564,7 +564,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "schema": self.schema,
             "source": str(source),
             "year": str(start_date.year),
-            "months": (str(start_date.month),),
+            "month": str(start_date.month),
         }
 
         LOG.info("PRESTO OCP: Connect")
@@ -575,8 +575,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 presto_conn, tmpl_summary_sql, params=summary_sql_params, preprocessor=self.jinja_sql.prepare_query
             )
         except Exception as e:
-            presto_conn.rollback()
             LOG.error(f"PRESTO OCP ERROR : {e}")
+            try:
+                presto_conn.rollback()
+            except RuntimeError:
+                # If presto has not started a transaction, it will throw
+                # a RuntimeError that we just want to ignore.
+                pass
             raise e
         else:
             LOG.info("PRESTO OCP: Commit actions")
@@ -616,17 +621,22 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "end_date": end_date,
             "source": str(source),
             "year": str(start_date.year),
-            "months": (str(start_date.month),),
+            "month": str(start_date.month),
         }
 
         LOG.info("PRESTO OCP: Connect")
         presto_conn = kpdb.connect(schema=self.schema)
         try:
-            LOG.info("PRESTO: executing SQL buffer for OCP tag/label processing")
+            LOG.info("PRESTO OCP: executing SQL buffer for OCP tag/label processing")
             kpdb.executescript(presto_conn, agg_sql, params=agg_sql_params, preprocessor=self.jinja_sql.prepare_query)
         except Exception as e:
-            presto_conn.rollback()
             LOG.error(f"PRESTO OCP ERROR : {e}")
+            try:
+                presto_conn.rollback()
+            except RuntimeError:
+                # If presto has not started a transaction, it will throw
+                # a RuntimeError that we just want to ignore.
+                pass
             raise e
         else:
             LOG.info("PRESTO OCP: Commit actions")

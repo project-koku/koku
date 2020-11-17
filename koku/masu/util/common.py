@@ -36,7 +36,7 @@ from masu.config import Config
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
 from masu.util.ocp.common import process_openshift_datetime
-from masu.util.ocp.common import process_openshift_labels
+from masu.util.ocp.common import process_openshift_labels_to_json
 
 
 LOG = logging.getLogger(__name__)
@@ -152,10 +152,6 @@ def safe_dict(val):
     except (ValueError, TypeError):
         pass
     return json.dumps(result)
-
-
-def process_openshift_labels_to_json(label_val):
-    return json.dumps(process_openshift_labels(label_val))
 
 
 def get_column_converters(provider_type, **kwargs):

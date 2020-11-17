@@ -26,11 +26,13 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{uuid |
       FROM hive.{{schema | sqlsafe}}.openshift_node_labels_line_items as "nli"
      WHERE nli.source = {{source}}
        AND nli.year = {{year}}
-       AND nli.month in {{months | inclause}}
+       AND nli.month = {{month}}
        AND nli.interval_start >= TIMESTAMP {{start_date}}
        AND nli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
      GROUP
-        BY 1, 2, 4
+        BY {{cluster_id}},
+           date(nli.interval_start),
+           nli.node_labels
 )
 ;
 
@@ -61,14 +63,15 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}}
                  FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items AS li
                 WHERE li.source = {{source}}
                   AND li.year = {{year}}
-                  AND li.month in {{months | inclause}}
+                  AND li.month = {{month}}
                   AND date(li.interval_start) >= DATE {{start_date}}
                   AND date(li.interval_start) <= DATE {{end_date}}
                 GROUP
-                   BY 1
+                   BY date(li.interval_start)
            ) as cc
      GROUP
-        BY 1, 2
+        BY {{cluster_id}},
+           usage_start
 )
 ;
 
@@ -145,41 +148,41 @@ SELECT uuid() as "uuid",
        pua.node,
        pua.resource_id,
        cast(pua.pod_labels as json) as "pod_labels",
-       pua.pod_usage_cpu_core_hours,
-       pua.pod_request_cpu_core_hours,
-       pua.pod_limit_cpu_core_hours,
-       pua.pod_usage_memory_gigabyte_hours,
-       pua.pod_request_memory_gigabyte_hours,
-       pua.pod_limit_memory_gigabyte_hours,
-       pua.node_capacity_cpu_cores,
-       pua.node_capacity_cpu_core_hours,
-       pua.node_capacity_memory_gigabytes,
-       pua.node_capacity_memory_gigabyte_hours,
-       pua.cluster_capacity_cpu_core_hours,
-       pua.cluster_capacity_memory_gigabyte_hours,
-       pua.source_uuid,
+       cast(pua.pod_usage_cpu_core_hours as varchar) as "pod_usage_cpu_core_hours",
+       cast(pua.pod_request_cpu_core_hours as varchar) as "pod_request_cpu_core_hours",
+       cast(pua.pod_limit_cpu_core_hours as varchar) as "pod_limit_cpu_core_hours",
+       cast(pua.pod_usage_memory_gigabyte_hours as varchar) as "pod_usage_memory_gigabyte_hours",
+       cast(pua.pod_request_memory_gigabyte_hours as varchar) as "pod_request_memory_gigabyte_hours",
+       cast(pua.pod_limit_memory_gigabyte_hours as varchar) as "pod_limit_memory_gigabyte_hours",
+       cast(pua.node_capacity_cpu_cores as varchar) as "node_capacity_cpu_cores",
+       cast(pua.node_capacity_cpu_core_hours as varchar) as "node_capacity_cpu_core_hours",
+       cast(pua.node_capacity_memory_gigabytes as varchar) as "node_capacity_memory_gigabytes",
+       cast(pua.node_capacity_memory_gigabyte_hours as varchar) as "node_capacity_memory_gigabyte_hours",
+       cast(pua.cluster_capacity_cpu_core_hours as varchar) as "cluster_capacity_cpu_core_hours",
+       cast(pua.cluster_capacity_memory_gigabyte_hours as varchar) as "cluster_capacity_memory_gigabyte_hours",
+       cast(pua.source_uuid as UUID) as "source_uuid",
        JSON '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as "infrastructure_usage_cost"
   FROM (
            SELECT date(li.interval_start) as "usage_start",
                   li.namespace,
                   li.node,
-                  cast(li.source as UUID) as "source_uuid",
-                  cast(map_filter(map_concat(cast(json_parse(coalesce(nli.node_labels, '{}')) as map(varchar, varchar)),
-                                             cast(json_parse(li.pod_labels) as map(varchar, varchar))),
-                                  (k, v) -> contains(ek.enabled_keys, k)) as json) as "pod_labels",
+                  li.source as "source_uuid",
+                  map_filter(map_concat(cast(json_parse(coalesce(nli.node_labels, '{}')) as map(varchar, varchar)),
+                                        cast(json_parse(li.pod_labels) as map(varchar, varchar))),
+                             (k, v) -> contains(ek.enabled_keys, k)) as "pod_labels",
                   max(li.resource_id) as "resource_id",
-                  cast(sum(li.pod_usage_cpu_core_seconds) / 3600.0 as varchar) as "pod_usage_cpu_core_hours",
-                  cast(sum(li.pod_request_cpu_core_seconds) / 3600.0 as varchar)  as "pod_request_cpu_core_hours",
-                  cast(sum(li.pod_limit_cpu_core_seconds) / 3600.0  as varchar)as "pod_limit_cpu_core_hours",
-                  cast(sum(li.pod_usage_memory_byte_seconds) / 3600.0 * power(2, -30) as varchar) as "pod_usage_memory_gigabyte_hours",
-                  cast(sum(li.pod_request_memory_byte_seconds) / 3600.0 * power(2, -30) as varchar) as "pod_request_memory_gigabyte_hours",
-                  cast(sum(li.pod_limit_memory_byte_seconds) / 3600.0 * power(2, -30) as varchar) as "pod_limit_memory_gigabyte_hours",
-                  cast(max(li.node_capacity_cpu_cores) as varchar) as "node_capacity_cpu_cores",
-                  cast(sum(li.node_capacity_cpu_core_seconds) / 3600.0 as varchar) as "node_capacity_cpu_core_hours",
-                  cast(max(li.node_capacity_memory_bytes) * power(2, -30) as varchar) as "node_capacity_memory_gigabytes",
-                  cast(sum(li.node_capacity_memory_byte_seconds) / 3600.0 * power(2, -30) as varchar) as "node_capacity_memory_gigabyte_hours",
-                  cast(max(cc.cluster_capacity_cpu_core_seconds) / 3600.0 as varchar) as "cluster_capacity_cpu_core_hours",
-                  cast(max(cc.cluster_capacity_memory_byte_seconds) / 3600.0 * power(2, -30) as varchar) as "cluster_capacity_memory_gigabyte_hours"
+                  sum(li.pod_usage_cpu_core_seconds) / 3600.0 as "pod_usage_cpu_core_hours",
+                  sum(li.pod_request_cpu_core_seconds) / 3600.0  as "pod_request_cpu_core_hours",
+                  sum(li.pod_limit_cpu_core_seconds) / 3600.0 as "pod_limit_cpu_core_hours",
+                  sum(li.pod_usage_memory_byte_seconds) / 3600.0 * power(2, -30) as "pod_usage_memory_gigabyte_hours",
+                  sum(li.pod_request_memory_byte_seconds) / 3600.0 * power(2, -30) as "pod_request_memory_gigabyte_hours",
+                  sum(li.pod_limit_memory_byte_seconds) / 3600.0 * power(2, -30) as "pod_limit_memory_gigabyte_hours",
+                  max(li.node_capacity_cpu_cores) as "node_capacity_cpu_cores",
+                  sum(li.node_capacity_cpu_core_seconds) / 3600.0 as "node_capacity_cpu_core_hours",
+                  max(li.node_capacity_memory_bytes) * power(2, -30) as "node_capacity_memory_gigabytes",
+                  sum(li.node_capacity_memory_byte_seconds) / 3600.0 * power(2, -30) as "node_capacity_memory_gigabyte_hours",
+                  max(cc.cluster_capacity_cpu_core_seconds) / 3600.0 as "cluster_capacity_cpu_core_hours",
+                  max(cc.cluster_capacity_memory_byte_seconds) / 3600.0 * power(2, -30) as "cluster_capacity_memory_gigabyte_hours"
              FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items as "li"
              LEFT
              JOIN hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{uuid | sqlsafe}} as "nli"
@@ -197,11 +200,20 @@ SELECT uuid() as "uuid",
                   ) as "ek"
             WHERE li.source = {{source}}
               AND li.year = {{year}}
-              AND li.month in {{months | inclause}}
+              AND li.month = {{month}}
               AND date(li.interval_start) >= DATE {{start_date}}
               AND date(li.interval_start) <= DATE {{end_date}}
             GROUP
-               BY 1, 2, 3, 4, 5
+               BY date(li.interval_start),
+                  li.namespace,
+                  li.node,
+                  li.source,
+                  5
+                  /*
+                  map_filter(map_concat(cast(json_parse(coalesce(nli.node_labels, '{}')) as map(varchar, varchar)),
+                                        cast(json_parse(li.pod_labels) as map(varchar, varchar))),
+                             (k, v) -> contains(ek.enabled_keys, k))
+                   */
        ) as "pua"
 ;
 
@@ -232,11 +244,16 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__volume_nodes_{{uuid | sqlsafe}} as (
        AND date(uli.interval_start) = date(sli.interval_start)
      WHERE sli.source = {{source}}
        AND sli.year = {{year}}
-       AND sli.month in {{months | inclause}}
+       AND sli.month = {{month}}
        AND date(sli.interval_start) >= DATE {{start_date}}
        AND date(sli.interval_start) <= DATE {{end_date}}
      GROUP
-        BY 1, 2, 3, 5, 6, 7
+        BY sli.namespace,
+           sli.pod,
+           date(sli.interval_start),
+           sli.source,
+           sli.year,
+           sli.month
 )
 ;
 
@@ -305,12 +322,22 @@ SELECT uuid() as "uuid",
        sua.storageclass,
        sua.usage_start,
        sua.usage_start as "usage_end",
-       sua.volume_labels,
-       sua.source_uuid,
-       sua.persistentvolumeclaim_capacity_gigibytes,
-       sua.persistentvolumeclaim_capacity_gigabyte_months,
-       sua.volume_request_storage_gigabyte_months,
-       sua.persistentvolumeclaim_usage_byte_months
+       cast(sua.volume_labels as json) as "volume_labels",
+       cast(sua.source_uuid as UUID) as "source_uuid",
+       cast((sua.persistentvolumeclaim_capacity_bytes *
+             power(2, -30)) as varchar) as "persistentvolumeclaim_capacity_gigibytes",
+       cast((sua.persistentvolumeclaim_capacity_byte_seconds /
+             86400 *
+             cast(extract(day from last_day_of_month(date(sua.usage_start))) as integer) *
+             power(2, -30)) as varchar) as "persistentvolumeclaim_capacity_gigabyte_months",
+       cast((sua.volume_request_storage_byte_seconds /
+             86400 *
+             cast(extract(day from last_day_of_month(date(sua.usage_start))) as integer) *
+             power(2, -30)) as varchar) as "volume_request_storage_gigabyte_months",
+       cast((sua.persistentvolumeclaim_usage_byte_seconds /
+             86400 *
+             cast(extract(day from last_day_of_month(date(sua.usage_start))) as integer) *
+             power(2, -30)) as varchar) as "persistentvolumeclaim_usage_byte_months"
   FROM (
            SELECT sli.namespace,
                   vn.node,
@@ -318,24 +345,15 @@ SELECT uuid() as "uuid",
                   sli.persistentvolume,
                   sli.storageclass,
                   date(sli.interval_start) as "usage_start",
-                  cast(map_filter(map_concat(cast(json_parse(coalesce(nli.node_labels, '{}')) as map(varchar, varchar)),
-                                             cast(json_parse(sli.persistentvolume_labels) as map(varchar, varchar)),
-                                             cast(json_parse(sli.persistentvolumeclaim_labels) as map(varchar, varchar))),
-                                  (k, v) -> contains(ek.enabled_keys, k)) as json) as "volume_labels",
-                  cast(sli.source as UUID) as "source_uuid",
-                  cast(max(sli.persistentvolumeclaim_capacity_bytes) * power(2, -30) as varchar) as "persistentvolumeclaim_capacity_gigibytes",
-                  cast(sum(sli.persistentvolumeclaim_capacity_byte_seconds) /
-                    86400 *
-                    cast(extract(day from last_day_of_month(date(sli.interval_start))) as integer) *
-                    power(2, -30) as varchar) as "persistentvolumeclaim_capacity_gigabyte_months",
-                  cast(sum(sli.volume_request_storage_byte_seconds) /
-                    86400 *
-                    cast(extract(day from last_day_of_month(date(sli.interval_start))) as integer) *
-                    power(2, -30) as varchar) as "volume_request_storage_gigabyte_months",
-                  cast(sum(sli.persistentvolumeclaim_usage_byte_seconds) /
-                    86400 *
-                    cast(extract(day from last_day_of_month(date(sli.interval_start))) as integer) *
-                    power(2, -30) as varchar) as "persistentvolumeclaim_usage_byte_months"
+                  map_filter(map_concat(cast(json_parse(coalesce(nli.node_labels, '{}')) as map(varchar, varchar)),
+                                        cast(json_parse(sli.persistentvolume_labels) as map(varchar, varchar)),
+                                        cast(json_parse(sli.persistentvolumeclaim_labels) as map(varchar, varchar))),
+                             (k, v) -> contains(ek.enabled_keys, k)) as "volume_labels",
+                  sli.source as "source_uuid",
+                  max(sli.persistentvolumeclaim_capacity_bytes) as "persistentvolumeclaim_capacity_bytes",
+                  sum(sli.persistentvolumeclaim_capacity_byte_seconds) as "persistentvolumeclaim_capacity_byte_seconds",
+                  sum(sli.volume_request_storage_byte_seconds) as "volume_request_storage_byte_seconds",
+                  sum(sli.persistentvolumeclaim_usage_byte_seconds) as "persistentvolumeclaim_usage_byte_seconds"
              FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items "sli"
              LEFT
              JOIN hive.{{schema | sqlsafe}}.__volume_nodes_{{uuid | sqlsafe}} as "vn"
@@ -359,11 +377,24 @@ SELECT uuid() as "uuid",
                   ) as "ek"
             WHERE sli.source = {{source}}
               AND sli.year = {{year}}
-              AND sli.month in {{months | inclause}}
+              AND sli.month = {{month}}
               AND date(sli.interval_start) >= DATE {{start_date}}
               AND date(sli.interval_start) <= DATE {{end_date}}
             GROUP
-               BY 1, 2, 3, 4, 5, 6, 7, 8
+               BY sli.namespace,
+                  vn.node,
+                  sli.persistentvolumeclaim,
+                  sli.persistentvolume,
+                  sli.storageclass,
+                  date(sli.interval_start),
+                  7,
+                  /*
+                  map_filter(map_concat(cast(json_parse(coalesce(nli.node_labels, '{}')) as map(varchar, varchar)),
+                                        cast(json_parse(sli.persistentvolume_labels) as map(varchar, varchar)),
+                                        cast(json_parse(sli.persistentvolumeclaim_labels) as map(varchar, varchar))),
+                             (k, v) -> contains(ek.enabled_keys, k)),
+                   */
+                  sli.source
        ) as "sua"
 ;
 
