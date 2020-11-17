@@ -25,6 +25,7 @@ import django.apps
 from dateutil.relativedelta import relativedelta
 from django.db import connection
 from django.db import transaction
+from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 import koku.presto_database as kpdb
@@ -355,6 +356,13 @@ class ReportDBAccessorBase(KokuDBAccess):
         presto_cur = presto_conn.cursor()
         presto_cur.execute(sql, bind_params)
         return presto_cur.fetchall()
+
+    def _execute_presto_multipart_sql_query(
+        self, schema, sql, bind_params=None, preprocessor=JinjaSql().prepare_query
+    ):
+        """Execute multiple related SQL queries in Presto."""
+        presto_conn = kpdb.connect(schema=self.schema)
+        kpdb.executescript(presto_conn, sql, params=bind_params, preprocessor=preprocessor)
 
     def get_existing_partitions(self, table):
         if isinstance(table, str):
