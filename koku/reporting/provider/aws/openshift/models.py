@@ -58,6 +58,8 @@ class OCPAWSCostLineItemDailySummary(models.Model):
             # Function: (upper(product_code) gin_trgm_ops)
         ]
 
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
@@ -140,6 +142,8 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
             models.Index(fields=["product_family"], name="ocp_aws_proj_prod_fam_idx"),
             models.Index(fields=["instance_type"], name="ocp_aws_proj_inst_type_idx"),
         ]
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
 
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
