@@ -4202,6 +4202,11 @@
                                 "description": "Flag to indicate if provider is successfully configured.",
                                 "default": false
                             },
+                            "current_month_data": {
+                                "type": "boolean",
+                                "description": "Flag to indicate if provider has report data for the current month.",
+                                "default": false
+                            },
                             "infrastructure": {
                                 "type": "string",
                                 "description": "OpenShift foundational infrastructure type.",

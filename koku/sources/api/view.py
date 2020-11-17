@@ -227,11 +227,13 @@ class SourcesViewSet(*MIXIN_LIST):
             except ProviderManagerError:
                 source["provider_linked"] = False
                 source["active"] = False
+                source["current_month_data"] = False
                 source["infrastructure"] = "Unknown"
                 source["cost_models"] = []
             else:
                 source["provider_linked"] = True
                 source["active"] = manager.get_active_status()
+                source["current_month_data"] = manager.get_current_month_data_exists()
                 source["infrastructure"] = manager.get_infrastructure_name()
                 connection.set_tenant(tenant)
                 source["cost_models"] = [
@@ -253,11 +255,13 @@ class SourcesViewSet(*MIXIN_LIST):
         except ProviderManagerError:
             response.data["provider_linked"] = False
             response.data["active"] = False
+            response.data["current_month_data"] = False
             response.data["infrastructure"] = "Unknown"
             response.data["cost_models"] = []
         else:
             response.data["provider_linked"] = True
             response.data["active"] = manager.get_active_status()
+            response.data["current_month_data"] = manager.get_current_month_data_exists()
             response.data["infrastructure"] = manager.get_infrastructure_name()
             connection.set_tenant(tenant)
             response.data["cost_models"] = [
