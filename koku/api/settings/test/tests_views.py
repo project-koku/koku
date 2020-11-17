@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Settings views."""
-from django.conf import settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -23,6 +22,8 @@ from rest_framework.test import APIClient
 from api.iam.test.iam_test_case import IamTestCase
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
+from api.tags.azure.queries import AzureTagQueryHandler
+from api.tags.azure.view import AzureTagView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
@@ -59,7 +60,7 @@ class SettingsViewTest(IamTestCase):
         primary_object = data[0]
         tg_mngmnt_subform_fields = primary_object.get("fields")
         self.assertIsNotNone(tg_mngmnt_subform_fields)
-        fields_len = 7 if settings.DEVELOPMENT else 5
+        fields_len = 7
         self.assertEqual(len(tg_mngmnt_subform_fields), fields_len)
         for element in tg_mngmnt_subform_fields:
             if element.get("name") == f"api.settings.tag-management.{source_name}.enabled":
@@ -70,6 +71,7 @@ class SettingsViewTest(IamTestCase):
         test_matrix = [
             {"handler": OCPTagQueryHandler, "view": OCPTagView, "name": "openshift"},
             {"handler": AWSTagQueryHandler, "view": AWSTagView, "name": "aws"},
+            {"handler": AzureTagQueryHandler, "view": AzureTagView, "name": "azure"},
         ]
         for test in test_matrix:
             response = self.get_settings()
@@ -94,6 +96,7 @@ class SettingsViewTest(IamTestCase):
         test_matrix = [
             {"handler": OCPTagQueryHandler, "view": OCPTagView, "name": "openshift"},
             {"handler": AWSTagQueryHandler, "view": AWSTagView, "name": "aws"},
+            {"handler": AzureTagQueryHandler, "view": AzureTagView, "name": "azure"},
         ]
         for test in test_matrix:
 
@@ -133,6 +136,7 @@ class SettingsViewTest(IamTestCase):
         test_matrix = [
             {"handler": OCPTagQueryHandler, "view": OCPTagView, "name": "openshift"},
             {"handler": AWSTagQueryHandler, "view": AWSTagView, "name": "aws"},
+            {"handler": AzureTagQueryHandler, "view": AzureTagView, "name": "azure"},
         ]
         for test in test_matrix:
             url = (
