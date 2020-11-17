@@ -64,8 +64,8 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}}
                 WHERE li.source = {{source}}
                   AND li.year = {{year}}
                   AND li.month = {{month}}
-                  AND date(li.interval_start) >= DATE {{start_date}}
-                  AND date(li.interval_start) <= DATE {{end_date}}
+                  AND li.interval_start >= TIMESTAMP {{start_date}}
+                  AND li.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
                 GROUP
                    BY date(li.interval_start)
            ) as cc
@@ -201,19 +201,15 @@ SELECT uuid() as "uuid",
             WHERE li.source = {{source}}
               AND li.year = {{year}}
               AND li.month = {{month}}
-              AND date(li.interval_start) >= DATE {{start_date}}
-              AND date(li.interval_start) <= DATE {{end_date}}
+              AND li.interval_start >= TIMESTAMP {{start_date}}
+              AND li.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
             GROUP
                BY date(li.interval_start),
                   li.namespace,
                   li.node,
                   li.source,
-                  5
-                  /*
-                  map_filter(map_concat(cast(json_parse(coalesce(nli.node_labels, '{}')) as map(varchar, varchar)),
-                                        cast(json_parse(li.pod_labels) as map(varchar, varchar))),
-                             (k, v) -> contains(ek.enabled_keys, k))
-                   */
+                  5  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE map_filter EXPRESSION */
+                     /* The map_filter expression was too complex for presto to use */
        ) as "pua"
 ;
 
@@ -245,8 +241,8 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__volume_nodes_{{uuid | sqlsafe}} as (
      WHERE sli.source = {{source}}
        AND sli.year = {{year}}
        AND sli.month = {{month}}
-       AND date(sli.interval_start) >= DATE {{start_date}}
-       AND date(sli.interval_start) <= DATE {{end_date}}
+       AND sli.interval_start >= TIMESTAMP {{start_date}}
+       AND sli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
      GROUP
         BY sli.namespace,
            sli.pod,
@@ -378,8 +374,8 @@ SELECT uuid() as "uuid",
             WHERE sli.source = {{source}}
               AND sli.year = {{year}}
               AND sli.month = {{month}}
-              AND date(sli.interval_start) >= DATE {{start_date}}
-              AND date(sli.interval_start) <= DATE {{end_date}}
+              AND sli.interval_start >= TIMESTAMP {{start_date}}
+              AND sli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
             GROUP
                BY sli.namespace,
                   vn.node,
@@ -387,13 +383,8 @@ SELECT uuid() as "uuid",
                   sli.persistentvolume,
                   sli.storageclass,
                   date(sli.interval_start),
-                  7,
-                  /*
-                  map_filter(map_concat(cast(json_parse(coalesce(nli.node_labels, '{}')) as map(varchar, varchar)),
-                                        cast(json_parse(sli.persistentvolume_labels) as map(varchar, varchar)),
-                                        cast(json_parse(sli.persistentvolumeclaim_labels) as map(varchar, varchar))),
-                             (k, v) -> contains(ek.enabled_keys, k)),
-                   */
+                  7,  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE map_filter EXPRESSION */
+                      /* The map_filter expression was too complex for presto to use */
                   sli.source
        ) as "sua"
 ;

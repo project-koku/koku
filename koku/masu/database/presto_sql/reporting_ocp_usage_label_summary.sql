@@ -54,7 +54,7 @@ SELECT pl.interval_start,
                          AND opu.year = {{year}}
                          AND opu.month = {{month}}
                          AND opu.interval_start >= TIMESTAMP {{start_date}}
-                         AND opu.interval_start < date_add('second', 1, TIMESTAMP {{end_date}})
+                         AND opu.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
                        UNION
                       SELECT nl.interval_start,
                              opu1.namespace,
@@ -68,7 +68,7 @@ SELECT pl.interval_start,
                          AND nl.year = {{year}}
                          AND nl.month = {{month}}
                          AND nl.interval_start >= TIMESTAMP {{start_date}}
-                         AND nl.interval_start < date_add('second', 1, TIMESTAMP {{end_date}})
+                         AND nl.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
                          AND nl.node_labels != '{}'
                   ) as "u",
                   unnest(cast(json_parse(u.labels) as map(varchar, varchar))) as l(label_key, label_value)
@@ -110,7 +110,7 @@ SELECT vl.interval_start,
                          AND ops.year = {{year}}
                          AND ops.month = {{month}}
                          AND ops.interval_start >= TIMESTAMP {{start_date}}
-                         AND ops.interval_start < date_add('second', 1, TIMESTAMP {{end_date}})
+                         AND ops.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
                        UNION
                       SELECT opsc.interval_start,
                              opsc.namespace,
@@ -125,7 +125,7 @@ SELECT vl.interval_start,
                          AND opsc.year = {{year}}
                          AND opsc.month = {{month}}
                          AND opsc.interval_start >= TIMESTAMP {{start_date}}
-                         AND opsc.interval_start < date_add('second', 1, TIMESTAMP {{end_date}})
+                         AND opsc.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
                        UNION
                       SELECT nl.interval_start,
                              ops1.namespace,
@@ -142,7 +142,7 @@ SELECT vl.interval_start,
                          AND nl.year = {{year}}
                          AND nl.month = {{month}}
                          AND nl.interval_start >= TIMESTAMP {{start_date}}
-                         AND nl.interval_start < date_add('second', 1, TIMESTAMP {{end_date}})
+                         AND nl.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
                          AND nl.node_labels != '{}'
                   ) as "u",
                   unnest(cast(json_parse(u.labels) as map(varchar, varchar))) as l(label_key, label_value)
