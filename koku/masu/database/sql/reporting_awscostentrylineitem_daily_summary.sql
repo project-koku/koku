@@ -1,6 +1,35 @@
 -- Place our query for data with no tags in a temporary table
 CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sqlsafe}} AS (
-    SELECT li.cost_entry_bill_id,
+    WITH cte_array_agg_keys AS (
+        SELECT array_agg(key) as key_array
+        FROM {{schema | sqlsafe}}.reporting_awsenabledtagkeys
+    ),
+    cte_filtered_tags AS (
+        SELECT id,
+            jsonb_object_agg(key,value) as aws_tags
+        FROM (
+            SELECT lid.id,
+                lid.tags as aws_tags,
+                aak.key_array
+            FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily lid
+            JOIN cte_array_agg_keys aak
+                ON 1=1
+            WHERE lid.tags ?| aak.key_array
+                AND lid.usage_start >= {{start_date}}::date
+                AND lid.usage_start <= {{end_date}}::date
+                {% if bill_ids %}
+                AND lid.cost_entry_bill_id IN (
+                    {%- for bill_id in bill_ids  -%}
+                        {{bill_id}}{% if not loop.last %},{% endif %}
+                    {%- endfor -%})
+                {% endif %}
+        ) AS lid,
+        jsonb_each_text(lid.aws_tags) AS labels
+        WHERE key = ANY (key_array)
+        GROUP BY id
+    )
+    SELECT uuid_generate_v4() as uuid,
+        li.cost_entry_bill_id,
         li.usage_start,
         li.usage_end,
         li.product_code,
@@ -8,7 +37,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
         li.usage_account_id,
         max(aa.id) as account_alias_id,
         li.availability_zone,
-        li.tags,
+        fvl.aws_tags as tags,
         p.region,
         p.instance_type,
         pr.unit,
@@ -28,6 +57,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
         ab.provider_id as source_uuid,
         0.0::decimal as markup_cost
     FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily AS li
+    LEFT JOIN cte_filtered_tags AS fvl
+        ON li.id = fvl.id
     JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
         ON li.cost_entry_product_id = p.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrypricing as pr
@@ -59,7 +90,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
         p.region,
         p.instance_type,
         pr.unit,
-        li.tags,
+        fvl.aws_tags,
         ab.provider_id
 )
 ;
@@ -78,6 +109,7 @@ WHERE li.usage_start >= {{start_date}}
 
 -- Populate the daily aggregate line item data
 INSERT INTO {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary (
+    uuid,
     cost_entry_bill_id,
     usage_start,
     usage_end,
@@ -106,7 +138,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary (
     source_uuid,
     markup_cost
 )
-SELECT cost_entry_bill_id,
+SELECT uuid,
+        cost_entry_bill_id,
         usage_start,
         usage_end,
         product_code,

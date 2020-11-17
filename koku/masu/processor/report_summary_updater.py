@@ -18,11 +18,14 @@
 import datetime
 import logging
 
+from django.conf import settings
+
 from api.models import Provider
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
 from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
@@ -85,6 +88,11 @@ class ReportSummaryUpdater:
 
         """
         if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+            if settings.ENABLE_PARQUET_PROCESSING:
+                return (
+                    AWSReportParquetSummaryUpdater(self._schema, self._provider, self._manifest),
+                    OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+                )
             return (
                 AWSReportSummaryUpdater(self._schema, self._provider, self._manifest),
                 OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),

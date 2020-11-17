@@ -50,8 +50,10 @@ endif
 OS := $(shell uname)
 ifeq ($(OS),Darwin)
 	PREFIX	=
+	SED_IN_PLACE = sed -i ""
 else
 	PREFIX	= sudo
+	SED_IN_PLACE = sed -i
 endif
 
 help:
@@ -115,6 +117,8 @@ help:
 	@echo "  docker-rabbit                        run RabbitMQ container"
 	@echo "  docker-reinitdb                      drop and recreate the database"
 	@echo "  docker-reinitdb-with-sources         drop and recreate the database with fake sources"
+	@echo "  docker-reinitdb-with-sources-lite    drop and recreate the database with fake sources without restarting everything"
+
 	@echo "  docker-shell                         run Django and database containers with shell access to server (for pdb)"
 	@echo "  docker-logs                          connect to console logs for all services"
 	@echo "  docker-test-all                      run unittests"
@@ -280,6 +284,9 @@ docker-reinitdb: docker-down-db remove-db docker-up-db run-migrations docker-res
 docker-reinitdb-with-sources: docker-down-db remove-db docker-up-db run-migrations docker-restart-koku create-test-customer
 	@echo "Local database re-initialized with a test customer and sources."
 
+docker-reinitdb-with-sources-lite: docker-down-db remove-db docker-up-db run-migrations create-test-customer
+	@echo "Local database re-initialized with a test customer and sources."
+
 docker-shell:
 	$(DOCKER_COMPOSE) run --service-ports koku-server
 
@@ -319,7 +326,12 @@ docker-up-no-build:
 docker-up-min:
 	$(DOCKER_COMPOSE) up --build -d db redis koku-server masu-server koku-worker
 
-docker-up-min-presto: docker-presto-up docker-up-min
+docker-up-min-no-build:
+	$(DOCKER_COMPOSE) up -d db redis koku-server masu-server koku-worker
+
+docker-up-min-presto: docker-up-min docker-presto-up
+
+docker-up-min-presto-no-build: docker-up-min-no-build docker-presto-up
 
 docker-up-db:
 	$(DOCKER_COMPOSE) up -d db
@@ -351,26 +363,37 @@ docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 
 docker-metastore-setup:
 	@cp -fr deploy/metastore/ testing/metastore/
+	@chmod -R o+rwx ./testing/metastore
+	@[[ ! -d ./testing/metastore/db-data ]] && mkdir -p -m a+rwx ./testing/metastore/db-data || chmod a+rwx ./testing/metastore/db-data
 	@cp -fr deploy/hadoop/ testing/hadoop/
-	@sed -i "" 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
-	@sed -i "" 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/metastore/hive-config/hive-site.xml
-	@sed -i "" 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' testing/metastore/hive-config/hive-site.xml
-	@sed -i "" 's/s3access/$(shell echo $(or $(S3_ACCESS_KEY),localhost))/g' testing/metastore/hive-config/hive-site.xml
-	@sed -i "" 's/s3secret/$(shell echo $(or $(S3_SECRET),localhost))/g' testing/metastore/hive-config/hive-site.xml
+	@chmod o+rwx ./testing/hadoop
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/s3access/$(shell echo $(or $(S3_ACCESS_KEY),localhost))/g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/s3secret/$(shell echo $(or $(S3_SECRET),localhost))/g' testing/metastore/hive-config/hive-site.xml
 
 docker-presto-setup:
 	@cp -fr deploy/presto/ testing/presto/
+	@chmod o+rwx ./testing/presto
 	@cp -fr deploy/hadoop/ testing/hadoop/
-	@sed -i "" 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
+	@chmod o+rwx ./testing/hadoop
+	@[[ ! -d ./testing/parquet_data ]] && mkdir -p -m a+rwx ./testing/parquet_data || chmod a+rwx ./testing/parquet_data
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
+	@$(SED_IN_PLACE) -e 's/DATABASE_NAME/$(shell echo $(or $(DATABASE_NAME),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
+	@$(SED_IN_PLACE) -e 's/DATABASE_USER/$(shell echo $(or $(DATABASE_USER),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
+	@$(SED_IN_PLACE) -e 's/DATABASE_PASSWORD/$(shell echo $(or $(DATABASE_PASSWORD),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
 
 docker-presto-cleanup:
-	@rm -fr testing/parquet_data testing/hadoop testing/metastore testing/presto
+	@$(PREFIX) rm -fr ./testing/hadoop ./testing/metastore ./testing/presto
+	make clear-testing
 
 docker-presto-up: docker-metastore-setup docker-presto-setup
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d
 
-docker-presto-down: docker-presto-cleanup
+docker-presto-down:
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down
+	make docker-presto-cleanup
 
 ### Source targets ###
 ocp-source-from-yaml:
@@ -409,7 +432,7 @@ endif
 	(printenv GCP_DATASET > /dev/null 2>&1) || (echo 'GCP_DATASET is not set in .env' && exit 1)
 	(printenv GCP_TABLE_ID > /dev/null 2>&1) || (echo 'GCP_TABLE_ID is not set in .env' && exit 1)
 	(printenv GCP_PROJECT_ID > /dev/null 2>&1) || (echo 'GCP_PROJECT_ID is not set in .env' && exit 1)
-	curl -d '{"name": "$(gcp_name)", "source_type": "GCP", "authentication": {"credentials": {"project_id":"${GCP_PROJECT_ID}"}}, "billing_source": {"data_source": {"table_id": "${GCP_PROJECT_ID}", "dataset": "${GCP_DATASET}"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
+	curl -d '{"name": "$(gcp_name)", "source_type": "GCP", "authentication": {"credentials": {"project_id":"${GCP_PROJECT_ID}"}}, "billing_source": {"data_source": {"table_id": "${GCP_TABLE_ID}", "dataset": "${GCP_DATASET}"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
 
 
 ###################################################

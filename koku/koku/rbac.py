@@ -66,7 +66,9 @@ def _extract_resource_definitions(resource_definitions):
         if operation == "equal" and value:
             result.append(value)
         if operation == "in" and value:
-            result += value.split(",")
+            if isinstance(value, str):
+                value = value.split(",")
+            result.extend(value)
     return result
 
 

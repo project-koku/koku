@@ -18,6 +18,12 @@
 # flake8: noqa
 from api.cloud_accounts.views import cloud_accounts
 from api.dataexport.views import DataExportRequestViewSet
+from api.forecast.views import AWSCostForecastView
+from api.forecast.views import AzureCostForecastView
+from api.forecast.views import OCPAllCostForecastView
+from api.forecast.views import OCPAWSCostForecastView
+from api.forecast.views import OCPAzureCostForecastView
+from api.forecast.views import OCPCostForecastView
 from api.metrics.views import metrics
 from api.openapi.view import openapi
 from api.organizations.aws.view import AWSOrgView
@@ -43,10 +49,10 @@ from api.report.ocp.view import OCPVolumeView
 from api.resource_types.aws_accounts.view import AWSAccountView
 from api.resource_types.aws_org_unit.view import AWSOrganizationalUnitView
 from api.resource_types.azure_subscription_guid.view import AzureSubscriptionGuidView
+from api.resource_types.cost_models.view import CostModelResourceTypesView
 from api.resource_types.openshift_clusters.view import OCPClustersView
 from api.resource_types.openshift_nodes.view import OCPNodesView
 from api.resource_types.openshift_projects.view import OCPProjectsView
-from api.resource_types.rates.view import CostModelResourceTypesView
 from api.resource_types.view import ResourceTypeView
 from api.settings.view import SettingsView
 from api.status.views import StatusView

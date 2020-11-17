@@ -55,8 +55,8 @@ from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import autovacuum_tune_schema
-from masu.processor.tasks import convert_to_parquet
 from masu.processor.tasks import get_report_files
+from masu.processor.tasks import normalize_table_options
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
@@ -295,6 +295,32 @@ class ProcessReportFileTests(MasuTestCase):
 
     @patch("masu.processor._tasks.process.ReportProcessor")
     @patch("masu.processor._tasks.process.ReportStatsDBAccessor")
+    def test_process_file_not_implemented_exception(self, mock_stats_accessor, mock_processor):
+        """Test the process_report_file functionality when exception is thrown."""
+        report_dir = tempfile.mkdtemp()
+        path = "{}/{}".format(report_dir, "file1.csv")
+        schema_name = self.schema
+        provider = Provider.PROVIDER_AWS
+        provider_uuid = self.aws_provider_uuid
+        report_dict = {
+            "file": path,
+            "compression": "gzip",
+            "start_date": str(DateHelper().today),
+            "provider_uuid": provider_uuid,
+        }
+
+        mock_processor.side_effect = NotImplementedError("mock error")
+        mock_stats_acc = mock_stats_accessor().__enter__()
+
+        with self.assertRaises(NotImplementedError):
+            _process_report_file(schema_name, provider, report_dict)
+
+        mock_stats_acc.log_last_started_datetime.assert_called()
+        mock_stats_acc.log_last_completed_datetime.assert_called()
+        shutil.rmtree(report_dir)
+
+    @patch("masu.processor._tasks.process.ReportProcessor")
+    @patch("masu.processor._tasks.process.ReportStatsDBAccessor")
     @patch("masu.database.report_manifest_db_accessor.ReportManifestDBAccessor")
     def test_process_file_missing_manifest(self, mock_manifest_accessor, mock_stats_accessor, mock_processor):
         """Test the process_report_file functionality when manifest is missing."""
@@ -420,6 +446,19 @@ class TestProcessorTasks(MasuTestCase):
 
     @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks._get_report_files")
+    @patch("masu.processor.tasks._process_report_file", side_effect=NotImplementedError)
+    def test_get_report_process_not_implemented_error(
+        self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove
+    ):
+        """Test raising processor exception is handled."""
+        mock_get_files.return_value = {"file": self.fake.word(), "compression": "PLAIN"}
+
+        get_report_files(**self.get_report_args)
+        mock_cache_remove.assert_called()
+
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.tasks._get_report_files", side_effect=Exception("Mocked download error!"))
     def test_get_report_broad_exception(self, mock_get_files, mock_inspect, mock_cache_remove):
         """Test raising download broad exception is handled."""
@@ -427,101 +466,6 @@ class TestProcessorTasks(MasuTestCase):
 
         get_report_files(**self.get_report_args)
         mock_cache_remove.assert_called()
-
-    def test_convert_to_parquet(self):
-        """Test the convert_to_parquet task."""
-        logging.disable(logging.NOTSET)
-        expected_logs = [
-            "missing required argument: request_id",
-            "missing required argument: account",
-            "missing required argument: provider_uuid",
-        ]
-        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
-                convert_to_parquet(None, None, None, None, "start_date", "manifest_id", [])
-                for expected in expected_logs:
-                    self.assertIn(expected, " ".join(logger.output))
-
-        expected = "Skipping convert_to_parquet. Parquet processing is disabled."
-        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            convert_to_parquet(
-                "request_id", "account", "provider_uuid", "provider_type", "start_date", "manifest_id", "csv_file"
-            )
-            self.assertIn(expected, " ".join(logger.output))
-
-        expected = "Parquet processing is enabled, but no start_date was given for processing."
-        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
-            with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-                convert_to_parquet(
-                    "request_id", "account", "provider_uuid", "provider_type", None, "manifest_id", "csv_file"
-                )
-                self.assertIn(expected, " ".join(logger.output))
-
-        expected = "Parquet processing is enabled, but the start_date was not a valid date string ISO 8601 format."
-        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
-            with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-                convert_to_parquet(
-                    "request_id", "account", "provider_uuid", "provider_type", "bad_date", "manifest_id", "csv_file"
-                )
-                self.assertIn(expected, " ".join(logger.output))
-
-        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
-            with patch("masu.processor.tasks.get_path_prefix"):
-                with patch("masu.processor.tasks.get_file_keys_from_s3_with_manifest_id", return_value=["cur.csv.gz"]):
-                    with patch("masu.processor.tasks.remove_files_not_in_set_from_s3_bucket"):
-                        with patch("masu.processor.tasks.convert_csv_to_parquet"):
-                            convert_to_parquet(
-                                "request_id",
-                                "account",
-                                "provider_uuid",
-                                "AWS",
-                                "2020-01-01T12:00:00",
-                                "manifest_id",
-                                "csv_file",
-                            )
-
-        expected = "Failed to convert the following files to parquet"
-        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
-            with patch("masu.processor.tasks.get_path_prefix"):
-                with patch(
-                    "masu.processor.tasks.get_file_keys_from_s3_with_manifest_id", return_value=["cost_export.csv"]
-                ):
-                    with patch("masu.processor.tasks.convert_csv_to_parquet", return_value=False):
-                        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-                            convert_to_parquet(
-                                "request_id",
-                                "account",
-                                "provider_uuid",
-                                "provider_type",
-                                "2020-01-01T12:00:00",
-                                "manifest_id",
-                                "csv_file",
-                            )
-                            self.assertIn(expected, " ".join(logger.output))
-
-        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
-            with patch("masu.processor.tasks.get_path_prefix"):
-                with patch(
-                    "masu.processor.tasks.get_file_keys_from_s3_with_manifest_id", return_value=["storage_usage.csv"]
-                ):
-                    with patch("masu.processor.tasks.convert_csv_to_parquet"):
-                        convert_to_parquet(
-                            "request_id",
-                            "account",
-                            "provider_uuid",
-                            "OCP",
-                            "2020-01-01T12:00:00",
-                            "manifest_id",
-                            "csv_file",
-                        )
-
-        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
-            with patch("masu.processor.tasks.get_path_prefix"):
-                with patch("masu.processor.tasks.get_file_keys_from_s3_with_manifest_id", return_value=[]):
-                    with patch("masu.processor.tasks.convert_csv_to_parquet"):
-                        convert_to_parquet(
-                            "request_id", "account", "provider_uuid", "OCP", "2020-01-01T12:00:00", "manifest_id"
-                        )
 
 
 class TestRemoveExpiredDataTasks(MasuTestCase):
@@ -1147,6 +1091,16 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
             self.assertIn(expected, logger.output)
+
+    def test_autovacuum_tune_schema_normalize(self):
+        """Test that the autovacuum tuning runs."""
+        test_matrix = [
+            {"table_options": None, "expected": {}},
+            {"table_options": "{}", "expected": {}},
+            {"table_options": {"foo": "bar"}, "expected": {"foo": "bar"}},
+        ]
+        for test in test_matrix:
+            self.assertEquals(normalize_table_options(test.get("table_options")), test.get("expected"))
 
     def test_autovacuum_tune_schedule(self):
         vh = next(iter(koku_celery.app.conf.beat_schedule["vacuum-schemas"]["schedule"].hour))

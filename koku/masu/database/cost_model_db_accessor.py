@@ -84,7 +84,6 @@ class CostModelDBAccessor(KokuDBAccess):
                 format_tiered_rates = {f"{metric_cost_type}": rate.get("tiered_rates")}
                 rate["tiered_rates"] = format_tiered_rates
                 metric_rate_map[metric_name] = rate
-        self.tag_based_price_list.items()
         return metric_rate_map
 
     @property
@@ -176,24 +175,34 @@ class CostModelDBAccessor(KokuDBAccess):
                     if metric_name == default_metric.get("metric"):
                         metric_cost_type = default_metric.get("default_cost_type")
             tag_rates_list = []
-            for tag in rate.get("tag_rates"):
-                tag_rate_dict = {}
-                tag_key = tag.get("tag_key")
-                default_rate = 0
-                for tag_rate in tag.get("tag_values"):
-                    rate_value = tag_rate.get("value")
-                    unit = tag_rate.get("unit")
-                    default = tag_rate.get("default")
-                    if default:
-                        default_rate = rate_value
-                    tag_value = tag_rate.get("tag_value")
-                    tag_rate_dict[tag_value] = {"unit": unit, "value": rate_value, "default": default}
-                tag_rates_list.append(
-                    {"tag_key": tag_key, "tag_values": tag_rate_dict, "tag_key_default": default_rate}
-                )
-            format_tag_rates = {f"{metric_cost_type}": tag_rates_list}
-            rate["tag_rates"] = format_tag_rates
-            metric_rate_map[metric_name] = rate
+            tag = rate.get("tag_rates")
+            tag_rate_dict = {}
+            tag_key = tag.get("tag_key")
+            default_rate = 0
+            for tag_rate in tag.get("tag_values"):
+                rate_value = tag_rate.get("value")
+                unit = tag_rate.get("unit")
+                default = tag_rate.get("default")
+                if default:
+                    default_rate = rate_value
+                tag_value = tag_rate.get("tag_value")
+                tag_rate_dict[tag_value] = {"unit": unit, "value": rate_value, "default": default}
+            tag_rates_list.append({"tag_key": tag_key, "tag_values": tag_rate_dict, "tag_key_default": default_rate})
+            if metric_name in metric_rate_map.keys():
+                tag_rates = metric_rate_map.get(metric_name)
+                existing_cost_dict = tag_rates.get("tag_rates")
+                if existing_cost_dict.get(metric_cost_type):
+                    existing_list = existing_cost_dict.get(metric_cost_type)
+                    existing_list.extend(tag_rates_list)
+                    existing_cost_dict[f"{metric_cost_type}"] = existing_list
+                else:
+                    existing_cost_dict[f"{metric_cost_type}"] = tag_rates_list
+                    tag_rates["tag_rates"] = existing_cost_dict
+                    metric_rate_map[metric_name] = tag_rates
+            else:
+                format_tag_rates = {f"{metric_cost_type}": tag_rates_list}
+                rate["tag_rates"] = format_tag_rates
+                metric_rate_map[metric_name] = rate
         return metric_rate_map
 
     @property
