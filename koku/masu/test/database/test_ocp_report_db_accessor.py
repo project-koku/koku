@@ -960,28 +960,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         mock_connect.assert_called()
         mock_executescript.assert_called()
 
-    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
-    @patch("masu.database.ocp_report_db_accessor.kpdb.connect")
-    def test_populate_line_item_daily_summary_table_presto_preprocess_exception(self, mock_connect, mock_get_data):
-        """
-        Test that OCP presto processing converts datetime to date for start, end dates
-        """
-        presto_conn = FakePrestoConn()
-        mock_connect.return_value = presto_conn
-        mock_get_data.return_value = b"""
-select * from eek where val1 in {{months}} ;
-"""
-        start_date = "2020-01-01"
-        end_date = "2020-02-01"
-        cluster_id = "ocp-cluster"
-        cluster_alias = "OCP FTW"
-        report_period_id = 1
-        source = self.provider_uuid
-        with self.assertRaises(kpdb.PreprocessStatementError):
-            self.accessor.populate_line_item_daily_summary_table_presto(
-                start_date, end_date, report_period_id, cluster_id, cluster_alias, source
-            )
-
     @patch("masu.database.ocp_report_db_accessor.kpdb.executescript")
     @patch("masu.database.ocp_report_db_accessor.kpdb.connect")
     def test_populate_pod_label_summary_table_presto(self, mock_connect, mock_executescript):
@@ -1009,7 +987,7 @@ select * from eek where val1 in {{months}} ;
         presto_conn = FakePrestoConn()
         mock_connect.return_value = presto_conn
         mock_get_data.return_value = b"""
-select * from eek where val1 in {{months}} ;
+select * from eek where val1 in {{report_period_ids}} ;
 """
         start_date = "2020-01-01"
         end_date = "2020-02-01"
