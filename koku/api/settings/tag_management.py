@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Data Driven Component Generation for Tag Management Settings."""
-from django.conf import settings
 from django.test import RequestFactory
 from rest_framework.serializers import ValidationError
 from tenant_schemas.utils import schema_context
@@ -60,21 +59,16 @@ obtainTagKeysProvidersParams = {
         "query_handler": AWSTagQueryHandler,
         "enabled_tag_keys": AWSEnabledTagKeys,
     },
+    "azure": {
+        "provider": Provider.PROVIDER_AZURE,
+        "title": "Azure tags",
+        "leftLabel": "Available tags",
+        "rightLabel": "Tags for reporting",
+        "tag_view": AzureTagView,
+        "query_handler": AzureTagQueryHandler,
+        "enabled_tag_keys": AzureEnabledTagKeys,
+    },
 }
-if settings.DEVELOPMENT:
-    obtainTagKeysProvidersParams.update(
-        {
-            "azure": {
-                "provider": Provider.PROVIDER_AZURE,
-                "title": "Azure tags",
-                "leftLabel": "Available tags",
-                "rightLabel": "Tags for reporting",
-                "tag_view": AzureTagView,
-                "query_handler": AzureTagQueryHandler,
-                "enabled_tag_keys": AzureEnabledTagKeys,
-            }
-        }
-    )
 
 
 class TagManagementSettings:
@@ -150,6 +144,7 @@ class TagManagementSettings:
                 "filterValueText": "Remove your filter to see all enabled tag keys",
                 "filterOptionsText": "Remove your filter to see all available tag keys",
                 "initialValue": enabled,
+                "clearedValue": [],
             }
             dual_list_name = f"{self._get_tag_management_prefix(providerName)}.enabled"
             dual_list_title = obtainTagKeysProvidersParams[providerName]["title"]

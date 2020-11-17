@@ -45,8 +45,11 @@ from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import map_django_field_type_to_python_type
 from masu.test.database.helpers import ReportObjectCreator
+from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
+from reporting.provider.aws.models import AWSEnabledTagKeys
+from reporting.provider.aws.models import AWSTagsSummary
 from reporting_common import REPORT_COLUMN_MAP
 
 
@@ -986,7 +989,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         )
         mock_presto.assert_called()
 
-    @patch("masu.database.report_db_accessor_base.prestodb.dbapi.connect")
+    @patch("masu.database.report_db_accessor_base.kpdb.connect")
     def test_execute_presto_raw_sql_query(self, mock_connect):
         """Test the presto execute method."""
         mock_sql = "SELECT number FROM table"
@@ -996,3 +999,47 @@ class AWSReportDBAccessorTest(MasuTestCase):
         result = self.accessor._execute_presto_raw_sql_query(self.schema, mock_sql)
 
         self.assertEqual(result, mock_result)
+
+    def test_populate_enabled_tag_keys(self):
+        """Test that enabled tag keys are populated."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        bills = self.accessor.bills_for_provider_uuid(self.aws_provider_uuid, start_date)
+        with schema_context(self.schema):
+            AWSTagsSummary.objects.all().delete()
+            AWSEnabledTagKeys.objects.all().delete()
+            bill_ids = [bill.id for bill in bills]
+            self.assertEqual(AWSEnabledTagKeys.objects.count(), 0)
+            self.accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
+            self.assertNotEqual(AWSEnabledTagKeys.objects.count(), 0)
+
+    def test_update_line_item_daily_summary_with_enabled_tags(self):
+        """Test that we filter the daily summary table's tags with only enabled tags."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        bills = self.accessor.bills_for_provider_uuid(self.aws_provider_uuid, start_date)
+        with schema_context(self.schema):
+            AWSTagsSummary.objects.all().delete()
+            key_to_keep = AWSEnabledTagKeys.objects.first()
+            AWSEnabledTagKeys.objects.exclude(key=key_to_keep.key).delete()
+            bill_ids = [bill.id for bill in bills]
+            self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
+            tags = (
+                AWSCostEntryLineItemDailySummary.objects.filter(
+                    usage_start__gte=start_date, cost_entry_bill_id__in=bill_ids
+                )
+                .values_list("tags")
+                .distinct()
+            )
+
+            for tag in tags:
+                tag_dict = tag[0]
+                tag_keys = list(tag_dict.keys())
+                if tag_keys:
+                    self.assertEqual([key_to_keep.key], tag_keys)
+                else:
+                    self.assertEqual([], tag_keys)

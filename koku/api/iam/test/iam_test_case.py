@@ -21,6 +21,7 @@ from json import dumps as json_dumps
 from unittest.mock import Mock
 from uuid import UUID
 
+import prestodb
 from django.conf import settings
 from django.db import connection
 from django.db.models.signals import post_save
@@ -39,6 +40,34 @@ from api.query_params import QueryParameters
 from koku.dev_middleware import DevelopmentIdentityHeaderMiddleware
 from koku.koku_test_runner import KokuTestRunner
 from sources.kafka_listener import storage_callback
+
+
+class FakePrestoCur(prestodb.dbapi.Cursor):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def execute(self, *args, **kwargs):
+        pass
+
+    def fetchall(self):
+        return [["eek"]]
+
+
+class FakePrestoConn(prestodb.dbapi.Connection):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def cursor(self):
+        return FakePrestoCur()
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
+    def close(self):
+        pass
 
 
 class IamTestCase(TestCase):
