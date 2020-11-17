@@ -37,7 +37,7 @@ class GCPReportProcessorTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.test_report_path = "./koku/masu/test/data/gcp/evidence-2020-11-16.csv"
+        cls.test_report_path = "./koku/masu/test/data/gcp/30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
 
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
@@ -46,7 +46,7 @@ class GCPReportProcessorTest(MasuTestCase):
         """Set up GCP tests."""
         super().setUp()
         self.temp_dir = tempfile.mkdtemp()
-        self.test_report = f"{self.temp_dir}/evidence-2020-11-16.csv"
+        self.test_report = f"{self.temp_dir}/30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
 
         shutil.copy2(self.test_report_path, self.test_report)
 

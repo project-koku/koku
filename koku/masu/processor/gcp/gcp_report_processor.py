@@ -44,6 +44,14 @@ from reporting.provider.gcp.models import GCPProject
 LOG = logging.getLogger(__name__)
 
 
+class ProcessedGCPReportError(Exception):
+    """General Exception class for ProviderManager errors."""
+
+    def __init__(self, message):
+        """Set custom error message for ProviderManager errors."""
+        self.message = message
+
+
 class ProcessedGCPReport:
     """Kept in memory object of report items."""
 
@@ -137,13 +145,15 @@ class GCPReportProcessor(ReportProcessorBase):
         """
         Get the scan range from the manifest_id.
         """
+        scan_range = {}
         try:
             date_range = self._report_name.split("_")[-1]
             start_date, end_date = date_range.split(":")
-        except Exception as e:
-            print("TODO: Error protection")
-            print(e)
-        return {"start": start_date, "end": end_date}
+            scan_range = {"start": start_date, "end": end_date}
+        except UnboundLocalError:
+            err_msg = "Error recovering start and end date from csv report."
+            raise ProcessedGCPReportError(err_msg)
+        return scan_range
 
     def _get_or_create_cost_entry_bill(self, row, report_db_accessor):
         """Get or Create a GCP cost entry bill object.
