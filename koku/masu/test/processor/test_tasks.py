@@ -56,6 +56,7 @@ from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import get_report_files
+from masu.processor.tasks import normalize_table_options
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
@@ -294,6 +295,32 @@ class ProcessReportFileTests(MasuTestCase):
 
     @patch("masu.processor._tasks.process.ReportProcessor")
     @patch("masu.processor._tasks.process.ReportStatsDBAccessor")
+    def test_process_file_not_implemented_exception(self, mock_stats_accessor, mock_processor):
+        """Test the process_report_file functionality when exception is thrown."""
+        report_dir = tempfile.mkdtemp()
+        path = "{}/{}".format(report_dir, "file1.csv")
+        schema_name = self.schema
+        provider = Provider.PROVIDER_AWS
+        provider_uuid = self.aws_provider_uuid
+        report_dict = {
+            "file": path,
+            "compression": "gzip",
+            "start_date": str(DateHelper().today),
+            "provider_uuid": provider_uuid,
+        }
+
+        mock_processor.side_effect = NotImplementedError("mock error")
+        mock_stats_acc = mock_stats_accessor().__enter__()
+
+        with self.assertRaises(NotImplementedError):
+            _process_report_file(schema_name, provider, report_dict)
+
+        mock_stats_acc.log_last_started_datetime.assert_called()
+        mock_stats_acc.log_last_completed_datetime.assert_called()
+        shutil.rmtree(report_dir)
+
+    @patch("masu.processor._tasks.process.ReportProcessor")
+    @patch("masu.processor._tasks.process.ReportStatsDBAccessor")
     @patch("masu.database.report_manifest_db_accessor.ReportManifestDBAccessor")
     def test_process_file_missing_manifest(self, mock_manifest_accessor, mock_stats_accessor, mock_processor):
         """Test the process_report_file functionality when manifest is missing."""
@@ -413,6 +440,19 @@ class TestProcessorTasks(MasuTestCase):
     def test_get_report_process_exception(self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove):
         """Test raising processor exception is handled."""
         mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP"}
+
+        get_report_files(**self.get_report_args)
+        mock_cache_remove.assert_called()
+
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks._get_report_files")
+    @patch("masu.processor.tasks._process_report_file", side_effect=NotImplementedError)
+    def test_get_report_process_not_implemented_error(
+        self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove
+    ):
+        """Test raising processor exception is handled."""
+        mock_get_files.return_value = {"file": self.fake.word(), "compression": "PLAIN"}
 
         get_report_files(**self.get_report_args)
         mock_cache_remove.assert_called()
@@ -1051,6 +1091,16 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
             self.assertIn(expected, logger.output)
+
+    def test_autovacuum_tune_schema_normalize(self):
+        """Test that the autovacuum tuning runs."""
+        test_matrix = [
+            {"table_options": None, "expected": {}},
+            {"table_options": "{}", "expected": {}},
+            {"table_options": {"foo": "bar"}, "expected": {"foo": "bar"}},
+        ]
+        for test in test_matrix:
+            self.assertEquals(normalize_table_options(test.get("table_options")), test.get("expected"))
 
     def test_autovacuum_tune_schedule(self):
         vh = next(iter(koku_celery.app.conf.beat_schedule["vacuum-schemas"]["schedule"].hour))

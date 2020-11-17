@@ -30,16 +30,19 @@ class Migration(migrations.Migration):
 
                 ALTER TABLE reporting_awscostentrylineitem_daily_summary DROP COLUMN id;
                 ALTER TABLE reporting_awscostentrylineitem_daily_summary ADD COLUMN uuid UUID;
+                UPDATE reporting_awscostentrylineitem_daily_summary SET uuid = uuid_generate_v4();
                 ALTER TABLE reporting_awscostentrylineitem_daily_summary ADD PRIMARY KEY (usage_start, uuid);
                 ALTER TABLE reporting_awscostentrylineitem_daily_summary ALTER COLUMN resource_ids TYPE text[];
 
                 ALTER TABLE reporting_azurecostentrylineitem_daily_summary DROP COLUMN id;
                 ALTER TABLE reporting_azurecostentrylineitem_daily_summary ADD COLUMN uuid UUID;
+                UPDATE reporting_azurecostentrylineitem_daily_summary SET uuid = uuid_generate_v4();
                 ALTER TABLE reporting_azurecostentrylineitem_daily_summary ADD PRIMARY KEY (usage_start, uuid);
 
 
                 ALTER TABLE reporting_ocpusagelineitem_daily_summary DROP COLUMN id;
                 ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD COLUMN uuid UUID;
+                UPDATE reporting_ocpusagelineitem_daily_summary SET uuid = uuid_generate_v4();
                 ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD PRIMARY KEY (usage_start, uuid);
             """
         ),

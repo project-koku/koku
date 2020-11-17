@@ -58,7 +58,7 @@ from yaml import safe_load
 
 BASEDIR = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_CONFIG = BASEDIR + "/test_customer.yaml"
-SUPPORTED_SOURCES = ["AWS", "AWS-local", "Azure", "Azure-local", "OCP"]
+SUPPORTED_SOURCES = ["AWS", "AWS-local", "Azure", "Azure-local", "OCP", "GCP-local", "GCP"]
 
 
 class KokuCustomerOnboarder:
@@ -117,7 +117,7 @@ class KokuCustomerOnboarder:
             }
 
             response = requests.post(self.endpoint_base + "sources/", headers=get_headers(self.auth_token), json=data)
-            print(f"Response: [{response.status_code}] {response.text}")
+            print(f"Response: [{response.status_code}] {response.reason}")
 
     def create_provider_source(self, source_type):
         """Create a single provider, auth, and billing source in the DB."""

@@ -176,6 +176,13 @@ def get_report_files(
             WorkerCache().remove_task_from_cache(cache_key)
             return None
 
+        report_meta = {
+            "schema_name": schema_name,
+            "provider_type": provider_type,
+            "provider_uuid": provider_uuid,
+            "manifest_id": report_dict.get("manifest_id"),
+        }
+
         try:
             stmt = (
                 f"Processing starting:\n"
@@ -192,18 +199,14 @@ def get_report_files(
 
             _process_report_file(schema_name, provider_type, report_dict)
 
-            report_meta = {
-                "schema_name": schema_name,
-                "provider_type": provider_type,
-                "provider_uuid": provider_uuid,
-                "manifest_id": report_dict.get("manifest_id"),
-            }
-
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
             LOG.error(str(processing_error))
             WorkerCache().remove_task_from_cache(cache_key)
             raise processing_error
+        except NotImplementedError as err:
+            LOG.info(str(err))
+            WorkerCache().remove_task_from_cache(cache_key)
 
         WorkerCache().remove_task_from_cache(cache_key)
 
@@ -496,6 +499,15 @@ def vacuum_schema(schema_name):
                 LOG.info(cursor.statusmessage)
 
 
+def normalize_table_options(table_options):
+    """Normalize autovaccume_tune_schema table_options to dict type."""
+    if not table_options:
+        table_options = {}
+    elif isinstance(table_options, str):
+        table_options = json.loads(table_options)
+    return table_options
+
+
 # The autovacuum settings should be tuned over time to account for a table's records
 # growing or shrinking. Based on the number of live tuples recorded from the latest
 # statistics run, the autovacuum_vacuum_scale_factor will be adjusted up or down.
@@ -512,7 +524,7 @@ def autovacuum_tune_schema(schema_name):  # noqa: C901
     table_sql = """
 SELECT s.relname as "table_name",
        s.n_live_tup,
-       coalesce(table_options.options, '{}'::jsonb) as "options"
+       coalesce(table_options.options, '{}'::jsonb)::jsonb as "options"
   FROM pg_stat_user_tables s
   LEFT
   JOIN (
@@ -565,6 +577,7 @@ SELECT s.relname as "table_name",
             for table in tables:
                 scale_factor = zero
                 table_name, n_live_tup, table_options = table
+                table_options = normalize_table_options(table_options)
                 try:
                     table_scale_option = Decimal(table_options.get("autovacuum_vacuum_scale_factor", no_scale))
                 except InvalidOperation:

@@ -22,23 +22,6 @@ OPENSHIFT_SETTINGS_PREFIX = f"{SETTINGS_PREFIX}.openshift"
 OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX = f"{OPENSHIFT_SETTINGS_PREFIX}.tag-management"
 
 
-def create_tab_item(name, title, description, fields):
-    """
-    Create a tab item for the settings.
-
-    Args:
-        (String) name - unique name for tab item.
-        (String) title - Display title.
-        (String) description - Description of tab.
-        (List) fields - List of field components.
-
-    Returns:
-        (Dict) - TabItem component.
-    """
-    tab_item = {"title": title, "description": description, "name": name, "fields": [fields], "component": "tab-item"}
-    return tab_item
-
-
 def create_subform(name, title, fields):
     """
     Create a subfrom for the settings.
@@ -55,9 +38,26 @@ def create_subform(name, title, fields):
     return subform
 
 
-def create_plain_text_with_doc(name, label, doc_link):
+def create_plain_text(name, label, variant):
     """
     Create a plain text field for the settings.
+
+    Args:
+        (String) name - unique name for switch.
+        (String) label - Display text.
+        (String) variant - plain text variant. I have no idea why they call it that way.
+                           But, it is actually HTML element that will wrap the text (label).
+
+    Returns:
+        [Dict] - plain text component.
+    """
+    plain_text = {"label": label, "name": name, "variant": variant, "component": "plain-text"}
+    return plain_text
+
+
+def create_plain_text_with_doc(name, label, doc_link):
+    """
+    Create a plain text field with links for the settings.
 
     Args:
         (String) name - unique name for switch.
@@ -65,7 +65,7 @@ def create_plain_text_with_doc(name, label, doc_link):
         (Dict) doc_link - documentation props.
 
     Returns:
-        [Dict] - plain text component.
+        [Dict] - plain text with links component.
     """
     plain_text = {"component": "plain-text-with-links", "text": label, "linkProps": [doc_link], "name": name}
     return plain_text
@@ -80,22 +80,6 @@ def generate_doc_link(path):
     """
     prefix = f"https://access.redhat.com/documentation/en-us/openshift_container_platform/{OPENSHIFT_DOC_VERSION}/html"
     return f"{prefix}/{path}"
-
-
-def create_switch(name, label, state):
-    """
-    Create a switch for the settings.
-
-    Args:
-        (String) name - unique name for switch.
-        (String) label - Display label.
-        (Boolean) state - True/False.
-
-    Returns:
-        [Dict] - Subform component.
-    """
-    switch = {"name": name, "label": label, "component": "switch-field"}
-    return switch
 
 
 def create_dual_list_select(name, left_options=[], right_options=[], **kwargs):
