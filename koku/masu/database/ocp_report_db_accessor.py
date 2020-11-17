@@ -33,7 +33,9 @@ from django.db.models.functions import Coalesce
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
+import koku.presto_database as kpdb
 from api.metrics import constants as metric_constants
+from api.utils import DateHelper
 from koku.database import JSONBBuildObject
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
@@ -43,6 +45,8 @@ from masu.util.common import month_date_range_tuple
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+
+# from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -71,6 +75,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         super().__init__(schema)
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self.jinja_sql = JinjaSql()
+        self.date_helper = DateHelper()
 
     def get_current_usage_report(self):
         """Get the most recent usage report object."""
@@ -521,6 +526,124 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
+
+    def populate_line_item_daily_summary_table_presto(
+        self, start_date, end_date, report_period_id, cluster_id, cluster_alias, source
+    ):
+        """Populate the daily aggregate of line items table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+            report_period_id (int) : report period for which we are processing
+            cluster_id (str) : Cluster Identifier
+            cluster_alias (str) : Cluster alias
+            source (UUID) : provider uuid
+
+        Returns
+            (None)
+
+        """
+        # Cast start_date to date
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
+
+        tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocp_lineitem_daily_summary.sql")
+        tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "uuid": str(uuid.uuid4()).replace("-", "_"),
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_id": report_period_id,
+            "cluster_id": cluster_id,
+            "cluster_alias": cluster_alias,
+            "schema": self.schema,
+            "source": str(source),
+            "year": str(start_date.year),
+            "month": str(start_date.month),
+        }
+
+        LOG.info("PRESTO OCP: Connect")
+        presto_conn = kpdb.connect(schema=self.schema)
+        try:
+            LOG.info("PRESTO OCP: executing SQL buffer for OCP usage processing")
+            kpdb.executescript(
+                presto_conn, tmpl_summary_sql, params=summary_sql_params, preprocessor=self.jinja_sql.prepare_query
+            )
+        except Exception as e:
+            LOG.error(f"PRESTO OCP ERROR : {e}")
+            try:
+                presto_conn.rollback()
+            except RuntimeError:
+                # If presto has not started a transaction, it will throw
+                # a RuntimeError that we just want to ignore.
+                pass
+            raise e
+        else:
+            LOG.info("PRESTO OCP: Commit actions")
+            presto_conn.commit()
+        finally:
+            LOG.info("PRESTO OCP: Close connection")
+            presto_conn.close()
+
+    def populate_pod_label_summary_table_presto(self, report_period_ids, start_date, end_date, source):
+        """
+        Populate label usage summary tables
+
+        Args:
+            report_period_ids (list(int)) : List of report_period_ids for processing
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+            source (UUID) : provider uuid
+
+        Returns
+            (None)
+        """
+        # Cast start_date to date
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
+
+        agg_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocp_usage_label_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {
+            "uuid": str(uuid.uuid4()).replace("-", "_"),
+            "schema": self.schema,
+            "report_period_ids": tuple(report_period_ids),
+            "start_date": start_date,
+            "end_date": end_date,
+            "source": str(source),
+            "year": str(start_date.year),
+            "month": str(start_date.month),
+        }
+
+        LOG.info("PRESTO OCP: Connect")
+        presto_conn = kpdb.connect(schema=self.schema)
+        try:
+            LOG.info("PRESTO OCP: executing SQL buffer for OCP tag/label processing")
+            kpdb.executescript(presto_conn, agg_sql, params=agg_sql_params, preprocessor=self.jinja_sql.prepare_query)
+        except Exception as e:
+            LOG.error(f"PRESTO OCP ERROR : {e}")
+            try:
+                presto_conn.rollback()
+            except RuntimeError:
+                # If presto has not started a transaction, it will throw
+                # a RuntimeError that we just want to ignore.
+                pass
+            raise e
+        else:
+            LOG.info("PRESTO OCP: Commit actions")
+            presto_conn.commit()
+        finally:
+            LOG.info("PRESTO OCP: Close connection")
+            presto_conn.close()
 
     def update_summary_infrastructure_cost(self, cluster_id, start_date, end_date):
         """Populate the infrastructure costs on the daily usage summary table.

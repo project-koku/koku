@@ -22,6 +22,7 @@ from unittest.mock import patch
 from dateutil import parser
 from django.http import HttpRequest
 from django.http import QueryDict
+from model_bakery import baker
 from rest_framework.request import Request
 from tenant_schemas.utils import tenant_context
 
@@ -42,6 +43,7 @@ from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
+from reporting_common.models import CostUsageReportManifest
 
 
 class MockResponse:
@@ -116,6 +118,63 @@ class ProviderManagerTest(IamTestCase):
         # Get Provider Manager
         manager = ProviderManager(provider_uuid)
         self.assertTrue(manager.get_active_status())
+
+    def test_get_current_month_data_exists(self):
+        """Test the current month status flag."""
+        # Get Provider UUID
+
+        provider_name = "sample_provider"
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+
+        provider_uuid = provider.uuid
+        baker.make(
+            CostUsageReportManifest,
+            provider=provider,
+            billing_period_start_datetime=DateHelper().this_month_start,
+            manifest_completed_datetime=DateHelper().today,
+        )
+
+        # Get Provider Manager
+        manager = ProviderManager(provider_uuid)
+        self.assertTrue(manager.get_current_month_data_exists())
+
+    def test_get_current_month_data_exists_manifest_not_complete(self):
+        """Test the current month status flag when manifest is not complete."""
+        # Get Provider UUID
+
+        provider_name = "sample_provider"
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+
+        provider_uuid = provider.uuid
+        baker.make(
+            CostUsageReportManifest, provider=provider, billing_period_start_datetime=DateHelper().this_month_start
+        )
+
+        # Get Provider Manager
+        manager = ProviderManager(provider_uuid)
+        self.assertFalse(manager.get_current_month_data_exists())
+
+    def test_get_current_month_data_exists_manifest_last_month(self):
+        """Test the current month status flag when manifest with only last month data."""
+        # Get Provider UUID
+
+        provider_name = "sample_provider"
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+
+        provider_uuid = provider.uuid
+        baker.make(
+            CostUsageReportManifest,
+            provider=provider,
+            billing_period_start_datetime=DateHelper().last_month_start,
+            manifest_completed_datetime=DateHelper().last_month_end,
+        )
+
+        # Get Provider Manager
+        manager = ProviderManager(provider_uuid)
+        self.assertFalse(manager.get_current_month_data_exists())
 
     def test_get_providers_queryset_for_customer(self):
         """Verify all providers returned by a customer."""

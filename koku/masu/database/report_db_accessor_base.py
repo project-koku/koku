@@ -22,12 +22,12 @@ from decimal import InvalidOperation
 
 import ciso8601
 import django.apps
-import prestodb
 from dateutil.relativedelta import relativedelta
 from django.db import connection
 from django.db import transaction
 from tenant_schemas.utils import schema_context
 
+import koku.presto_database as kpdb
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
 from reporting.models import PartitionedTable
@@ -349,14 +349,12 @@ class ReportDBAccessorBase(KokuDBAccess):
             cursor.execute(sql, params=bind_params)
         LOG.info("Finished updating %s.", table)
 
-    def _execute_presto_raw_sql_query(self, schema, sql):
-        """Run a SQL statement using Presto."""
-        postgres_conn = prestodb.dbapi.connect(
-            host="presto", port=8080, user="admin", catalog="postgres", schema=schema
-        )
-        postgres_cur = postgres_conn.cursor()
-        postgres_cur.execute(sql)
-        return postgres_cur.fetchall()
+    def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None):
+        """Execute a single presto query"""
+        presto_conn = kpdb.connect(schema=schema)
+        presto_cur = presto_conn.cursor()
+        presto_cur.execute(sql, bind_params)
+        return presto_cur.fetchall()
 
     def get_existing_partitions(self, table):
         if isinstance(table, str):

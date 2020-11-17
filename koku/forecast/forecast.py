@@ -21,6 +21,7 @@ from abc import ABC
 from abc import abstractmethod
 from collections import defaultdict
 from datetime import timedelta
+from decimal import Decimal
 from functools import reduce
 
 import statsmodels.api as sm
@@ -89,8 +90,11 @@ class Forecast(ABC):
     # this number is chosen in part because statsmodels.stats.stattools.omni_normtest() needs at least eight data
     # points to test for normal distribution.
     MINIMUM = 8
-    REPORT_TYPE = "costs"
+
+    # the precision of the floats returned in the forecast response.
     PRECISION = 8
+
+    REPORT_TYPE = "costs"
     dh = DateHelper()
 
     def __init__(self, query_params):  # noqa: C901
@@ -150,7 +154,24 @@ class Forecast(ABC):
         # self._predict(data)
 
     def _predict(self, data):
-        """Handle pre and post prediction work."""
+        """Handle pre and post prediction work.
+
+        Args:
+
+          data (list) a list of (datetime, float) tuples
+
+        Returns:
+
+            (list) a list of dicts
+                (dict):
+                    date (date): date of the forecast value
+                    value (str): a formatted string of a float; the forecast value
+                    confidence_max (str): a formatted string of a float; the confidence interval upper-bound
+                    confidence_min (str): a formatted string of a float; the confidence interval lower-bound
+                    rsquared (str): a formatted string of a float; the linear regression's R-squared value
+                    pvalues (str): a formatted string of a float; the linear regression's P-test value
+
+        """
         LOG.debug("Forecast input data: %s", data)
 
         if len(data) < 2:
@@ -190,7 +211,15 @@ class Forecast(ABC):
         return response
 
     def _run_forecast(self, x, y):
-        """Apply the forecast model."""
+        """Apply the forecast model.
+
+        Args:
+            x (list) a list of exogenous variables
+            y (list) a list of endogenous variables
+
+        Note:
+            both x and y MUST be the same number of elements
+        """
         sm.add_constant(x)
         model = sm.OLS(y, x)
         results = model.fit()
@@ -208,6 +237,23 @@ class Forecast(ABC):
         LOG.debug("Forecast interval upper-bound: %s", upper)
 
         return predicted, lower, upper, results.rsquared, results.pvalues.tolist()
+
+    def _uniquify_qset(self, qset, field="total_cost"):
+        """Take a QuerySet list, sum costs within the same day, and arrange it into a list of tuples.
+
+        Args:
+            qset (QuerySet)
+
+        Returns:
+            [(date, cost), ...]
+        """
+        # FIXME: this QuerySet->dict->list conversion probably isn't ideal.
+        # FIXME: there's probably a way to aggregate multiple sources by date using just the ORM.
+        result = defaultdict(Decimal)
+        for item in qset:
+            result[item.get("usage_start")] += Decimal(item.get(field, 0.0))
+        out = [(k, v) for k, v in result.items()]
+        return out
 
     def set_access_filters(self, access, filt, filters):
         """Set access filters to ensure RBAC restrictions adhere to user's access and filters.
@@ -231,7 +277,7 @@ class Forecast(ABC):
 
 
 class AWSForecast(Forecast):
-    """Azure forecasting class."""
+    """AWS forecasting class."""
 
     provider = Provider.PROVIDER_AWS
     provider_map = AWSProviderMap
@@ -245,15 +291,7 @@ class AWSForecast(Forecast):
                 .annotate(total_cost=Coalesce(Sum("unblended_cost"), Value(0)))
                 .values("usage_start", "total_cost")
             )
-
-            # FIXME: this QuerySet->dict->list conversion probably isn't ideal.
-            # FIXME: there's probably a way to aggregate multiple sources by date using just the ORM.
-            result = defaultdict(int)
-            for item in data:
-                result[item.get("usage_start")] += item.get("total_cost")
-            data = [(k, v) for k, v in result.items()]
-
-            return self._predict(data)
+            return self._predict(self._uniquify_qset(data))
 
     def set_access_filters(self, access, filt, filters):
         """Set access filters to ensure RBAC restrictions adhere to user's access and filters.
@@ -293,8 +331,15 @@ class AzureForecast(Forecast):
     provider_map = AzureProviderMap
 
     def predict(self):
-        """Forecasting is not yet implemented for this provider."""
-        return FAKE_RESPONSE
+        """Define ORM query to run forecast and return prediction."""
+        with tenant_context(self.params.tenant):
+            data = (
+                self.cost_summary_table.objects.filter(self.filters.compose())
+                .order_by("usage_start")
+                .annotate(total_cost=Coalesce(Sum("pretax_cost"), Value(0)))
+                .values("usage_start", "total_cost")
+            )
+            return self._predict(self._uniquify_qset(data))
 
 
 class OCPForecast(Forecast):

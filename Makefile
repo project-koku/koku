@@ -158,7 +158,7 @@ lint:
 	pre-commit run --all-files
 
 clear-testing:
-	$(PYTHON) $(TOPDIR)/scripts/clear_testing.py -p $(TOPDIR)/testing
+	$(PREFIX) $(PYTHON) $(TOPDIR)/scripts/clear_testing.py -p $(TOPDIR)/testing
 
 create-test-customer: run-migrations docker-up-koku
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
@@ -385,14 +385,14 @@ docker-presto-setup:
 	@$(SED_IN_PLACE) -e 's/DATABASE_PASSWORD/$(shell echo $(or $(DATABASE_PASSWORD),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
 
 docker-presto-cleanup:
-	@$(PREFIX) rm -fr ./testing/hadoop ./testing/metastore ./testing/presto
+	$(PREFIX) rm -fr ./testing/hadoop ./testing/metastore ./testing/presto
 	make clear-testing
 
 docker-presto-up: docker-metastore-setup docker-presto-setup
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d
 
 docker-presto-down:
-	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down
+	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down -v
 	make docker-presto-cleanup
 
 ### Source targets ###

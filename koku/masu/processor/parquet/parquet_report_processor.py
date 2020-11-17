@@ -265,10 +265,10 @@ class ParquetReportProcessor:
         parquet_file = None
         csv_file = f"{s3_csv_path}/{csv_filename}"
         if csv_filename.lower().endswith(CSV_EXT):
-            ext = -1 * len(CSV_EXT)
+            ext = -len(CSV_EXT)
             parquet_file = f"{csv_filename[:ext]}.parquet"
         elif csv_filename.lower().endswith(CSV_GZIP_EXT):
-            ext = -1 * len(CSV_GZIP_EXT)
+            ext = -len(CSV_GZIP_EXT)
             parquet_file = f"{csv_filename[:ext]}.parquet"
             kwargs = {"compression": "gzip"}
         else:
@@ -335,7 +335,6 @@ class ParquetReportProcessor:
             report_file = []
         else:
             report_file = [self._report_file]
-
         LOG.info(f"Parquet conversion: start_date = {str(self._start_date)}. File: {str(self._report_file)}")
         if self._start_date:
             start_date_str = self._start_date.strftime("%Y-%m-%d")
