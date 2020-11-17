@@ -22,14 +22,17 @@ from numbers import Number
 from os import path
 from os import remove
 
+import ciso8601
 import pandas
 import pytz
 from dateutil import parser
 from django.conf import settings
+from django.db import transaction
 
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util import common as utils
 from reporting.provider.gcp.models import GCPCostEntryBill
@@ -86,6 +89,9 @@ class GCPReportProcessor(ReportProcessorBase):
         self.line_item_table_name = self.line_item_table._meta.db_table
         self._report_name = report_path
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
+        self._scan_range = self._get_range_from_report_name()
+        self._manifest_id = manifest_id
+        self._provider_uuid = provider_uuid
 
         self._schema = schema_name
 
@@ -98,6 +104,46 @@ class GCPReportProcessor(ReportProcessorBase):
         LOG.info("Initialized report processor for file: %s and schema: %s", report_path, self._schema)
 
         self.line_item_columns = None
+
+    def _delete_line_items_in_range(self, bill_id):
+        """Delete stale data between date range."""
+        start_date = self._scan_range["start"]
+        start_date = ciso8601.parse_datetime(start_date).date()
+        gcp_date_filter = {"start_time__gte": start_date}
+
+        if not self._manifest_id:
+            return False
+        with ReportManifestDBAccessor() as manifest_accessor:
+            num_processed_files = manifest_accessor.number_of_files_processed(self._manifest_id)
+            if num_processed_files != 0:
+                return False
+
+        with GCPReportDBAccessor(self._schema) as accessor:
+            line_item_query = accessor.get_lineitem_query_for_billid(bill_id)
+            line_item_query = line_item_query.filter(**gcp_date_filter)
+            log_statement = (
+                f"Deleting data for:\n"
+                f" schema_name: {self._schema}\n"
+                f" provider_uuid: {self._provider_uuid}\n"
+                f" bill ID: {bill_id}\n"
+                f" on or after {start_date}."
+            )
+            LOG.info(log_statement)
+            line_item_query.delete()
+
+        return True
+
+    def _get_range_from_report_name(self):
+        """
+        Get the scan range from the manifest_id.
+        """
+        try:
+            date_range = self._report_name.split("_")[-1]
+            start_date, end_date = date_range.split(":")
+        except Exception as e:
+            print("TODO: Error protection")
+            print(e)
+        return {"start": start_date, "end": end_date}
 
     def _get_or_create_cost_entry_bill(self, row, report_db_accessor):
         """Get or Create a GCP cost entry bill object.
@@ -240,6 +286,7 @@ class GCPReportProcessor(ReportProcessorBase):
         self.existing_projects_map.update(self.processed_report.projects)
         self.processed_report.remove_processed_rows()
 
+    @transaction.atomic
     def process(self):
         """Process GCP billing file."""
         row_count = 0
@@ -251,11 +298,11 @@ class GCPReportProcessor(ReportProcessorBase):
                 self._schema,
             )
             return False
-        self._delete_line_items(GCPReportDBAccessor)
 
         # Read the csv in batched chunks.
         report_csv = pandas.read_csv(self._report_path, chunksize=self._batch_size, compression="infer")
 
+        bills_purged = []
         with GCPReportDBAccessor(self._schema) as report_db:
 
             for chunk in report_csv:
@@ -269,6 +316,9 @@ class GCPReportProcessor(ReportProcessorBase):
                     first_row = OrderedDict(zip(rows.columns.tolist(), rows.iloc[0].tolist()))
 
                     bill_id = self._get_or_create_cost_entry_bill(first_row, report_db)
+                    if bill_id not in bills_purged:
+                        self._delete_line_items_in_range(bill_id)
+                        bills_purged.append(bill_id)
 
                     project_id = self._get_or_create_gcp_project(first_row, report_db)
 

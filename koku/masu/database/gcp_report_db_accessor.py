@@ -7,6 +7,7 @@ from tenant_schemas.utils import schema_context
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.provider.gcp.models import GCPCostEntryBill
+from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
 from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
 
@@ -66,3 +67,11 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             projects = self._get_db_obj_query(table_name, columns=columns).all()
 
             return {(project["account_id"], project["project_id"]): project["id"] for project in projects}
+
+    def get_lineitem_query_for_billid(self, bill_id):
+        """Get the AWS cost entry line item for a given bill query."""
+        table_name = GCPCostEntryLineItemDaily
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            line_item_query = base_query.filter(cost_entry_bill_id=bill_id)
+            return line_item_query
