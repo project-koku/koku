@@ -185,3 +185,29 @@ class GCPReportProcessorTest(MasuTestCase):
         self.assertEquals(consolidated_line["date"], line1["date"])
         self.assertEquals(consolidated_line["cost_entry_bill_id"], line1["cost_entry_bill_id"])
         self.assertEquals(consolidated_line["project_id"], line1["project_id"])
+
+    def test_gcp_process_twice(self):
+        """Test the processing of an GCP file again, results in the same amount of objects."""
+        self.processor.process()
+        with schema_context(self.schema):
+            num_line_items = len(GCPCostEntryLineItemDaily.objects.all())
+            num_projects = len(GCPProject.objects.all())
+            num_bills = len(GCPCostEntryBill.objects.all())
+
+        # Why another processor instance? because calling process() with the same processor instance fails
+        # django.db.utils.InternalError: no such savepoint.
+
+        shutil.copy2(self.test_report_path, self.test_report)
+
+        processor = GCPReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.gcp_provider.uuid,
+            manifest_id=self.manifest.id,
+        )
+        processor.process()
+        with schema_context(self.schema):
+            self.assertEquals(num_line_items, len(GCPCostEntryLineItemDaily.objects.all()))
+            self.assertEquals(num_projects, len(GCPProject.objects.all()))
+            self.assertEquals(num_bills, len(GCPCostEntryBill.objects.all()))
