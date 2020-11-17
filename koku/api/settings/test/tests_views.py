@@ -21,6 +21,8 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.tags.aws.queries import AWSTagQueryHandler
+from api.tags.aws.view import AWSTagView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
@@ -49,7 +51,7 @@ class SettingsViewTest(IamTestCase):
         response = client.post(url, data=body, format="json", **self.headers)
         return response
 
-    def get_duallist_from_response(self, response):
+    def get_duallist_from_response(self, response, source_name):
         """Utility to get dual list object from response."""
         data = response.data
         self.assertIsNotNone(data)
@@ -57,63 +59,130 @@ class SettingsViewTest(IamTestCase):
         primary_object = data[0]
         tg_mngmnt_subform_fields = primary_object.get("fields")
         self.assertIsNotNone(tg_mngmnt_subform_fields)
-        fields_len = 7 if settings.DEVELOPMENT else 3
+        fields_len = 7 if settings.DEVELOPMENT else 5
         self.assertEqual(len(tg_mngmnt_subform_fields), fields_len)
-        tg_mngmnt_dual_list = next(
-            (field for field in tg_mngmnt_subform_fields if field["component"] == "dual-list-select"), None
-        )
-        return tg_mngmnt_dual_list
+        for element in tg_mngmnt_subform_fields:
+            if element.get("name") == f"api.settings.tag-management.{source_name}.enabled":
+                return element
 
-    def test_get_settings_ocp_tag_enabled(self):
+    def test_get_settings_tag_enabled(self):
         """Test that a GET settings call returns expected format."""
-        response = self.get_settings()
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        duallist = self.get_duallist_from_response(response)
-        all_keys = duallist.get("options")
-        self.assertIsNotNone(all_keys)
-        all_key_values = [key_obj.get("value") for key_obj in all_keys]
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
-            "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
-        )
-        query_params = self.mocked_query_params(url, OCPTagView)
-        handler = OCPTagQueryHandler(query_params)
-        query_output = handler.execute_query()
-        tag = query_output.get("data")[0]
-        self.assertIn(tag, all_key_values)
+        test_matrix = [
+            {"handler": OCPTagQueryHandler, "view": OCPTagView, "name": "openshift"},
+            {"handler": AWSTagQueryHandler, "view": AWSTagView, "name": "aws"},
+        ]
+        for test in test_matrix:
+            response = self.get_settings()
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            duallist = self.get_duallist_from_response(response, test.get("name"))
+            all_keys = duallist.get("options")
+            self.assertIsNotNone(all_keys)
+            all_key_values = [key_obj.get("value") for key_obj in all_keys]
+            url = (
+                "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
+                "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
+            )
+            query_params = self.mocked_query_params(url, test.get("view"))
+            handler = test.get("handler")(query_params)
+            query_output = handler.execute_query()
+            tag = query_output.get("data")[0]
+            self.assertIn(tag, all_key_values)
 
     def test_post_settings_ocp_tag_enabled(self):
         """Test setting OCP tags as enabled."""
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
-            "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
-        )
-        query_params = self.mocked_query_params(url, OCPTagView)
-        handler = OCPTagQueryHandler(query_params)
-        query_output = handler.execute_query()
-        tag = query_output.get("data")[0]
+        test_matrix = [
+            {"handler": OCPTagQueryHandler, "view": OCPTagView, "name": "openshift"},
+            {"handler": AWSTagQueryHandler, "view": AWSTagView, "name": "aws"},
+        ]
+        for test in test_matrix:
 
-        body = {"api": {"settings": {"tag-management": {"openshift": {"enabled": [tag]}}}}}
-        response = self.post_settings(body)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+            url = (
+                "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
+                "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
+            )
+            query_params = self.mocked_query_params(url, test.get("view"))
+            handler = test.get("handler")(query_params)
+            query_output = handler.execute_query()
+            tag = query_output.get("data")[0]
 
-        response = self.get_settings()
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        duallist = self.get_duallist_from_response(response)
-        enabled = duallist.get("initialValue")
-        self.assertIn(tag, enabled)
+            body = {"api": {"settings": {"tag-management": {test.get("name"): {"enabled": [tag]}}}}}
+            response = self.post_settings(body)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        tag = query_output.get("data")[1]
+            response = self.get_settings()
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            duallist = self.get_duallist_from_response(response, test.get("name"))
+            enabled = duallist.get("initialValue")
 
-        body = {"api": {"settings": {"tag-management": {"openshift": {"enabled": [tag]}}}}}
-        response = self.post_settings(body)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertIn(tag, enabled)
+            tag = query_output.get("data")[1]
 
-        response = self.get_settings()
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        duallist = self.get_duallist_from_response(response)
-        enabled = duallist.get("initialValue")
-        self.assertIn(tag, enabled)
+            body = {"api": {"settings": {"tag-management": {test.get("name"): {"enabled": [tag]}}}}}
+            response = self.post_settings(body)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            response = self.get_settings()
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            duallist = self.get_duallist_from_response(response, test.get("name"))
+            enabled = duallist.get("initialValue")
+            self.assertIn(tag, enabled)
+
+    def test_post_settings_ocp_tag_disabled(self):
+        """Test setting OCP tags get disabled."""
+        test_matrix = [
+            {"handler": OCPTagQueryHandler, "view": OCPTagView, "name": "openshift"},
+            {"handler": AWSTagQueryHandler, "view": AWSTagView, "name": "aws"},
+        ]
+        for test in test_matrix:
+            url = (
+                "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
+                "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
+            )
+            query_params = self.mocked_query_params(url, test.get("view"))
+            handler = test.get("handler")(query_params)
+            query_output = handler.execute_query()
+            tag = query_output.get("data")[0]
+
+            # Init test with enabled tag
+            body = {"api": {"settings": {"tag-management": {test.get("name"): {"enabled": [tag]}}}}}
+            response = self.post_settings(body)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            # Verify that disabling tags for a different source type does not clear openshift tags.
+            opposite_name = "openshift"
+            if test.get("name") == "openshift":
+                opposite_name = "aws"
+            body = {"api": {"settings": {"tag-management": {opposite_name: {"enabled": []}}}}}
+            response = self.post_settings(body)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            response = self.get_settings()
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            duallist = self.get_duallist_from_response(response, test.get("name"))
+            enabled = duallist.get("initialValue")
+            self.assertIn(tag, enabled)
+
+            body = {"api": {"settings": {"tag-management": {test.get("name"): {"enabled": []}}}}}
+            response = self.post_settings(body)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            response = self.get_settings()
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            duallist = self.get_duallist_from_response(response, test.get("name"))
+            enabled = duallist.get("initialValue")
+            self.assertEqual([], enabled)
+
+            # DDF will give an empty dictionary when disabling all
+            body = {"api": {"settings": {"tag-management": {test.get("name"): {}}}}}
+            response = self.post_settings(body)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            response = self.get_settings()
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            duallist = self.get_duallist_from_response(response, test.get("name"))
+            enabled = duallist.get("initialValue")
+            self.assertEqual([], enabled)
 
     def test_post_settings_ocp_tag_enabled_invalid_tag(self):
         """Test setting OCP tags as enabled with invalid tag key."""

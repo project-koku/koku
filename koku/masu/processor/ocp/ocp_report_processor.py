@@ -86,6 +86,8 @@ class OCPReportProcessor:
             self._processor = OCPStorageProcessor(schema_name, report_path, compression, provider_uuid)
         elif self.report_type == utils.OCPReportTypes.NODE_LABELS:
             self._processor = OCPNodeLabelProcessor(schema_name, report_path, compression, provider_uuid)
+        elif self.report_type == utils.OCPReportTypes.NAMESPACE_LABELS:
+            self._processor = OCPNamespaceLabelProcessor(schema_name, report_path, compression, provider_uuid)
         elif self.report_type == utils.OCPReportTypes.UNKNOWN:
             raise OCPReportProcessorError("Unknown OCP report type.")
 
@@ -514,3 +516,12 @@ class OCPNodeLabelProcessor(OCPReportProcessorBase):
     def line_item_conflict_columns(self):
         """Create a property to check conflict on line items."""
         return ["report_id", "node"]
+
+
+class OCPNamespaceLabelProcessor(OCPReportProcessorBase):
+    """OCP Node Label Report processor."""
+
+    report_type = "OCPNamespaceLabelReport"
+
+    def __init__(self, schema_name, report_path, compression, provider_uuid):
+        raise NotImplementedError(f"{self.report_type} not implemented yet.")

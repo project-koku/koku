@@ -50,7 +50,6 @@ from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownload
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
-from masu.processor.tasks import convert_to_parquet
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
@@ -236,23 +235,6 @@ def construct_parquet_reports(request_id, context, report_meta, payload_destinat
         context,
     )
     return daily_parquet_files
-
-
-def convert_parquet_files(request_id, report_meta):
-    """Convert manifest file's daily files to parquet."""
-    start_date = report_meta["date"]
-    start_date_str = start_date.strftime("%Y-%m-%d")
-    schema_name = report_meta["schema_name"]
-    conversion_task_id = convert_to_parquet.delay(
-        request_id,
-        schema_name[4:],
-        report_meta["provider_uuid"],
-        report_meta["provider_type"],
-        start_date_str,
-        report_meta["manifest_id"],
-    )
-    if conversion_task_id:
-        LOG.info(f"Conversion of CSV to Parquet uuid: {conversion_task_id}")
 
 
 # pylint: disable=too-many-locals
@@ -556,16 +538,24 @@ def process_report(request_id, report):
     """
     schema_name = report.get("schema_name")
     manifest_id = report.get("manifest_id")
-    provider_uuid = report.get("provider_uuid")
+    provider_uuid = str(report.get("provider_uuid"))
     provider_type = report.get("provider_type")
+    date = report.get("date")
 
     report_dict = {
         "file": report.get("current_file"),
         "compression": UNCOMPRESSED,
         "manifest_id": manifest_id,
         "provider_uuid": provider_uuid,
+        "request_id": request_id,
+        "provider_type": "OCP",
+        "start_date": date,
     }
-    return _process_report_file(schema_name, provider_type, report_dict)
+    try:
+        return _process_report_file(schema_name, provider_type, report_dict)
+    except NotImplementedError as err:
+        LOG.info(f"NotImplementedError: {str(err)}")
+        return True
 
 
 def report_metas_complete(report_metas):
@@ -625,7 +615,6 @@ def process_messages(msg):
         summary_task_id = summarize_manifest(report_meta)
         if summary_task_id:
             LOG.info(f"Summarization celery uuid: {summary_task_id}")
-            convert_parquet_files(request_id, report_meta)
 
     if status:
         if report_metas:

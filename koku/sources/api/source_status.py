@@ -31,6 +31,7 @@ from rest_framework.settings import api_settings
 from api.provider.models import Provider
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
+from providers.provider_errors import SkipStatusPush
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 
@@ -86,6 +87,8 @@ class SourceStatus:
         try:
             status_obj = self.status()
             self.sources_client.set_source_status(status_obj)
+        except SkipStatusPush as error:
+            LOG.info(f"Platform sources status push skipped. Reason: {str(error)}")
         except SourcesHTTPClientError as error:
             err_msg = "Unable to push source status. Reason: {}".format(str(error))
             LOG.warning(err_msg)

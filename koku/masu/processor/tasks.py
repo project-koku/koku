@@ -22,11 +22,10 @@ import time
 from decimal import Decimal
 from decimal import InvalidOperation
 
-from botocore.exceptions import ClientError
+import ciso8601
 from celery import chain
 from celery.utils.log import get_task_logger
 from dateutil import parser
-from django.conf import settings
 from django.db import connection
 from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
@@ -39,7 +38,6 @@ from api.utils import DateHelper
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.celery import app
 from koku.middleware import KokuTenantMiddleware
-from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -47,7 +45,6 @@ from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
-from masu.external.downloader.ocp.ocp_report_downloader import REPORT_TYPES
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
@@ -56,12 +53,6 @@ from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.worker_cache import WorkerCache
-from masu.util.aws.common import aws_post_processor
-from masu.util.aws.common import convert_csv_to_parquet
-from masu.util.aws.common import get_file_keys_from_s3_with_manifest_id
-from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
-from masu.util.common import get_column_converters
-from masu.util.common import get_path_prefix
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
@@ -185,6 +176,13 @@ def get_report_files(
             WorkerCache().remove_task_from_cache(cache_key)
             return None
 
+        report_meta = {
+            "schema_name": schema_name,
+            "provider_type": provider_type,
+            "provider_uuid": provider_uuid,
+            "manifest_id": report_dict.get("manifest_id"),
+        }
+
         try:
             stmt = (
                 f"Processing starting:\n"
@@ -196,35 +194,22 @@ def get_report_files(
             LOG.info(stmt)
             worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
 
-            _process_report_file(schema_name, provider_type, report_dict)
+            report_dict["request_id"] = self.request.id
+            report_dict["provider_type"] = provider_type
 
-            report_meta = {
-                "schema_name": schema_name,
-                "provider_type": provider_type,
-                "provider_uuid": provider_uuid,
-                "manifest_id": report_dict.get("manifest_id"),
-            }
+            _process_report_file(schema_name, provider_type, report_dict)
 
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
             LOG.error(str(processing_error))
             WorkerCache().remove_task_from_cache(cache_key)
             raise processing_error
+        except NotImplementedError as err:
+            LOG.info(str(err))
+            WorkerCache().remove_task_from_cache(cache_key)
 
         WorkerCache().remove_task_from_cache(cache_key)
-        start_date = report_dict.get("start_date")
-        manifest_id = report_dict.get("manifest_id")
-        if start_date:
-            start_date_str = start_date.strftime("%Y-%m-%d")
-            convert_to_parquet.delay(
-                self.request.id,
-                schema_name[4:],
-                provider_uuid,
-                provider_type,
-                start_date_str,
-                manifest_id,
-                [report_context.get("local_file")],
-            )
+
         return report_meta
     except Exception as err:
         worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
@@ -354,9 +339,10 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
         )
 
     dh = DateHelper(utc=True)
-    prev_month_start_day = dh.last_month_start.replace(tzinfo=None)
-    start_date_obj = datetime.datetime.strptime(start_date, "%Y-%m-%d")
-    if manifest_id and (start_date_obj <= prev_month_start_day):
+    prev_month_start_day = dh.last_month_start.replace(tzinfo=None).date()
+    if isinstance(start_date, str):
+        start_date = ciso8601.parse_datetime(start_date).date()
+    if manifest_id and (start_date <= prev_month_start_day):
         # We want make sure that the manifest_id is not none, because
         # we only want to call the delete line items after the summarize_reports
         # task above
@@ -513,6 +499,15 @@ def vacuum_schema(schema_name):
                 LOG.info(cursor.statusmessage)
 
 
+def normalize_table_options(table_options):
+    """Normalize autovaccume_tune_schema table_options to dict type."""
+    if not table_options:
+        table_options = {}
+    elif isinstance(table_options, str):
+        table_options = json.loads(table_options)
+    return table_options
+
+
 # The autovacuum settings should be tuned over time to account for a table's records
 # growing or shrinking. Based on the number of live tuples recorded from the latest
 # statistics run, the autovacuum_vacuum_scale_factor will be adjusted up or down.
@@ -529,7 +524,7 @@ def autovacuum_tune_schema(schema_name):  # noqa: C901
     table_sql = """
 SELECT s.relname as "table_name",
        s.n_live_tup,
-       coalesce(table_options.options, '{}'::jsonb) as "options"
+       coalesce(table_options.options, '{}'::jsonb)::jsonb as "options"
   FROM pg_stat_user_tables s
   LEFT
   JOIN (
@@ -582,6 +577,7 @@ SELECT s.relname as "table_name",
             for table in tables:
                 scale_factor = zero
                 table_name, n_live_tup, table_options = table
+                table_options = normalize_table_options(table_options)
                 try:
                     table_scale_option = Decimal(table_options.get("autovacuum_vacuum_scale_factor", no_scale))
                 except InvalidOperation:
@@ -617,125 +613,6 @@ SELECT s.relname as "table_name",
                     LOG.info(cursor.statusmessage)
 
     LOG.info(f"Altered autovacuum_vacuum_scale_factor on {alter_count} tables")
-
-
-@app.task(
-    name="masu.celery.tasks.convert_to_parquet",
-    queue_name="reporting",
-    autoretry_for=(ClientError,),
-    max_retries=10,
-    retry_backoff=10,
-)
-def convert_to_parquet(  # noqa: C901
-    request_id, account, provider_uuid, provider_type, start_date, manifest_id, files=[], context={}
-):
-    """
-    Convert archived CSV data from our S3 bucket for a given provider to Parquet.
-
-    This function chiefly follows the download of a providers data.
-
-    This task is defined to attempt up to 10 retries using exponential backoff
-    starting with a 10-second delay. This is intended to allow graceful handling
-    of temporary AWS S3 connectivity issues because it is relatively important
-    for us to convert the archived data.
-
-    Args:
-        request_id (str): The associated request id (ingress or celery task id)
-        account (str): The account string
-        provider_uuid (UUID): The provider UUID
-        start_date (str): The report start time (YYYY-mm-dd)
-        manifest_id (str): The identifier for the report manifest
-        context (dict): A context object for logging
-
-    """
-    if not context:
-        context = {"account": account, "provider_uuid": provider_uuid}
-
-    if not settings.ENABLE_PARQUET_PROCESSING:
-        msg = "Skipping convert_to_parquet. Parquet processing is disabled."
-        LOG.info(log_json(request_id, msg, context))
-        return
-
-    if not request_id or not account or not provider_uuid:
-        if not request_id:
-            message = "missing required argument: request_id"
-            LOG.error(message)
-        if not account:
-            message = "missing required argument: account"
-            LOG.error(message)
-        if not provider_uuid:
-            message = "missing required argument: provider_uuid"
-            LOG.error(message)
-        if not provider_type:
-            message = "missing required argument: provider_type"
-            LOG.error(message)
-        return
-
-    if not start_date:
-        msg = "Parquet processing is enabled, but no start_date was given for processing."
-        LOG.warn(log_json(request_id, msg, context))
-        return
-
-    try:
-        cost_date = parser.parse(start_date)
-    except ValueError:
-        msg = "Parquet processing is enabled, but the start_date was not a valid date string ISO 8601 format."
-        LOG.warn(log_json(request_id, msg, context))
-        return
-
-    s3_csv_path = get_path_prefix(account, provider_uuid, cost_date, Config.CSV_DATA_TYPE)
-    local_path = f"{Config.TMP_DIR}/{account}/{provider_uuid}"
-    s3_parquet_path = get_path_prefix(account, provider_uuid, cost_date, Config.PARQUET_DATA_TYPE)
-
-    if not files:
-        file_keys = get_file_keys_from_s3_with_manifest_id(request_id, s3_csv_path, manifest_id, context)
-        files = [os.path.basename(file_key) for file_key in file_keys]
-        if not files:
-            msg = "Parquet processing is enabled, but no files to process."
-            LOG.info(log_json(request_id, msg, context))
-            return
-
-    post_processor = None
-    # OCP data is daily chunked report files.
-    # AWS and Azure are monthly reports. Previous reports should be removed so data isn't duplicated
-    if provider_type != Provider.PROVIDER_OCP:
-        remove_files_not_in_set_from_s3_bucket(request_id, s3_parquet_path, manifest_id, context)
-
-    if provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
-        post_processor = aws_post_processor
-
-    failed_conversion = []
-    for csv_filename in files:
-        kwargs = {}
-        parquet_path = s3_parquet_path
-        parquet_report_type = None
-        if provider_type == Provider.PROVIDER_OCP:
-            for report_type in REPORT_TYPES.keys():
-                if report_type in csv_filename:
-                    parquet_path = f"{s3_parquet_path}/{report_type}"
-                    kwargs["report_type"] = report_type
-                    parquet_report_type = report_type
-                    break
-        converters = get_column_converters(provider_type, **kwargs)
-        result = convert_csv_to_parquet(
-            request_id,
-            s3_csv_path,
-            parquet_path,
-            local_path,
-            manifest_id,
-            csv_filename,
-            converters,
-            post_processor,
-            context,
-            parquet_report_type,
-        )
-        if not result:
-            failed_conversion.append(csv_filename)
-
-    if failed_conversion:
-        msg = f"Failed to convert the following files to parquet:{','.join(failed_conversion)}."
-        LOG.warn(log_json(request_id, msg, context))
-        return
 
 
 @app.task(name="masu.processor.tasks.remove_stale_tenants", queue_name="remove_stale_tenants")

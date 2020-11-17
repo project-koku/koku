@@ -78,6 +78,14 @@ class ProviderManager:
         """Get provider active status."""
         return self.model.active
 
+    def get_current_month_data_exists(self):
+        """Get current month data avaiability status."""
+        return CostUsageReportManifest.objects.filter(
+            provider=self._uuid,
+            billing_period_start_datetime=DateHelper().this_month_start,
+            manifest_completed_datetime__isnull=False,
+        ).exists()
+
     def get_infrastructure_name(self):
         """Get the name of the infrastructure that the provider is running on."""
         if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
@@ -236,7 +244,7 @@ def provider_post_delete_callback(*args, **kwargs):
     customer.date_updated = DateHelper().now_utc
     customer.save()
 
-    if settings.ENABLE_S3_ARCHIVING:
+    if settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING:
         # Local import of task function to avoid potential import cycle.
         from masu.celery.tasks import delete_archived_data
 

@@ -40,6 +40,9 @@ VIEWS = (
 )
 
 
+PRESTO_LINE_ITEM_TABLE = "aws_line_items"
+
+
 class AWSCostEntryBill(models.Model):
     """The billing information for a Cost Usage Report.
 
@@ -53,8 +56,8 @@ class AWSCostEntryBill(models.Model):
         unique_together = ("bill_type", "payer_account_id", "billing_period_start", "provider")
 
     billing_resource = models.CharField(max_length=50, default="aws", null=False)
-    bill_type = models.CharField(max_length=50, null=False)
-    payer_account_id = models.CharField(max_length=50, null=False)
+    bill_type = models.CharField(max_length=50, null=True)
+    payer_account_id = models.CharField(max_length=50, null=True)
     billing_period_start = models.DateTimeField(null=False)
     billing_period_end = models.DateTimeField(null=False)
     summary_data_creation_datetime = models.DateTimeField(null=True)
@@ -213,7 +216,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
             # Function: (upper(product_code) gin_trgm_ops)
         ]
 
-    id = models.BigAutoField(primary_key=True)
+    uuid = models.UUIDField(primary_key=True)
 
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE, null=True)
 
@@ -231,7 +234,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
 
     # The following fields are aggregates
-    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+    resource_ids = ArrayField(models.TextField(), null=True)
     resource_count = models.IntegerField(null=True)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     normalization_factor = models.FloatField(null=True)

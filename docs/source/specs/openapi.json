@@ -392,6 +392,276 @@
                 }]
             }
         },
+        "/forecasts/aws/costs": {
+            "summary": "AWS Cost Forecasts",
+            "get": {
+                "tags":["Forecasts"],
+                "parameters": [{
+                    "$ref": "#/components/parameters/QueryFilter",
+                    "name":"QueryFilter"
+                }],
+                "responses": {
+                    "200": {
+                        "description": "An object describing the cost forecast.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Forecast"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Request Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/forecasts/azure/costs": {
+            "summary": "Azure Cost Forecasts",
+            "get": {
+                "tags":["Forecasts"],
+                "parameters": [{
+                    "$ref": "#/components/parameters/QueryFilter",
+                    "name":"QueryFilter"
+                }],
+                "responses": {
+                    "200": {
+                        "description": "An object describing the cost forecast.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Forecast"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Request Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/forecasts/openshift/costs": {
+            "summary": "OpenShift Cost Forecasts",
+            "get": {
+                "tags":["Forecasts"],
+                "parameters": [{
+                    "$ref": "#/components/parameters/QueryFilter",
+                    "name":"QueryFilter"
+                }],
+                "responses": {
+                    "200": {
+                        "description": "An object describing the cost forecast.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Forecast"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Request Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/forecasts/openshift/infrastructures/aws/costs": {
+            "summary": "OpenShift on AWS Cost Forecasts",
+            "get": {
+                "tags":["Forecasts"],
+                "parameters": [{
+                    "$ref": "#/components/parameters/QueryFilter",
+                    "name":"QueryFilter"
+                }],
+                "responses": {
+                    "200": {
+                        "description": "An object describing the cost forecast.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Forecast"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Request Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/forecasts/openshift/infrastructures/all/costs": {
+            "summary": "OpenShift on Cloud Cost Forecasts",
+            "get": {
+                "tags":["Forecasts"],
+                "parameters": [{
+                    "$ref": "#/components/parameters/QueryFilter",
+                    "name":"QueryFilter"
+                }],
+                "responses": {
+                    "200": {
+                        "description": "An object describing the cost forecast.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Forecast"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Request Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/forecasts/openshift/infrastructures/azure/costs": {
+            "summary": "OpenShift on Azure Cost Forecasts",
+            "get": {
+                "tags":["Forecasts"],
+                "parameters": [{
+                    "$ref": "#/components/parameters/QueryFilter",
+                    "name":"QueryFilter"
+                }],
+                "responses": {
+                    "200": {
+                        "description": "An object describing the cost forecast.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Forecast"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Request Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
         "/metrics/": {
             "get": {
                 "tags": [
@@ -3513,6 +3783,75 @@
                     }
                 }
             },
+            "Forecast": {
+                "allOf": [{
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/ForecastData"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            "ForecastData": {
+                "type": "object",
+                "required": [
+                    "date",
+                    "value",
+                    "confidence_max",
+                    "confidence_min",
+                    "rsquared",
+                    "pvalues"
+                ],
+                "properties": {
+                    "date": {
+                        "description": "Future date for this forecast Y-value.",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2000-01-01"
+                    },
+                    "value": {
+                        "description": "The forecast Y-value.",
+                        "type": "number",
+                        "example": 123.456789
+                    },
+                    "confidence_max": {
+                        "description": "The forecast confidence interval's upper-bound.",
+                        "type": "number",
+                        "example": 123.456789
+                    },
+                    "confidence_min": {
+                        "description": "The forecast confidence interval's lower-bound.",
+                        "type": "number",
+                        "example": 123.456789,
+                        "minimum": 0
+                    },
+                    "rsquared": {
+                        "description": "The forecast's R-squared value.",
+                        "type": "number",
+                        "example": 0.123456,
+                        "minimum": 0,
+                        "maximum": 1
+                    },
+                    "pvalues": {
+                        "description": "The forecast's p-test values.",
+                        "type": "number",
+                        "example": 0.123456,
+                        "minimum": 0,
+                        "maximum": 1
+                    }
+                }
+            },
             "Markup": {
                 "properties": {
                     "value": {
@@ -3861,6 +4200,11 @@
                             "active": {
                                 "type": "boolean",
                                 "description": "Flag to indicate if provider is successfully configured.",
+                                "default": false
+                            },
+                            "current_month_data": {
+                                "type": "boolean",
+                                "description": "Flag to indicate if provider has report data for the current month.",
                                 "default": false
                             },
                             "infrastructure": {
