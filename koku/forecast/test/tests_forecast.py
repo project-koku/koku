@@ -25,6 +25,9 @@ from django.utils import timezone
 
 from api.forecast.views import AWSCostForecastView
 from api.forecast.views import AzureCostForecastView
+from api.forecast.views import OCPAllCostForecastView
+from api.forecast.views import OCPAWSCostForecastView
+from api.forecast.views import OCPAzureCostForecastView
 from api.forecast.views import OCPCostForecastView
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilter
@@ -33,6 +36,9 @@ from api.report.test.tests_queries import assertSameQ
 from api.utils import DateHelper
 from forecast import AWSForecast
 from forecast import AzureForecast
+from forecast import OCPAllForecast
+from forecast import OCPAWSForecast
+from forecast import OCPAzureForecast
 from forecast import OCPForecast
 
 LOG = logging.getLogger(__name__)
@@ -352,6 +358,105 @@ class OCPForecastTest(IamTestCase):
 
         params = self.mocked_query_params("?", OCPCostForecastView)
         instance = OCPForecast(params)
+
+        instance.cost_summary_table = mocked_table
+
+        results = instance.predict()
+
+        for item in results:
+            self.assertRegex(item.get("date"), r"\d{4}-\d{2}-\d{2}")
+            self.assertAlmostEqual(float(item.get("value")), 5, delta=0.0001)
+            self.assertAlmostEqual(float(item.get("confidence_max")), 5, delta=0.0001)
+            self.assertAlmostEqual(float(item.get("confidence_min")), 5, delta=0.0001)
+            self.assertAlmostEqual(float(item.get("rsquared")), 1, delta=0.0001)
+            self.assertGreaterEqual(float(item.get("pvalues")), 0)
+
+
+class OCPAllForecastTest(IamTestCase):
+    """Tests the OCPAllForecast class."""
+
+    def test_predict_flat(self):
+        """Test that predict() returns expected values for flat costs."""
+        dh = DateHelper()
+
+        expected = []
+        for n in range(0, 10):
+            expected.append({"usage_start": dh.n_days_ago(dh.yesterday, 10 - n).date(), "total_cost": 5})
+
+        mocked_table = Mock()
+        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+            expected
+        )
+        mocked_table.len = len(expected)
+
+        params = self.mocked_query_params("?", OCPAllCostForecastView)
+        instance = OCPAllForecast(params)
+
+        instance.cost_summary_table = mocked_table
+
+        results = instance.predict()
+
+        for item in results:
+            self.assertRegex(item.get("date"), r"\d{4}-\d{2}-\d{2}")
+            self.assertAlmostEqual(float(item.get("value")), 5, delta=0.0001)
+            self.assertAlmostEqual(float(item.get("confidence_max")), 5, delta=0.0001)
+            self.assertAlmostEqual(float(item.get("confidence_min")), 5, delta=0.0001)
+            self.assertAlmostEqual(float(item.get("rsquared")), 1, delta=0.0001)
+            self.assertGreaterEqual(float(item.get("pvalues")), 0)
+
+
+class OCPAWSForecastTest(IamTestCase):
+    """Tests the OCPAWSForecast class."""
+
+    def test_predict_flat(self):
+        """Test that predict() returns expected values for flat costs."""
+        dh = DateHelper()
+
+        expected = []
+        for n in range(0, 10):
+            expected.append({"usage_start": dh.n_days_ago(dh.yesterday, 10 - n).date(), "total_cost": 5})
+
+        mocked_table = Mock()
+        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+            expected
+        )
+        mocked_table.len = len(expected)
+
+        params = self.mocked_query_params("?", OCPAWSCostForecastView)
+        instance = OCPAWSForecast(params)
+
+        instance.cost_summary_table = mocked_table
+
+        results = instance.predict()
+
+        for item in results:
+            self.assertRegex(item.get("date"), r"\d{4}-\d{2}-\d{2}")
+            self.assertAlmostEqual(float(item.get("value")), 5, delta=0.0001)
+            self.assertAlmostEqual(float(item.get("confidence_max")), 5, delta=0.0001)
+            self.assertAlmostEqual(float(item.get("confidence_min")), 5, delta=0.0001)
+            self.assertAlmostEqual(float(item.get("rsquared")), 1, delta=0.0001)
+            self.assertGreaterEqual(float(item.get("pvalues")), 0)
+
+
+class OCPAzureForecastTest(IamTestCase):
+    """Tests the OCPAzureForecast class."""
+
+    def test_predict_flat(self):
+        """Test that predict() returns expected values for flat costs."""
+        dh = DateHelper()
+
+        expected = []
+        for n in range(0, 10):
+            expected.append({"usage_start": dh.n_days_ago(dh.yesterday, 10 - n).date(), "total_cost": 5})
+
+        mocked_table = Mock()
+        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+            expected
+        )
+        mocked_table.len = len(expected)
+
+        params = self.mocked_query_params("?", OCPAzureCostForecastView)
+        instance = OCPAzureForecast(params)
 
         instance.cost_summary_table = mocked_table
 
