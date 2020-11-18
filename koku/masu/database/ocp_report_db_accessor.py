@@ -1553,6 +1553,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             for metric in rate:
                 tags = rate.get(metric, {})
                 usage_type = metric_usage_type_map.get(metric)
+                if usage_type == "storage":
+                    labels_field = "volume_labels"
+                else:
+                    labels_field = "pod_labels"
                 table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
                 for tag_key in tags:
                     tag_vals = tags.get(tag_key, {})
@@ -1571,6 +1575,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                             "usage_type": usage_type,
                             "metric": metric,
                             "k_v_pair": key_value_pair,
+                            "labels_field": labels_field,
                         }
                         tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
                             tag_rates_sql, tag_rates_sql_params
@@ -1628,6 +1633,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             for metric in rate:
                 tags = rate.get(metric, {})
                 usage_type = metric_usage_type_map.get(metric)
+                if usage_type == "storage":
+                    labels_field = "volume_labels"
+                else:
+                    labels_field = "pod_labels"
                 table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
                 for tag_key in tags:
                     key_value_pair = []
@@ -1651,6 +1660,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         "metric": metric,
                         "tag_key": tag_key,
                         "k_v_pair": key_value_pair,
+                        "labels_field": labels_field,
                     }
                     tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
                         tag_rates_sql, tag_rates_sql_params
