@@ -211,3 +211,30 @@ class GCPReportProcessorTest(MasuTestCase):
             self.assertEquals(num_line_items, len(GCPCostEntryLineItemDaily.objects.all()))
             self.assertEquals(num_projects, len(GCPProject.objects.all()))
             self.assertEquals(num_bills, len(GCPCostEntryBill.objects.all()))
+
+    def test_no_report_path(self):
+        """Test error caught when report path doesn't exist."""
+        processor = GCPReportProcessor(
+            schema_name=self.schema,
+            report_path="/path/does/not/exist.csv",
+            compression=UNCOMPRESSED,
+            provider_uuid=self.gcp_provider.uuid,
+            manifest_id=self.manifest.id,
+        )
+        result = processor.process()
+        self.assertFalse(result)
+
+    def test_no_manifest_process(self):
+        """Test that we can success process reports without manifest."""
+        processor = GCPReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.gcp_provider.uuid,
+        )
+        processor.process()
+        with schema_context(self.schema):
+            self.assertTrue(len(GCPCostEntryLineItemDaily.objects.all()) > 0)
+            self.assertTrue(len(GCPProject.objects.all()) > 0)
+            self.assertEquals(1, len(GCPCostEntryBill.objects.all()))
+        self.assertFalse(os.path.exists(self.test_report))

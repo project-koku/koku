@@ -97,7 +97,6 @@ class GCPReportProcessor(ReportProcessorBase):
         self.line_item_table_name = self.line_item_table._meta.db_table
         self._report_name = report_path
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
-        self._scan_range = self._get_range_from_report_name()
         self._manifest_id = manifest_id
         self._provider_uuid = provider_uuid
 
@@ -113,11 +112,9 @@ class GCPReportProcessor(ReportProcessorBase):
 
         self.line_item_columns = None
 
-    def _delete_line_items_in_range(self, bill_id):
+    def _delete_line_items_in_range(self, bill_id, scan_start):
         """Delete stale data between date range."""
-        start_date = self._scan_range["start"]
-        start_date = ciso8601.parse_datetime(start_date).date()
-        gcp_date_filter = {"start_time__gte": start_date}
+        gcp_date_filter = {"start_time__gte": scan_start}
 
         if not self._manifest_id:
             return False
@@ -134,7 +131,7 @@ class GCPReportProcessor(ReportProcessorBase):
                 f" schema_name: {self._schema}\n"
                 f" provider_uuid: {self._provider_uuid}\n"
                 f" bill ID: {bill_id}\n"
-                f" on or after {start_date}."
+                f" on or after {scan_start}."
             )
             LOG.info(log_statement)
             line_item_query.delete()
@@ -143,7 +140,7 @@ class GCPReportProcessor(ReportProcessorBase):
 
     def _get_range_from_report_name(self):
         """
-        Get the scan range from the manifest_id.
+        Get the scan range from the report name.
         """
         scan_range = {}
         try:
@@ -308,6 +305,9 @@ class GCPReportProcessor(ReportProcessorBase):
                 self._schema,
             )
             return False
+        scan_range = self._get_range_from_report_name()
+        scan_start = scan_range["start"]
+        scan_start = ciso8601.parse_datetime(scan_start).date()
 
         # Read the csv in batched chunks.
         report_csv = pandas.read_csv(self._report_path, chunksize=self._batch_size, compression="infer")
@@ -327,7 +327,7 @@ class GCPReportProcessor(ReportProcessorBase):
 
                     bill_id = self._get_or_create_cost_entry_bill(first_row, report_db)
                     if bill_id not in bills_purged:
-                        self._delete_line_items_in_range(bill_id)
+                        self._delete_line_items_in_range(bill_id, scan_start)
                         bills_purged.append(bill_id)
 
                     project_id = self._get_or_create_gcp_project(first_row, report_db)
