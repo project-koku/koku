@@ -125,11 +125,11 @@ class Forecast(ABC):
                 time_scope_value = -2
 
             if time_scope_value == -2:
-                self.query_range = (self.dh.last_month_start, self.dh.today)
+                self.query_range = (self.dh.last_month_start, self.dh.yesterday)
             else:
-                self.query_range = (self.dh.this_month_start, self.dh.today)
+                self.query_range = (self.dh.this_month_start, self.dh.yesterday)
         else:
-            self.query_range = (self.dh.n_days_ago(self.dh.today, abs(time_scope_value)), self.dh.today)
+            self.query_range = (self.dh.n_days_ago(self.dh.yesterday, abs(time_scope_value)), self.dh.yesterday)
 
         self.filters = QueryFilterCollection()
         self.filters.add(field="usage_start", operation="gte", parameter=self.query_range[0])
@@ -157,11 +157,9 @@ class Forecast(ABC):
         """Handle pre and post prediction work.
 
         Args:
-
           data (list) a list of (datetime, float) tuples
 
         Returns:
-
             (list) a list of dicts
                 (dict):
                     date (date): date of the forecast value
@@ -197,12 +195,12 @@ class Forecast(ABC):
             if prediction_date > self.dh.this_month_end.date():
                 break
 
-            f_format = f"%.{self.PRECISION}f"
+            f_format = f"%.{self.PRECISION}f"  # avoid converting floats to e-notation
             dikt = {
                 "date": prediction_date.strftime("%Y-%m-%d"),
-                "value": f_format % item,
-                "confidence_max": f_format % interval_upper[idx],
-                "confidence_min": f_format % max(interval_lower[idx], 0),
+                "value": round(item, 3),
+                "confidence_max": round(interval_upper[idx], 3),
+                "confidence_min": round(max(interval_lower[idx], 0), 3),
                 "rsquared": f_format % rsquared,
                 "pvalues": f_format % pvalues[0],
             }
@@ -288,8 +286,8 @@ class AWSForecast(Forecast):
             data = (
                 self.cost_summary_table.objects.filter(self.filters.compose())
                 .order_by("usage_start")
+                .values("usage_start", "unblended_cost")
                 .annotate(total_cost=Coalesce(Sum("unblended_cost"), Value(0)))
-                .values("usage_start", "total_cost")
             )
             return self._predict(self._uniquify_qset(data))
 
@@ -336,8 +334,8 @@ class AzureForecast(Forecast):
             data = (
                 self.cost_summary_table.objects.filter(self.filters.compose())
                 .order_by("usage_start")
+                .values("usage_start", "pretax_cost")
                 .annotate(total_cost=Coalesce(Sum("pretax_cost"), Value(0)))
-                .values("usage_start", "total_cost")
             )
             return self._predict(self._uniquify_qset(data))
 
@@ -349,8 +347,15 @@ class OCPForecast(Forecast):
     provider_map = OCPProviderMap
 
     def predict(self):
-        """Forecasting is not yet implemented for this provider."""
-        return FAKE_RESPONSE
+        """Define ORM query to run forecast and return prediction."""
+        with tenant_context(self.params.tenant):
+            data = (
+                self.cost_summary_table.objects.filter(self.filters.compose())
+                .order_by("usage_start")
+                .values("usage_start", "infrastructure_raw_cost")
+                .annotate(total_cost=Coalesce(Sum("infrastructure_raw_cost"), Value(0)))
+            )
+            return self._predict(self._uniquify_qset(data))
 
 
 class OCPAWSForecast(Forecast):
