@@ -112,6 +112,13 @@ class GCPReportProcessor(ReportProcessorBase):
 
         self.line_item_columns = None
 
+    def _get_line_item_type(self, row):
+        """Given a row find the line item type."""
+        # FIXME: Identify row as usage, storage, or network cost.
+        # This will need to happen while working on the summarization
+        # piece of GCP.
+        return "usage"
+
     def _delete_line_items_in_range(self, bill_id, scan_start):
         """Delete stale data between date range."""
         gcp_date_filter = {"start_time__gte": scan_start}
@@ -260,7 +267,7 @@ class GCPReportProcessor(ReportProcessorBase):
         data["cost_entry_bill_id"] = bill_id
         data["project_id"] = project_id
         data["cost_entry_product_id"] = service_product_id
-        data["line_item_type"] = "usage"
+        data["line_item_type"] = self._get_line_item_type(row)
 
         key = (project_id, data["start_time"], data["line_item_type"], data["cost_entry_product_id"])
 
