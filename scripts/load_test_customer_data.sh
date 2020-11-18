@@ -30,6 +30,9 @@ KOKU_PATH=$1
 START_DATE=$2
 END_DATE=$3
 
+# this is the default that's in koku.masu.config
+PVC_DIR=/var/tmp/masu
+
 ### validation
 function check_var() {
     if [ -z ${!1:+x} ]; then
@@ -92,54 +95,69 @@ nise report ocp --ocp-cluster-id my-ocp-cluster-3 --insights-upload "$KOKU_PATH/
 
 OCP_ON_PREM_UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = 'Test OCP on Premises'" | head -1 | sed -e 's/^[ \t]*//')
 COST_MODEL_JSON=$(cat "$KOKU_PATH/scripts/openshift_on_prem_cost_model.json" | sed -e "s/PROVIDER_UUID/$OCP_ON_PREM_UUID/g")
-
+echo "--- ocp-on-prem cost model ---"
 curl --header "Content-Type: application/json" \
   --request POST \
   --data "$COST_MODEL_JSON" \
   http://$KOKU_API$API_PATH_PREFIX/v1/cost-models/
+echo ""
 
 OCP_ON_AWS_UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = 'Test OCP on AWS'" | head -1 | sed -e 's/^[ \t]*//')
 COST_MODEL_JSON=$(cat "$KOKU_PATH/scripts/openshift_on_aws_cost_model.json" | sed -e "s/PROVIDER_UUID/$OCP_ON_AWS_UUID/g")
 
+echo "--- ocp-on-aws cost model ---"
 curl --header "Content-Type: application/json" \
   --request POST \
   --data "$COST_MODEL_JSON" \
   http://$KOKU_API$API_PATH_PREFIX/v1/cost-models/
-
+echo ""
 
 AWS_UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = 'Test AWS Source'" | head -1 | sed -e 's/^[ \t]*//')
 COST_MODEL_JSON=$(cat "$KOKU_PATH/scripts/aws_cost_model.json" | sed -e "s/PROVIDER_UUID/$AWS_UUID/g")
 
+echo "--- aws cost model ---"
 curl --header "Content-Type: application/json" \
   --request POST \
   --data "$COST_MODEL_JSON" \
   http://$KOKU_API$API_PATH_PREFIX/v1/cost-models/
+echo ""
 
 AZURE_UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = 'Test Azure Source'" | head -1 | sed -e 's/^[ \t]*//')
 COST_MODEL_JSON=$(cat "$KOKU_PATH/scripts/azure_cost_model.json" | sed -e "s/PROVIDER_UUID/$AZURE_UUID/g")
 
+echo "--- azure cost model ---"
 curl --header "Content-Type: application/json" \
   --request POST \
   --data "$COST_MODEL_JSON" \
   http://$KOKU_API$API_PATH_PREFIX/v1/cost-models/
+echo ""
 
+echo "--- enabling tags ---"
 curl --header "Content-Type: application/json" \
   --request POST \
   --data '{"schema": "acct10001","action": "create","tag_keys": ["environment", "app", "version", "storageclass"]}' \
   http://$MASU_API$API_PATH_PREFIX/v1/enabled_tags/
+echo ""
 
 if [[ $USE_OC == 1 ]]; then
     OC=$(which oc)
     WORKER_POD=$($OC get pods -o custom-columns=POD:.metadata.name,STATUS:.status.phase --field-selector=status.phase=Running | grep koku-worker | awk '{print $1}')
     echo "uploading data to $WORKER_POD"
-    oc rsync --delete $KOKU_PATH/testing/pvc_dir/insights_local ${WORKER_POD}:/tmp
+    oc rsh -t $WORKER_POD /usr/bin/mkdir -vp $PVC_DIR
+    oc rsync --delete $KOKU_PATH/testing/pvc_dir/insights_local ${WORKER_POD}:$PVC_DIR
     for SOURCEDIR in $(ls -1d $KOKU_PATH/testing/local_providers/aws_local*)
     do
         DESTDIR="${WORKER_POD}:$(echo $SOURCEDIR | sed s#$KOKU_PATH/testing/local_providers/aws_local#/tmp/local_bucket#)"
         echo "uploading nise data from $SOURCEDIR to $DESTDIR"
         oc rsync --delete $SOURCEDIR $DESTDIR
     done
-    oc rsync --delete $KOKU_PATH/testing/local_providers/azure_local/* ${WORKER_POD}:/tmp/local_container
+    for SOURCEDIR in $(ls -1d $KOKU_PATH/testing/local_providers/azure_local*)
+    do
+        DESTDIR="$(echo $SOURCEDIR | sed s#$KOKU_PATH/testing/local_providers/azure_local#/tmp/local_container#)"
+        echo "uploading nise data from $SOURCEDIR to $DESTDIR"
+        oc rsh -t $WORKER_POD /usr/bin/mkdir -vp $DESTDIR
+        oc rsync --delete $SOURCEDIR/ ${WORKER_POD}:$DESTDIR
+    done
 fi
 
 curl http://$MASU_API$API_PATH_PREFIX/v1/download/
