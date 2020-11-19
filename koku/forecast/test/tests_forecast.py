@@ -250,7 +250,7 @@ class AWSForecastTest(IamTestCase):
                 instance.cost_summary_table = mocked_table
                 if number == 1:
                     # forecasting isn't possible with only 1 data point.
-                    with self.assertLogs(logger="forecast.forecast", level=logging.ERROR):
+                    with self.assertLogs(logger="forecast.forecast", level=logging.WARNING):
                         results = instance.predict()
                         self.assertEqual(results, [])
                 else:
