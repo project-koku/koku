@@ -39,6 +39,7 @@ from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
 from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
+from reporting_common import GCP_SERVICE_LINE_ITEM_TYPE_MAP
 
 
 LOG = logging.getLogger(__name__)
@@ -114,10 +115,17 @@ class GCPReportProcessor(ReportProcessorBase):
 
     def _get_line_item_type(self, row):
         """Given a row find the line item type."""
-        # FIXME: Identify row as usage, storage, or network cost.
-        # This will need to happen while working on the summarization
-        # piece of GCP.
-        return "usage"
+        item_type = "other"
+        service_alias = row.get("service.description", "")
+        key_list = list(GCP_SERVICE_LINE_ITEM_TYPE_MAP.keys())
+        if service_alias in key_list:
+            return GCP_SERVICE_LINE_ITEM_TYPE_MAP[service_alias]
+        service_alias = service_alias.replace(" ", "").lower()
+        for key in key_list:
+            if service_alias == key.replace(" ", "").lower():
+                item_type = GCP_SERVICE_LINE_ITEM_TYPE_MAP[key]
+                break
+        return item_type
 
     def _delete_line_items_in_range(self, bill_id, scan_start):
         """Delete stale data between date range."""

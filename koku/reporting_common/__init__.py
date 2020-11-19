@@ -187,3 +187,27 @@ AZURE_REPORT_COLUMNS = (
     + list(REPORT_COLUMN_MAP["reporting_azuremeter"].keys())
     + list(REPORT_COLUMN_MAP["reporting_azurecostentryproductservice"].keys())
 )
+
+GCP_SERVICE_LINE_ITEM_TYPE_MAP = {
+    "Compute Engine": "usage",
+    "Kubernetes Engine": "usage",
+    "Cloud Functions": "usage",
+    "Clould Run": "usage",
+    "VMware Engine": "usage",
+    "Filestore": "storage",
+    "Storage": "storage",
+    "Data Transfer": "storage",
+    "VPC network": "network",
+    "Network services": "network",
+    "Hybrid Connectivity": "network",
+    "Network Service Tiers": "network",
+    "Network Security": "network",
+    "Network Intelligence": "network",
+    "Bigtable": "database",
+    "Datastore": "database",
+    "Database Migrations": "database",
+    "Firestore": "database",
+    "MemoryStore": "database",
+    "Spanner": "database",
+    "SQL": "database",
+}
