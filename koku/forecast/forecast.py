@@ -47,38 +47,6 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
 LOG = logging.getLogger(__name__)
-FAKE_RESPONSE = [
-    {
-        "date": (DateHelper().now + timedelta(days=1)).strftime("%Y-%m-%d"),
-        "value": 1,
-        "confidence_min": 0,
-        "confidence_max": 2,
-    },
-    {
-        "date": (DateHelper().now + timedelta(days=2)).strftime("%Y-%m-%d"),
-        "value": 2,
-        "confidence_min": 1,
-        "confidence_max": 3,
-    },
-    {
-        "date": (DateHelper().now + timedelta(days=3)).strftime("%Y-%m-%d"),
-        "value": 3,
-        "confidence_min": 2,
-        "confidence_max": 4,
-    },
-    {
-        "date": (DateHelper().now + timedelta(days=4)).strftime("%Y-%m-%d"),
-        "value": 4,
-        "confidence_min": 3,
-        "confidence_max": 5,
-    },
-    {
-        "date": (DateHelper().now + timedelta(days=5)).strftime("%Y-%m-%d"),
-        "value": 5,
-        "confidence_min": 4,
-        "confidence_max": 6,
-    },
-]
 
 
 class Forecast(ABC):
@@ -365,8 +333,15 @@ class OCPAWSForecast(Forecast):
     provider_map = OCPAWSProviderMap
 
     def predict(self):
-        """Forecasting is not yet implemented for this provider."""
-        return FAKE_RESPONSE
+        """Define ORM query to run forecast and return prediction."""
+        with tenant_context(self.params.tenant):
+            data = (
+                self.cost_summary_table.objects.filter(self.filters.compose())
+                .order_by("usage_start")
+                .values("usage_start", "unblended_cost")
+                .annotate(total_cost=Coalesce(Sum("unblended_cost"), Value(0)))
+            )
+            return self._predict(self._uniquify_qset(data))
 
 
 class OCPAzureForecast(Forecast):
@@ -376,8 +351,15 @@ class OCPAzureForecast(Forecast):
     provider_map = OCPAzureProviderMap
 
     def predict(self):
-        """Forecasting is not yet implemented for this provider."""
-        return FAKE_RESPONSE
+        """Define ORM query to run forecast and return prediction."""
+        with tenant_context(self.params.tenant):
+            data = (
+                self.cost_summary_table.objects.filter(self.filters.compose())
+                .order_by("usage_start")
+                .values("usage_start", "pretax_cost")
+                .annotate(total_cost=Coalesce(Sum("pretax_cost"), Value(0)))
+            )
+            return self._predict(self._uniquify_qset(data))
 
 
 class OCPAllForecast(Forecast):
@@ -387,5 +369,12 @@ class OCPAllForecast(Forecast):
     provider_map = OCPAllProviderMap
 
     def predict(self):
-        """Forecasting is not yet implemented for this provider."""
-        return FAKE_RESPONSE
+        """Define ORM query to run forecast and return prediction."""
+        with tenant_context(self.params.tenant):
+            data = (
+                self.cost_summary_table.objects.filter(self.filters.compose())
+                .order_by("usage_start")
+                .values("usage_start", "unblended_cost")
+                .annotate(total_cost=Coalesce(Sum("unblended_cost"), Value(0)))
+            )
+            return self._predict(self._uniquify_qset(data))
