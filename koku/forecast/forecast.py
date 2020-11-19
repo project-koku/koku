@@ -47,38 +47,6 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
 LOG = logging.getLogger(__name__)
-FAKE_RESPONSE = [
-    {
-        "date": (DateHelper().now + timedelta(days=1)).strftime("%Y-%m-%d"),
-        "value": 1,
-        "confidence_min": 0,
-        "confidence_max": 2,
-    },
-    {
-        "date": (DateHelper().now + timedelta(days=2)).strftime("%Y-%m-%d"),
-        "value": 2,
-        "confidence_min": 1,
-        "confidence_max": 3,
-    },
-    {
-        "date": (DateHelper().now + timedelta(days=3)).strftime("%Y-%m-%d"),
-        "value": 3,
-        "confidence_min": 2,
-        "confidence_max": 4,
-    },
-    {
-        "date": (DateHelper().now + timedelta(days=4)).strftime("%Y-%m-%d"),
-        "value": 4,
-        "confidence_min": 3,
-        "confidence_max": 5,
-    },
-    {
-        "date": (DateHelper().now + timedelta(days=5)).strftime("%Y-%m-%d"),
-        "value": 5,
-        "confidence_min": 4,
-        "confidence_max": 6,
-    },
-]
 
 
 class Forecast(ABC):
@@ -125,11 +93,11 @@ class Forecast(ABC):
                 time_scope_value = -2
 
             if time_scope_value == -2:
-                self.query_range = (self.dh.last_month_start, self.dh.yesterday)
+                self.query_range = (self.dh.last_month_start, self.dh.today)
             else:
-                self.query_range = (self.dh.this_month_start, self.dh.yesterday)
+                self.query_range = (self.dh.this_month_start, self.dh.today)
         else:
-            self.query_range = (self.dh.n_days_ago(self.dh.yesterday, abs(time_scope_value)), self.dh.yesterday)
+            self.query_range = (self.dh.n_days_ago(self.dh.today, abs(time_scope_value)), self.dh.today)
 
         self.filters = QueryFilterCollection()
         self.filters.add(field="usage_start", operation="gte", parameter=self.query_range[0])
@@ -196,13 +164,35 @@ class Forecast(ABC):
                 break
 
             f_format = f"%.{self.PRECISION}f"  # avoid converting floats to e-notation
+            units = "USD"
             dikt = {
                 "date": prediction_date.strftime("%Y-%m-%d"),
-                "value": round(item, 3),
-                "confidence_max": round(interval_upper[idx], 3),
-                "confidence_min": round(max(interval_lower[idx], 0), 3),
-                "rsquared": f_format % rsquared,
-                "pvalues": f_format % pvalues[0],
+                "values": [
+                    {
+                        "date": prediction_date.strftime("%Y-%m-%d"),
+                        "infrastructure": {
+                            "total": {"value": 0.0, "units": units},
+                            "confidence_max": {"value": 0.0, "units": units},
+                            "confidence_min": {"value": 0.0, "units": units},
+                            "rsquared": {"value": f_format % 0.0, "units": None},
+                            "pvalues": {"value": f_format % 0.0, "units": None},
+                        },
+                        "supplementary": {
+                            "total": {"value": 0.0, "units": units},
+                            "confidence_max": {"value": 0.0, "units": units},
+                            "confidence_min": {"value": 0.0, "units": units},
+                            "rsquared": {"value": f_format % 0.0, "units": None},
+                            "pvalues": {"value": f_format % 0.0, "units": None},
+                        },
+                        "cost": {
+                            "total": {"value": round(item, 3), "units": units},
+                            "confidence_max": {"value": round(interval_upper[idx], 3), "units": units},
+                            "confidence_min": {"value": round(max(interval_lower[idx], 0), 3), "units": units},
+                            "rsquared": {"value": f_format % rsquared, "units": None},
+                            "pvalues": {"value": f_format % pvalues[0], "units": None},
+                        },
+                    }
+                ],
             }
             response.append(dikt)
 
@@ -365,8 +355,15 @@ class OCPAWSForecast(Forecast):
     provider_map = OCPAWSProviderMap
 
     def predict(self):
-        """Forecasting is not yet implemented for this provider."""
-        return FAKE_RESPONSE
+        """Define ORM query to run forecast and return prediction."""
+        with tenant_context(self.params.tenant):
+            data = (
+                self.cost_summary_table.objects.filter(self.filters.compose())
+                .order_by("usage_start")
+                .values("usage_start", "unblended_cost")
+                .annotate(total_cost=Coalesce(Sum("unblended_cost"), Value(0)))
+            )
+            return self._predict(self._uniquify_qset(data))
 
 
 class OCPAzureForecast(Forecast):
@@ -376,8 +373,15 @@ class OCPAzureForecast(Forecast):
     provider_map = OCPAzureProviderMap
 
     def predict(self):
-        """Forecasting is not yet implemented for this provider."""
-        return FAKE_RESPONSE
+        """Define ORM query to run forecast and return prediction."""
+        with tenant_context(self.params.tenant):
+            data = (
+                self.cost_summary_table.objects.filter(self.filters.compose())
+                .order_by("usage_start")
+                .values("usage_start", "pretax_cost")
+                .annotate(total_cost=Coalesce(Sum("pretax_cost"), Value(0)))
+            )
+            return self._predict(self._uniquify_qset(data))
 
 
 class OCPAllForecast(Forecast):
@@ -387,5 +391,12 @@ class OCPAllForecast(Forecast):
     provider_map = OCPAllProviderMap
 
     def predict(self):
-        """Forecasting is not yet implemented for this provider."""
-        return FAKE_RESPONSE
+        """Define ORM query to run forecast and return prediction."""
+        with tenant_context(self.params.tenant):
+            data = (
+                self.cost_summary_table.objects.filter(self.filters.compose())
+                .order_by("usage_start")
+                .values("usage_start", "unblended_cost")
+                .annotate(total_cost=Coalesce(Sum("unblended_cost"), Value(0)))
+            )
+            return self._predict(self._uniquify_qset(data))
