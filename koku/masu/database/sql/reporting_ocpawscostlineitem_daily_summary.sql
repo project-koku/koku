@@ -281,7 +281,6 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
             ocp.pod_labels,
             ocp.pod_usage_cpu_core_seconds,
@@ -342,15 +341,13 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_resource_id_matched
         GROUP BY aws_id
     )
     SELECT rm.*,
-        (rm.pod_usage_cpu_core_seconds / rm.node_capacity_cpu_core_seconds) * rm.unblended_cost as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        (rm.pod_usage_cpu_core_seconds / rm.node_capacity_cpu_core_seconds) * rm.unblended_cost as project_cost,
+        shared.shared_projects
     FROM cte_resource_id_matched AS rm
     JOIN cte_number_of_shared AS shared
         ON rm.aws_id = shared.aws_id
@@ -366,7 +363,6 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
             ocp.pod_labels,
             ocp.pod_usage_cpu_core_seconds,
@@ -419,15 +415,13 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
@@ -443,7 +437,6 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
             ocp.pod_labels,
             ocp.pod_usage_cpu_core_seconds,
@@ -496,15 +489,13 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
@@ -520,7 +511,6 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
             ocp.pod_labels,
             ocp.pod_usage_cpu_core_seconds,
@@ -574,15 +564,13 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
@@ -598,7 +586,6 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
             ocp.pod_labels,
             ocp.pod_usage_cpu_core_seconds,
@@ -651,15 +638,13 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
@@ -680,7 +665,6 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
             ocp.persistentvolumeclaim,
             ocp.persistentvolume,
@@ -727,15 +711,13 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
@@ -751,7 +733,6 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
             ocp.persistentvolumeclaim,
             ocp.persistentvolume,
@@ -801,15 +782,13 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
@@ -825,7 +804,6 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
             ocp.persistentvolumeclaim,
             ocp.persistentvolume,
@@ -876,15 +854,13 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
@@ -905,7 +881,6 @@ DROP TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}};
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
-            ocp.pod,
             ocp.node,
             ocp.persistentvolumeclaim,
             ocp.persistentvolume,
@@ -955,15 +930,13 @@ DROP TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}};
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
-            count(DISTINCT namespace) as shared_projects,
-            count(DISTINCT pod) as shared_pods
+            count(DISTINCT namespace) as shared_projects
         FROM cte_tag_matched
         GROUP BY aws_id
     )
     SELECT tm.*,
-        tm.unblended_cost / shared.shared_pods as pod_cost,
-        shared.shared_projects,
-        shared.shared_pods
+        tm.unblended_cost / shared.shared_projects as project_cost,
+        shared.shared_projects
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.aws_id = shared.aws_id
@@ -986,11 +959,11 @@ DROP TABLE reporting_aws_tags_{{uuid | sqlsafe}};
 CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}} AS (
     WITH cte_pod_project_cost AS (
         SELECT pc.aws_id,
-            jsonb_object_agg(pc.namespace, pc.pod_cost) as project_costs
+            jsonb_object_agg(pc.namespace, pc.project_cost) as project_costs
         FROM (
             SELECT li.aws_id,
                 li.namespace,
-                sum(pod_cost) as pod_cost
+                sum(project_cost) as project_cost
             FROM reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} as li
             GROUP BY li.aws_id, li.namespace
         ) AS pc
@@ -998,11 +971,11 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
     ),
     cte_storage_project_cost AS (
         SELECT pc.aws_id,
-            jsonb_object_agg(pc.namespace, pc.pod_cost) as project_costs
+            jsonb_object_agg(pc.namespace, pc.project_cost) as project_costs
         FROM (
             SELECT li.aws_id,
                 li.namespace,
-                sum(pod_cost) as pod_cost
+                sum(project_cost) as project_cost
             FROM reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} as li
             GROUP BY li.aws_id, li.namespace
         ) AS pc
@@ -1012,7 +985,6 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         max(li.cluster_id) as cluster_id,
         max(li.cluster_alias) as cluster_alias,
         array_agg(DISTINCT li.namespace) as namespace,
-        array_agg(DISTINCT li.pod) as pod,
         max(li.node) as node,
         max(li.resource_id) as resource_id,
         max(li.usage_start) as usage_start,
@@ -1057,7 +1029,6 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         max(li.cluster_id) as cluster_id,
         max(li.cluster_alias) as cluster_alias,
         array_agg(DISTINCT li.namespace) as namespace,
-        array_agg(DISTINCT li.pod) as pod,
         max(li.node) as node,
         max(li.resource_id) as resource_id,
         max(li.usage_start) as usage_start,
@@ -1114,7 +1085,6 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         li.cluster_alias,
         'Pod' as data_source,
         li.namespace,
-        li.pod,
         li.node,
         li.pod_labels,
         max(li.resource_id) as resource_id,
@@ -1129,14 +1099,14 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         max(li.availability_zone) as availability_zone,
         max(p.region) as region,
         max(pr.unit) as unit,
-        sum(li.usage_amount / li.shared_pods) as usage_amount,
-        sum(li.normalized_usage_amount / li.shared_pods) as normalized_usage_amount,
+        sum(li.usage_amount / li.shared_projects) as usage_amount,
+        sum(li.normalized_usage_amount / li.shared_projects) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
-        sum(li.unblended_cost / li.shared_pods) as unblended_cost,
-        sum(li.unblended_cost / li.shared_pods) * {{markup}}::numeric as markup_cost,
-        max(li.shared_pods) as shared_pods,
-        li.pod_cost,
-        li.pod_cost * {{markup}}::numeric as project_markup_cost,
+        sum(li.unblended_cost / li.shared_projects) as unblended_cost,
+        sum(li.unblended_cost / li.shared_projects) * {{markup}}::numeric as markup_cost,
+        max(li.shared_projects) as shared_projects,
+        li.project_cost,
+        li.project_cost * {{markup}}::numeric as project_markup_cost,
         ab.provider_id as source_uuid
     FROM reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} as li
     JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
@@ -1155,10 +1125,9 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         li.cluster_id,
         li.cluster_alias,
         li.namespace,
-        li.pod,
         li.node,
         li.pod_labels,
-        li.pod_cost,
+        li.project_cost,
         ab.provider_id
 
     UNION
@@ -1168,7 +1137,6 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         li.cluster_alias,
         'Storage' as data_source,
         li.namespace,
-        li.pod,
         li.node,
         li.persistentvolume_labels || li.persistentvolumeclaim_labels as pod_labels,
         NULL as resource_id,
@@ -1183,14 +1151,14 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         max(li.availability_zone) as availability_zone,
         max(p.region) as region,
         max(pr.unit) as unit,
-        sum(li.usage_amount / li.shared_pods) as usage_amount,
-        sum(li.normalized_usage_amount / li.shared_pods) as normalized_usage_amount,
+        sum(li.usage_amount / li.shared_projects) as usage_amount,
+        sum(li.normalized_usage_amount / li.shared_projects) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
-        sum(li.unblended_cost / li.shared_pods) as unblended_cost,
-        sum(li.unblended_cost / li.shared_pods) * {{markup}}::numeric as markup_cost,
-        max(li.shared_pods) as shared_pods,
-        li.pod_cost,
-        li.pod_cost * {{markup}}::numeric as project_markup_cost,
+        sum(li.unblended_cost / li.shared_projects) as unblended_cost,
+        sum(li.unblended_cost / li.shared_projects) * {{markup}}::numeric as markup_cost,
+        max(li.shared_projects) as shared_projects,
+        li.project_cost,
+        li.project_cost * {{markup}}::numeric as project_markup_cost,
         ab.provider_id as source_uuid
     FROM reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS li
     JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
@@ -1211,11 +1179,10 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         li.cluster_id,
         li.cluster_alias,
         li.namespace,
-        li.pod,
         li.node,
         li.persistentvolume_labels,
         li.persistentvolumeclaim_labels,
-        li.pod_cost,
+        li.project_cost,
         ab.provider_id
 )
 ;
@@ -1253,7 +1220,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
     cluster_id,
     cluster_alias,
     namespace,
-    pod,
     node,
     resource_id,
     usage_start,
@@ -1282,7 +1248,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
         cluster_id,
         cluster_alias,
         namespace,
-        pod,
         node,
         resource_id,
         usage_start,
@@ -1337,7 +1302,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
     cluster_alias,
     data_source,
     namespace,
-    pod,
     node,
     pod_labels,
     resource_id,
@@ -1357,7 +1321,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
     currency_code,
     unblended_cost,
     markup_cost,
-    pod_cost,
+    project_cost,
     project_markup_cost,
     source_uuid
 )
@@ -1367,7 +1331,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
         cluster_alias,
         data_source,
         namespace,
-        pod,
         node,
         pod_labels,
         resource_id,
@@ -1387,7 +1350,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
         currency_code,
         unblended_cost,
         markup_cost,
-        pod_cost,
+        project_cost,
         project_markup_cost,
         source_uuid
     FROM reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}}
