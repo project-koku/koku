@@ -44,11 +44,12 @@ def normalize_header(header_str):
     """Return the normalized English header column names for Azure."""
     header = header_str.strip("\n").split(",")
     for column in header:
-        if column in AZURE_REPORT_COLUMNS:
+        if column.lower() in AZURE_REPORT_COLUMNS:
             # The header is in English
-            return header
+            return [column[0].upper() + column[1:] for column in header]
     # Extract the English header values in parenthesis
-    return [item.split("(")[1].strip(")") for item in header]
+    new_header = [item.split("(")[1].strip(")").capitalize() for item in header]
+    return [column[0].upper() + column[1:] for column in new_header]
 
 
 class ProcessedAzureReport:

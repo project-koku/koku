@@ -168,7 +168,7 @@ REPORT_COLUMN_MAP = defaultdict(
 )
 
 AZURE_REPORT_COLUMNS = (
-    list(REPORT_COLUMN_MAP["reporting_azurecostentrylineitem_daily"].keys())
-    + list(REPORT_COLUMN_MAP["reporting_azuremeter"].keys())
-    + list(REPORT_COLUMN_MAP["reporting_azurecostentryproductservice"].keys())
+    [key.lower() for key in REPORT_COLUMN_MAP["reporting_azurecostentrylineitem_daily"].keys()]
+    + [key.lower() for key in REPORT_COLUMN_MAP["reporting_azuremeter"].keys()]
+    + [key.lower() for key in REPORT_COLUMN_MAP["reporting_azurecostentryproductservice"].keys()]
 )
