@@ -158,9 +158,9 @@ REPORT_COLUMN_MAP = defaultdict(
             "sku.id": "sku_id",
             "sku.description": "sku_alias",
         },
-        "reporting_gcpcostentrylineitemdaily": {
-            "usage_start_time": "start_time",
-            "usage_end_time": "end_time",
+        "reporting_gcpcostentrylineitem": {
+            "usage_start_time": "usage_start",
+            "usage_end_time": "usage_end",
             "labels": "labels",
             "system_labels": "system_labels",
             "location.location": "location",
@@ -187,27 +187,3 @@ AZURE_REPORT_COLUMNS = (
     + list(REPORT_COLUMN_MAP["reporting_azuremeter"].keys())
     + list(REPORT_COLUMN_MAP["reporting_azurecostentryproductservice"].keys())
 )
-
-GCP_SERVICE_LINE_ITEM_TYPE_MAP = {
-    "Compute Engine": "usage",
-    "Kubernetes Engine": "usage",
-    "Cloud Functions": "usage",
-    "Clould Run": "usage",
-    "VMware Engine": "usage",
-    "Filestore": "storage",
-    "Storage": "storage",
-    "Data Transfer": "storage",
-    "VPC network": "network",
-    "Network services": "network",
-    "Hybrid Connectivity": "network",
-    "Network Service Tiers": "network",
-    "Network Security": "network",
-    "Network Intelligence": "network",
-    "Bigtable": "database",
-    "Datastore": "database",
-    "Database Migrations": "database",
-    "Firestore": "database",
-    "MemoryStore": "database",
-    "Spanner": "database",
-    "SQL": "database",
-}

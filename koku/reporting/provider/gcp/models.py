@@ -48,18 +48,17 @@ class GCPCostEntryProductService(models.Model):
     sku_alias = models.CharField(max_length=256, null=True)
 
 
-class GCPCostEntryLineItemDaily(models.Model):
+class GCPCostEntryLineItem(models.Model):
     """GCP cost entry daily line item."""
 
     class Meta:
-        """Meta for GCPCostEntryLineItemDaily."""
+        """Meta for GCPCostEntryLineItem."""
 
-        # unique_together = ("start_time", "line_item_type", "project")
-        db_table = "reporting_gcpcostentrylineitemdaily"
+        db_table = "reporting_gcpcostentrylineitem"
 
     id = models.BigAutoField(primary_key=True)
-    start_time = models.DateTimeField()
-    end_time = models.DateTimeField()
+    usage_start = models.DateTimeField()
+    usage_end = models.DateTimeField()
     labels = models.CharField(max_length=256, null=True, blank=True)
     system_labels = models.CharField(max_length=256, null=True, blank=True)
     location = models.CharField(max_length=256, null=True, blank=True)

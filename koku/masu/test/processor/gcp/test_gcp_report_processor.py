@@ -1,3 +1,19 @@
+#
+# Copyright 2020 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
 """Test GCPReportProcessor."""
 import os
 import shutil
@@ -24,7 +40,7 @@ from masu.processor.gcp.gcp_report_processor import GCPReportProcessor
 from masu.test import MasuTestCase
 from masu.util import common as utils
 from reporting.provider.gcp.models import GCPCostEntryBill
-from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
+from reporting.provider.gcp.models import GCPCostEntryLineItem
 from reporting.provider.gcp.models import GCPProject
 
 fake = Faker()
@@ -98,7 +114,7 @@ class GCPReportProcessorTest(MasuTestCase):
         """Test the processing of an GCP file writes objects to the database."""
         self.processor.process()
         with schema_context(self.schema):
-            self.assertTrue(len(GCPCostEntryLineItemDaily.objects.all()) > 0)
+            self.assertTrue(len(GCPCostEntryLineItem.objects.all()) > 0)
             self.assertTrue(len(GCPProject.objects.all()) > 0)
             self.assertEquals(1, len(GCPCostEntryBill.objects.all()))
         self.assertFalse(os.path.exists(self.test_report))
@@ -190,7 +206,7 @@ class GCPReportProcessorTest(MasuTestCase):
         """Test the processing of an GCP file again, results in the same amount of objects."""
         self.processor.process()
         with schema_context(self.schema):
-            num_line_items = len(GCPCostEntryLineItemDaily.objects.all())
+            num_line_items = len(GCPCostEntryLineItem.objects.all())
             num_projects = len(GCPProject.objects.all())
             num_bills = len(GCPCostEntryBill.objects.all())
 
@@ -208,7 +224,7 @@ class GCPReportProcessorTest(MasuTestCase):
         )
         processor.process()
         with schema_context(self.schema):
-            self.assertEquals(num_line_items, len(GCPCostEntryLineItemDaily.objects.all()))
+            self.assertEquals(num_line_items, len(GCPCostEntryLineItem.objects.all()))
             self.assertEquals(num_projects, len(GCPProject.objects.all()))
             self.assertEquals(num_bills, len(GCPCostEntryBill.objects.all()))
 
@@ -234,7 +250,7 @@ class GCPReportProcessorTest(MasuTestCase):
         )
         processor.process()
         with schema_context(self.schema):
-            self.assertTrue(len(GCPCostEntryLineItemDaily.objects.all()) > 0)
+            self.assertTrue(len(GCPCostEntryLineItem.objects.all()) > 0)
             self.assertTrue(len(GCPProject.objects.all()) > 0)
             self.assertEquals(1, len(GCPCostEntryBill.objects.all()))
         self.assertFalse(os.path.exists(self.test_report))

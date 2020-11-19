@@ -35,11 +35,11 @@ from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util import common as utils
+from masu.util.gcp.common import GCP_SERVICE_LINE_ITEM_TYPE_MAP
 from reporting.provider.gcp.models import GCPCostEntryBill
-from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
+from reporting.provider.gcp.models import GCPCostEntryLineItem
 from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
-from reporting_common import GCP_SERVICE_LINE_ITEM_TYPE_MAP
 
 
 LOG = logging.getLogger(__name__)
@@ -94,7 +94,7 @@ class GCPReportProcessor(ReportProcessorBase):
             processed_report=ProcessedGCPReport(),
         )
 
-        self.line_item_table = GCPCostEntryLineItemDaily()
+        self.line_item_table = GCPCostEntryLineItem()
         self.line_item_table_name = self.line_item_table._meta.db_table
         self._report_name = report_path
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
@@ -129,7 +129,7 @@ class GCPReportProcessor(ReportProcessorBase):
 
     def _delete_line_items_in_range(self, bill_id, scan_start):
         """Delete stale data between date range."""
-        gcp_date_filter = {"start_time__gte": scan_start}
+        gcp_date_filter = {"usage_start__gte": scan_start}
 
         if not self._manifest_id:
             return False
@@ -277,7 +277,7 @@ class GCPReportProcessor(ReportProcessorBase):
         data["cost_entry_product_id"] = service_product_id
         data["line_item_type"] = self._get_line_item_type(row)
 
-        key = (project_id, data["start_time"], data["line_item_type"], data["cost_entry_product_id"])
+        key = (project_id, data["usage_start"], data["line_item_type"], data["cost_entry_product_id"])
 
         # If we've already seen the key in this report, we have a duplicate line item
         # and should consolidate the two lines into one.
