@@ -47,6 +47,7 @@ koku:
 import argparse
 import os
 import sys
+import time
 from base64 import b64encode
 from json import dumps as json_dumps
 from urllib.parse import quote
@@ -99,6 +100,8 @@ class KokuCustomerOnboarder:
         print("\nAdding customer...")
         response = requests.get(self.endpoint_base + "reports/aws/costs/", headers=get_headers(self.auth_token))
         print(f"Response: [{response.status_code}] {response.text}")
+        if response.status_code not in [200, 201]:
+            time.sleep(60)
 
     def create_source_api(self):
         """Create a Koku Source using the Koku API."""
@@ -118,6 +121,8 @@ class KokuCustomerOnboarder:
 
             response = requests.post(self.endpoint_base + "sources/", headers=get_headers(self.auth_token), json=data)
             print(f"Response: [{response.status_code}] {response.reason}")
+            if response.status_code not in [200, 201]:
+                time.sleep(60)
 
     def create_provider_source(self, source_type):
         """Create a single provider, auth, and billing source in the DB."""
