@@ -93,11 +93,11 @@ class Forecast(ABC):
                 time_scope_value = -2
 
             if time_scope_value == -2:
-                self.query_range = (self.dh.last_month_start, self.dh.yesterday)
+                self.query_range = (self.dh.last_month_start, self.dh.today)
             else:
-                self.query_range = (self.dh.this_month_start, self.dh.yesterday)
+                self.query_range = (self.dh.this_month_start, self.dh.today)
         else:
-            self.query_range = (self.dh.n_days_ago(self.dh.yesterday, abs(time_scope_value)), self.dh.yesterday)
+            self.query_range = (self.dh.n_days_ago(self.dh.today, abs(time_scope_value)), self.dh.today)
 
         self.filters = QueryFilterCollection()
         self.filters.add(field="usage_start", operation="gte", parameter=self.query_range[0])
@@ -164,13 +164,35 @@ class Forecast(ABC):
                 break
 
             f_format = f"%.{self.PRECISION}f"  # avoid converting floats to e-notation
+            units = "USD"
             dikt = {
                 "date": prediction_date.strftime("%Y-%m-%d"),
-                "value": round(item, 3),
-                "confidence_max": round(interval_upper[idx], 3),
-                "confidence_min": round(max(interval_lower[idx], 0), 3),
-                "rsquared": f_format % rsquared,
-                "pvalues": f_format % pvalues[0],
+                "values": [
+                    {
+                        "date": prediction_date.strftime("%Y-%m-%d"),
+                        "infrastructure": {
+                            "total": {"value": 0.0, "units": units},
+                            "confidence_max": {"value": 0.0, "units": units},
+                            "confidence_min": {"value": 0.0, "units": units},
+                            "rsquared": {"value": f_format % 0.0, "units": None},
+                            "pvalues": {"value": f_format % 0.0, "units": None},
+                        },
+                        "supplementary": {
+                            "total": {"value": 0.0, "units": units},
+                            "confidence_max": {"value": 0.0, "units": units},
+                            "confidence_min": {"value": 0.0, "units": units},
+                            "rsquared": {"value": f_format % 0.0, "units": None},
+                            "pvalues": {"value": f_format % 0.0, "units": None},
+                        },
+                        "cost": {
+                            "total": {"value": round(item, 3), "units": units},
+                            "confidence_max": {"value": round(interval_upper[idx], 3), "units": units},
+                            "confidence_min": {"value": round(max(interval_lower[idx], 0), 3), "units": units},
+                            "rsquared": {"value": f_format % rsquared, "units": None},
+                            "pvalues": {"value": f_format % pvalues[0], "units": None},
+                        },
+                    }
+                ],
             }
             response.append(dikt)
 

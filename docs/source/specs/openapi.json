@@ -3803,52 +3803,218 @@
                     }
                 ]
             },
+            "ForecastDataValueNumber": {
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "description": "A value.",
+                        "type": "number",
+                        "example": 123.456789
+                    },
+                    "units": {
+                        "description": "The value's units.",
+                        "type": "string",
+                        "example": "USD"
+                    }
+                }
+            },
+            "ForecastDataValueString": {
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "description": "A value.",
+                        "type": "string",
+                        "example": "123.456789"
+                    },
+                    "units": {
+                        "description": "The value's units.",
+                        "type": "string",
+                        "example": "USD"
+                    }
+                }
+            },
             "ForecastData": {
                 "type": "object",
                 "required": [
-                    "date",
-                    "value",
-                    "confidence_max",
-                    "confidence_min",
-                    "rsquared",
-                    "pvalues"
+                    "data"
                 ],
                 "properties": {
-                    "date": {
-                        "description": "Future date for this forecast Y-value.",
-                        "type": "string",
-                        "format": "date",
-                        "example": "2000-01-01"
-                    },
-                    "value": {
-                        "description": "The forecast Y-value.",
-                        "type": "number",
-                        "example": 123.456789
-                    },
-                    "confidence_max": {
-                        "description": "The forecast confidence interval's upper-bound.",
-                        "type": "number",
-                        "example": 123.456789
-                    },
-                    "confidence_min": {
-                        "description": "The forecast confidence interval's lower-bound.",
-                        "type": "number",
-                        "example": 123.456789,
-                        "minimum": 0
-                    },
-                    "rsquared": {
-                        "description": "The forecast's R-squared value.",
-                        "type": "number",
-                        "example": 0.123456,
-                        "minimum": 0,
-                        "maximum": 1
-                    },
-                    "pvalues": {
-                        "description": "The forecast's p-test values.",
-                        "type": "number",
-                        "example": 0.123456,
-                        "minimum": 0,
-                        "maximum": 1
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "date": {
+                                    "description": "Future date for this forecast Y-value.",
+                                    "type": "string",
+                                    "format": "date",
+                                    "example": "2000-01-01"
+                                },
+                                "values": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    },
+                                    "properties": {
+                                        "date": {
+                                            "description": "Future date for this forecast Y-value.",
+                                            "type": "string",
+                                            "format": "date",
+                                            "example": "2000-01-01"
+                                        },
+                                        "infrastructure": {
+                                            "type": "object",
+                                            "properties": {
+                                                "total": {
+                                                    "description": "The forecast Y-value.",
+                                                    "$ref": "#/components/schemas/ForecastDataValueNumber"
+                                                },
+                                                "confidence_max": {
+                                                    "description": "The forecast confidence interval's upper-bound.",
+                                                    "$ref": "#/components/schemas/ForecastDataValueNumber"
+                                                },
+                                                "confidence_min": {
+                                                    "description": "The forecast confidence interval's lower-bound.",
+                                                    "$ref": "#/components/schemas/ForecastDataValueNumber"
+                                                },
+                                                "rsquared": {
+                                                    "description": "The forecast's R-squared value.",
+                                                    "$ref": "#/components/schemas/ForecastDataValueString"
+                                                },
+                                                "pvalues": {
+                                                    "description": "The forecast's p-test values.",
+                                                    "$ref": "#/components/schemas/ForecastDataValueString"
+                                                }
+                                            }
+                                        },
+                                        "supplementary": {
+                                            "type": "object",
+                                            "properties": {
+                                                "total": {
+                                                    "description": "The forecast Y-value.",
+                                                    "$ref": "#/components/schemas/ForecastDataValueNumber"
+                                                },
+                                                "confidence_max": {
+                                                    "description": "The forecast confidence interval's upper-bound.",
+                                                    "$ref": "#/components/schemas/ForecastDataValueNumber"
+                                                },
+                                                "confidence_min": {
+                                                    "description": "The forecast confidence interval's lower-bound.",
+                                                    "$ref": "#/components/schemas/ForecastDataValueNumber"
+                                                },
+                                                "rsquared": {
+                                                    "description": "The forecast's R-squared value.",
+                                                    "$ref": "#/components/schemas/ForecastDataValueString"
+                                                },
+                                                "pvalues": {
+                                                    "description": "The forecast's p-test values.",
+                                                    "$ref": "#/components/schemas/ForecastDataValueString"
+                                                }
+                                            }
+                                        },
+                                        "costs": {
+                                            "type": "object",
+                                            "properties": {
+                                                "total": {
+                                                    "description": "The forecast Y-value.",
+                                                    "$ref": "#/components/schemas/ForecastDataValueNumber"
+                                                },
+                                                "confidence_max": {
+                                                    "description": "The forecast confidence interval's upper-bound.",
+                                                    "$ref": "#/components/schemas/ForecastDataValueNumber"
+                                                },
+                                                "confidence_min": {
+                                                    "description": "The forecast confidence interval's lower-bound.",
+                                                    "$ref": "#/components/schemas/ForecastDataValueNumber"
+                                                },
+                                                "rsquared": {
+                                                    "description": "The forecast's R-squared value.",
+                                                    "$ref": "#/components/schemas/ForecastDataValueString"
+                                                },
+                                                "pvalues": {
+                                                    "description": "The forecast's p-test values.",
+                                                    "$ref": "#/components/schemas/ForecastDataValueString"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "example": [
+                                [{
+                                    "date": "2018-05-28",
+                                    "values": [{
+                                        "date": "2018-05-28",
+                                        "infrastructure": {
+                                            "total": {
+                                                "value": 2564.775150581,
+                                                "units": "USD"
+                                            },
+                                            "confidence_max": {
+                                                "value": 2564.775150581,
+                                                "units": "USD"
+                                            },
+                                            "confidence_min": {
+                                                "value": 0.0,
+                                                "units": "USD"
+                                            },
+                                            "rsquared": {
+                                                "value": "0.997",
+                                                "units": null
+                                            },
+                                            "pvalues": {
+                                                "value": "0.0",
+                                                "units": null
+                                            }
+                                        },
+                                        "supplementary": {
+                                            "total": {
+                                                "value": 2564.775150581,
+                                                "units": "USD"
+                                            },
+                                            "confidence_max": {
+                                                "value": 2564.775150581,
+                                                "units": "USD"
+                                            },
+                                            "confidence_min": {
+                                                "value": 0.0,
+                                                "units": "USD"
+                                            },
+                                            "rsquared": {
+                                                "value": "0.997",
+                                                "units": null
+                                            },
+                                            "pvalues": {
+                                                "value": "0.0",
+                                                "units": null
+                                            }
+                                        },
+                                        "cost": {
+                                            "total": {
+                                                "value": 2564.775150581,
+                                                "units": "USD"
+                                            },
+                                            "confidence_max": {
+                                                "value": 2564.775150581,
+                                                "units": "USD"
+                                            },
+                                            "confidence_min": {
+                                                "value": 0.0,
+                                                "units": "USD"
+                                            },
+                                            "rsquared": {
+                                                "value": "0.997",
+                                                "units": null
+                                            },
+                                            "pvalues": {
+                                                "value": "0.0",
+                                                "units": null
+                                            }
+                                        }
+                                    }]
+                                }]
+                            ]
+                        }
                     }
                 }
             },
