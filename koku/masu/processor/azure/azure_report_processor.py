@@ -48,7 +48,7 @@ def normalize_header(header_str):
             # The header is in English
             return [column[0].upper() + column[1:] for column in header]
     # Extract the English header values in parenthesis
-    new_header = [item.split("(")[1].strip(")").capitalize() for item in header]
+    new_header = [item.split("(")[1].strip(")") for item in header]
     return [column[0].upper() + column[1:] for column in new_header]
 
 
