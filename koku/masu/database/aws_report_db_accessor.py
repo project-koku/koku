@@ -331,7 +331,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpawscostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
-            "uuid": openshift_provider_uuid.replace("-", "_"),
+            "uuid": str(openshift_provider_uuid).replace("-", "_"),
             "schema": self.schema,
             "start_date": start_date,
             "year": start_date.year,
