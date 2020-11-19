@@ -89,15 +89,30 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__matched_tags_{{uuid | sqlsafe}} AS (
 )
 ;
 
-DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_aws_tags_{{uuid | sqlsafe}};
-CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_aws_tags_{{uuid | sqlsafe}} AS (
-    SELECT aws.*
+DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_aws_daily_{{uuid | sqlsafe}};
+CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_aws_daily_{{uuid | sqlsafe}} AS (
+    SELECT {{bill_id | sqlsafe}} as cost_entry_bill_id,
+        cast(uuid() as varchar) as line_item_id,
+        resource_id,
+        usage_start,
+        usage_end,
+        product_code,
+        product_family,
+        instance_type,
+        usage_account_id,
+        availability_zone,
+        region,
+        unit,
+        sum(usage_amount) as usage_amount,
+        sum(normalized_usage_amount) as normalized_usage_amount,
+        currency_code,
+        sum(unblended_cost) as unblended_cost,
+        tags,
+        max(lower_tags) as lower_tags
     FROM (
-        SELECT INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
-            aws.identity_lineitemid as line_item_id,
-            aws.lineitem_resourceid as resource_id,
+        SELECT aws.lineitem_resourceid as resource_id,
             date(aws.lineitem_usagestartdate) as usage_start,
-            date(aws.lineitem_usageenddate) as usage_end,
+            date(aws.lineitem_usagestartdate) as usage_end,
             aws.lineitem_productcode as product_code,
             aws.product_productfamily as product_family,
             aws.product_instancetype as instance_type,
@@ -110,16 +125,39 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_aws_tags_{{uuid | sqlsafe}} A
             aws.lineitem_currencycode as currency_code,
             aws.lineitem_unblendedcost as unblended_cost,
             resourcetags as tags,
-            lower(resourcetags) as lower_tags,
-            row_number() OVER (PARTITION BY aws.identity_lineitemid ORDER BY aws.identity_lineitemid) as row_number
-            FROM hive.{{schema | sqlsafe}}.aws_line_items as aws
-            JOIN hive.{{schema | sqlsafe}}.__matched_tags_{{uuid | sqlsafe}} as tag
-                ON json_extract_scalar(aws.resourcetags, '$.' || tag.key) = tag.value
-            WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
-                AND aws.year = '{{year | sqlsafe}}'
-                AND aws.month = '{{month | sqlsafe}}'
-                AND date(aws.lineitem_usagestartdate) >= date('{{start_date | sqlsafe}}')
-                AND date(aws.lineitem_usagestartdate) <= date('{{end_date | sqlsafe}}')
+            lower(aws.resourcetags) as lower_tags
+        FROM hive.{{schema | sqlsafe}}.aws_line_items as aws
+        WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
+            AND aws.year = '{{year | sqlsafe}}'
+            AND aws.month = '{{month | sqlsafe}}'
+            AND date(aws.lineitem_usagestartdate) >= date('{{start_date | sqlsafe}}')
+            AND date(aws.lineitem_usagestartdate) <= date('{{end_date | sqlsafe}}')
+    )
+    GROUP BY resource_id,
+        usage_start,
+        usage_end,
+        product_code,
+        product_family,
+        instance_type,
+        usage_account_id,
+        availability_zone,
+        region,
+        unit,
+        currency_code,
+        tags
+
+)
+;
+
+DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_aws_tags_{{uuid | sqlsafe}};
+CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_aws_tags_{{uuid | sqlsafe}} AS (
+    SELECT aws.*
+    FROM (
+        SELECT aws.*,
+            row_number() OVER (PARTITION BY aws.line_item_id ORDER BY aws.line_item_id) as row_number
+        FROM hive.{{schema | sqlsafe}}.__reporting_aws_daily_{{uuid | sqlsafe}} as aws
+        JOIN hive.{{schema | sqlsafe}}.__matched_tags_{{uuid | sqlsafe}} as tag
+            ON json_extract_scalar(aws.tags, '$.' || tag.key) = tag.value
     ) AS aws
     WHERE aws.row_number = 1
 )
@@ -127,35 +165,13 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_aws_tags_{{uuid | sqlsafe}} A
 
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_aws_special_case_tags_{{uuid | sqlsafe}};
 CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_aws_special_case_tags_{{uuid | sqlsafe}} AS (
-    SELECT INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
-        aws.identity_lineitemid as line_item_id,
-        aws.lineitem_resourceid as resource_id,
-        date(aws.lineitem_usagestartdate) as usage_start,
-        date(aws.lineitem_usageenddate) as usage_end,
-        aws.lineitem_productcode as product_code,
-        aws.product_productfamily as product_family,
-        aws.product_instancetype as instance_type,
-        aws.lineitem_usageaccountid as usage_account_id,
-        aws.lineitem_availabilityzone as availability_zone,
-        aws.product_region as region,
-        aws.pricing_unit as unit,
-        aws.lineitem_usageamount as usage_amount,
-        aws.lineitem_normalizedusageamount as normalized_usage_amount,
-        aws.lineitem_currencycode as currency_code,
-        aws.lineitem_unblendedcost as unblended_cost,
-        resourcetags as tags,
-        lower(aws.resourcetags) as lower_tags
-    FROM hive.{{schema | sqlsafe}}.aws_line_items as aws
-    WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
-        AND aws.year = '{{year | sqlsafe}}'
-        AND aws.month = '{{month | sqlsafe}}'
-        AND date(aws.lineitem_usagestartdate) >= date('{{start_date | sqlsafe}}')
-        AND date(aws.lineitem_usagestartdate) <= date('{{end_date | sqlsafe}}')
-        AND (
-            strpos(lower(resourcetags), 'openshift_cluster') != 0
-            OR strpos(lower(resourcetags), 'openshift_node') != 0
-            OR strpos(lower(resourcetags), 'openshift_project') != 0
-        )
+    SELECT aws.*
+    FROM hive.{{schema | sqlsafe}}.__reporting_aws_daily_{{uuid | sqlsafe}} as aws
+    WHERE (
+        strpos(lower_tags, 'openshift_cluster') != 0
+        OR strpos(lower_tags, 'openshift_node') != 0
+        OR strpos(lower_tags, 'openshift_project') != 0
+    )
 )
 ;
 
@@ -225,7 +241,6 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocp_pod_tags_{{uuid | sqlsafe
 )
 ;
 
--- no need to wait for commit
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__matched_tags_{{uuid | sqlsafe}};
 
 
@@ -252,33 +267,28 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{u
             ocp.node_capacity_memory_gigabyte_hours,
             ocp.cluster_capacity_cpu_core_hours,
             ocp.cluster_capacity_memory_gigabyte_hours,
-            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
-            aws.identity_lineitemid as aws_id,
-            aws.lineitem_resourceid as resource_id,
-            date(aws.lineitem_usagestartdate) as usage_start,
-            date(aws.lineitem_usageenddate) as usage_end,
-            aws.lineitem_productcode as product_code,
-            aws.product_productfamily as product_family,
-            aws.product_instancetype as instance_type,
-            aws.lineitem_usageaccountid as usage_account_id,
-            aws.lineitem_availabilityzone as availability_zone,
-            aws.product_region as region,
-            aws.pricing_unit as unit,
-            aws.lineitem_usageamount as usage_amount,
-            aws.lineitem_normalizedusageamount as normalized_usage_amount,
-            aws.lineitem_currencycode as currency_code,
-            aws.lineitem_unblendedcost as unblended_cost,
-            aws.resourcetags as tags
-        FROM hive.{{schema | sqlsafe}}.aws_line_items as aws
+            aws.cost_entry_bill_id,
+            aws.line_item_id as aws_id,
+            aws.resource_id,
+            aws.usage_start,
+            aws.usage_end,
+            aws.product_code,
+            aws.product_family,
+            aws.instance_type,
+            aws.usage_account_id,
+            aws.availability_zone,
+            aws.region,
+            aws.unit,
+            aws.usage_amount,
+            aws.normalized_usage_amount,
+            aws.currency_code,
+            aws.unblended_cost,
+            aws.tags
+        FROM hive.{{schema | sqlsafe}}.__reporting_aws_daily_{{uuid | sqlsafe}} as aws
         JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-            ON aws.lineitem_resourceid = ocp.resource_id
-                AND date(aws.lineitem_usagestartdate) = ocp.usage_start
-        WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
-                AND aws.year = '{{year | sqlsafe}}'
-                AND aws.month = '{{month | sqlsafe}}'
-            AND date(aws.lineitem_usagestartdate) >= date('{{start_date | sqlsafe}}')
-            AND date(aws.lineitem_usagestartdate) <= date('{{end_date | sqlsafe}}')
-            AND ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+            ON aws.line_item_id = ocp.resource_id
+                AND aws.usage_start = ocp.usage_start
+        WHERE ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
             AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
             AND ocp.usage_start <= date('{{end_date | sqlsafe}}')
             AND ocp.data_source = 'Pod'
@@ -320,7 +330,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uu
             ocp.node_capacity_memory_gigabyte_hours,
             ocp.cluster_capacity_cpu_core_hours,
             ocp.cluster_capacity_memory_gigabyte_hours,
-            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.cost_entry_bill_id,
             aws.line_item_id as aws_id,
             aws.resource_id,
             aws.usage_start,
@@ -344,11 +354,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uu
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.line_item_id
-        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
-            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
-            AND rm.aws_id IS NULL
-            AND ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+        WHERE ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
             AND ocp.data_source = 'Pod'
+            AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -386,7 +394,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uu
             ocp.node_capacity_memory_gigabyte_hours,
             ocp.cluster_capacity_cpu_core_hours,
             ocp.cluster_capacity_memory_gigabyte_hours,
-            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.cost_entry_bill_id,
             aws.line_item_id as aws_id,
             aws.resource_id,
             aws.usage_start,
@@ -410,11 +418,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uu
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.line_item_id
-        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
-            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
-            AND rm.aws_id IS NULL
-            AND ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+        WHERE ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
             AND ocp.data_source = 'Pod'
+            AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -452,7 +458,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uu
             ocp.node_capacity_memory_gigabyte_hours,
             ocp.cluster_capacity_cpu_core_hours,
             ocp.cluster_capacity_memory_gigabyte_hours,
-            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.cost_entry_bill_id,
             aws.line_item_id as aws_id,
             aws.resource_id,
             aws.usage_start,
@@ -476,11 +482,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uu
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.line_item_id
-        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
-            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
-            AND rm.aws_id IS NULL
-            AND ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+        WHERE ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
             AND ocp.data_source = 'Pod'
+            AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -518,7 +522,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uu
             ocp.node_capacity_memory_gigabyte_hours,
             ocp.cluster_capacity_cpu_core_hours,
             ocp.cluster_capacity_memory_gigabyte_hours,
-            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.cost_entry_bill_id,
             aws.line_item_id as aws_id,
             aws.resource_id,
             aws.usage_start,
@@ -539,13 +543,10 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uu
         JOIN hive.{{schema | sqlsafe}}.__reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON aws.usage_start = ocp.usage_start
                 AND strpos(aws.lower_tags, ocp.tag) != 0
-            -- ON aws.lower_tags @> ocp.tag
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.line_item_id
-        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
-            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
-            AND rm.aws_id IS NULL
+        WHERE rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -561,7 +562,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uu
         ON tm.aws_id = shared.aws_id
 ;
 
--- no need to wait for commit
+DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_aws_daily_{{uuid | sqlsafe}};
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_ocp_pod_tags_{{uuid | sqlsafe}};
 
 
@@ -584,7 +585,7 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{
             ocp.volume_request_storage_gigabyte_months,
             ocp.persistentvolumeclaim_usage_gigabyte_months,
             json_format(ocp.volume_labels) as volume_labels,
-            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.cost_entry_bill_id,
             aws.line_item_id as aws_id,
             aws.resource_id,
             aws.usage_start,
@@ -605,13 +606,10 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{
         JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
             ON json_extract_scalar(aws.lower_tags, '$.openshift_project') = lower(ocp.namespace)
                 AND aws.usage_start = ocp.usage_start
-        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
-            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
-            AND ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+        WHERE ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
             AND ocp.data_source = 'Storage'
             AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
             AND ocp.usage_start <= date('{{end_date | sqlsafe}}')
-
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -646,7 +644,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{{
             ocp.volume_request_storage_gigabyte_months,
             ocp.persistentvolumeclaim_usage_gigabyte_months,
             json_format(ocp.volume_labels) as volume_labels,
-            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.cost_entry_bill_id,
             aws.line_item_id as aws_id,
             aws.resource_id,
             aws.usage_start,
@@ -670,11 +668,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{{
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.line_item_id
-        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
-            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
-            AND rm.aws_id IS NULL
-            AND ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+        WHERE ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
             AND ocp.data_source = 'Storage'
+            AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -708,7 +704,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{{
             ocp.volume_request_storage_gigabyte_months,
             ocp.persistentvolumeclaim_usage_gigabyte_months,
             json_format(ocp.volume_labels) as volume_labels,
-            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.cost_entry_bill_id,
             aws.line_item_id as aws_id,
             aws.resource_id,
             aws.usage_start,
@@ -732,11 +728,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{{
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.line_item_id
-        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
-            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
-            AND rm.aws_id IS NULL
-            AND ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
+        WHERE ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
             AND ocp.data_source = 'Storage'
+            AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -753,7 +747,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{{
 
 ;
 
--- no need to wait for commit
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_aws_special_case_tags_{{uuid | sqlsafe}}
 ;
 
@@ -776,7 +769,7 @@ DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_aws_special_case_tags
             ocp.volume_request_storage_gigabyte_months,
             ocp.persistentvolumeclaim_usage_gigabyte_months,
             ocp.volume_labels,
-            '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
+            aws.cost_entry_bill_id,
             aws.line_item_id as aws_id,
             aws.resource_id,
             aws.usage_start,
@@ -797,13 +790,10 @@ DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_aws_special_case_tags
         JOIN hive.{{schema | sqlsafe}}.__reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON aws.usage_start = ocp.usage_start
                 AND strpos(aws.lower_tags, ocp.tag) != 0
-                -- ON aws.lower_tags @> ocp.tag
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.line_item_id
-        WHERE aws.usage_start >= date('{{start_date | sqlsafe}}')
-            AND aws.usage_start <= date('{{end_date | sqlsafe}}')
-            AND rm.aws_id IS NULL
+        WHERE rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT aws_id,
@@ -820,7 +810,6 @@ DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_aws_special_case_tags
 
 ;
 
--- no need to wait for commit
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_ocp_storage_tags_{{uuid | sqlsafe}}
 ;
 
@@ -836,16 +825,28 @@ DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_aws_tags_{{uuid | sql
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}};
 CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}} AS (
     WITH cte_pod_project_cost AS (
-        SELECT li.aws_id,
-            map_agg(li.namespace, li.project_cost) as project_costs
-        FROM hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} as li
-        GROUP BY li.aws_id
+        SELECT pc.aws_id,
+            map_agg(pc.namespace, pc.project_cost) as project_costs
+            FROM (
+                SELECT li.aws_id,
+                    li.namespace,
+                    sum(project_cost) as project_cost
+                FROM hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} as li
+                GROUP BY li.aws_id, li.namespace
+            ) AS pc
+        GROUP BY pc.aws_id
     ),
     cte_storage_project_cost AS (
-        SELECT li.aws_id,
-            map_agg(li.namespace, li.project_cost) as project_costs
-        FROM hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} as li
-        GROUP BY li.aws_id
+        SELECT pc.aws_id,
+            map_agg(pc.namespace, pc.project_cost) as project_costs
+        FROM (
+            SELECT li.aws_id,
+                li.namespace,
+                sum(project_cost) as project_cost
+            FROM hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} as li
+            GROUP BY li.aws_id, li.namespace
+        ) AS pc
+        GROUP BY pc.aws_id
     )
     SELECT max(li.report_period_id) as report_period_id,
         max(li.cluster_id) as cluster_id,
@@ -1019,21 +1020,32 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpawscostlineitem_project_da
 )
 ;
 
--- no need to wait for commit
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}};
 
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}};
 
 
 -- Clear out old entries first
--- DELETE FROM postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary
--- WHERE usage_start >= {{start_date}}
---     AND usage_start <= {{end_date}}
---     --aws_where_clause
---     AND cost_entry_bill_id = {{bill_id}}
---     --ocp_where_clause
---     AND cluster_id = {{cluster_id}}
--- ;
+INSERT
+  INTO postgres.{{schema | sqlsafe}}.presto_delete_wrapper_log
+       (
+           id,
+           action_ts,
+           table_name,
+           where_clause,
+           result_rows
+       )
+VALUES (
+    uuid(),
+    now(),
+    'reporting_ocpawscostlineitem_daily_summary',
+    'WHERE usage_start >= '{{start_date}}'::date ' ||
+      'AND usage_start <= '{{end_date}}'::date ' ||
+      'AND cluster_id = '{{cluster_id}}' ' ||
+      'AND cost_entry_bill_id = {{bill_id}} ',
+    null
+)
+;
 
 -- Populate the daily aggregate line item data
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
@@ -1077,7 +1089,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_sum
         product_code,
         product_family,
         instance_type,
-        cast(cost_entry_bill_id AS integer),
+        cost_entry_bill_id,
         usage_account_id,
         account_alias_id,
         availability_zone,
@@ -1095,18 +1107,29 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_sum
     FROM hive.{{schema | sqlsafe}}.__reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}}
 ;
 
--- no need to wait for commit
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}};
 
-
--- DELETE FROM postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary
--- WHERE usage_start >= {{start_date}}
---     AND usage_start <= {{end_date}}
---     --aws_where_clause
---     AND cost_entry_bill_id = {{bill_id}}
---     --ocp_where_clause
---     AND cluster_id = {{cluster_id}}
--- ;
+-- Clear out old entries first
+INSERT
+  INTO postgres.{{schema | sqlsafe}}.presto_delete_wrapper_log
+       (
+           id,
+           action_ts,
+           table_name,
+           where_clause,
+           result_rows
+       )
+VALUES (
+    uuid(),
+    now(),
+    'reporting_ocpawscostlineitem_project_daily_summary',
+    'where usage_start >= '{{start_date}}'::date ' ||
+      'and usage_start <= '{{end_date}}'::date ' ||
+      'and cluster_id = '{{cluster_id}}' ' ||
+      'and cost_entry_bill_id = {{bill_id}} ',
+    null
+)
+;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary (
     uuid,
@@ -1152,7 +1175,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
         product_code,
         product_family,
         instance_type,
-        cast(cost_entry_bill_id AS integer),
+        cost_entry_bill_id,
         usage_account_id,
         account_alias_id,
         availability_zone,
@@ -1169,5 +1192,4 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
     FROM hive.{{schema | sqlsafe}}.__reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}}
 ;
 
--- no need to wait for commit
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}};
