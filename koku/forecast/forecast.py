@@ -141,7 +141,7 @@ class Forecast(ABC):
         LOG.debug("Forecast input data: %s", data)
 
         if len(data) < 2:
-            LOG.error("Unable to calculate forecast. Insufficient Data.")
+            LOG.warning("Unable to calculate forecast. Insufficient data for %s.", self.params.tenant)
             return []
 
         if len(data) < self.MINIMUM:
