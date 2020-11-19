@@ -8,7 +8,7 @@ CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS (
         ocp_aws.node,
         ocp_aws.pod_labels,
         sum(ocp_aws.unblended_cost + ocp_aws.markup_cost) AS infra_cost,
-        sum(ocp_aws.pod_cost + ocp_aws.project_markup_cost) AS project_infra_cost
+        sum(ocp_aws.project_cost + ocp_aws.project_markup_cost) AS project_infra_cost
     FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
     WHERE ocp_aws.usage_start >= {{start_date}}::date
         AND ocp_aws.usage_start <= {{end_date}}::date
