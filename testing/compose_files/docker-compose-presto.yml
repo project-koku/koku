@@ -53,7 +53,7 @@ services:
 
   presto:
     container_name: presto
-    image: quay.io/coreos/presto:release-4.6
+    image: quay.io/red_hap/koku-presto:346
     user: root
     command: /presto-common/initialize_presto.sh
     ports:
