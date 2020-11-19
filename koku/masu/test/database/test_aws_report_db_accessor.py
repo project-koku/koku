@@ -896,8 +896,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             sum_project_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("unblended_cost"))[
                 "unblended_cost__sum"
             ]
-            sum_pod_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pod_cost"))[
-                "pod_cost__sum"
+            sum_pod_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("project_cost"))[
+                "project_cost__sum"
             ]
             sum_markup_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("markup_cost"))[
                 "markup_cost__sum"
