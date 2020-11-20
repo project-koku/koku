@@ -266,7 +266,7 @@ DROP TABLE matched_tags_{{uuid | sqlsafe}};
 -- resource id match. This usually means OCP node -> Azure Virutal Machine.
 CREATE TEMPORARY TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS (
     WITH cte_resource_id_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -339,7 +339,7 @@ CREATE TEMPORARY TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} 
 -- and the value matches an OpenShift project name
 INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -397,7 +397,7 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
 -- and the value matches an OpenShift node name
 INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -455,7 +455,7 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
 -- and the value matches an OpenShift cluster name
 INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -514,7 +514,7 @@ INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
 -- and Azure tag key and value match directly
 INSERT INTO reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -576,7 +576,7 @@ DROP TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}};
 -- resource id match. OCP PVC name -> Azure instance ID.
 CREATE TEMPORARY TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS (
     WITH cte_resource_id_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -641,7 +641,7 @@ CREATE TEMPORARY TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}
 -- and the value matches an OpenShift project name
 INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -695,7 +695,7 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
 -- and the value matches an OpenShift node name
  INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -749,7 +749,7 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
 -- and the value matches an OpenShift cluster name
 INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -803,7 +803,7 @@ INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
 -- Next we match where the azure tag is kubernetes.io-created-for-pv-name
  INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -862,7 +862,7 @@ DROP TABLE reporting_azure_special_case_tags_{{uuid | sqlsafe}};
 -- and azure tag key and value match directly
 INSERT INTO reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id,
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
