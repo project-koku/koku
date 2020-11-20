@@ -41,15 +41,6 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
 
-    def mark_bill_as_finalized(self, bill_id):
-        """Mark a bill in the database as finalized."""
-        table_name = GCPCostEntryBill
-        with schema_context(self.schema):
-            bill = self._get_db_obj_query(table_name).get(id=bill_id)
-            if bill.finalized_datetime is None:
-                bill.finalized_datetime = self.date_accessor.today_with_timezone("UTC")
-                bill.save()
-
     def get_products(self):
         """Make a mapping of product sku to product objects."""
         table_name = GCPCostEntryProductService

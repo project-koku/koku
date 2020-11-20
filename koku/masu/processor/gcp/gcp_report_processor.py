@@ -155,13 +155,13 @@ class GCPReportProcessor(ReportProcessorBase):
         return True
 
     def _process_tags(self, row):
-        """Return a JSON string of AWS resource tags.
+        """Return a JSON string of GCP tags.
 
         Args:
             row (dict): A dictionary representation of a CSV file row
 
         Returns:
-            (str): A JSON string of AWS resource tags
+            (str): A JSON string of GCP tags
 
         """
         tags_dict = {}
@@ -175,13 +175,13 @@ class GCPReportProcessor(ReportProcessorBase):
         return json.dumps(tags_dict)
 
     def _get_usage_type(self, row):
-        """Return instance_type if there is one.
+        """Return usage_type if there is one.
 
         Args:
             row (dict): A dictionary representation of a CSV file row
 
         Returns:
-            (str): A JSON string of AWS resource tags
+            (str): A JSON string of GCP tags
 
         """
         type_key = "compute.googleapis.com/machine_spec"
