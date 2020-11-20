@@ -286,7 +286,7 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{u
             aws.tags
         FROM hive.{{schema | sqlsafe}}.__reporting_aws_daily_{{uuid | sqlsafe}} as aws
         JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-            ON aws.line_item_id = ocp.resource_id
+            ON aws.resource_id = ocp.resource_id
                 AND aws.usage_start = ocp.usage_start
         WHERE ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
             AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
