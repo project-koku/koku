@@ -63,6 +63,7 @@ class AzureReportProcessorTest(MasuTestCase):
         with open(cls.test_report_path, "r", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             cls.row = next(reader)
+            cls.row = {key.lower(): value for key, value in cls.row.items()}
 
     def setUp(self):
         """Set up each test."""
@@ -375,7 +376,7 @@ class AzureReportProcessorTest(MasuTestCase):
     def test_should_process_row_within_cuttoff_date(self):
         """Test that we correctly determine a row should be processed."""
         today = self.date_accessor.today_with_timezone("UTC")
-        row = {"UsageDateTime": today.isoformat()}
+        row = {"usagedatetime": today.isoformat()}
 
         processor = AzureReportProcessor(
             schema_name=self.schema,
@@ -384,7 +385,7 @@ class AzureReportProcessorTest(MasuTestCase):
             provider_uuid=self.azure_provider_uuid,
         )
 
-        should_process = processor._should_process_row(row, "UsageDateTime", False)
+        should_process = processor._should_process_row(row, "usagedatetime", False)
 
         self.assertTrue(should_process)
 
@@ -392,7 +393,7 @@ class AzureReportProcessorTest(MasuTestCase):
         """Test that we correctly determine a row should be processed."""
         today = self.date_accessor.today_with_timezone("UTC")
         usage_start = today - relativedelta(days=10)
-        row = {"UsageDateTime": usage_start.isoformat()}
+        row = {"usagedatetime": usage_start.isoformat()}
 
         processor = AzureReportProcessor(
             schema_name=self.schema,
@@ -401,7 +402,7 @@ class AzureReportProcessorTest(MasuTestCase):
             provider_uuid=self.azure_provider_uuid,
         )
 
-        should_process = processor._should_process_row(row, "UsageDateTime", False)
+        should_process = processor._should_process_row(row, "usagedatetime", False)
 
         self.assertFalse(should_process)
 
@@ -444,33 +445,33 @@ class AzureReportProcessorTest(MasuTestCase):
             "Información del servicio 2 (ServiceInfo2)"
         )
         expected_header = [
-            "DepartmentName",
-            "AccountName",
-            "AccountOwnerId",
-            "SubscriptionGuid",
-            "SubscriptionName",
-            "ResourceGroup",
-            "ResourceLocation",
-            "UsageDateTime",
-            "ProductName",
-            "MeterCategory",
-            "MeterSubcategory",
-            "MeterId",
-            "MeterName",
-            "MeterRegion",
-            "UnitOfMeasure",
-            "UsageQuantity",
-            "ResourceRate",
-            "PreTaxCost",
-            "CostCenter",
-            "ConsumedService",
-            "ResourceType",
-            "InstanceId",
-            "Tags",
-            "OfferId",
-            "AdditionalInfo",
-            "ServiceInfo1",
-            "ServiceInfo2",
+            "departmentname",
+            "accountname",
+            "accountownerid",
+            "subscriptionguid",
+            "subscriptionname",
+            "resourcegroup",
+            "resourcelocation",
+            "usagedatetime",
+            "productname",
+            "metercategory",
+            "metersubcategory",
+            "meterid",
+            "metername",
+            "meterregion",
+            "unitofmeasure",
+            "usagequantity",
+            "resourcerate",
+            "pretaxcost",
+            "costcenter",
+            "consumedservice",
+            "resourcetype",
+            "instanceid",
+            "tags",
+            "offerid",
+            "additionalinfo",
+            "serviceinfo1",
+            "serviceinfo2",
         ]
 
         self.assertEqual(normalize_header(english_header), expected_header)

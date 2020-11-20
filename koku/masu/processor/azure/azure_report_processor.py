@@ -339,7 +339,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
     def _is_row_unassigned(self, row):
         """Helper to detect unassigned meters in report."""
-        if row.get("MeterId") == "00000000-0000-0000-0000-000000000000":
+        if row.get("meterid") == "00000000-0000-0000-0000-000000000000":
             return True
         return False
 
