@@ -240,7 +240,7 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     JOIN matched_tags_{{uuid | sqlsafe}} AS tag
         ON ocp.report_period_id = tag.report_period_id
-            AND ocp.persistentvolumeclaim_labels @> tag.tag
+            AND ocp.volume_labels @> tag.tag
     WHERE ocp.usage_start >= {{start_date}}::date
         AND ocp.usage_start <= {{end_date}}::date
         AND ocp.data_source = 'Storage'
@@ -679,8 +679,7 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
             ocp.persistentvolumeclaim_capacity_byte_seconds,
             ocp.volume_request_storage_byte_seconds,
             ocp.persistentvolumeclaim_usage_byte_seconds,
-            ocp.persistentvolume_labels,
-            ocp.persistentvolumeclaim_labels,
+            ocp.volume_labels,
             aws.id AS aws_id,
             aws.cost_entry_bill_id,
             aws.cost_entry_product_id,
@@ -748,8 +747,7 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
             ocp.persistentvolumeclaim_capacity_byte_seconds,
             ocp.volume_request_storage_byte_seconds,
             ocp.persistentvolumeclaim_usage_byte_seconds,
-            ocp.persistentvolume_labels,
-            ocp.persistentvolumeclaim_labels,
+            ocp.volume_labels,
             aws.id AS aws_id,
             aws.cost_entry_bill_id,
             aws.cost_entry_product_id,
@@ -820,8 +818,7 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
             ocp.persistentvolumeclaim_capacity_byte_seconds,
             ocp.volume_request_storage_byte_seconds,
             ocp.persistentvolumeclaim_usage_byte_seconds,
-            ocp.persistentvolume_labels,
-            ocp.persistentvolumeclaim_labels,
+            ocp.volume_labels,
             aws.id AS aws_id,
             aws.cost_entry_bill_id,
             aws.cost_entry_product_id,
@@ -898,8 +895,7 @@ DROP TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}};
             ocp.persistentvolumeclaim_capacity_byte_seconds,
             ocp.volume_request_storage_byte_seconds,
             ocp.persistentvolumeclaim_usage_byte_seconds,
-            ocp.persistentvolume_labels,
-            ocp.persistentvolumeclaim_labels,
+            ocp.volume_labels,
             aws.id AS aws_id,
             aws.cost_entry_bill_id,
             aws.cost_entry_product_id,
@@ -1147,7 +1143,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         'Storage' as data_source,
         li.namespace,
         li.node,
-        li.persistentvolume_labels || li.persistentvolumeclaim_labels as pod_labels,
+        li.volume_labels as pod_labels,
         NULL as resource_id,
         max(li.usage_start) as usage_start,
         max(li.usage_end) as usage_end,
@@ -1189,8 +1185,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         li.cluster_alias,
         li.namespace,
         li.node,
-        li.persistentvolume_labels,
-        li.persistentvolumeclaim_labels,
+        li.volume_labels,
         li.project_cost,
         ab.provider_id
 )
