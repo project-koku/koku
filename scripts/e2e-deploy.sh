@@ -98,6 +98,7 @@ function check_var() {
 }
 
 check_var "REGISTRY_REDHAT_IO_SECRETS"
+check_var "QUAY_IO_SECRETS"
 check_var "E2E_REPO"
 check_var "OPENSHIFT_API_URL"
 
@@ -161,29 +162,33 @@ for project in "${SECRETS_PROJECT}" "${BUILDFACTORY_PROJECT}" "${DEPLOY_PROJECT}
     ${OC} new-project ${project}
 done
 
-echo "Adding registry.redhat.io secret."
-# the json distributed by access.redhat.com/terms-based-registry is a nested object.
-# oc wants the contents of the .data object, so we need to unwrap the outer layer
-# in order to load the pull secrets dockerconfigjson object into the secret.
-if [ -f $REGISTRY_REDHAT_IO_SECRETS ]; then
+function create_pull_secrets() {
     if [[ "$OSTYPE" == "darwin"* ]]; then
             BASE64_DECODE='-D'
     else
             BASE64_DECODE='-d'
     fi
-    SECRET=$(cat $REGISTRY_REDHAT_IO_SECRETS | \
+    SECRET=$(cat $1 | \
              python -c 'import yaml, sys; print(yaml.safe_load(sys.stdin).get("data").get(".dockerconfigjson"))' | \
              base64 $BASE64_DECODE)
 
     # this isn't a great way to set up the pull secrets, but it works for now.
     for project in "${BUILDFACTORY_PROJECT}" "${DEPLOY_PROJECT}" "${SECRETS_PROJECT}"; do
-        echo ${SECRET} | ${OC} create secret generic rh-registry-pull-secret \
+        echo ${SECRET} | ${OC} create secret generic $2 \
                                     --from-file=.dockerconfigjson=/dev/stdin \
                                     -n ${project} \
                                     --type=kubernetes.io/dockerconfigjson
-        ${OC} secrets link default rh-registry-pull-secret -n ${project} --for=pull
-        ${OC} secrets link builder rh-registry-pull-secret -n ${project}
+        ${OC} secrets link default $2 -n ${project} --for=pull
+        ${OC} secrets link builder $2 -n ${project}
     done
+}
+echo "Adding registry.redhat.io secret."
+if [ -f $REGISTRY_REDHAT_IO_SECRETS ]; then
+    create_pull_secrets $REGISTRY_REDHAT_IO_SECRETS rh-registry-pull-secret
+fi
+echo "Adding quay.io secret."
+if [ -f $QUAY_IO_SECRETS ]; then
+    create_pull_secrets $QUAY_IO_SECRETS quay-cloudservices-pull
 fi
 
 ### create secrets
@@ -227,14 +232,14 @@ done
 ### deploy applications
 if [[ ${DEPLOY_SOURCES} ]]; then
     echo "Creating sources application."
-    ${IQE_CONTAINER} "iqe oc deploy -t templates -s sources,platform-mq -e dev-self-contained ${DEPLOY_PROJECT} --secrets-src-project ${SECRETS_PROJECT}" || true
+    ${IQE_CONTAINER} "iqe oc deploy -t templates -s sources,platform-mq -e dev ${DEPLOY_PROJECT} --secrets-src-project ${SECRETS_PROJECT}" || true
 fi
 if [[ ${DEPLOY_HCCM_OPTIONAL} ]]; then
     echo "Creating HCCM & HCCM-Optional application."
-    ${IQE_CONTAINER} "iqe oc deploy -t templates -s hccm,hccm-optional -e dev-self-contained ${DEPLOY_PROJECT} --secrets-src-project ${SECRETS_PROJECT}" || true
+    ${IQE_CONTAINER} "iqe oc deploy -t templates -s hccm,hccm-optional -e dev ${DEPLOY_PROJECT} --secrets-src-project ${SECRETS_PROJECT}" || true
 else
     echo "Creating HCCM application."
-    ${IQE_CONTAINER} "iqe oc deploy -t templates -s hccm -e dev-self-contained ${DEPLOY_PROJECT} --secrets-src-project ${SECRETS_PROJECT}" || true
+    ${IQE_CONTAINER} "iqe oc deploy -t templates -s hccm -e dev ${DEPLOY_PROJECT} --secrets-src-project ${SECRETS_PROJECT}" || true
 fi
 
 ### expose API route
