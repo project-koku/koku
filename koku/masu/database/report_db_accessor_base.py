@@ -362,7 +362,7 @@ class ReportDBAccessorBase(KokuDBAccess):
     ):
         """Execute multiple related SQL queries in Presto."""
         presto_conn = kpdb.connect(schema=self.schema)
-        kpdb.executescript(presto_conn, sql, params=bind_params, preprocessor=preprocessor)
+        return kpdb.executescript(presto_conn, sql, params=bind_params, preprocessor=preprocessor)
 
     def get_existing_partitions(self, table):
         if isinstance(table, str):
