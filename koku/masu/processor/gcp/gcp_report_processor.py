@@ -19,7 +19,6 @@ import json
 import logging
 from collections import OrderedDict
 from datetime import datetime
-from numbers import Number
 from os import path
 from os import remove
 
@@ -60,7 +59,6 @@ class ProcessedGCPReport:
     def __init__(self):
         """Initialize new cost entry containers."""
         self.line_items = []
-        self.unique_line_items = {}
         self.bills = {}
         self.projects = {}
         self.products = {}
@@ -68,7 +66,6 @@ class ProcessedGCPReport:
     def remove_processed_rows(self):
         """Clear a batch of rows after they've been saved."""
         self.line_items = []
-        self.unique_line_items = {}
         self.projects = {}
         self.products = {}
 
@@ -321,30 +318,10 @@ class GCPReportProcessor(ReportProcessorBase):
         data["tags"] = self._process_tags(row)
         data["usage_type"] = self._get_usage_type(row)
 
-        key = (project_id, data["usage_start"], data["line_item_type"], data["cost_entry_product_id"])
-
-        # If we've already seen the key in this report, we have a duplicate line item
-        # and should consolidate the two lines into one.
-        if key in self.processed_report.unique_line_items:
-            data = self._consolidate_line_items(self.processed_report.unique_line_items[key], data)
-
-        self.processed_report.unique_line_items[key] = data
         if self.line_item_columns is None:
             self.line_item_columns = list(data.keys())
 
-    def _consolidate_line_items(self, line1, line2):
-        """Given 2 line items consolidate them into one, by adding all numerical values together."""
-        ignored_keys = ["cost_entry_bill_id", "project_id", "cost_entry_product_id"]
-        consolidated_line_item = {}
-        for key, value in line1.items():
-            consolidated_line_item[key] = value
-
-            # If key is an id, ignore it during consolidation
-            if key in ignored_keys:
-                continue
-            if isinstance(value, Number):
-                consolidated_line_item[key] += line2[key]
-        return consolidated_line_item
+        self.processed_report.line_items.append(data)
 
     def _update_mappings(self):
         """Update cache of database objects for reference."""
@@ -398,24 +375,19 @@ class GCPReportProcessor(ReportProcessorBase):
                             processed_row, bill_id, project_id, report_db, service_product_id
                         )
 
+            if self.processed_report.line_items:
                 LOG.info(
                     "Saving report rows %d to %d for %s",
                     row_count,
-                    row_count + len(self.processed_report.unique_line_items),
+                    row_count + len(self.processed_report.line_items),
                     self._report_name,
                 )
-
-                # Create a temp table with all the line items, and merge the temp table to the line item table.
-                # This is faster than django's bulk_create.
                 temp_table = report_db.create_temp_table(self.line_item_table_name, drop_column="id")
-
-                # Have to put values into line_items because the parent class needs it to _save_to_db
-                self.processed_report.line_items = list(self.processed_report.unique_line_items.values())
                 self._save_to_db(temp_table, report_db)
+                row_count += len(self.processed_report.line_items)
                 report_db.merge_temp_table(self.line_item_table_name, temp_table, self.line_item_columns)
 
-                row_count += len(self.processed_report.line_items)
-                self._update_mappings()
+            self._update_mappings()
 
             LOG.info("Completed report processing for file: %s and schema: %s", self._report_name, self._schema)
 
