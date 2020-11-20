@@ -237,12 +237,13 @@ CREATE TEMPORARY TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}} AS (
 CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
     SELECT ocp.*,
         lower(tag.tag::text)::jsonb as tag
-    FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     JOIN matched_tags_{{uuid | sqlsafe}} AS tag
         ON ocp.report_period_id = tag.report_period_id
             AND ocp.persistentvolumeclaim_labels @> tag.tag
     WHERE ocp.usage_start >= {{start_date}}::date
         AND ocp.usage_start <= {{end_date}}::date
+        AND ocp.data_source = 'Storage'
         --ocp_where_clause
         {% if cluster_id %}
         AND cluster_id = {{cluster_id}}
@@ -253,12 +254,13 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
 CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
     SELECT ocp.*,
         lower(tag.tag::text)::jsonb as tag
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     JOIN matched_tags_{{uuid | sqlsafe}} AS tag
         ON ocp.report_period_id = tag.report_period_id
             AND ocp.pod_labels @> tag.tag
     WHERE ocp.usage_start >= {{start_date}}::date
         AND ocp.usage_start <= {{end_date}}::date
+        AND ocp.data_source = 'Pod'
         --ocp_where_clause
         {% if cluster_id %}
         AND cluster_id = {{cluster_id}}
@@ -321,11 +323,12 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
             aws.tax_type,
             aws.tags
         FROM reporting_aws_with_enabled_tags_{{uuid | sqlsafe}} as aws
-        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
             ON aws.resource_id = ocp.resource_id
                 AND aws.usage_start = ocp.usage_start
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND ocp.data_source = 'Pod'
             -- aws_where_clause
             {% if bill_ids %}
             AND cost_entry_bill_id IN (
@@ -403,7 +406,7 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
             ON aws.key = 'openshift_project' AND aws.value = lower(ocp.namespace)
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
@@ -411,6 +414,7 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND ocp.data_source = 'Pod'
             AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
@@ -477,7 +481,7 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
             ON aws.key = 'openshift_node' AND aws.value = lower(ocp.node)
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
@@ -485,6 +489,7 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND ocp.data_source = 'Pod'
             AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
@@ -551,7 +556,7 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
             ON (aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_id)
                 OR aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_alias))
                 AND aws.usage_start = ocp.usage_start
@@ -560,6 +565,7 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND ocp.data_source = 'Pod'
             AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
@@ -702,11 +708,12 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
             aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
             ON aws.key = 'openshift_project' AND aws.value = lower(ocp.namespace)
                 AND aws.usage_start = ocp.usage_start
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND ocp.data_source = 'Storage'
 
     ),
     cte_number_of_shared AS (
@@ -770,7 +777,7 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
             aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
             ON aws.key = 'openshift_node' AND aws.value = lower(ocp.node)
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
@@ -778,6 +785,7 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
             ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND ocp.data_source = 'Storage'
             AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
@@ -841,7 +849,7 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
             aws.tax_type,
             aws.tags
         FROM reporting_aws_special_case_tags_{{uuid | sqlsafe}} as aws
-        JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
+        JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
             ON (aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_id)
                 OR aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_alias))
                 AND aws.usage_start = ocp.usage_start
@@ -850,6 +858,7 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
             ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND ocp.data_source = 'Storage'
             AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
