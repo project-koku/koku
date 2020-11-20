@@ -629,7 +629,7 @@ CREATE TEMPORARY TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}
         GROUP BY azure_id
     )
     SELECT rm.*,
-        (rm.persistentvolumeclaim_usage_byte_seconds / rm.persistentvolumeclaim_capacity_byte_seconds) * rm.pretax_cost as project_cost,
+        (rm.persistentvolumeclaim_usage_gigabyte_months / rm.persistentvolumeclaim_capacity_gigabyte_months) * rm.pretax_cost as project_cost,
         sp.shared_projects
     FROM cte_resource_id_matched AS rm
     JOIN cte_number_of_shared_projects AS sp
