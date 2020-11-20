@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Processor for GCP Cost Usage Reports."""
+import json
 import logging
 from collections import OrderedDict
 from datetime import datetime
@@ -153,6 +154,47 @@ class GCPReportProcessor(ReportProcessorBase):
 
         return True
 
+    def _process_tags(self, row):
+        """Return a JSON string of AWS resource tags.
+
+        Args:
+            row (dict): A dictionary representation of a CSV file row
+
+        Returns:
+            (str): A JSON string of AWS resource tags
+
+        """
+        tags_dict = {}
+        labels = row.get("labels", [])
+        if isinstance(labels, str):
+            labels = json.loads(labels.replace("'", '"'))
+        for label in labels:
+            key = label["key"]
+            value = label["value"]
+            tags_dict[key] = value
+        return json.dumps(tags_dict)
+
+    def _get_usage_type(self, row):
+        """Return instance_type if there is one.
+
+        Args:
+            row (dict): A dictionary representation of a CSV file row
+
+        Returns:
+            (str): A JSON string of AWS resource tags
+
+        """
+        type_key = "compute.googleapis.com/machine_spec"
+        system_labels = row.get("system_labels", [])
+        if isinstance(system_labels, str):
+            system_labels = json.loads(system_labels.replace("'", '"'))
+        for system_label in system_labels:
+            key = system_label["key"]
+            value = system_label["value"]
+            if key == type_key:
+                return value
+        return None
+
     def _get_range_from_report_name(self):
         """
         Get the scan range from the report name.
@@ -276,6 +318,8 @@ class GCPReportProcessor(ReportProcessorBase):
         data["project_id"] = project_id
         data["cost_entry_product_id"] = service_product_id
         data["line_item_type"] = self._get_line_item_type(row)
+        data["tags"] = self._process_tags(row)
+        data["usage_type"] = self._get_usage_type(row)
 
         key = (project_id, data["usage_start"], data["line_item_type"], data["cost_entry_product_id"])
 

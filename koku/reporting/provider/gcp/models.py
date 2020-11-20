@@ -1,5 +1,6 @@
 """Models for GCP cost and usage entry tables."""
 from django.db import models
+from django.db.models import JSONField
 
 
 class GCPCostEntryBill(models.Model):
@@ -59,8 +60,8 @@ class GCPCostEntryLineItem(models.Model):
     id = models.BigAutoField(primary_key=True)
     usage_start = models.DateTimeField()
     usage_end = models.DateTimeField()
-    labels = models.CharField(max_length=256, null=True, blank=True)
-    system_labels = models.CharField(max_length=256, null=True, blank=True)
+    tags = JSONField(null=True)
+    usage_type = models.CharField(max_length=50, null=True)
     location = models.CharField(max_length=256, null=True, blank=True)
     country = models.CharField(max_length=256, null=True, blank=True)
     region = models.CharField(max_length=256, null=True, blank=True)

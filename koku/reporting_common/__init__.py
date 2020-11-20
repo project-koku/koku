@@ -161,8 +161,6 @@ REPORT_COLUMN_MAP = defaultdict(
         "reporting_gcpcostentrylineitem": {
             "usage_start_time": "usage_start",
             "usage_end_time": "usage_end",
-            "labels": "labels",
-            "system_labels": "system_labels",
             "location.location": "location",
             "location.country": "country",
             "location.region": "region",
