@@ -1325,7 +1325,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
     currency_code,
     unblended_cost,
     markup_cost,
-    project_cost,
+    pod_cost,
     project_markup_cost,
     source_uuid
 )
