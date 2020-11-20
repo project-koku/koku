@@ -19,10 +19,8 @@ import os
 import shutil
 import tempfile
 import uuid
-from datetime import datetime
 from unittest.mock import patch
 
-import numpy as np
 import pytz
 from dateutil import parser
 from django.db.utils import InternalError
@@ -174,33 +172,6 @@ class GCPReportProcessorTest(MasuTestCase):
             self.processor.process()
         except InternalError:
             self.fail("failed to call process twice.")
-
-    def test_consolidate_line_items(self):
-        """Test that logic for consolidating lines work."""
-        line1 = {
-            "int": fake.pyint(),
-            "float": fake.pyfloat(),
-            "date": datetime.now(),
-            "npint": np.int64(fake.pyint()),
-            "cost_entry_bill_id": fake.pyint(),
-            "project_id": fake.pyint(),
-        }
-        line2 = {
-            "int": fake.pyint(),
-            "float": fake.pyfloat(),
-            "date": datetime.now(),
-            "npint": np.int64(fake.pyint()),
-            "cost_entry_bill_id": fake.pyint(),
-            "project_id": fake.pyint(),
-        }
-        consolidated_line = self.processor._consolidate_line_items(line1, line2)
-
-        self.assertEquals(consolidated_line["int"], line1["int"] + line2["int"])
-        self.assertEquals(consolidated_line["float"], line1["float"] + line2["float"])
-        self.assertEquals(consolidated_line["npint"], line1["npint"] + line2["npint"])
-        self.assertEquals(consolidated_line["date"], line1["date"])
-        self.assertEquals(consolidated_line["cost_entry_bill_id"], line1["cost_entry_bill_id"])
-        self.assertEquals(consolidated_line["project_id"], line1["project_id"])
 
     def test_gcp_process_twice(self):
         """Test the processing of an GCP file again, results in the same amount of objects."""
