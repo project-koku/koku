@@ -7,7 +7,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0152_auto_20201116_1855")]
+    dependencies = [("reporting", "0153_auto_20201116_1855")]
 
     operations = [
         migrations.RemoveField(model_name="ocpawscostlineitemdailysummary", name="id"),
