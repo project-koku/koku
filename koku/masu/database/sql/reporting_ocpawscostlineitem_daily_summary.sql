@@ -278,7 +278,7 @@ DROP TABLE matched_tags_{{uuid | sqlsafe}};
 -- resource id match. This usually means OCP node -> AWS EC2 instance ID.
 CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS (
     WITH cte_resource_id_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -361,7 +361,7 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
 -- and the value matches an OpenShift project name
 INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -436,7 +436,7 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
 -- and the value matches an OpenShift node name
 INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -511,7 +511,7 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
 -- and the value matches an OpenShift cluster name
  INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -587,7 +587,7 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
 -- and AWS tag key and value match directly
  INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -666,7 +666,7 @@ DROP TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}};
 -- and the value matches an OpenShift project name
 CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -734,7 +734,7 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
 -- and the value matches an OpenShift node name
 INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -805,7 +805,7 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
 -- and the value matches an OpenShift cluster name
  INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
@@ -882,7 +882,7 @@ DROP TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}};
 -- and AWS tag key and value match directly
  INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
     WITH cte_tag_matched AS (
-        SELECT ocp.id AS ocp_id,
+        SELECT ocp.uuid AS ocp_id
             ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
