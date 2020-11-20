@@ -201,7 +201,7 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
-    project_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
