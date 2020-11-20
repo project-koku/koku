@@ -46,10 +46,9 @@ def normalize_header(header_str):
     for column in header:
         if column.lower() in AZURE_REPORT_COLUMNS:
             # The header is in English
-            return [column[0].upper() + column[1:] for column in header]
+            return [column.lower() for column in header]
     # Extract the English header values in parenthesis
-    new_header = [item.split("(")[1].strip(")") for item in header]
-    return [column[0].upper() + column[1:] for column in new_header]
+    return [column.split("(")[1].strip(")").lower() for column in header]
 
 
 class ProcessedAzureReport:
@@ -153,7 +152,7 @@ class AzureReportProcessor(ReportProcessorBase):
             (str): A cost entry bill object id
 
         """
-        row_date = row.get("UsageDateTime")
+        row_date = row.get("usagedatetime")
 
         report_date_range = utils.month_date_range(ciso8601.parse_datetime(row_date))
         start_date, end_date = report_date_range.split("-")
@@ -192,10 +191,10 @@ class AzureReportProcessor(ReportProcessorBase):
             (str): The DB id of the product object
 
         """
-        instance_id = row.get("InstanceId")
-        additional_info = row.get("AdditionalInfo")
-        service_name = row.get("ServiceName")
-        service_tier = row.get("ServiceTier")
+        instance_id = row.get("instanceid")
+        additional_info = row.get("additionalinfo")
+        service_name = row.get("servicename")
+        service_tier = row.get("servicetier")
 
         decoded_info = None
         if additional_info:
@@ -237,7 +236,7 @@ class AzureReportProcessor(ReportProcessorBase):
             (str): The DB id of the product object
 
         """
-        meter_id = row.get("MeterId")
+        meter_id = row.get("meterid")
 
         key = (meter_id,)
 
@@ -318,12 +317,12 @@ class AzureReportProcessor(ReportProcessorBase):
         """Update report header to conform with original report format."""
         modified_header = headers
 
-        modified_header = self._replace_name_in_header("UsageDateTime", ["Date"], modified_header)
-        modified_header = self._replace_name_in_header("UsageQuantity", ["Quantity"], modified_header)
-        modified_header = self._replace_name_in_header("PreTaxCost", ["CostInBillingCurrency"], modified_header)
-        modified_header = self._replace_name_in_header("InstanceId", ["ResourceId"], modified_header)
-        modified_header = self._replace_name_in_header("SubscriptionGuid", ["SubscriptionId"], modified_header)
-        modified_header = self._replace_name_in_header("ServiceName", ["MeterCategory"], modified_header)
+        modified_header = self._replace_name_in_header("usagedatetime", ["date"], modified_header)
+        modified_header = self._replace_name_in_header("usagequantity", ["quantity"], modified_header)
+        modified_header = self._replace_name_in_header("pretaxcost", ["costinbillingcurrency"], modified_header)
+        modified_header = self._replace_name_in_header("instanceid", ["resourceid"], modified_header)
+        modified_header = self._replace_name_in_header("subscriptionguid", ["subscriptionid"], modified_header)
+        modified_header = self._replace_name_in_header("servicename", ["metercategory"], modified_header)
 
         return modified_header
 
@@ -331,7 +330,7 @@ class AzureReportProcessor(ReportProcessorBase):
         """Convert date format from MM/DD/YYYY to YYYY-MM-DD."""
         modified_row = row
         try:
-            modified_row["UsageDateTime"] = datetime.strptime(row.get("UsageDateTime"), "%m/%d/%Y").strftime(
+            modified_row["usagedatetime"] = datetime.strptime(row.get("usagedatetime"), "%m/%d/%Y").strftime(
                 "%Y-%m-%d"
             )
         except ValueError:
@@ -370,9 +369,9 @@ class AzureReportProcessor(ReportProcessorBase):
 
                     row = self._update_dateformat_in_row(row)
 
-                    if not self._should_process_row(row, "UsageDateTime", is_full_month):
+                    if not self._should_process_row(row, "usagedatetime", is_full_month):
                         continue
-                    li_usage_dt = row.get("UsageDateTime")
+                    li_usage_dt = row.get("usagedatetime")
                     if li_usage_dt:
                         try:
                             li_usage_dt = ciso8601.parse_datetime(li_usage_dt).date().replace(day=1)
