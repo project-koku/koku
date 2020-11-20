@@ -10,9 +10,6 @@ class Migration(migrations.Migration):
     dependencies = [("reporting", "0152_auto_20201116_1855")]
 
     operations = [
-        migrations.RenameField(
-            model_name="ocpawscostlineitemprojectdailysummary", old_name="pod_cost", new_name="project_cost"
-        ),
         migrations.RemoveField(model_name="ocpawscostlineitemdailysummary", name="id"),
         migrations.RemoveField(model_name="ocpawscostlineitemdailysummary", name="pod"),
         migrations.RemoveField(model_name="ocpawscostlineitemprojectdailysummary", name="pod"),

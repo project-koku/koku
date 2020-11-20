@@ -151,10 +151,10 @@ class OCPAWSProviderMap(ProviderMap):
                         "tag_column": "pod_labels",
                         "aggregates": {
                             "infra_total": Sum(
-                                Coalesce(F("project_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("project_cost"),
+                            "infra_raw": Sum("pod_cost"),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -164,10 +164,10 @@ class OCPAWSProviderMap(ProviderMap):
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                Coalesce(F("project_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("project_cost"),
+                            "cost_raw": Sum("pod_cost"),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -175,10 +175,10 @@ class OCPAWSProviderMap(ProviderMap):
                         },
                         "annotations": {
                             "infra_total": Sum(
-                                Coalesce(F("project_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("project_cost"),
+                            "infra_raw": Sum("pod_cost"),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -188,10 +188,10 @@ class OCPAWSProviderMap(ProviderMap):
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
                             "cost_total": Sum(
-                                Coalesce(F("project_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("project_cost"),
+                            "cost_raw": Sum("pod_cost"),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -203,7 +203,7 @@ class OCPAWSProviderMap(ProviderMap):
                         "count": None,
                         "delta_key": {
                             "cost_total": Sum(
-                                Coalesce(F("project_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             )
                         },
@@ -282,10 +282,10 @@ class OCPAWSProviderMap(ProviderMap):
                         "tag_column": "pod_labels",
                         "aggregates": {
                             "infra_total": Sum(
-                                Coalesce(F("project_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("project_cost"),
+                            "infra_raw": Sum("pod_cost"),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -295,10 +295,10 @@ class OCPAWSProviderMap(ProviderMap):
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                Coalesce(F("project_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("project_cost"),
+                            "cost_raw": Sum("pod_cost"),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -309,10 +309,10 @@ class OCPAWSProviderMap(ProviderMap):
                         },
                         "annotations": {
                             "infra_total": Sum(
-                                Coalesce(F("project_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("project_cost"),
+                            "infra_raw": Sum("pod_cost"),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -322,10 +322,10 @@ class OCPAWSProviderMap(ProviderMap):
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
                             "cost_total": Sum(
-                                Coalesce(F("project_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("project_cost"),
+                            "cost_raw": Sum("pod_cost"),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -419,10 +419,10 @@ class OCPAWSProviderMap(ProviderMap):
                         "tag_column": "pod_labels",
                         "aggregates": {
                             "infra_total": Sum(
-                                Coalesce(F("project_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("project_cost"),
+                            "infra_raw": Sum("pod_cost"),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -432,10 +432,10 @@ class OCPAWSProviderMap(ProviderMap):
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                Coalesce(F("project_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("project_cost"),
+                            "cost_raw": Sum("pod_cost"),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -448,10 +448,10 @@ class OCPAWSProviderMap(ProviderMap):
                         "aggregate_key": "usage_amount",
                         "annotations": {
                             "infra_total": Sum(
-                                Coalesce(F("project_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("project_cost"),
+                            "infra_raw": Sum("pod_cost"),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -461,10 +461,10 @@ class OCPAWSProviderMap(ProviderMap):
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
                             "cost_total": Sum(
-                                Coalesce(F("project_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("project_cost"),
+                            "cost_raw": Sum("pod_cost"),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
