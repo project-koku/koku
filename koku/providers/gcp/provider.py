@@ -2,12 +2,14 @@
 import logging
 
 import google.auth
+from google.api_core.exceptions import Forbidden
+from google.api_core.exceptions import NotFound
 from google.cloud import bigquery
 from google.cloud.exceptions import GoogleCloudError
-from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from rest_framework import serializers
 
+from ..provider_errors import ProviderErrors
 from ..provider_errors import SkipStatusPush
 from ..provider_interface import ProviderInterface
 from api.common import error_obj
@@ -49,6 +51,41 @@ class GCPProvider(ProviderInterface):
         except Sources.DoesNotExist:
             LOG.info("Source not found, unable to update data source.")
 
+    def test_dataset_permissions(self, project, dataset):
+        """
+        Verify that the GCP dataset permissions are correct
+
+        Args:
+            project (String): GCP project that owns the dataset
+            dataset (String): dataset that is configured for billing exports
+
+        """
+        gcp_credentials, _ = google.auth.default()
+        try:
+            bigquery_client = bigquery.Client(project=project, credentials=gcp_credentials)
+            dataset_obj = bigquery_client.dataset(dataset)
+            dataset = bigquery_client.get_dataset(dataset_obj)
+        except NotFound as e:
+            LOG.warning(e.message)
+            key = ProviderErrors.GCP_PROJECT_DATASET_INCORRECT
+            msg = f"Google Cloud Platform dataset '{dataset}' was not found in project '{project}'."
+            raise serializers.ValidationError(error_obj(key, msg))
+        except Forbidden as e:
+            LOG.warning(e.message)
+            key = ProviderErrors.GCP_BIGQUERY_DATASET_NOTAUTHORIZED
+            msg = f"GCP BigQuery not authorized for dataset: {project}:{dataset}"
+            raise serializers.ValidationError(error_obj(key, msg))
+
+        access_denied = True
+        for access_entity in dataset.access_entries:
+            if access_entity.role == "roles/bigquery.user":
+                if access_entity.entity_type == "userByEmail":
+                    if access_entity.entity_id == gcp_credentials.service_account_email:
+                        LOG.info("GCP Credentials Successful.")
+                        access_denied = False
+                        break
+        return access_denied
+
     def cost_usage_source_is_reachable(self, credentials, data_source):
         """
         Verify that the GCP bucket exists and is reachable.
@@ -60,23 +97,19 @@ class GCPProvider(ProviderInterface):
         """
         try:
             project = credentials.get("project_id")
-            gcp_credentials, _ = google.auth.default()
-            # https://github.com/googleapis/google-api-python-client/issues/299
-            service = discovery.build("cloudresourcemanager", "v1", credentials=gcp_credentials, cache_discovery=False)
-            check_permissions = {"permissions": REQUIRED_IAM_PERMISSIONS}
-            request = service.projects().testIamPermissions(resource=project, body=check_permissions)
-            response = request.execute()
-            permissions = response.get("permissions", [])
+            dataset = data_source.get("dataset")
+            access_denied = self.test_dataset_permissions(project, dataset)
 
-            for required_permission in REQUIRED_IAM_PERMISSIONS:
-                if required_permission not in permissions:
-                    key = "authentication.project_id"
-                    err_msg = f"Improper IAM permissions: {permissions}."
-                    raise serializers.ValidationError(error_obj(key, err_msg))
+            if access_denied:
+                key = ProviderErrors.GCP_BIGQUERY_ROLE_MISCONFIGURED
+                err_msg = f"Insufficent IAM permissions for dataset: {dataset}."
+                raise serializers.ValidationError(error_obj(key, err_msg))
 
         except GoogleCloudError as e:
-            key = "authentication.project_id"
-            raise serializers.ValidationError(error_obj(key, e.message))
+            LOG.warning(e.message)
+            key = ProviderErrors.GCP_UNKNOWN_ERROR
+            msg = ProviderErrors.GCP_UNKNOWN_ERROR_MESSAGE
+            raise serializers.ValidationError(error_obj(key, msg))
         except HttpError as err:
             reason = err._get_reason()
             key = "authentication.project_id"

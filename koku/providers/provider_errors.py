@@ -43,6 +43,11 @@ class ProviderErrors:
     AZURE_CREDENTAL_UNREACHABLE = "authentication.credentials.unreachable"
     AZURE_CLIENT_ERROR = "azure.exception"
 
+    GCP_PROJECT_DATASET_INCORRECT = "authentication.project_id.notfound"
+    GCP_BIGQUERY_ROLE_MISCONFIGURED = "gcp.bigquery.configuration"
+    GCP_BIGQUERY_DATASET_NOTAUTHORIZED = "gcp.bigquery.notauthorized"
+    GCP_UNKNOWN_ERROR = "gcp.error.unknown"
+
     # MESSAGES
     INVALID_SOURCE_TYPE_MESSAGE = "The given source type is not supported."
 
@@ -107,3 +112,5 @@ class ProviderErrors:
         "Edit your Azure source and verify the subscription ID."
     )
     AZURE_GENERAL_CLIENT_ERROR_MESSAGE = "Azure client configuration error."
+
+    GCP_UNKNOWN_ERROR_MESSAGE = "Google Cloud Platform configuration failed."
