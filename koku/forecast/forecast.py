@@ -125,18 +125,10 @@ class Forecast(ABC):
         """Handle pre and post prediction work.
 
         Args:
-          data (list) a list of (datetime, float) tuples
+            data (list) a list of (datetime, float) tuples
 
         Returns:
-            (list) a list of dicts
-                (dict):
-                    date (date): date of the forecast value
-                    value (str): a formatted string of a float; the forecast value
-                    confidence_max (str): a formatted string of a float; the confidence interval upper-bound
-                    confidence_min (str): a formatted string of a float; the confidence interval lower-bound
-                    rsquared (str): a formatted string of a float; the linear regression's R-squared value
-                    pvalues (str): a formatted string of a float; the linear regression's P-test value
-
+            (LinearForecastResult) linear forecast results object
         """
         LOG.debug("Forecast input data: %s", data)
 
@@ -153,18 +145,19 @@ class Forecast(ABC):
         Y = [float(c) for c in costs]
 
         # run the forecast
-        predicted, interval_lower, interval_upper, rsquared, pvalues = self._run_forecast(X, Y)
+        results = self._run_forecast(X, Y)
 
         response = []
 
-        # predict() returns the same number of elements as the number of input observations
-        for idx, item in enumerate(predicted):
+        last_date = None
+        for idx, item in enumerate(results.prediction):
             prediction_date = dates[-1] + timedelta(days=1 + idx)
             if prediction_date > self.dh.this_month_end.date():
                 break
 
             f_format = f"%.{self.PRECISION}f"  # avoid converting floats to e-notation
             units = "USD"
+
             dikt = {
                 "date": prediction_date.strftime("%Y-%m-%d"),
                 "values": [
@@ -186,15 +179,66 @@ class Forecast(ABC):
                         },
                         "cost": {
                             "total": {"value": round(item, 3), "units": units},
-                            "confidence_max": {"value": round(interval_upper[idx], 3), "units": units},
-                            "confidence_min": {"value": round(max(interval_lower[idx], 0), 3), "units": units},
-                            "rsquared": {"value": f_format % rsquared, "units": None},
-                            "pvalues": {"value": f_format % pvalues[0], "units": None},
+                            "confidence_max": {"value": round(results.confidence_upper[idx], 3), "units": units},
+                            "confidence_min": {
+                                "value": round(max(results.confidence_lower[idx], 0), 3),
+                                "units": units,
+                            },
+                            "rsquared": {"value": f_format % results.rsquared, "units": None},
+                            "pvalues": {"value": f_format % results.pvalues, "units": None},
                         },
                     }
                 ],
             }
             response.append(dikt)
+            last_date = prediction_date
+
+        # extrapolate values out to the end of the month.
+        # this is specific to a linear regression and probably won't work with any other forecasting method.
+        if last_date <= self.dh.this_month_end.date():
+            for idx, day in enumerate(range(last_date.day, self.dh.this_month_end.day)):
+                prediction_date = (last_date.replace(day=day) + timedelta(days=1)).strftime("%Y-%m-%d")
+
+                # extrapolating from the last predicted point
+                # this is the "mx" portion of Y=mx+b
+                extrapolated_mx = results.slope * (idx + 1)
+
+                dikt = {
+                    "date": prediction_date,
+                    "values": [
+                        {
+                            "date": prediction_date,
+                            "infrastructure": {
+                                "total": {"value": 0.0, "units": units},
+                                "confidence_max": {"value": 0.0, "units": units},
+                                "confidence_min": {"value": 0.0, "units": units},
+                                "rsquared": {"value": f_format % 0.0, "units": None},
+                                "pvalues": {"value": f_format % 0.0, "units": None},
+                            },
+                            "supplementary": {
+                                "total": {"value": 0.0, "units": units},
+                                "confidence_max": {"value": 0.0, "units": units},
+                                "confidence_min": {"value": 0.0, "units": units},
+                                "rsquared": {"value": f_format % 0.0, "units": None},
+                                "pvalues": {"value": f_format % 0.0, "units": None},
+                            },
+                            "cost": {
+                                "total": {"value": round(extrapolated_mx + results.prediction[-1], 3), "units": units},
+                                "confidence_max": {
+                                    "value": round(extrapolated_mx + results.confidence_upper[-1], 3),
+                                    "units": units,
+                                },
+                                "confidence_min": {
+                                    "value": round(max(extrapolated_mx + results.confidence_lower[-1], 0), 3),
+                                    "units": units,
+                                },
+                                "rsquared": {"value": f_format % results.rsquared, "units": None},
+                                "pvalues": {"value": f_format % results.pvalues, "units": None},
+                            },
+                        }
+                    ],
+                }
+                response.append(dikt)
 
         return response
 
@@ -207,24 +251,18 @@ class Forecast(ABC):
 
         Note:
             both x and y MUST be the same number of elements
+
+        Returns:
+            (tuple)
+                (numpy.ndarray) prediction values
+                (numpy.ndarray) confidence interval lower bound
+                (numpy.ndarray) confidence interval upper bound
+                (float) R-squared value
+                (list) P-values
         """
-        sm.add_constant(x)
         model = sm.OLS(y, x)
         results = model.fit()
-
-        try:
-            LOG.debug(results.summary())
-        except (ValueWarning, UserWarning) as exc:
-            LOG.warning(exc.message)
-
-        predicted = results.predict()
-        _, lower, upper = wls_prediction_std(results)
-
-        LOG.debug("Forecast prediction: %s", predicted)
-        LOG.debug("Forecast interval lower-bound: %s", lower)
-        LOG.debug("Forecast interval upper-bound: %s", upper)
-
-        return predicted, lower, upper, results.rsquared, results.pvalues.tolist()
+        return LinearForecastResult(results)
 
     def _uniquify_qset(self, qset, field="total_cost"):
         """Take a QuerySet list, sum costs within the same day, and arrange it into a list of tuples.
@@ -262,6 +300,68 @@ class Forecast(ABC):
             filt["operation"] = "in"
             q_filter = QueryFilter(parameter=access, **filt)
             filters.add(q_filter)
+
+
+class LinearForecastResult:
+    """Container class for linear forecast results.
+
+    Note: this class should be considered read-only
+    """
+
+    def __init__(self, regression_result):
+        """Class constructor.
+
+        Args:
+            regression_result (RegressionResult) the results of a statsmodels regression
+        """
+        self._regression_result = regression_result
+        self._std_err, self._conf_lower, self._conf_upper = wls_prediction_std(regression_result)
+
+        try:
+            LOG.debug(regression_result.summary())
+        except (ValueWarning, UserWarning) as exc:
+            LOG.warning(exc)
+
+        LOG.debug("Forecast prediction: %s", self.prediction)
+        LOG.debug("Forecast interval lower-bound: %s", self.confidence_lower)
+        LOG.debug("Forecast interval upper-bound: %s", self.confidence_upper)
+
+    @property
+    def prediction(self):
+        """Forecast prediction."""
+        # predict() returns the same number of elements as the number of input observations
+        return self._regression_result.predict()
+
+    @property
+    def confidence_lower(self):
+        """Confidence interval lower-bound."""
+        return self._conf_lower
+
+    @property
+    def confidence_upper(self):
+        """Confidence interval upper-bound."""
+        return self._conf_upper
+
+    @property
+    def rsquared(self):
+        """Forecast R-squared value."""
+        return self._regression_result.rsquared
+
+    @property
+    def pvalues(self):
+        """Forecast P-values."""
+        if len(self._regression_result.pvalues.tolist()) == 1:
+            return self._regression_result.pvalues.tolist()[0]
+        else:
+            return self._regression_result.pvalues.tolist()
+
+    @property
+    def slope(self):
+        """Slope of linear regression."""
+        if len(self._regression_result.params) == 1:
+            return self._regression_result.params[0]
+        else:
+            return self._regression_result.params
 
 
 class AWSForecast(Forecast):
