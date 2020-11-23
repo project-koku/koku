@@ -112,10 +112,10 @@
         },
         "botocore": {
             "hashes": [
-                "sha256:0391922fc6fc1f36a51b9eb8c54b1278c37d9df1a0c6e40361213680d180c358",
-                "sha256:d44ecd33311cf163aec2c033e8941ae11f3a34e278e4b59aa7ee29b7455a5e62"
+                "sha256:9f9efca44b2ab2d9c133ceeafa377e4b3d260310109284123ebfffc15e28481e",
+                "sha256:d73a223bf88d067c3ae0a9a3199abe56e99c94267da77d7fed4c39f572f522c0"
             ],
-            "version": "==1.19.10"
+            "version": "==1.19.23"
         },
         "bs4": {
             "hashes": [
@@ -1302,10 +1302,10 @@
         },
         "botocore": {
             "hashes": [
-                "sha256:0391922fc6fc1f36a51b9eb8c54b1278c37d9df1a0c6e40361213680d180c358",
-                "sha256:d44ecd33311cf163aec2c033e8941ae11f3a34e278e4b59aa7ee29b7455a5e62"
+                "sha256:9f9efca44b2ab2d9c133ceeafa377e4b3d260310109284123ebfffc15e28481e",
+                "sha256:d73a223bf88d067c3ae0a9a3199abe56e99c94267da77d7fed4c39f572f522c0"
             ],
-            "version": "==1.19.10"
+            "version": "==1.19.23"
         },
         "cachetools": {
             "hashes": [
