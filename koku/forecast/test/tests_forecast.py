@@ -22,6 +22,7 @@ from unittest.mock import patch
 
 import pytz
 from django.utils import timezone
+from statsmodels.tools.sm_exceptions import ValueWarning
 
 from api.forecast.views import AWSCostForecastView
 from api.forecast.views import AzureCostForecastView
@@ -40,6 +41,7 @@ from forecast import OCPAllForecast
 from forecast import OCPAWSForecast
 from forecast import OCPAzureForecast
 from forecast import OCPForecast
+from forecast.forecast import LinearForecastResult
 
 LOG = logging.getLogger(__name__)
 
@@ -266,6 +268,8 @@ class AWSForecastTest(IamTestCase):
                                 self.assertGreaterEqual(float(item.get("confidence_min").get("value")), 0)
                                 self.assertGreaterEqual(float(item.get("rsquared").get("value")), 0)
                                 self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
+                        # test that the results always stop at the end of the month.
+                        self.assertEqual(results[-1].get("date"), dh.this_month_end.strftime("%Y-%m-%d"))
 
     def test_set_access_filter_with_list(self):
         """
@@ -312,6 +316,24 @@ class AWSForecastTest(IamTestCase):
         instance.set_access_filters(access, filt, filters)
         self.assertIsInstance(filters, QueryFilterCollection)
         assertSameQ(filters.compose(), expected.compose())
+
+    def test_predict_exits_eom(self):
+        """Test that the _predict method breaks at EOM."""
+        test_datetime = datetime(2000, 1, 20, 0, 0, 0, 0)
+        mocked_dh = MockDateHelper(mock_dt=test_datetime)
+
+        fake_data = []
+        for n in range(0, 20):
+            fake_data.append((mocked_dh.n_days_ago(mocked_dh.today, 20 - n).date(), 5))
+
+        params = self.mocked_query_params(
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly",
+            AWSCostForecastView,
+        )
+        with patch.object(AWSForecast, "dh", mocked_dh):
+            instance = AWSForecast(params)
+            results = instance._predict(fake_data)
+            self.assertEqual(results[-1].get("date"), mocked_dh.this_month_end.strftime("%Y-%m-%d"))
 
 
 class AzureForecastTest(IamTestCase):
@@ -492,3 +514,41 @@ class OCPAzureForecastTest(IamTestCase):
                 self.assertAlmostEqual(float(item.get("confidence_min").get("value")), 5, delta=0.0001)
                 self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=0.0001)
                 self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
+
+
+class LinearForecastResultTest(IamTestCase):
+    """Tests the LinearForecastResult class."""
+
+    @patch("forecast.forecast.wls_prediction_std", return_value=(1, 2, 3))
+    def test_constructor_logging(self, _):
+        """Test that the constructor logs messages."""
+        fake_results = Mock(summary=Mock(side_effect=ValueWarning("test")))
+
+        with self.assertLogs(logger="forecast.forecast", level=logging.WARNING):
+            LinearForecastResult(fake_results)
+
+    @patch("forecast.forecast.wls_prediction_std", return_value=(1, 2, 3))
+    def test_pvalues_slope_single(self, _):
+        """Test the slope and pvalues properties."""
+        fake_results = Mock(
+            summary=Mock(return_value="test"),
+            pvalues=Mock(tolist=Mock(return_value=["test_pvalues"])),
+            params=["test_slope"],
+        )
+
+        lfr = LinearForecastResult(fake_results)
+
+        self.assertEqual(lfr.pvalues, "test_pvalues")
+        self.assertEqual(lfr.slope, "test_slope")
+
+    @patch("forecast.forecast.wls_prediction_std", return_value=(1, 2, 3))
+    def test_pvalues_slope_list(self, _):
+        """Test the slope and pvalues properties."""
+        fake_results = Mock(
+            summary=Mock(return_value="test"), pvalues=Mock(tolist=Mock(return_value=[0, 1, 2])), params=[3, 4, 5]
+        )
+
+        lfr = LinearForecastResult(fake_results)
+
+        self.assertEqual(lfr.pvalues, [0, 1, 2])
+        self.assertEqual(lfr.slope, [3, 4, 5])

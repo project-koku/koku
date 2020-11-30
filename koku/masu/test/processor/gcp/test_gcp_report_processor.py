@@ -1,14 +1,29 @@
+#
+# Copyright 2020 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
 """Test GCPReportProcessor."""
 import os
 import shutil
 import tempfile
 import uuid
-from datetime import datetime
 from unittest.mock import patch
 
-import numpy as np
 import pytz
 from dateutil import parser
+from django.db.utils import InternalError
 from faker import Faker
 from tenant_schemas.utils import schema_context
 
@@ -23,7 +38,7 @@ from masu.processor.gcp.gcp_report_processor import GCPReportProcessor
 from masu.test import MasuTestCase
 from masu.util import common as utils
 from reporting.provider.gcp.models import GCPCostEntryBill
-from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
+from reporting.provider.gcp.models import GCPCostEntryLineItem
 from reporting.provider.gcp.models import GCPProject
 
 fake = Faker()
@@ -36,7 +51,7 @@ class GCPReportProcessorTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.test_report_path = "./koku/masu/test/data/gcp/evidence-2019-06-03.csv"
+        cls.test_report_path = "./koku/masu/test/data/gcp/30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
 
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
@@ -45,7 +60,7 @@ class GCPReportProcessorTest(MasuTestCase):
         """Set up GCP tests."""
         super().setUp()
         self.temp_dir = tempfile.mkdtemp()
-        self.test_report = f"{self.temp_dir}/evidence-2019-06-03.csv"
+        self.test_report = f"{self.temp_dir}/30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
 
         shutil.copy2(self.test_report_path, self.test_report)
 
@@ -97,14 +112,14 @@ class GCPReportProcessorTest(MasuTestCase):
         """Test the processing of an GCP file writes objects to the database."""
         self.processor.process()
         with schema_context(self.schema):
-            self.assertTrue(len(GCPCostEntryLineItemDaily.objects.all()) > 0)
+            self.assertTrue(len(GCPCostEntryLineItem.objects.all()) > 0)
             self.assertTrue(len(GCPProject.objects.all()) > 0)
             self.assertEquals(1, len(GCPCostEntryBill.objects.all()))
         self.assertFalse(os.path.exists(self.test_report))
 
     def test_create_gcp_cost_entry_bill(self):
         """Test calling _get_or_create_cost_entry_bill on an entry bill that doesn't exist creates it."""
-        bill_row = {"Start Time": "2019-09-17T00:00:00-07:00"}
+        bill_row = {"invoice.month": "202011"}
         entry_bill_id = self.processor._get_or_create_cost_entry_bill(bill_row, self.accessor)
 
         with schema_context(self.schema):
@@ -112,7 +127,7 @@ class GCPReportProcessorTest(MasuTestCase):
 
     def test_get_gcp_cost_entry_bill(self):
         """Test calling _get_or_create_cost_entry_bill on an entry bill that exists fetches its id."""
-        start_time = "2019-09-17T00:00:00-07:00"
+        start_time = "2020-11-01 00:00:00+00"
         report_date_range = utils.month_date_range(parser.parse(start_time))
         start_date, end_date = report_date_range.split("-")
 
@@ -123,19 +138,12 @@ class GCPReportProcessorTest(MasuTestCase):
             entry_bill = GCPCostEntryBill.objects.create(
                 provider=self.gcp_provider, billing_period_start=start_date_utc, billing_period_end=end_date_utc
             )
-        entry_bill_id = self.processor._get_or_create_cost_entry_bill(
-            {"Start Time": datetime.strftime(start_date_utc, "%Y-%m-%d %H:%M%z")}, self.accessor
-        )
+        entry_bill_id = self.processor._get_or_create_cost_entry_bill({"invoice.month": "202011"}, self.accessor)
         self.assertEquals(entry_bill.id, entry_bill_id)
 
     def test_create_gcp_project(self):
         """Test calling _get_or_create_gcp_project on a project id that doesn't exist creates it."""
-        project_data = {
-            "Project ID": fake.word(),
-            "Account ID": fake.word(),
-            "Project Number": fake.pyint(),
-            "Project Name": fake.word(),
-        }
+        project_data = {"project.id": fake.word(), "billing_account_id": fake.word(), "project.name": fake.word()}
         project_id = self.processor._get_or_create_gcp_project(project_data, self.accessor)
         with schema_context(self.schema):
             self.assertTrue(GCPProject.objects.filter(id=project_id).exists())
@@ -145,17 +153,9 @@ class GCPReportProcessorTest(MasuTestCase):
         project_id = fake.word()
         account_id = fake.word()
         with schema_context(self.schema):
-            project = GCPProject.objects.create(
-                project_id=project_id, account_id=account_id, project_number=fake.pyint(), project_name=fake.word()
-            )
+            project = GCPProject.objects.create(project_id=project_id, account_id=account_id, project_name=fake.word())
         fetched_project_id = self.processor._get_or_create_gcp_project(
-            {
-                "Project ID": project_id,
-                "Account ID": fake.word(),
-                "Project Number": fake.pyint(),
-                "Project Name": fake.word(),
-            },
-            self.accessor,
+            {"project.id": project_id, "billing_account_id": fake.word(), "project.name": fake.word()}, self.accessor
         )
         self.assertEquals(fetched_project_id, project.id)
         with schema_context(self.schema):
@@ -164,11 +164,20 @@ class GCPReportProcessorTest(MasuTestCase):
             gcp_project = GCPProject.objects.get(id=project.id)
             self.assertEquals(gcp_project.account_id, account_id)
 
+    def test_gcp_process_can_run_twice(self):
+        """Test that row duplicates are inserted into the DB when process called twice."""
+        self.processor.process()
+        shutil.copy2(self.test_report_path, self.test_report)
+        try:
+            self.processor.process()
+        except InternalError:
+            self.fail("failed to call process twice.")
+
     def test_gcp_process_twice(self):
         """Test the processing of an GCP file again, results in the same amount of objects."""
         self.processor.process()
         with schema_context(self.schema):
-            num_line_items = len(GCPCostEntryLineItemDaily.objects.all())
+            num_line_items = len(GCPCostEntryLineItem.objects.all())
             num_projects = len(GCPProject.objects.all())
             num_bills = len(GCPCostEntryBill.objects.all())
 
@@ -186,33 +195,54 @@ class GCPReportProcessorTest(MasuTestCase):
         )
         processor.process()
         with schema_context(self.schema):
-            self.assertEquals(num_line_items, len(GCPCostEntryLineItemDaily.objects.all()))
+            self.assertEquals(num_line_items, len(GCPCostEntryLineItem.objects.all()))
             self.assertEquals(num_projects, len(GCPProject.objects.all()))
             self.assertEquals(num_bills, len(GCPCostEntryBill.objects.all()))
 
-    def test_consolidate_line_items(self):
-        """Test that logic for consolidating lines work."""
-        line1 = {
-            "int": fake.pyint(),
-            "float": fake.pyfloat(),
-            "date": datetime.now(),
-            "npint": np.int64(fake.pyint()),
-            "cost_entry_bill_id": fake.pyint(),
-            "project_id": fake.pyint(),
-        }
-        line2 = {
-            "int": fake.pyint(),
-            "float": fake.pyfloat(),
-            "date": datetime.now(),
-            "npint": np.int64(fake.pyint()),
-            "cost_entry_bill_id": fake.pyint(),
-            "project_id": fake.pyint(),
-        }
-        consolidated_line = self.processor._consolidate_line_items(line1, line2)
+    def test_no_report_path(self):
+        """Test error caught when report path doesn't exist."""
+        processor = GCPReportProcessor(
+            schema_name=self.schema,
+            report_path="/path/does/not/exist.csv",
+            compression=UNCOMPRESSED,
+            provider_uuid=self.gcp_provider.uuid,
+            manifest_id=self.manifest.id,
+        )
+        result = processor.process()
+        self.assertFalse(result)
 
-        self.assertEquals(consolidated_line["int"], line1["int"] + line2["int"])
-        self.assertEquals(consolidated_line["float"], line1["float"] + line2["float"])
-        self.assertEquals(consolidated_line["npint"], line1["npint"] + line2["npint"])
-        self.assertEquals(consolidated_line["date"], line1["date"])
-        self.assertEquals(consolidated_line["cost_entry_bill_id"], line1["cost_entry_bill_id"])
-        self.assertEquals(consolidated_line["project_id"], line1["project_id"])
+    def test_no_manifest_process(self):
+        """Test that we can success process reports without manifest."""
+        processor = GCPReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.gcp_provider.uuid,
+        )
+        processor.process()
+        with schema_context(self.schema):
+            self.assertTrue(len(GCPCostEntryLineItem.objects.all()) > 0)
+            self.assertTrue(len(GCPProject.objects.all()) > 0)
+            self.assertEquals(1, len(GCPCostEntryBill.objects.all()))
+        self.assertFalse(os.path.exists(self.test_report))
+
+    def test_get_line_item_type(self):
+        """Test that the get line item type returns correct type."""
+        processor = GCPReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.gcp_provider.uuid,
+        )
+        expected_mapping = {
+            "usage": ["Compute Engine", "COMPUTE engine", "Kubernetes Engine"],
+            "storage": ["Filestore", "Storage", "Data Transfer", "DATA    TRanSFer"],
+            "network": ["VPC network", "Network services"],
+            "database": ["Bigtable", "Spanner"],
+            "other": ["unknown"],
+        }
+        for expected_item_type, alias_list in expected_mapping.items():
+            for alias in alias_list:
+                row = {"service.description": alias}
+                result_type = processor._get_line_item_type(row)
+                self.assertEqual(result_type, expected_item_type)

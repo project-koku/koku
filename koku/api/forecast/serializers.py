@@ -26,6 +26,8 @@ class ForecastParamSerializer(serializers.Serializer):
     """Base Forecast Serializer."""
 
     filter = FilterSerializer(required=False)
+    limit = serializers.IntegerField(required=False, min_value=1)
+    offset = serializers.IntegerField(required=False, min_value=0)
 
     def __init__(self, *args, **kwargs):
         """Initialize the BaseSerializer."""
