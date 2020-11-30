@@ -151,7 +151,10 @@ class Forecast(ABC):
 
         last_date = None
         for idx, item in enumerate(results.prediction):
-            prediction_date = dates[-1] + timedelta(days=1 + idx)
+            if not last_date and dates[-1] == self.dh.this_month_end.date():
+                prediction_date = dates[-1]
+            else:
+                prediction_date = dates[-1] + timedelta(days=1 + idx)
             if prediction_date > self.dh.this_month_end.date():
                 break
 
