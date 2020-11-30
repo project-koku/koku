@@ -27,7 +27,7 @@ from rest_framework.settings import api_settings
 
 from koku.celery import CELERY_INSPECT
 
-logger = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 @never_cache
@@ -38,8 +38,9 @@ def running_celery_tasks(request):
     """Get the task ids of running cerlery tasks."""
     active_dict = CELERY_INSPECT.active()
     active_tasks = []
-    for task_list in active_dict.values():
-        active_tasks.extend(task_list)
+    if active_dict:
+        for task_list in active_dict.values():
+            active_tasks.extend(task_list)
     if active_tasks:
         active_tasks = [dikt.get("id", "") for dikt in active_tasks]
     return Response({"active_tasks": active_tasks})
