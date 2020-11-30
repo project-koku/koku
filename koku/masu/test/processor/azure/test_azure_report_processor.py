@@ -47,6 +47,7 @@ class AzureReportProcessorTest(MasuTestCase):
         super().setUpClass()
         cls.test_report_path = "./koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
         cls.test_v2_report_path = "./koku/masu/test/data/azure/azure_version_2.csv"
+        cls.camelCase_report_path = "./koku/masu/test/data/azure/azure_camelCased.csv"
 
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
@@ -62,6 +63,7 @@ class AzureReportProcessorTest(MasuTestCase):
         with open(cls.test_report_path, "r", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             cls.row = next(reader)
+            cls.row = {key.lower(): value for key, value in cls.row.items()}
 
     def setUp(self):
         """Set up each test."""
@@ -69,9 +71,11 @@ class AzureReportProcessorTest(MasuTestCase):
         self.temp_dir = tempfile.mkdtemp()
         self.test_report = f"{self.temp_dir}/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
         self.test_v2_report = f"{self.temp_dir}/azure_version_2.csv"
+        self.test_camelCase_report = f"{self.temp_dir}/azure_camelCased.csv"
 
         shutil.copy2(self.test_report_path, self.test_report)
         shutil.copy2(self.test_v2_report_path, self.test_v2_report)
+        shutil.copy2(self.camelCase_report_path, self.test_camelCase_report)
 
         self.assembly_id = "1234"
         self.processor = AzureReportProcessor(
@@ -164,6 +168,38 @@ class AzureReportProcessorTest(MasuTestCase):
                 count = table.objects.count()
             self.assertTrue(count >= counts[table_name])
         self.assertFalse(os.path.exists(self.test_v2_report))
+
+    def test_azure_process_camelCase(self):
+        """Test the processing of an uncompressed Azure V2 file."""
+        counts = {}
+
+        processor = AzureReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_camelCase_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.azure_provider_uuid,
+        )
+
+        report_db = self.accessor
+        report_schema = report_db.report_schema
+        for table_name in self.report_tables:
+            table = getattr(report_schema, table_name)
+            with schema_context(self.schema):
+                count = table.objects.count()
+            counts[table_name] = count
+        logging.disable(logging.NOTSET)  # We are currently disabling all logging below CRITICAL in masu/__init__.py
+        with self.assertLogs("masu.processor.azure.azure_report_processor", level="INFO") as logger:
+
+            processor.process()
+            self.assertIn("INFO:masu.processor.azure.azure_report_processor", logger.output[0])
+            self.assertIn("azure_camelCased.csv", logger.output[0])
+
+        for table_name in self.report_tables:
+            table = getattr(report_schema, table_name)
+            with schema_context(self.schema):
+                count = table.objects.count()
+            self.assertTrue(count >= counts[table_name])
+        self.assertFalse(os.path.exists(self.test_camelCase_report))
 
     def test_process_azure_small_batches(self):
         """Test the processing of an uncompressed azure file in small batches."""
@@ -340,7 +376,7 @@ class AzureReportProcessorTest(MasuTestCase):
     def test_should_process_row_within_cuttoff_date(self):
         """Test that we correctly determine a row should be processed."""
         today = self.date_accessor.today_with_timezone("UTC")
-        row = {"UsageDateTime": today.isoformat()}
+        row = {"usagedatetime": today.isoformat()}
 
         processor = AzureReportProcessor(
             schema_name=self.schema,
@@ -349,7 +385,7 @@ class AzureReportProcessorTest(MasuTestCase):
             provider_uuid=self.azure_provider_uuid,
         )
 
-        should_process = processor._should_process_row(row, "UsageDateTime", False)
+        should_process = processor._should_process_row(row, "usagedatetime", False)
 
         self.assertTrue(should_process)
 
@@ -357,7 +393,7 @@ class AzureReportProcessorTest(MasuTestCase):
         """Test that we correctly determine a row should be processed."""
         today = self.date_accessor.today_with_timezone("UTC")
         usage_start = today - relativedelta(days=10)
-        row = {"UsageDateTime": usage_start.isoformat()}
+        row = {"usagedatetime": usage_start.isoformat()}
 
         processor = AzureReportProcessor(
             schema_name=self.schema,
@@ -366,7 +402,7 @@ class AzureReportProcessorTest(MasuTestCase):
             provider_uuid=self.azure_provider_uuid,
         )
 
-        should_process = processor._should_process_row(row, "UsageDateTime", False)
+        should_process = processor._should_process_row(row, "usagedatetime", False)
 
         self.assertFalse(should_process)
 
@@ -409,33 +445,33 @@ class AzureReportProcessorTest(MasuTestCase):
             "Información del servicio 2 (ServiceInfo2)"
         )
         expected_header = [
-            "DepartmentName",
-            "AccountName",
-            "AccountOwnerId",
-            "SubscriptionGuid",
-            "SubscriptionName",
-            "ResourceGroup",
-            "ResourceLocation",
-            "UsageDateTime",
-            "ProductName",
-            "MeterCategory",
-            "MeterSubcategory",
-            "MeterId",
-            "MeterName",
-            "MeterRegion",
-            "UnitOfMeasure",
-            "UsageQuantity",
-            "ResourceRate",
-            "PreTaxCost",
-            "CostCenter",
-            "ConsumedService",
-            "ResourceType",
-            "InstanceId",
-            "Tags",
-            "OfferId",
-            "AdditionalInfo",
-            "ServiceInfo1",
-            "ServiceInfo2",
+            "departmentname",
+            "accountname",
+            "accountownerid",
+            "subscriptionguid",
+            "subscriptionname",
+            "resourcegroup",
+            "resourcelocation",
+            "usagedatetime",
+            "productname",
+            "metercategory",
+            "metersubcategory",
+            "meterid",
+            "metername",
+            "meterregion",
+            "unitofmeasure",
+            "usagequantity",
+            "resourcerate",
+            "pretaxcost",
+            "costcenter",
+            "consumedservice",
+            "resourcetype",
+            "instanceid",
+            "tags",
+            "offerid",
+            "additionalinfo",
+            "serviceinfo1",
+            "serviceinfo2",
         ]
 
         self.assertEqual(normalize_header(english_header), expected_header)
