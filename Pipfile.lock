@@ -1949,11 +1949,10 @@
         },
         "responses": {
             "hashes": [
-                "sha256:0de50fbf600adf5ef9f0821b85cc537acca98d66bc7776755924476775c1989c",
-                "sha256:e80d5276011a4b79ecb62c5f82ba07aa23fb31ecbc95ee7cad6de250a3c97444"
+                "sha256:2e5764325c6b624e42b428688f2111fea166af46623cb0127c05f6afb14d3457",
+                "sha256:ef265bd3200bdef5ec17912fc64a23570ba23597fd54ca75c18650fa1699213d"
             ],
-            "index": "pypi",
-            "version": "==0.12.0"
+            "version": "==0.12.1"
         },
         "rsa": {
             "hashes": [
