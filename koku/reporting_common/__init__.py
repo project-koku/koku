@@ -117,6 +117,7 @@ REPORT_COLUMN_MAP = defaultdict(
             "persistentvolumeclaim_labels": "persistentvolumeclaim_labels",
         },
         "reporting_ocpnodelabellineitem": {"node": "node", "node_labels": "node_labels"},
+        "reporting_ocpnamespacelabellineitem": {"namespace": "namespace", "namespace_labels": "namespace_labels"},
         "reporting_azurecostentryproductservice": {
             "InstanceId": "instance_id",
             "ResourceLocation": "resource_location",

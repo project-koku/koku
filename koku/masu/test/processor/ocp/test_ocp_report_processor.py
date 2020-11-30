@@ -186,13 +186,13 @@ class OCPReportProcessorTest(MasuTestCase):
         )
         self.assertEqual(node_label_processor.report_type, OCPReportTypes.NODE_LABELS)
 
-        with self.assertRaises(NotImplementedError):
-            OCPReportProcessor(
-                schema_name="acct10001",
-                report_path=self.namespace_report,
-                compression=UNCOMPRESSED,
-                provider_uuid=self.ocp_provider_uuid,
-            )
+        namespace_label_processor = OCPReportProcessor(
+            schema_name="acct10001",
+            report_path=self.namespace_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.ocp_provider_uuid,
+        )
+        self.assertEqual(namespace_label_processor.report_type, OCPReportTypes.NAMESPACE_LABELS)
 
         with self.assertRaises(OCPReportProcessorError):
             OCPReportProcessor(
