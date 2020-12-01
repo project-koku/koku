@@ -25,6 +25,8 @@ from decimal import Decimal
 from functools import reduce
 
 import statsmodels.api as sm
+from django.db.models import DecimalField
+from django.db.models import F
 from django.db.models import Q
 from django.db.models import Sum
 from django.db.models import Value
@@ -43,6 +45,7 @@ from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.report.azure.provider_map import AzureProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
+from koku.database import KeyDecimalTransform
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
@@ -151,7 +154,10 @@ class Forecast(ABC):
 
         last_date = None
         for idx, item in enumerate(results.prediction):
-            prediction_date = dates[-1] + timedelta(days=1 + idx)
+            if not last_date and dates[-1] == self.dh.this_month_end.date():
+                prediction_date = dates[-1]
+            else:
+                prediction_date = dates[-1] + timedelta(days=1 + idx)
             if prediction_date > self.dh.this_month_end.date():
                 break
 
@@ -376,8 +382,11 @@ class AWSForecast(Forecast):
             data = (
                 self.cost_summary_table.objects.filter(self.filters.compose())
                 .order_by("usage_start")
-                .values("usage_start", "unblended_cost")
-                .annotate(total_cost=Coalesce(Sum("unblended_cost"), Value(0)))
+                .values("usage_start")
+                .annotate(
+                    total_cost=Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                )
             )
             return self._predict(self._uniquify_qset(data))
 
@@ -442,8 +451,35 @@ class OCPForecast(Forecast):
             data = (
                 self.cost_summary_table.objects.filter(self.filters.compose())
                 .order_by("usage_start")
-                .values("usage_start", "infrastructure_raw_cost")
-                .annotate(total_cost=Coalesce(Sum("infrastructure_raw_cost"), Value(0)))
+                .values("usage_start")
+                .annotate(
+                    total_cost=Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
+                    + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                    + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
+                    + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                    + Coalesce(
+                        KeyDecimalTransform("cpu", "supplementary_usage_cost"), Value(0, output_field=DecimalField())
+                    )
+                    + Coalesce(
+                        KeyDecimalTransform("memory", "supplementary_usage_cost"),
+                        Value(0, output_field=DecimalField()),
+                    )
+                    + Coalesce(
+                        KeyDecimalTransform("storage", "supplementary_usage_cost"),
+                        Value(0, output_field=DecimalField()),
+                    )
+                    + Coalesce(
+                        KeyDecimalTransform("cpu", "infrastructure_usage_cost"), Value(0, output_field=DecimalField())
+                    )
+                    + Coalesce(
+                        KeyDecimalTransform("memory", "infrastructure_usage_cost"),
+                        Value(0, output_field=DecimalField()),
+                    )
+                    + Coalesce(
+                        KeyDecimalTransform("storage", "infrastructure_usage_cost"),
+                        Value(0, output_field=DecimalField()),
+                    )
+                )
             )
             return self._predict(self._uniquify_qset(data))
 
