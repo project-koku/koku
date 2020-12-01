@@ -77,8 +77,8 @@ class Forecast:
         access_key = "default"
         if access:
             access_key = tuple(access.keys())
-            filter_fields = self.provider_map(self.provider, self.REPORT_TYPE).provider_map.get("filters")
-        self.cost_summary_table = self.provider_map(self.provider, self.REPORT_TYPE).views.get("costs").get(access_key)
+            filter_fields = self.provider_map.provider_map.get("filters")
+        self.cost_summary_table = self.provider_map.views.get("costs").get(access_key)
 
         time_scope_units = query_params.get_filter("time_scope_units", "month")
         time_scope_value = int(query_params.get_filter("time_scope_value", -1))
