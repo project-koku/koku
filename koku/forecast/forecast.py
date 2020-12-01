@@ -43,8 +43,6 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
 
-PROJECT_FILTERED_PROVIDER_TYPES = (Provider.PROVIDER_OCP, Provider.OCP_AWS, Provider.OCP_AZURE, Provider.OCP_ALL)
-
 
 class Forecast:
     """Base forecasting class."""
@@ -58,6 +56,8 @@ class Forecast:
 
     # the precision of the floats returned in the forecast response.
     PRECISION = 8
+
+    REPORT_TYPE = "costs"
 
     dh = DateHelper()
 
@@ -107,19 +107,9 @@ class Forecast:
                     self.set_access_filters(access, filt, self.filters)
 
     @property
-    def report_type(self):
-        """Return the proper report type for the provider map."""
-        if (
-            self.provider in PROJECT_FILTERED_PROVIDER_TYPES
-            and "openshift.project" in self.params.get("access", {}).keys()
-        ):
-            return "costs_by_project"
-        return "costs"
-
-    @property
     def provider_map(self):
         """Return the provider map instance."""
-        return self.provider_map_class(self.provider, self.report_type)
+        return self.provider_map_class(self.provider, self.REPORT_TYPE)
 
     @property
     def cost_term(self):
