@@ -75,10 +75,17 @@ class Forecast:
         # select appropriate model based on access
         access = query_params.get("access", {})
         access_key = "default"
+        self.cost_summary_table = self.provider_map.views.get("costs").get(access_key)
         if access:
             access_key = tuple(access.keys())
             filter_fields = self.provider_map.provider_map.get("filters")
-        self.cost_summary_table = self.provider_map.views.get("costs").get(access_key)
+            materialized_view = self.provider_map.views.get("costs").get(access_key)
+            if materialized_view:
+                # We found a matching materialized view, use that
+                self.cost_summary_table = materialized_view
+            else:
+                # We have access constraints, but no view to accomodate, default to daily summary table
+                self.cost_summary_table = self.provider_map.report_type_map.get("tables", {}).get("query")
 
         time_scope_units = query_params.get_filter("time_scope_units", "month")
         time_scope_value = int(query_params.get_filter("time_scope_value", -1))
