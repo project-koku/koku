@@ -214,8 +214,8 @@ class Forecast(ABC):
         for i in range(1, additional_days_needed + 1):
             results[last_predicted_date + timedelta(days=i)] = {
                 "total_cost": last_predicted_cost + (slope * i),
-                "confidence_min": last_predicted_max + (slope * i),
-                "confidence_max": last_predicted_min + (slope * i),
+                "confidence_min": last_predicted_min + (slope * i),
+                "confidence_max": last_predicted_max + (slope * i),
             }
 
         return results
