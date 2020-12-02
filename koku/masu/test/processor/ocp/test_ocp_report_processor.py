@@ -186,13 +186,13 @@ class OCPReportProcessorTest(MasuTestCase):
         )
         self.assertEqual(node_label_processor.report_type, OCPReportTypes.NODE_LABELS)
 
-        with self.assertRaises(NotImplementedError):
-            OCPReportProcessor(
-                schema_name="acct10001",
-                report_path=self.namespace_report,
-                compression=UNCOMPRESSED,
-                provider_uuid=self.ocp_provider_uuid,
-            )
+        namespace_label_processor = OCPReportProcessor(
+            schema_name="acct10001",
+            report_path=self.namespace_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.ocp_provider_uuid,
+        )
+        self.assertEqual(namespace_label_processor.report_type, OCPReportTypes.NAMESPACE_LABELS)
 
         with self.assertRaises(OCPReportProcessorError):
             OCPReportProcessor(
@@ -448,6 +448,34 @@ class OCPReportProcessorTest(MasuTestCase):
         self.assertIsNotNone(line_item.get("pod_labels"))
 
         self.assertIsNotNone(self.ocp_processor._processor.line_item_columns)
+
+    def test_create_usage_report_line_item_namespace(self):
+        """Test that line item data is returned properly."""
+        cluster_id = "12345"
+        namespace_ocp_processor = OCPReportProcessor(
+            schema_name=self.schema,
+            report_path=self.namespace_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.ocp_provider_uuid,
+        )
+        report_period_id = namespace_ocp_processor._processor._create_report_period(
+            self.row, cluster_id, self.accessor, self.cluster_alias
+        )
+        report_id = namespace_ocp_processor._processor._create_report(self.row, report_period_id, self.accessor)
+        row = copy.deepcopy(self.row)
+        row["namespace_labels"] = "label_one:mic_check|label_two:one_two"
+        namespace_ocp_processor._processor._create_usage_report_line_item(
+            row, report_period_id, report_id, self.accessor
+        )
+
+        line_item = None
+        if namespace_ocp_processor._processor.processed_report.line_items:
+            line_item = namespace_ocp_processor._processor.processed_report.line_items[-1]
+
+        self.assertIsNotNone(line_item)
+        self.assertEqual(line_item.get("report_period_id"), report_period_id)
+        self.assertEqual(line_item.get("report_id"), report_id)
+        self.assertIsNotNone(line_item.get("namespace_labels"))
 
     def test_create_usage_report_line_item_storage_no_labels(self):
         """Test that line item data is returned properly."""
