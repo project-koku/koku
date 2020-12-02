@@ -35,7 +35,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
         li.pod,
         li.node,
         max(li.resource_id) as resource_id,
-        COALESCE(nli.node_labels, '{}'::jsonb) || li.pod_labels AS pod_labels,
+        COALESCE(nli.node_labels, '{}'::jsonb) || COALESCE(nsli.namespace_labels, '{}'::jsonb) || li.pod_labels AS pod_labels,
         sum(li.pod_usage_cpu_core_seconds) as pod_usage_cpu_core_seconds,
         sum(li.pod_request_cpu_core_seconds) as pod_request_cpu_core_seconds,
         sum(li.pod_limit_cpu_core_seconds) as pod_limit_cpu_core_seconds,
@@ -60,6 +60,9 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocpnodelabellineitem AS nli
             ON li.report_id = nli.report_id
                 AND li.node = nli.node
+    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpnamespacelabellineitem AS nsli
+            ON li.report_id = nsli.report_id
+                AND li.namespace = nsli.namespace
     LEFT JOIN public.api_provider AS p
         ON rp.provider_id = p.uuid
     WHERE date(ur.interval_start) >= {{start_date}}
@@ -71,7 +74,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
         li.namespace,
         li.pod,
         li.node,
-        COALESCE(nli.node_labels, '{}'::jsonb) || li.pod_labels
+        COALESCE(nli.node_labels, '{}'::jsonb) || COALESCE(nsli.namespace_labels, '{}'::jsonb) || li.pod_labels
 )
 ;
 

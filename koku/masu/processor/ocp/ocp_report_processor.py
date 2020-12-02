@@ -29,6 +29,7 @@ from masu.config import Config
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util.ocp import common as utils
+from reporting.provider.ocp.models import OCPNamespaceLabelLineItem
 from reporting.provider.ocp.models import OCPNodeLabelLineItem
 from reporting.provider.ocp.models import OCPStorageLineItem
 from reporting.provider.ocp.models import OCPUsageLineItem
@@ -524,4 +525,63 @@ class OCPNamespaceLabelProcessor(OCPReportProcessorBase):
     report_type = "OCPNamespaceLabelReport"
 
     def __init__(self, schema_name, report_path, compression, provider_uuid):
-        raise NotImplementedError(f"{self.report_type} not implemented yet.")
+        """Initialize the report processor.
+
+        Args:
+            schema_name (str): The name of the customer schema to process into
+            report_path (str): Where the report file lives in the file system
+            compression (CONST): How the report file is compressed.
+                Accepted values: UNCOMPRESSED, GZIP_COMPRESSED
+
+        """
+        super().__init__(
+            schema_name=schema_name, report_path=report_path, compression=compression, provider_uuid=provider_uuid
+        )
+        self.table_name = OCPNamespaceLabelLineItem()
+        stmt = (
+            f"Initialized report processor for:\n"
+            f" schema_name: {self._schema}\n"
+            f" provider_uuid: {provider_uuid}\n"
+            f" report_type: {self.report_type}\n"
+            f" file: {self._report_path}"
+        )
+        LOG.info(stmt)
+
+    def _create_usage_report_line_item(self, row, report_period_id, report_id, report_db_accessor):
+        """Create a cost entry line item object.
+
+        Args:
+            row (dict): A dictionary representation of a CSV file row
+            report_period_id (str): A report period object id
+            report_id (str): A report object id
+
+        Returns:
+            (None)
+
+        """
+        data = self._get_data_for_table(row, self.table_name._meta.db_table)
+        namespace_labels_str = ""
+        if "namespace_labels" in data:
+            namespace_labels_str = data.pop("namespace_labels")
+
+        data = report_db_accessor.clean_data(data, self.table_name._meta.db_table)
+
+        data["report_period_id"] = report_period_id
+        data["report_id"] = report_id
+        data["namespace_labels"] = self._process_openshift_labels(namespace_labels_str)
+
+        # Deduplicate potential repeated rows in data
+        key = tuple(data.get(column) for column in self.line_item_conflict_columns)
+        if key in self.processed_report.line_item_keys:
+            return
+
+        self.processed_report.line_items.append(data)
+        self.processed_report.line_item_keys[key] = True
+
+        if self.line_item_columns is None:
+            self.line_item_columns = list(data.keys())
+
+    @property
+    def line_item_conflict_columns(self):
+        """Create a property to check conflict on line items."""
+        return ["report_id", "namespace"]
