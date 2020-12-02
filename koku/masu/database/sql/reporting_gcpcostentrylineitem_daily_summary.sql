@@ -1,0 +1,128 @@
+-- TODO:
+-- 1) Figure out what to do with: usage_to_pricing_units
+
+CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_summary_{{uuid | sqlsafe}} AS (
+    WITH cte_array_agg_keys AS (
+        SELECT array_agg(key) as key_array
+        FROM {{schema | sqlsafe}}.reporting_gcpenabledtagkeys
+    ),
+    cte_filtered_tags AS (
+        SELECT id,
+            jsonb_object_agg(key,value) as gcp_tags
+        FROM (
+            SELECT lid.id,
+                lid.tags as gcp_tags,
+                aak.key_array
+            FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily lid
+            JOIN cte_array_agg_keys aak
+                ON 1=1
+            WHERE lid.tags ?| aak.key_array
+                AND lid.usage_start >= {{start_date}}::date
+                AND lid.usage_start <= {{end_date}}::date
+                {% if bill_ids %}
+                AND lid.cost_entry_bill_id IN (
+                    {%- for bill_id in bill_ids  -%}
+                        {{bill_id}}{% if not loop.last %},{% endif %}
+                    {%- endfor -%})
+                {% endif %}
+        ) AS lid,
+        jsonb_each_text(lid.gcp_tags) AS labels
+        WHERE key = ANY (key_array)
+        GROUP BY id
+    )
+    SELECT uuid_generate_v4() as uuid,
+        li.cost_entry_bill_id,
+        li.cost_entry_product_id,
+        li.project_id,
+        li.usage_start,
+        li.usage_end,
+        li.line_item_type,
+        li.usage_type as instance_type,
+        fvl.gcp_tags as tags,
+        li.region,
+        sum(li.usage_amount) as usage_amount,
+        sum(li.cost) as unblended_cost,
+        li.usage_pricing_unit as unit,
+        li.currency,
+        ab.provider_id as source_uuid,
+        0.0::decimal as markup_cost
+    FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily AS li
+    LEFT JOIN cte_filtered_tags AS fvl
+        ON li.id = fvl.id
+    JOIN {{schema | sqlsafe}}.reporting_gcpcostentryproductservice AS p
+        ON li.cost_entry_product_id = p.id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_gcpcostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
+    WHERE li.usage_start >= {{start_date}}::date
+        AND li.usage_start <= {{end_date}}::date
+        {% if bill_ids %}
+        AND cost_entry_bill_id IN (
+            {%- for bill_id in bill_ids  -%}
+                {{bill_id}}{% if not loop.last %},{% endif %}
+            {%- endfor -%})
+        {% endif %}
+    GROUP BY li.cost_entry_bill_id,
+        li.cost_entry_product_id,
+        li.project_id,
+        li.usage_start,
+        li.usage_end,
+        li.line_item_type,
+        li.usage_type,
+        li.region,
+        li.currency,
+        li.usage_pricing_unit,
+        fvl.gcp_tags,
+        ab.provider_id
+)
+;
+
+-- Clear out old entries first
+DELETE FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary AS li
+WHERE li.usage_start >= {{start_date}}
+    AND li.usage_start <= {{end_date}}
+    {% if bill_ids %}
+    AND cost_entry_bill_id IN (
+        {%- for bill_id in bill_ids  -%}
+            {{bill_id}}{% if not loop.last %},{% endif %}
+        {%- endfor -%})
+    {% endif %}
+;
+
+-- Populate the daily aggregate line item data
+INSERT INTO {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary (
+    uuid,
+    cost_entry_bill_id,
+    cost_entry_product_id,
+    project_id,
+    usage_start,
+    usage_end,
+    region,
+    instance_type,
+    unit,
+    tags,
+    usage_amount,
+    currency,
+    line_item_type,
+    unblended_cost,
+    source_uuid,
+    markup_cost
+
+)
+    SELECT uuid,
+    cost_entry_bill_id,
+    cost_entry_product_id,
+    project_id,
+    usage_start,
+    usage_end,
+    region,
+    instance_type,
+    unit,
+    tags,
+    usage_amount,
+    currency,
+    line_item_type,
+    unblended_cost,
+    source_uuid,
+    markup_cost
+    FROM reporting_gcpcostentrylineitem_daily_summary_{{uuid | sqlsafe}}
+;

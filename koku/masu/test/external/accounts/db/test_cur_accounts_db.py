@@ -51,6 +51,10 @@ class CURAccountsDBTest(MasuTestCase):
                 self.assertEqual(account.get("credentials"), self.azure_provider.authentication.credentials)
                 self.assertEqual(account.get("data_source"), self.azure_provider.billing_source.data_source)
                 self.assertEqual(account.get("customer_name"), self.schema)
+            elif account.get("provider_type") in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+                self.assertEqual(account.get("credentials"), self.gcp_provider.authentication.credentials)
+                self.assertEqual(account.get("data_source"), self.gcp_provider.billing_source.data_source)
+                self.assertEqual(account.get("customer_name"), self.schema)
             else:
                 self.fail("Unexpected provider")
 
