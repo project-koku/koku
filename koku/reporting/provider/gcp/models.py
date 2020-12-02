@@ -75,6 +75,8 @@ class GCPCostEntryLineItem(models.Model):
     class Meta:
         """Meta for GCPCostEntryLineItem."""
 
+        managed = False  # for partitioning
+
         db_table = "reporting_gcpcostentrylineitem"
 
     id = models.BigAutoField(primary_key=True)
@@ -108,6 +110,8 @@ class GCPCostEntryLineItemDaily(models.Model):
 
     class Meta:
         """Meta for GCPCostEntryLineItem."""
+
+        managed = False  # for partitioning
 
         db_table = "reporting_gcpcostentrylineitem_daily"
         indexes = [
@@ -150,6 +154,8 @@ class GCPCostEntryLineItemDailySummary(models.Model):
 
     class Meta:
         """Meta for GCPCostEntryLineItemDailySummary."""
+
+        managed = False  # for partitioning
 
         db_table = "reporting_gcpcostentrylineitem_daily_summary"
         # TODO: Turn off managed.
