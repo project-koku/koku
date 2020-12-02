@@ -53,7 +53,7 @@ services:
 
   presto:
     container_name: presto
-    image: quay.io/red_hap/koku-presto:346
+    image: quay.io/red_hap/koku-presto:347
     user: root
     command: /presto-common/initialize_presto.sh
     ports:
