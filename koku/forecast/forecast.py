@@ -183,9 +183,9 @@ class Forecast(ABC):
                         },
                         "cost": {
                             "total": {"value": round(results[key]["total_cost"], 3), "units": units},
-                            "confidence_max": {"value": round(results[key]["confidence_min"], 3), "units": units},
+                            "confidence_max": {"value": round(results[key]["confidence_max"], 3), "units": units},
                             "confidence_min": {
-                                "value": round(max(results[key]["confidence_max"], 0), 3),
+                                "value": round(max(results[key]["confidence_min"], 0), 3),
                                 "units": units,
                             },
                             "rsquared": {"value": f_format % rsquared, "units": None},
