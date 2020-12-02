@@ -84,20 +84,18 @@ class Forecast(ABC):
             filter_fields = self.provider_map(self.provider, self.REPORT_TYPE).provider_map.get("filters")
         self.cost_summary_table = self.provider_map(self.provider, self.REPORT_TYPE).views.get("costs").get(access_key)
 
-        time_scope_units = query_params.get_filter("time_scope_units", "month")
-        time_scope_value = int(query_params.get_filter("time_scope_value", -1))
-
-        if time_scope_units == "month":
-            # force looking at last month if we probably won't have enough data from this month
-            if self.dh.today.day <= self.MINIMUM:
-                time_scope_value = -2
-
-            if time_scope_value == -2:
-                self.query_range = (self.dh.last_month_start, self.dh.today)
-            else:
-                self.query_range = (self.dh.this_month_start, self.dh.today)
+        current_day_of_month = self.dh.today.day
+        yesterday = (self.dh.today - timedelta(days=1)).day
+        last_day_of_month = self.dh.this_month_end.day
+        if current_day_of_month == 1:
+            self.forecast_days_required = last_day_of_month
         else:
-            self.query_range = (self.dh.n_days_ago(self.dh.today, abs(time_scope_value)), self.dh.today)
+            self.forecast_days_required = last_day_of_month - yesterday
+
+        if current_day_of_month <= self.MINIMUM:
+            self.query_range = (self.dh.last_month_start, self.dh.last_month_end)
+        else:
+            self.query_range = (self.dh.this_month_start, self.dh.today - timedelta(days=1))
 
         self.filters = QueryFilterCollection()
         self.filters.add(field="usage_start", operation="gte", parameter=self.query_range[0])
@@ -146,23 +144,29 @@ class Forecast(ABC):
 
         # run the forecast
         results = self._run_forecast(X, Y)
+        result_dict = {}
+        for i, value in enumerate(results.prediction):
+            result_dict[self.dh.today.date() + timedelta(days=i)] = {
+                "total_cost": value,
+                "confidence_min": results.confidence_lower[i],
+                "confidence_max": results.confidence_upper[i],
+            }
+        result_dict = self._add_additional_data_points(result_dict, results.slope)
+
+        return self.format_result(result_dict, results.rsquared, results.pvalues)
+
+    def format_result(self, results, rsquared, pvalues):
+        """Format results for API consumption."""
+        f_format = f"%.{self.PRECISION}f"  # avoid converting floats to e-notation
+        units = "USD"
 
         response = []
-
-        last_date = None
-        for idx, item in enumerate(results.prediction):
-            prediction_date = dates[-1] + timedelta(days=1 + idx)
-            if prediction_date > self.dh.this_month_end.date():
-                break
-
-            f_format = f"%.{self.PRECISION}f"  # avoid converting floats to e-notation
-            units = "USD"
-
+        for key in results:
             dikt = {
-                "date": prediction_date.strftime("%Y-%m-%d"),
+                "date": key,
                 "values": [
                     {
-                        "date": prediction_date.strftime("%Y-%m-%d"),
+                        "date": key,
                         "infrastructure": {
                             "total": {"value": 0.0, "units": units},
                             "confidence_max": {"value": 0.0, "units": units},
@@ -178,69 +182,43 @@ class Forecast(ABC):
                             "pvalues": {"value": f_format % 0.0, "units": None},
                         },
                         "cost": {
-                            "total": {"value": round(item, 3), "units": units},
-                            "confidence_max": {"value": round(results.confidence_upper[idx], 3), "units": units},
+                            "total": {"value": round(results[key]["total_cost"], 3), "units": units},
+                            "confidence_max": {"value": round(results[key]["confidence_min"], 3), "units": units},
                             "confidence_min": {
-                                "value": round(max(results.confidence_lower[idx], 0), 3),
+                                "value": round(max(results[key]["confidence_max"], 0), 3),
                                 "units": units,
                             },
-                            "rsquared": {"value": f_format % results.rsquared, "units": None},
-                            "pvalues": {"value": f_format % results.pvalues, "units": None},
+                            "rsquared": {"value": f_format % rsquared, "units": None},
+                            "pvalues": {"value": f_format % pvalues, "units": None},
                         },
                     }
                 ],
             }
             response.append(dikt)
-            last_date = prediction_date
-
-        # extrapolate values out to the end of the month.
-        # this is specific to a linear regression and probably won't work with any other forecasting method.
-        if last_date <= self.dh.this_month_end.date():
-            for idx, day in enumerate(range(last_date.day, self.dh.this_month_end.day)):
-                prediction_date = (last_date.replace(day=day) + timedelta(days=1)).strftime("%Y-%m-%d")
-
-                # extrapolating from the last predicted point
-                # this is the "mx" portion of Y=mx+b
-                extrapolated_mx = results.slope * (idx + 1)
-
-                dikt = {
-                    "date": prediction_date,
-                    "values": [
-                        {
-                            "date": prediction_date,
-                            "infrastructure": {
-                                "total": {"value": 0.0, "units": units},
-                                "confidence_max": {"value": 0.0, "units": units},
-                                "confidence_min": {"value": 0.0, "units": units},
-                                "rsquared": {"value": f_format % 0.0, "units": None},
-                                "pvalues": {"value": f_format % 0.0, "units": None},
-                            },
-                            "supplementary": {
-                                "total": {"value": 0.0, "units": units},
-                                "confidence_max": {"value": 0.0, "units": units},
-                                "confidence_min": {"value": 0.0, "units": units},
-                                "rsquared": {"value": f_format % 0.0, "units": None},
-                                "pvalues": {"value": f_format % 0.0, "units": None},
-                            },
-                            "cost": {
-                                "total": {"value": round(extrapolated_mx + results.prediction[-1], 3), "units": units},
-                                "confidence_max": {
-                                    "value": round(extrapolated_mx + results.confidence_upper[-1], 3),
-                                    "units": units,
-                                },
-                                "confidence_min": {
-                                    "value": round(max(extrapolated_mx + results.confidence_lower[-1], 0), 3),
-                                    "units": units,
-                                },
-                                "rsquared": {"value": f_format % results.rsquared, "units": None},
-                                "pvalues": {"value": f_format % results.pvalues, "units": None},
-                            },
-                        }
-                    ],
-                }
-                response.append(dikt)
-
         return response
+
+    def _add_additional_data_points(self, results, slope):
+        """Add extra entries to make sure we predict the full month."""
+        additional_days_needed = 0
+        dates = results.keys()
+        last_predicted_date = max(dates)
+        days_already_predicted = len(dates)
+
+        last_predicted_cost = results[last_predicted_date]["total_cost"]
+        last_predicted_max = results[last_predicted_date]["confidence_max"]
+        last_predicted_min = results[last_predicted_date]["confidence_min"]
+
+        if days_already_predicted < self.forecast_days_required:
+            additional_days_needed = self.forecast_days_required - days_already_predicted
+
+        for i in range(1, additional_days_needed + 1):
+            results[last_predicted_date + timedelta(days=i)] = {
+                "total_cost": last_predicted_cost + (slope * i),
+                "confidence_min": last_predicted_max + (slope * i),
+                "confidence_max": last_predicted_min + (slope * i),
+            }
+
+        return results
 
     def _run_forecast(self, x, y):
         """Apply the forecast model.
