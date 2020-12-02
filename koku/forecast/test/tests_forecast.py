@@ -226,8 +226,7 @@ class AWSForecastTest(IamTestCase):
 
         for item in results:
             self.assertIsInstance(item.get("date"), date)
-            p_date = datetime.strptime(item.get("date"), "%Y-%m-%d")
-            self.assertLessEqual(p_date.date(), dh.this_month_end.date())
+            self.assertLessEqual(item.get("date"), dh.this_month_end.date())
 
     def test_predict_few_values(self):
         """Test that predict() behaves well with a limited data set."""
