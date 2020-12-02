@@ -323,24 +323,6 @@ class AWSForecastTest(IamTestCase):
         self.assertIsInstance(filters, QueryFilterCollection)
         assertSameQ(filters.compose(), expected.compose())
 
-    # def test_predict_exits_eom(self):
-    #     """Test that the _predict method breaks at EOM."""
-    #     test_datetime = datetime(2000, 1, 20, 0, 0, 0, 0)
-    #     mocked_dh = MockDateHelper(mock_dt=test_datetime)
-
-    #     fake_data = []
-    #     for n in range(0, 20):
-    #         fake_data.append((mocked_dh.n_days_ago(mocked_dh.today, 20 - n).date(), 5))
-
-    #     params = self.mocked_query_params(
-    #         "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly",
-    #         AWSCostForecastView,
-    #     )
-    #     with patch.object(AWSForecast, "dh", mocked_dh):
-    #         instance = AWSForecast(params)
-    #         results = instance._predict(fake_data)
-    #         self.assertEqual(results[-1].get("date"), mocked_dh.this_month_end.strftime("%Y-%m-%d"))
-
 
 class AzureForecastTest(IamTestCase):
     """Tests the AzureForecast class."""
