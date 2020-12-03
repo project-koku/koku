@@ -19,6 +19,7 @@ import logging
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
+from decimal import Decimal
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -144,6 +145,23 @@ class AWSForecastTest(IamTestCase):
                 for val in result.get("values", []):
                     cost = val.get("cost", {}).get("total", {}).get("value")
                     self.assertNotEqual(cost, 0)
+
+    def test_remove_outliers(self):
+        """Test that we remove outliers before predicting."""
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        dh = DateHelper()
+        days_in_month = dh.this_month_end.day
+        data = {}
+        for i in range(days_in_month):
+            data[dh.this_month_start + timedelta(days=i)] = Decimal(20)
+
+        outlier = Decimal(100)
+        data[dh.this_month_start] = outlier
+        forecast = AWSForecast(params)
+        result = forecast._remove_outliers(data)
+
+        self.assertNotIn(dh.this_month_start, result.keys())
+        self.assertNotIn(outlier, result.values())
 
     def test_predict_flat(self):
         """Test that predict() returns expected values for flat costs."""
