@@ -105,9 +105,9 @@ INSERT INTO {{schema | sqlsafe}}.reporting_gcpenabledtagkeys (
     FROM reporting_gcpcostentrylineitem_daily_{{uuid | sqlsafe}} as li, jsonb_each_text(li.tags) labels
     WHERE NOT EXISTS(
         SELECT key
-        FROM {{schema | sqlsafe}}.reporting_awsenabledtagkeys
+        FROM {{schema | sqlsafe}}.reporting_gcpenabledtagkeys
         WHERE key = labels.key)
-        AND NOT key = ANY(SELECT DISTINCT(key) FROM {{schema | sqlsafe}}.reporting_awstags_summary)
+        AND NOT key = ANY(SELECT DISTINCT(key) FROM {{schema | sqlsafe}}.reporting_gcptags_summary)
 
 ;
 

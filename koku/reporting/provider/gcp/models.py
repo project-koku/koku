@@ -197,7 +197,7 @@ class GCPEnabledTagKeys(models.Model):
     """A collection of the current enabled tag keys."""
 
     class Meta:
-        """Meta for AWSEnabledTagKeys."""
+        """Meta for GCPEnabledTagKeys."""
 
         db_table = "reporting_gcpenabledtagkeys"
 
