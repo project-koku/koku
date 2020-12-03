@@ -85,10 +85,19 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             GCPProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
             self.etag = self._generate_etag()
+            self.query_date = self._generate_query_date()
         except ValidationError as ex:
             msg = f"GCP source ({self._provider_uuid}) for {customer_name} is not reachable. Error: {str(ex)}"
             LOG.error(log_json(self.request_id, msg, self.context))
             raise GCPReportDownloaderError(str(ex))
+
+    def _generate_query_date(self, range_length=3):
+        """
+            Generates the first date of the date range.
+        """
+        today = datetime.datetime.today().date()
+        query_date = today - datetime.timedelta(days=3)
+        return query_date
 
     def _generate_etag(self):
         """
@@ -213,7 +222,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         relevant_file_names = list()
         dh = DateHelper()
         today = dh.today.strftime("%Y-%m-%d")
-        relevant_file_names.append(f"{self.etag}_{today}.csv")
+        relevant_file_names.append(f"{self.etag}_{self.query_date}:{today}.csv")
         return relevant_file_names
 
     def get_local_file_for_report(self, report):
@@ -243,14 +252,12 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             tuple(str, str) with the local filesystem path to file and GCP's etag.
 
         """
-        today = datetime.datetime.today().date()
-        query_date = today - datetime.timedelta(days=3)
         try:
             client = bigquery.Client()
             query = f"""
             SELECT {",".join(self.gcp_big_query_columns)}
             FROM {self.table_name}
-            WHERE DATE(_PARTITIONTIME) >= '{query_date}'
+            WHERE DATE(_PARTITIONTIME) >= '{self.query_date}'
             """
             query_job = client.query(query)
         except GoogleCloudError as err:
