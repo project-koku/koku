@@ -37,7 +37,7 @@ def convert_gcpcostentrylineitemdailysummary_to_partitioned(apps, schema_editor)
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0153_auto_20201201_1812")]
+    dependencies = [("reporting", "0154_gcp_summary_tables")]
 
     operations = [
         migrations.AlterModelOptions(name="gcpcostentrylineitemdailysummary", options={"managed": False}),
