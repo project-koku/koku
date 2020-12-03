@@ -22,6 +22,7 @@ from datetime import timedelta
 from decimal import Decimal
 from functools import reduce
 
+import numpy as np
 import statsmodels.api as sm
 from django.db.models import Q
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
@@ -160,6 +161,22 @@ class Forecast:
 
         return self.format_result(result_dict, results.rsquared, results.pvalues)
 
+    def _remove_outliers(self, data):
+        """Remove outliers from our dateset before predicting.
+
+        We use a box plot method without plotting the box.
+        """
+        values = list(data.values())
+        if values:
+            third_quartile, first_quartile = np.percentile(values, [Decimal(75), Decimal(25)])
+            interquartile_range = third_quartile - first_quartile
+
+            upper_boundary = third_quartile + (Decimal(1.5) * interquartile_range)
+            lower_boundary = first_quartile - (Decimal(1.5) * interquartile_range)
+
+            return {key: value for key, value in data.items() if (value >= lower_boundary and value <= upper_boundary)}
+        return data
+
     def format_result(self, results, rsquared, pvalues):
         """Format results for API consumption."""
         f_format = f"%.{self.PRECISION}f"  # avoid converting floats to e-notation
@@ -261,6 +278,7 @@ class Forecast:
         result = defaultdict(Decimal)
         for item in qset:
             result[item.get("usage_start")] += Decimal(item.get(field, 0.0))
+        result = self._remove_outliers(result)
         out = [(k, v) for k, v in result.items()]
         return out
 
