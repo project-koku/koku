@@ -173,6 +173,7 @@ class GCPCostEntryLineItemDailySummary(models.Model):
     usage_end = models.DateField(null=True)
     region = models.CharField(max_length=50, null=True)
     instance_type = models.CharField(max_length=50, null=True)
+    usage_to_pricing_units = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit = models.CharField(max_length=63, null=True)
     line_item_type = models.CharField(max_length=256, null=True)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -183,12 +184,6 @@ class GCPCostEntryLineItemDailySummary(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     tags = JSONField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
-
-    # TODO: I am not sure if these are needed or just aws specific. I went ahead
-    # commented them out in case we need them.
-    # unblended_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    # blended_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    # blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
 
 class GCPEnabledTagKeys(models.Model):

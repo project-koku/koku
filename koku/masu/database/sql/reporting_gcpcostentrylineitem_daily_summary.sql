@@ -1,6 +1,3 @@
--- TODO:
--- 1) Figure out what to do with: usage_to_pricing_units
-
 CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_summary_{{uuid | sqlsafe}} AS (
     WITH cte_array_agg_keys AS (
         SELECT array_agg(key) as key_array
@@ -38,6 +35,7 @@ CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_summary_{{uuid | sql
         li.usage_end,
         li.line_item_type,
         li.usage_type as instance_type,
+        sum(li.usage_to_pricing_units) as usage_to_pricing_units,
         fvl.gcp_tags as tags,
         li.region,
         sum(li.usage_amount) as usage_amount,
@@ -98,6 +96,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary (
     usage_end,
     region,
     instance_type,
+    usage_to_pricing_units,
     unit,
     tags,
     usage_amount,
@@ -116,6 +115,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary (
     usage_end,
     region,
     instance_type,
+    usage_to_pricing_units,
     unit,
     tags,
     usage_amount,
