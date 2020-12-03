@@ -162,13 +162,15 @@ class Forecast(ABC):
         We use a box plot method without plotting the box.
         """
         values = list(data.values())
-        third_quartile, first_quartile = np.percentile(values, [Decimal(75), Decimal(25)])
-        interquartile_range = third_quartile - first_quartile
+        if values:
+            third_quartile, first_quartile = np.percentile(values, [Decimal(75), Decimal(25)])
+            interquartile_range = third_quartile - first_quartile
 
-        upper_boundary = third_quartile + (Decimal(1.5) * interquartile_range)
-        lower_boundary = first_quartile - (Decimal(1.5) * interquartile_range)
+            upper_boundary = third_quartile + (Decimal(1.5) * interquartile_range)
+            lower_boundary = first_quartile - (Decimal(1.5) * interquartile_range)
 
-        return {key: value for key, value in data.items() if (value >= lower_boundary and value <= upper_boundary)}
+            return {key: value for key, value in data.items() if (value >= lower_boundary and value <= upper_boundary)}
+        return data
 
     def format_result(self, results, rsquared, pvalues):
         """Format results for API consumption."""
