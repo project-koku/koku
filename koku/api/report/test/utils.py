@@ -42,7 +42,7 @@ from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
 class NiseDataLoader:
     """Loads nise generated test data for different source types."""
 
-    def __init__(self, schema, num_days=4):
+    def __init__(self, schema, num_days=10):
         """Initialize the data loader."""
         self.dh = DateHelper()
         self.schema = schema
@@ -63,6 +63,11 @@ class NiseDataLoader:
 
         prev_month_start = start_date - relativedelta(months=1)
         prev_month_end = end_date - relativedelta(months=1)
+        days_of_data = prev_month_end.day - prev_month_start.day
+
+        if days_of_data < num_days:
+            extra_days = num_days - days_of_data
+            prev_month_end = prev_month_end + relativedelta(days=extra_days)
 
         return [
             (prev_month_start, prev_month_end, self.dh.last_month_start),
