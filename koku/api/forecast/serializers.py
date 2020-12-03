@@ -17,15 +17,12 @@
 """Forecast Serializers."""
 from rest_framework import serializers
 
-from api.report.serializers import FilterSerializer
 from api.report.serializers import handle_invalid_fields
-from api.report.serializers import validate_field
 
 
 class ForecastParamSerializer(serializers.Serializer):
     """Base Forecast Serializer."""
 
-    filter = FilterSerializer(required=False)
     limit = serializers.IntegerField(required=False, min_value=1)
     offset = serializers.IntegerField(required=False, min_value=0)
 
@@ -47,20 +44,6 @@ class ForecastParamSerializer(serializers.Serializer):
         """
         handle_invalid_fields(self, data)
         return data
-
-    def validate_filter(self, value):
-        """Validate incoming filter data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if filter field inputs are invalid
-
-        """
-        validate_field(self, "filter", FilterSerializer, value, tag_keys=self.tag_keys)
-        return value
 
 
 class AWSCostForecastParamSerializer(ForecastParamSerializer):
