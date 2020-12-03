@@ -18,13 +18,12 @@
 import logging
 
 from django.utils.decorators import method_decorator
-from django.views.decorators.vary import vary_on_headers
+from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
-from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.pagination import ListPaginator
 from api.common.permissions import AwsAccessPermission
 from api.common.permissions import AzureAccessPermission
@@ -58,7 +57,7 @@ class ForecastView(APIView):
 
     report = "forecast"
 
-    @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
+    @method_decorator(never_cache)
     def get(self, request, **kwargs):
         """Respond to GET requests."""
         LOG.debug(f"API: {request.path} USER: {request.user.username}")
