@@ -151,11 +151,9 @@ class GCPCostEntryLineItemDailySummary(models.Model):
     class Meta:
         """Meta for GCPCostEntryLineItemDailySummary."""
 
+        managed = False  # for partitioning
+
         db_table = "reporting_gcpcostentrylineitem_daily_summary"
-        # TODO: Turn off managed.
-        # It is important to first initially create the table with managed on
-        # Then create another migration to flip them off, that way the table
-        # managed = False
         indexes = [
             models.Index(fields=["usage_start"], name="gcp_summary_usage_start_idx"),
             models.Index(fields=["instance_type"], name="gcp_summary_instance_type_idx"),

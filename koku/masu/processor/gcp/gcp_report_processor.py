@@ -38,6 +38,7 @@ from masu.util import common as utils
 from masu.util.gcp.common import GCP_SERVICE_LINE_ITEM_TYPE_MAP
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItem
+from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
 
@@ -62,6 +63,7 @@ class ProcessedGCPReport:
         self.bills = {}
         self.projects = {}
         self.products = {}
+        self.requested_partitions = set()
 
     def remove_processed_rows(self):
         """Clear a batch of rows after they've been saved."""
@@ -318,6 +320,18 @@ class GCPReportProcessor(ReportProcessorBase):
         data["tags"] = self._process_tags(row)
         data["usage_type"] = self._get_usage_type(row)
 
+        li_usage_dt = data.get("usage_start")
+        if li_usage_dt:
+            try:
+                li_usage_dt = ciso8601.parse_datetime(li_usage_dt).date().replace(day=1)
+            except (ValueError, TypeError):
+                pass  # This is just gathering requested partition start values
+                # If it's invalid, then it's OK to omit storing that value
+                # as it only pertains to a requested partition.
+            else:
+                if li_usage_dt not in self.processed_report.requested_partitions:
+                    self.processed_report.requested_partitions.add(li_usage_dt)
+
         if self.line_item_columns is None:
             self.line_item_columns = list(data.keys())
 
@@ -396,3 +410,10 @@ class GCPReportProcessor(ReportProcessorBase):
                 remove(self._report_path)
 
         return True
+
+    def _save_to_db(self, temp_table, report_db):
+        # Create any needed partitions
+        existing_partitions = report_db.get_existing_partitions(GCPCostEntryLineItemDailySummary)
+        report_db.add_partitions(existing_partitions, self.processed_report.requested_partitions)
+        # Save batch to DB
+        super()._save_to_db(temp_table, report_db)
