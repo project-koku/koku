@@ -78,22 +78,6 @@ class AWSCostForecastViewTest(IamTestCase):
         self.assertGreater(response.data.get("meta").get("count"), 0)
         self.assertNotEqual(response.data.get("data"), [])
 
-    @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["*"]}})
-    def test_get_forecast_date_filter(self):
-        """Test that getting a forecast works with datetime filters."""
-        filters = [
-            (reverse("aws-cost-forecasts"), -1, "month", "monthly"),
-            (reverse("aws-cost-forecasts"), -2, "month", "monthly"),
-            (reverse("aws-cost-forecasts"), -10, "day", "daily"),
-            (reverse("aws-cost-forecasts"), -30, "day", "daily"),
-        ]
-        for f in filters:
-            with self.subTest(filters=f):
-                url = "%s?filter[time_scope_value]=%s&filter[time_scope_units]=%s&filter[resolution]=%s" % f
-                client = APIClient()
-                response = client.get(url, **self.headers)
-                self.assertEqual(response.status_code, status.HTTP_200_OK)
-
 
 class AzureCostForecastViewTest(IamTestCase):
     """Tests the AzureCostForecastView."""
