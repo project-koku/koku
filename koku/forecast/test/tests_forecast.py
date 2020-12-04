@@ -298,6 +298,17 @@ class AWSForecastTest(IamTestCase):
                         # test that the results always stop at the end of the month.
                         self.assertEqual(results[-1].get("date"), dh.this_month_end.date())
 
+    def test_results_never_outside_curren_month(self):
+        """Test that our results stop at the end of the current month."""
+        dh = DateHelper()
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        forecast = AWSForecast(params)
+        forecast.forecast_days_required = 100
+        results = forecast.predict()
+        dates = [result.get("date") for result in results]
+        self.assertNotIn(dh.next_month_start, dates)
+        self.assertEqual(dh.this_month_end.date(), max(dates))
+
     def test_set_access_filter_with_list(self):
         """
         Tests that when an access restriction, filters, and a filter list are passed in,
