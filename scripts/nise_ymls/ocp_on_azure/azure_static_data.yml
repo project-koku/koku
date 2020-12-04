@@ -1,6 +1,8 @@
 ---
 generators:
   - VMGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
       service_name: Virtual Machines
       meter_id: 55555555-4444-3333-2222-111111111128
       resource_location: "US East"
@@ -8,6 +10,8 @@ generators:
       tags:
         version: Mars
   - VMGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
       service_name: Virtual Machines
       meter_id: 55555555-4444-3333-2222-111111111127
       resource_location: "US East"
@@ -16,6 +20,8 @@ generators:
         environment: Jupiter
         version: MilkyWay
   - VMGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
       service_name: Virtual Machines
       meter_id: 55555555-4444-3333-2222-111111111126
       resource_location: "US East"
@@ -24,6 +30,8 @@ generators:
         environment: Jupiter
         version: Andromeda
   - VMGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
       service_name: Virtual Machines
       meter_id: 55555555-4444-3333-2222-111111111125
       resource_location: "US East"
@@ -31,6 +39,8 @@ generators:
       tags:
         version: Sombrero
   - StorageGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111124
       resource_location: "US North Central"
       amount: 10
@@ -38,6 +48,8 @@ generators:
       tags:
         storageclass: Thor
   - StorageGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111123
       resource_location: "US North Central"
       amount: 10
@@ -45,6 +57,8 @@ generators:
       tags:
         storageclass: Baldur
   - StorageGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111122
       resource_location: "US North Central"
       amount: 10
@@ -52,6 +66,8 @@ generators:
       tags:
         storageclass: Loki
   - StorageGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111121
       resource_location: "US North Central"
       amount: 10
@@ -59,6 +75,8 @@ generators:
       tags:
         storageclass: Odin
   - StorageGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111120
       resource_location: "US North Central"
       amount: 10
@@ -66,21 +84,31 @@ generators:
       tags:
         storageclass: Tyr
   - SQLGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111119
       resource_location: "US South Central"
       tags:
         app: weather
   - VNGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
       tags:
         app: banking
   - VNGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
       # Marsuct_family: DNS Zone
       tags:
         app: mobile
   - VNGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
       tags:
         app: banking
   - VNGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
       tags:
         app: weather
 
