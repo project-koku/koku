@@ -520,6 +520,27 @@ class OCPNodeLabelLineItemDaily(models.Model):
     total_seconds = models.IntegerField()
 
 
+class OCPNamespaceLabelLineItem(models.Model):
+    """Raw report label data for OpenShift namespaces."""
+
+    class Meta:
+        """Meta for OCPNamespaceLabelLineItem."""
+
+        db_table = "reporting_ocpnamespacelabellineitem"
+        unique_together = ("report", "namespace")
+
+    id = models.BigAutoField(primary_key=True)
+
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+
+    report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE)
+
+    # Kubernetes objects by convention have a max name length of 253 chars
+    namespace = models.CharField(max_length=253, null=True)
+
+    namespace_labels = JSONField(null=True)
+
+
 class OCPEnabledTagKeys(models.Model):
     """A collection of the current enabled tag keys."""
 
