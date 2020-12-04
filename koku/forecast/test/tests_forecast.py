@@ -303,8 +303,11 @@ class AWSForecastTest(IamTestCase):
         dh = DateHelper()
         params = self.mocked_query_params("?", AWSCostForecastView)
         forecast = AWSForecast(params)
+        forecast.forecast_days_required = 100
         results = forecast.predict()
-        self.assertNotIn(dh.next_month_start, results)
+        dates = [result.get("date") for result in results]
+        self.assertNotIn(dh.next_month_start, dates)
+        self.assertEqual(dh.this_month_end.date(), max(dates))
 
     def test_set_access_filter_with_list(self):
         """
