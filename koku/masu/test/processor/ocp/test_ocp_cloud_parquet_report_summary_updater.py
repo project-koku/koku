@@ -20,14 +20,8 @@ import decimal
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from django.db.models import Sum
-
 from api.models import Provider
 from api.utils import DateHelper
-from masu.database import AZURE_REPORT_TABLE_MAP
-from masu.database import OCP_REPORT_TABLE_MAP
-from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.test import MasuTestCase
@@ -87,41 +81,42 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             decimal.Decimal(0),
         )
 
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.cost_model")
-    def test_update_azure_summary_tables(self, mock_cost_model):
-        """Test that summary tables are updated correctly."""
-        markup = {"value": 10, "unit": "percent"}
-        mock_cost_model.markup = markup
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_tags_summary_table"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azire_cost_daily_summary_presto"  # noqa: E501
+    )
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.update_summary_infrastructure_cost")
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.azure_get_bills_from_provider")
+    def test_update_azure_summary_tables(self, mock_utility, mock_ocp, mock_ocp_on_azure, mock_tag_summary, mock_map):
+        """Test that summary tables are properly run for an OCP provider."""
+        fake_bills = Mock()
+        first = Mock()
+        bill_id = 1
+        first.return_value.id = bill_id
+        fake_bills.first = first
+        mock_utility.return_value = fake_bills
+        start_date = self.dh.today.date()
+        end_date = start_date + datetime.timedelta(days=1)
 
-        start_date = self.dh.this_month_start
-        end_date = self.dh.this_month_end
-
-        updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=self.azure_provider, manifest=None)
-
-        updater.update_summary_tables(start_date, end_date)
-
-        summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
-        with AzureReportDBAccessor(self.schema) as azure_accessor:
-            query = azure_accessor._get_db_obj_query(summary_table_name).filter(
-                cost_entry_bill__billing_period_start=start_date
-            )
-            markup_cost = query.aggregate(Sum("markup_cost"))["markup_cost__sum"]
-            pretax_cost = query.aggregate(Sum("pretax_cost"))["pretax_cost__sum"]
-
-        self.assertAlmostEqual(markup_cost, pretax_cost * decimal.Decimal(markup.get("value") / 100), places=5)
-
-        daily_summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-        with OCPReportDBAccessor(self.schema) as ocp_accessor:
-            query = ocp_accessor._get_db_obj_query(daily_summary_table_name).filter(
-                report_period__provider=self.ocp_on_azure_ocp_provider,
-                report_period__report_period_start=self.dh.this_month_start,
-            )
-            infra_cost = query.aggregate(Sum("infrastructure_raw_cost"))["infrastructure_raw_cost__sum"]
-            project_infra_cost = query.aggregate(Sum("infrastructure_project_raw_cost"))[
-                "infrastructure_project_raw_cost__sum"
-            ]
-
-        self.assertIsNotNone(infra_cost)
-        self.assertIsNotNone(project_infra_cost)
-        self.assertNotEqual(infra_cost, decimal.Decimal(0))
-        self.assertNotEqual(project_infra_cost, decimal.Decimal(0))
+        with ProviderDBAccessor(self.azure_provider_uuid) as provider_accessor:
+            provider = provider_accessor.get_provider()
+        with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
+            credentials = provider_accessor.get_credentials()
+        cluster_id = credentials.get("cluster_id")
+        mock_map.return_value = {self.ocp_test_provider_uuid: (self.azure_provider_uuid, Provider.PROVIDER_AZURE)}
+        updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
+        updater.update_azure_summary_tables(
+            self.ocp_test_provider_uuid, self.azure_test_provider_uuid, start_date, end_date
+        )
+        mock_ocp_on_azure.assert_called_with(
+            start_date,
+            end_date,
+            self.ocp_test_provider_uuid,
+            self.azure_test_provider_uuid,
+            cluster_id,
+            bill_id,
+            decimal.Decimal(0),
+        )
