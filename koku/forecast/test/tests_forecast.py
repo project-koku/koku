@@ -19,6 +19,7 @@ import logging
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
+from decimal import Decimal
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -44,6 +45,9 @@ from forecast import OCPAWSForecast
 from forecast import OCPAzureForecast
 from forecast import OCPForecast
 from forecast.forecast import LinearForecastResult
+from reporting.provider.ocp.models import OCPCostSummary
+from reporting.provider.ocp.models import OCPCostSummaryByNode
+from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -144,6 +148,23 @@ class AWSForecastTest(IamTestCase):
                 for val in result.get("values", []):
                     cost = val.get("cost", {}).get("total", {}).get("value")
                     self.assertNotEqual(cost, 0)
+
+    def test_remove_outliers(self):
+        """Test that we remove outliers before predicting."""
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        dh = DateHelper()
+        days_in_month = dh.this_month_end.day
+        data = {}
+        for i in range(days_in_month):
+            data[dh.this_month_start + timedelta(days=i)] = Decimal(20)
+
+        outlier = Decimal(100)
+        data[dh.this_month_start] = outlier
+        forecast = AWSForecast(params)
+        result = forecast._remove_outliers(data)
+
+        self.assertNotIn(dh.this_month_start, result.keys())
+        self.assertNotIn(outlier, result.values())
 
     def test_predict_flat(self):
         """Test that predict() returns expected values for flat costs."""
@@ -394,6 +415,38 @@ class OCPForecastTest(IamTestCase):
                 self.assertAlmostEqual(float(item.get("confidence_min").get("value")), 5, delta=0.0001)
                 self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=0.0001)
                 self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
+
+    def test_cost_summary_table(self):
+        """Test that we select a valid table or view."""
+        params = self.mocked_query_params("?", OCPCostForecastView)
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummary)
+
+        params = self.mocked_query_params("?", OCPCostForecastView, access={"openshift.cluster": {"read": ["1"]}})
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummary)
+
+        params = self.mocked_query_params("?", OCPCostForecastView, access={"openshift.node": {"read": ["1"]}})
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummaryByNode)
+
+        params = self.mocked_query_params(
+            "?", OCPCostForecastView, access={"openshift.cluster": {"read": ["1"]}, "openshift.node": {"read": ["1"]}}
+        )
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummaryByNode)
+
+        params = self.mocked_query_params("?", OCPCostForecastView, access={"openshift.project": {"read": ["1"]}})
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPUsageLineItemDailySummary)
+
+        params = self.mocked_query_params(
+            "?",
+            OCPCostForecastView,
+            access={"openshift.cluster": {"read": ["1"]}, "openshift.project": {"read": ["1"]}},
+        )
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPUsageLineItemDailySummary)
 
 
 class OCPAllForecastTest(IamTestCase):
