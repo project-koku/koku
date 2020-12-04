@@ -16,7 +16,10 @@
 #
 """Forecast unit tests."""
 import logging
+from datetime import date
 from datetime import datetime
+from datetime import timedelta
+from decimal import Decimal
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -74,69 +77,91 @@ class AWSForecastTest(IamTestCase):
         instance = AWSForecast(params)
         self.assertIsInstance(instance, AWSForecast)
 
-    def test_constructor_filter_intervals(self):
-        """Test the constructor sets the query intervals as expected."""
-        test_datetime = datetime(2000, 1, 15, 0, 0, 0, 0)
-        mocked_dh = MockDateHelper(mock_dt=test_datetime)
+    def test_forecast_days_required(self):
+        """Test that we accurately select the number of days."""
+        dh = DateHelper()
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        with patch("forecast.forecast.Forecast.dh") as mock_dh:
+            mock_dh.today = dh.this_month_start
+            mock_dh.this_month_start = dh.this_month_start
+            mock_dh.this_month_end = dh.this_month_end
+            mock_dh.last_month_start = dh.last_month_start
+            mock_dh.last_month_end = dh.last_month_end
+            forecast = AWSForecast(params)
+            self.assertEqual(forecast.forecast_days_required, dh.this_month_end.day)
 
-        test_matrix = [
-            ("?", (mocked_dh.n_days_ago(mocked_dh.today, 10), mocked_dh.today)),
-            (
-                "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly",
-                (mocked_dh.this_month_start, mocked_dh.today),
-            ),
-            (
-                "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly",
-                (mocked_dh.last_month_start, mocked_dh.today),
-            ),
-            (
-                "?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily",
-                (mocked_dh.n_days_ago(mocked_dh.today, 10), mocked_dh.today),
-            ),
-            (
-                "?filter[time_scope_units]=day&filter[time_scope_value]=-30&filter[resolution]=daily",
-                (mocked_dh.n_days_ago(mocked_dh.today, 30), mocked_dh.today),
-            ),
-        ]
+        with patch("forecast.forecast.Forecast.dh") as mock_dh:
+            fake_yesterday = dh.this_month_start
+            fake_today = dh.this_month_start + timedelta(days=1)
+            mock_dh.today = fake_today
+            mock_dh.this_month_start = dh.this_month_start
+            mock_dh.this_month_end = dh.this_month_end
+            mock_dh.last_month_start = dh.last_month_start
+            mock_dh.last_month_end = dh.last_month_end
+            forecast = AWSForecast(params)
+            self.assertEqual(forecast.forecast_days_required, dh.this_month_end.day - fake_yesterday.day)
 
-        with patch.object(AWSForecast, "dh", mocked_dh):
-            for url, expected in test_matrix:
-                with self.subTest(url=url):
-                    params = self.mocked_query_params(url, AWSCostForecastView)
-                    instance = AWSForecast(params)
-                    self.assertEqual(instance.query_range, expected)
+    def test_query_range(self):
+        """Test that we select the correct range based on day of month."""
+        dh = DateHelper()
+        params = self.mocked_query_params("?", AWSCostForecastView)
 
-    def test_constructor_filter_intervals_early(self):
-        """Test the constructor sets the query intervals as expected."""
-        test_datetime = datetime(2000, 1, 3, 0, 0, 0, 0)
-        mocked_dh = MockDateHelper(mock_dt=test_datetime)
+        with patch("forecast.forecast.Forecast.dh") as mock_dh:
+            mock_dh.today = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 1)
+            mock_dh.this_month_start = dh.this_month_start
+            mock_dh.this_month_end = dh.this_month_end
+            mock_dh.last_month_start = dh.last_month_start
+            mock_dh.last_month_end = dh.last_month_end
+            expected = (dh.last_month_start, dh.last_month_end)
+            forecast = AWSForecast(params)
+            self.assertEqual(forecast.query_range, expected)
 
-        test_matrix = [
-            ("?", (mocked_dh.n_days_ago(mocked_dh.today, 10), mocked_dh.today)),
-            (
-                "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly",
-                (mocked_dh.last_month_start, mocked_dh.today),
-            ),
-            (
-                "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly",
-                (mocked_dh.last_month_start, mocked_dh.today),
-            ),
-            (
-                "?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily",
-                (mocked_dh.n_days_ago(mocked_dh.today, 10), mocked_dh.today),
-            ),
-            (
-                "?filter[time_scope_units]=day&filter[time_scope_value]=-30&filter[resolution]=daily",
-                (mocked_dh.n_days_ago(mocked_dh.today, 30), mocked_dh.today),
-            ),
-        ]
+        with patch("forecast.forecast.Forecast.dh") as mock_dh:
+            mock_dh.today = dh.this_month_start + timedelta(days=(AWSForecast.MINIMUM))
+            mock_dh.this_month_start = dh.this_month_start
+            mock_dh.this_month_end = dh.this_month_end
+            mock_dh.last_month_start = dh.last_month_start
+            mock_dh.last_month_end = dh.last_month_end
+            expected = (dh.this_month_start, dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 1))
+            forecast = AWSForecast(params)
+            self.assertEqual(forecast.query_range, expected)
 
-        with patch.object(AWSForecast, "dh", mocked_dh):
-            for url, expected in test_matrix:
-                with self.subTest(url=url):
-                    params = self.mocked_query_params(url, AWSCostForecastView)
-                    instance = AWSForecast(params)
-                    self.assertEqual(instance.query_range, expected)
+    def test_add_additional_data_points(self):
+        """Test that we fill in data to the end of the month."""
+        dh = DateHelper()
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        last_day_of_data = dh.last_month_start + timedelta(days=10)
+        with patch("forecast.forecast.Forecast.dh") as mock_dh:
+            mock_dh.today = dh.this_month_start
+            mock_dh.this_month_end = dh.this_month_end
+            mock_dh.last_month_start = dh.last_month_start
+            mock_dh.last_month_end = last_day_of_data
+            forecast = AWSForecast(params)
+            results = forecast.predict()
+
+            self.assertEqual(len(results), dh.this_month_end.day)
+            for i, result in enumerate(results):
+                self.assertEqual(result.get("date"), dh.this_month_start.date() + timedelta(days=i))
+                for val in result.get("values", []):
+                    cost = val.get("cost", {}).get("total", {}).get("value")
+                    self.assertNotEqual(cost, 0)
+
+    def test_remove_outliers(self):
+        """Test that we remove outliers before predicting."""
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        dh = DateHelper()
+        days_in_month = dh.this_month_end.day
+        data = {}
+        for i in range(days_in_month):
+            data[dh.this_month_start + timedelta(days=i)] = Decimal(20)
+
+        outlier = Decimal(100)
+        data[dh.this_month_start] = outlier
+        forecast = AWSForecast(params)
+        result = forecast._remove_outliers(data)
+
+        self.assertNotIn(dh.this_month_start, result.keys())
+        self.assertNotIn(outlier, result.values())
 
     def test_predict_flat(self):
         """Test that predict() returns expected values for flat costs."""
@@ -161,7 +186,7 @@ class AWSForecastTest(IamTestCase):
 
         for result in results:
             for val in result.get("values", []):
-                self.assertRegex(val.get("date"), r"\d{4}-\d{2}-\d{2}")
+                self.assertIsInstance(val.get("date"), date)
 
                 item = val.get("cost")
                 self.assertAlmostEqual(float(item.get("total").get("value")), 5, delta=0.0001)
@@ -193,7 +218,7 @@ class AWSForecastTest(IamTestCase):
 
         for result in results:
             for val in result.get("values", []):
-                self.assertRegex(val.get("date"), r"\d{4}-\d{2}-\d{2}")
+                self.assertIsInstance(val.get("date"), date)
 
                 item = val.get("cost")
                 self.assertGreaterEqual(float(item.get("total").get("value")), 0)
@@ -224,9 +249,8 @@ class AWSForecastTest(IamTestCase):
         results = instance.predict()
 
         for item in results:
-            self.assertRegex(item.get("date"), r"\d{4}-\d{2}-\d{2}")
-            p_date = datetime.strptime(item.get("date"), "%Y-%m-%d")
-            self.assertLessEqual(p_date.date(), dh.this_month_end.date())
+            self.assertIsInstance(item.get("date"), date)
+            self.assertLessEqual(item.get("date"), dh.this_month_end.date())
 
     def test_predict_few_values(self):
         """Test that predict() behaves well with a limited data set."""
@@ -260,7 +284,7 @@ class AWSForecastTest(IamTestCase):
                         results = instance.predict()
                         for result in results:
                             for val in result.get("values", []):
-                                self.assertRegex(val.get("date"), r"\d{4}-\d{2}-\d{2}")
+                                self.assertIsInstance(val.get("date"), date)
 
                                 item = val.get("cost")
                                 self.assertGreaterEqual(float(item.get("total").get("value")), 0)
@@ -269,7 +293,7 @@ class AWSForecastTest(IamTestCase):
                                 self.assertGreaterEqual(float(item.get("rsquared").get("value")), 0)
                                 self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
                         # test that the results always stop at the end of the month.
-                        self.assertEqual(results[-1].get("date"), dh.this_month_end.strftime("%Y-%m-%d"))
+                        self.assertEqual(results[-1].get("date"), dh.this_month_end.date())
 
     def test_set_access_filter_with_list(self):
         """
@@ -317,24 +341,6 @@ class AWSForecastTest(IamTestCase):
         self.assertIsInstance(filters, QueryFilterCollection)
         assertSameQ(filters.compose(), expected.compose())
 
-    def test_predict_exits_eom(self):
-        """Test that the _predict method breaks at EOM."""
-        test_datetime = datetime(2000, 1, 20, 0, 0, 0, 0)
-        mocked_dh = MockDateHelper(mock_dt=test_datetime)
-
-        fake_data = []
-        for n in range(0, 20):
-            fake_data.append((mocked_dh.n_days_ago(mocked_dh.today, 20 - n).date(), 5))
-
-        params = self.mocked_query_params(
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly",
-            AWSCostForecastView,
-        )
-        with patch.object(AWSForecast, "dh", mocked_dh):
-            instance = AWSForecast(params)
-            results = instance._predict(fake_data)
-            self.assertEqual(results[-1].get("date"), mocked_dh.this_month_end.strftime("%Y-%m-%d"))
-
 
 class AzureForecastTest(IamTestCase):
     """Tests the AzureForecast class."""
@@ -362,7 +368,7 @@ class AzureForecastTest(IamTestCase):
 
         for result in results:
             for val in result.get("values", []):
-                self.assertRegex(val.get("date"), r"\d{4}-\d{2}-\d{2}")
+                self.assertIsInstance(val.get("date"), date)
 
                 item = val.get("cost")
                 self.assertAlmostEqual(float(item.get("total").get("value")), 5, delta=0.0001)
@@ -398,7 +404,7 @@ class OCPForecastTest(IamTestCase):
 
         for result in results:
             for val in result.get("values", []):
-                self.assertRegex(val.get("date"), r"\d{4}-\d{2}-\d{2}")
+                self.assertIsInstance(val.get("date"), date)
 
                 item = val.get("cost")
                 self.assertAlmostEqual(float(item.get("total").get("value")), 5, delta=0.0001)
@@ -434,7 +440,7 @@ class OCPAllForecastTest(IamTestCase):
 
         for result in results:
             for val in result.get("values", []):
-                self.assertRegex(val.get("date"), r"\d{4}-\d{2}-\d{2}")
+                self.assertIsInstance(val.get("date"), date)
 
                 item = val.get("cost")
                 self.assertAlmostEqual(float(item.get("total").get("value")), 5, delta=0.0001)
@@ -470,7 +476,7 @@ class OCPAWSForecastTest(IamTestCase):
 
         for result in results:
             for val in result.get("values", []):
-                self.assertRegex(val.get("date"), r"\d{4}-\d{2}-\d{2}")
+                self.assertIsInstance(val.get("date"), date)
 
                 item = val.get("cost")
                 self.assertAlmostEqual(float(item.get("total").get("value")), 5, delta=0.0001)
@@ -506,7 +512,7 @@ class OCPAzureForecastTest(IamTestCase):
 
         for result in results:
             for val in result.get("values", []):
-                self.assertRegex(val.get("date"), r"\d{4}-\d{2}-\d{2}")
+                self.assertIsInstance(val.get("date"), date)
 
                 item = val.get("cost")
                 self.assertAlmostEqual(float(item.get("total").get("value")), 5, delta=0.0001)

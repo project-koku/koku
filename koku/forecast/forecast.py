@@ -17,18 +17,14 @@
 """Base forecasting module."""
 import logging
 import operator
-from abc import ABC
-from abc import abstractmethod
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
 from functools import reduce
 
+import numpy as np
 import statsmodels.api as sm
 from django.db.models import Q
-from django.db.models import Sum
-from django.db.models import Value
-from django.db.models.functions import Coalesce
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 from statsmodels.tools.sm_exceptions import ValueWarning
 from tenant_schemas.utils import tenant_context
@@ -49,7 +45,7 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 LOG = logging.getLogger(__name__)
 
 
-class Forecast(ABC):
+class Forecast:
     """Base forecasting class."""
 
     # the minimum number of data points needed to use the current month's data.
@@ -63,6 +59,7 @@ class Forecast(ABC):
     PRECISION = 8
 
     REPORT_TYPE = "costs"
+
     dh = DateHelper()
 
     def __init__(self, query_params):  # noqa: C901
@@ -81,23 +78,21 @@ class Forecast(ABC):
         access_key = "default"
         if access:
             access_key = tuple(access.keys())
-            filter_fields = self.provider_map(self.provider, self.REPORT_TYPE).provider_map.get("filters")
-        self.cost_summary_table = self.provider_map(self.provider, self.REPORT_TYPE).views.get("costs").get(access_key)
+            filter_fields = self.provider_map.provider_map.get("filters")
+        self.cost_summary_table = self.provider_map.views.get("costs").get(access_key)
 
-        time_scope_units = query_params.get_filter("time_scope_units", "month")
-        time_scope_value = int(query_params.get_filter("time_scope_value", -1))
-
-        if time_scope_units == "month":
-            # force looking at last month if we probably won't have enough data from this month
-            if self.dh.today.day <= self.MINIMUM:
-                time_scope_value = -2
-
-            if time_scope_value == -2:
-                self.query_range = (self.dh.last_month_start, self.dh.today)
-            else:
-                self.query_range = (self.dh.this_month_start, self.dh.today)
+        current_day_of_month = self.dh.today.day
+        yesterday = (self.dh.today - timedelta(days=1)).day
+        last_day_of_month = self.dh.this_month_end.day
+        if current_day_of_month == 1:
+            self.forecast_days_required = last_day_of_month
         else:
-            self.query_range = (self.dh.n_days_ago(self.dh.today, abs(time_scope_value)), self.dh.today)
+            self.forecast_days_required = last_day_of_month - yesterday
+
+        if current_day_of_month <= self.MINIMUM:
+            self.query_range = (self.dh.last_month_start, self.dh.last_month_end)
+        else:
+            self.query_range = (self.dh.this_month_start, self.dh.today - timedelta(days=1))
 
         self.filters = QueryFilterCollection()
         self.filters.add(field="usage_start", operation="gte", parameter=self.query_range[0])
@@ -110,16 +105,25 @@ class Forecast(ABC):
                 if access:
                     self.set_access_filters(access, filt, self.filters)
 
-    @abstractmethod
-    def predict(self):
-        """Define ORM query to run forecast and return prediction.
+    @property
+    def provider_map(self):
+        """Return the provider map instance."""
+        return self.provider_map_class(self.provider, self.REPORT_TYPE)
 
-        Implementors should ensure this method passes a two-element values_list() to self._predict()
-        """
-        # Example:
-        #
-        # data = ModelClass.filter(**filters).values_list('a_date', 'a_value')
-        # self._predict(data)
+    @property
+    def cost_term(self):
+        return self.provider_map.report_type_map.get("aggregates", {}).get("cost_total")
+
+    def predict(self):
+        """Define ORM query to run forecast and return prediction."""
+        with tenant_context(self.params.tenant):
+            data = (
+                self.cost_summary_table.objects.filter(self.filters.compose())
+                .order_by("usage_start")
+                .values("usage_start")
+                .annotate(total_cost=self.cost_term)
+            )
+            return self._predict(self._uniquify_qset(data))
 
     def _predict(self, data):
         """Handle pre and post prediction work.
@@ -146,23 +150,45 @@ class Forecast(ABC):
 
         # run the forecast
         results = self._run_forecast(X, Y)
+        result_dict = {}
+        for i, value in enumerate(results.prediction):
+            result_dict[self.dh.today.date() + timedelta(days=i)] = {
+                "total_cost": value,
+                "confidence_min": results.confidence_lower[i],
+                "confidence_max": results.confidence_upper[i],
+            }
+        result_dict = self._add_additional_data_points(result_dict, results.slope)
+
+        return self.format_result(result_dict, results.rsquared, results.pvalues)
+
+    def _remove_outliers(self, data):
+        """Remove outliers from our dateset before predicting.
+
+        We use a box plot method without plotting the box.
+        """
+        values = list(data.values())
+        if values:
+            third_quartile, first_quartile = np.percentile(values, [Decimal(75), Decimal(25)])
+            interquartile_range = third_quartile - first_quartile
+
+            upper_boundary = third_quartile + (Decimal(1.5) * interquartile_range)
+            lower_boundary = first_quartile - (Decimal(1.5) * interquartile_range)
+
+            return {key: value for key, value in data.items() if (value >= lower_boundary and value <= upper_boundary)}
+        return data
+
+    def format_result(self, results, rsquared, pvalues):
+        """Format results for API consumption."""
+        f_format = f"%.{self.PRECISION}f"  # avoid converting floats to e-notation
+        units = "USD"
 
         response = []
-
-        last_date = None
-        for idx, item in enumerate(results.prediction):
-            prediction_date = dates[-1] + timedelta(days=1 + idx)
-            if prediction_date > self.dh.this_month_end.date():
-                break
-
-            f_format = f"%.{self.PRECISION}f"  # avoid converting floats to e-notation
-            units = "USD"
-
+        for key in results:
             dikt = {
-                "date": prediction_date.strftime("%Y-%m-%d"),
+                "date": key,
                 "values": [
                     {
-                        "date": prediction_date.strftime("%Y-%m-%d"),
+                        "date": key,
                         "infrastructure": {
                             "total": {"value": 0.0, "units": units},
                             "confidence_max": {"value": 0.0, "units": units},
@@ -178,69 +204,43 @@ class Forecast(ABC):
                             "pvalues": {"value": f_format % 0.0, "units": None},
                         },
                         "cost": {
-                            "total": {"value": round(item, 3), "units": units},
-                            "confidence_max": {"value": round(results.confidence_upper[idx], 3), "units": units},
+                            "total": {"value": round(results[key]["total_cost"], 3), "units": units},
+                            "confidence_max": {"value": round(results[key]["confidence_max"], 3), "units": units},
                             "confidence_min": {
-                                "value": round(max(results.confidence_lower[idx], 0), 3),
+                                "value": round(max(results[key]["confidence_min"], 0), 3),
                                 "units": units,
                             },
-                            "rsquared": {"value": f_format % results.rsquared, "units": None},
-                            "pvalues": {"value": f_format % results.pvalues, "units": None},
+                            "rsquared": {"value": f_format % rsquared, "units": None},
+                            "pvalues": {"value": f_format % pvalues, "units": None},
                         },
                     }
                 ],
             }
             response.append(dikt)
-            last_date = prediction_date
-
-        # extrapolate values out to the end of the month.
-        # this is specific to a linear regression and probably won't work with any other forecasting method.
-        if last_date <= self.dh.this_month_end.date():
-            for idx, day in enumerate(range(last_date.day, self.dh.this_month_end.day)):
-                prediction_date = (last_date.replace(day=day) + timedelta(days=1)).strftime("%Y-%m-%d")
-
-                # extrapolating from the last predicted point
-                # this is the "mx" portion of Y=mx+b
-                extrapolated_mx = results.slope * (idx + 1)
-
-                dikt = {
-                    "date": prediction_date,
-                    "values": [
-                        {
-                            "date": prediction_date,
-                            "infrastructure": {
-                                "total": {"value": 0.0, "units": units},
-                                "confidence_max": {"value": 0.0, "units": units},
-                                "confidence_min": {"value": 0.0, "units": units},
-                                "rsquared": {"value": f_format % 0.0, "units": None},
-                                "pvalues": {"value": f_format % 0.0, "units": None},
-                            },
-                            "supplementary": {
-                                "total": {"value": 0.0, "units": units},
-                                "confidence_max": {"value": 0.0, "units": units},
-                                "confidence_min": {"value": 0.0, "units": units},
-                                "rsquared": {"value": f_format % 0.0, "units": None},
-                                "pvalues": {"value": f_format % 0.0, "units": None},
-                            },
-                            "cost": {
-                                "total": {"value": round(extrapolated_mx + results.prediction[-1], 3), "units": units},
-                                "confidence_max": {
-                                    "value": round(extrapolated_mx + results.confidence_upper[-1], 3),
-                                    "units": units,
-                                },
-                                "confidence_min": {
-                                    "value": round(max(extrapolated_mx + results.confidence_lower[-1], 0), 3),
-                                    "units": units,
-                                },
-                                "rsquared": {"value": f_format % results.rsquared, "units": None},
-                                "pvalues": {"value": f_format % results.pvalues, "units": None},
-                            },
-                        }
-                    ],
-                }
-                response.append(dikt)
-
         return response
+
+    def _add_additional_data_points(self, results, slope):
+        """Add extra entries to make sure we predict the full month."""
+        additional_days_needed = 0
+        dates = results.keys()
+        last_predicted_date = max(dates)
+        days_already_predicted = len(dates)
+
+        last_predicted_cost = results[last_predicted_date]["total_cost"]
+        last_predicted_max = results[last_predicted_date]["confidence_max"]
+        last_predicted_min = results[last_predicted_date]["confidence_min"]
+
+        if days_already_predicted < self.forecast_days_required:
+            additional_days_needed = self.forecast_days_required - days_already_predicted
+
+        for i in range(1, additional_days_needed + 1):
+            results[last_predicted_date + timedelta(days=i)] = {
+                "total_cost": last_predicted_cost + (slope * i),
+                "confidence_min": last_predicted_min + (slope * i),
+                "confidence_max": last_predicted_max + (slope * i),
+            }
+
+        return results
 
     def _run_forecast(self, x, y):
         """Apply the forecast model.
@@ -278,6 +278,7 @@ class Forecast(ABC):
         result = defaultdict(Decimal)
         for item in qset:
             result[item.get("usage_start")] += Decimal(item.get(field, 0.0))
+        result = self._remove_outliers(result)
         out = [(k, v) for k, v in result.items()]
         return out
 
@@ -368,18 +369,7 @@ class AWSForecast(Forecast):
     """AWS forecasting class."""
 
     provider = Provider.PROVIDER_AWS
-    provider_map = AWSProviderMap
-
-    def predict(self):
-        """Define ORM query to run forecast and return prediction."""
-        with tenant_context(self.params.tenant):
-            data = (
-                self.cost_summary_table.objects.filter(self.filters.compose())
-                .order_by("usage_start")
-                .values("usage_start", "unblended_cost")
-                .annotate(total_cost=Coalesce(Sum("unblended_cost"), Value(0)))
-            )
-            return self._predict(self._uniquify_qset(data))
+    provider_map_class = AWSProviderMap
 
     def set_access_filters(self, access, filt, filters):
         """Set access filters to ensure RBAC restrictions adhere to user's access and filters.
@@ -416,87 +406,32 @@ class AzureForecast(Forecast):
     """Azure forecasting class."""
 
     provider = Provider.PROVIDER_AZURE
-    provider_map = AzureProviderMap
-
-    def predict(self):
-        """Define ORM query to run forecast and return prediction."""
-        with tenant_context(self.params.tenant):
-            data = (
-                self.cost_summary_table.objects.filter(self.filters.compose())
-                .order_by("usage_start")
-                .values("usage_start", "pretax_cost")
-                .annotate(total_cost=Coalesce(Sum("pretax_cost"), Value(0)))
-            )
-            return self._predict(self._uniquify_qset(data))
+    provider_map_class = AzureProviderMap
 
 
 class OCPForecast(Forecast):
     """OCP forecasting class."""
 
     provider = Provider.PROVIDER_OCP
-    provider_map = OCPProviderMap
-
-    def predict(self):
-        """Define ORM query to run forecast and return prediction."""
-        with tenant_context(self.params.tenant):
-            data = (
-                self.cost_summary_table.objects.filter(self.filters.compose())
-                .order_by("usage_start")
-                .values("usage_start", "infrastructure_raw_cost")
-                .annotate(total_cost=Coalesce(Sum("infrastructure_raw_cost"), Value(0)))
-            )
-            return self._predict(self._uniquify_qset(data))
+    provider_map_class = OCPProviderMap
 
 
 class OCPAWSForecast(Forecast):
     """OCP+AWS forecasting class."""
 
     provider = Provider.OCP_AWS
-    provider_map = OCPAWSProviderMap
-
-    def predict(self):
-        """Define ORM query to run forecast and return prediction."""
-        with tenant_context(self.params.tenant):
-            data = (
-                self.cost_summary_table.objects.filter(self.filters.compose())
-                .order_by("usage_start")
-                .values("usage_start", "unblended_cost")
-                .annotate(total_cost=Coalesce(Sum("unblended_cost"), Value(0)))
-            )
-            return self._predict(self._uniquify_qset(data))
+    provider_map_class = OCPAWSProviderMap
 
 
 class OCPAzureForecast(Forecast):
     """OCP+Azure forecasting class."""
 
     provider = Provider.OCP_AZURE
-    provider_map = OCPAzureProviderMap
-
-    def predict(self):
-        """Define ORM query to run forecast and return prediction."""
-        with tenant_context(self.params.tenant):
-            data = (
-                self.cost_summary_table.objects.filter(self.filters.compose())
-                .order_by("usage_start")
-                .values("usage_start", "pretax_cost")
-                .annotate(total_cost=Coalesce(Sum("pretax_cost"), Value(0)))
-            )
-            return self._predict(self._uniquify_qset(data))
+    provider_map_class = OCPAzureProviderMap
 
 
 class OCPAllForecast(Forecast):
     """OCP+All forecasting class."""
 
     provider = Provider.OCP_ALL
-    provider_map = OCPAllProviderMap
-
-    def predict(self):
-        """Define ORM query to run forecast and return prediction."""
-        with tenant_context(self.params.tenant):
-            data = (
-                self.cost_summary_table.objects.filter(self.filters.compose())
-                .order_by("usage_start")
-                .values("usage_start", "unblended_cost")
-                .annotate(total_cost=Coalesce(Sum("unblended_cost"), Value(0)))
-            )
-            return self._predict(self._uniquify_qset(data))
+    provider_map_class = OCPAllProviderMap
