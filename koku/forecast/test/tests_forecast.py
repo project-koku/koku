@@ -45,6 +45,9 @@ from forecast import OCPAWSForecast
 from forecast import OCPAzureForecast
 from forecast import OCPForecast
 from forecast.forecast import LinearForecastResult
+from reporting.provider.ocp.models import OCPCostSummary
+from reporting.provider.ocp.models import OCPCostSummaryByNode
+from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -412,6 +415,38 @@ class OCPForecastTest(IamTestCase):
                 self.assertAlmostEqual(float(item.get("confidence_min").get("value")), 5, delta=0.0001)
                 self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=0.0001)
                 self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
+
+    def test_cost_summary_table(self):
+        """Test that we select a valid table or view."""
+        params = self.mocked_query_params("?", OCPCostForecastView)
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummary)
+
+        params = self.mocked_query_params("?", OCPCostForecastView, access={"openshift.cluster": {"read": ["1"]}})
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummary)
+
+        params = self.mocked_query_params("?", OCPCostForecastView, access={"openshift.node": {"read": ["1"]}})
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummaryByNode)
+
+        params = self.mocked_query_params(
+            "?", OCPCostForecastView, access={"openshift.cluster": {"read": ["1"]}, "openshift.node": {"read": ["1"]}}
+        )
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummaryByNode)
+
+        params = self.mocked_query_params("?", OCPCostForecastView, access={"openshift.project": {"read": ["1"]}})
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPUsageLineItemDailySummary)
+
+        params = self.mocked_query_params(
+            "?",
+            OCPCostForecastView,
+            access={"openshift.cluster": {"read": ["1"]}, "openshift.project": {"read": ["1"]}},
+        )
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPUsageLineItemDailySummary)
 
 
 class OCPAllForecastTest(IamTestCase):
