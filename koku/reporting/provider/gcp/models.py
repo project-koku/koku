@@ -158,8 +158,10 @@ class GCPCostEntryLineItemDailySummary(models.Model):
             models.Index(fields=["usage_start"], name="gcp_summary_usage_start_idx"),
             models.Index(fields=["instance_type"], name="gcp_summary_instance_type_idx"),
             GinIndex(fields=["tags"], name="gcp_tags_idx"),
-            models.Index(fields=["project"], name="gcp_summary_project_idx"),
-            models.Index(fields=["cost_entry_product"], name="gcp_summary_product_idx"),
+            models.Index(fields=["project_id"], name="gcp_summary_project_id_idx"),
+            models.Index(fields=["project_name"], name="gcp_summary_project_name_idx"),
+            models.Index(fields=["service_id"], name="gcp_summary_service_id_idx"),
+            models.Index(fields=["service_alias"], name="gcp_summary_service_alias_idx"),
         ]
 
     uuid = models.UUIDField(primary_key=True)
@@ -167,8 +169,13 @@ class GCPCostEntryLineItemDailySummary(models.Model):
     cost_entry_bill = models.ForeignKey(GCPCostEntryBill, on_delete=models.CASCADE)
 
     # The following fields are used for grouping
-    cost_entry_product = models.ForeignKey(GCPCostEntryProductService, null=True, on_delete=models.CASCADE)
-    project = models.ForeignKey(GCPProject, on_delete=models.CASCADE)
+    account_id = models.CharField(max_length=20)
+    project_id = models.CharField(max_length=256)
+    project_name = models.CharField(max_length=256)
+    service_id = models.CharField(max_length=256, null=True)
+    service_alias = models.CharField(max_length=256, null=True, blank=True)
+    sku_id = models.CharField(max_length=256, null=True)
+    sku_alias = models.CharField(max_length=256, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=True)
     region = models.CharField(max_length=50, null=True)
@@ -205,14 +212,14 @@ class GCPTagsSummary(models.Model):
         """Meta for GCPTagSummary."""
 
         db_table = "reporting_gcptags_summary"
-        unique_together = ("key", "cost_entry_bill", "project")
+        unique_together = ("key", "cost_entry_bill", "account_id")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
     key = models.TextField()
     values = ArrayField(models.TextField())
     cost_entry_bill = models.ForeignKey("GCPCostEntryBill", on_delete=models.CASCADE)
-    project = models.ForeignKey(GCPProject, on_delete=models.CASCADE)
+    account_id = models.TextField(null=True)
 
 
 class GCPTagsValues(models.Model):
@@ -227,4 +234,4 @@ class GCPTagsValues(models.Model):
 
     key = models.TextField()
     value = models.TextField()
-    project_ids = ArrayField(models.TextField())
+    account_ids = ArrayField(models.TextField())

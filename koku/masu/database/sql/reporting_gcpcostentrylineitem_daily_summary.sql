@@ -29,8 +29,13 @@ CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_summary_{{uuid | sql
     )
     SELECT uuid_generate_v4() as uuid,
         li.cost_entry_bill_id,
-        li.cost_entry_product_id,
-        li.project_id,
+        pj.account_id,
+        pj.project_id,
+        pj.project_name,
+        ps.service_id,
+        ps.service_alias,
+        ps.sku_id,
+        ps.sku_alias,
         li.usage_start,
         li.usage_end,
         li.line_item_type,
@@ -47,8 +52,10 @@ CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_summary_{{uuid | sql
     FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily AS li
     LEFT JOIN cte_filtered_tags AS fvl
         ON li.id = fvl.id
-    JOIN {{schema | sqlsafe}}.reporting_gcpcostentryproductservice AS p
-        ON li.cost_entry_product_id = p.id
+    JOIN {{schema | sqlsafe}}.reporting_gcpcostentryproductservice AS ps
+        ON li.cost_entry_product_id = ps.id
+    JOIN {{schema | sqlsafe}}.reporting_gcpproject AS pj
+        ON li.project_id = pj.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_gcpcostentrybill as ab
         ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_start >= {{start_date}}::date
@@ -60,8 +67,13 @@ CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_summary_{{uuid | sql
             {%- endfor -%})
         {% endif %}
     GROUP BY li.cost_entry_bill_id,
-        li.cost_entry_product_id,
-        li.project_id,
+        pj.account_id,
+        pj.project_id,
+        pj.project_name,
+        ps.service_id,
+        ps.service_alias,
+        ps.sku_id,
+        ps.sku_alias,
         li.usage_start,
         li.usage_end,
         li.line_item_type,
@@ -90,8 +102,13 @@ WHERE li.usage_start >= {{start_date}}
 INSERT INTO {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary (
     uuid,
     cost_entry_bill_id,
-    cost_entry_product_id,
+    account_id,
     project_id,
+    project_name,
+    service_id,
+    service_alias,
+    sku_id,
+    sku_alias,
     usage_start,
     usage_end,
     region,
@@ -109,8 +126,13 @@ INSERT INTO {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary (
 )
     SELECT uuid,
     cost_entry_bill_id,
-    cost_entry_product_id,
+    account_id,
     project_id,
+    project_name,
+    service_id,
+    service_alias,
+    sku_id,
+    sku_alias,
     usage_start,
     usage_end,
     region,
