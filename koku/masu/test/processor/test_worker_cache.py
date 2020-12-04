@@ -159,7 +159,7 @@ class WorkerCacheTest(MasuTestCase):
                 mock_inspect.reserved.return_value = mock_worker_list
                 _cache = WorkerCache()
                 self.assertEqual(_cache.active_workers, test.get("expected_workers"))
-    
+
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_active_worker_property_instance_not_available(self, mock_inspect):
         """Test the active_workers property when celery inspect is not available."""
