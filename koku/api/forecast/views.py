@@ -24,7 +24,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
-from api.common.pagination import ListPaginator
+from api.common.pagination import ForecastListPaginator
 from api.common.permissions import AwsAccessPermission
 from api.common.permissions import AzureAccessPermission
 from api.common.permissions import OpenShiftAccessPermission
@@ -71,7 +71,7 @@ class ForecastView(APIView):
         output = handler.predict()
         LOG.debug(f"DATA: {output}")
 
-        paginator = ListPaginator(output, request)
+        paginator = ForecastListPaginator(output, request)
         paginated_result = paginator.paginate_queryset(output, request)
         return paginator.get_paginated_response(paginated_result)
 
