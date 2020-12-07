@@ -758,9 +758,9 @@
         },
         "proto-plus": {
             "hashes": [
-                "sha256:416a0f13987789333cd8760a0ee998f8eccd6d7165ee9f283d64ca2de3e8774d"
+                "sha256:61b57c5257ca583af2ea1ad40e2b8f251988806eea9f01d119088976b995b2c4"
             ],
-            "version": "==1.11.0"
+            "version": "==1.13.0"
         },
         "protobuf": {
             "hashes": [
