@@ -22,7 +22,7 @@ def add_views(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0152_gcpcostentrylineitem")]
+    dependencies = [("reporting", "0153_ocpnamespacelabellineitem")]
 
     operations = [
         migrations.RunSQL(
