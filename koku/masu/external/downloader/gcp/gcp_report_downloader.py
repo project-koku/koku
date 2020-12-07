@@ -91,7 +91,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.error(log_json(self.request_id, msg, self.context))
             raise GCPReportDownloaderError(str(ex))
 
-    def _generate_query_date(self, range_length=30):
+    def _generate_query_date(self, range_length=3):
         """
             Generates the first date of the date range.
         """
