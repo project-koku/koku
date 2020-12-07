@@ -151,7 +151,7 @@ class GCPCostEntryLineItemDailySummary(models.Model):
     class Meta:
         """Meta for GCPCostEntryLineItemDailySummary."""
 
-        # managed = False  # for partitioning
+        managed = False  # for partitioning
 
         db_table = "reporting_gcpcostentrylineitem_daily_summary"
         indexes = [

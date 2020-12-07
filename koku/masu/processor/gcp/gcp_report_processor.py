@@ -96,7 +96,7 @@ class GCPReportProcessor(ReportProcessorBase):
 
         self.line_item_table = GCPCostEntryLineItem()
         self.line_item_table_name = self.line_item_table._meta.db_table
-        self._report_name = report_path
+        self._report_name = path.basename(report_path)
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
         self._manifest_id = manifest_id
         self._provider_uuid = provider_uuid
@@ -127,9 +127,9 @@ class GCPReportProcessor(ReportProcessorBase):
                 break
         return item_type
 
-    def _delete_line_items_in_range(self, bill_id, scan_start):
+    def _delete_line_items_in_range(self, bill_id, scan_start, invoice_month):
         """Delete stale data between date range."""
-        gcp_date_filter = {"usage_start__gte": scan_start}
+        gcp_date_filter = {"usage_start__gte": scan_start, "invoice_month": invoice_month}
 
         if not self._manifest_id:
             return False
@@ -146,7 +146,8 @@ class GCPReportProcessor(ReportProcessorBase):
                 f" schema_name: {self._schema}\n"
                 f" provider_uuid: {self._provider_uuid}\n"
                 f" bill ID: {bill_id}\n"
-                f" on or after {scan_start}."
+                f" on or after {scan_start}",
+                f" for invoice_month {invoice_month}.",
             )
             LOG.info(log_statement)
             line_item_query.delete()
@@ -202,7 +203,8 @@ class GCPReportProcessor(ReportProcessorBase):
         try:
             date_range = self._report_name.split("_")[-1]
             start_date, end_date = date_range.split(":")
-            scan_range = {"start": start_date, "end": end_date}
+            invoice_month = self._report_name.split("_")[0]
+            scan_range = {"start": start_date, "end": end_date, "invoice_month": invoice_month}
         except UnboundLocalError:
             err_msg = "Error recovering start and end date from csv report."
             raise ProcessedGCPReportError(err_msg)
@@ -358,6 +360,7 @@ class GCPReportProcessor(ReportProcessorBase):
         scan_range = self._get_range_from_report_name()
         scan_start = scan_range["start"]
         scan_start = ciso8601.parse_datetime(scan_start).date()
+        invoice_month = scan_range["invoice_month"]
 
         # Read the csv in batched chunks.
         report_csv = pandas.read_csv(self._report_path, chunksize=self._batch_size, compression="infer")
@@ -377,7 +380,7 @@ class GCPReportProcessor(ReportProcessorBase):
 
                     bill_id = self._get_or_create_cost_entry_bill(first_row, report_db)
                     if bill_id not in bills_purged:
-                        self._delete_line_items_in_range(bill_id, scan_start)
+                        self._delete_line_items_in_range(bill_id, scan_start, invoice_month)
                         bills_purged.append(bill_id)
 
                     project_id = self._get_or_create_gcp_project(first_row, report_db)
