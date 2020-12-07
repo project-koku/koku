@@ -254,7 +254,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         try:
             if start_date:
-                invoice_month = invoice_month = invoice_month = start_date.strftime("%Y%m")
+                invoice_month = start_date.strftime("%Y%m")
                 query = f"""
                 SELECT {",".join(self.gcp_big_query_columns)}
                 FROM {self.table_name}
