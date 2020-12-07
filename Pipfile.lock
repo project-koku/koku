@@ -1516,10 +1516,10 @@
         },
         "google-cloud-storage": {
             "hashes": [
-                "sha256:063bd12b5ceb4045e8681dc5cce8c3ceeb1203f7c5c3e59f5c9b75bb79a5f59b",
-                "sha256:da12b7bd79bbe978a7945a44b600604fbc10ece2935d31f243e751f99135e34f"
+                "sha256:900ba027bdee6b97f21cd22d1db3d1a6233ede5de2db4754db860438bdad72d2",
+                "sha256:a63b280a225e385fe0f9b606523e5812f37715614cdc646c51dac75cac880d95"
             ],
-            "version": "==1.32.0"
+            "version": "==1.33.0"
         },
         "google-crc32c": {
             "hashes": [
