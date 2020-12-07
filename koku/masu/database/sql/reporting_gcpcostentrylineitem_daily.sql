@@ -14,7 +14,7 @@ CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_{{uuid | sqlsafe}} A
         sum(li.cost) as cost,
         li.currency,
         li.conversion_rate,
-        sum(li.usage_to_pricing_units) as usage_to_pricing_units,
+        sum(li.usage_to_pricing_units) as usage_in_pricing_units,
         li.usage_pricing_unit,
         li.invoice_month,
         li.cost_type as tax_type
@@ -72,7 +72,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily (
     conversion_rate,
     usage_amount,
     usage_unit,
-    usage_to_pricing_units,
+    usage_in_pricing_units,
     usage_pricing_unit,
     invoice_month,
     tax_type
@@ -91,7 +91,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily (
     conversion_rate,
     usage_amount,
     usage_unit,
-    usage_to_pricing_units,
+    usage_in_pricing_units,
     usage_pricing_unit,
     invoice_month,
     tax_type

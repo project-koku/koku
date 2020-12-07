@@ -96,7 +96,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             Generates the first date of the date range.
         """
         today = datetime.datetime.today().date()
-        query_date = today - datetime.timedelta(days=3)
+        query_date = today - datetime.timedelta(days=range_length)
         return query_date
 
     def _generate_etag(self):
@@ -173,8 +173,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         # end date is effectively the inclusive "end of the month" from the start.
         end_date = start_date + relativedelta(months=1) - relativedelta(days=1)
 
-        file_names = self._get_relevant_file_names()
-        fake_assembly_id = self._generate_assembly_id(len(file_names))
+        invoice_month = invoice_month = start_date.strftime("%Y%m")
+        file_names = self._get_relevant_file_names(invoice_month)
+        fake_assembly_id = self._generate_assembly_id(invoice_month)
 
         manifest_data = {
             "assembly_id": fake_assembly_id,
@@ -185,7 +186,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         }
         return manifest_data
 
-    def _generate_assembly_id(self, file_count):
+    def _generate_assembly_id(self, invoice_month):
         """
         Generate an assembly ID for use in manifests.
 
@@ -193,17 +194,17 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         re-fetch data with BigQuery because it cost the costomer money.
         We use BigQuery to collect the last modified date of the table and md5
         hash it.
-            Format: {provider_id}:(etag}:{file_count}
+            Format: {provider_id}:(etag}:{start_date}
             e.g. "5:36c75d88da6262dedbc2e1b6147e6d38:1"
 
         Returns:
             str unique to this provider and GCP table and last modified date
 
         """
-        fake_assembly_id = ":".join([str(self._provider_uuid), self.etag, str(file_count)])
+        fake_assembly_id = ":".join([str(self._provider_uuid), self.etag, str(invoice_month)])
         return fake_assembly_id
 
-    def _get_relevant_file_names(self):
+    def _get_relevant_file_names(self, invoice_month):
         """
         Generate a list of relevant file names for the manifest's dates.
 
@@ -212,8 +213,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         pattern-matching to find files relevant to this date range.
 
         Args:
-            start_date (datetime.datetime): start date for period (inclusive)
-            end_date (datetime.datetime): end date for period (inclusive)
+            invoice_month (datetime.datetime): invoice month in "%Y%m" format
 
         Returns:
             list of relevant file (blob) names found in the GCP storage bucket.
@@ -222,7 +222,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         relevant_file_names = list()
         dh = DateHelper()
         today = dh.today.strftime("%Y-%m-%d")
-        relevant_file_names.append(f"{self.etag}_{self.query_date}:{today}.csv")
+        relevant_file_names.append(f"{invoice_month}_{self.etag}_{self.query_date}:{today}.csv")
         return relevant_file_names
 
     def get_local_file_for_report(self, report):
@@ -253,12 +253,22 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         try:
+            if start_date:
+                invoice_month = invoice_month = invoice_month = start_date.strftime("%Y%m")
+                query = f"""
+                SELECT {",".join(self.gcp_big_query_columns)}
+                FROM {self.table_name}
+                WHERE DATE(_PARTITIONTIME) >= '{self.query_date}'
+                AND invoice.month = '{invoice_month}'
+                """
+                LOG.info(f"Using querying for invoice_month ({invoice_month})")
+            else:
+                query = f"""
+                SELECT {",".join(self.gcp_big_query_columns)}
+                FROM {self.table_name}
+                WHERE DATE(_PARTITIONTIME) >= '{self.query_date}'
+                """
             client = bigquery.Client()
-            query = f"""
-            SELECT {",".join(self.gcp_big_query_columns)}
-            FROM {self.table_name}
-            WHERE DATE(_PARTITIONTIME) >= '{self.query_date}'
-            """
             query_job = client.query(query)
         except GoogleCloudError as err:
             err_msg = (

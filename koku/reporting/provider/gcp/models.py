@@ -132,7 +132,7 @@ class GCPCostEntryLineItemDaily(models.Model):
     conversion_rate = models.CharField(max_length=256, null=True, blank=True)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     usage_unit = models.CharField(max_length=256, null=True, blank=True)
-    usage_to_pricing_units = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_in_pricing_units = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     usage_pricing_unit = models.CharField(max_length=256, null=True, blank=True)
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     tax_type = models.CharField(max_length=256, null=True, blank=True)
@@ -151,7 +151,7 @@ class GCPCostEntryLineItemDailySummary(models.Model):
     class Meta:
         """Meta for GCPCostEntryLineItemDailySummary."""
 
-        managed = False  # for partitioning
+        # managed = False  # for partitioning
 
         db_table = "reporting_gcpcostentrylineitem_daily_summary"
         indexes = [
@@ -180,7 +180,6 @@ class GCPCostEntryLineItemDailySummary(models.Model):
     usage_end = models.DateField(null=True)
     region = models.CharField(max_length=50, null=True)
     instance_type = models.CharField(max_length=50, null=True)
-    usage_to_pricing_units = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit = models.CharField(max_length=63, null=True)
     line_item_type = models.CharField(max_length=256, null=True)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
