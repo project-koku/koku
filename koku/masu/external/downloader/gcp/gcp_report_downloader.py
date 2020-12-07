@@ -173,7 +173,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         # end date is effectively the inclusive "end of the month" from the start.
         end_date = start_date + relativedelta(months=1) - relativedelta(days=1)
 
-        invoice_month = invoice_month = start_date.strftime("%Y%m")
+        invoice_month = start_date.strftime("%Y%m")
         file_names = self._get_relevant_file_names(invoice_month)
         fake_assembly_id = self._generate_assembly_id(invoice_month)
 
