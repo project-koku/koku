@@ -17,14 +17,11 @@
 """Forecast unit tests."""
 import logging
 from datetime import date
-from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import Mock
 from unittest.mock import patch
 
-import pytz
-from django.utils import timezone
 from statsmodels.tools.sm_exceptions import ValueWarning
 
 from api.forecast.views import AWSCostForecastView
@@ -52,23 +49,23 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 LOG = logging.getLogger(__name__)
 
 
-class MockDateHelper(DateHelper):
-    """Testing class."""
+class MockQuerySet:
+    def __init__(self, data):
+        """Set the queryset data as a instance variable."""
+        self.data = data
+        # super().__init()
 
-    def __init__(self, mock_dt=None, utc=False):
-        """Initialize when now is."""
-        if mock_dt:
-            self._now = mock_dt
-        else:
-            if utc:
-                self._now = datetime.datetime.now(tz=pytz.UTC)
-            else:
-                self._now = timezone.now()
+    def values(self, *args):
+        """Return data for the specified args."""
+        results = []
+        for row in self.data:
+            results.append({arg: row.get(arg) for arg in args})
+        return results
 
     @property
-    def now(self):
-        """Return current time at timezone."""
-        return self._now
+    def len(self):
+        """Length of data."""
+        return len(self.data)
 
 
 class AWSForecastTest(IamTestCase):
@@ -172,13 +169,21 @@ class AWSForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", AWSCostForecastView)
         instance = AWSForecast(params)
@@ -204,13 +209,21 @@ class AWSForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", AWSCostForecastView)
         instance = AWSForecast(params)
@@ -236,13 +249,21 @@ class AWSForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", AWSCostForecastView)
         instance = AWSForecast(params)
@@ -265,13 +286,21 @@ class AWSForecastTest(IamTestCase):
             with self.subTest(num_elements=number):
                 expected = []
                 for n in range(0, number):
-                    expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+                    expected.append(
+                        {
+                            "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                            "total_cost": 5,
+                            "infrastructure_cost": 3,
+                            "supplementary_cost": 2,
+                        }
+                    )
+                mock_qset = MockQuerySet(expected)
 
                 mocked_table = Mock()
                 mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-                    expected
+                    mock_qset
                 )
-                mocked_table.len = len(expected)
+                mocked_table.len = mock_qset.len
 
                 params = self.mocked_query_params("?", AWSCostForecastView)
                 instance = AWSForecast(params)
@@ -354,13 +383,21 @@ class AzureForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", AzureCostForecastView)
         instance = AzureForecast(params)
@@ -390,13 +427,21 @@ class OCPForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", OCPCostForecastView)
         instance = OCPForecast(params)
@@ -458,13 +503,21 @@ class OCPAllForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", OCPAllCostForecastView)
         instance = OCPAllForecast(params)
@@ -494,13 +547,21 @@ class OCPAWSForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", OCPAWSCostForecastView)
         instance = OCPAWSForecast(params)
@@ -530,13 +591,22 @@ class OCPAzureForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", OCPAzureCostForecastView)
         instance = OCPAzureForecast(params)
