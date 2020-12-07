@@ -194,7 +194,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         re-fetch data with BigQuery because it cost the costomer money.
         We use BigQuery to collect the last modified date of the table and md5
         hash it.
-            Format: {provider_id}:(etag}:{start_date}
+            Format: {provider_id}:(etag}:{invoice_month}
             e.g. "5:36c75d88da6262dedbc2e1b6147e6d38:1"
 
         Returns:
