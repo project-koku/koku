@@ -231,6 +231,8 @@ class Forecast:
 
         response = []
         for key in results:
+            if key > self.dh.this_month_end.date():
+                continue
             dikt = {
                 "date": key,
                 "values": [
