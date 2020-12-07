@@ -53,7 +53,6 @@ class MockQuerySet:
     def __init__(self, data):
         """Set the queryset data as a instance variable."""
         self.data = data
-        # super().__init()
 
     def values(self, *args):
         """Return data for the specified args."""
