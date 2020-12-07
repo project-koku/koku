@@ -34,6 +34,7 @@ from reporting.provider.azure.models import AzureCostEntryLineItemDaily
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import AzureCostEntryProductService
 from reporting.provider.azure.models import AzureMeter
+from reporting.provider.azure.models import PRESTO_LINE_ITEM_TABLE
 
 LOG = logging.getLogger(__name__)
 
@@ -132,6 +133,39 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
 
+    def populate_line_item_daily_summary_table_presto(self, start_date, end_date, source_uuid, bill_id, markup_value):
+        """Populate the daily aggregated summary of line items table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        summary_sql = pkgutil.get_data(
+            "masu.database", "presto_sql/reporting_azurecostentrylineitem_daily_summary.sql"
+        )
+        summary_sql = summary_sql.decode("utf-8")
+        uuid_str = str(uuid.uuid4()).replace("-", "_")
+        summary_sql_params = {
+            "uuid": uuid_str,
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "table": PRESTO_LINE_ITEM_TABLE,
+            "source_uuid": source_uuid,
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
+            "bill_id": bill_id,
+            "markup": markup_value if markup_value else 0,
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+
+        LOG.info(f"Summary SQL: {str(summary_sql)}")
+        self._execute_presto_raw_sql_query(self.schema, summary_sql)
+
     def populate_tags_summary_table(self, bill_ids):
         """Populate the line item aggregated totals data table."""
         table_name = AZURE_REPORT_TABLE_MAP["tags_summary"]
@@ -227,3 +261,51 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         agg_sql_params = {"schema": self.schema}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+
+    def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
+        """Populate the enabled tag key table.
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+            bill_ids (list) A list of bill IDs.
+        Returns
+            (None)
+        """
+        table_name = AZURE_REPORT_TABLE_MAP["enabled_tag_keys"]
+        summary_sql = pkgutil.get_data("masu.database", "sql/reporting_azureenabledtagkeys.sql")
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "bill_ids": bill_ids,
+            "schema": self.schema,
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        self._execute_raw_sql_query(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+        )
+
+    def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, bill_ids):
+        """Populate the enabled tag key table.
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+            bill_ids (list) A list of bill IDs.
+        Returns
+            (None)
+        """
+        table_name = AZURE_REPORT_TABLE_MAP["line_item_daily_summary"]
+        summary_sql = pkgutil.get_data(
+            "masu.database", "sql/reporting_azurecostentryline_item_daily_summary_update_enabled_tags.sql"
+        )
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "bill_ids": bill_ids,
+            "schema": self.schema,
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        self._execute_raw_sql_query(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+        )
