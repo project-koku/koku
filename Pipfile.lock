@@ -403,11 +403,10 @@
         },
         "google-cloud-core": {
             "hashes": [
-                "sha256:21afb70c1b0bce8eeb8abb5dca63c5fd37fc8aea18f4b6d60e803bd3d27e6b80",
-                "sha256:75abff9056977809937127418323faa3917f32df68490704d39a4f0d492ebc2b"
+                "sha256:1445266e70e3ea068915259bfa9db2736076d01ac4c60b919c11ef75ba831adf",
+                "sha256:5bf32a3476412bbbf37660d73c46a7217a0db7913d4f4db6490b56d7a93f1d86"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
-            "version": "==1.4.3"
+            "version": "==1.4.4"
         },
         "google-crc32c": {
             "hashes": [
@@ -1531,11 +1530,10 @@
         },
         "google-cloud-core": {
             "hashes": [
-                "sha256:21afb70c1b0bce8eeb8abb5dca63c5fd37fc8aea18f4b6d60e803bd3d27e6b80",
-                "sha256:75abff9056977809937127418323faa3917f32df68490704d39a4f0d492ebc2b"
+                "sha256:1445266e70e3ea068915259bfa9db2736076d01ac4c60b919c11ef75ba831adf",
+                "sha256:5bf32a3476412bbbf37660d73c46a7217a0db7913d4f4db6490b56d7a93f1d86"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
-            "version": "==1.4.3"
+            "version": "==1.4.4"
         },
         "google-cloud-storage": {
             "hashes": [
