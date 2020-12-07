@@ -214,7 +214,7 @@ class Forecast:
     def _key_results_by_date(self, results, check_term="total_cost"):
         """Take results formatted by cost type, and return results keyed by date."""
         results_by_date = defaultdict(dict)
-        date_based_dict = results[check_term][0]
+        date_based_dict = results[check_term][0] if results[check_term] else []
         for date in date_based_dict:
             for cost_term in results:
                 results_by_date[date][cost_term] = (
