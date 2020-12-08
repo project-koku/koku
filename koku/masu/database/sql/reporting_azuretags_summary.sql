@@ -4,7 +4,7 @@ WITH cte_tag_value AS (
         value,
         li.cost_entry_bill_id,
         li.subscription_guid
-    FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily AS li,
+    FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary AS li,
         jsonb_each_text(li.tags) labels
     {% if bill_ids %}
     WHERE li.cost_entry_bill_id IN (
