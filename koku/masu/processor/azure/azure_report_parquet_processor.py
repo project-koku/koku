@@ -38,8 +38,17 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
             s3_path=s3_path,
             provider_uuid=provider_uuid,
             parquet_local_path=parquet_local_path,
-            numeric_columns=["usagequantity", "resourcerate", "pretaxcost"],
-            date_columns=["usagedatetime"],
+            numeric_columns=[
+                "usagequantity",
+                "quantity",
+                "resourcerate",
+                "pretaxcost",
+                "costinbillingcurrency",
+                "effectiveprice",
+                "unitprice",
+                "paygprice",
+            ],
+            date_columns=["usagedatetime", "date", "billingperiodstartdate", "billingperiodenddate"],
             table_name=PRESTO_LINE_ITEM_TABLE,
         )
 

@@ -325,3 +325,7 @@ def process_openshift_labels(label_string):
             continue
 
     return label_dict
+
+
+def process_openshift_labels_to_json(label_val):
+    return json.dumps(process_openshift_labels(label_val))

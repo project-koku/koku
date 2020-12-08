@@ -116,6 +116,7 @@ class ReportProcessor:
                 report_path=self.report_path,
                 compression=self.compression,
                 provider_uuid=self.provider_uuid,
+                manifest_id=self.manifest_id,
             )
         return None
 

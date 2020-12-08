@@ -31,10 +31,14 @@ from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
+from masu.util.azure.common import azure_date_converter
+from masu.util.azure.common import azure_json_converter
 from masu.util.ocp.common import process_openshift_datetime
+from masu.util.ocp.common import process_openshift_labels_to_json
 
 
 LOG = logging.getLogger(__name__)
@@ -182,11 +186,20 @@ def get_column_converters(provider_type, **kwargs):
         }
     elif provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
         converters = {
-            "UsageDateTime": ciso8601.parse_datetime,
+            "UsageDateTime": azure_date_converter,
+            "Date": azure_date_converter,
+            "BillingPeriodStartDate": azure_date_converter,
+            "BillingPeriodEndDate": azure_date_converter,
             "UsageQuantity": safe_float,
+            "Quantity": safe_float,
             "ResourceRate": safe_float,
             "PreTaxCost": safe_float,
-            "Tags": safe_dict,
+            "CostInBillingCurrency": safe_float,
+            "EffectivePrice": safe_float,
+            "UnitPrice": safe_float,
+            "PayGPrice": safe_float,
+            "Tags": azure_json_converter,
+            "AdditionalInfo": azure_json_converter,
         }
     elif provider_type == Provider.PROVIDER_OCP:
         converters = {
@@ -208,6 +221,10 @@ def get_column_converters(provider_type, **kwargs):
             "persistentvolumeclaim_capacity_byte_seconds": safe_float,
             "volume_request_storage_byte_seconds": safe_float,
             "persistentvolumeclaim_usage_byte_seconds": safe_float,
+            "pod_labels": process_openshift_labels_to_json,
+            "persistentvolume_labels": process_openshift_labels_to_json,
+            "persistentvolumeclaim_labels": process_openshift_labels_to_json,
+            "node_labels": process_openshift_labels_to_json,
         }
     return converters
 
@@ -314,3 +331,25 @@ def get_hive_table_path(account, provider_type, report_type=None):
     if report_type:
         table_path += f"/{report_type}"
     return table_path
+
+
+def determine_if_full_summary_update_needed(bill):
+    """Decide whether to update summary tables for full billing period."""
+    now_utc = DateHelper().now_utc
+    is_new_bill = bill.summary_data_creation_datetime is None
+    is_current_month = False
+    if hasattr(bill, "billing_period_start"):
+        is_current_month = (
+            bill.billing_period_start.year == now_utc.year and bill.billing_period_start.month == now_utc.month
+        )
+    elif hasattr(bill, "report_period_start"):
+        is_current_month = (
+            bill.report_period_start.year == now_utc.year and bill.report_period_start.month == now_utc.month
+        )
+
+    # Do a full month update if this is the first time we've seen the current month's data
+    # or if it is from a previous month
+    if is_new_bill or not is_current_month:
+        return True
+
+    return False

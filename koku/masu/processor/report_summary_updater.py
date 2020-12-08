@@ -27,8 +27,10 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
+from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
 from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
+from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdater
 from masu.processor.ocp.ocp_report_summary_updater import OCPReportSummaryUpdater
 
 LOG = logging.getLogger(__name__)
@@ -88,27 +90,24 @@ class ReportSummaryUpdater:
 
         """
         if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            if settings.ENABLE_PARQUET_PROCESSING:
-                return (
-                    AWSReportParquetSummaryUpdater(self._schema, self._provider, self._manifest),
-                    OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
-                )
-            return (
-                AWSReportSummaryUpdater(self._schema, self._provider, self._manifest),
-                OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+            report_summary_updater = (
+                AWSReportParquetSummaryUpdater if settings.ENABLE_PARQUET_PROCESSING else AWSReportSummaryUpdater
             )
-        if self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            return (
-                AzureReportSummaryUpdater(self._schema, self._provider, self._manifest),
-                OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+        elif self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            report_summary_updater = (
+                AzureReportParquetSummaryUpdater if settings.ENABLE_PARQUET_PROCESSING else AzureReportSummaryUpdater
             )
-        if self._provider.type in (Provider.PROVIDER_OCP,):
-            return (
-                OCPReportSummaryUpdater(self._schema, self._provider, self._manifest),
-                OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+        elif self._provider.type in (Provider.PROVIDER_OCP,):
+            report_summary_updater = (
+                OCPReportParquetSummaryUpdater if settings.ENABLE_PARQUET_PROCESSING else OCPReportSummaryUpdater
             )
+        else:
+            return (None, None)
 
-        return (None, None)
+        return (
+            report_summary_updater(self._schema, self._provider, self._manifest),
+            OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+        )
 
     def _format_dates(self, start_date, end_date):
         """Convert dates to strings for use in the updater."""

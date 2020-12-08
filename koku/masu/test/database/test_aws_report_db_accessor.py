@@ -989,7 +989,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         )
         mock_presto.assert_called()
 
-    @patch("masu.database.report_db_accessor_base.prestodb.dbapi.connect")
+    @patch("masu.database.report_db_accessor_base.kpdb.connect")
     def test_execute_presto_raw_sql_query(self, mock_connect):
         """Test the presto execute method."""
         mock_sql = "SELECT number FROM table"

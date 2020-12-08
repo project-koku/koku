@@ -86,8 +86,13 @@ class ReportProcessorBase:
 
         """
         column_map = REPORT_COLUMN_MAP[table_name]
+        lower_case_column_map = {key.lower(): value for key, value in column_map.items()}
 
-        result = {column_map[key]: value for key, value in row.items() if key in column_map}
+        result = {
+            lower_case_column_map[key.lower()]: value
+            for key, value in row.items()
+            if key.lower() in lower_case_column_map
+        }
         return result
 
     @staticmethod
