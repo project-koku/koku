@@ -17,6 +17,7 @@
 """Test the AzureReportDBAccessor utility object."""
 import datetime
 import decimal
+from unittest.mock import patch
 
 from django.db.models import F
 from django.db.models import Max
@@ -27,10 +28,14 @@ from tenant_schemas.utils import schema_context
 from api.utils import DateHelper
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.util.azure.common import get_bills_from_provider
+from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
+from reporting.provider.azure.models import AzureEnabledTagKeys
+from reporting.provider.azure.models import AzureTagsSummary
 
 
 class AzureReportDBAccessorTest(MasuTestCase):
@@ -289,3 +294,67 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.assertAlmostEqual(sum_markup_cost, sum_cost * markup_value, 4)
             self.assertAlmostEqual(sum_markup_cost_project, sum_project_cost * markup_value, 4)
             self.assertAlmostEqual(sum_project_markup_cost_project, sum_pod_cost * markup_value, 4)
+
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
+    def test_populate_line_item_daily_summary_table_presto(self, mock_presto):
+        """Test that we construst our SQL and query using Presto."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider.uuid)
+        with schema_context(self.schema):
+            current_bill_id = bills.first().id if bills else None
+
+        with CostModelDBAccessor(self.schema, self.azure_provider.uuid) as cost_model_accessor:
+            markup = cost_model_accessor.markup
+            markup_value = float(markup.get("value", 0)) / 100
+
+        self.accessor.populate_line_item_daily_summary_table_presto(
+            start_date, end_date, self.azure_provider_uuid, current_bill_id, markup_value
+        )
+        mock_presto.assert_called()
+
+    def test_populate_enabled_tag_keys(self):
+        """Test that enabled tag keys are populated."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date)
+        with schema_context(self.schema):
+            AzureTagsSummary.objects.all().delete()
+            AzureEnabledTagKeys.objects.all().delete()
+            bill_ids = [bill.id for bill in bills]
+            self.assertEqual(AzureEnabledTagKeys.objects.count(), 0)
+            self.accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
+            self.assertNotEqual(AzureEnabledTagKeys.objects.count(), 0)
+
+    def test_update_line_item_daily_summary_with_enabled_tags(self):
+        """Test that we filter the daily summary table's tags with only enabled tags."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date)
+        with schema_context(self.schema):
+            AzureTagsSummary.objects.all().delete()
+            key_to_keep = AzureEnabledTagKeys.objects.first()
+            AzureEnabledTagKeys.objects.exclude(key=key_to_keep.key).delete()
+            bill_ids = [bill.id for bill in bills]
+            self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
+            tags = (
+                AzureCostEntryLineItemDailySummary.objects.filter(
+                    usage_start__gte=start_date, cost_entry_bill_id__in=bill_ids
+                )
+                .values_list("tags")
+                .distinct()
+            )
+
+            for tag in tags:
+                tag_dict = tag[0]
+                tag_keys = list(tag_dict.keys())
+                if tag_keys:
+                    self.assertEqual([key_to_keep.key], tag_keys)
+                else:
+                    self.assertEqual([], tag_keys)
