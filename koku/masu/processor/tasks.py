@@ -56,6 +56,7 @@ from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.worker_cache import WorkerCache
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
+from reporting.models import GCP_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
@@ -442,9 +443,11 @@ def update_cost_model_costs(
         worker_cache.release_single_task(task_name, cache_args)
 
 
+# fmt: off
 @app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name="reporting")
-def refresh_materialized_views(schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False):
+def refresh_materialized_views(schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False):  # noqa: C901, E501
     """Refresh the database's materialized views for reporting."""
+    # fmt: on
     task_name = "masu.processor.tasks.refresh_materialized_views"
     cache_args = [schema_name]
     if not synchronous:
@@ -467,8 +470,10 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None, pro
         )
     elif provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
         materialized_views = (
-            AZURE_MATERIALIZED_VIEWS + OCP_ON_AZURE_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
+            (AZURE_MATERIALIZED_VIEWS + OCP_ON_AZURE_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS),
         )
+    elif provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+        materialized_views = GCP_MATERIALIZED_VIEWS
 
     with schema_context(schema_name):
         for view in materialized_views:
