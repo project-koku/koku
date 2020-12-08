@@ -64,6 +64,8 @@ class OrchestratorTest(MasuTestCase):
         self.aws_data_source = self.aws_provider.billing_source.data_source
         self.azure_credentials = self.azure_provider.authentication.credentials
         self.azure_data_source = self.azure_provider.billing_source.data_source
+        self.gcp_credentials = self.gcp_provider.authentication.credentials
+        self.gcp_data_source = self.gcp_provider.billing_source.data_source
         self.ocp_credentials = [name[0] for name in Provider.objects.values_list("authentication__credentials")]
         self.ocp_data_source = {}
         self.mock_accounts = [
@@ -77,7 +79,7 @@ class OrchestratorTest(MasuTestCase):
         ]
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    def test_initializer(self, mock_inspect):
+    def test_initializer(self, mock_inspect):  # noqa: C901
         """Test to init."""
         orchestrator = Orchestrator()
         provider_count = Provider.objects.filter(active=True).count()
@@ -97,6 +99,10 @@ class OrchestratorTest(MasuTestCase):
                 elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
                     self.assertEqual(account.get("credentials"), self.azure_credentials)
                     self.assertEqual(account.get("data_source"), self.azure_data_source)
+                    self.assertEqual(account.get("customer_name"), self.schema)
+                elif account.get("provider_type") in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+                    self.assertEqual(account.get("credentials"), self.gcp_credentials)
+                    self.assertEqual(account.get("data_source"), self.gcp_data_source)
                     self.assertEqual(account.get("customer_name"), self.schema)
                 else:
                     self.fail("Unexpected provider")
@@ -173,7 +179,7 @@ class OrchestratorTest(MasuTestCase):
             orchestrator = Orchestrator()
             results = orchestrator.remove_expired_report_data()
             self.assertTrue(results)
-            self.assertEqual(len(results), 4)
+            self.assertEqual(len(results), 5)
             async_id = results.pop().get("async_id")
             self.assertIn(expected.format(async_id), logger.output)
 

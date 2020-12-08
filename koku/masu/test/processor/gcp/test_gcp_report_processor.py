@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test GCPReportProcessor."""
+import csv
 import os
 import shutil
 import tempfile
@@ -51,7 +52,9 @@ class GCPReportProcessorTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.test_report_path = "./koku/masu/test/data/gcp/30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
+        cls.test_report_path = (
+            "./koku/masu/test/data/gcp/202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
+        )
 
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
@@ -60,7 +63,7 @@ class GCPReportProcessorTest(MasuTestCase):
         """Set up GCP tests."""
         super().setUp()
         self.temp_dir = tempfile.mkdtemp()
-        self.test_report = f"{self.temp_dir}/30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
+        self.test_report = f"{self.temp_dir}/202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
 
         shutil.copy2(self.test_report_path, self.test_report)
 
@@ -246,3 +249,22 @@ class GCPReportProcessorTest(MasuTestCase):
                 row = {"service.description": alias}
                 result_type = processor._get_line_item_type(row)
                 self.assertEqual(result_type, expected_item_type)
+
+    def test_create_cost_entry_line_item_bad_time(self):
+        """Test time parse errors are caught correctly."""
+        processor = GCPReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.gcp_provider.uuid,
+        )
+        with open(self.test_report) as csvfile:
+            reader = csv.DictReader(csvfile)
+            row_one = next(reader)
+        fake_id = 2
+        row_one["usage_start_time"] = "bad time value"
+        processor._create_cost_entry_line_item(row_one, fake_id, fake_id, self.accessor, fake_id)
+        self.assertFalse(processor.processed_report.requested_partitions)
+        del row_one["usage_start_time"]
+        processor._create_cost_entry_line_item(row_one, fake_id, fake_id, self.accessor, fake_id)
+        self.assertFalse(processor.processed_report.requested_partitions)
