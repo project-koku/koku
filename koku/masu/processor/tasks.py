@@ -471,7 +471,7 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None, pro
     elif provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
         materialized_views = (
             AZURE_MATERIALIZED_VIEWS + OCP_ON_AZURE_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
-        ),
+        )
     elif provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
         materialized_views = GCP_MATERIALIZED_VIEWS
 
