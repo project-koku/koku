@@ -7,12 +7,12 @@ CREATE MATERIALIZED VIEW reporting_gcp_cost_summary AS(
         usage_start as usage_end,
         sum(unblended_cost) as unblended_cost,
         sum(markup_cost) as markup_cost,
-        currency
+        max(currency) as currency,
         source_uuid
     FROM reporting_gcpcostentrylineitem_daily_summary
     -- Get data for this month or last month
     WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-    GROUP BY usage_start, source_uuid, currency
+    GROUP BY usage_start, source_uuid
 )
 WITH DATA
 ;
