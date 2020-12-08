@@ -115,8 +115,9 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Assert _generate_monthly_pseudo_manifest returns a manifest-like dict."""
         provider_uuid = uuid4()
         start_date = datetime(2019, 2, 1)
+        invoice_month = start_date.strftime("%Y%m")
         expected_end_date = datetime(2019, 2, 28)
-        expected_assembly_id = ":".join([str(provider_uuid), self.etag, "1"])
+        expected_assembly_id = ":".join([str(provider_uuid), self.etag, invoice_month])
         downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=provider_uuid)
         result_manifest = downloader._generate_monthly_pseudo_manifest(start_date)
         expected_manifest_data = {
@@ -124,7 +125,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             "compression": UNCOMPRESSED,
             "start_date": start_date,
             "end_date": expected_end_date,  # inclusive end date
-            "file_names": [f"{self.etag}_{downloader.query_date}:{self.today.date()}.csv"],
+            "file_names": [f"{invoice_month}_{self.etag}_{downloader.query_date}:{self.today.date()}.csv"],
         }
         self.assertEqual(result_manifest, expected_manifest_data)
 
@@ -139,8 +140,9 @@ class GCPReportDownloaderTest(MasuTestCase):
     def test_relevant_file_names(self):
         """Assert relevant file name is generated correctly."""
         downloader = self.create_gcp_downloader_with_mocked_values()
-        expected_file_name = [f"{self.etag}_{downloader.query_date}:{self.today.date()}.csv"]
-        result_file_names = downloader._get_relevant_file_names()
+        mock_invoice_month = self.today.strftime("%Y%m")
+        expected_file_name = [f"{mock_invoice_month}_{self.etag}_{downloader.query_date}:{self.today.date()}.csv"]
+        result_file_names = downloader._get_relevant_file_names(mock_invoice_month)
         self.assertEqual(expected_file_name, result_file_names)
 
     def test_get_local_file_for_report(self):
@@ -189,10 +191,11 @@ class GCPReportDownloaderTest(MasuTestCase):
     def test_get_manifest_context_for_date(self):
         """Test successful return of get manifest context for date."""
         start_date = datetime(2019, 2, 1)
+        invoice_month = start_date.strftime("%Y%m")
         p_uuid = uuid4()
-        expected_assembly_id = f"{p_uuid}:{self.etag}:1"
+        expected_assembly_id = f"{p_uuid}:{self.etag}:{invoice_month}"
         downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=p_uuid)
-        csv_file = f"{self.etag}_{downloader.query_date}:{self.today.date()}.csv"
+        csv_file = f"{invoice_month}_{self.etag}_{downloader.query_date}:{self.today.date()}.csv"
         expected_files = [{"key": csv_file, "local_file": csv_file}]
         with patch(
             "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._process_manifest_db_record",
