@@ -61,3 +61,13 @@ AZURE_REPORT_TABLE_MAP = {
     "ocp_on_azure_project_daily_summary": "reporting_ocpazurecostlineitem_project_daily_summary",
     "ocp_on_azure_tags_summary": "reporting_ocpazuretags_summary",
 }
+
+GCP_REPORT_TABLE_MAP = {
+    "line_item": "reporting_gcpcostentrylineitem",
+    "line_item_daily": "reporting_gcpcostentrylineitem_daily",
+    "line_item_daily_summary": "reporting_gcpcostentrylineitem_daily_summary",
+    "tags_summary": "reporting_gcptags_summary",
+    "bill": "reporting_gcpcostentrybill",
+    "product": "reporting_gcpcostentryproductservice",
+    "project": "reporting_gcpproject",
+}
