@@ -21,7 +21,7 @@ FROM (
             END as usage
         FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids,
             jsonb_each_text(lids.infrastructure_usage_cost) infrastructure_usage_cost
-        WHERE lids.pod_labels @> {{k_v_pair}}
+        WHERE lids.{{labels_field | sqlsafe}} @> {{k_v_pair}}
             AND lids.cluster_id = {{cluster_id}}
             AND lids.usage_start >= {{start_date}}
             AND lids.usage_start <= {{end_date}}

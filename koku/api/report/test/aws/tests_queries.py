@@ -24,6 +24,7 @@ from decimal import Decimal
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
+from dateutil.relativedelta import relativedelta
 from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
@@ -844,14 +845,14 @@ class AWSReportQueryTest(IamTestCase):
         with tenant_context(self.tenant):
             curr = AWSCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=dh.this_month_start,
-                usage_end__lte=dh.this_month_end,
+                usage_end__lte=dh.today,
                 account_alias__account_alias=self.account_alias,
             ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
             current_total = Decimal(curr.get("value"))
 
             prev = AWSCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=dh.last_month_start,
-                usage_end__lte=dh.last_month_end,
+                usage_end__lte=dh.today - relativedelta(months=1),
                 account_alias__account_alias=self.account_alias,
             ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
             prev_total = Decimal(prev.get("value"))

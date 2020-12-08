@@ -26,6 +26,7 @@ import ciso8601
 from celery import chain
 from celery.utils.log import get_task_logger
 from dateutil import parser
+from django.conf import settings
 from django.db import connection
 from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
@@ -320,8 +321,22 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
         refresh_materialized_views.delay(schema_name, provider, manifest_id=manifest_id)
         return
 
-    with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
-        cost_model = cost_model_accessor.cost_model
+    if settings.ENABLE_PARQUET_PROCESSING and provider in (
+        Provider.PROVIDER_AWS,
+        Provider.PROVIDER_AWS_LOCAL,
+        Provider.PROVIDER_AZURE,
+        Provider.PROVIDER_AZURE_LOCAL,
+    ):
+        cost_model = None
+        stmt = (
+            f"\n Markup for {provider} is calculated during summarization. No need to run update_cost_model_costs\n"
+            f" schema_name: {schema_name},\n"
+            f" provider_uuid: {provider_uuid}"
+        )
+        LOG.info(stmt)
+    else:
+        with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
+            cost_model = cost_model_accessor.cost_model
 
     if cost_model is not None:
         linked_tasks = update_cost_model_costs.s(
@@ -329,7 +344,7 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
         ) | refresh_materialized_views.si(schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id)
     else:
         stmt = (
-            f"\n update_cost_model_costs skipped. No cost model available for \n"
+            f"\n update_cost_model_costs skipped.\n"
             f" schema_name: {schema_name},\n"
             f" provider_uuid: {provider_uuid}"
         )

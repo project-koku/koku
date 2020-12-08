@@ -21,6 +21,7 @@ from json import dumps as json_dumps
 from unittest.mock import Mock
 from uuid import UUID
 
+import prestodb
 from django.conf import settings
 from django.db import connection
 from django.db.models.signals import post_save
@@ -39,6 +40,34 @@ from api.query_params import QueryParameters
 from koku.dev_middleware import DevelopmentIdentityHeaderMiddleware
 from koku.koku_test_runner import KokuTestRunner
 from sources.kafka_listener import storage_callback
+
+
+class FakePrestoCur(prestodb.dbapi.Cursor):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def execute(self, *args, **kwargs):
+        pass
+
+    def fetchall(self):
+        return [["eek"]]
+
+
+class FakePrestoConn(prestodb.dbapi.Connection):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def cursor(self):
+        return FakePrestoCur()
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
+    def close(self):
+        pass
 
 
 class IamTestCase(TestCase):
@@ -157,11 +186,11 @@ class IamTestCase(TestCase):
         customer = {"account_id": account, "schema_name": schema}
         return customer
 
-    def mocked_query_params(self, url, view, path=None):
+    def mocked_query_params(self, url, view, path=None, access=None):
         """Create QueryParameters using a mocked Request."""
         m_request = self.factory.get(url)
         user = Mock()
-        user.access = None
+        user.access = access
         user.customer.schema_name = self.tenant.schema_name
         m_request.user = user
         if path:

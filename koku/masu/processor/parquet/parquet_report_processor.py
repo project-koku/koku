@@ -39,6 +39,7 @@ from masu.util.aws.common import aws_post_processor
 from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import get_s3_resource
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
+from masu.util.azure.common import azure_post_processor
 from masu.util.common import get_column_converters
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
@@ -141,6 +142,8 @@ class ParquetReportProcessor:
 
         if provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
             post_processor = aws_post_processor
+        elif provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
+            post_processor = azure_post_processor
 
         failed_conversion = []
         for csv_filename in files:
@@ -262,10 +265,10 @@ class ParquetReportProcessor:
         parquet_file = None
         csv_file = f"{s3_csv_path}/{csv_filename}"
         if csv_filename.lower().endswith(CSV_EXT):
-            ext = -1 * len(CSV_EXT)
+            ext = -len(CSV_EXT)
             parquet_file = f"{csv_filename[:ext]}.parquet"
         elif csv_filename.lower().endswith(CSV_GZIP_EXT):
-            ext = -1 * len(CSV_GZIP_EXT)
+            ext = -len(CSV_GZIP_EXT)
             parquet_file = f"{csv_filename[:ext]}.parquet"
             kwargs = {"compression": "gzip"}
         else:
@@ -332,7 +335,6 @@ class ParquetReportProcessor:
             report_file = []
         else:
             report_file = [self._report_file]
-
         LOG.info(f"Parquet conversion: start_date = {str(self._start_date)}. File: {str(self._report_file)}")
         if self._start_date:
             start_date_str = self._start_date.strftime("%Y-%m-%d")

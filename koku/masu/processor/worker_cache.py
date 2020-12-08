@@ -74,14 +74,19 @@ class WorkerCache:
     def active_workers(self):
         """Return a list of active workers."""
         running_workers = []
-        for host in CELERY_INSPECT.reserved().keys():
+        celery_inspect_instance = CELERY_INSPECT.reserved()
+        if celery_inspect_instance:
+            hosts = celery_inspect_instance.keys()
+            for host in hosts:
 
-            # Celery returns workers in the form of celery@hostname.
-            hostname_pattern = r"[^@]*$"
-            found = re.search(hostname_pattern, host)
-            if found:
-                hostname = found.group()
-                running_workers.append(hostname)
+                # Celery returns workers in the form of celery@hostname.
+                hostname_pattern = r"[^@]*$"
+                found = re.search(hostname_pattern, host)
+                if found:
+                    hostname = found.group()
+                    running_workers.append(hostname)
+        else:
+            LOG.warning("Unable to get celery inspect instance.")
         return running_workers
 
     @property

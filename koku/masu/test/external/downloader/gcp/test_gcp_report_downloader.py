@@ -124,7 +124,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             "compression": UNCOMPRESSED,
             "start_date": start_date,
             "end_date": expected_end_date,  # inclusive end date
-            "file_names": [f"{self.etag}_{self.today.date()}.csv"],
+            "file_names": [f"{self.etag}_{downloader.query_date}:{self.today.date()}.csv"],
         }
         self.assertEqual(result_manifest, expected_manifest_data)
 
@@ -138,8 +138,8 @@ class GCPReportDownloaderTest(MasuTestCase):
 
     def test_relevant_file_names(self):
         """Assert relevant file name is generated correctly."""
-        expected_file_name = [f"{self.etag}_{self.today.date()}.csv"]
         downloader = self.create_gcp_downloader_with_mocked_values()
+        expected_file_name = [f"{self.etag}_{downloader.query_date}:{self.today.date()}.csv"]
         result_file_names = downloader._get_relevant_file_names()
         self.assertEqual(expected_file_name, result_file_names)
 
@@ -189,11 +189,11 @@ class GCPReportDownloaderTest(MasuTestCase):
     def test_get_manifest_context_for_date(self):
         """Test successful return of get manifest context for date."""
         start_date = datetime(2019, 2, 1)
-        csv_file = f"{self.etag}_{self.today.date()}.csv"
-        expected_files = [{"key": csv_file, "local_file": csv_file}]
         p_uuid = uuid4()
         expected_assembly_id = f"{p_uuid}:{self.etag}:1"
         downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=p_uuid)
+        csv_file = f"{self.etag}_{downloader.query_date}:{self.today.date()}.csv"
+        expected_files = [{"key": csv_file, "local_file": csv_file}]
         with patch(
             "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._process_manifest_db_record",
             return_value=2,
