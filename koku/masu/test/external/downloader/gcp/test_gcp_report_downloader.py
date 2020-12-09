@@ -208,3 +208,11 @@ class GCPReportDownloaderTest(MasuTestCase):
         self.assertEqual(report_dict.get("files"), expected_files)
         self.assertEqual(report_dict.get("compression"), UNCOMPRESSED)
         self.assertEqual(report_dict.get("assembly_id"), expected_assembly_id)
+
+    def test_generate_monthly_pseudo_no_manifest(self):
+        """Test get monly psuedo manifest with no manifest."""
+        dh = DateHelper()
+        downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=uuid4())
+        start_date = dh.last_month_start
+        manifest_dict = downloader._generate_monthly_pseudo_manifest(start_date)
+        self.assertIsNotNone(manifest_dict)

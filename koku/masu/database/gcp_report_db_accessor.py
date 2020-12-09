@@ -185,8 +185,6 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             scan_start, scan_end = date_range.split(":")
             scan_range["start"] = scan_start
             scan_range["end"] = scan_end
-        except UnboundLocalError:
-            pass
         except ValueError:
             pass
         return scan_range
