@@ -25,3 +25,4 @@ from masu.api.running_celery_tasks import running_celery_tasks
 from masu.api.status import get_status
 from masu.api.update_cost_model_costs import update_cost_model_costs
 from masu.api.upload_normalized_data import upload_normalized_data
+from masu.api.source_cleanup import cleanup
