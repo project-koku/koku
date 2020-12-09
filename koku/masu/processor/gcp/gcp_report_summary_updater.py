@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Red Hat, Inc.
+# Copyright 2020 Red Hat, Inc.
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -14,24 +14,24 @@
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Updates report summary tables in the database."""
+"""Updates gcp report summary tables in the database."""
 import calendar
 import datetime
 import logging
 
 from tenant_schemas.utils import schema_context
 
-from masu.database.azure_report_db_accessor import AzureReportDBAccessor
+from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.util.azure.common import get_bills_from_provider
 from masu.util.common import date_range_pair
+from masu.util.gcp.common import get_bills_from_provider
 
 LOG = logging.getLogger(__name__)
 
 
-class AzureReportSummaryUpdater:
-    """Class to update Azure report summary data."""
+class GCPReportSummaryUpdater:
+    """Class to update GCP report summary data."""
 
     def __init__(self, schema, provider, manifest):
         """Establish the database connection.
@@ -47,7 +47,7 @@ class AzureReportSummaryUpdater:
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
-        with AzureReportDBAccessor(self._schema) as accessor:
+        with GCPReportDBAccessor(self._schema) as accessor:
             # This is the normal processing route
             if self._manifest:
                 # Override the bill date to correspond with the manifest
@@ -79,8 +79,29 @@ class AzureReportSummaryUpdater:
             (str, str): A start date and end date.
 
         """
-        LOG.info("update_daily_tables for: %s-%s", str(start_date), str(end_date))
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
+        bills = get_bills_from_provider(
+            self._provider.uuid,
+            self._schema,
+            datetime.datetime.strptime(start_date, "%Y-%m-%d"),
+            datetime.datetime.strptime(end_date, "%Y-%m-%d"),
+        )
+        bill_ids = []
+        with schema_context(self._schema):
+            bill_ids = [str(bill.id) for bill in bills]
+
+        with GCPReportDBAccessor(self._schema) as accessor:
+            for start, end in date_range_pair(start_date, end_date):
+                LOG.info(
+                    "Updating GCP report daily tables for \n\tSchema: %s"
+                    "\n\tProvider: %s \n\tDates: %s - %s\n\tBills: %s",
+                    self._schema,
+                    self._provider.uuid,
+                    start,
+                    end,
+                    str(bill_ids),
+                )
+                accessor.populate_line_item_daily_table(start, end, bill_ids)
 
         return start_date, end_date
 
@@ -95,7 +116,6 @@ class AzureReportSummaryUpdater:
             (str, str) A start date and end date.
 
         """
-        LOG.info("update_summary_tables for: %s-%s", str(start_date), str(end_date))
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
         bills = get_bills_from_provider(
             self._provider.uuid,
@@ -107,16 +127,18 @@ class AzureReportSummaryUpdater:
         with schema_context(self._schema):
             bill_ids = [str(bill.id) for bill in bills]
 
-        with AzureReportDBAccessor(self._schema) as accessor:
+        with GCPReportDBAccessor(self._schema) as accessor:
             # Need these bills on the session to update dates after processing
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
-                    "Updating Azure report summary tables: \n\tSchema: %s" "\n\tProvider: %s \n\tDates: %s - %s",
+                    "Updating GCP report summary tables: \n\tSchema: %s"
+                    "\n\tProvider: %s \n\tDates: %s - %s\n\tBills: %s",
                     self._schema,
                     self._provider.uuid,
                     start,
                     end,
+                    str(bill_ids),
                 )
                 accessor.populate_line_item_daily_summary_table(start, end, bill_ids)
             accessor.populate_tags_summary_table(bill_ids)
@@ -131,16 +153,20 @@ class AzureReportSummaryUpdater:
     def _determine_if_full_summary_update_needed(self, bill):
         """Decide whether to update summary tables for full billing period."""
         summary_creation = bill.summary_data_creation_datetime
+        # finalized_datetime = bill.finalized_datetime
 
         is_done_processing = False
         with ReportManifestDBAccessor() as manifest_accesor:
             is_done_processing = manifest_accesor.manifest_ready_for_summary(self._manifest.id)
+        is_newly_finalized = False
+        # if finalized_datetime is not None:
+        #     is_newly_finalized = finalized_datetime.date() == now_utc.date()
 
         is_new_bill = summary_creation is None
 
         # Do a full month update if we just finished processing a finalized
         # bill or we just finished processing a bill for the first time
-        if is_done_processing and is_new_bill:
+        if (is_done_processing and is_newly_finalized) or (is_done_processing and is_new_bill):  # noqa: W504
             return True
 
         return False
