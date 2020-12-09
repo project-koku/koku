@@ -1,0 +1,91 @@
+---
+generators:
+  - VMGenerator:
+      service_name: Virtual Machines
+      meter_id: 55555555-4444-3333-2222-111111111128
+      resource_location: "US East"
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_v2_1'
+      tags:
+        version: Nitrogen
+  - VMGenerator:
+      service_name: Virtual Machines
+      meter_id: 55555555-4444-3333-2222-111111111127
+      resource_location: "US East"
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_v2_2'
+      tags:
+        environment: Carbon
+        version: Hydrogen
+  - VMGenerator:
+      service_name: Virtual Machines
+      meter_id: 55555555-4444-3333-2222-111111111126
+      resource_location: "US East"
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_v2_3'
+      tags:
+        environment: Carbon
+        version: Boron
+  - VMGenerator:
+      service_name: Virtual Machines
+      meter_id: 55555555-4444-3333-2222-111111111125
+      resource_location: "US East"
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_v2_master'
+      tags:
+        version: Oxygen
+  - StorageGenerator:
+      meter_id: 55555555-4444-3333-2222-111111111124
+      resource_location: "US North Central"
+      amount: 10
+      rate: 0.05
+      tags:
+        storageclass: Neon
+  - StorageGenerator:
+      meter_id: 55555555-4444-3333-2222-111111111123
+      resource_location: "US North Central"
+      amount: 10
+      rate: 0.01
+      tags:
+        storageclass: Silver
+  - StorageGenerator:
+      meter_id: 55555555-4444-3333-2222-111111111122
+      resource_location: "US North Central"
+      amount: 10
+      rate: 0.01
+      tags:
+        storageclass: Gold
+  - StorageGenerator:
+      meter_id: 55555555-4444-3333-2222-111111111121
+      resource_location: "US North Central"
+      amount: 10
+      rate: 0.01
+      tags:
+        storageclass: Platinum
+  - StorageGenerator:
+      meter_id: 55555555-4444-3333-2222-111111111120
+      resource_location: "US North Central"
+      amount: 10
+      rate: 0.01
+      tags:
+        storageclass: Mercury
+  - SQLGenerator:
+      meter_id: 55555555-4444-3333-2222-111111111119
+      resource_location: "US South Central"
+      tags:
+        app: Plutonium
+  - VNGenerator:
+      tags:
+        app: Sodium
+  - VNGenerator:
+      # Nitrogenuct_family: DNS Zone
+      tags:
+        app: Bromine
+  - VNGenerator:
+      tags:
+        app: Sodium
+  - VNGenerator:
+      tags:
+        app: Plutonium
+
+# SubscriptionGuid
+accounts:
+  payer: 9e5f42ee-d20f-4373-8923-8e70ce9cd28b
+  user:
+    - 9e5f42ee-d20f-4373-8923-8e70ce9cd28b
