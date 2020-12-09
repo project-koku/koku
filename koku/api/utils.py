@@ -17,11 +17,14 @@
 """Unit conversion util functions."""
 import calendar
 import datetime
+import logging
 
 import pint
 import pytz
 from django.utils import timezone
 from pint.errors import UndefinedUnitError
+
+LOG = logging.getLogger(__name__)
 
 
 def merge_dicts(*list_of_dicts):
@@ -237,6 +240,24 @@ class DateHelper:
         # monthrange returns (day_of_week, num_days)
         _, num_days = calendar.monthrange(date.year, date.month)
         return num_days
+
+    def gcp_invoice_month_start(self, date_str):
+        """Find the beginning of the month for gcp invoice month.
+
+        GCP invoice month format is {year}{month}.
+        Ex. 202011
+
+        Args:
+            date_str: GCP invoice month format
+
+        Returns:
+            (datetime.datetime)
+        """
+        if not isinstance(date_str, str):
+            date_str = str(date_str)
+        date_obj = datetime.datetime.strptime(date_str, "%Y%m")
+        gcp_month_start = self.month_start(date_obj)
+        return gcp_month_start
 
 
 class UnitConverter:

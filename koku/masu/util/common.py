@@ -35,6 +35,8 @@ from api.utils import DateHelper
 from masu.config import Config
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
+from masu.util.azure.common import azure_date_converter
+from masu.util.azure.common import azure_json_converter
 from masu.util.ocp.common import process_openshift_datetime
 from masu.util.ocp.common import process_openshift_labels_to_json
 
@@ -184,11 +186,20 @@ def get_column_converters(provider_type, **kwargs):
         }
     elif provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
         converters = {
-            "UsageDateTime": ciso8601.parse_datetime,
+            "UsageDateTime": azure_date_converter,
+            "Date": azure_date_converter,
+            "BillingPeriodStartDate": azure_date_converter,
+            "BillingPeriodEndDate": azure_date_converter,
             "UsageQuantity": safe_float,
+            "Quantity": safe_float,
             "ResourceRate": safe_float,
             "PreTaxCost": safe_float,
-            "Tags": safe_dict,
+            "CostInBillingCurrency": safe_float,
+            "EffectivePrice": safe_float,
+            "UnitPrice": safe_float,
+            "PayGPrice": safe_float,
+            "Tags": azure_json_converter,
+            "AdditionalInfo": azure_json_converter,
         }
     elif provider_type == Provider.PROVIDER_OCP:
         converters = {

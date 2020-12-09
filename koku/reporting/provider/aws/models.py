@@ -326,7 +326,7 @@ class AWSTagsSummary(models.Model):
     """A collection of all current existing tag key and values."""
 
     class Meta:
-        """Meta for OCPUsageTagSummary."""
+        """Meta for AWSTagSummary."""
 
         db_table = "reporting_awstags_summary"
         unique_together = ("key", "cost_entry_bill", "usage_account_id")

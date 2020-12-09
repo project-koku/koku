@@ -117,6 +117,7 @@ REPORT_COLUMN_MAP = defaultdict(
             "persistentvolumeclaim_labels": "persistentvolumeclaim_labels",
         },
         "reporting_ocpnodelabellineitem": {"node": "node", "node_labels": "node_labels"},
+        "reporting_ocpnamespacelabellineitem": {"namespace": "namespace", "namespace_labels": "namespace_labels"},
         "reporting_azurecostentryproductservice": {
             "InstanceId": "instance_id",
             "ResourceLocation": "resource_location",
@@ -147,28 +148,41 @@ REPORT_COLUMN_MAP = defaultdict(
             "PreTaxCost": "pretax_cost",
         },
         "reporting_gcpproject": {
-            "Project ID": "project_id",
-            "Account ID": "account_id",
-            "Project Number": "project_number",
-            "Project Name": "project_name",
-            "Project Labels": "project_labels",
+            "project.id": "project_id",
+            "billing_account_id": "account_id",
+            "project.name": "project_name",
+            "project.labels": "project_labels",
         },
-        "reporting_gcpcostentrylineitemdaily": {
-            "Line Item": "line_item_type",
-            "Start Time": "start_time",
-            "End Time": "end_time",
-            "Measurement1": "measurement_type",
-            "Measurement1 Total Consumption": "consumption",
-            "Measurement1 Units": "unit",
-            "Cost": "cost",
-            "Currency": "currency",
-            "Description": "description",
+        "reporting_gcpcostentryproductservice": {
+            "service.id": "service_id",
+            "service.description": "service_alias",
+            "sku.id": "sku_id",
+            "sku.description": "sku_alias",
+        },
+        "reporting_gcpcostentrylineitem": {
+            "usage_start_time": "usage_start",
+            "usage_end_time": "usage_end",
+            "location.location": "location",
+            "location.country": "country",
+            "location.region": "region",
+            "location.zone": "zone",
+            "export_time": "export_time",
+            "cost": "cost",
+            "currency": "currency",
+            "currency_conversion_rate": "conversion_rate",
+            "usage.amount": "usage_amount",
+            "usage.unit": "usage_unit",
+            "usage.amount_in_pricing_units": "usage_to_pricing_units",
+            "usage.pricing_unit": "usage_pricing_unit",
+            "credits": "credits",
+            "invoice.month": "invoice_month",
+            "cost_type": "cost_type",
         },
     },
 )
 
 AZURE_REPORT_COLUMNS = (
-    list(REPORT_COLUMN_MAP["reporting_azurecostentrylineitem_daily"].keys())
-    + list(REPORT_COLUMN_MAP["reporting_azuremeter"].keys())
-    + list(REPORT_COLUMN_MAP["reporting_azurecostentryproductservice"].keys())
+    [key.lower() for key in REPORT_COLUMN_MAP["reporting_azurecostentrylineitem_daily"].keys()]
+    + [key.lower() for key in REPORT_COLUMN_MAP["reporting_azuremeter"].keys()]
+    + [key.lower() for key in REPORT_COLUMN_MAP["reporting_azurecostentryproductservice"].keys()]
 )

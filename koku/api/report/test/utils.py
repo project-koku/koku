@@ -42,7 +42,7 @@ from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
 class NiseDataLoader:
     """Loads nise generated test data for different source types."""
 
-    def __init__(self, schema, num_days=4):
+    def __init__(self, schema, num_days=10):
         """Initialize the data loader."""
         self.dh = DateHelper()
         self.schema = schema
@@ -63,6 +63,11 @@ class NiseDataLoader:
 
         prev_month_start = start_date - relativedelta(months=1)
         prev_month_end = end_date - relativedelta(months=1)
+        days_of_data = prev_month_end.day - prev_month_start.day
+
+        if days_of_data < num_days:
+            extra_days = num_days - days_of_data
+            prev_month_end = prev_month_end + relativedelta(days=extra_days)
 
         return [
             (prev_month_start, prev_month_end, self.dh.last_month_start),
@@ -275,3 +280,32 @@ class NiseDataLoader:
         ).apply()
         refresh_materialized_views.s(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True).apply()
         shutil.rmtree(base_path, ignore_errors=True)
+
+    def load_gcp_data(self, customer):
+        """Load GCP data into the database."""
+        provider_type = Provider.PROVIDER_GCP_LOCAL
+        credentials = {"project_id": "test_project_id"}
+        data_source = {"table_id": "test_table_id", "dataset": "test_dataset"}
+        with patch.object(settings, "AUTO_DATA_INGEST", False):
+            provider = baker.make(
+                "Provider",
+                type=provider_type,
+                authentication__credentials=credentials,
+                billing_source__data_source=data_source,
+                customer=customer,
+            )
+
+        for start_date, end_date, bill_date in self.dates:
+            manifest = baker.make(
+                "CostUsageReportManifest",
+                _fill_optional=True,
+                provider=provider,
+                billing_period_start_datetime=bill_date,
+            )
+            with patch("masu.processor.tasks.chain"), patch.object(settings, "AUTO_DATA_INGEST", False):
+                update_summary_tables(
+                    self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
+                )
+        update_cost_model_costs.s(
+            self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
+        ).apply()

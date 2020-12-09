@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the AWSReportProcessor."""
+"""Test the AWSReportSummaryUpdater."""
 import calendar
 import datetime
 from unittest.mock import call
@@ -27,7 +27,6 @@ from tenant_schemas.utils import schema_context
 
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
@@ -65,11 +64,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
 
         self.today = DateAccessor().today_with_timezone("UTC")
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
-
-        with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
-            self.provider = provider_accessor.get_provider()
-
-        self.updater = AWSReportSummaryUpdater(self.schema, self.provider, self.manifest)
+        self.updater = AWSReportSummaryUpdater(self.schema, self.aws_provider, self.manifest)
 
     @patch("masu.processor.aws.aws_report_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table")
     @patch("masu.processor.aws.aws_report_summary_updater.AWSReportDBAccessor.populate_line_item_daily_table")
@@ -177,7 +172,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         manifest_helper.generate_test_report_files()
         manifest_helper.process_all_files()
 
-        self.updater = AWSReportSummaryUpdater(self.schema, self.provider, self.manifest)
+        self.updater = AWSReportSummaryUpdater(self.schema, self.aws_provider, self.manifest)
 
         start_date = self.date_accessor.today_with_timezone("UTC")
         end_date = start_date + datetime.timedelta(days=1)
@@ -318,7 +313,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
     @patch("masu.processor.aws.aws_report_summary_updater.AWSReportDBAccessor.populate_line_item_daily_table")
     def test_update_summary_tables_without_manifest(self, mock_daily, mock_summary):
         """Test that summary tables are properly run without a manifest."""
-        self.updater = AWSReportSummaryUpdater(self.schema, self.provider, None)
+        self.updater = AWSReportSummaryUpdater(self.schema, self.aws_provider, None)
 
         start_date = datetime.datetime(year=self.today.year, month=self.today.month, day=self.today.day)
         end_date = start_date + datetime.timedelta(days=1)
