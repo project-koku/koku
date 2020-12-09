@@ -20,7 +20,6 @@ from unittest.mock import patch
 
 from tenant_schemas.utils import schema_context
 
-from api.utils import DateHelper
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -91,46 +90,6 @@ class GCPReportSummaryUpdaterTest(MasuTestCase):
         mock_summary.assert_called_with(expected_start_date, expected_end_date, bills)
 
         self.assertIsNotNone(self.updater._manifest)
-
-    def test_determine_if_full_summary_update_needed_new_bill(self):
-        """determine if update is needed for new bill."""
-        self.manifest.num_processed_files = self.manifest.num_total_files
-
-        start_date = self.date_accessor.today_with_timezone("UTC")
-        end_date = start_date + datetime.timedelta(days=1)
-        # TODO: Change these tests to use the bill created by nise.
-        with schema_context(self.schema):
-            bill = GCPCostEntryBill.objects.create(
-                provider=self.gcp_provider, billing_period_start=start_date, billing_period_end=end_date
-            )
-
-        result = self.updater._determine_if_full_summary_update_needed(bill)
-        self.assertFalse(result)
-
-    @patch(
-        "masu.processor.gcp.gcp_report_summary_updater.GCPReportSummaryUpdater._determine_if_full_summary_update_needed"
-    )
-    def test_get_sql_inputs_first_bill(self, mock_update):
-        """Make sure end date is overwritten with first bill"""
-        mock_update.return_value = True
-        dh = DateHelper()
-        month_start = dh.this_month_start
-        end_date = dh.this_month_end
-        with schema_context(self.schema):
-            GCPCostEntryBill.objects.all().delete()
-            GCPCostEntryBill.objects.create(
-                provider=self.gcp_provider, billing_period_start=month_start, billing_period_end=end_date
-            )
-        manifest_dict = {
-            "assembly_id": "12345",
-            "billing_period_start_datetime": month_start,
-            "num_total_files": 1,
-            "provider_uuid": self.gcp_provider_uuid,
-        }
-        manifest = self.manifest_accessor.add(**manifest_dict)
-        updater = GCPReportSummaryUpdater(self.schema, self.gcp_provider, manifest)
-        _, result_end = updater._get_sql_inputs(month_start, month_start)
-        self.assertEqual(end_date.strftime("%Y-%m-%d"), result_end)
 
     def test_get_sql_inputs_no_manifest(self):
         """Test if no manifest for codecov."""
