@@ -16,6 +16,7 @@
 #
 import json
 import logging
+import os
 import re
 import uuid
 
@@ -40,6 +41,8 @@ VIEW_TYPE_MATERIALIZED = "m"
 
 LOG = logging.getLogger("pg_partition")
 # SQLFILE = open('/tmp/pg_partition.sql', 'wt')
+
+_TEMPLATE_SCHEMA = os.environ.get("TEMPLATE_SCHEMA", "template0")
 
 
 # Standardized SQL executor
@@ -1071,60 +1074,173 @@ DROP TABLE "{self.source_schema}"."{self.source_table_name}" CASCADE ;
 
 
 # ====================================================================
-#  Functions to move data from default partitions to new partitions
+#  Functionality to move data from default partitions to new partitions
 # ====================================================================
-def _create_partititon_tracking_record(conn, default_part_rec, partition_name, partition_parameters):
-    partition_parameters["from"] = str(partition_parameters["from"])
-    partition_parameters["to"] = str(partition_parameters["to"])
-    partition_parameters["default"] = False
-    part_track_insert_sql = f"""
-INSERT INTO "{default_part_rec['schema_name']}"."partitioned_tables"
-       (schema_name, table_name, partition_of_table_name, partition_type, partition_col, partition_parameters, active)
-VALUES (%s, %s, %s, %s, %s, %s::jsonb, true);
+class PartitionDefaultData:
+    """
+    Move data from a specified default partition into newly-created month range partitions
+    Params:
+        conn : database connection (If None, then gets the connection)
+        schema_name (str) : Schema containing the partitioned data and tracking table
+        partitioned_table (str) : Partitioned table name
+        partition_key (str) : Partition key (column)
+        partition_type (str) : should be 'range'
+        manage_trigger_exists (bool) : The partition manage trigger on the tracking table exists
+        attach_trigger_exists (bool) : The partition attach trigger on the tracking table exists
+    """
+
+    def __init__(
+        self,
+        conn,
+        schema_name,
+        partitioned_table,
+        default_partition,
+        partition_key,
+        partition_type,
+        manage_trigger_exists,
+        attach_trigger_exists,
+    ):
+        self.conn = conn or transaction.get_connection()
+        self.schema_name = schema_name
+        self.partitioned_table = partitioned_table
+        self.default_partition = default_partition
+        self.partition_key = partition_key
+        self.partition_type = partition_type
+        self.manage_trigger_exists = manage_trigger_exists
+        self.attach_trigger_exists = attach_trigger_exists
+        self.conn = transaction.get_connection()
+        self.partition_name = ""
+        self.tracking_rec = None
+        self.partition_parameters = {}
+        self.tx_id = str(uuid.uuid4()).replace("-", "_")
+
+    def _update_partition_tracking_record(self):
+        update_sql = f"""
+UPDATE "{self.schema_name}"."partitioned_tables"
+   SET "partition_parameters" = %s::jsonb,
+       "active" = %s
+ WHERE "id" = %s;
 """
-    vals = (
-        default_part_rec["schema_name"],
-        partition_name,
-        default_part_rec["partitioned_table"],
-        default_part_rec["partition_type"],
-        default_part_rec["partition_key"],
-        json.dumps(partition_parameters),
-    )
-    with conn.cursor() as cur:
-        cur.execute(part_track_insert_sql, vals)
+        with self.conn.cursor() as cur:
+            vals = (
+                json.dumps(self.tracking_rec["partition_parameters"]),
+                self.tracking_rec["active"],
+                self.tracking_rec["id"],
+            )
+            cur.execute(update_sql, vals)
 
+    def _create_partititon_tracking_record(self):
+        partition_parameters = self.partition_parameters.copy()
+        partition_parameters["from"] = str(partition_parameters["from"])
+        partition_parameters["to"] = str(partition_parameters["to"])
+        partition_parameters["default"] = False
+        part_track_insert_sql = f"""
+INSERT INTO "{self.schema_name}"."partitioned_tables"
+       (schema_name, table_name, partition_of_table_name, partition_type, partition_col, partition_parameters, active)
+VALUES (%s, %s, %s, %s, %s, %s::jsonb, true)
+RETURNING *;
+"""
+        vals = (
+            self.schema_name,
+            self.partition_name,
+            self.partitioned_table,
+            self.partition_type,
+            self.partition_key,
+            json.dumps(self.partition_parameters),
+        )
+        with self.conn.cursor() as cur:
+            cur.execute(part_track_insert_sql, vals)
+            cols = [d[0] for d in cur.description]
+            self.tracking_rec = dict(zip(cols, cur.fetchone()))
 
-def _create_partition(conn, default_part_rec, partition_name, partition_parameters, trigger_exists=False):
-    if not trigger_exists:
-        new_part_sql = f"""
-CREATE TABLE IF NOT EXISTS "{default_part_rec['schema_name']}"."{partition_name}"
-PARTITION OF "{default_part_rec['schema_name']}"."{default_part_rec['partitioned_table']}"
+    def _create_partition(self):
+        if not self.manage_trigger_exists:
+            new_part_sql = f"""
+CREATE TABLE IF NOT EXISTS "{self.schema_name}"."{self.partition_name}"
+PARTITION OF "{self.schema_name}"."{self.partitioned_table}"
 FOR VALUES FROM ( %s ) TO ( %s );
 """
-        with conn.cursor() as cur:
-            cur.execute(new_part_sql, (partition_parameters["from"], partition_parameters["to"]))
+            with conn.cursor() as cur:
+                cur.execute(new_part_sql, (self.partition_parameters["from"], self.partition_parameters["to"]))
 
-    _create_partititon_tracking_record(conn, default_part_rec, partition_name, partition_parameters)
+        self._create_partititon_tracking_record()
 
+    def _attach_partition(self):
+        self.tracking_rec["active"] = True
+        self._update_partition_tracking_record()
 
-def _get_new_partitions_from_default(conn, default_part_rec):
-    partition_start_sql = f"""
+    def _detach_partition(self):
+        self.tracking_rec["active"] = False
+        self._update_partition_tracking_record()
+
+    def _get_new_partitions_from_default(self):
+        partition_start_sql = f"""
 SELECT DISTINCT
        date_trunc(month, usage_start)::date as "partition_start",
-       date_trunc(month, (usage_start + '1 month'::interval))::date as "partition_end"
-  FROM "{default_part_rec['schema_name']}"."{default_part_rec['table_name']}";
+       date_trunc(month, (date_trunc(month, usage_start) + '1 month'::interval))::date as "partition_end"
+  FROM "{self.schema_name}"."{self.default_partition}";
 """
-    res = None
-    with conn.cursor() as cur:
-        cur.execute(partition_start_sql)
-        res = [r[0] for r in cur]
+        res = None
+        with self.conn.cursor() as cur:
+            cur.execute(partition_start_sql)
+            res = [r[0] for r in cur]
 
-    return res
+        return res
+
+    def repartition_default_data(self):
+        new_partitions = self._get_new_partitions_from_default()
+        if new_partitions:
+            mv_recs_sql = f"""
+WITH __mv_recs_{self.tx_id} as (
+DELETE
+  FROM "{self.schema_name}"."{self.default_partition}"
+ WHERE usage_start >= %s
+   AND usage_start < %s
+RETURNING *
+)
+INSERT INTO {{}}
+SELECT * FROM __mv_recs_{self.tx_id} ;
+"""
+
+            for bounds in new_partitions:
+                p_from, p_to = bounds
+                self.partition_name = f"{self.partitioned_table}_{p_from.strftime('%Y_%m')}"
+                full_partition_name = f'"{self.schema_name}"."{self.partition_name}"'
+
+                # A little jiggery-pokery here to increase efficiency.
+                # The partition is named properly, but it set as a partition for 1 year in the future
+                # This will allow us to create the partition with all of the structure that is required.
+                # Before the data move, we will detach the partition, then move the data,
+                # then reattach with the proper bounds.
+                self.partition_parameters = {
+                    "from": p_from.replace(year=p_from.year + 1),
+                    "to": p_to.replace(year=p_to.year + 1),
+                }
+
+                with transaction.atomic():
+                    # Create new partition
+                    self._create_partition()
+                    # Detach it so we can move the data
+                    self._detach_partition()
+
+                    # Move data into new partition
+                    with conn.cursor() as cur:
+                        cur.execute(mv_recs_sql.format(full_partition_name), (p_from, p_to))
+
+                    # Re-attach partition with actual bounds
+                    self.tracking_rec["partition_parameters"]["from"] = str(p_from)
+                    self.tracking_rec["partition_parameters"]["to"] = str(p_to)
+                    self._attach_partition()
 
 
+# This is an interface intended to be used in a task
 def partition_default_data(schema_name=None, partitioned_table_name=None):
     """
     Move any data in a default partition to the requisite partition.
+    Unless constrained to a schema or table, it will crawl over all schemata and default table partitions
+    Params:
+        schema_name (str) : Constrain to specified schema
+        partitioned_table_name (str) : Constrain to specified partitioned table
     """
     default_partition_sql = """
 SELECT c.relnamespace::regnamespace::text as "schema_name",
@@ -1145,7 +1261,16 @@ SELECT c.relnamespace::regnamespace::text as "schema_name",
                  WHERE tt.relnamespace = c.relnamespace
                    AND tt.relname = 'partitioned_tables'::name
                    AND t.tgname = 'tr_manage_date_range_partition'::name
-              ) as "trigger_exists"
+              ) as "manage_trigger_exists",
+       EXISTS (
+                SELECT 1
+                  FROM pg_trigger t
+                  JOIN pg_class tt
+                    ON tt.oid = t.tgrelid
+                 WHERE tt.relnamespace = c.relnamespace
+                   AND tt.relname = 'partitioned_tables'::name
+                   AND t.tgname = 'tr_attach_date_range_partition'::name
+              ) as "attach_trigger_exists"
   FROM pg_class c
   JOIN pg_inherits h
     ON h.inhrelid = c.oid
@@ -1157,74 +1282,29 @@ SELECT c.relnamespace::regnamespace::text as "schema_name",
   JOIN pg_attribute pk
     ON pk.attrelid = pt.partrelid
    AND pk.attnum = pt.partattrs::text::int2
- WHERE c.relnamespace != 'template0'::regnamespace
-   AND c.relnamespace = coalesce(%s::regnamespace, c.relnamespece)
+ WHERE c.relnamespace != %s::regnamespace
+   AND c.relnamespace = coalesce(%s::regnamespace, c.relnamespace)
    AND c.relname = coalesce(%s::name, c.relname)
    AND c.relpartbound is not null
    AND pg_get_expr(c.relpartbound, c.oid)::text = 'DEFAULT'
  ORDER
     BY c.relname;
 """
-    curr_table = ""
-    temp_table = ""
-    tx_id = str(uuid.uuid4()).replace("-", "_")
     conn = transaction.get_connection()
     with conn.cursor() as cur:
-        cur.execute(default_partition_sql, (schema_name, partitioned_table_name))
+        cur.execute(default_partition_sql, (_TEMPLATE_SCHEMA, schema_name, partitioned_table_name))
         cols = [d[0] for d in cur.description]
         default_partitions = [dict(zip(cols, rec)) for rec in cur.fetchall()]
 
     for default_rec in default_partitions:
-        if curr_table != default_rec["table_name"]:
-            with conn.cursor() as cur:
-                cur.execute(f'DROP TABLE IF EXISTS "{temp_table}" ;')
-            temp_table = f"__default_partiton_tmp_{tx_id}"
-            temp_table_sql = f"""
-CREATE TEMP TABLE "{temp_table}" ( like "{default_rec['schema_name']}"."{default_rec['table_name']}" ) ;
-"""
-            with conn.cursor() as cur:
-                cur.execute(temp_table_sql)
-
-        new_partitions = _get_new_partitions_from_default(default_rec["schema_name"], default_rec["partition_name"])
-        if new_partitions:
-            mv_tmp_sql = f"""
-WITH __mv_tmp_{tx_id} as (
-DELETE
-  FROM "{default_rec['schema_name']}"."{default_rec['table_name']}"
- WHERE usage_start >= %s
-   AND usage_start < %s
-RETURNING *
-)
-INSERT INTO "{temp_table}"
-SELECT * FROM __mv_tmp_{tx_id} ;
-"""
-            mv_part_sql = f"""
-WITH __mv_part_{tx_id} as (
-DELETE
-  FROM "{temp_table}"
- WHERE usage_start >= %s
-   AND usage_start < %s
-RETURNING *
-)
-INSERT INTO "{default_rec['schema_name']}"."{{}}"
-SELECT * FROM __mv_part_{tx_id} ;
-"""
-            for bounds in new_partitions:
-                p_from, p_to = bounds
-                partition_parameters = {"from": p_from, "to": p_to}
-                partition_name = f"{default_rec['partitioned_table']}_{p_from.strftime('%Y_%m')}"
-                with transaction.atomic():
-                    # Move data out of default partition
-                    with conn.cursor() as cur:
-                        cur.execute(mv_tmp_sql, (p_from, p_to))
-                    # Create new partition
-                    _create_partition(
-                        conn,
-                        default_rec,
-                        partition_name,
-                        partition_parameters,
-                        trigger_exists=default_rec["trigger_exists"],
-                    )
-                    # Move data into new partition
-                    with conn.cursor() as cur:
-                        cur.execute(mv_part_sql.format(partition_name), (p_from, p_to))
+        default_partitioner = PartitionDefaultData(
+            conn,
+            default_rec["schema_name"],
+            default_rec["partitioned_table"],
+            default_rec["table_name"],
+            default_rec["partition_key"],
+            default_rec["partition_type"],
+            default_rec["manage_trigger_exists"],
+            default_rec["attach_trigger_exists"],
+        )
+        default_partitioner.repartition_default_data()
