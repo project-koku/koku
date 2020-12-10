@@ -14,8 +14,10 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+import json
 import logging
 import re
+import uuid
 
 import ciso8601
 from dateutil.relativedelta import relativedelta
@@ -1066,3 +1068,163 @@ TRUNCATE TABLE "{self.source_schema}"."{self.source_table_name}" ;
 DROP TABLE "{self.source_schema}"."{self.source_table_name}" CASCADE ;
 """
         conn_execute(sql)
+
+
+# ====================================================================
+#  Functions to move data from default partitions to new partitions
+# ====================================================================
+def _create_partititon_tracking_record(conn, default_part_rec, partition_name, partition_parameters):
+    partition_parameters["from"] = str(partition_parameters["from"])
+    partition_parameters["to"] = str(partition_parameters["to"])
+    partition_parameters["default"] = False
+    part_track_insert_sql = f"""
+INSERT INTO "{default_part_rec['schema_name']}"."partitioned_tables"
+       (schema_name, table_name, partition_of_table_name, partition_type, partition_col, partition_parameters, active)
+VALUES (%s, %s, %s, %s, %s, %s::jsonb, true);
+"""
+    vals = (
+        default_part_rec["schema_name"],
+        partition_name,
+        default_part_rec["partitioned_table"],
+        default_part_rec["partition_type"],
+        default_part_rec["partition_key"],
+        json.dumps(partition_parameters),
+    )
+    with conn.cursor() as cur:
+        cur.execute(part_track_insert_sql, vals)
+
+
+def _create_partition(conn, default_part_rec, partition_name, partition_parameters, trigger_exists=False):
+    if not trigger_exists:
+        new_part_sql = f"""
+CREATE TABLE IF NOT EXISTS "{default_part_rec['schema_name']}"."{partition_name}"
+PARTITION OF "{default_part_rec['schema_name']}"."{default_part_rec['partitioned_table']}"
+FOR VALUES FROM ( %s ) TO ( %s );
+"""
+        with conn.cursor() as cur:
+            cur.execute(new_part_sql, (partition_parameters["from"], partition_parameters["to"]))
+
+    _create_partititon_tracking_record(conn, default_part_rec, partition_name, partition_parameters)
+
+
+def _get_new_partitions_from_default(conn, default_part_rec):
+    partition_start_sql = f"""
+SELECT DISTINCT
+       date_trunc(month, usage_start)::date as "partition_start",
+       date_trunc(month, (usage_start + '1 month'::interval))::date as "partition_end"
+  FROM "{default_part_rec['schema_name']}"."{default_part_rec['table_name']}";
+"""
+    res = None
+    with conn.cursor() as cur:
+        cur.execute(partition_start_sql)
+        res = [r[0] for r in cur]
+
+    return res
+
+
+def partition_default_data(schema_name=None, partitioned_table_name=None):
+    """
+    Move any data in a default partition to the requisite partition.
+    """
+    default_partition_sql = """
+SELECT c.relnamespace::regnamespace::text as "schema_name",
+       c.relname::text as "table_name",
+       ptc.relname::text as "partitioned_table",
+       pk.attname::text as "partition_key",
+       CASE pt.partstrat
+            WHEN 'h' THEN 'hash'
+            WHEN 'l' THEN 'list'
+            WHEN 'r' THEN 'range'
+            ELSE NULL
+       END::text as "partition_type",
+       EXISTS (
+                SELECT 1
+                  FROM pg_trigger t
+                  JOIN pg_class tt
+                    ON tt.oid = t.tgrelid
+                 WHERE tt.relnamespace = c.relnamespace
+                   AND tt.relname = 'partitioned_tables'::name
+                   AND t.tgname = 'tr_manage_date_range_partition'::name
+              ) as "trigger_exists"
+  FROM pg_class c
+  JOIN pg_inherits h
+    ON h.inhrelid = c.oid
+  JOIN pg_class ptc
+    ON ptc.oid = h.inhparent
+   AND ptc.relkind = 'p'
+  JOIN pg_partitioned_table pt
+    ON pt.partrelid = ptc.oid
+  JOIN pg_attribute pk
+    ON pk.attrelid = pt.partrelid
+   AND pk.attnum = pt.partattrs::text::int2
+ WHERE c.relnamespace != 'template0'::regnamespace
+   AND c.relnamespace = coalesce(%s::regnamespace, c.relnamespece)
+   AND c.relname = coalesce(%s::name, c.relname)
+   AND c.relpartbound is not null
+   AND pg_get_expr(c.relpartbound, c.oid)::text = 'DEFAULT'
+ ORDER
+    BY c.relname;
+"""
+    curr_table = ""
+    temp_table = ""
+    tx_id = str(uuid.uuid4()).replace("-", "_")
+    conn = transaction.get_connection()
+    with conn.cursor() as cur:
+        cur.execute(default_partition_sql, (schema_name, partitioned_table_name))
+        cols = [d[0] for d in cur.description]
+        default_partitions = [dict(zip(cols, rec)) for rec in cur.fetchall()]
+
+    for default_rec in default_partitions:
+        if curr_table != default_rec["table_name"]:
+            with conn.cursor() as cur:
+                cur.execute(f'DROP TABLE IF EXISTS "{temp_table}" ;')
+            temp_table = f"__default_partiton_tmp_{tx_id}"
+            temp_table_sql = f"""
+CREATE TEMP TABLE "{temp_table}" ( like "{default_rec['schema_name']}"."{default_rec['table_name']}" ) ;
+"""
+            with conn.cursor() as cur:
+                cur.execute(temp_table_sql)
+
+        new_partitions = _get_new_partitions_from_default(default_rec["schema_name"], default_rec["partition_name"])
+        if new_partitions:
+            mv_tmp_sql = f"""
+WITH __mv_tmp_{tx_id} as (
+DELETE
+  FROM "{default_rec['schema_name']}"."{default_rec['table_name']}"
+ WHERE usage_start >= %s
+   AND usage_start < %s
+RETURNING *
+)
+INSERT INTO "{temp_table}"
+SELECT * FROM __mv_tmp_{tx_id} ;
+"""
+            mv_part_sql = f"""
+WITH __mv_part_{tx_id} as (
+DELETE
+  FROM "{temp_table}"
+ WHERE usage_start >= %s
+   AND usage_start < %s
+RETURNING *
+)
+INSERT INTO "{default_rec['schema_name']}"."{{}}"
+SELECT * FROM __mv_part_{tx_id} ;
+"""
+            for bounds in new_partitions:
+                p_from, p_to = bounds
+                partition_parameters = {"from": p_from, "to": p_to}
+                partition_name = f"{default_rec['partitioned_table']}_{p_from.strftime('%Y_%m')}"
+                with transaction.atomic():
+                    # Move data out of default partition
+                    with conn.cursor() as cur:
+                        cur.execute(mv_tmp_sql, (p_from, p_to))
+                    # Create new partition
+                    _create_partition(
+                        conn,
+                        default_rec,
+                        partition_name,
+                        partition_parameters,
+                        trigger_exists=default_rec["trigger_exists"],
+                    )
+                    # Move data into new partition
+                    with conn.cursor() as cur:
+                        cur.execute(mv_part_sql.format(partition_name), (p_from, p_to))
