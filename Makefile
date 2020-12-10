@@ -391,6 +391,9 @@ docker-presto-cleanup:
 docker-presto-up: docker-metastore-setup docker-presto-setup
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d
 
+docker-presto-ps:
+	docker-compose -f ./testing/compose_files/docker-compose-presto.yml ps
+
 docker-presto-down:
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down -v
 	make docker-presto-cleanup
