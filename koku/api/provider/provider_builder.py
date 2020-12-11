@@ -141,7 +141,7 @@ class ProviderBuilder:
         """Call to update provider."""
         connection.set_schema_to_public()
         context, customer, _ = self._create_context()
-        tenant = Tenant.objects.get(schema_name=customer.schema_name)
+        tenant = Tenant.objects.get_or_create(schema_name=customer.schema_name)
         provider_type = source.source_type
         json_data = {
             "name": source.name,
@@ -161,7 +161,7 @@ class ProviderBuilder:
         """Call to destroy provider."""
         connection.set_schema_to_public()
         _, customer, user = self._create_context()
-        tenant = Tenant.objects.get(schema_name=customer.schema_name)
+        tenant = Tenant.objects.get_or_create(schema_name=customer.schema_name)
         connection.set_tenant(tenant)
         try:
             manager = ProviderManager(provider_uuid)
