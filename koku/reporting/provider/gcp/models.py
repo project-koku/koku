@@ -333,6 +333,8 @@ class GCPCostSummaryByProject(models.Model):
 
     project_name = models.CharField(max_length=256)
 
+    account_id = models.CharField(max_length=50, null=False)
+
 
 class GCPCostSummaryByRegion(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
