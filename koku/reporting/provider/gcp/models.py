@@ -385,7 +385,7 @@ class GCPCostSummaryByService(models.Model):
 
     usage_end = models.DateField(null=False)
 
-    usage_account_id = models.CharField(max_length=50, null=False)
+    account_id = models.CharField(max_length=50, null=False)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
