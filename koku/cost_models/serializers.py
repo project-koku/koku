@@ -107,11 +107,11 @@ class TagRateValueSerializer(serializers.Serializer):
 
     DECIMALS = ("value", "usage_start", "usage_end")
 
-    tag_value = serializers.CharField()
+    tag_value = serializers.CharField(max_length=100)
     unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
     usage = serializers.DictField(required=False)
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
-    description = serializers.CharField(allow_blank=True)
+    description = serializers.CharField(allow_blank=True, max_length=500)
     default = serializers.BooleanField()
 
     def validate_value(self, value):
@@ -138,7 +138,7 @@ class TagRateValueSerializer(serializers.Serializer):
 class TagRateSerializer(serializers.Serializer):
     """Serializer for Tag Rate."""
 
-    tag_key = serializers.CharField()
+    tag_key = serializers.CharField(max_length=100)
     tag_values = serializers.ListField()
 
     def validate_tag_values(self, tag_values):
@@ -190,7 +190,7 @@ class RateSerializer(serializers.Serializer):
 
     metric = serializers.DictField(required=True)
     cost_type = serializers.ChoiceField(choices=metric_constants.COST_TYPE_CHOICES)
-    description = serializers.CharField(allow_blank=True, max_length=100, required=False)
+    description = serializers.CharField(allow_blank=True, max_length=500, required=False)
     tiered_rates = serializers.ListField(required=False)
     tag_rates = serializers.DictField(required=False)
 
@@ -384,9 +384,9 @@ class CostModelSerializer(serializers.Serializer):
 
     uuid = serializers.UUIDField(read_only=True)
 
-    name = serializers.CharField(allow_blank=True)
+    name = serializers.CharField(allow_blank=True, max_length=100)
 
-    description = serializers.CharField(allow_blank=True)
+    description = serializers.CharField(allow_blank=True, max_length=500)
 
     source_type = serializers.CharField(required=True)
 
