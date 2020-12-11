@@ -1286,7 +1286,7 @@ class AWSReportQueryTest(IamTestCase):
                 data = handler.execute_query()
                 # grab the accounts and sub_ous and compare with the expected results
                 path = self.ou_to_account_subou_map.get(org_unit).get("org_unit_path")
-                ten_days_ago = self.dh.n_days_ago(self.dh.today, 10)
+                ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
                 expected = AWSCostEntryLineItemDailySummary.objects.filter(
                     usage_start__gte=ten_days_ago,
                     usage_end__lte=self.dh.today,
@@ -1334,7 +1334,7 @@ class AWSReportQueryTest(IamTestCase):
                 # Since the or: is suppose to do the union of a OU_001 & OU_002 then
                 # we can the expected cost to include both as well as the expected_accounts_and_sub_ous
                 path = self.ou_to_account_subou_map.get(org_unit).get("org_unit_path")
-                ten_days_ago = self.dh.n_days_ago(self.dh.today, 10)
+                ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
                 expected = AWSCostEntryLineItemDailySummary.objects.filter(
                     usage_start__gte=ten_days_ago,
                     usage_end__lte=self.dh.today,
@@ -1376,7 +1376,7 @@ class AWSReportQueryTest(IamTestCase):
             handler = AWSReportQueryHandler(query_params)
             org_data = handler.execute_query()
             # grab the expected totals
-            ten_days_ago = self.dh.n_days_ago(self.dh.today, 10)
+            ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
             expected = AWSCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=ten_days_ago,
                 usage_end__lte=self.dh.today,
