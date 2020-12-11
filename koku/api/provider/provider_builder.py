@@ -112,7 +112,7 @@ class ProviderBuilder:
         """Get or create tenant for schema."""
         tenant, created = Tenant.objects.get_or_create(schema_name=schema_name)
         if created:
-            msg = f"Created tenant {customer.schema_name}"
+            msg = f"Created tenant {schema_name}"
             LOG.info(msg)
         return tenant
 
