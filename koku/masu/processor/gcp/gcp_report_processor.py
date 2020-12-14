@@ -26,6 +26,7 @@ import ciso8601
 import pandas
 import pytz
 from dateutil import parser
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.db import transaction
 
@@ -108,7 +109,13 @@ class GCPReportProcessor(ReportProcessorBase):
             self.existing_bill_map = report_db.get_cost_entry_bills()
             self.existing_product_map = report_db.get_products()
             self.existing_projects_map = report_db.get_projects()
+            self.report_scan_range = report_db.get_gcp_scan_range_from_report_name(report_name=self._report_name)
 
+        self.scan_start = self.report_scan_range.get("start")
+        self.scan_end = self.report_scan_range.get("end")
+        if not self.scan_start or not self.scan_end:
+            err_msg = f"Error recovering start and end date from csv report ({self._report_name})."
+            raise ProcessedGCPReportError(err_msg)
         LOG.info("Initialized report processor for file: %s and schema: %s", report_path, self._schema)
 
         self.line_item_columns = None
@@ -127,9 +134,11 @@ class GCPReportProcessor(ReportProcessorBase):
                 break
         return item_type
 
-    def _delete_line_items_in_range(self, bill_id, scan_start):
+    def _delete_line_items_in_range(self, bill_id):
         """Delete stale data between date range."""
-        gcp_date_filter = {"usage_start__gte": scan_start}
+        scan_start = ciso8601.parse_datetime(self.scan_start).date()
+        scan_end = (ciso8601.parse_datetime(self.scan_end) + relativedelta(days=1)).date()
+        gcp_date_filters = {"usage_start__gte": scan_start, "usage_end__lt": scan_end}
 
         if not self._manifest_id:
             return False
@@ -140,15 +149,16 @@ class GCPReportProcessor(ReportProcessorBase):
 
         with GCPReportDBAccessor(self._schema) as accessor:
             line_item_query = accessor.get_lineitem_query_for_billid(bill_id)
-            line_item_query = line_item_query.filter(**gcp_date_filter)
+            line_item_query = line_item_query.filter(**gcp_date_filters)
             delete_count = line_item_query.delete()
-            if delete_count:
+            if delete_count[0] > 0:
                 log_statement = (
-                    f"Deleting data for:\n"
+                    f"items delted ({delete_count[0]}) for:\n"
                     f" schema_name: {self._schema}\n"
                     f" provider_uuid: {self._provider_uuid}\n"
                     f" bill ID: {bill_id}\n"
-                    f" on or after {scan_start}"
+                    f" on or after {scan_start}\n"
+                    f" before {scan_end}\n"
                 )
                 LOG.info(log_statement)
         return True
@@ -193,20 +203,6 @@ class GCPReportProcessor(ReportProcessorBase):
             if key == type_key:
                 return value
         return None
-
-    def _get_range_from_report_name(self):
-        """
-        Get the scan range from the report name.
-        """
-        scan_range = {}
-        try:
-            date_range = self._report_name.split("_")[-1]
-            start_date, end_date = date_range.split(":")
-            scan_range = {"start": start_date, "end": end_date}
-        except UnboundLocalError:
-            err_msg = "Error recovering start and end date from csv report."
-            raise ProcessedGCPReportError(err_msg)
-        return scan_range
 
     def _get_or_create_cost_entry_bill(self, row, report_db_accessor):
         """Get or Create a GCP cost entry bill object.
@@ -355,9 +351,6 @@ class GCPReportProcessor(ReportProcessorBase):
                 self._schema,
             )
             return False
-        scan_range = self._get_range_from_report_name()
-        scan_start = scan_range["start"]
-        scan_start = ciso8601.parse_datetime(scan_start).date()
 
         # Read the csv in batched chunks.
         report_csv = pandas.read_csv(self._report_path, chunksize=self._batch_size, compression="infer")
@@ -377,7 +370,7 @@ class GCPReportProcessor(ReportProcessorBase):
 
                     bill_id = self._get_or_create_cost_entry_bill(first_row, report_db)
                     if bill_id not in bills_purged:
-                        self._delete_line_items_in_range(bill_id, scan_start)
+                        self._delete_line_items_in_range(bill_id)
                         bills_purged.append(bill_id)
 
                     project_id = self._get_or_create_gcp_project(first_row, report_db)
