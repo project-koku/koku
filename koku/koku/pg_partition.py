@@ -1302,15 +1302,7 @@ SELECT * FROM __mv_recs_{self.tx_id} ;
                     self._attach_partition()
 
 
-# This is a crawler interface to the PartitionDefaultData class
-def repartition_default_data(schema_name=None, partitioned_table_name=None):
-    """
-    Move any data in a default partition to the requisite partition.
-    Unless constrained to a schema or table, it will crawl over all schemata and default table partitions
-    Params:
-        schema_name (str) : Constrain to specified schema
-        partitioned_table_name (str) : Constrain to specified partitioned table
-    """
+def get_partitioned_tables_with_default(schema_name=None, partitioned_table_name=None):
     default_partition_sql = """
 SELECT dp.relnamespace::regnamespace::text as "schema_name",
        dp.relname::text as "default_partition",
@@ -1332,10 +1324,23 @@ SELECT dp.relnamespace::regnamespace::text as "schema_name",
  ORDER
     BY 1, 2;
 """
-    curr_namespace = ""
     cur = conn_execute(default_partition_sql, (_TEMPLATE_SCHEMA, schema_name, partitioned_table_name))
     default_partitions = fetchall(cur)
-    cur.close()
+
+    return default_partitions
+
+
+# This is a crawler interface to the PartitionDefaultData class
+def repartition_default_data(schema_name=None, partitioned_table_name=None):
+    """
+    Move any data in a default partition to the requisite partition.
+    Unless constrained to a schema or table, it will crawl over all schemata and default table partitions
+    Params:
+        schema_name (str) : Constrain to specified schema
+        partitioned_table_name (str) : Constrain to specified partitioned table
+    """
+    curr_namespace = ""
+    default_partitions = get_partitioned_tables_with_default(schema_name, partitioned_table_name)
 
     for default_rec in default_partitions:
         if curr_namespace != default_rec["schema_name"]:
