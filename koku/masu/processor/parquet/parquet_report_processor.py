@@ -64,6 +64,7 @@ class ParquetReportProcessor:
         self._manifest_id = manifest_id
         self._request_id = context.get("request_id")
         self._start_date = context.get("start_date")
+        self.presto_table_exists = {}
 
     def convert_to_parquet(  # noqa: C901
         self, request_id, account, provider_uuid, provider_type, start_date, manifest_id, files=[], context={}
@@ -233,6 +234,7 @@ class ParquetReportProcessor:
             processor.create_table()
             processor.create_bill(bill_date=bill_date)
             processor.get_or_create_postgres_partition(bill_date=bill_date)
+            self.presto_table_exists[report_type] = True
 
     def convert_csv_to_parquet(  # noqa: C901
         self,
@@ -317,14 +319,15 @@ class ParquetReportProcessor:
 
         s3_hive_table_path = get_hive_table_path(context.get("account"), self._provider_type, report_type=report_type)
 
-        self.create_parquet_table(
-            context.get("account"),
-            context.get("provider_uuid"),
-            manifest_id,
-            s3_hive_table_path,
-            output_file,
-            report_type,
-        )
+        if not self.presto_table_exists.get(report_type):
+            self.create_parquet_table(
+                context.get("account"),
+                context.get("provider_uuid"),
+                manifest_id,
+                s3_hive_table_path,
+                output_file,
+                report_type,
+            )
 
         shutil.rmtree(local_path, ignore_errors=True)
         return True
