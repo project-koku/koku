@@ -1354,6 +1354,7 @@ WHERE usage_start >= {{start_date}}
 
 -- Populate the daily aggregate line item data
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary (
+    uuid,
     report_period_id,
     cluster_id,
     cluster_alias,
@@ -1378,7 +1379,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary (
     project_costs,
     source_uuid
 )
-    SELECT report_period_id,
+    SELECT uuid_generate_v4(),
+        report_period_id,
         cluster_id,
         cluster_alias,
         namespace,
@@ -1427,6 +1429,7 @@ WHERE usage_start >= {{start_date}}
 ;
 
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary (
+    uuid,
     report_period_id,
     cluster_id,
     cluster_alias,
@@ -1452,7 +1455,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_su
     project_markup_cost,
     source_uuid
 )
-    SELECT report_period_id,
+    SELECT uuid_generate_v4(),
+        report_period_id,
         cluster_id,
         cluster_alias,
         data_source,
