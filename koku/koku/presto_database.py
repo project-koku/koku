@@ -198,7 +198,7 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
                 p_stmt = p_stmt[:-1]
 
             # This is typically for jinjasql templated sql
-            if preprocessor:
+            if preprocessor and params:
                 try:
                     stmt, s_params = preprocessor(p_stmt, params)
                 # If a different preprocessor is used, we can't know what the exception type is.
@@ -212,5 +212,4 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
                 stmt, s_params = p_stmt, params
 
             results.extend(execute(presto_conn, stmt, params=s_params))
-
     return results
