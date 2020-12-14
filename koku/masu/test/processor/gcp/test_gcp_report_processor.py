@@ -80,7 +80,7 @@ class GCPReportProcessorTest(MasuTestCase):
                 setup_complete=True,
             )
 
-        start_time = "2019-09-17T00:00:00-07:00"
+        start_time = "2020-11-08 23:00:00+00:00"
         report_date_range = utils.month_date_range(parser.parse(start_time))
         start_date, end_date = report_date_range.split("-")
 
@@ -206,7 +206,7 @@ class GCPReportProcessorTest(MasuTestCase):
         """Test error caught when report path doesn't exist."""
         processor = GCPReportProcessor(
             schema_name=self.schema,
-            report_path="/path/does/not/exist.csv",
+            report_path="/path/does/not/exist/202011_123_2020-11-08:2020-11-11.csv",
             compression=UNCOMPRESSED,
             provider_uuid=self.gcp_provider.uuid,
             manifest_id=self.manifest.id,
