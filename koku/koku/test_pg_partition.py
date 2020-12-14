@@ -551,7 +551,8 @@ select (
 """
                 )
                 res = cur.fetchone()
-            self.assertEqual(res, (1, 1))
+            self.assertTrue(res[0] > 0)
+            self.assertTrue(res[1] > 0)
 
             ppart.repartition_default_data(schema_name=self.schema_name)
 
