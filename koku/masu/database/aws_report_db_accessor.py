@@ -315,6 +315,36 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
 
+    def populate_ocp_on_aws_cost_daily_summary_presto(
+        self, start_date, end_date, openshift_provider_uuid, aws_provider_uuid, cluster_id, bill_id, markup_value
+    ):
+        """Populate the daily cost aggregated summary for OCP on AWS.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpawscostlineitem_daily_summary.sql")
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "uuid": str(openshift_provider_uuid).replace("-", "_"),
+            "schema": self.schema,
+            "start_date": start_date,
+            "year": start_date.year,
+            "month": start_date.month,
+            "end_date": end_date,
+            "aws_source_uuid": aws_provider_uuid,
+            "ocp_source_uuid": openshift_provider_uuid,
+            "cluster_id": cluster_id,
+            "bill_id": bill_id,
+            "markup": markup_value,
+        }
+        self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
+
     def populate_ocp_on_aws_tags_summary_table(self):
         """Populate the line item aggregated totals data table."""
         table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_tags_summary"]
