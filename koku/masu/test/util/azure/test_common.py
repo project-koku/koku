@@ -31,8 +31,8 @@ class TestAzureUtils(MasuTestCase):
     def test_azure_date_converter(self):
         """Test that we convert the new Azure date format."""
         today = DateHelper().today
-        old_azure_format = f"{today.year}-{today.month}-{today.day}"
-        new_azure_format = f"{today.month}/{today.day}/{today.year}"
+        old_azure_format = today.strftime("%Y-%m-%d")
+        new_azure_format = today.strftime("%m/%d/%Y")
 
         self.assertEqual(azure_date_converter(old_azure_format).date(), today.date())
         self.assertEqual(azure_date_converter(new_azure_format).date(), today.date())
