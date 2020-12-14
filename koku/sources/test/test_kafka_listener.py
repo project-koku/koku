@@ -1086,10 +1086,17 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                     "get_application_type_is_cost_management",
                     return_value=test.get("expected_cost_mgmt_match"),
                 ):
-                    with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
-                        with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
-                            process_message(test_application_id, msg_data)
-                            test.get("expected_fn")(msg_data, test, mock_save_auth_info)
+                    with patch.object(
+                        SourcesHTTPClient,
+                        "get_source_id_from_applications_id",
+                        return_value=test.get("expected_cost_mgmt_match"),
+                    ):
+                        with patch.object(
+                            SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}
+                        ):
+                            with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
+                                process_message(test_application_id, msg_data)
+                                test.get("expected_fn")(msg_data, test, mock_save_auth_info)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     @patch("sources.kafka_listener.sources_network_info", returns=None)

@@ -109,7 +109,7 @@ VALUES (
  * the line-item pod labels against the postgres enabled keys in the same query
  */
 INSERT
-  INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_presto
+  INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
        (
            uuid,
            report_period_id,
@@ -148,18 +148,18 @@ SELECT uuid() as "uuid",
        pua.node,
        pua.resource_id,
        cast(pua.pod_labels as json) as "pod_labels",
-       cast(pua.pod_usage_cpu_core_hours as varchar) as "pod_usage_cpu_core_hours",
-       cast(pua.pod_request_cpu_core_hours as varchar) as "pod_request_cpu_core_hours",
-       cast(pua.pod_limit_cpu_core_hours as varchar) as "pod_limit_cpu_core_hours",
-       cast(pua.pod_usage_memory_gigabyte_hours as varchar) as "pod_usage_memory_gigabyte_hours",
-       cast(pua.pod_request_memory_gigabyte_hours as varchar) as "pod_request_memory_gigabyte_hours",
-       cast(pua.pod_limit_memory_gigabyte_hours as varchar) as "pod_limit_memory_gigabyte_hours",
-       cast(pua.node_capacity_cpu_cores as varchar) as "node_capacity_cpu_cores",
-       cast(pua.node_capacity_cpu_core_hours as varchar) as "node_capacity_cpu_core_hours",
-       cast(pua.node_capacity_memory_gigabytes as varchar) as "node_capacity_memory_gigabytes",
-       cast(pua.node_capacity_memory_gigabyte_hours as varchar) as "node_capacity_memory_gigabyte_hours",
-       cast(pua.cluster_capacity_cpu_core_hours as varchar) as "cluster_capacity_cpu_core_hours",
-       cast(pua.cluster_capacity_memory_gigabyte_hours as varchar) as "cluster_capacity_memory_gigabyte_hours",
+       pua.pod_usage_cpu_core_hours,
+       pua.pod_request_cpu_core_hours,
+       pua.pod_limit_cpu_core_hours,
+       pua.pod_usage_memory_gigabyte_hours,
+       pua.pod_request_memory_gigabyte_hours,
+       pua.pod_limit_memory_gigabyte_hours,
+       pua.node_capacity_cpu_cores,
+       pua.node_capacity_cpu_core_hours,
+       pua.node_capacity_memory_gigabytes,
+       pua.node_capacity_memory_gigabyte_hours,
+       pua.cluster_capacity_cpu_core_hours,
+       pua.cluster_capacity_memory_gigabyte_hours,
        cast(pua.source_uuid as UUID) as "source_uuid",
        JSON '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as "infrastructure_usage_cost"
   FROM (
@@ -286,7 +286,7 @@ VALUES (
  * by use of MAP_FILTER to filter the combined node line item labels as well as
  * the line-item pod labels against the postgres enabled keys in the same query
  */
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_presto (
+INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
     cluster_id,
@@ -320,20 +320,20 @@ SELECT uuid() as "uuid",
        sua.usage_start as "usage_end",
        cast(sua.volume_labels as json) as "volume_labels",
        cast(sua.source_uuid as UUID) as "source_uuid",
-       cast((sua.persistentvolumeclaim_capacity_bytes *
-             power(2, -30)) as varchar) as "persistentvolumeclaim_capacity_gigibytes",
-       cast((sua.persistentvolumeclaim_capacity_byte_seconds /
+       (sua.persistentvolumeclaim_capacity_bytes *
+             power(2, -30)) as "persistentvolumeclaim_capacity_gigibytes",
+       (sua.persistentvolumeclaim_capacity_byte_seconds /
              86400 *
              cast(extract(day from last_day_of_month(date(sua.usage_start))) as integer) *
-             power(2, -30)) as varchar) as "persistentvolumeclaim_capacity_gigabyte_months",
-       cast((sua.volume_request_storage_byte_seconds /
+             power(2, -30)) as "persistentvolumeclaim_capacity_gigabyte_months",
+       (sua.volume_request_storage_byte_seconds /
              86400 *
              cast(extract(day from last_day_of_month(date(sua.usage_start))) as integer) *
-             power(2, -30)) as varchar) as "volume_request_storage_gigabyte_months",
-       cast((sua.persistentvolumeclaim_usage_byte_seconds /
+             power(2, -30)) as "volume_request_storage_gigabyte_months",
+       (sua.persistentvolumeclaim_usage_byte_seconds /
              86400 *
              cast(extract(day from last_day_of_month(date(sua.usage_start))) as integer) *
-             power(2, -30)) as varchar) as "persistentvolumeclaim_usage_byte_months"
+             power(2, -30)) as "persistentvolumeclaim_usage_byte_months"
   FROM (
            SELECT sli.namespace,
                   vn.node,
