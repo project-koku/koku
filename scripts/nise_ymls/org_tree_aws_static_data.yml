@@ -21,11 +21,11 @@ generators:
     processor_arch: 32-bit
     product_sku: VEAJHRNKTJZQ
     region: us-east-1a
-    resource_id: 55555555
+    resource_id: 99995555
     start_date: last_month
     tags:
-      resourceTags/user:environment: dev
-      resourceTags/user:version: alpha
+      resourceTags/user:environment: devz
+      resourceTags/user:version: alphaz
 - EC2Generator:
     end_date: 10
     instance_type:
@@ -39,11 +39,11 @@ generators:
     processor_arch: 32-bit
     product_sku: VEAJHRNKTJZA
     region: us-east-1a
-    resource_id: 55555556
+    resource_id: 99995556
     start_date: last_month
     tags:
-      resourceTags/user:environment: dev
-      resourceTags/user:version: alpha
+      resourceTags/user:environment: devz
+      resourceTags/user:version: alphaz
 - RDSGenerator:
     instance_type:
       cost: 1.0
