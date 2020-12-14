@@ -58,6 +58,8 @@ class OCPAWSCostLineItemDailySummary(models.Model):
             # Function: (upper(product_code) gin_trgm_ops)
         ]
 
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
@@ -67,8 +69,6 @@ class OCPAWSCostLineItemDailySummary(models.Model):
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = ArrayField(models.CharField(max_length=253, null=False))
-
-    pod = ArrayField(models.CharField(max_length=253, null=False))
 
     node = models.CharField(max_length=253, null=True)
 
@@ -105,7 +105,7 @@ class OCPAWSCostLineItemDailySummary(models.Model):
 
     currency_code = models.CharField(max_length=10, null=True)
 
-    # Cost breakdown can be done by cluster, node, project, and pod.
+    # Cost breakdown can be done by cluster, node, project.
     # Cluster and node cost can be determined by summing the AWS unblended_cost
     # with a GROUP BY cluster/node.
     # Project cost is a summation of pod costs with a GROUP BY project
@@ -143,6 +143,8 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
             models.Index(fields=["instance_type"], name="ocp_aws_proj_inst_type_idx"),
         ]
 
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
@@ -155,8 +157,6 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
-
-    pod = models.CharField(max_length=253, null=True)
 
     node = models.CharField(max_length=253, null=True)
 

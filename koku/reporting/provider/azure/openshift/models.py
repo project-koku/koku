@@ -55,6 +55,8 @@ class OCPAzureCostLineItemDailySummary(models.Model):
             # Function: (upper(service_name) gin_trgm_ops)
         ]
 
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
@@ -131,6 +133,8 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
             models.Index(fields=["service_name"], name="ocpazure_proj_service_name_idx"),
             models.Index(fields=["instance_type"], name="ocpazure_proj_inst_type_idx"),
         ]
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
 
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
