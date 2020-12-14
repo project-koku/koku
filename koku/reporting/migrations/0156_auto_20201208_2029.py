@@ -36,22 +36,22 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="ocpawscostlineitemdailysummary",
             name="uuid",
-            field=models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False),
+            field=models.UUIDField(default=uuid.uuid4, null=True),
         ),
         migrations.AddField(
             model_name="ocpawscostlineitemprojectdailysummary",
             name="uuid",
-            field=models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False),
+            field=models.UUIDField(default=uuid.uuid4, null=True),
         ),
         migrations.AddField(
             model_name="ocpazurecostlineitemdailysummary",
             name="uuid",
-            field=models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False),
+            field=models.UUIDField(default=uuid.uuid4, null=True),
         ),
         migrations.AddField(
             model_name="ocpazurecostlineitemprojectdailysummary",
             name="uuid",
-            field=models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False),
+            field=models.UUIDField(default=uuid.uuid4, null=True),
         ),
         migrations.RunSQL(
             """
