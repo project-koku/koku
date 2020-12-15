@@ -86,7 +86,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_tags_summary_table"  # noqa: E501
     )
     @patch(
-        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azire_cost_daily_summary_presto"  # noqa: E501
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_cost_daily_summary_presto"  # noqa: E501
     )
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.update_summary_infrastructure_cost")
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.azure_get_bills_from_provider")

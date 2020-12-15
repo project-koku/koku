@@ -315,7 +315,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         )
         mock_presto.assert_called()
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_multipart_sql_query")
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_multipart_sql_query")
     def test_populate_ocp_on_azure_cost_daily_summary_presto(self, mock_presto):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
