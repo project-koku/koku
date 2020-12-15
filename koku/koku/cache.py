@@ -42,6 +42,7 @@ OPENSHIFT_CACHE_PREFIX = "openshift-view"
 OPENSHIFT_AWS_CACHE_PREFIX = "openshift-aws-view"
 OPENSHIFT_AZURE_CACHE_PREFIX = "openshift-azure-view"
 OPENSHIFT_ALL_CACHE_PREFIX = "openshift-all-view"
+SOURCES_PREFIX = "sources"
 
 
 def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None):
