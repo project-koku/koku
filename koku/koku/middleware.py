@@ -130,8 +130,6 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
 
     def process_request(self, request):
         """Check before super."""
-        connection.set_schema_to_public()
-
         if not is_no_auth(request):
             if hasattr(request, "user") and hasattr(request.user, "username"):
                 username = request.user.username
@@ -363,6 +361,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             "is_admin": is_admin,
         }
         LOG.info(stmt)
+        connection.set_schema_to_public()
         return response
 
 
