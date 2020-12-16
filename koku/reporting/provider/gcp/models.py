@@ -22,6 +22,13 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import JSONField
 
+VIEWS = (
+    "reporting_gcp_cost_summary",
+    "reporting_gcp_cost_summary_by_project",
+    "reporting_gcp_cost_summary_by_region",
+    "reporting_gcp_cost_summary_by_service",
+)
+
 
 class GCPCostEntryBill(models.Model):
     """The billing information for a Cost Usage Report.
@@ -234,3 +241,162 @@ class GCPTagsValues(models.Model):
     key = models.TextField()
     value = models.TextField()
     account_ids = ArrayField(models.TextField())
+
+
+# Materialized Views for UI Reporting
+class GCPCostSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost.
+
+    """
+
+    class Meta:
+        """Meta for GCPCostSummary."""
+
+        db_table = "reporting_gcp_cost_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+
+class GCPCostSummaryByAccount(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by account.
+
+    """
+
+    class Meta:
+        """Meta for GCPCostSummaryByAccount."""
+
+        db_table = "reporting_gcp_cost_summary_by_account"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    account_id = models.CharField(max_length=50, null=False)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+
+class GCPCostSummaryByProject(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by account.
+
+    """
+
+    class Meta:
+        """Meta for GCPCostSummaryByProject."""
+
+        db_table = "reporting_gcp_cost_summary_by_project"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+    project_id = models.CharField(unique=True, max_length=256)
+
+    project_name = models.CharField(max_length=256)
+
+    account_id = models.CharField(max_length=50, null=False)
+
+
+class GCPCostSummaryByRegion(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by region.
+
+    """
+
+    class Meta:
+        """Meta for GCPCostSummaryByRegion."""
+
+        db_table = "reporting_gcp_cost_summary_by_region"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    account_id = models.CharField(max_length=50, null=False)
+
+    region = models.CharField(max_length=50, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+
+class GCPCostSummaryByService(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by service.
+
+    """
+
+    class Meta:
+        """Meta for GCPCostSummaryByService."""
+
+        db_table = "reporting_gcp_cost_summary_by_service"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    account_id = models.CharField(max_length=50, null=False)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+    service_id = models.CharField(max_length=256, null=True)
+
+    service_alias = models.CharField(max_length=256, null=True, blank=True)
