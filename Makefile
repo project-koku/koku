@@ -363,10 +363,11 @@ docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 
 docker-metastore-setup:
 	@cp -fr deploy/metastore/ testing/metastore/
-	@chmod -R o+rwx ./testing/metastore
+	find ./testing/metastore -type d -exec chmod a+rwx {} \;
 	@[[ ! -d ./testing/metastore/db-data ]] && mkdir -p -m a+rwx ./testing/metastore/db-data || chmod a+rwx ./testing/metastore/db-data
 	@cp -fr deploy/hadoop/ testing/hadoop/
-	@chmod o+rwx ./testing/hadoop
+#	@[[ ! -d ./testing/hadoop/hadoop-logs ]] && mkdir -p -m a+rwx ./hadoop/hadoop-logs || chmod a+rwx ./hadoop/hadoop-logs
+	find ./testing/hadoop -type d -exec chmod a+rwx {} \;
 	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
 	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' testing/metastore/hive-config/hive-site.xml
@@ -375,9 +376,9 @@ docker-metastore-setup:
 
 docker-presto-setup:
 	@cp -fr deploy/presto/ testing/presto/
-	@chmod o+rwx ./testing/presto
+	find ./testing/presto -type d -exec chmod a+rwx {} \;
 	@cp -fr deploy/hadoop/ testing/hadoop/
-	@chmod o+rwx ./testing/hadoop
+	find ./testing/hadoop -type d -exec chmod a+rwx {} \;
 	@[[ ! -d ./testing/parquet_data ]] && mkdir -p -m a+rwx ./testing/parquet_data || chmod a+rwx ./testing/parquet_data
 	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
 	@$(SED_IN_PLACE) -e 's/DATABASE_NAME/$(shell echo $(or $(DATABASE_NAME),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
