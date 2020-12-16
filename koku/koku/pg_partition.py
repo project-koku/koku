@@ -1075,40 +1075,6 @@ DROP TABLE "{self.source_schema}"."{self.source_table_name}" CASCADE ;
 # ====================================================================
 #  Functionality to move data from default partitions to new partitions
 # ====================================================================
-class PartitionTriggerInfo:
-    def __init__(self, schema_name):
-        self.conn = transaction.get_connection()
-        self.schema_name = schema_name
-        self.check_triggers()
-
-    def check_triggers(self):
-        sql = """
-SELECT EXISTS (
-                SELECT 1
-                  FROM pg_trigger t
-                  JOIN pg_class tt
-                    ON tt.oid = t.tgrelid
-                 WHERE tt.relnamespace = %s::regnamespace
-                   AND tt.relname = 'partitioned_tables'::name
-                   AND t.tgname = 'tr_manage_date_range_partition'::name
-              ) as "manage_trigger_exists",
-       EXISTS (
-                SELECT 1
-                  FROM pg_trigger t
-                  JOIN pg_class tt
-                    ON tt.oid = t.tgrelid
-                 WHERE tt.relnamespace = %s::regnamespace
-                   AND tt.relname = 'partitioned_tables'::name
-                   AND t.tgname = 'tr_attach_date_range_partition'::name
-              ) as "attach_trigger_exists";
-"""
-        LOG.info("Checking manage, attach partition trigger existence")
-        cur = conn_execute(sql, (self.schema_name, self.schema_name), _conn=self.conn)
-        res = fetchone(cur)
-        self.manage_trigger_exists = res["manage_trigger_exists"]
-        self.attach_trigger_exists = res["attach_trigger_exists"]
-
-
 class PartitionDefaultData:
     """
     Move data from a specified default partition into newly-created month range partitions
@@ -1119,17 +1085,34 @@ class PartitionDefaultData:
         partitioned_table (str) : Default partition table name
     """
 
-    def __init__(self, schema_name, partitioned_table, default_partition, partition_trigger_info=None):
+    def __init__(self, schema_name, partitioned_table, default_partition=None):
         self.conn = transaction.get_connection()
         self.schema_name = schema_name
         self.partitioned_table = partitioned_table
-        self.default_partition = default_partition
-        self.partition_trigger_info = partition_trigger_info or PartitionTriggerInfo(self.schema_name)
+        self.default_partition = default_partition or self._get_default_partition()
         self.partition_name = ""
         self.tracking_rec = None
         self.partition_parameters = {}
         self.tx_id = str(uuid.uuid4()).replace("-", "_")
         self._get_default_partition_tracker_info()
+
+    def _get_default_partition(self):
+        sql = """
+SELECT d.relname::text as "table_name"
+  FROM pg_partitioned_table pt
+  JOIN pg_class c
+    ON c.oid = pt.partrelid
+  JOIN pg_namespace n
+    ON n.oid = c.relnamespace
+  JOIN pg_class d
+    ON d.oid = pt.partdefid
+ WHERE n.nspname = %s::name
+   AND c.relname = %s::name;
+"""
+        cur = conn_execute(sql, (self.schema_name, self.partitioned_table))
+        res = fetchone(cur)["table_name"]
+
+        return res
 
     def _get_default_partition_tracker_info(self):
         sql = f"""
@@ -1188,33 +1171,9 @@ RETURNING *;
         self.tracking_rec = fetchone(cur)
 
     def _create_partition(self):
-        if not self.partition_trigger_info.manage_trigger_exists:
-            LOG.debug("Manually executing create partition SQL")
-            new_part_sql = f"""
-CREATE TABLE IF NOT EXISTS "{self.schema_name}"."{self.partition_name}"
-PARTITION OF "{self.schema_name}"."{self.partitioned_table}"
-FOR VALUES FROM ( %s ) TO ( %s );
-"""
-            conn_execute(
-                new_part_sql, (self.partition_parameters["from"], self.partition_parameters["to"]), _conn=self.conn
-            )
-
         self._create_partititon_tracking_record()
 
     def _attach_partition(self):
-        if not self.partition_trigger_info.attach_trigger_exists:
-            LOG.debug("Manually executing attach partition SQL")
-            attach_partition_sql = f"""
-ALTER TABLE "{self.schema_name}"."{self.partitioned_table}"
-ATTACH PARTITION "{self.schema_name}"."{self.partition_name}"
-FOR VALUES FROM (%s) TO (%s);
-"""
-            conn_execute(
-                attach_partition_sql,
-                (self.partition_parameters["from"], self.partition_parameters["to"]),
-                _conn=self.conn,
-            )
-
         self.tracking_rec["active"] = True
 
         # This is necessary to prevent two triggers from firing and getting a race condition
@@ -1224,14 +1183,6 @@ FOR VALUES FROM (%s) TO (%s);
         self._update_partition_tracking_record(set_col="active")
 
     def _detach_partition(self):
-        if not self.partition_trigger_info.attach_trigger_exists:
-            LOG.debug("Manually executing detach partition SQL")
-            detach_partition_sql = f"""
-ALTER TABLE "{self.schema_name}"."{self.partitioned_table}"
-DETACH PARTITION "{self.schema_name}"."{self.partition_name}";
-"""
-            conn_execute(detach_partition_sql, _conn=self.conn)
-
         self.tracking_rec["active"] = False
         self._update_partition_tracking_record(set_col="active")
 
@@ -1339,17 +1290,12 @@ def repartition_default_data(schema_name=None, partitioned_table_name=None):
         schema_name (str) : Constrain to specified schema
         partitioned_table_name (str) : Constrain to specified partitioned table
     """
-    curr_namespace = ""
     default_partitions = get_partitioned_tables_with_default(schema_name, partitioned_table_name)
 
     for default_rec in default_partitions:
-        if curr_namespace != default_rec["schema_name"]:
-            p_trig_info = PartitionTriggerInfo(default_rec["schema_name"])
-
         default_partitioner = PartitionDefaultData(
             default_rec["schema_name"],
             default_rec["partitioned_table"],
-            default_rec["default_partition"],
-            partition_trigger_info=p_trig_info,
+            default_partition=default_rec["default_partition"],
         )
         default_partitioner.repartition_default_data()

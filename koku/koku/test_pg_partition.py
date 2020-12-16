@@ -491,6 +491,9 @@ select count(*) from {self.schema_name}.{table} ;
         self.assertTrue(len(schemata) > 1)
 
     def test_repartition_table(self):
+        """
+        Repartition one table using class interface
+        """
         with schema_context(self.schema_name):
             aws_lids = AWSCostEntryLineItemDailySummary.objects.order_by("-usage_start")[0]
             aws_lids.usage_start = aws_lids.usage_start.replace(year=(aws_lids.usage_start.year + 10))
@@ -503,9 +506,7 @@ select count(*) from {self.schema_name}.{table} ;
             self.assertEqual(res, 1)
 
             ppart.PartitionDefaultData(
-                self.schema_name,
-                AWSCostEntryLineItemDailySummary._meta.db_table,
-                f"{AWSCostEntryLineItemDailySummary._meta.db_table}_default",
+                self.schema_name, AWSCostEntryLineItemDailySummary._meta.db_table
             ).repartition_default_data()
 
             with conn.cursor() as cur:
@@ -530,6 +531,9 @@ select count(*) as num_recs
             self.assertEqual(res, 1)
 
     def test_repartition_all_tables(self):
+        """
+        Repartition using driver function
+        """
         with schema_context(self.schema_name):
             aws_lids = AWSCostEntryLineItemDailySummary.objects.order_by("-usage_start")[0]
             aws_lids.usage_start = aws_lids.usage_start.replace(year=(aws_lids.usage_start.year + 11))
