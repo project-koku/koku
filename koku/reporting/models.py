@@ -90,6 +90,11 @@ from reporting.provider.azure.openshift.models import OCPAzureDatabaseSummary
 from reporting.provider.azure.openshift.models import OCPAzureNetworkSummary
 from reporting.provider.azure.openshift.models import OCPAzureStorageSummary
 from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
+from reporting.provider.gcp.models import GCPCostSummary
+from reporting.provider.gcp.models import GCPCostSummaryByAccount
+from reporting.provider.gcp.models import GCPCostSummaryByProject
+from reporting.provider.gcp.models import GCPCostSummaryByRegion
+from reporting.provider.gcp.models import GCPCostSummaryByService
 from reporting.provider.ocp.costs.models import CostSummary
 from reporting.provider.ocp.models import OCPCostSummary
 from reporting.provider.ocp.models import OCPCostSummaryByNode
@@ -186,4 +191,12 @@ OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (
     OCPCostSummary,
     OCPCostSummaryByProject,
     OCPCostSummaryByNode,
+)
+
+GCP_MATERIALIZED_VIEWS = (
+    GCPCostSummary,
+    GCPCostSummaryByAccount,
+    GCPCostSummaryByProject,
+    GCPCostSummaryByRegion,
+    GCPCostSummaryByService,
 )
