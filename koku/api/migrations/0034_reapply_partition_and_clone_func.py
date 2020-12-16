@@ -19,6 +19,6 @@ def apply_public_func_updates(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0032_presto_delete_log_trigger_func")]
+    dependencies = [("api", "0033_sources_name_text")]
 
     operations = [migrations.RunPython(code=apply_public_func_updates)]
