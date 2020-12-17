@@ -37,6 +37,7 @@ from api.views import AzureTagView
 from api.views import cloud_accounts
 from api.views import CostModelResourceTypesView
 from api.views import DataExportRequestViewSet
+from api.views import GCPCostView
 from api.views import metrics
 from api.views import OCPAllCostForecastView
 from api.views import OCPAllCostView
@@ -68,6 +69,7 @@ from api.views import SettingsView
 from api.views import StatusView
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
+from koku.cache import GCP_CACHE_PREFIX
 from koku.cache import OPENSHIFT_ALL_CACHE_PREFIX
 from koku.cache import OPENSHIFT_AWS_CACHE_PREFIX
 from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
@@ -316,6 +318,11 @@ urlpatterns = [
         "forecasts/openshift/infrastructures/all/costs/",
         OCPAllCostForecastView.as_view(),
         name="openshift-all-cost-forecasts",
+    ),
+    path(
+        "reports/gcp/costs/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPCostView.as_view()),
+        name="reports-gcp-costs",
     ),
 ]
 urlpatterns += ROUTER.urls

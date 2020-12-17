@@ -113,11 +113,13 @@ class GCPReportProcessorTest(MasuTestCase):
 
     def test_gcp_process(self):
         """Test the processing of an GCP file writes objects to the database."""
+        with schema_context(self.schema):
+            expected_bill_count = len(GCPCostEntryBill.objects.all()) + 1
         self.processor.process()
         with schema_context(self.schema):
             self.assertTrue(len(GCPCostEntryLineItem.objects.all()) > 0)
             self.assertTrue(len(GCPProject.objects.all()) > 0)
-            self.assertEquals(1, len(GCPCostEntryBill.objects.all()))
+            self.assertEquals(expected_bill_count, len(GCPCostEntryBill.objects.all()))
         self.assertFalse(os.path.exists(self.test_report))
 
     def test_create_gcp_cost_entry_bill(self):
@@ -216,6 +218,8 @@ class GCPReportProcessorTest(MasuTestCase):
 
     def test_no_manifest_process(self):
         """Test that we can success process reports without manifest."""
+        with schema_context(self.schema):
+            expected_bill_count = len(GCPCostEntryBill.objects.all()) + 1
         processor = GCPReportProcessor(
             schema_name=self.schema,
             report_path=self.test_report,
@@ -226,7 +230,7 @@ class GCPReportProcessorTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertTrue(len(GCPCostEntryLineItem.objects.all()) > 0)
             self.assertTrue(len(GCPProject.objects.all()) > 0)
-            self.assertEquals(1, len(GCPCostEntryBill.objects.all()))
+            self.assertEquals(expected_bill_count, len(GCPCostEntryBill.objects.all()))
         self.assertFalse(os.path.exists(self.test_report))
 
     def test_get_line_item_type(self):
