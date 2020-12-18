@@ -217,11 +217,12 @@ class Forecast:
         date_based_dict = results[check_term][0] if results[check_term] else []
         for date in date_based_dict:
             for cost_term in results:
-                results_by_date[date][cost_term] = (
-                    results[cost_term][0][date],
-                    {"rsquared": results[cost_term][1]},
-                    {"pvalues": results[cost_term][2]},
-                )
+                if results[cost_term][0].get(date):
+                    results_by_date[date][cost_term] = (
+                        results[cost_term][0][date],
+                        {"rsquared": results[cost_term][1]},
+                        {"pvalues": results[cost_term][2]},
+                    )
         return results_by_date
 
     def format_result(self, results):
