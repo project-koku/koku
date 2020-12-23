@@ -51,7 +51,12 @@ def divide_csv_daily(file_path, filename):
     daily_files = []
     directory = os.path.dirname(file_path)
 
-    data_frame = pd.read_csv(file_path)
+    try:
+        data_frame = pd.read_csv(file_path)
+    except Exception as error:
+        LOG.error(f"File {file_path} could not be parsed. Reason: {str(error)}")
+        raise error
+
     report_type, _ = utils.detect_type(file_path)
     unique_times = data_frame.interval_start.unique()
     days = list({cur_dt[:10] for cur_dt in unique_times})

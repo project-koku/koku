@@ -198,6 +198,24 @@ class OCPReportDownloaderTest(MasuTestCase):
                     for expected_item in expected:
                         self.assertIn(expected_item, daily_files)
 
+    def test_divide_csv_daily_failure(self):
+        """Test the divide_csv_daily method throw error on reading CSV."""
+
+        with tempfile.TemporaryDirectory() as td:
+            filename = "storage_data.csv"
+            file_path = f"{td}/{filename}"
+            errorMsg = "CParserError: Error tokenizing data. C error: Expected 53 fields in line 1605634, saw 54"
+            with patch("masu.external.downloader.ocp.ocp_report_downloader.pd") as mock_pd:
+                with patch(
+                    "masu.external.downloader.ocp.ocp_report_downloader.utils.detect_type",
+                    return_value=("storage_usage", None),
+                ):
+                    mock_pd.read_csv.side_effect = Exception(errorMsg)
+                    with patch("masu.external.downloader.ocp.ocp_report_downloader.LOG.error") as mock_debug:
+                        with self.assertRaises(Exception):
+                            divide_csv_daily(file_path, filename)
+                        mock_debug.assert_called_once_with(f"File {file_path} could not be parsed. Reason: {errorMsg}")
+
     @patch("masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader._remove_manifest_file")
     @patch("masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader._get_manifest")
     def test_get_manifest_context_for_date(self, mock_manifest, mock_delete):
