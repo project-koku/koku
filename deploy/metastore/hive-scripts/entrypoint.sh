@@ -64,6 +64,9 @@ ln -s -f /hive-config/hive-log4j2.properties $HIVE_HOME/conf/hive-log4j2.propert
 ln -s -f /hive-config/hive-exec-log4j2.properties $HIVE_HOME/conf/hive-exec-log4j2.properties
 
 export HADOOP_LOG_DIR="${HADOOP_HOME}/logs"
+chown hadoop:root ${HADOOP_LOG_DIR}
+chmod 775 ${HADOOP_LOG_DIR}
+
 # Set garbage collection settings
 #export GC_SETTINGS="-XX:+UseG1GC -XX:G1HeapRegionSize=32M -XX:+UseGCOverheadLimit -XX:+ExplicitGCInvokesConcurrent -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${HADOOP_LOG_DIR}/heap_dump.bin -XX:+ExitOnOutOfMemoryError -XX:ErrorFile=${HADOOP_LOG_DIR}/java_error%p.log"
 
@@ -90,4 +93,4 @@ export HADOOP_OPTS="${HADOOP_OPTS} ${VM_OPTIONS} ${GC_SETTINGS} ${JMX_OPTIONS}"
 export HIVE_METASTORE_HADOOP_OPTS=" -Dhive.log.level=${HIVE_LOGLEVEL} "
 export HIVE_OPTS="${HIVE_OPTS} --hiveconf hive.root.logger=${HIVE_LOGLEVEL},console "
 
-exec $@
+sudo -u hadoop -g root -E -- $@

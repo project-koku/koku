@@ -47,7 +47,7 @@ services:
       - ./../../testing/metastore/db-data:/var/lib/hive
       - ./../../testing/hadoop/hadoop-dfs-name:/hadoop/dfs/name
       - ./../../testing/hadoop/hadoop-dfs-data:/hadoop/dfs/data
-#      - ./../../testing/hadoop/hadoop-logs:/opt/hadoop/logs
+      - ./../../testing/hadoop/hadoop-logs:/opt/hadoop/logs
       - ./../../testing/hadoop/hadoop-config:/hadoop-config
       - ./../../testing/hadoop/hadoop-starting-config:/hadoop-starting-config
 
