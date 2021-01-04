@@ -107,11 +107,11 @@ class Config:
     AZURE_DATETIME_STR_FORMAT = "%Y-%m-%d"
 
     # Override the service's current date time time. Format: "%Y-%m-%d %H:%M:%S"
-    MASU_DATE_OVERRIDE = os.getenv("MASU_DATE_OVERRIDE")
+    MASU_DATE_OVERRIDE = os.getenv("DATE_OVERRIDE")
 
     # Retention policy for the number of months of report data to keep.
-    MASU_RETAIN_NUM_MONTHS = int(os.getenv("MASU_RETAIN_NUM_MONTHS", "3"))
-    MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY = int(os.getenv("MASU_RETAIN_NUM_MONTHS", "1"))
+    MASU_RETAIN_NUM_MONTHS = int(os.getenv("RETAIN_NUM_MONTHS", "3"))
+    MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY = int(os.getenv("RETAIN_NUM_MONTHS", "1"))
 
     # TODO: Remove this if/when reporting model files are owned by masu
     # The decimal precision of our database Numeric columns
