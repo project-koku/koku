@@ -170,7 +170,7 @@ class AWSForecastTest(IamTestCase):
         for n in range(0, 10):
             expected.append(
                 {
-                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
                     "total_cost": 5,
                     "infrastructure_cost": 3,
                     "supplementary_cost": 2,
@@ -399,7 +399,7 @@ class AzureForecastTest(IamTestCase):
         for n in range(0, 10):
             expected.append(
                 {
-                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
                     "total_cost": 5,
                     "infrastructure_cost": 3,
                     "supplementary_cost": 2,
@@ -447,7 +447,7 @@ class OCPForecastTest(IamTestCase):
         for n in range(0, 10):
             expected.append(
                 {
-                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
                     "total_cost": 5,
                     "infrastructure_cost": 3,
                     "supplementary_cost": 2,
@@ -527,7 +527,7 @@ class OCPAllForecastTest(IamTestCase):
         for n in range(0, 10):
             expected.append(
                 {
-                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
                     "total_cost": 5,
                     "infrastructure_cost": 3,
                     "supplementary_cost": 2,
@@ -575,7 +575,7 @@ class OCPAWSForecastTest(IamTestCase):
         for n in range(0, 10):
             expected.append(
                 {
-                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
                     "total_cost": 5,
                     "infrastructure_cost": 3,
                     "supplementary_cost": 2,
@@ -623,7 +623,7 @@ class OCPAzureForecastTest(IamTestCase):
         for n in range(0, 10):
             expected.append(
                 {
-                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
                     "total_cost": 5,
                     "infrastructure_cost": 3,
                     "supplementary_cost": 2,
