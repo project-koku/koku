@@ -41,6 +41,7 @@ from rest_framework.exceptions import ValidationError
 from api.provider.models import Provider
 from api.provider.models import Sources
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
+from masu.prometheus_stats import SOURCES_HTTP_CLIENT_ERROR_COUNTER
 from masu.prometheus_stats import SOURCES_KAFKA_LOOP_RETRY
 from masu.prometheus_stats import SOURCES_PROVIDER_OP_RETRY_LOOP_COUNTER
 from providers.provider_errors import SkipStatusPush
@@ -496,8 +497,12 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
                 close_and_set_db_connection()
                 LOG.error(f"{type(err).__name__}: {err}")
                 rewind_consumer_to_retry(consumer, topic_partition)
-            except (IntegrityError, SourcesHTTPClientError) as err:
+            except IntegrityError as err:
                 LOG.error(f"{type(err).__name__}: {err}")
+                rewind_consumer_to_retry(consumer, topic_partition)
+            except SourcesHTTPClientError as err:
+                LOG.warning(f"{type(err).__name__}: {err}")
+                SOURCES_HTTP_CLIENT_ERROR_COUNTER.inc()
                 rewind_consumer_to_retry(consumer, topic_partition)
             except SourceNotFoundError:
                 LOG.warning(f"Source not found in platform sources. Skipping msg: {msg}")
