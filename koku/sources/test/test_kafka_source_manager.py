@@ -75,6 +75,17 @@ class ProviderBuilderTest(TestCase):
             provider = client.create_provider_from_source(mock_source)
             self.assertEqual(provider.name, self.name)
 
+    def test_create_provider_ocp_cluster_register(self):
+        """Test to create an OCP provider with a System identity."""
+        # Delete tenants
+        Tenant.objects.all().delete()
+        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_CLUSTER_HEADER)
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            mock_source_auth = {"credentials": {"cluster_id": "0bb29135-d6d1-478b-b5b6-6bd129cb6d5d1001"}}
+            mock_source = MockSourceObject(self.name, Provider.PROVIDER_OCP, mock_source_auth, None)
+            provider = client.create_provider_from_source(mock_source)
+            self.assertEqual(provider.name, self.name)
+
     def test_create_provider_no_tenant(self):
         """Test to create a provider after tenant was removed."""
         client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
