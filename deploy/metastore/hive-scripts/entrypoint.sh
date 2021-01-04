@@ -19,6 +19,9 @@ done
 }
 set -e
 
+JAVA_SECURITY_DIR="$(cd -P ${JAVA_HOME}/lib/security && pwd)"
+chmod g+rwx ${JAVA_SECURITY_DIR}
+
 # if the s3-compatible ca bundle is mounted in, add to the root Java truststore.
 if [ -a /s3-compatible-ca/ca-bundle.crt ]; then
 echo "Adding /s3-compatible-ca/ca-bundle.crt to $JAVA_HOME/lib/security/cacerts"
@@ -29,6 +32,8 @@ if [ -a /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt ]; then
 echo "Adding /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt to $JAVA_HOME/lib/security/cacerts"
 importCert /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt changeit $JAVA_HOME/lib/security/cacerts
 fi
+
+chmod g-w ${JAVA_SECURITY_DIR}
 
 # add UID to /etc/passwd if missing
 if ! whoami &> /dev/null; then
