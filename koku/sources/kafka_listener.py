@@ -224,7 +224,8 @@ def get_sources_msg_data(msg, app_type_id):
                     msg_data["source_id"] = int(value.get("source_id"))
                     msg_data["auth_header"] = _extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
                     LOG.info(
-                        f"Application Create/Destroy Message headers for Source ID: {value.get('source_id')}: {str(msg.headers())}"
+                        f"Application Create/Destroy Message headers for Source ID: "
+                        f"{value.get('source_id')}: {str(msg.headers())}"
                     )
             elif event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
                 LOG.debug("Authentication Message: %s", str(msg))
@@ -236,7 +237,8 @@ def get_sources_msg_data(msg, app_type_id):
                     msg_data["resource_type"] = value.get("resource_type")
                     msg_data["auth_header"] = _extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
                     LOG.info(
-                        f"Authentication Create/Update Message headers for Source ID: {value.get('resource_id')}: {str(msg.headers())}"
+                        f"Authentication Create/Update Message headers for Source ID: "
+                        f"{value.get('resource_id')}: {str(msg.headers())}"
                     )
 
             elif event_type in (KAFKA_SOURCE_DESTROY, KAFKA_SOURCE_UPDATE):
@@ -247,7 +249,8 @@ def get_sources_msg_data(msg, app_type_id):
                 msg_data["source_id"] = int(value.get("id"))
                 msg_data["auth_header"] = _extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
                 LOG.info(
-                    f"Source Update/Destroy Message headers for Source ID: {value.get('source_id')}: {str(msg.headers())}"
+                    f"Source Update/Destroy Message headers for Source ID: "
+                    f"{value.get('source_id')}: {str(msg.headers())}"
                 )
             else:
                 LOG.debug("Other Message: %s", str(msg))
