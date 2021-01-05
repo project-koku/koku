@@ -68,3 +68,7 @@ SOURCES_KAFKA_LOOP_RETRY = Counter(
 SOURCES_PROVIDER_OP_RETRY_LOOP_COUNTER = Counter(
     "sources_provider_op_retry_errors", "Number of sources provider operation retry errors", registry=WORKER_REGISTRY
 )
+
+SOURCES_HTTP_CLIENT_ERROR_COUNTER = Counter(
+    "sources_http_client_errors", "Number of sources http client errors", registry=WORKER_REGISTRY
+)
