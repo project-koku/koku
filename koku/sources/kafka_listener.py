@@ -242,7 +242,8 @@ def get_sources_msg_data(msg, app_type_id):
                     )
 
             elif event_type in (KAFKA_SOURCE_DESTROY, KAFKA_SOURCE_UPDATE):
-                LOG.debug("Source Message: %s", str(msg))
+                LOG.info("Source Update Message: %s", str(msg))
+                LOG.info(f"Source Update msg value: {str(value)}")
                 msg_data["event_type"] = event_type
                 msg_data["offset"] = msg.offset()
                 msg_data["partition"] = msg.partition()
