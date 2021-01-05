@@ -250,8 +250,7 @@ def get_sources_msg_data(msg, app_type_id):
                 msg_data["source_id"] = int(value.get("id"))
                 msg_data["auth_header"] = _extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
                 LOG.info(
-                    f"Source Update/Destroy Message headers for Source ID: "
-                    f"{value.get('id')}: {str(msg.headers())}"
+                    f"Source Update/Destroy Message headers for Source ID: " f"{value.get('id')}: {str(msg.headers())}"
                 )
             else:
                 LOG.debug("Other Message: %s", str(msg))
@@ -501,7 +500,7 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
             offset = msg.get("offset")
             partition = msg.get("partition")
         except SourcesMessageError:
-            LOG.warning('Committing invalid message')
+            LOG.warning("Committing invalid message")
             consumer.commit()
             return
         if msg:
