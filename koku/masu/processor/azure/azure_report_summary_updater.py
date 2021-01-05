@@ -31,7 +31,7 @@ LOG = logging.getLogger(__name__)
 
 
 class AzureReportSummaryUpdater:
-    """Class to update AWS report summary data."""
+    """Class to update Azure report summary data."""
 
     def __init__(self, schema, provider, manifest):
         """Establish the database connection.

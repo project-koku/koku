@@ -76,14 +76,22 @@ class Forecast:
         # select appropriate model based on access
         access = query_params.get("access", {})
         access_key = "default"
+        self.cost_summary_table = self.provider_map.views.get("costs").get(access_key)
         if access:
             access_key = tuple(access.keys())
             filter_fields = self.provider_map.provider_map.get("filters")
-        self.cost_summary_table = self.provider_map.views.get("costs").get(access_key)
+            materialized_view = self.provider_map.views.get("costs").get(access_key)
+            if materialized_view:
+                # We found a matching materialized view, use that
+                self.cost_summary_table = materialized_view
+            else:
+                # We have access constraints, but no view to accomodate, default to daily summary table
+                self.cost_summary_table = self.provider_map.report_type_map.get("tables", {}).get("query")
 
         current_day_of_month = self.dh.today.day
         yesterday = (self.dh.today - timedelta(days=1)).day
         last_day_of_month = self.dh.this_month_end.day
+
         if current_day_of_month == 1:
             self.forecast_days_required = last_day_of_month
         else:
@@ -111,19 +119,46 @@ class Forecast:
         return self.provider_map_class(self.provider, self.REPORT_TYPE)
 
     @property
-    def cost_term(self):
+    def total_cost_term(self):
+        """Return the provider map value for total cost."""
         return self.provider_map.report_type_map.get("aggregates", {}).get("cost_total")
+
+    @property
+    def supplementary_cost_term(self):
+        """Return the provider map value for total supplemenatry cost."""
+        return self.provider_map.report_type_map.get("aggregates", {}).get("sup_total")
+
+    @property
+    def infrastructure_cost_term(self):
+        """Return the provider map value for total inftrastructure cost."""
+        return self.provider_map.report_type_map.get("aggregates", {}).get("infra_total")
 
     def predict(self):
         """Define ORM query to run forecast and return prediction."""
+        cost_predictions = {}
         with tenant_context(self.params.tenant):
             data = (
                 self.cost_summary_table.objects.filter(self.filters.compose())
                 .order_by("usage_start")
                 .values("usage_start")
-                .annotate(total_cost=self.cost_term)
+                .annotate(
+                    total_cost=self.total_cost_term,
+                    supplementary_cost=self.supplementary_cost_term,
+                    infrastructure_cost=self.infrastructure_cost_term,
+                )
             )
-            return self._predict(self._uniquify_qset(data))
+            total_cost_data = data.values("usage_start", "total_cost")
+            infra_cost_data = data.values("usage_start", "infrastructure_cost")
+            supp_cost_data = data.values("usage_start", "supplementary_cost")
+            cost_predictions["total_cost"] = self._predict(self._uniquify_qset(total_cost_data, field="total_cost"))
+            cost_predictions["infrastructure_cost"] = self._predict(
+                self._uniquify_qset(infra_cost_data, field="infrastructure_cost")
+            )
+            cost_predictions["supplementary_cost"] = self._predict(
+                self._uniquify_qset(supp_cost_data, field="supplementary_cost")
+            )
+            cost_predictions = self._key_results_by_date(cost_predictions)
+            return self.format_result(cost_predictions)
 
     def _predict(self, data):
         """Handle pre and post prediction work.
@@ -147,7 +182,6 @@ class Forecast:
         dates, costs = zip(*data)
         X = [int(d.strftime("%Y%m%d")) for d in dates]
         Y = [float(c) for c in costs]
-
         # run the forecast
         results = self._run_forecast(X, Y)
         result_dict = {}
@@ -159,7 +193,7 @@ class Forecast:
             }
         result_dict = self._add_additional_data_points(result_dict, results.slope)
 
-        return self.format_result(result_dict, results.rsquared, results.pvalues)
+        return (result_dict, results.rsquared, results.pvalues)
 
     def _remove_outliers(self, data):
         """Remove outliers from our dateset before predicting.
@@ -177,41 +211,90 @@ class Forecast:
             return {key: value for key, value in data.items() if (value >= lower_boundary and value <= upper_boundary)}
         return data
 
-    def format_result(self, results, rsquared, pvalues):
+    def _key_results_by_date(self, results, check_term="total_cost"):
+        """Take results formatted by cost type, and return results keyed by date."""
+        results_by_date = defaultdict(dict)
+        date_based_dict = results[check_term][0] if results[check_term] else []
+        for date in date_based_dict:
+            for cost_term in results:
+                if results[cost_term][0].get(date):
+                    results_by_date[date][cost_term] = (
+                        results[cost_term][0][date],
+                        {"rsquared": results[cost_term][1]},
+                        {"pvalues": results[cost_term][2]},
+                    )
+        return results_by_date
+
+    def format_result(self, results):
         """Format results for API consumption."""
         f_format = f"%.{self.PRECISION}f"  # avoid converting floats to e-notation
         units = "USD"
 
         response = []
         for key in results:
+            if key > self.dh.this_month_end.date():
+                continue
             dikt = {
                 "date": key,
                 "values": [
                     {
                         "date": key,
                         "infrastructure": {
-                            "total": {"value": 0.0, "units": units},
-                            "confidence_max": {"value": 0.0, "units": units},
-                            "confidence_min": {"value": 0.0, "units": units},
-                            "rsquared": {"value": f_format % 0.0, "units": None},
-                            "pvalues": {"value": f_format % 0.0, "units": None},
-                        },
-                        "supplementary": {
-                            "total": {"value": 0.0, "units": units},
-                            "confidence_max": {"value": 0.0, "units": units},
-                            "confidence_min": {"value": 0.0, "units": units},
-                            "rsquared": {"value": f_format % 0.0, "units": None},
-                            "pvalues": {"value": f_format % 0.0, "units": None},
-                        },
-                        "cost": {
-                            "total": {"value": round(results[key]["total_cost"], 3), "units": units},
-                            "confidence_max": {"value": round(results[key]["confidence_max"], 3), "units": units},
-                            "confidence_min": {
-                                "value": round(max(results[key]["confidence_min"], 0), 3),
+                            "total": {
+                                "value": round(results[key]["infrastructure_cost"][0]["total_cost"], 3),
                                 "units": units,
                             },
-                            "rsquared": {"value": f_format % rsquared, "units": None},
-                            "pvalues": {"value": f_format % pvalues, "units": None},
+                            "confidence_max": {
+                                "value": round(results[key]["infrastructure_cost"][0]["confidence_max"], 3),
+                                "units": units,
+                            },
+                            "confidence_min": {
+                                "value": round(max(results[key]["infrastructure_cost"][0]["confidence_min"], 0), 3),
+                                "units": units,
+                            },
+                            "rsquared": {
+                                "value": f_format % results[key]["infrastructure_cost"][1]["rsquared"],
+                                "units": None,
+                            },
+                            "pvalues": {
+                                "value": f_format % results[key]["infrastructure_cost"][2]["pvalues"],
+                                "units": None,
+                            },
+                        },
+                        "supplementary": {
+                            "total": {
+                                "value": round(results[key]["supplementary_cost"][0]["total_cost"], 3),
+                                "units": units,
+                            },
+                            "confidence_max": {
+                                "value": round(results[key]["supplementary_cost"][0]["confidence_max"], 3),
+                                "units": units,
+                            },
+                            "confidence_min": {
+                                "value": round(max(results[key]["supplementary_cost"][0]["confidence_min"], 0), 3),
+                                "units": units,
+                            },
+                            "rsquared": {
+                                "value": f_format % results[key]["supplementary_cost"][1]["rsquared"],
+                                "units": None,
+                            },
+                            "pvalues": {
+                                "value": f_format % results[key]["supplementary_cost"][2]["pvalues"],
+                                "units": None,
+                            },
+                        },
+                        "cost": {
+                            "total": {"value": round(results[key]["total_cost"][0]["total_cost"], 3), "units": units},
+                            "confidence_max": {
+                                "value": round(results[key]["total_cost"][0]["confidence_max"], 3),
+                                "units": units,
+                            },
+                            "confidence_min": {
+                                "value": round(max(results[key]["total_cost"][0]["confidence_min"], 0), 3),
+                                "units": units,
+                            },
+                            "rsquared": {"value": f_format % results[key]["total_cost"][1]["rsquared"], "units": None},
+                            "pvalues": {"value": f_format % results[key]["total_cost"][2]["pvalues"], "units": None},
                         },
                     }
                 ],

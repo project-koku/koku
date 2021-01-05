@@ -298,6 +298,35 @@ class TestParquetReportProcessor(MasuTestCase):
                                             )
                                             self.assertTrue(result)
 
+    def test_convert_csv_to_parquet_report_type_already_processed(self):
+        """Test that we don't re-create a table when we already have created this run."""
+        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.parquet.parquet_report_processor.get_s3_resource"):
+                with patch("masu.processor.parquet.parquet_report_processor.Path"):
+                    with patch("masu.processor.parquet.parquet_report_processor.shutil.rmtree"):
+                        with patch("masu.processor.parquet.parquet_report_processor.pd"):
+                            with patch("masu.processor.parquet.parquet_report_processor.open"):
+                                with patch("masu.processor.parquet.parquet_report_processor.BytesIO"):
+                                    with patch(
+                                        "masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"
+                                    ):
+                                        with patch(
+                                            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
+                                            "create_parquet_table"
+                                        ) as mock_create_table:
+                                            self.report_processor.presto_table_exists["report_type"] = True
+                                            result = self.report_processor.convert_csv_to_parquet(
+                                                "request_id",
+                                                "s3_csv_path",
+                                                "s3_parquet_path",
+                                                "local_path",
+                                                "manifest_id",
+                                                "csv_filename.csv.gz",
+                                                report_type="report_type",
+                                            )
+                                            self.assertTrue(result)
+                                            mock_create_table.assert_not_called()
+
     @patch.object(ReportParquetProcessorBase, "get_or_create_postgres_partition")
     @patch.object(ReportParquetProcessorBase, "create_table")
     def test_create_parquet_table(self, mock_create_table, mock_partition):

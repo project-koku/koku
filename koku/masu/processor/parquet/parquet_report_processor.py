@@ -39,6 +39,7 @@ from masu.util.aws.common import aws_post_processor
 from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import get_s3_resource
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
+from masu.util.azure.common import azure_post_processor
 from masu.util.common import get_column_converters
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
@@ -63,6 +64,7 @@ class ParquetReportProcessor:
         self._manifest_id = manifest_id
         self._request_id = context.get("request_id")
         self._start_date = context.get("start_date")
+        self.presto_table_exists = {}
 
     def convert_to_parquet(  # noqa: C901
         self, request_id, account, provider_uuid, provider_type, start_date, manifest_id, files=[], context={}
@@ -141,6 +143,8 @@ class ParquetReportProcessor:
 
         if provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
             post_processor = aws_post_processor
+        elif provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
+            post_processor = azure_post_processor
 
         failed_conversion = []
         for csv_filename in files:
@@ -230,6 +234,7 @@ class ParquetReportProcessor:
             processor.create_table()
             processor.create_bill(bill_date=bill_date)
             processor.get_or_create_postgres_partition(bill_date=bill_date)
+            self.presto_table_exists[report_type] = True
 
     def convert_csv_to_parquet(  # noqa: C901
         self,
@@ -314,14 +319,15 @@ class ParquetReportProcessor:
 
         s3_hive_table_path = get_hive_table_path(context.get("account"), self._provider_type, report_type=report_type)
 
-        self.create_parquet_table(
-            context.get("account"),
-            context.get("provider_uuid"),
-            manifest_id,
-            s3_hive_table_path,
-            output_file,
-            report_type,
-        )
+        if not self.presto_table_exists.get(report_type):
+            self.create_parquet_table(
+                context.get("account"),
+                context.get("provider_uuid"),
+                manifest_id,
+                s3_hive_table_path,
+                output_file,
+                report_type,
+            )
 
         shutil.rmtree(local_path, ignore_errors=True)
         return True

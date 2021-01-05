@@ -41,6 +41,7 @@ from rest_framework.exceptions import ValidationError
 from api.provider.models import Provider
 from api.provider.models import Sources
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
+from masu.prometheus_stats import SOURCES_HTTP_CLIENT_ERROR_COUNTER
 from masu.prometheus_stats import SOURCES_KAFKA_LOOP_RETRY
 from masu.prometheus_stats import SOURCES_PROVIDER_OP_RETRY_LOOP_COUNTER
 from providers.provider_errors import SkipStatusPush
@@ -222,6 +223,10 @@ def get_sources_msg_data(msg, app_type_id):
                     msg_data["partition"] = msg.partition()
                     msg_data["source_id"] = int(value.get("source_id"))
                     msg_data["auth_header"] = _extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
+                    LOG.info(
+                        f"Application Create/Destroy Message headers for Source ID: "
+                        f"{value.get('source_id')}: {str(msg.headers())}"
+                    )
             elif event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
                 LOG.debug("Authentication Message: %s", str(msg))
                 if value.get("resource_type") in ("Endpoint", "Application"):
@@ -231,13 +236,23 @@ def get_sources_msg_data(msg, app_type_id):
                     msg_data["resource_id"] = int(value.get("resource_id"))
                     msg_data["resource_type"] = value.get("resource_type")
                     msg_data["auth_header"] = _extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
+                    LOG.info(
+                        f"Authentication Create/Update Message headers for Source ID: "
+                        f"{value.get('resource_id')}: {str(msg.headers())}"
+                    )
+
             elif event_type in (KAFKA_SOURCE_DESTROY, KAFKA_SOURCE_UPDATE):
-                LOG.debug("Source Message: %s", str(msg))
+                LOG.info("Source Update Message: %s", str(msg))
+                LOG.info(f"Source Update msg value: {str(value)}")
                 msg_data["event_type"] = event_type
                 msg_data["offset"] = msg.offset()
                 msg_data["partition"] = msg.partition()
                 msg_data["source_id"] = int(value.get("id"))
                 msg_data["auth_header"] = _extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
+                LOG.info(
+                    f"Source Update/Destroy Message headers for Source ID: "
+                    f"{value.get('source_id')}: {str(msg.headers())}"
+                )
             else:
                 LOG.debug("Other Message: %s", str(msg))
         except (AttributeError, ValueError, TypeError) as error:
@@ -496,8 +511,12 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
                 close_and_set_db_connection()
                 LOG.error(f"{type(err).__name__}: {err}")
                 rewind_consumer_to_retry(consumer, topic_partition)
-            except (IntegrityError, SourcesHTTPClientError) as err:
+            except IntegrityError as err:
                 LOG.error(f"{type(err).__name__}: {err}")
+                rewind_consumer_to_retry(consumer, topic_partition)
+            except SourcesHTTPClientError as err:
+                LOG.warning(f"{type(err).__name__}: {err}")
+                SOURCES_HTTP_CLIENT_ERROR_COUNTER.inc()
                 rewind_consumer_to_retry(consumer, topic_partition)
             except SourceNotFoundError:
                 LOG.warning(f"Source not found in platform sources. Skipping msg: {msg}")

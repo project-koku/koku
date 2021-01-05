@@ -17,14 +17,11 @@
 """Forecast unit tests."""
 import logging
 from datetime import date
-from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import Mock
 from unittest.mock import patch
 
-import pytz
-from django.utils import timezone
 from statsmodels.tools.sm_exceptions import ValueWarning
 
 from api.forecast.views import AWSCostForecastView
@@ -45,27 +42,29 @@ from forecast import OCPAWSForecast
 from forecast import OCPAzureForecast
 from forecast import OCPForecast
 from forecast.forecast import LinearForecastResult
+from reporting.provider.ocp.models import OCPCostSummary
+from reporting.provider.ocp.models import OCPCostSummaryByNode
+from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 
 
-class MockDateHelper(DateHelper):
-    """Testing class."""
+class MockQuerySet:
+    def __init__(self, data):
+        """Set the queryset data as a instance variable."""
+        self.data = data
 
-    def __init__(self, mock_dt=None, utc=False):
-        """Initialize when now is."""
-        if mock_dt:
-            self._now = mock_dt
-        else:
-            if utc:
-                self._now = datetime.datetime.now(tz=pytz.UTC)
-            else:
-                self._now = timezone.now()
+    def values(self, *args):
+        """Return data for the specified args."""
+        results = []
+        for row in self.data:
+            results.append({arg: row.get(arg) for arg in args})
+        return results
 
     @property
-    def now(self):
-        """Return current time at timezone."""
-        return self._now
+    def len(self):
+        """Length of data."""
+        return len(self.data)
 
 
 class AWSForecastTest(IamTestCase):
@@ -169,13 +168,21 @@ class AWSForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", AWSCostForecastView)
         instance = AWSForecast(params)
@@ -188,12 +195,16 @@ class AWSForecastTest(IamTestCase):
             for val in result.get("values", []):
                 self.assertIsInstance(val.get("date"), date)
 
-                item = val.get("cost")
-                self.assertAlmostEqual(float(item.get("total").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("confidence_max").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("confidence_min").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=0.0001)
-                self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
+                for item, cost in [
+                    (val.get("cost"), 5),
+                    (val.get("infrastructure"), 3),
+                    (val.get("supplementary"), 2),
+                ]:
+                    self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=0.0001)
+                    self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
 
     def test_predict_increasing(self):
         """Test that predict() returns expected values for increasing costs."""
@@ -201,13 +212,21 @@ class AWSForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", AWSCostForecastView)
         instance = AWSForecast(params)
@@ -233,13 +252,21 @@ class AWSForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", AWSCostForecastView)
         instance = AWSForecast(params)
@@ -262,13 +289,21 @@ class AWSForecastTest(IamTestCase):
             with self.subTest(num_elements=number):
                 expected = []
                 for n in range(0, number):
-                    expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+                    expected.append(
+                        {
+                            "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                            "total_cost": 5,
+                            "infrastructure_cost": 3,
+                            "supplementary_cost": 2,
+                        }
+                    )
+                mock_qset = MockQuerySet(expected)
 
                 mocked_table = Mock()
                 mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-                    expected
+                    mock_qset
                 )
-                mocked_table.len = len(expected)
+                mocked_table.len = mock_qset.len
 
                 params = self.mocked_query_params("?", AWSCostForecastView)
                 instance = AWSForecast(params)
@@ -294,6 +329,17 @@ class AWSForecastTest(IamTestCase):
                                 self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
                         # test that the results always stop at the end of the month.
                         self.assertEqual(results[-1].get("date"), dh.this_month_end.date())
+
+    def test_results_never_outside_curren_month(self):
+        """Test that our results stop at the end of the current month."""
+        dh = DateHelper()
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        forecast = AWSForecast(params)
+        forecast.forecast_days_required = 100
+        results = forecast.predict()
+        dates = [result.get("date") for result in results]
+        self.assertNotIn(dh.next_month_start, dates)
+        self.assertEqual(dh.this_month_end.date(), max(dates))
 
     def test_set_access_filter_with_list(self):
         """
@@ -351,13 +397,21 @@ class AzureForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", AzureCostForecastView)
         instance = AzureForecast(params)
@@ -370,12 +424,16 @@ class AzureForecastTest(IamTestCase):
             for val in result.get("values", []):
                 self.assertIsInstance(val.get("date"), date)
 
-                item = val.get("cost")
-                self.assertAlmostEqual(float(item.get("total").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("confidence_max").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("confidence_min").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=0.0001)
-                self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
+                for item, cost in [
+                    (val.get("cost"), 5),
+                    (val.get("infrastructure"), 3),
+                    (val.get("supplementary"), 2),
+                ]:
+                    self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=0.0001)
+                    self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
 
 
 class OCPForecastTest(IamTestCase):
@@ -387,13 +445,21 @@ class OCPForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", OCPCostForecastView)
         instance = OCPForecast(params)
@@ -406,12 +472,48 @@ class OCPForecastTest(IamTestCase):
             for val in result.get("values", []):
                 self.assertIsInstance(val.get("date"), date)
 
-                item = val.get("cost")
-                self.assertAlmostEqual(float(item.get("total").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("confidence_max").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("confidence_min").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=0.0001)
-                self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
+                for item, cost in [
+                    (val.get("cost"), 5),
+                    (val.get("infrastructure"), 3),
+                    (val.get("supplementary"), 2),
+                ]:
+                    self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=0.0001)
+                    self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
+
+    def test_cost_summary_table(self):
+        """Test that we select a valid table or view."""
+        params = self.mocked_query_params("?", OCPCostForecastView)
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummary)
+
+        params = self.mocked_query_params("?", OCPCostForecastView, access={"openshift.cluster": {"read": ["1"]}})
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummary)
+
+        params = self.mocked_query_params("?", OCPCostForecastView, access={"openshift.node": {"read": ["1"]}})
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummaryByNode)
+
+        params = self.mocked_query_params(
+            "?", OCPCostForecastView, access={"openshift.cluster": {"read": ["1"]}, "openshift.node": {"read": ["1"]}}
+        )
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummaryByNode)
+
+        params = self.mocked_query_params("?", OCPCostForecastView, access={"openshift.project": {"read": ["1"]}})
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPUsageLineItemDailySummary)
+
+        params = self.mocked_query_params(
+            "?",
+            OCPCostForecastView,
+            access={"openshift.cluster": {"read": ["1"]}, "openshift.project": {"read": ["1"]}},
+        )
+        forecast = OCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCPUsageLineItemDailySummary)
 
 
 class OCPAllForecastTest(IamTestCase):
@@ -423,13 +525,21 @@ class OCPAllForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", OCPAllCostForecastView)
         instance = OCPAllForecast(params)
@@ -442,12 +552,16 @@ class OCPAllForecastTest(IamTestCase):
             for val in result.get("values", []):
                 self.assertIsInstance(val.get("date"), date)
 
-                item = val.get("cost")
-                self.assertAlmostEqual(float(item.get("total").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("confidence_max").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("confidence_min").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=0.0001)
-                self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
+                for item, cost in [
+                    (val.get("cost"), 5),
+                    (val.get("infrastructure"), 3),
+                    (val.get("supplementary"), 2),
+                ]:
+                    self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=0.0001)
+                    self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
 
 
 class OCPAWSForecastTest(IamTestCase):
@@ -459,13 +573,21 @@ class OCPAWSForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", OCPAWSCostForecastView)
         instance = OCPAWSForecast(params)
@@ -478,12 +600,16 @@ class OCPAWSForecastTest(IamTestCase):
             for val in result.get("values", []):
                 self.assertIsInstance(val.get("date"), date)
 
-                item = val.get("cost")
-                self.assertAlmostEqual(float(item.get("total").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("confidence_max").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("confidence_min").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=0.0001)
-                self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
+                for item, cost in [
+                    (val.get("cost"), 5),
+                    (val.get("infrastructure"), 3),
+                    (val.get("supplementary"), 2),
+                ]:
+                    self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=0.0001)
+                    self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
 
 
 class OCPAzureForecastTest(IamTestCase):
@@ -495,13 +621,22 @@ class OCPAzureForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            expected.append({"usage_start": dh.n_days_ago(dh.today, 10 - n).date(), "total_cost": 5})
+            expected.append(
+                {
+                    "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
+                    "total_cost": 5,
+                    "infrastructure_cost": 3,
+                    "supplementary_cost": 2,
+                }
+            )
+        mock_qset = MockQuerySet(expected)
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            expected
+            mock_qset
         )
-        mocked_table.len = len(expected)
+
+        mocked_table.len = mock_qset.len
 
         params = self.mocked_query_params("?", OCPAzureCostForecastView)
         instance = OCPAzureForecast(params)
@@ -514,12 +649,16 @@ class OCPAzureForecastTest(IamTestCase):
             for val in result.get("values", []):
                 self.assertIsInstance(val.get("date"), date)
 
-                item = val.get("cost")
-                self.assertAlmostEqual(float(item.get("total").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("confidence_max").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("confidence_min").get("value")), 5, delta=0.0001)
-                self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=0.0001)
-                self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
+                for item, cost in [
+                    (val.get("cost"), 5),
+                    (val.get("infrastructure"), 3),
+                    (val.get("supplementary"), 2),
+                ]:
+                    self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=0.0001)
+                    self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=0.0001)
+                    self.assertGreaterEqual(float(item.get("pvalues").get("value")), 0)
 
 
 class LinearForecastResultTest(IamTestCase):

@@ -196,7 +196,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return Window(expression=RowNumber(), partition_by=F("date"), order_by=rank_orders)
 
-    def get_cluster_capacity(self, query_data):
+    def get_cluster_capacity(self, query_data):  # noqa: C901
         """Calculate cluster capacity for all nodes over the date range."""
         annotations = self._mapper.report_type_map.get("capacity_aggregate")
         if not annotations:
@@ -219,10 +219,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 usage_start = entry.get("usage_start", "")
                 if isinstance(usage_start, datetime.date):
                     usage_start = usage_start.isoformat()
-                capacity_by_cluster[cluster_id] += entry.get(cap_key, 0)
-                daily_capacity_by_cluster[usage_start][cluster_id] = entry.get(cap_key, 0)
-                daily_total_capacity[usage_start] += entry.get(cap_key, 0)
-                total_capacity += entry.get(cap_key, 0)
+                cap_value = entry.get(cap_key, 0)
+                if cap_value is None:
+                    cap_value = 0
+                capacity_by_cluster[cluster_id] += cap_value
+                daily_capacity_by_cluster[usage_start][cluster_id] = cap_value
+                daily_total_capacity[usage_start] += cap_value
+                total_capacity += cap_value
 
         if self.resolution == "daily":
             for row in query_data:

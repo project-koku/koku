@@ -26,13 +26,16 @@ from os.path import exists
 
 from dateutil import parser
 from django.test import TestCase
+from tenant_schemas.utils import schema_context
 
 import masu.util.common as common_utils
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
 from masu.test import MasuTestCase
+from reporting.provider.aws.models import AWSCostEntryBill
 
 
 class CommonUtilTests(MasuTestCase):
@@ -197,10 +200,11 @@ class CommonUtilTests(MasuTestCase):
         provider_type = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
         start_date = datetime.utcnow().date()
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
         expected_path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
         expected_path = (
-            f"{expected_path_prefix}/{account}/{provider_type}/"
-            f"source={provider_uuid}/year={start_date.year}/month={start_date.month}"
+            f"{expected_path_prefix}/{account}/{provider_type}/" f"source={provider_uuid}/year={year}/month={month}"
         )
 
         path = common_utils.get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet")
@@ -210,7 +214,7 @@ class CommonUtilTests(MasuTestCase):
         report_type = "pod_report"
         expected_path = (
             f"{expected_path_prefix}/{account}/{provider_type}/{report_type}/"
-            f"source={provider_uuid}/year={start_date.year}/month={start_date.month}"
+            f"source={provider_uuid}/year={year}/month={month}"
         )
         path = common_utils.get_path_prefix(
             account, provider_type, provider_uuid, start_date, "parquet", report_type=report_type
@@ -233,6 +237,26 @@ class CommonUtilTests(MasuTestCase):
         expected_path = f"{expected_path_prefix}/{account}/{provider_type}/{report_type}"
         path = common_utils.get_hive_table_path(account, provider_type, report_type=report_type)
         self.assertEqual(path, expected_path)
+
+    def test_determine_if_full_summary_update_needed(self):
+        """Test that we process full month under the correct conditions."""
+        dh = DateHelper()
+
+        with schema_context(self.schema):
+            bills = AWSCostEntryBill.objects.all()
+            current_month_bill = bills.filter(billing_period_start=dh.this_month_start).first()
+            last_month_bill = bills.filter(billing_period_start=dh.last_month_start).first()
+
+            # Current month, previously summarized
+            self.assertFalse(common_utils.determine_if_full_summary_update_needed(current_month_bill))
+            # Previous month
+            self.assertTrue(common_utils.determine_if_full_summary_update_needed(last_month_bill))
+
+            current_month_bill.summary_data_creation_datetime = None
+            current_month_bill.save()
+
+            # Current month, has not been summarized before
+            self.assertTrue(common_utils.determine_if_full_summary_update_needed(current_month_bill))
 
 
 class NamedTemporaryGZipTests(TestCase):
