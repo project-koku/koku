@@ -68,7 +68,7 @@ class GCPQueryParamSerializer(ParamSerializer):
     """Serializer for handling GCP query parameters."""
 
     # Tuples are (key, display_name)
-    DELTA_CHOICES = ("cost", "cost")
+    DELTA_CHOICES = (("cost", "cost"),)
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     units = serializers.CharField(required=False)
