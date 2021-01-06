@@ -223,7 +223,7 @@ def get_sources_msg_data(msg, app_type_id):
                     msg_data["partition"] = msg.partition()
                     msg_data["source_id"] = int(value.get("source_id"))
                     msg_data["auth_header"] = _extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
-                    LOG.info(
+                    LOG.debug(
                         f"Application Create/Destroy Message headers for Source ID: "
                         f"{value.get('source_id')}: {str(msg.headers())}"
                     )
@@ -236,20 +236,17 @@ def get_sources_msg_data(msg, app_type_id):
                     msg_data["resource_id"] = int(value.get("resource_id"))
                     msg_data["resource_type"] = value.get("resource_type")
                     msg_data["auth_header"] = _extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
-                    LOG.info(
+                    LOG.debug(
                         f"Authentication Create/Update Message headers for Source ID: "
                         f"{value.get('resource_id')}: {str(msg.headers())}"
                     )
-
             elif event_type in (KAFKA_SOURCE_DESTROY, KAFKA_SOURCE_UPDATE):
-                LOG.info("Source Update Message: %s", str(msg))
-                LOG.info(f"Source Update msg value: {str(value)}")
                 msg_data["event_type"] = event_type
                 msg_data["offset"] = msg.offset()
                 msg_data["partition"] = msg.partition()
                 msg_data["source_id"] = int(value.get("id"))
                 msg_data["auth_header"] = _extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
-                LOG.info(
+                LOG.debug(
                     f"Source Update/Destroy Message headers for Source ID: " f"{value.get('id')}: {str(msg.headers())}"
                 )
             else:
