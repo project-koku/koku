@@ -176,6 +176,16 @@ class SourcesHTTPClient:
         source_name = endpoint_response.get("data")[0].get("name")
         return source_name
 
+    def get_application_settings(self):
+        """Get the application settings from Sources."""
+        application_url = "{}/applications?filter[source_id]={}".format(self._base_url, str(self._source_id))
+        r = self._get_network_response(application_url, self._identity_header, "Unable to application settings")
+        applications_response = r.json()
+        if not applications_response.get("data"):
+            raise SourcesHTTPClientError(f"No application data for source: {self._source_id}")
+        app_settings = applications_response.get("data")[0].get("extra")
+        return app_settings
+
     def get_aws_credentials(self):
         """Get the roleARN from Sources Authentication service."""
         urls = [
