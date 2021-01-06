@@ -223,6 +223,10 @@ def get_sources_msg_data(msg, app_type_id):
                     msg_data["partition"] = msg.partition()
                     msg_data["source_id"] = int(value.get("source_id"))
                     msg_data["auth_header"] = _extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
+                    LOG.info(
+                        f"Application Create/Destroy Message headers for Source ID: "
+                        f"{value.get('source_id')}: {str(msg.headers())}"
+                    )
             elif event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
                 LOG.debug("Authentication Message: %s", str(msg))
                 if value.get("resource_type") in ("Endpoint", "Application"):
@@ -232,18 +236,30 @@ def get_sources_msg_data(msg, app_type_id):
                     msg_data["resource_id"] = int(value.get("resource_id"))
                     msg_data["resource_type"] = value.get("resource_type")
                     msg_data["auth_header"] = _extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
+                    LOG.info(
+                        f"Authentication Create/Update Message headers for Source ID: "
+                        f"{value.get('resource_id')}: {str(msg.headers())}"
+                    )
+
             elif event_type in (KAFKA_SOURCE_DESTROY, KAFKA_SOURCE_UPDATE):
-                LOG.debug("Source Message: %s", str(msg))
+                LOG.info("Source Update Message: %s", str(msg))
+                LOG.info(f"Source Update msg value: {str(value)}")
                 msg_data["event_type"] = event_type
                 msg_data["offset"] = msg.offset()
                 msg_data["partition"] = msg.partition()
                 msg_data["source_id"] = int(value.get("id"))
                 msg_data["auth_header"] = _extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
+                LOG.info(
+                    f"Source Update/Destroy Message headers for Source ID: " f"{value.get('id')}: {str(msg.headers())}"
+                )
             else:
                 LOG.debug("Other Message: %s", str(msg))
         except (AttributeError, ValueError, TypeError) as error:
             LOG.error("Unable load message: %s. Error: %s", str(msg.value), str(error))
             raise SourcesMessageError("Unable to load message")
+        if msg_data.get("event_type") and not msg_data.get("auth_header"):
+            LOG.error("Missing identity header for message: %s.  Headers: %s", str(msg_data), str(msg.headers()))
+            raise SourcesMessageError("Unable to get identity header.")
 
     return msg_data
 
@@ -484,6 +500,8 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
             offset = msg.get("offset")
             partition = msg.get("partition")
         except SourcesMessageError:
+            LOG.warning("Committing invalid message")
+            consumer.commit()
             return
         if msg:
             LOG.info(f"Processing message offset: {offset} partition: {partition}")
