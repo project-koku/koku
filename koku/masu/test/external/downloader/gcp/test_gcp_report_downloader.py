@@ -1,6 +1,5 @@
 """Test the GCPReportDownloader class."""
 import shutil
-from datetime import datetime
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -103,7 +102,7 @@ class GCPReportDownloaderTest(MasuTestCase):
     def test_download_file_failure_on_file_open(self, mock_bigquery, mock_makedirs):
         """Assert download_file successful scenario"""
         mock_bigquery.client.return_value.query.return_value = ["This", "test"]
-        key = "test_key.csv"
+        key = "202011_1234_2020-12-05:2020-12-08.csv"
         downloader = self.create_gcp_downloader_with_mocked_values()
         with patch("masu.external.downloader.gcp.gcp_report_downloader.open") as mock_open:
             err_msg = "bad open"
@@ -114,17 +113,20 @@ class GCPReportDownloaderTest(MasuTestCase):
     def test_generate_monthly_pseudo_manifest(self):
         """Assert _generate_monthly_pseudo_manifest returns a manifest-like dict."""
         provider_uuid = uuid4()
-        start_date = datetime(2019, 2, 1)
-        expected_end_date = datetime(2019, 2, 28)
-        expected_assembly_id = ":".join([str(provider_uuid), self.etag, "1"])
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        invoice_month = start_date.strftime("%Y%m")
+        expected_end_date = dh.this_month_end.date()
+        expected_assembly_id = ":".join([str(provider_uuid), self.etag, invoice_month])
         downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=provider_uuid)
-        result_manifest = downloader._generate_monthly_pseudo_manifest(start_date)
+        downloader.scan_end = dh.this_month_end.date()
+        result_manifest = downloader._generate_monthly_pseudo_manifest(start_date.date())
         expected_manifest_data = {
             "assembly_id": expected_assembly_id,
             "compression": UNCOMPRESSED,
-            "start_date": start_date,
+            "start_date": start_date.date(),
             "end_date": expected_end_date,  # inclusive end date
-            "file_names": [f"{self.etag}_{downloader.query_date}:{self.today.date()}.csv"],
+            "file_names": [f"{invoice_month}_{self.etag}_{downloader.scan_start}:{downloader.scan_end}.csv"],
         }
         self.assertEqual(result_manifest, expected_manifest_data)
 
@@ -139,8 +141,9 @@ class GCPReportDownloaderTest(MasuTestCase):
     def test_relevant_file_names(self):
         """Assert relevant file name is generated correctly."""
         downloader = self.create_gcp_downloader_with_mocked_values()
-        expected_file_name = [f"{self.etag}_{downloader.query_date}:{self.today.date()}.csv"]
-        result_file_names = downloader._get_relevant_file_names()
+        mock_invoice_month = self.today.strftime("%Y%m")
+        expected_file_name = [f"{mock_invoice_month}_{self.etag}_{downloader.scan_start}:{downloader.scan_end}.csv"]
+        result_file_names = downloader._get_relevant_file_names(mock_invoice_month)
         self.assertEqual(expected_file_name, result_file_names)
 
     def test_get_local_file_for_report(self):
@@ -155,7 +158,7 @@ class GCPReportDownloaderTest(MasuTestCase):
     def test_download_file_success(self, mock_bigquery, mock_makedirs):
         """Assert download_file successful scenario"""
         mock_bigquery.client.return_value.query.return_value = ["This", "test"]
-        key = "test_key.csv"
+        key = "202011_1234_2020-12-05:2020-12-08.csv"
         mock_name = "Cody"
         expected_full_path = f"{DATA_DIR}/{mock_name}/gcp/{key}"
         downloader = self.create_gcp_downloader_with_mocked_values(customer_name=mock_name)
@@ -169,7 +172,7 @@ class GCPReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.gcp.gcp_report_downloader.open")
     def test_download_file_query_client_error(self, mock_open):
         """Test BigQuery client is handled correctly in download file method."""
-        key = "test_key.csv"
+        key = "202011_1234_2020-12-05:2020-12-08.csv"
         downloader = self.create_gcp_downloader_with_mocked_values()
         err_msg = "GCP Error"
         with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
@@ -188,18 +191,28 @@ class GCPReportDownloaderTest(MasuTestCase):
 
     def test_get_manifest_context_for_date(self):
         """Test successful return of get manifest context for date."""
-        start_date = datetime(2019, 2, 1)
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        invoice_month = start_date.strftime("%Y%m")
         p_uuid = uuid4()
-        expected_assembly_id = f"{p_uuid}:{self.etag}:1"
+        expected_assembly_id = f"{p_uuid}:{self.etag}:{invoice_month}"
         downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=p_uuid)
-        csv_file = f"{self.etag}_{downloader.query_date}:{self.today.date()}.csv"
+        csv_file = f"{invoice_month}_{self.etag}_{dh.this_month_start.date()}:{downloader.scan_end}.csv"
         expected_files = [{"key": csv_file, "local_file": csv_file}]
         with patch(
             "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._process_manifest_db_record",
             return_value=2,
         ):
-            report_dict = downloader.get_manifest_context_for_date(start_date)
+            report_dict = downloader.get_manifest_context_for_date(start_date.date())
         self.assertEqual(report_dict.get("manifest_id"), 2)
         self.assertEqual(report_dict.get("files"), expected_files)
         self.assertEqual(report_dict.get("compression"), UNCOMPRESSED)
         self.assertEqual(report_dict.get("assembly_id"), expected_assembly_id)
+
+    def test_generate_monthly_pseudo_no_manifest(self):
+        """Test get monly psuedo manifest with no manifest."""
+        dh = DateHelper()
+        downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=uuid4())
+        start_date = dh.last_month_start
+        manifest_dict = downloader._generate_monthly_pseudo_manifest(start_date)
+        self.assertIsNotNone(manifest_dict)

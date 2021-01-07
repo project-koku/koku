@@ -75,15 +75,18 @@ def raise_provider_manager_error(param_a):
 class ConsumerRecord:
     """Test class for kafka msg."""
 
-    def __init__(self, topic, offset, event_type, auth_header, value, partition=0):
+    def __init__(self, topic, offset, event_type, value, auth_header=None, partition=0):
         """Initialize Msg."""
         self._topic = topic
         self._offset = offset
         self._partition = partition
-        self._headers = (
-            ("event_type", bytes(event_type, encoding="utf-8")),
-            ("x-rh-identity", bytes(auth_header, encoding="utf-8")),
-        )
+        if auth_header:
+            self._headers = (
+                ("event_type", bytes(event_type, encoding="utf-8")),
+                ("x-rh-identity", bytes(auth_header, encoding="utf-8")),
+            )
+        else:
+            self._headers = (("event_type", bytes(event_type, encoding="utf-8")),)
         self._value = value
 
     def topic(self):
@@ -468,6 +471,25 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             event_type=test_event_type,
             auth_header=test_auth_header,
             value=test_value,
+        )
+        with self.assertRaises(source_integration.SourcesMessageError):
+            source_integration.get_sources_msg_data(msg, cost_management_app_type)
+
+    def test_get_sources_missing_header(self):
+        """Test to get sources details from Application.create event with missing identity header."""
+        test_topic = "platform.sources.event-stream"
+        test_event_type = "Application.create"
+        test_offset = 5
+        cost_management_app_type = 2
+        test_auth_header = None
+        test_value = '{"id": 1, "source_id": 1, "application_type_id": 2}'
+
+        msg = ConsumerRecord(
+            topic=test_topic,
+            offset=test_offset,
+            event_type=test_event_type,
+            auth_header=test_auth_header,
+            value=bytes(test_value, encoding="utf-8"),
         )
         with self.assertRaises(source_integration.SourcesMessageError):
             source_integration.get_sources_msg_data(msg, cost_management_app_type)
@@ -1086,10 +1108,17 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                     "get_application_type_is_cost_management",
                     return_value=test.get("expected_cost_mgmt_match"),
                 ):
-                    with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
-                        with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
-                            process_message(test_application_id, msg_data)
-                            test.get("expected_fn")(msg_data, test, mock_save_auth_info)
+                    with patch.object(
+                        SourcesHTTPClient,
+                        "get_source_id_from_applications_id",
+                        return_value=test.get("expected_cost_mgmt_match"),
+                    ):
+                        with patch.object(
+                            SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}
+                        ):
+                            with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
+                                process_message(test_application_id, msg_data)
+                                test.get("expected_fn")(msg_data, test, mock_save_auth_info)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     @patch("sources.kafka_listener.sources_network_info", returns=None)

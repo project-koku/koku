@@ -26,6 +26,7 @@ import ciso8601
 import pandas
 import pytz
 from dateutil import parser
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.db import transaction
 
@@ -38,6 +39,7 @@ from masu.util import common as utils
 from masu.util.gcp.common import GCP_SERVICE_LINE_ITEM_TYPE_MAP
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItem
+from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
 
@@ -62,6 +64,7 @@ class ProcessedGCPReport:
         self.bills = {}
         self.projects = {}
         self.products = {}
+        self.requested_partitions = set()
 
     def remove_processed_rows(self):
         """Clear a batch of rows after they've been saved."""
@@ -94,7 +97,7 @@ class GCPReportProcessor(ReportProcessorBase):
 
         self.line_item_table = GCPCostEntryLineItem()
         self.line_item_table_name = self.line_item_table._meta.db_table
-        self._report_name = report_path
+        self._report_name = path.basename(report_path)
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
         self._manifest_id = manifest_id
         self._provider_uuid = provider_uuid
@@ -106,7 +109,13 @@ class GCPReportProcessor(ReportProcessorBase):
             self.existing_bill_map = report_db.get_cost_entry_bills()
             self.existing_product_map = report_db.get_products()
             self.existing_projects_map = report_db.get_projects()
+            self.report_scan_range = report_db.get_gcp_scan_range_from_report_name(report_name=self._report_name)
 
+        self.scan_start = self.report_scan_range.get("start")
+        self.scan_end = self.report_scan_range.get("end")
+        if not self.scan_start or not self.scan_end:
+            err_msg = f"Error recovering start and end date from csv report ({self._report_name})."
+            raise ProcessedGCPReportError(err_msg)
         LOG.info("Initialized report processor for file: %s and schema: %s", report_path, self._schema)
 
         self.line_item_columns = None
@@ -125,9 +134,11 @@ class GCPReportProcessor(ReportProcessorBase):
                 break
         return item_type
 
-    def _delete_line_items_in_range(self, bill_id, scan_start):
+    def _delete_line_items_in_range(self, bill_id):
         """Delete stale data between date range."""
-        gcp_date_filter = {"usage_start__gte": scan_start}
+        scan_start = ciso8601.parse_datetime(self.scan_start).date()
+        scan_end = (ciso8601.parse_datetime(self.scan_end) + relativedelta(days=1)).date()
+        gcp_date_filters = {"usage_start__gte": scan_start, "usage_end__lt": scan_end}
 
         if not self._manifest_id:
             return False
@@ -138,17 +149,18 @@ class GCPReportProcessor(ReportProcessorBase):
 
         with GCPReportDBAccessor(self._schema) as accessor:
             line_item_query = accessor.get_lineitem_query_for_billid(bill_id)
-            line_item_query = line_item_query.filter(**gcp_date_filter)
-            log_statement = (
-                f"Deleting data for:\n"
-                f" schema_name: {self._schema}\n"
-                f" provider_uuid: {self._provider_uuid}\n"
-                f" bill ID: {bill_id}\n"
-                f" on or after {scan_start}."
-            )
-            LOG.info(log_statement)
-            line_item_query.delete()
-
+            line_item_query = line_item_query.filter(**gcp_date_filters)
+            delete_count = line_item_query.delete()
+            if delete_count[0] > 0:
+                log_statement = (
+                    f"items delted ({delete_count[0]}) for:\n"
+                    f" schema_name: {self._schema}\n"
+                    f" provider_uuid: {self._provider_uuid}\n"
+                    f" bill ID: {bill_id}\n"
+                    f" on or after {scan_start}\n"
+                    f" before {scan_end}\n"
+                )
+                LOG.info(log_statement)
         return True
 
     def _process_tags(self, row):
@@ -191,20 +203,6 @@ class GCPReportProcessor(ReportProcessorBase):
             if key == type_key:
                 return value
         return None
-
-    def _get_range_from_report_name(self):
-        """
-        Get the scan range from the report name.
-        """
-        scan_range = {}
-        try:
-            date_range = self._report_name.split("_")[-1]
-            start_date, end_date = date_range.split(":")
-            scan_range = {"start": start_date, "end": end_date}
-        except UnboundLocalError:
-            err_msg = "Error recovering start and end date from csv report."
-            raise ProcessedGCPReportError(err_msg)
-        return scan_range
 
     def _get_or_create_cost_entry_bill(self, row, report_db_accessor):
         """Get or Create a GCP cost entry bill object.
@@ -318,6 +316,18 @@ class GCPReportProcessor(ReportProcessorBase):
         data["tags"] = self._process_tags(row)
         data["usage_type"] = self._get_usage_type(row)
 
+        li_usage_dt = data.get("usage_start")
+        if li_usage_dt:
+            try:
+                li_usage_dt = ciso8601.parse_datetime(li_usage_dt).date().replace(day=1)
+            except (ValueError, TypeError):
+                pass  # This is just gathering requested partition start values
+                # If it's invalid, then it's OK to omit storing that value
+                # as it only pertains to a requested partition.
+            else:
+                if li_usage_dt not in self.processed_report.requested_partitions:
+                    self.processed_report.requested_partitions.add(li_usage_dt)
+
         if self.line_item_columns is None:
             self.line_item_columns = list(data.keys())
 
@@ -341,9 +351,6 @@ class GCPReportProcessor(ReportProcessorBase):
                 self._schema,
             )
             return False
-        scan_range = self._get_range_from_report_name()
-        scan_start = scan_range["start"]
-        scan_start = ciso8601.parse_datetime(scan_start).date()
 
         # Read the csv in batched chunks.
         report_csv = pandas.read_csv(self._report_path, chunksize=self._batch_size, compression="infer")
@@ -363,7 +370,7 @@ class GCPReportProcessor(ReportProcessorBase):
 
                     bill_id = self._get_or_create_cost_entry_bill(first_row, report_db)
                     if bill_id not in bills_purged:
-                        self._delete_line_items_in_range(bill_id, scan_start)
+                        self._delete_line_items_in_range(bill_id)
                         bills_purged.append(bill_id)
 
                     project_id = self._get_or_create_gcp_project(first_row, report_db)
@@ -396,3 +403,10 @@ class GCPReportProcessor(ReportProcessorBase):
                 remove(self._report_path)
 
         return True
+
+    def _save_to_db(self, temp_table, report_db):
+        # Create any needed partitions
+        existing_partitions = report_db.get_existing_partitions(GCPCostEntryLineItemDailySummary)
+        report_db.add_partitions(existing_partitions, self.processed_report.requested_partitions)
+        # Save batch to DB
+        super()._save_to_db(temp_table, report_db)
