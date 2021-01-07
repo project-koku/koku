@@ -358,13 +358,14 @@ def sources_network_info(source_id, auth_header):
 
     storage.add_provider_sources_network_info(src_details, source_id)
     save_auth_info(auth_header, source_id)
-    if src_details.source_type_name in (SOURCES_GCP_SOURCE_NAME, SOURCES_GCP_LOCAL_SOURCE_NAME, ):
+    if src_details.source_type_name in (SOURCES_GCP_SOURCE_NAME, SOURCES_GCP_LOCAL_SOURCE_NAME):
         app_settings = src_details.app_settings
         try:
             storage.update_application_settings(source_id, app_settings)
         except storage.SourcesStorageError as error:
             LOG.error(f"Unable to apply application settings. error: {str(error)}")
             return
+
 
 def cost_mgmt_msg_filter(msg_data):
     """Verify that message is for cost management."""
@@ -435,7 +436,7 @@ def process_message(app_type_id, msg):  # noqa: C901
 
         save_auth_info(msg_data.get("auth_header"), msg_data.get("source_id"))
 
-    elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_APPLICATION_UPDATE,):
+    elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_APPLICATION_UPDATE):
         if storage.is_known_source(msg_data.get("source_id")) is False:
             LOG.info("Update event for unknown source id, skipping...")
             return

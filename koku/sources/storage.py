@@ -16,8 +16,8 @@
 #
 """Database accessors for Sources database table."""
 import binascii
-import logging
 import copy
+import logging
 from base64 import b64decode
 from json import loads as json_loads
 from json.decoder import JSONDecodeError
@@ -463,6 +463,7 @@ def is_known_source(source_id):
         raise error
     return source_exists
 
+
 def _validate_billing_source(provider_type, billing_source):  # noqa: C901
     """Validate billing source parameters."""
     if provider_type == Provider.PROVIDER_AWS:
@@ -484,6 +485,7 @@ def _validate_billing_source(provider_type, billing_source):  # noqa: C901
         if not data_source.get("dataset"):
             raise SourcesStorageError("Missing GCP dataset")
 
+
 def _update_billing_source(instance, billing_source):
     if instance.source_type not in ALLOWED_BILLING_SOURCE_PROVIDERS:
         raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
@@ -501,6 +503,7 @@ def _update_billing_source(instance, billing_source):
         billing_source = {"data_source": billing_source}
     return billing_source
 
+
 def _update_authentication(instance, authentication):
     if instance.source_type not in ALLOWED_AUTHENTICATION_PROVIDERS:
         raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
@@ -510,6 +513,7 @@ def _update_authentication(instance, authentication):
     subscription_id = authentication.get("credentials", {}).get("subscription_id")
     auth_dict["credentials"]["subscription_id"] = subscription_id
     return auth_dict
+
 
 def update_application_settings(source_id, settings):
     """Store billing source update."""
