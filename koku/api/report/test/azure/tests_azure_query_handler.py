@@ -98,16 +98,18 @@ class AzureReportQueryHandlerTest(IamTestCase):
             qf = QueryFilter(**filt)
             filters.update({qf.composed_query_string(): qf.parameter})
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
         query_output = handler.execute_query()
 
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-
+        self.assertIsNotNone(total.get("usage", {}).get("value"))
         self.assertEqual(total.get("usage", {}).get("value"), current_totals.get("usage"))
-        self.assertEqual(total.get("request", {}).get("value"), current_totals.get("request"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
-        self.assertEqual(total.get("limit", {}).get("value"), current_totals.get("limit"))
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
     def test_execute_sum_query_costs(self):
         """Test that the sum query runs properly for the costs endpoint."""
@@ -116,11 +118,14 @@ class AzureReportQueryHandlerTest(IamTestCase):
         handler = AzureReportQueryHandler(query_params)
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_costs_by_time_scope(aggregates, self.ten_day_filter)
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        result_cost_total = query_output.get("total").get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
     def test_execute_take_defaults(self):
         """Test execute_query for current month on daily breakdown."""
@@ -144,8 +149,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
     def test_execute_query_current_month_monthly(self):
         """Test execute_query for current month on monthly breakdown."""
@@ -158,8 +166,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
@@ -178,8 +189,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -215,8 +229,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 qf = QueryFilter(**filt)
                 filters.update({qf.composed_query_string(): qf.parameter})
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -252,8 +269,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 qf = QueryFilter(**filt)
                 filters.update({qf.composed_query_string(): qf.parameter})
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -278,8 +298,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -306,8 +329,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -338,8 +364,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "instance_type__isnull": False}
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         for data_item in data:
             instance_types = data_item.get("instance_types")
@@ -360,8 +389,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -386,8 +418,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -417,8 +452,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -457,8 +495,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -489,10 +530,14 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filters = {**self.this_month_filter, "resource_location": location}
+        filters = {**self.this_month_filter}
+        filters["resource_location__icontains"] = location
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("raw", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -522,8 +567,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "subscription_guid": subscription_guid}
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -553,8 +601,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 qf = QueryFilter(**filt)
                 filters.update({qf.composed_query_string(): qf.parameter})
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -580,10 +631,14 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filters = {**self.this_month_filter, "resource_location": location}
+        filters = {**self.this_month_filter}
+        filters["resource_location__icontains"] = location
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("raw", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -611,10 +666,14 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filters = {**self.this_month_filter, "resource_location": location}
+        filters = {**self.this_month_filter}
+        filters["resource_location__icontains"] = location
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("raw", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         self.assertEqual(len(data), 1)
@@ -638,8 +697,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         self.assertEqual(len(data), 1)
@@ -1173,8 +1235,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "subscription_guid": subscription_guid}
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:

@@ -200,10 +200,11 @@ class CommonUtilTests(MasuTestCase):
         provider_type = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
         start_date = datetime.utcnow().date()
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
         expected_path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
         expected_path = (
-            f"{expected_path_prefix}/{account}/{provider_type}/"
-            f"source={provider_uuid}/year={start_date.year}/month={start_date.month}"
+            f"{expected_path_prefix}/{account}/{provider_type}/" f"source={provider_uuid}/year={year}/month={month}"
         )
 
         path = common_utils.get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet")
@@ -213,7 +214,7 @@ class CommonUtilTests(MasuTestCase):
         report_type = "pod_report"
         expected_path = (
             f"{expected_path_prefix}/{account}/{provider_type}/{report_type}/"
-            f"source={provider_uuid}/year={start_date.year}/month={start_date.month}"
+            f"source={provider_uuid}/year={year}/month={month}"
         )
         path = common_utils.get_path_prefix(
             account, provider_type, provider_uuid, start_date, "parquet", report_type=report_type
