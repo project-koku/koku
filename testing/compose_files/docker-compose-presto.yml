@@ -32,7 +32,7 @@ services:
 
   hive-metastore:
     container_name: hive-metastore
-    image: quay.io/coreos/hive:release-4.6
+    image: quay.io/cloudservices/ubi-hive:3.1.2
     entrypoint:  ["/hive-scripts/entrypoint.sh", "/opt/hive/bin/hive", "--service", "metastore"]
     ports:
       - "9083:9083"
@@ -47,13 +47,13 @@ services:
       - ./../../testing/metastore/db-data:/var/lib/hive
       - ./../../testing/hadoop/hadoop-dfs-name:/hadoop/dfs/name
       - ./../../testing/hadoop/hadoop-dfs-data:/hadoop/dfs/data
-      - ./../../testing/hadoop/hadoop-logs:/opt/hadoop/logs
+#      - ./../../testing/hadoop/hadoop-logs:/opt/hadoop/logs
       - ./../../testing/hadoop/hadoop-config:/hadoop-config
       - ./../../testing/hadoop/hadoop-starting-config:/hadoop-starting-config
 
   presto:
     container_name: presto
-    image: quay.io/coreos/presto:release-4.6
+    image: quay.io/cloudservices/ubi-presto:348
     user: root
     command: /presto-common/initialize_presto.sh
     ports:
