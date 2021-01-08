@@ -128,6 +128,7 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
 
     def test_empty_manifest(self):
         """Test an empty report is returned if no manifest."""
+        # I created the patch_sting cause the patch was being reordered making the E501 useless
         patch_string = "masu.external.downloader.gcp_local.gcp_local_report_downloader.GCPLocalReportDownloader._generate_monthly_pseudo_manifest"  # noqa: E501
         with patch(patch_string) as patch_manifest:
             patch_manifest.side_effect = [None]
