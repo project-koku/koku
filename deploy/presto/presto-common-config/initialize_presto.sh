@@ -1,9 +1,9 @@
 #!/bin/bash
 set -ex
 
-cp -v -L -r -f /presto-etc/* /opt/presto/presto-server/etc/
+cp -v -L -r -f /trino-etc/* /opt/trino/trino-server/etc/
 
 if [[ "${LOCAL}" == 'TRUE' ]]; then
-    echo 'Launching Presto.'
-    /presto-common/entrypoint.sh /opt/presto/presto-server/bin/launcher run
+    echo 'Launching Trino.'
+    /trino-common/entrypoint.sh /opt/trino/trino-server/bin/launcher run
 fi

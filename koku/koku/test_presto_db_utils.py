@@ -2,7 +2,7 @@ import datetime
 import uuid
 
 from jinjasql import JinjaSql
-from prestodb.dbapi import Connection
+from trino.dbapi import Connection
 
 from . import presto_database as kpdb
 from api.iam.test.iam_test_case import FakePrestoConn

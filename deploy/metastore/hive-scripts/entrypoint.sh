@@ -32,7 +32,7 @@ fi
 
 # add UID to /etc/passwd if missing
 if ! whoami &> /dev/null; then
-    if test -w /etc/passwd || stat -c "%a" /etc/passwd | grep -qE '.[267].'; then
+    if [ -w /etc/passwd ]; then
         echo "Adding user ${USER_NAME:-hadoop} with current UID $(id -u) to /etc/passwd"
         # Remove existing entry with user first.
         # cannot use sed -i because we do not have permission to write new
@@ -63,8 +63,10 @@ ln -s -f /hive-config/hive-site.xml $HIVE_HOME/conf/hive-site.xml
 ln -s -f /hive-config/hive-log4j2.properties $HIVE_HOME/conf/hive-log4j2.properties
 ln -s -f /hive-config/hive-exec-log4j2.properties $HIVE_HOME/conf/hive-exec-log4j2.properties
 
+export HADOOP_LOG_DIR="${HADOOP_HOME}/logs"
 # Set garbage collection settings
-export VM_OPTIONS="$VM_OPTIONS -XX:+UseContainerSupport -XX:ErrorFile=${HADOOP_LOG_DIR}/java_error%p.log"
+export GC_SETTINGS="-XX:+UseG1GC -XX:G1HeapRegionSize=32M -XX:+UseGCOverheadLimit -XX:+ExplicitGCInvokesConcurrent -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${HADOOP_LOG_DIR}/heap_dump.bin -XX:+ExitOnOutOfMemoryError -XX:ErrorFile=${HADOOP_LOG_DIR}/java_error%p.log"
+export VM_OPTIONS="$VM_OPTIONS -XX:+UseContainerSupport"
 
 if [ -n "$JVM_INITIAL_RAM_PERCENTAGE" ]; then
 VM_OPTIONS="$VM_OPTIONS -XX:InitialRAMPercentage=$JVM_INITIAL_RAM_PERCENTAGE"
@@ -80,9 +82,10 @@ fi
 export JMX_OPTIONS="-javaagent:/opt/jmx_exporter/jmx_exporter.jar=8082:/opt/jmx_exporter/config/config.yml -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.port=8081 -Dcom.sun.management.jmxremote.rmi.port=8081 -Djava.rmi.server.hostname=127.0.0.1"
 
 # Set garbage collection logs
-export GC_SETTINGS="${GC_SETTINGS} -verbose:gc -Xlog:gc*:${HADOOP_LOG_DIR}/gc.log"
+GC_SETTINGS="${GC_SETTINGS} -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:${HADOOP_LOG_DIR}/gc.log"
+GC_SETTINGS="${GC_SETTINGS} -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=5 -XX:GCLogFileSize=3M"
 
-export HIVE_LOGLEVEL="${HIVE_LOGLEVEL:-DEBUG}"
+export HIVE_LOGLEVEL="${HIVE_LOGLEVEL:-INFO}"
 export HADOOP_OPTS="${HADOOP_OPTS} ${VM_OPTIONS} ${GC_SETTINGS} ${JMX_OPTIONS}"
 export HIVE_METASTORE_HADOOP_OPTS=" -Dhive.log.level=${HIVE_LOGLEVEL} "
 export HIVE_OPTS="${HIVE_OPTS} --hiveconf hive.root.logger=${HIVE_LOGLEVEL},console "

@@ -3,10 +3,10 @@ import os
 import re
 from decimal import Decimal
 
-import prestodb
 import sqlparse
-from prestodb.exceptions import PrestoQueryError
-from prestodb.transaction import IsolationLevel
+import trino
+from trino.exceptions import PrestoQueryError
+from trino.transaction import IsolationLevel
 
 
 LOG = logging.getLogger(__name__)
@@ -80,105 +80,113 @@ def sql_mogrify(sql, params=None):
 
 def connect(**connect_args):
     """
-    Establish a prestodb connection.
+    Establish a trino connection.
     Keyword Params:
-        schema (str) : prestodb schema (required)
-        host (str) : prestodb hostname (can set from environment)
-        port (int) : prestodb port (can set from environment)
-        user (str) : prestodb user (can set from environment)
-        catalog (str) : prestodb catalog (can set from enviromment)
+        schema (str) : trino schema (required)
+        host (str) : trino hostname (can set from environment)
+        port (int) : trino port (can set from environment)
+        user (str) : trino user (can set from environment)
+        catalog (str) : trino catalog (can set from enviromment)
     Returns:
-        prestodb.dbapi.Connection : connection to prestodb if successful
+        trino.dbapi.Connection : connection to trino if successful
     """
-    presto_connect_args = {
-        "host": connect_args.get("host") or os.environ.get("PRESTO_HOST") or "presto",
-        "port": connect_args.get("port") or os.environ.get("PRESTO_PORT") or 8080,
-        "user": connect_args.get("user") or os.environ.get("PRESTO_USER") or "admin",
-        "catalog": connect_args.get("catalog") or os.environ.get("PRESTO_DEFAULT_CATALOG") or "postgres",
+    trino_connect_args = {
+        "host": (
+            connect_args.get("host") or os.environ.get("TRINO_HOST") or os.environ.get("PRESTO_HOST") or "presto"
+        ),
+        "port": (connect_args.get("port") or os.environ.get("TRINO_PORT") or os.environ.get("PRESTO_PORT") or 8080),
+        "user": (connect_args.get("user") or os.environ.get("TRINO_USER") or os.environ.get("PRESTO_USER") or "admin"),
+        "catalog": (
+            connect_args.get("catalog")
+            or os.environ.get("TRINO_DEFAULT_CATALOG")
+            or os.environ.get("PRESTO_DEFAULT_CATALOG")
+            or "postgres"
+        ),
         "isolation_level": (
             connect_args.get("isolation_level")
+            or os.environ.get("TRINO_DEFAULT_ISOLATION_LEVEL")
             or os.environ.get("PRESTO_DEFAULT_ISOLATION_LEVEL")
             or IsolationLevel.AUTOCOMMIT
         ),
         "schema": connect_args["schema"],
     }
-    conn = prestodb.dbapi.connect(**presto_connect_args)
+    conn = trino.dbapi.connect(**trino_connect_args)
     return conn
 
 
-def _fetchall(presto_cur):
+def _fetchall(trino_cur):
     """
-    Wrapper around the prestodb.dbapi.Cursor.fetchall() method
+    Wrapper around the trino.dbapi.Cursor.fetchall() method
     Params:
-        presto_cur (presto.dbapi.Cursor) : Presto cursor that has already called the execute method
+        trino_cur (presto.dbapi.Cursor) : Presto cursor that has already called the execute method
     Returns:
         list : Results of cursor execution and results fetch
     """
-    return presto_cur.fetchall()
+    return trino_cur.fetchall()
 
 
-def _cursor(presto_conn):
+def _cursor(trino_conn):
     """
-    Wrapper around the prestodb.dbapi.Connection.cursor() method
+    Wrapper around the trino.dbapi.Connection.cursor() method
     Params:
-        presto_conn (prestodb.dbapi.Connection) Active presto connection
+        trino_conn (trino.dbapi.Connection) Active presto connection
     Returns:
-        prestodb.dbapi.Cursor : Cursor for the connection
+        trino.dbapi.Cursor : Cursor for the connection
     """
-    return presto_conn.cursor()
+    return trino_conn.cursor()
 
 
-def _execute(presto_cur, presto_stmt):
+def _execute(trino_cur, trino_stmt):
     """
-    Wrapper around the prestodb.dbapi.Cursor.execute() method
+    Wrapper around the trino.dbapi.Cursor.execute() method
     Params:
-        presto_cur (prestodb.dbapi.Cursor) presto connection cursor
+        trino_cur (trino.dbapi.Cursor) presto connection cursor
     Returns:
-        prestodb.dbapi.Cursor : Cursor after execute method called
+        trino.dbapi.Cursor : Cursor after execute method called
     """
-    presto_cur.execute(presto_stmt)
-    return presto_cur
+    trino_cur.execute(trino_stmt)
+    return trino_cur
 
 
-def execute(presto_conn, sql, params=None):
+def execute(trino_conn, sql, params=None):
     """
-    Pass in a buffer of one or more semicolon-terminated prestodb SQL statements and it
+    Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
     will be parsed into individual statements for execution. If preprocessor is None,
     then the resulting SQL and bind parameters are used. If a preprocessor is needed,
     then it should be a callable taking two positional arguments and returning a 2-element tuple:
         pre_process(sql, parameters) -> (processed_sql, processed_parameters)
     Parameters:
-        presto_conn (prestodb.dbapi.Connection) : Connection to presto
+        trino_conn (trino.dbapi.Connection) : Connection to presto
         sql (str) : Buffer of one or more semicolon-terminated SQL statements.
         params (Iterable, dict, None) : Parameters used in the SQL or None if no parameters
     Returns:
         list : Results of SQL statement execution.
     """
-    # prestodb.Cursor.execute does not use parameters.
+    # trino.Cursor.execute does not use parameters.
     # The sql_mogrify function will do any needed parameter substitution
     # and only returns the SQL with parameters formatted inline.
-    presto_stmt = sql_mogrify(sql, params)
-    presto_cur = _cursor(presto_conn)
+    trino_stmt = sql_mogrify(sql, params)
+    trino_cur = _cursor(trino_conn)
     try:
-        LOG.debug(f"Executing PRESTO SQL: {presto_stmt}")
-        presto_cur = _execute(presto_cur, presto_stmt)
-        results = _fetchall(presto_cur)
+        LOG.debug(f"Executing PRESTO SQL: {trino_stmt}")
+        trino_cur = _execute(trino_cur, trino_stmt)
+        results = _fetchall(trino_cur)
     except PrestoQueryError as e:
-        LOG.error(f"Presto Query Error : {str(e)}{os.linesep}{presto_stmt}")
+        LOG.error(f"Presto Query Error : {str(e)}{os.linesep}{trino_stmt}")
         raise e
 
     return results
 
 
-def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
+def executescript(trino_conn, sqlscript, params=None, preprocessor=None):
     """
-        Pass in a buffer of one or more semicolon-terminated prestodb SQL statements and it
+        Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
         will be parsed into individual statements for execution. If preprocessor is None,
         then the resulting SQL and bind parameters are used. If a preprocessor is needed,
         then it should be a callable taking two positional arguments and returning a 2-element tuple:
             pre_process(sql, parameters) -> (processed_sql, processed_parameters)
         Parameters:
-            presto_conn (prestodb.dbapi.Connection) : Connection to presto
+            trino_conn (trino.dbapi.Connection) : Connection to presto
             sqlscript (str) : Buffer of one or more semicolon-terminated SQL statements.
             params (Iterable, dict, None) : Parameters used in the SQL or None if no parameters
             preprocessor (Callable, None) : Callable taking two args and returning a 2-element tuple
@@ -211,5 +219,5 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
             else:
                 stmt, s_params = p_stmt, params
 
-            results.extend(execute(presto_conn, stmt, params=s_params))
+            results.extend(execute(trino_conn, stmt, params=s_params))
     return results
