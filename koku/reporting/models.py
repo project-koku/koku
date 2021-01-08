@@ -90,6 +90,9 @@ from reporting.provider.azure.openshift.models import OCPAzureDatabaseSummary
 from reporting.provider.azure.openshift.models import OCPAzureNetworkSummary
 from reporting.provider.azure.openshift.models import OCPAzureStorageSummary
 from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
+from reporting.provider.gcp.models import GCPCostEntryBill
+from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
+from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPCostSummary
 from reporting.provider.gcp.models import GCPCostSummaryByAccount
 from reporting.provider.gcp.models import GCPCostSummaryByProject
