@@ -309,7 +309,7 @@ class SourcesStorageTest(TestCase):
                     "GCP Provider",
                     Provider.PROVIDER_GCP,
                     {"project_id": "test-project"},
-                    None,
+                    {"data_source": {}},
                     "authheader",
                     1,
                     False,
@@ -591,3 +591,154 @@ class SourcesStorageTest(TestCase):
             self.assertEquals(len(response), test.get("expected_list_length"))
             test_source_id += 1
             aws_obj.delete()
+
+    def test_validate_billing_source(self):
+        """Test to validate that the billing source dictionary is valid."""
+        test_matrix = [
+            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"bucket": "test-bucket"}, "exception": False},
+            {
+                "provider_type": Provider.PROVIDER_AWS,
+                "billing_source": {"data_source": {"bucket": "test-bucket"}},
+                "exception": False,
+            },
+            {
+                "provider_type": Provider.PROVIDER_AZURE,
+                "billing_source": {"data_source": {"resource_group": "foo", "storage_account": "bar"}},
+                "exception": False,
+            },
+            {
+                "provider_type": Provider.PROVIDER_AWS,
+                "billing_source": {"data_source": {"nobucket": "test-bucket"}},
+                "exception": True,
+            },
+            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"nobucket": "test-bucket"}, "exception": True},
+            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"data_source": {}}, "exception": True},
+            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {}, "exception": True},
+            {"provider_type": Provider.PROVIDER_AZURE, "billing_source": {}, "exception": True},
+            {
+                "provider_type": Provider.PROVIDER_AZURE,
+                "billing_source": {"nodata_source": {"resource_group": "foo", "storage_account": "bar"}},
+                "exception": True,
+            },
+            {
+                "provider_type": Provider.PROVIDER_AZURE,
+                "billing_source": {"data_source": {"noresource_group": "foo", "storage_account": "bar"}},
+                "exception": True,
+            },
+            {
+                "provider_type": Provider.PROVIDER_AZURE,
+                "billing_source": {"data_source": {"resource_group": "foo", "nostorage_account": "bar"}},
+                "exception": True,
+            },
+            {
+                "provider_type": Provider.PROVIDER_AZURE,
+                "billing_source": {"data_source": {"resource_group": "foo"}},
+                "exception": True,
+            },
+            {
+                "provider_type": Provider.PROVIDER_AZURE,
+                "billing_source": {"data_source": {"storage_account": "bar"}},
+                "exception": True,
+            },
+            {
+                "provider_type": Provider.PROVIDER_GCP,
+                "billing_source": {"data_source": {"dataset": "test_dataset", "table_id": "test_table_id"}},
+                "exception": False,
+            },
+            {
+                "provider_type": Provider.PROVIDER_GCP,
+                "billing_source": {"data_source": {"dataset": "test_dataset"}},
+                "exception": False,
+            },
+            {
+                "provider_type": Provider.PROVIDER_GCP,
+                "billing_source": {"data_source": {"table_id": "test_table_id"}},
+                "exception": True,
+            },
+            {"provider_type": Provider.PROVIDER_GCP, "billing_source": {}, "exception": True},
+        ]
+
+        for test in test_matrix:
+            with self.subTest(test=test):
+                if test.get("exception"):
+                    with self.assertRaises(storage.SourcesStorageError):
+                        storage._validate_billing_source(test.get("provider_type"), test.get("billing_source"))
+                else:
+                    try:
+                        storage._validate_billing_source(test.get("provider_type"), test.get("billing_source"))
+                    except Exception as error:
+                        self.fail(str(error))
+
+    def test_update_aws_billing_source(self):
+        """Test to validate that the billing source dictionary is updated."""
+        aws_instance = Sources(
+            source_id=3,
+            auth_header=self.test_header,
+            offset=3,
+            endpoint_id=4,
+            source_type=Provider.PROVIDER_AWS,
+            name="Test AWS Source",
+            billing_source={"data_source": {"bucket": "my_s3_bucket"}},
+        )
+        aws_instance.save()
+        test_matrix = [
+            {
+                "instance": aws_instance,
+                "billing_source": {"bucket": "test-bucket"},
+                "expected": {"data_source": {"bucket": "test-bucket"}},
+            },
+            {
+                "instance": aws_instance,
+                "billing_source": {"data_source": {"bucket": "test-bucket"}},
+                "expected": {"data_source": {"bucket": "test-bucket"}},
+            },
+        ]
+
+        for test in test_matrix:
+            with self.subTest(test=test):
+                try:
+                    new_billing = storage._update_billing_source(aws_instance, test.get("billing_source"))
+                    self.assertEqual(new_billing, test.get("expected"))
+                except Exception as error:
+                    self.fail(str(error))
+        aws_instance.delete()
+
+    def test_update_azure_billing_source(self):
+        """Test to validate that the billing source dictionary is updated."""
+        azure_instance = Sources(
+            source_id=4,
+            auth_header=self.test_header,
+            offset=3,
+            endpoint_id=4,
+            source_type=Provider.PROVIDER_AZURE,
+            name="Test Azure Source",
+            billing_source={"data_source": {"resource_group": "original-1", "storage_account": "original-2"}},
+        )
+
+        azure_instance.save()
+        test_matrix = [
+            {
+                "instance": azure_instance,
+                "billing_source": {"data_source": {"resource_group": "foo", "storage_account": "bar"}},
+                "expected": {"data_source": {"resource_group": "foo", "storage_account": "bar"}},
+            },
+            {
+                "instance": azure_instance,
+                "billing_source": {"data_source": {"resource_group": "foo"}},
+                "expected": {"data_source": {"resource_group": "foo", "storage_account": "original-2"}},
+            },
+            {
+                "instance": azure_instance,
+                "billing_source": {"data_source": {"storage_account": "bar"}},
+                "expected": {"data_source": {"resource_group": "original-1", "storage_account": "bar"}},
+            },
+        ]
+
+        for test in test_matrix:
+            with self.subTest(test=test):
+                try:
+                    new_billing = storage._update_billing_source(azure_instance, test.get("billing_source"))
+                    self.assertEqual(new_billing, test.get("expected"))
+                except Exception as error:
+                    self.fail(str(error))
+        azure_instance.delete()

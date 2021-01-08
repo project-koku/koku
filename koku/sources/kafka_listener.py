@@ -433,7 +433,7 @@ def process_message(app_type_id, msg):  # noqa: C901
 
         save_auth_info(msg_data.get("auth_header"), msg_data.get("source_id"))
 
-    elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_APPLICATION_UPDATE):
+    elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE):
         if storage.is_known_source(msg_data.get("source_id")) is False:
             LOG.info("Update event for unknown source id, skipping...")
             return

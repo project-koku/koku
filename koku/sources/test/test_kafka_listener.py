@@ -954,7 +954,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
                 status_code=200,
-                json={"data": []},
+                json={"data": [{"extra":{}}]},
             )
             m.get(
                 "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
@@ -1025,9 +1025,10 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with patch.object(
             SourcesHTTPClient, "get_source_details", return_value={"name": "my ansible", "source_type_id": 2}
         ):
-            with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="ansible-tower"):
-                with patch.object(SourcesHTTPClient, "get_endpoint_id", return_value=1):
-                    self.assertIsNone(process_message(test_application_id, msg_data))
+            with patch.object(SourcesHTTPClient, "get_application_settings", return_value={}):
+                with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="ansible-tower"):
+                    with patch.object(SourcesHTTPClient, "get_endpoint_id", return_value=1):
+                        self.assertIsNone(process_message(test_application_id, msg_data))
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     @patch("sources.kafka_listener.sources_network_info", returns=None)
