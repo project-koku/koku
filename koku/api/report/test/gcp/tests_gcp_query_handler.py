@@ -133,7 +133,8 @@ class GCPReportQueryHandlerTest(IamTestCase):
         """Test execute_query for current month on monthly breakdown by service."""
         with tenant_context(self.tenant):
             valid_services = [
-                service[0] for service in GCPCostEntryLineItemDailySummary.objects.values_list("service_id").distinct()
+                service[0]
+                for service in GCPCostEntryLineItemDailySummary.objects.values_list("service_alias").distinct()
             ]
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
@@ -163,7 +164,8 @@ class GCPReportQueryHandlerTest(IamTestCase):
         """Test execute_query monthly breakdown by filtered service."""
         with tenant_context(self.tenant):
             valid_services = [
-                service[0] for service in GCPCostEntryLineItemDailySummary.objects.values_list("service_id").distinct()
+                service[0]
+                for service in GCPCostEntryLineItemDailySummary.objects.values_list("service_alias").distinct()
             ]
             service = valid_services[0]
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]={service}"  # noqa: E501

@@ -44,10 +44,10 @@ class GCPProviderMap(ProviderMap):
                 "provider": Provider.PROVIDER_GCP,
                 "annotations": {},  # Annotations that should always happen
                 "group_by_annotations": {
-                    "region": {"service": "account_id"},
+                    "region": {"service": "service_alias"},
                     "account": {"account": "account_id"},
                     "project": {"project": "project_id"},
-                    "service": {"service": "service_id"},
+                    "service": {"service": "service_alias"},
                 },  # Annotations that should happen depending on group_by values
                 "end_date": "usage_end",
                 "filters": {
