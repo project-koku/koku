@@ -74,8 +74,8 @@ class TieredRateSerializer(serializers.Serializer):
 
     def validate_value(self, value):
         """Check that value is a positive value."""
-        if value <= 0:
-            raise serializers.ValidationError("A tiered rate value must be positive.")
+        if value < 0:
+            raise serializers.ValidationError("A tiered rate value must be nonnegative.")
         return str(value)
 
     def validate_usage(self, usage):
@@ -116,8 +116,8 @@ class TagRateValueSerializer(serializers.Serializer):
 
     def validate_value(self, value):
         """Check that value is a positive value."""
-        if value <= 0:
-            raise serializers.ValidationError("A tag rate value must be positive.")
+        if value < 0:
+            raise serializers.ValidationError("A tag rate value must be nonnegative.")
 
         return str(value)
 

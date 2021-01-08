@@ -189,6 +189,7 @@ SELECT DISTINCT
 ;
 
 -- DROP gather table as it is no longer needed
+DELETE from hive.{{schema | sqlsafe}}.__label_summary_gather_{{uuid | sqlsafe}};
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__label_summary_gather_{{uuid | sqlsafe}};
 
 
@@ -436,4 +437,5 @@ VALUES (
  * ====================================
  */
 
+DELETE FROM hive.{{schema | sqlsafe}}.__label_summary_{{uuid | sqlsafe}};
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__label_summary_{{uuid | sqlsafe}};

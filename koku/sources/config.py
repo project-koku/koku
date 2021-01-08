@@ -41,6 +41,14 @@ class Config:
             "Nlc0Bzb3VyY2VzLmlvIn0sICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjU0MzIxIn19fQ=="
         ),
     )
+    SOURCES_FAKE_CLUSTER_HEADER = os.getenv(
+        "SOURCES_FAKE_CLUSTER_HEADER",
+        (
+            "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAiYXV0aF90eXBlIjogInVoYy1"
+            "hdXRoIiwgInR5cGUiOiAiU3lzdGVtIiwgInN5c3RlbSI6IHsiY2x1c3Rlcl9pZCI6ICIwYmIyOTEzNS1k"
+            "NmQxLTQ3OGItYjViNi02YmQxMjljYjZkNWQifSwgImludGVybmFsIjogeyJvcmdfaWQiOiAiNTQzMjEifX19"
+        ),
+    )
     KOKU_API_HOST = os.getenv("KOKU_API_HOST", "localhost")
     KOKU_API_PORT = os.getenv("KOKU_API_PORT", "8000")
     KOKU_API_PATH_PREFIX = os.getenv("KOKU_API_PATH_PREFIX", "/api/cost-management")
