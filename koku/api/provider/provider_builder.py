@@ -95,6 +95,12 @@ class ProviderBuilder:
             account = identity.get("identity", {}).get("account_number")
             username = identity.get("identity", {}).get("user", {}).get("username")
             email = identity.get("identity", {}).get("user", {}).get("email")
+            identity_type = identity.get("identity", {}).get("type", "User")
+            auth_type = identity.get("identity", {}).get("auth_type")
+
+            if identity_type == "System" and auth_type == "uhc-auth":
+                username = identity.get("identity", {}).get("system", {}).get("cluster_id")
+                email = ""
 
             try:
                 customer = Customer.objects.filter(account_id=account).get()

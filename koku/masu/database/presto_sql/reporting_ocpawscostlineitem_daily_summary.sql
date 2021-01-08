@@ -241,6 +241,7 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocp_pod_tags_{{uuid | sqlsafe
 )
 ;
 
+DELETE FROM hive.{{schema | sqlsafe}}.__matched_tags_{{uuid | sqlsafe}};
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__matched_tags_{{uuid | sqlsafe}};
 
 
@@ -562,7 +563,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uu
         ON tm.aws_id = shared.aws_id
 ;
 
+DELETE FROM hive.{{schema | sqlsafe}}.__reporting_aws_daily_{{uuid | sqlsafe}};
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_aws_daily_{{uuid | sqlsafe}};
+DELETE FROM hive.{{schema | sqlsafe}}.__reporting_ocp_pod_tags_{{uuid | sqlsafe}};
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_ocp_pod_tags_{{uuid | sqlsafe}};
 
 
@@ -747,6 +750,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{{
 
 ;
 
+DELETE FROM hive.{{schema | sqlsafe}}.__reporting_aws_special_case_tags_{{uuid | sqlsafe}}
+;
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_aws_special_case_tags_{{uuid | sqlsafe}}
 ;
 
@@ -810,9 +815,13 @@ DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_aws_special_case_tags
 
 ;
 
+DELETE FROM hive.{{schema | sqlsafe}}.__reporting_ocp_storage_tags_{{uuid | sqlsafe}}
+;
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_ocp_storage_tags_{{uuid | sqlsafe}}
 ;
 
+DELETE FROM hive.{{schema | sqlsafe}}.__reporting_aws_tags_{{uuid | sqlsafe}}
+;
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_aws_tags_{{uuid | sqlsafe}}
 ;
 
@@ -1020,8 +1029,10 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpawscostlineitem_project_da
 )
 ;
 
+DELETE FROM hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}};
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}};
 
+DELETE FROM hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}};
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}};
 
 
@@ -1107,6 +1118,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_sum
     FROM hive.{{schema | sqlsafe}}.__reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}}
 ;
 
+DELETE FROM hive.{{schema | sqlsafe}}.__reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}};
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}};
 
 -- Clear out old entries first
@@ -1192,4 +1204,5 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
     FROM hive.{{schema | sqlsafe}}.__reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}}
 ;
 
+DELETE FROM hive.{{schema | sqlsafe}}.__reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}};
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}};
