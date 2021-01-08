@@ -32,7 +32,7 @@ services:
 
   hive-metastore:
     container_name: hive-metastore
-    image: quay.io/cloudservices/ubi-hive:3.1.2
+    image: quay.io/cloudservices/ubi-hive:2.3.3-001
     entrypoint:  ["/hive-scripts/entrypoint.sh", "/opt/hive/bin/hive", "--service", "metastore"]
     ports:
       - "9083:9083"
@@ -53,7 +53,7 @@ services:
 
   presto:
     container_name: presto
-    image: quay.io/cloudservices/ubi-presto:348
+    image: quay.io/cloudservices/ubi-trino:351-001
     user: root
     command: /presto-common/initialize_presto.sh
     ports:

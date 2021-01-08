@@ -19,9 +19,6 @@ done
 }
 set -e
 
-JAVA_SECURITY_DIR="$(cd -P ${JAVA_HOME}/lib/security && pwd)"
-chmod g+rwx ${JAVA_SECURITY_DIR}
-
 # if the s3-compatible ca bundle is mounted in, add to the root Java truststore.
 if [ -a /s3-compatible-ca/ca-bundle.crt ]; then
 echo "Adding /s3-compatible-ca/ca-bundle.crt to $JAVA_HOME/lib/security/cacerts"
@@ -33,11 +30,9 @@ echo "Adding /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt to $JA
 importCert /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt changeit $JAVA_HOME/lib/security/cacerts
 fi
 
-chmod g-w ${JAVA_SECURITY_DIR}
-
 # add UID to /etc/passwd if missing
 if ! whoami &> /dev/null; then
-    if [ -w /etc/passwd ]; then
+    if test -w /etc/passwd || stat -c "%a" /etc/passwd | grep -qE '.[267].'; then
         echo "Adding user ${USER_NAME:-hadoop} with current UID $(id -u) to /etc/passwd"
         # Remove existing entry with user first.
         # cannot use sed -i because we do not have permission to write new
@@ -68,13 +63,7 @@ ln -s -f /hive-config/hive-site.xml $HIVE_HOME/conf/hive-site.xml
 ln -s -f /hive-config/hive-log4j2.properties $HIVE_HOME/conf/hive-log4j2.properties
 ln -s -f /hive-config/hive-exec-log4j2.properties $HIVE_HOME/conf/hive-exec-log4j2.properties
 
-export HADOOP_LOG_DIR="${HADOOP_HOME}/logs"
-chown hadoop:root ${HADOOP_LOG_DIR}
-chmod 775 ${HADOOP_LOG_DIR}
-
 # Set garbage collection settings
-#export GC_SETTINGS="-XX:+UseG1GC -XX:G1HeapRegionSize=32M -XX:+UseGCOverheadLimit -XX:+ExplicitGCInvokesConcurrent -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${HADOOP_LOG_DIR}/heap_dump.bin -XX:+ExitOnOutOfMemoryError -XX:ErrorFile=${HADOOP_LOG_DIR}/java_error%p.log"
-
 export VM_OPTIONS="$VM_OPTIONS -XX:+UseContainerSupport -XX:ErrorFile=${HADOOP_LOG_DIR}/java_error%p.log"
 
 if [ -n "$JVM_INITIAL_RAM_PERCENTAGE" ]; then
@@ -93,9 +82,9 @@ export JMX_OPTIONS="-javaagent:/opt/jmx_exporter/jmx_exporter.jar=8082:/opt/jmx_
 # Set garbage collection logs
 export GC_SETTINGS="${GC_SETTINGS} -verbose:gc -Xlog:gc*:${HADOOP_LOG_DIR}/gc.log"
 
-export HIVE_LOGLEVEL="${HIVE_LOGLEVEL:-INFO}"
+export HIVE_LOGLEVEL="${HIVE_LOGLEVEL:-DEBUG}"
 export HADOOP_OPTS="${HADOOP_OPTS} ${VM_OPTIONS} ${GC_SETTINGS} ${JMX_OPTIONS}"
 export HIVE_METASTORE_HADOOP_OPTS=" -Dhive.log.level=${HIVE_LOGLEVEL} "
 export HIVE_OPTS="${HIVE_OPTS} --hiveconf hive.root.logger=${HIVE_LOGLEVEL},console "
 
-sudo -u hadoop -g root -E -- $@
+exec $@
