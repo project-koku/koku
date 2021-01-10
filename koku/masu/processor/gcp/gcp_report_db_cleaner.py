@@ -79,7 +79,12 @@ class GCPReportDBCleaner:
                         removed_provider_uuid,
                         removed_billing_period_start,
                     )
-                    removed_items.append({"billing_period_start": str(removed_billing_period_start)})
+                    removed_items.append(
+                        {
+                            "removed_provider_uuid": removed_provider_uuid,
+                            "billing_period_start": str(removed_billing_period_start),
+                        }
+                    )
         return removed_items
 
     def purge_expired_report_data(self, expired_date=None, provider_uuid=None, simulate=False):
@@ -131,7 +136,7 @@ class GCPReportDBCleaner:
                     )
                     removed_items.append(
                         {
-                            "provider_uuid": removed_provider_uuid,
+                            "removed_provider_uuid": removed_provider_uuid,
                             "billing_period_start": str(removed_billing_period_start),
                         }
                     )
