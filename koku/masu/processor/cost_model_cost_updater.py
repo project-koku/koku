@@ -23,6 +23,7 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdater
 from masu.processor.azure.azure_cost_model_cost_updater import AzureCostModelCostUpdater
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
+from masu.processor.gcp.gcp_cost_model_cost_updater import GCPCostModelCostUpdater
 
 LOG = logging.getLogger(__name__)
 
@@ -74,6 +75,8 @@ class CostModelCostUpdater:
             return AzureCostModelCostUpdater(self._schema, self._provider)
         if self._provider.type in (Provider.PROVIDER_OCP,):
             return OCPCostModelCostUpdater(self._schema, self._provider)
+        if self._provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+            return GCPCostModelCostUpdater(self._schema, self._provider)
 
         return None
 
