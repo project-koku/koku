@@ -30,8 +30,8 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItem
-from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
+from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
 from reporting_common.models import CostUsageReportStatus
 
