@@ -18,6 +18,7 @@
 import logging
 import pkgutil
 import uuid
+from os import path
 
 from dateutil.parser import parse
 from jinjasql import JinjaSql
@@ -30,6 +31,7 @@ from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItem
 from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
+from reporting_common.models import CostUsageReportStatus
 
 LOG = logging.getLogger(__name__)
 
@@ -164,3 +166,25 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+
+    def get_gcp_scan_range_from_report_name(self, manifest_id=None, report_name=""):
+        """Given a manifest_id return the scan range for the
+
+        """
+        scan_range = {}
+        if manifest_id:
+            record = CostUsageReportStatus.objects.filter(manifest_id=manifest_id).first()
+            if record:
+                report_path = record.report_name
+                report_name = path.basename(report_path)
+            else:
+                return scan_range
+        report_name = path.splitext(report_name)[0]
+        try:
+            date_range = report_name.split("_")[-1]
+            scan_start, scan_end = date_range.split(":")
+            scan_range["start"] = scan_start
+            scan_range["end"] = scan_end
+        except ValueError:
+            pass
+        return scan_range

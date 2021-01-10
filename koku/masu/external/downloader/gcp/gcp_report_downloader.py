@@ -1,3 +1,19 @@
+#
+# Copyright 2020 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
 """GCP Report Downloader."""
 import csv
 import datetime
@@ -13,6 +29,7 @@ from rest_framework.exceptions import ValidationError
 from api.common import log_json
 from api.utils import DateHelper
 from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
@@ -82,22 +99,23 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.table_name = ".".join(
             [self.credentials.get("project_id"), self.data_source.get("dataset"), self.data_source.get("table_id")]
         )
+        self.scan_start, self.scan_end = self._generate_default_scan_range()
         try:
             GCPProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
             self.etag = self._generate_etag()
-            self.query_date = self._generate_query_date()
         except ValidationError as ex:
             msg = f"GCP source ({self._provider_uuid}) for {customer_name} is not reachable. Error: {str(ex)}"
             LOG.error(log_json(self.request_id, msg, self.context))
             raise GCPReportDownloaderError(str(ex))
 
-    def _generate_query_date(self, range_length=3):
+    def _generate_default_scan_range(self, range_length=3):
         """
             Generates the first date of the date range.
         """
         today = datetime.datetime.today().date()
-        query_date = today - datetime.timedelta(days=range_length)
-        return query_date
+        scan_start = today - datetime.timedelta(days=range_length)
+        scan_end = datetime.datetime.today().date()
+        return scan_start, scan_end
 
     def _generate_etag(self):
         """
@@ -173,6 +191,20 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         # end date is effectively the inclusive "end of the month" from the start.
         end_date = start_date + relativedelta(months=1) - relativedelta(days=1)
 
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+                self._provider_uuid, start_date
+            )
+        if not manifest_list:
+            # if it is an empty list, that means it is the first time we are
+            # downloading this month, so we need to update our
+            # scan range to include the full month.
+            self.scan_start = start_date
+            if isinstance(end_date, datetime.datetime):
+                end_date = end_date.date()
+            if end_date < self.scan_end:
+                self.scan_end = end_date
+
         invoice_month = start_date.strftime("%Y%m")
         file_names = self._get_relevant_file_names(invoice_month)
         fake_assembly_id = self._generate_assembly_id(invoice_month)
@@ -220,9 +252,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         relevant_file_names = list()
-        dh = DateHelper()
-        today = dh.today.strftime("%Y-%m-%d")
-        relevant_file_names.append(f"{invoice_month}_{self.etag}_{self.query_date}:{today}.csv")
+        relevant_file_names.append(f"{invoice_month}_{self.etag}_{self.scan_start}:{self.scan_end}.csv")
         return relevant_file_names
 
     def get_local_file_for_report(self, report):
@@ -253,12 +283,16 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         try:
+            filename = os.path.splitext(key)[0]
+            date_range = filename.split("_")[-1]
+            scan_start, scan_end = date_range.split(":")
             if start_date:
                 invoice_month = start_date.strftime("%Y%m")
                 query = f"""
                 SELECT {",".join(self.gcp_big_query_columns)}
                 FROM {self.table_name}
-                WHERE DATE(_PARTITIONTIME) >= '{self.query_date}'
+                WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
+                AND DATE(_PARTITIONTIME) <= '{scan_end}'
                 AND invoice.month = '{invoice_month}'
                 """
                 LOG.info(f"Using querying for invoice_month ({invoice_month})")
@@ -266,7 +300,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 query = f"""
                 SELECT {",".join(self.gcp_big_query_columns)}
                 FROM {self.table_name}
-                WHERE DATE(_PARTITIONTIME) >= '{self.query_date}'
+                WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
+                AND DATE(_PARTITIONTIME) <= '{scan_end}'
                 """
             client = bigquery.Client()
             query_job = client.query(query)
@@ -278,6 +313,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 f"\n  Response: {err.message}"
             )
             LOG.warning(err_msg)
+            raise GCPReportDownloaderError(err_msg)
+        except UnboundLocalError:
+            err_msg = f"Error recovering start and end date from csv key ({key})."
             raise GCPReportDownloaderError(err_msg)
         directory_path = self._get_local_directory_path()
         full_local_path = self._get_local_file_path(directory_path, key)
