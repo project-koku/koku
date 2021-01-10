@@ -21,6 +21,7 @@ import uuid
 from os import path
 
 from dateutil.parser import parse
+from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
@@ -30,6 +31,7 @@ from masu.external.date_accessor import DateAccessor
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItem
 from reporting.provider.gcp.models import GCPCostEntryProductService
+from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPProject
 from reporting_common.models import CostUsageReportStatus
 
@@ -166,6 +168,20 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+
+    def populate_markup_cost(self, markup, start_date, end_date, bill_ids=None):
+        """Set markup costs in the database."""
+        with schema_context(self.schema):
+            if bill_ids and start_date and end_date:
+                for bill_id in bill_ids:
+                    GCPCostEntryLineItemDailySummary.objects.filter(
+                        cost_entry_bill_id=bill_id, usage_start__gte=start_date, usage_start__lte=end_date
+                    ).update(markup_cost=(F("unblended_cost") * markup))
+            elif bill_ids:
+                for bill_id in bill_ids:
+                    GCPCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
+                        markup_cost=(F("unblended_cost") * markup)
+                    )
 
     def get_gcp_scan_range_from_report_name(self, manifest_id=None, report_name=""):
         """Given a manifest_id return the scan range for the
