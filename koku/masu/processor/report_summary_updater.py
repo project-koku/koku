@@ -112,7 +112,7 @@ class ReportSummaryUpdater:
             OCPCloudParquetReportSummaryUpdater if settings.ENABLE_PARQUET_PROCESSING else OCPCloudReportSummaryUpdater
         )
 
-        LOG.critical(f"Set report_summary_updater = {report_summary_updater.__name__}")
+        LOG.info(f"Set report_summary_updater = {report_summary_updater.__name__}")
 
         return (
             report_summary_updater(self._schema, self._provider, self._manifest),
