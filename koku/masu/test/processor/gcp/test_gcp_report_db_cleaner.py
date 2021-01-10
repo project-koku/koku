@@ -39,10 +39,7 @@ class GCPReportDBCleanerTest(MasuTestCase):
         cls.report_schema = cls.accessor.report_schema
         cls.creator = ReportObjectCreator(cls.schema)
         cls.all_tables = list(GCP_REPORT_TABLE_MAP.values())
-        cls.foreign_key_tables = [
-            GCP_REPORT_TABLE_MAP["bill"],
-            GCP_REPORT_TABLE_MAP["product"],
-        ]
+        cls.foreign_key_tables = [GCP_REPORT_TABLE_MAP["bill"], GCP_REPORT_TABLE_MAP["product"]]
 
     def test_initializer(self):
         """Test initializer."""
