@@ -31,7 +31,7 @@ fi
 chmod g-w ${JAVA_SECURITY_DIR}
 
 # add node id to node config
-NODE_CONFIG="${TRINO_HOME}/etc/node.properties"
+NODE_CONFIG="${PRESTO_HOME}/etc/node.properties"
 # ensure there's a newline between the last item in the config and what we add
 echo "" >> $NODE_CONFIG
 if ! grep -q -F 'node.id' "$NODE_CONFIG"; then
@@ -41,7 +41,7 @@ echo "$NODE_ID" >> "$NODE_CONFIG"
 fi
 
 # add AWS creds to hive catalog properties
-HIVE_CATALOG_CONFIG="${TRINO_HOME}/etc/catalog/hive.properties"
+HIVE_CATALOG_CONFIG="${PRESTO_HOME}/etc/catalog/hive.properties"
 # ensure there's a newline between the last item in the config and what we add
 echo "" >> $HIVE_CATALOG_CONFIG
 if ! grep -q -F 'hive.s3.aws-access-key' "$HIVE_CATALOG_CONFIG"; then
@@ -57,13 +57,13 @@ fi
 # add UID to /etc/passwd if missing
 if ! whoami &> /dev/null; then
     if test -w /etc/passwd || stat -c "%a" /etc/passwd | grep -qE '.[267].'; then
-        echo "Adding user ${USER_NAME:-trino} with current UID $(id -u) to /etc/passwd"
+        echo "Adding user ${USER_NAME:-presto} with current UID $(id -u) to /etc/passwd"
         # Remove existing entry with user first.
         # cannot use sed -i because we do not have permission to write new
         # files into /etc
-        sed  "/${USER_NAME:-trino}:x/d" /etc/passwd > /tmp/passwd
+        sed  "/${USER_NAME:-presto}:x/d" /etc/passwd > /tmp/passwd
         # add our user with our current user ID into passwd
-        echo "${USER_NAME:-trino}:x:$(id -u):0:${USER_NAME:-trino} user:${HOME}:/sbin/nologin" >> /tmp/passwd
+        echo "${USER_NAME:-presto}:x:$(id -u):0:${USER_NAME:-presto} user:${HOME}:/sbin/nologin" >> /tmp/passwd
         # overwrite existing contents with new contents (cannot replace the
         # file due to permissions)
         cat /tmp/passwd > /etc/passwd

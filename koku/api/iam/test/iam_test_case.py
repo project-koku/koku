@@ -21,7 +21,7 @@ from json import dumps as json_dumps
 from unittest.mock import Mock
 from uuid import UUID
 
-import trino
+import prestodb
 from django.conf import settings
 from django.db import connection
 from django.db.models.signals import post_save
@@ -42,7 +42,7 @@ from koku.koku_test_runner import KokuTestRunner
 from sources.kafka_listener import storage_callback
 
 
-class FakePrestoCur(trino.dbapi.Cursor):
+class FakePrestoCur(prestodb.dbapi.Cursor):
     def __init__(self, *args, **kwargs):
         pass
 
@@ -53,7 +53,7 @@ class FakePrestoCur(trino.dbapi.Cursor):
         return [["eek"]]
 
 
-class FakePrestoConn(trino.dbapi.Connection):
+class FakePrestoConn(prestodb.dbapi.Connection):
     def __init__(self, *args, **kwargs):
         pass
 

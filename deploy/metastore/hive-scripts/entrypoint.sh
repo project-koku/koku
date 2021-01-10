@@ -82,7 +82,7 @@ fi
 export JMX_OPTIONS="-javaagent:/opt/jmx_exporter/jmx_exporter.jar=8082:/opt/jmx_exporter/config/config.yml -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.port=8081 -Dcom.sun.management.jmxremote.rmi.port=8081 -Djava.rmi.server.hostname=127.0.0.1"
 
 # Set garbage collection logs
-export GC_SETTINGS="${GC_SETTINGS} -verbose:gc -Xlog:gc*:${HADOOP_LOG_DIR}/gc.log"
+export GC_SETTINGS="${GC_SETTINGS} -verbose:gc"
 
 export HIVE_LOGLEVEL="${HIVE_LOGLEVEL:-INFO}"
 export HADOOP_OPTS="${HADOOP_OPTS} ${VM_OPTIONS} ${GC_SETTINGS} ${JMX_OPTIONS}"

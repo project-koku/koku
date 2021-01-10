@@ -17,8 +17,8 @@
 """Processor for Parquet files."""
 import logging
 
+import prestodb
 import pyarrow.parquet as pq
-import trino
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from tenant_schemas.utils import schema_context
@@ -62,7 +62,7 @@ class ReportParquetProcessorBase:
 
     def _execute_sql(self, sql, schema_name):  # pragma: no cover
         """Execute presto SQL."""
-        with trino.dbapi.connect(
+        with prestodb.dbapi.connect(
             host=settings.PRESTO_HOST, port=settings.PRESTO_PORT, user="admin", catalog="hive", schema=schema_name
         ) as conn:
             cur = conn.cursor()
