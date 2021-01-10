@@ -19,8 +19,8 @@ import logging
 
 from tenant_schemas.utils import schema_context
 
-from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
+from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.gcp.common import get_bills_from_provider
 
