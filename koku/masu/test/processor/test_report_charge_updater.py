@@ -21,8 +21,8 @@ from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdat
 from masu.processor.azure.azure_cost_model_cost_updater import AzureCostModelCostUpdater
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
 from masu.processor.cost_model_cost_updater import CostModelCostUpdaterError
-from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.processor.gcp.gcp_cost_model_cost_updater import GCPCostModelCostUpdater
+from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.test import MasuTestCase
 
 
