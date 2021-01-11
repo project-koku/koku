@@ -19,16 +19,11 @@ done
 }
 set -e
 
-JAVA_SECURITY_DIR="$(cd -P ${JAVA_HOME}/lib/security && pwd)"
-chmod g+rwx ${JAVA_SECURITY_DIR}
-
 # always add the openshift service-ca.crt if it exists
 if [ -a /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt ]; then
 echo "Adding /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt to $JAVA_HOME/lib/security/cacerts"
 importCert /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt changeit $JAVA_HOME/lib/security/cacerts
 fi
-
-chmod g-w ${JAVA_SECURITY_DIR}
 
 # add node id to node config
 NODE_CONFIG="${PRESTO_HOME}/etc/node.properties"
