@@ -710,9 +710,13 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
         JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
             ON aws.key = 'openshift_project' AND aws.value = lower(ocp.namespace)
                 AND aws.usage_start = ocp.usage_start
+        -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
+            ON ulid.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
             AND ocp.data_source = 'Storage'
+            AND ulid.aws_id IS NULL
 
     ),
     cte_number_of_shared AS (
@@ -779,11 +783,14 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
             ON aws.key = 'openshift_node' AND aws.value = lower(ocp.node)
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
+            ON ulid.aws_id = aws.id
         LEFT JOIN reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
             AND ocp.data_source = 'Storage'
+            AND ulid.aws_id IS NULL
             AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
@@ -851,11 +858,14 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
                 OR aws.key = 'openshift_cluster' AND aws.value = lower(ocp.cluster_alias))
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
+            ON ulid.aws_id = aws.id
         LEFT JOIN reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
             AND ocp.data_source = 'Storage'
+            AND ulid.aws_id IS NULL
             AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (
@@ -927,10 +937,13 @@ DROP TABLE reporting_aws_special_case_tags_{{uuid | sqlsafe}};
             ON aws.lower_tags @> ocp.tag
                 AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
+            ON ulid.aws_id = aws.id
         LEFT JOIN reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND ulid.aws_id IS NULL
             AND rm.aws_id IS NULL
     ),
     cte_number_of_shared AS (

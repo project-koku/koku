@@ -21,6 +21,7 @@ from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
+from dateutil import relativedelta
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
@@ -137,3 +138,28 @@ class GCPReportDBAccessorTest(MasuTestCase):
             )
             actual_markup = query.get("markup_cost__sum")
             self.assertAlmostEqual(actual_markup, expected_markup, 6)
+    def test_get_bill_query_before_date(self):
+        """Test that gets a query for cost entry bills before a date."""
+        with schema_context(self.schema):
+            table_name = GCP_REPORT_TABLE_MAP["bill"]
+            query = self.accessor._get_db_obj_query(table_name)
+            first_entry = query.first()
+
+            # Verify that the result is returned for cutoff_date == billing_period_start
+            cutoff_date = first_entry.billing_period_start
+            cost_entries = self.accessor.get_bill_query_before_date(cutoff_date)
+            self.assertEqual(cost_entries.count(), 1)
+            self.assertEqual(cost_entries.first().billing_period_start, cutoff_date)
+
+            # Verify that the result is returned for a date later than cutoff_date
+            later_date = cutoff_date + relativedelta.relativedelta(months=+1)
+            later_cutoff = later_date.replace(month=later_date.month, day=15)
+            cost_entries = self.accessor.get_bill_query_before_date(later_cutoff)
+            self.assertEqual(cost_entries.count(), 2)
+            self.assertEqual(cost_entries.first().billing_period_start, cutoff_date)
+
+            # Verify that no results are returned for a date earlier than cutoff_date
+            earlier_date = cutoff_date + relativedelta.relativedelta(months=-1)
+            earlier_cutoff = earlier_date.replace(month=earlier_date.month, day=15)
+            cost_entries = self.accessor.get_bill_query_before_date(earlier_cutoff)
+            self.assertEqual(cost_entries.count(), 0)
