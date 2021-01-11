@@ -1614,11 +1614,10 @@
         },
         "koku-nise": {
             "hashes": [
-                "sha256:3be425e79056095d52841851411da42749b76f7f1f1543bc05e4ac708f2bcb58",
-                "sha256:c53520e47612553e9b6d526cfbec9fb5709312f73ff97b231fa50592470f4c4b"
+                "sha256:1206ff590f4912dc920404f7c62d21b970acf57133c7074a94f932582fffd078",
+                "sha256:47645f1abc6e35087730285cbe92550c6a300f563b49ca0820e1b7d63071ddcf"
             ],
-            "index": "pypi",
-            "version": "==2.3.2"
+            "version": "==2.3.3"
         },
         "lazy-object-proxy": {
             "hashes": [
