@@ -31,16 +31,12 @@ from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLo
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
 
-# from tarfile import TarFile
-
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
 CUSTOMER_NAME = FAKE.word()
 REPORT = FAKE.word()
 PREFIX = FAKE.word()
 REGION = "us-central1"
-
-# 97%   80->79, 85->87, 217->219
 
 
 class GCPLocalReportDownloaderTest(MasuTestCase):
