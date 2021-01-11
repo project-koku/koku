@@ -75,8 +75,8 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
             SELECT DISTINCT bill_payeraccountid
             FROM {self._table_name}
             WHERE source = '{self._provider_uuid}'
-                AND year = '{bill_date.year}'
-                AND month = '{bill_date.month}'
+                AND year = '{bill_date.strftime("%Y")}'
+                AND month = '{bill_date.strftime("%m")}'
         """
 
         rows = self._execute_sql(sql, self._schema_name)
