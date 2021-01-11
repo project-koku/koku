@@ -36,11 +36,7 @@ from masu.util.ocp import common as utils
 
 DATA_DIR = Config.TMP_DIR
 REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
-REPORT_TYPES = {
-    "storage_usage": "persistentvolumeclaim_labels",
-    "pod_usage": "pod_labels",
-    "node_labels": "node_labels",
-}
+
 LOG = logging.getLogger(__name__)
 
 
