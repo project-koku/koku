@@ -17,11 +17,11 @@
 """Test the GCPReportDBAccessor utility object."""
 import decimal
 
+from dateutil import relativedelta
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
-from dateutil import relativedelta
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
@@ -138,6 +138,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
             )
             actual_markup = query.get("markup_cost__sum")
             self.assertAlmostEqual(actual_markup, expected_markup, 6)
+
     def test_get_bill_query_before_date(self):
         """Test that gets a query for cost entry bills before a date."""
         with schema_context(self.schema):
