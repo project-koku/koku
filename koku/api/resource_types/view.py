@@ -27,6 +27,7 @@ from cost_models.models import CostModel
 from reporting.provider.aws.models import AWSCostSummaryByAccount
 from reporting.provider.aws.models import AWSOrganizationalUnit
 from reporting.provider.azure.models import AzureCostSummaryByAccount
+from reporting.provider.gcp.models import GCPCostSummaryByAccount
 from reporting.provider.ocp.models import OCPCostSummary
 from reporting.provider.ocp.models import OCPCostSummaryByNode
 from reporting.provider.ocp.models import OCPCostSummaryByProject
@@ -44,6 +45,7 @@ class ResourceTypeView(APIView):
         with tenant_context(tenant):
 
             aws_account_count = AWSCostSummaryByAccount.objects.values("usage_account_id").distinct().count()
+            gcp_account_count = GCPCostSummaryByAccount.objects.values("account_id").distinct().count()
             aws_org_unit_count = (
                 AWSOrganizationalUnit.objects.filter(deleted_timestamp__isnull=True)
                 .values("org_unit_id")
@@ -86,6 +88,11 @@ class ResourceTypeView(APIView):
                 "path": "/api/cost-management/v1/resource-types/openshift-projects/",
                 "count": ocp_project_count,
             }
+            gcp_account_dict = {
+                "value": "gcp.account",
+                "path": "/api/cost-management/v1/resource-types/gcp-accounts/",
+                "count": gcp_account_count,
+            }
             cost_model_dict = {
                 "value": "cost_model",
                 "path": "/api/cost-management/v1/resource-types/cost-models/",
@@ -98,6 +105,7 @@ class ResourceTypeView(APIView):
                 ocp_cluster_dict,
                 ocp_node_dict,
                 ocp_project_dict,
+                gcp_account_dict,
                 cost_model_dict,
             ]
             paginator = ListPaginator(data, request)

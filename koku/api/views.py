@@ -51,6 +51,7 @@ from api.resource_types.aws_accounts.view import AWSAccountView
 from api.resource_types.aws_org_unit.view import AWSOrganizationalUnitView
 from api.resource_types.azure_subscription_guid.view import AzureSubscriptionGuidView
 from api.resource_types.cost_models.view import CostModelResourceTypesView
+from api.resource_types.gcp_accounts.view import GCPAccountView
 from api.resource_types.openshift_clusters.view import OCPClustersView
 from api.resource_types.openshift_nodes.view import OCPNodesView
 from api.resource_types.openshift_projects.view import OCPProjectsView
