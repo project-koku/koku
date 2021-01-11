@@ -999,11 +999,10 @@
         },
         "rsa": {
             "hashes": [
-                "sha256:109ea5a66744dd859bf16fe904b8d8b627adafb9408753161e766a92e7d681fa",
-                "sha256:6166864e23d6b5195a5cfed6cd9fed0fe774e226d8f854fcb23b7bbef0350233"
+                "sha256:69805d6b69f56eb05b62daea3a7dbd7aa44324ad1306445e05da8060232d00f4",
+                "sha256:a8774e55b59fd9fc893b0d05e9bfc6f47081f46ff5b46f39ccf24631b7be356b"
             ],
-            "markers": "python_version >= '3.6'",
-            "version": "==4.6"
+            "version": "==4.7"
         },
         "s3transfer": {
             "hashes": [
@@ -1949,11 +1948,10 @@
         },
         "rsa": {
             "hashes": [
-                "sha256:109ea5a66744dd859bf16fe904b8d8b627adafb9408753161e766a92e7d681fa",
-                "sha256:6166864e23d6b5195a5cfed6cd9fed0fe774e226d8f854fcb23b7bbef0350233"
+                "sha256:69805d6b69f56eb05b62daea3a7dbd7aa44324ad1306445e05da8060232d00f4",
+                "sha256:a8774e55b59fd9fc893b0d05e9bfc6f47081f46ff5b46f39ccf24631b7be356b"
             ],
-            "markers": "python_version >= '3.6'",
-            "version": "==4.6"
+            "version": "==4.7"
         },
         "s3transfer": {
             "hashes": [
