@@ -59,6 +59,7 @@ class QueryParameters:
             (Provider.PROVIDER_OCP, "node", "openshift.node", False),
             (Provider.PROVIDER_OCP, "project", "openshift.project", False),
         ],
+        "gcp": [(Provider.PROVIDER_GCP, "account", "gcp.account")],
     }
 
     def __init__(self, request, caller, **kwargs):
@@ -177,6 +178,8 @@ class QueryParameters:
         provider_list = provider.split("_")
         if "all" in provider_list:
             for p, v in self.provider_resource_list.items():
+                if "GCP" in v[0]:
+                    continue
                 access.extend(v)
         else:
             for p in provider_list:

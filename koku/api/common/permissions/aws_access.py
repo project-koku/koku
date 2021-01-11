@@ -25,6 +25,7 @@ class AwsAccessPermission(permissions.BasePermission):
 
     def has_permission(self, request, view):
         """Check permission to view AWS data."""
+
         if request.user.admin:
             return True
 

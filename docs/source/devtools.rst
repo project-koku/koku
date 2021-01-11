@@ -45,6 +45,9 @@ Example DEVELOPMENT_IDENTITY object::
                     "aws.account": {
                         "read": ["1234567890AB", "234567890AB1"]
                     }
+                    "gcp.account": {
+                        "read": ["*"]
+                    }
                     "azure.subscription_guid": {
                         "read": ["*"]
                     }
