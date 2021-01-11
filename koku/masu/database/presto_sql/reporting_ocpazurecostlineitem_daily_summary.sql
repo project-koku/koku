@@ -581,10 +581,14 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpazurestoragelineitem_daily
         JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
             ON azure.resource_id LIKE '%%' || ocp.persistentvolume
                 AND azure.usage_date = ocp.usage_start
+        -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
+            ON ulid.azure_id = azure.line_item_id
         WHERE ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
             AND ocp.data_source = 'Storage'
             AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
             AND ocp.usage_start <= date('{{end_date | sqlsafe}}')
+            AND ulid.azure_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT azure_id,
@@ -637,10 +641,17 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpazurestoragelineitem_daily_
         JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
             ON json_extract_scalar(azure.lower_tags, '$.openshift_project') = lower(ocp.namespace)
                 AND azure.usage_date = ocp.usage_start
+        -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
+            ON ulid.azure_id = azure.line_item_id
+        LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS rm
+            ON rm.azure_id = azure.line_item_id
         WHERE ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
             AND ocp.data_source = 'Storage'
             AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
             AND ocp.usage_start <= date('{{end_date | sqlsafe}}')
+            AND ulid.azure_id IS NULL
+            AND rm.azure_id IS NULL
     ),
     cte_number_of_shared AS (
         SELECT azure_id,
@@ -692,10 +703,13 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpazurestoragelineitem_daily_
             ON json_extract_scalar(azure.lower_tags, '$.openshift_node') = lower(ocp.node)
                 AND azure.usage_date = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
+            ON ulid.azure_id = azure.line_item_id
         LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.line_item_id
         WHERE ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
             AND ocp.data_source = 'Storage'
+            AND ulid.azure_id IS NULL
             AND rm.azure_id IS NULL
     ),
     cte_number_of_shared AS (
@@ -748,10 +762,13 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpazurestoragelineitem_daily_
             ON json_extract_scalar(azure.lower_tags, '$.openshift_cluster') IN (lower(ocp.cluster_id), lower(ocp.cluster_alias))
                 AND azure.usage_date = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
+        LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
+            ON ulid.azure_id = azure.line_item_id
         LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.line_item_id
         WHERE ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
             AND ocp.data_source = 'Storage'
+            AND ulid.azure_id IS NULL
             AND rm.azure_id IS NULL
     ),
     cte_number_of_shared AS (
