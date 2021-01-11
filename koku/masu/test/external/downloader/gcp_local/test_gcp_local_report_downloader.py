@@ -40,6 +40,8 @@ REPORT = FAKE.word()
 PREFIX = FAKE.word()
 REGION = "us-central1"
 
+# 97%   80->79, 85->87, 217->219
+
 
 class GCPLocalReportDownloaderTest(MasuTestCase):
     """Test Cases for the Local Report Downloader."""
@@ -167,3 +169,16 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
         result_manifest_data = self.gcp_local_report_downloader._generate_monthly_pseudo_manifest(self.start_date)
         self.assertTrue(result_manifest_data)
         self.assertEqual(result_manifest_data.get("assembly_id"), expected_assembly_id)
+
+    @patch("masu.external.downloader.gcp_local.gcp_local_report_downloader.ReportManifestDBAccessor.get_manifest")
+    def test_generate_monthly_pseudo_manifest_already_exist(self, patch_manifest):
+        """Test manifest already exists."""
+        patch_manifest.side_effect = [True]
+        manifest = self.gcp_local_report_downloader._generate_monthly_pseudo_manifest(self.start_date)
+        self.assertEqual(manifest, {})
+
+    def test_remove_manifest_file(self):
+        """Test remove manifest file."""
+        self.assertTrue(os.path.exists(self.csv_file_path))
+        self.gcp_local_report_downloader._remove_manifest_file(self.csv_file_path)
+        self.assertFalse(os.path.exists(self.csv_file_path))
