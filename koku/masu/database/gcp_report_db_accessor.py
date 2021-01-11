@@ -30,6 +30,7 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItem
+from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
@@ -90,12 +91,28 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             return {(project["account_id"], project["project_id"]): project["id"] for project in projects}
 
     def get_lineitem_query_for_billid(self, bill_id):
-        """Get the AWS cost entry line item for a given bill query."""
+        """Get the GCP cost entry line item for a given bill query."""
         table_name = GCPCostEntryLineItem
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
             line_item_query = base_query.filter(cost_entry_bill_id=bill_id)
             return line_item_query
+
+    def get_daily_query_for_billid(self, bill_id):
+        """Get the GCP cost daily item for a given bill query."""
+        table_name = GCPCostEntryLineItemDaily
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            daily_item_query = base_query.filter(cost_entry_bill_id=bill_id)
+            return daily_item_query
+
+    def get_summary_query_for_billid(self, bill_id):
+        """Get the GCP cost summary item for a given bill query."""
+        table_name = GCPCostEntryLineItemDailySummary
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
+            return summary_item_query
 
     def populate_line_item_daily_table(self, start_date, end_date, bill_ids):
         """Populate the daily aggregate of line items table.
@@ -132,6 +149,17 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             bill_date = start_date.replace(day=1)
             bills = bills.filter(billing_period_start=bill_date)
         return bills
+
+    def get_bill_query_before_date(self, date, provider_uuid=None):
+        """Get the cost entry bill objects with billing period before provided date."""
+        table_name = GCPCostEntryBill
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            if provider_uuid:
+                cost_entry_bill_query = base_query.filter(billing_period_start__lte=date, provider_id=provider_uuid)
+            else:
+                cost_entry_bill_query = base_query.filter(billing_period_start__lte=date)
+            return cost_entry_bill_query
 
     def populate_line_item_daily_summary_table(self, start_date, end_date, bill_ids):
         """Populate the daily aggregated summary of line items table.

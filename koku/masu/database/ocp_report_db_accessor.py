@@ -555,7 +555,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocp_lineitem_daily_summary.sql")
         tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
         summary_sql_params = {
-            "uuid": str(uuid.uuid4()).replace("-", "_"),
+            "uuid": str(source).replace("-", "_"),
             "start_date": start_date,
             "end_date": end_date,
             "report_period_id": report_period_id,
@@ -563,8 +563,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "cluster_alias": cluster_alias,
             "schema": self.schema,
             "source": str(source),
-            "year": str(start_date.year),
-            "month": str(start_date.month),
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
         }
 
         LOG.info("PRESTO OCP: Connect")
@@ -620,8 +620,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "source": str(source),
-            "year": str(start_date.year),
-            "month": str(start_date.month),
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
         }
 
         LOG.info("PRESTO OCP: Connect")
