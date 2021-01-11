@@ -1981,11 +1981,10 @@
         },
         "sphinx": {
             "hashes": [
-                "sha256:1e8d592225447104d1172be415bc2972bd1357e3e12fdc76edf2261105db4300",
-                "sha256:d4e59ad4ea55efbb3c05cde3bfc83bfc14f0c95aa95c3d75346fcce186a47960"
+                "sha256:41cad293f954f7d37f803d97eb184158cfd90f51195131e94875bc07cd08b93c",
+                "sha256:c314c857e7cd47c856d2c5adff514ac2e6495f8b8e0f886a8a37e9305dfea0d8"
             ],
-            "index": "pypi",
-            "version": "==3.3.1"
+            "version": "==3.4.3"
         },
         "sphinx-rtd-theme": {
             "hashes": [
