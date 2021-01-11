@@ -2098,6 +2098,40 @@
                 }
             }
         },
+        "/resource-types/gcp-projects/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List GCP Projects For RBAC",
+                "operationId": "listResourcesGcpProjects",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/resource-types/aws-organizational-units/": {
             "get": {
                 "tags": [

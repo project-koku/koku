@@ -59,7 +59,7 @@ class QueryParameters:
             (Provider.PROVIDER_OCP, "node", "openshift.node", False),
             (Provider.PROVIDER_OCP, "project", "openshift.project", False),
         ],
-        "gcp": [(Provider.PROVIDER_GCP, "account", "gcp.account")],
+        "gcp": [(Provider.PROVIDER_GCP, "account", "gcp.account"), (Provider.PROVIDER_GCP, "project", "gcp.project")],
     }
 
     def __init__(self, request, caller, **kwargs):

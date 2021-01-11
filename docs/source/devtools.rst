@@ -48,6 +48,9 @@ Example DEVELOPMENT_IDENTITY object::
                     "gcp.account": {
                         "read": ["*"]
                     }
+                    "gcp.project": {
+                        "read": ["*"]
+                    }
                     "azure.subscription_guid": {
                         "read": ["*"]
                     }

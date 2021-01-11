@@ -39,6 +39,7 @@ from api.views import CostModelResourceTypesView
 from api.views import DataExportRequestViewSet
 from api.views import GCPAccountView
 from api.views import GCPCostView
+from api.views import GCPProjectsView
 from api.views import metrics
 from api.views import OCPAllCostForecastView
 from api.views import OCPAllCostView
@@ -289,6 +290,7 @@ urlpatterns = [
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
     path("resource-types/gcp-accounts/", GCPAccountView.as_view(), name="gcp-accounts"),
+    path("resource-types/gcp-projects/", GCPProjectsView.as_view(), name="gcp-projectss"),
     path(
         "resource-types/aws-organizational-units/",
         AWSOrganizationalUnitView.as_view(),

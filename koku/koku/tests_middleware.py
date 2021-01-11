@@ -216,6 +216,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         mock_access = {
             "aws.account": {"read": ["999999999999"]},
             "gcp.account": {"read": ["999999999999"]},
+            "gcp.project": {"read": ["999999999999"]},
             "openshift.cluster": {"read": ["999999999999"]},
             "openshift.node": {"read": ["999999999999"]},
             "openshift.project": {"read": ["999999999999"]},
