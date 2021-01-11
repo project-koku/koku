@@ -110,11 +110,15 @@ class OCPReportQueryHandlerTest(IamTestCase):
         handler = OCPReportQueryHandler(query_params)
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_costs_by_time_scope(aggregates, self.ten_day_filter)
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
     def test_get_cluster_capacity_monthly_resolution(self):
         """Test that cluster capacity returns a full month's capacity."""
@@ -126,6 +130,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertTrue("capacity" in total_capacity)
         self.assertTrue(isinstance(total_capacity["capacity"], Decimal))
         self.assertTrue("capacity" in query_data[0])
+        self.assertIsNotNone(query_data[0].get("capacity"))
+        self.assertIsNotNone(total_capacity.get("capacity"))
         self.assertEqual(query_data[0].get("capacity"), total_capacity.get("capacity"))
 
     def test_get_cluster_capacity_monthly_resolution_group_by_cluster(self):

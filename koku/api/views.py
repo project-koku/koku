@@ -42,6 +42,7 @@ from api.report.azure.openshift.view import OCPAzureStorageView
 from api.report.azure.view import AzureCostView
 from api.report.azure.view import AzureInstanceTypeView
 from api.report.azure.view import AzureStorageView
+from api.report.gcp.view import GCPCostView
 from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
