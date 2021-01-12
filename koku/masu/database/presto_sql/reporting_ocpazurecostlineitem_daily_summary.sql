@@ -91,7 +91,7 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__matched_tags_{{uuid | sqlsafe}} AS (
 
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_azure_daily_{{uuid | sqlsafe}};
 CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_azure_daily_{{uuid | sqlsafe}} AS (
-    WITH cte_line_items AS(
+    WITH cte_line_items AS (
         SELECT {{bill_id | sqlsafe}} as cost_entry_bill_id,
             cast(uuid() as varchar) as line_item_id,
             date(coalesce(date, usagedatetime)) as usage_date,
@@ -117,20 +117,15 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_azure_daily_{{uuid | sqlsafe}
                     THEN  split_part(unitofmeasure, ' ', 2)
                 ELSE unitofmeasure
             END as unit_of_measure,
-            CASE
-            WHEN split_part(unitofmeasure, ' ', 2) != '' AND NOT (unitofmeasure = '100 Hours' AND metercategory='Virtual Machines')
-                THEN cast(split_part(unitofmeasure, ' ', 1) as INTEGER)
-            ELSE 1
-            END as multiplier,
             tags,
-            lower(tags) as lower_tags,
+            lower(tags) as lower_tags
         FROM hive.{{schema | sqlsafe}}.azure_line_items as azure
         WHERE azure.source = '{{azure_source_uuid | sqlsafe}}'
             AND azure.year = '{{year | sqlsafe}}'
             AND azure.month = '{{month | sqlsafe}}'
             AND date(coalesce(date, usagedatetime)) >= date('{{start_date | sqlsafe}}')
             AND date(coalesce(date, usagedatetime)) <= date('{{end_date | sqlsafe}}')
-    ) AS azure
+    )
     SELECT azure.cost_entry_bill_id,
         azure.line_item_id,
         azure.usage_date,
@@ -145,7 +140,7 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_azure_daily_{{uuid | sqlsafe}
         azure.unit_of_measure,
         azure.tags,
         azure.lower_tags
-    FROM cte_azure_line_items
+    FROM cte_line_items AS azure
 )
 ;
 
@@ -542,7 +537,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpazureusagelineitem_daily_{{
         ON tm.azure_id = shared.azure_id
 ;
 
-DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_azure_daily_{{uuid | sqlsafe}};
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_ocp_pod_tags_{{uuid | sqlsafe}};
 
 -- First we match OCP storage data to Azure data using a direct
@@ -786,6 +780,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.__reporting_ocpazurestoragelineitem_daily_
 
 ;
 
+DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_azure_daily_{{uuid | sqlsafe}}
+;
+
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_azure_special_case_tags_{{uuid | sqlsafe}}
 ;
 
@@ -842,7 +839,6 @@ DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_azure_special_case_ta
     FROM cte_tag_matched AS tm
     JOIN cte_number_of_shared AS shared
         ON tm.azure_id = shared.azure_id
-
 ;
 
 DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__reporting_ocp_storage_tags_{{uuid | sqlsafe}}
@@ -896,7 +892,6 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpazurecostlineitem_daily_su
         max(li.service_name) as service_name,
         max(li.instance_type) as instance_type,
         max(li.resource_location) as resource_location,
-        max(li.resource_id) as resource_id,
         max(li.currency) as currency,
         max(li.unit_of_measure) as unit_of_measure,
         li.tags,
@@ -909,8 +904,6 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpazurecostlineitem_daily_su
     FROM hive.{{schema | sqlsafe}}.__reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} as li
     JOIN cte_pod_project_cost as pc
         ON li.azure_id = pc.azure_id
-    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_azureaccountalias AS aa
-        ON li.usage_account_id = aa.account_id
     -- Dedup on azure line item so we never double count usage or cost
     GROUP BY li.azure_id, li.tags, pc.project_costs
 
@@ -929,7 +922,6 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpazurecostlineitem_daily_su
         max(li.service_name) as service_name,
         max(li.instance_type) as instance_type,
         max(li.resource_location) as resource_location,
-        max(li.resource_id) as resource_id,
         max(li.currency) as currency,
         max(li.unit_of_measure) as unit_of_measure,
         li.tags,
@@ -942,8 +934,6 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpazurecostlineitem_daily_su
     FROM hive.{{schema | sqlsafe}}.__reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
     JOIN cte_storage_project_cost AS pc
         ON li.azure_id = pc.azure_id
-    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_azureaccountalias AS aa
-        ON li.usage_account_id = aa.account_id
     LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.azure_id = li.azure_id
         AND ulid.azure_id IS NULL
@@ -976,7 +966,6 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpazurecostlineitem_project_
         max(li.service_name) as service_name,
         max(li.instance_type) as instance_type,
         max(li.resource_location) as resource_location,
-        max(li.resource_id) as resource_id,
         max(li.currency) as currency,
         max(li.unit_of_measure) as unit_of_measure,
         li.tags,
@@ -988,8 +977,6 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpazurecostlineitem_project_
         li.project_cost * cast({{markup}} as decimal(24,9)) as project_markup_cost,
         '{{azure_source_uuid | sqlsafe}}' as source_uuid
     FROM hive.{{schema | sqlsafe}}.__reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} as li
-    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_azureaccountalias AS aa
-        ON li.usage_account_id = aa.account_id
     -- Grouping by OCP this time for the by project view
     GROUP BY li.report_period_id,
         li.ocp_id,
@@ -998,7 +985,8 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpazurecostlineitem_project_
         li.namespace,
         li.node,
         li.pod_labels,
-        li.project_cost
+        li.project_cost,
+        li.tags
 
     UNION
 
@@ -1017,7 +1005,6 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpazurecostlineitem_project_
         max(li.service_name) as service_name,
         max(li.instance_type) as instance_type,
         max(li.resource_location) as resource_location,
-        max(li.resource_id) as resource_id,
         max(li.currency) as currency,
         max(li.unit_of_measure) as unit_of_measure,
         li.tags,
@@ -1029,8 +1016,6 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpazurecostlineitem_project_
         li.project_cost * cast({{markup}} as decimal(24,9)) as project_markup_cost,
         '{{azure_source_uuid | sqlsafe}}' as source_uuid
     FROM hive.{{schema | sqlsafe}}.__reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
-    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_azureaccountalias AS aa
-        ON li.usage_account_id = aa.account_id
     LEFT JOIN hive.{{schema | sqlsafe}}.__reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.azure_id = li.azure_id
     WHERE ulid.azure_id IS NULL
@@ -1041,7 +1026,8 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpazurecostlineitem_project_
         li.namespace,
         li.node,
         li.volume_labels,
-        li.project_cost
+        li.project_cost,
+        li.tags
 )
 ;
 
@@ -1117,7 +1103,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_s
         cast(pretax_cost AS decimal(30,15)),
         cast(markup_cost  AS decimal(30,15)),
         currency,
-        unit_of_measure
+        unit_of_measure,
         shared_projects,
         cast(project_costs AS JSON),
         cast(source_uuid AS UUID)
@@ -1170,7 +1156,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project
     markup_cost,
     currency,
     unit_of_measure,
-    project_cost,
+    pod_cost,
     project_markup_cost,
     source_uuid
 )
@@ -1181,7 +1167,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project
         data_source,
         namespace,
         node,
-        pod_labels,
+        json_parse(pod_labels),
         resource_id,
         usage_start,
         usage_end,
