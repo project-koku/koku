@@ -167,6 +167,7 @@ class TagQueryHandler(QueryHandler):
             (Dict): query filter dictionary
 
         """
+        # import pdb; pdb.set_trace()
         filters = QueryFilterCollection()
         if not self.parameters.get_filter("value"):
             for source in self.data_sources:
@@ -322,7 +323,7 @@ class TagQueryHandler(QueryHandler):
                     tag_keys_query = tag_keys_query.annotate(**annotations)
                     for annotation_key in annotations.keys():
                         vals.append(annotation_key)
-
+                # import pdb; pdb.set_trace()
                 exclusion = self._get_exclusions("key")
                 tag_keys = list(tag_keys_query.filter(self.query_filter).exclude(exclusion).values_list(*vals).all())
                 converted = self._convert_to_dict(tag_keys, vals)

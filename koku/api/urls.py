@@ -38,6 +38,7 @@ from api.views import cloud_accounts
 from api.views import CostModelResourceTypesView
 from api.views import DataExportRequestViewSet
 from api.views import GCPCostView
+from api.views import GCPTagView
 from api.views import metrics
 from api.views import OCPAllCostForecastView
 from api.views import OCPAllCostView
@@ -96,6 +97,11 @@ urlpatterns = [
         name="azure-tags",
     ),
     path(
+        "tags/gcp/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPTagView.as_view()),
+        name="gcp-tags",
+    ),
+    path(
         "tags/openshift/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(OCPTagView.as_view()),
         name="openshift-tags",
@@ -135,6 +141,11 @@ urlpatterns = [
         "tags/openshift/<key>/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(OCPTagView.as_view()),
         name="openshift-tags-key",
+    ),
+    path(
+        "tags/gcp/<key>/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPTagView.as_view()),
+        name="gcp-tags-key",
     ),
     path(
         "tags/openshift/infrastructures/all/<key>/",
