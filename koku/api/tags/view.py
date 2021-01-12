@@ -57,7 +57,6 @@ class TagView(ReportView):
             raise Http404
 
         try:
-            # import pdb; pdb.set_trace()
             params = QueryParameters(request=request, caller=self, **kwargs)
         except ValidationError as exc:
             return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)

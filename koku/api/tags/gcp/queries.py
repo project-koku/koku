@@ -55,10 +55,24 @@ class GCPTagQueryHandler(TagQueryHandler):
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
         if self._parameters.get_filter("value"):
             filter_map.update(
-                {"account": [{"field": "account_ids", "operation": "icontains", "composition_key": "account_filter"}]}
+                {
+                    "account": [
+                        {"field": "account_ids", "operation": "icontains", "composition_key": "account_filter"}
+                    ],
+                    "project": [
+                        {"field": "project_names", "operation": "icontains", "composition_key": "project_filter"}
+                    ],
+                }
             )
         else:
             filter_map.update(
-                {"account": [{"field": "account_id", "operation": "icontains", "composition_key": "account_filter"}]}
+                {
+                    "account": [
+                        {"field": "account_id", "operation": "icontains", "composition_key": "account_filter"}
+                    ],
+                    "project": [
+                        {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"}
+                    ],
+                }
             )
         return filter_map
