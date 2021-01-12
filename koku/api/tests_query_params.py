@@ -42,12 +42,14 @@ PROVIDERS = [
     Provider.PROVIDER_AWS,
     Provider.PROVIDER_AZURE,
     Provider.PROVIDER_OCP,
+    Provider.PROVIDER_GCP,
     Provider.OCP_AWS,
     Provider.OCP_AZURE,
     Provider.OCP_ALL,
 ]
 ACCESS_KEYS = {
     Provider.PROVIDER_AWS.lower(): ["aws.account", "aws.organizational_unit"],
+    Provider.PROVIDER_GCP.lower(): ["gcp.account", "gcp.project"],
     Provider.PROVIDER_AZURE.lower(): ["azure.subscription_guid"],
     Provider.PROVIDER_OCP.lower(): ["openshift.cluster", "openshift.project", "openshift.node"],
     Provider.OCP_AWS.lower(): [
@@ -765,6 +767,8 @@ class QueryParametersTests(TestCase):
             "aws.account": {"read": ["*"]},
             "aws.organizational_unit": {"read": ["*"]},
             "azure.subscription_guid": {"read": ["*"]},
+            "gcp.account": {"read": ["*"]},
+            "gcp.project": {"read": ["*"]},
         }
         fake_request = Mock(
             spec=HttpRequest,
@@ -813,6 +817,8 @@ class QueryParametersTests(TestCase):
             "aws.organizational_unit": {"read": ["*"]},
             "azure.subscription_guid": {"read": ["*"]},
             "openshift.cluster": {"read": ["my-ocp-cluster"]},
+            "gcp.account": {"read": ["*"]},
+            "gcp.project": {"read": ["*"]},
         }
         fake_request = Mock(
             spec=HttpRequest,
