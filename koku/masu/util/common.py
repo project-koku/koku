@@ -225,6 +225,7 @@ def get_column_converters(provider_type, **kwargs):
             "persistentvolume_labels": process_openshift_labels_to_json,
             "persistentvolumeclaim_labels": process_openshift_labels_to_json,
             "node_labels": process_openshift_labels_to_json,
+            "namespace_labels": process_openshift_labels_to_json,
         }
     return converters
 
