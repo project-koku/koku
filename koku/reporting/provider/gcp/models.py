@@ -226,6 +226,8 @@ class GCPTagsSummary(models.Model):
     values = ArrayField(models.TextField())
     cost_entry_bill = models.ForeignKey("GCPCostEntryBill", on_delete=models.CASCADE)
     account_id = models.TextField(null=True)
+    project_id = models.CharField(unique=True, max_length=256, default='')
+    project_name = models.CharField(max_length=256, default='')
 
 
 class GCPTagsValues(models.Model):
