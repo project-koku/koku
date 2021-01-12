@@ -39,8 +39,8 @@ from api.views import CostModelResourceTypesView
 from api.views import DataExportRequestViewSet
 from api.views import GCPAccountView
 from api.views import GCPCostView
-from api.views import GCPTagView
 from api.views import GCPProjectsView
+from api.views import GCPTagView
 from api.views import metrics
 from api.views import OCPAllCostForecastView
 from api.views import OCPAllCostView

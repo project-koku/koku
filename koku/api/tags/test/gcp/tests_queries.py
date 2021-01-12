@@ -23,7 +23,6 @@ from api.tags.gcp.queries import GCPTagQueryHandler
 from api.tags.gcp.view import GCPTagView
 from reporting.models import GCPCostEntryLineItemDailySummary
 from reporting.models import GCPTagsSummary
-from reporting.provider.gcp.models import GCPTagsSummary
 from reporting.provider.gcp.models import GCPTagsValues
 
 
