@@ -218,7 +218,7 @@ class GCPTagsSummary(models.Model):
         """Meta for GCPTagSummary."""
 
         db_table = "reporting_gcptags_summary"
-        unique_together = ("key", "cost_entry_bill", "account_id")
+        unique_together = ("key", "cost_entry_bill", "account_id", "project_id", "project_name")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
@@ -226,8 +226,8 @@ class GCPTagsSummary(models.Model):
     values = ArrayField(models.TextField())
     cost_entry_bill = models.ForeignKey("GCPCostEntryBill", on_delete=models.CASCADE)
     account_id = models.TextField(null=True)
-    project_id = models.CharField(unique=True, max_length=256, default='')
-    project_name = models.CharField(max_length=256, default='')
+    project_id = models.CharField(unique=True, max_length=256, default="")
+    project_name = models.CharField(max_length=256, default="")
 
 
 class GCPTagsValues(models.Model):
@@ -243,6 +243,8 @@ class GCPTagsValues(models.Model):
     key = models.TextField()
     value = models.TextField()
     account_ids = ArrayField(models.TextField())
+    project_ids = models.CharField(unique=True, max_length=256, default="")
+    project_names = models.CharField(max_length=256, default="")
 
 
 # Materialized Views for UI Reporting

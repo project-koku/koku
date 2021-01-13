@@ -20,21 +20,21 @@ cte_values_agg AS (
     SELECT key,
         array_agg(DISTINCT value) as values,
         cost_entry_bill_id,
-        tv.account_id,
-        tv.project_id,
-        tv.project_name
-    FROM cte_tag_value AS tv
-    GROUP BY key, cost_entry_bill_id, tv.account_id, tv.project_id, tv.project_name
+        account_id,
+        project_id,
+        project_name
+    FROM cte_tag_value
+    GROUP BY key, cost_entry_bill_id, account_id, project_id, project_name
 )
 , ins1 AS (
-    INSERT INTO {{schema | sqlsafe}}.reporting_gcptags_summary (uuid, key, cost_entry_bill_id, account_id, values, project_id, project_name)
+    INSERT INTO {{schema | sqlsafe}}.reporting_gcptags_summary (uuid, key, cost_entry_bill_id, account_id, project_id, project_name, values)
     SELECT uuid_generate_v4() as uuid,
         key,
         cost_entry_bill_id,
         account_id,
-        values,
         project_id,
-        project_name
+        project_name,
+        values
     FROM cte_values_agg
     ON CONFLICT (key, cost_entry_bill_id, account_id, project_id, project_name) DO UPDATE SET values=EXCLUDED.values
 )
