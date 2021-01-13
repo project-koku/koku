@@ -16,6 +16,7 @@
 #
 """Common util functions."""
 import calendar
+import datetime
 import gzip
 import json
 import logging
@@ -29,6 +30,7 @@ import ciso8601
 from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
+from pytz import UTC
 
 from api.models import Provider
 from api.utils import DateHelper
@@ -294,8 +296,13 @@ def date_range_pair(start_date, end_date, step=5):
     """
     if isinstance(start_date, str):
         start_date = parser.parse(start_date)
+    elif isinstance(start_date, datetime.date):
+        start_date = datetime.datetime(start_date.year, start_date.month, start_date.day, tzinfo=UTC)
     if isinstance(end_date, str):
         end_date = parser.parse(end_date)
+    elif isinstance(end_date, datetime.date):
+        end_date = datetime.datetime(end_date.year, end_date.month, end_date.day, tzinfo=UTC)
+
     dates = list(rrule(freq=DAILY, dtstart=start_date, until=end_date, interval=step))
     # Special case with only 1 period
     if len(dates) == 1:
