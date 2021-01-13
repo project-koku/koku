@@ -71,7 +71,7 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
         shutil.copy2(test_report, self.csv_file_path)
 
         self.credentials = {"project_id": "test-project"}
-        self.data_source = {"table_id": "test-id", "dataset": "test-database"}
+        self.data_source = {"table_id": "test-id", "dataset": "test-database", "local_dir": local_dir}
 
         self.report_downloader = ReportDownloader(
             customer_name=self.fake_customer_name,
@@ -87,7 +87,6 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
                 "credentials": self.credentials,
                 "data_source": self.data_source,
                 "provider_uuid": self.gcp_provider_uuid,
-                "file_location": local_dir,
             }
         )
 

@@ -28,7 +28,6 @@ from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
-DEFAULT_LOCATION = "/testing/local_providers/gcp_local/"
 
 
 class GCPReportDownloaderError(Exception):
@@ -55,11 +54,10 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         super().__init__(**kwargs)
-
-        self.storage_location = kwargs.get("file_location", DEFAULT_LOCATION)
+        self.data_source = data_source
+        self.storage_location = self.data_source.get("local_dir")
         self.customer_name = customer_name.replace(" ", "_")
         self.credentials = kwargs.get("credentials", {})
-        self.data_source = data_source
         self._provider_uuid = kwargs.get("provider_uuid")
         self.file_mapping = self._extract_names()
 
@@ -74,6 +72,9 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (String, String) report_prefix, report_name
 
         """
+        if not self.storage_location:
+            err_msg = "The required local_dir parameter was not provided in the data_source json."
+            raise GCPReportDownloaderError(err_msg)
         file_mapping = {}
         for root, dirs, files in os.walk(self.storage_location, followlinks=True):
             for file in files:
@@ -213,9 +214,10 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             str of the destination local file path.
 
         """
-        final_path = f"{self.storage_location}/{etag}"
-        if self.storage_location != DEFAULT_LOCATION:
-            final_path = self.storage_location
+        if etag not in self.storage_location:
+            final_path = f"{self.storage_location}/{etag}"
+        else:
+            final_path = f"{self.storage_location}"
         local_file_name = key.replace("/", "_")
         msg = f"Local filename: {local_file_name}"
         LOG.info(log_json(self.request_id, msg, self.context))
