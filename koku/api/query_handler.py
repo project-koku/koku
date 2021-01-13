@@ -58,7 +58,7 @@ class QueryHandler:
             parameters    (QueryParameters): parameter object for query
 
         """
-        LOG.info(f"Query Params: {parameters}")
+        LOG.debug(f"Query Params: {parameters}")
         parameters = self.filter_to_order_by(parameters)
         self.tenant = parameters.tenant
         self.access = parameters.access

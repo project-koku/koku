@@ -60,7 +60,8 @@ class GCPTagQueryHandler(TagQueryHandler):
                         {"field": "account_ids", "operation": "icontains", "composition_key": "account_filter"}
                     ],
                     "project": [
-                        {"field": "project_names", "operation": "icontains", "composition_key": "project_filter"}
+                        {"field": "project_ids", "operation": "icontains", "composition_key": "project_filter"},
+                        {"field": "project_names", "operation": "icontains", "composition_key": "project_filter"},
                     ],
                 }
             )
@@ -71,7 +72,8 @@ class GCPTagQueryHandler(TagQueryHandler):
                         {"field": "account_id", "operation": "icontains", "composition_key": "account_filter"}
                     ],
                     "project": [
-                        {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"}
+                        {"field": "project_id", "operation": "icontains", "composition_key": "project_filter"},
+                        {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},
                     ],
                 }
             )

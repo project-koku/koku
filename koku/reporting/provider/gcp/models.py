@@ -243,8 +243,8 @@ class GCPTagsValues(models.Model):
     key = models.TextField()
     value = models.TextField()
     account_ids = ArrayField(models.TextField())
-    project_ids = models.CharField(unique=True, max_length=256, default="")
-    project_names = models.CharField(max_length=256, default="")
+    project_ids = ArrayField(models.TextField(), default=[], size=None)
+    project_names = ArrayField(models.TextField(), default=[], size=None)
 
 
 # Materialized Views for UI Reporting
