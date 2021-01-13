@@ -218,7 +218,7 @@ class GCPTagsSummary(models.Model):
         """Meta for GCPTagSummary."""
 
         db_table = "reporting_gcptags_summary"
-        unique_together = ("key", "cost_entry_bill", "account_id", "project_id", "project_name")
+        unique_together = ("key", "cost_entry_bill", "account_id", "project_id")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
