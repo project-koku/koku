@@ -37,3 +37,9 @@ class GCPCostView(GCPView):
     """Get cost data."""
 
     report = "costs"
+
+
+class GCPInstanceTypeView(GCPView):
+    """Get inventory data."""
+
+    report = "instance_type"

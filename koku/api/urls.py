@@ -39,6 +39,7 @@ from api.views import CostModelResourceTypesView
 from api.views import DataExportRequestViewSet
 from api.views import GCPAccountView
 from api.views import GCPCostView
+from api.views import GCPInstanceTypeView
 from api.views import GCPProjectsView
 from api.views import metrics
 from api.views import OCPAllCostForecastView
@@ -327,6 +328,13 @@ urlpatterns = [
         "reports/gcp/costs/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPCostView.as_view()),
         name="reports-gcp-costs",
+    ),
+    path(
+        "reports/gcp/instance-types/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AZURE_CACHE_PREFIX)(
+            GCPInstanceTypeView.as_view()
+        ),
+        name="reports-gcp-instance-type",
     ),
 ]
 urlpatterns += ROUTER.urls
