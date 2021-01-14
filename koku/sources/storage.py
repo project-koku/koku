@@ -442,6 +442,26 @@ def add_provider_koku_uuid(source_id, koku_uuid):
         source.save()
 
 
+def save_status(source_id, status):
+    """
+    Save source status.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier
+
+    Returns:
+        status (dict) - source status json
+
+    """
+    source = get_source(source_id, f"Source ID {source_id} does not exist.", LOG.error)
+    if source and source.status != status:
+        source.status = status
+        source.save()
+        return True
+
+    return False
+
+
 def is_known_source(source_id):
     """
     Check if source exists in database.

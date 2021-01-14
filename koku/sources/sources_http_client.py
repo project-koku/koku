@@ -26,6 +26,7 @@ import requests
 from requests.exceptions import RequestException
 
 from sources.config import Config
+from sources import storage
 from sources.sources_error_message import SourcesErrorMessage
 
 
@@ -371,12 +372,12 @@ class SourcesHTTPClient:
             application_url = f"{self._base_url}/applications/{str(application_id)}"
 
             json_data = self.build_source_status(error_msg)
-
-            application_response = requests.patch(application_url, json=json_data, headers=status_header)
-            if application_response.status_code != 204:
-                raise SourcesHTTPClientError(
-                    f"Unable to set status for Source {self._source_id}. Reason: "
-                    f"Status code: {application_response.status_code}. Response: {application_response.text}."
-                )
-            return True
+            if storage.save_status(self._source_id, json_data):
+                application_response = requests.patch(application_url, json=json_data, headers=status_header)
+                if application_response.status_code != 204:
+                    raise SourcesHTTPClientError(
+                        f"Unable to set status for Source {self._source_id}. Reason: "
+                        f"Status code: {application_response.status_code}. Response: {application_response.text}."
+                    )
+                return True
         return False
