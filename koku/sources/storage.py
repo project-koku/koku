@@ -525,6 +525,7 @@ def update_application_settings(source_id, settings):
         if instance.billing_source:
             billing_source = _update_billing_source(instance, billing_source)
         instance.billing_source = billing_source
+        instance.pending_update = True
         instance.save()
 
     if authentication:
@@ -532,4 +533,5 @@ def update_application_settings(source_id, settings):
         if instance.authentication:
             authentication = _update_authentication(instance, authentication)
         instance.authentication = authentication
+        instance.pending_update = True
         instance.save()
