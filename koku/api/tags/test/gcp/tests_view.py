@@ -157,4 +157,29 @@ class GCPTagsViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json().get("data")
-        self.assertIsNotNone(data)
+        self.assertEqual(data, [])
+
+    def test_execute_query_with_and_filter_project(self):
+        """Test the filter[and:] param in the view for project."""
+        url = reverse("gcp-tags")
+        client = APIClient()
+
+        with tenant_context(self.tenant):
+            subs = (
+                GCPCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
+                .values("project_id")
+                .distinct()
+            )
+            project_id = [sub.get("project_id") for sub in subs]
+        params = {
+            "filter[resolution]": "daily",
+            "filter[time_scope_value]": "-10",
+            "filter[time_scope_units]": "day",
+            "filter[and:project]": project_id,
+        }
+        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        data = response.json().get("data")
+        self.assertEqual(data, [])
