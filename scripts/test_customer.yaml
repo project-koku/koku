@@ -66,7 +66,7 @@ customer:
             local_dir: '/tmp/local_container'
             container: ''
     - gcp_source:
-      source_name: Test GCP source
+      source_name: Test GCP Source
       source_type: 'GCP-local'
       authentication:
         credentials:
@@ -75,6 +75,7 @@ customer:
         data_source:
           dataset: 'example-dataset-name'
           table_id: 'example-table-id'
+          local_dir: '/tmp/gcp_local_bucket'
 koku:
   host: localhost
   port: 8000
