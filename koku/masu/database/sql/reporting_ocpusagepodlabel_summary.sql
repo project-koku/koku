@@ -4,15 +4,14 @@ WITH cte_tag_value(key, value, report_period_id, namespace) AS (
         li.report_period_id,
         li.namespace,
         li.node
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS li,
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily AS li,
         jsonb_each_text(li.pod_labels) labels
-    WHERE li.data_source = 'Pod'
     {% if report_periods %}
-        AND li.report_period_id IN (
-        {%- for report_period_id in report_period_ids -%}
-        {{report_period_id}}{% if not loop.last %},{% endif %}
-        {%- endfor -%}
-        )
+    WHERE li.report_period_id IN (
+    {%- for report_period_id in report_period_ids -%}
+    {{report_period_id}}{% if not loop.last %},{% endif %}
+    {%- endfor -%}
+    )
     {% endif %}
     GROUP BY key, value, li.report_period_id, li.namespace, li.node
 ),
