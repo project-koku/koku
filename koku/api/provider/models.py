@@ -109,8 +109,8 @@ class Provider(models.Model):
     CLOUD_PROVIDER_LIST = [choice[0] for choice in CLOUD_PROVIDER_CHOICES]
 
     uuid = models.UUIDField(default=uuid4, primary_key=True)
-    name = models.CharField(max_length=256, null=False)
-    type = models.CharField(max_length=50, null=False, choices=PROVIDER_CHOICES, default=PROVIDER_AWS)
+    name = models.TextField(null=False)
+    type = models.TextField(null=False, choices=PROVIDER_CHOICES, default=PROVIDER_AWS)
     authentication = models.ForeignKey("ProviderAuthentication", null=True, on_delete=models.DO_NOTHING)
     billing_source = models.ForeignKey("ProviderBillingSource", null=True, on_delete=models.DO_NOTHING, blank=True)
     customer = models.ForeignKey("Customer", null=True, on_delete=models.PROTECT)

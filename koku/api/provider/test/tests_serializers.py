@@ -21,6 +21,7 @@ import uuid
 from itertools import permutations
 from unittest.mock import patch
 
+from django.db import connection
 from faker import Faker
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -149,6 +150,30 @@ class ProviderSerializerTest(IamTestCase):
             with self.assertRaises(serializers.ValidationError):
                 serializer.save()
 
+    def test_create_aws_provider_long_name(self):
+        """Test creating a provider with a long name."""
+        long_name = "test_l" + ("o" * 256) + "g_name"
+        iam_arn = "arn:aws:s3:::my_s3_bucket"
+        bucket_name = "my_s3_bucket"
+        provider = {
+            "name": long_name,
+            "type": Provider.PROVIDER_AWS.lower(),
+            "authentication": {"credentials": {"role_arn": iam_arn}},
+            "billing_source": {"data_source": {"bucket": bucket_name}},
+        }
+        instance = None
+
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+
+        schema_name = serializer.data["customer"].get("schema_name")
+        self.assertIsInstance(instance.uuid, uuid.UUID)
+        self.assertTrue(instance.active)
+        self.assertIsNone(schema_name)
+        self.assertFalse("schema_name" in serializer.data["customer"])
+
     def test_create_aws_provider(self):
         """Test creating a provider."""
         iam_arn = "arn:aws:s3:::my_s3_bucket"
@@ -193,6 +218,27 @@ class ProviderSerializerTest(IamTestCase):
         self.assertTrue(instance.active)
         self.assertIsNone(schema_name)
         self.assertFalse("schema_name" in serializer.data["customer"])
+
+    def test_create_source_long_name(self):
+        """Test creating a source with a long name"""
+        long_name = "test_source_l" + ("o" * 256) + "g_name"
+        source = Sources(
+            name=long_name,
+            source_id=-1,
+            source_uuid=uuid.uuid4(),
+            offset=1,
+            auth_header="testheader",
+            account_id="99999999999",
+            source_type=Provider.PROVIDER_AWS,
+            authentication={"cluster_id": "my-super-cool-cluster"},
+        )
+        source.save()
+        cur = connection.cursor()
+        cur.execute("select source_id, name from api_sources where source_id = -1;")
+        res = cur.fetchone()
+        self.assertTrue(bool(res))
+        self.assertEqual(res[0], source.source_id)
+        self.assertEqual(res[1], long_name)
 
     def test_create_ocp_source_with_existing_provider(self):
         """Test creating an OCP Source when the provider already exists."""

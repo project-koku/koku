@@ -202,7 +202,7 @@ class ProviderSerializer(serializers.ModelSerializer):
     """Serializer for the Provider model."""
 
     uuid = serializers.UUIDField(allow_null=True, required=False)
-    name = serializers.CharField(max_length=256, required=True, allow_null=False, allow_blank=False)
+    name = serializers.CharField(required=True, allow_null=False, allow_blank=False)
     type = serializers.ChoiceField(choices=LCASE_PROVIDER_CHOICE_LIST)
     created_timestamp = serializers.DateTimeField(read_only=True)
     customer = CustomerSerializer(read_only=True)
