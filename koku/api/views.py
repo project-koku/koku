@@ -64,4 +64,5 @@ from api.tags.aws.openshift.view import OCPAWSTagView
 from api.tags.aws.view import AWSTagView
 from api.tags.azure.openshift.view import OCPAzureTagView
 from api.tags.azure.view import AzureTagView
+from api.tags.gcp.view import GCPTagView
 from api.tags.ocp.view import OCPTagView
