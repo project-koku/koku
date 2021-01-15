@@ -184,7 +184,6 @@ class SourcesStorageTest(TestCase):
         test_source = Sources.objects.get(source_id=self.test_source_id)
         self.assertEqual(test_source.name, test_name)
         self.assertEqual(test_source.source_type, source_type)
-        self.assertEqual(test_source.endpoint_id, endpoint_id)
         self.assertEqual(str(test_source.source_uuid), source_uuid)
 
     def test_add_provider_network_info_not_found(self):
@@ -346,40 +345,14 @@ class SourcesStorageTest(TestCase):
         self.assertEquals(response, Provider.PROVIDER_OCP)
         self.assertEquals(storage.get_source_type(test_source_id + 1), None)
 
-    def test_get_source_from_endpoint(self):
-        """Test to source from endpoint id."""
-        test_source_id = 3
-        test_endpoint_id = 4
-        aws_obj = Sources(
-            source_id=test_source_id,
-            auth_header=self.test_header,
-            offset=3,
-            endpoint_id=test_endpoint_id,
-            source_type=Provider.PROVIDER_AWS,
-            name="Test AWS Source",
-            authentication={"role_arn": "arn:test"},
-            billing_source={"bucket": "test-bucket"},
-        )
-        aws_obj.save()
-
-        response = storage.get_source_from_endpoint(test_endpoint_id)
-        self.assertEquals(response, test_source_id)
-        self.assertEquals(storage.get_source_from_endpoint(test_source_id + 10), None)
-        with patch("sources.storage.Sources.objects") as mock_objects:
-            mock_objects.get.side_effect = InterfaceError("Test exception")
-            with self.assertRaises(InterfaceError):
-                storage.get_source_from_endpoint(test_endpoint_id)
-
     def test_add_provider_sources_auth_info(self):
         """Test to add authentication to a source."""
         test_source_id = 3
-        test_endpoint_id = 4
         test_authentication = {"role_arn": "arn:test"}
         aws_obj = Sources(
             source_id=test_source_id,
             auth_header=self.test_header,
             offset=3,
-            endpoint_id=test_endpoint_id,
             source_type=Provider.PROVIDER_AWS,
             name="Test AWS Source",
             billing_source={"bucket": "test-bucket"},
@@ -393,13 +366,11 @@ class SourcesStorageTest(TestCase):
     def test_add_provider_sources_auth_info_with_sub_id(self):
         """Test to add authentication to a source with subscription_id."""
         test_source_id = 3
-        test_endpoint_id = 4
         test_authentication = {"credentials": {"client_id": "new-client-id"}}
         azure_obj = Sources(
             source_id=test_source_id,
             auth_header=self.test_header,
             offset=3,
-            endpoint_id=test_endpoint_id,
             source_type=Provider.PROVIDER_AZURE,
             name="Test AZURE Source",
             authentication={"credentials": {"subscription_id": "orig-sub-id", "client_id": "test-client-id"}},
@@ -419,7 +390,6 @@ class SourcesStorageTest(TestCase):
             source_id=test_source_id,
             auth_header=self.test_header,
             offset=test_offset,
-            endpoint_id=4,
             source_type=Provider.PROVIDER_AWS,
             name="Test AWS Source",
             billing_source={"bucket": "test-bucket"},
@@ -449,7 +419,6 @@ class SourcesStorageTest(TestCase):
             source_id=test_source_id,
             auth_header=self.test_header,
             offset=test_offset,
-            endpoint_id=4,
             source_type=Provider.PROVIDER_AWS,
             name="Test AWS Source",
             billing_source={"bucket": "test-bucket"},
@@ -511,7 +480,6 @@ class SourcesStorageTest(TestCase):
                 pending_delete=test.get("pending_delete"),
                 pending_update=test.get("pending_update"),
                 offset=3,
-                endpoint_id=4,
                 source_type=Provider.PROVIDER_AWS,
                 name="Test AWS Source",
                 billing_source={"bucket": "test-bucket"},
@@ -544,7 +512,6 @@ class SourcesStorageTest(TestCase):
                 koku_uuid=test.get("koku_uuid"),
                 pending_update=test.get("pending_update"),
                 offset=3,
-                endpoint_id=4,
                 source_type=Provider.PROVIDER_AWS,
                 name="Test AWS Source",
                 billing_source={"bucket": "test-bucket"},
@@ -580,7 +547,6 @@ class SourcesStorageTest(TestCase):
                 pending_update=test.get("pending_update"),
                 pending_delete=test.get("pending_delete"),
                 offset=3,
-                endpoint_id=4,
                 source_type=Provider.PROVIDER_AWS,
                 name="Test AWS Source",
                 billing_source={"bucket": "test-bucket"},
