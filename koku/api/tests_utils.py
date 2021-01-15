@@ -171,9 +171,15 @@ class DateHelperTest(TestCase):
         self.assertEqual(self.date_helper.month_start(today), expected)
 
     def test_month_end(self):
+        """Test month end method."""
         today = self.date_helper.today
         expected = datetime.datetime(1970, 1, 31, 0, 0, 0, 0)
         self.assertEqual(self.date_helper.month_end(today), expected)
+
+    def test_midnight(self):
+        """Test midnight property."""
+        expected = datetime.time(0, 0, 0, 0)
+        self.assertEqual(self.date_helper.midnight, expected)
 
 
 class APIUtilsUnitConverterTest(TestCase):
