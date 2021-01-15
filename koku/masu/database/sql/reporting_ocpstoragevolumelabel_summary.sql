@@ -4,11 +4,10 @@ WITH cte_tag_value(key, value, report_period_id, namespace) AS (
         li.report_period_id,
         li.namespace,
         li.node
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS li,
-        jsonb_each_text(li.volume_labels) labels
-    WHERE li.data_source = 'Storage'
+    FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily AS li,
+        jsonb_each_text(li.persistentvolume_labels || li.persistentvolumeclaim_labels) labels
     {% if report_periods %}
-        AND li.report_period_id IN (
+    WHERE li.report_period_id IN (
         {%- for report_period_id in report_period_ids -%}
         {{report_period_id}}{% if not loop.last %},{% endif %}
         {%- endfor -%}
