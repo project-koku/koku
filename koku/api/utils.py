@@ -30,9 +30,9 @@ LOG = logging.getLogger(__name__)
 def merge_dicts(*list_of_dicts):
     """Merge a list of dictionaries and combine common keys into a list of values.
 
-        args:
-            list_of_dicts: a list of dictionaries. values within the dicts must be lists
-                dict = {key: [values]}
+    args:
+        list_of_dicts: a list of dictionaries. values within the dicts must be lists
+            dict = {key: [values]}
 
     """
     output = {}
@@ -65,6 +65,11 @@ class DateHelper:
     def now_utc(self):
         """Return current time at timezone."""
         return datetime.datetime.now(tz=pytz.UTC)
+
+    @property
+    def midnight(self):
+        """Return a time object set to midnight."""
+        return datetime.time(0, 0, 0, 0)
 
     @property
     def one_day(self):
