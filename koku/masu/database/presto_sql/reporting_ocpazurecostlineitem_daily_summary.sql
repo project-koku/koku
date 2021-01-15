@@ -277,7 +277,12 @@ CREATE TABLE hive.{{schema | sqlsafe}}.__reporting_ocpazureusagelineitem_daily_{
             azure.tags
         FROM hive.{{schema | sqlsafe}}.__reporting_azure_daily_{{uuid | sqlsafe}} as azure
         JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-            ON azure.resource_id = ocp.resource_id
+            -- NOTE: We would normally use ocp.resource_id
+            -- For this JOIN, but it is not guaranteed to be correct
+            -- in the current Operator Metering version
+            -- so we are matching only on the node name
+            -- which should match the split Azure instance ID
+            ON azure.resource_id = ocp.node
                 AND azure.usage_date = ocp.usage_start
         WHERE ocp.source_uuid = UUID '{{ocp_source_uuid | sqlsafe}}'
             AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
