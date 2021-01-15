@@ -271,9 +271,15 @@ def summarize_reports(reports_to_summarize):
         # required.
         with ReportManifestDBAccessor() as manifest_accesor:
             if manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
-                start_date = DateAccessor().today() - datetime.timedelta(days=2)
-                start_date = start_date.strftime("%Y-%m-%d")
-                end_date = DateAccessor().today().strftime("%Y-%m-%d")
+                if report.get("start") and report.get("end"):
+                    LOG.info("using start and end dates from the manifest")
+                    start_date = report.get("start")
+                    end_date = report.get("end")
+                else: 
+                    LOG.info("generating start and end dates for manifest")
+                    start_date = DateAccessor().today() - datetime.timedelta(days=2)
+                    start_date = start_date.strftime("%Y-%m-%d")
+                    end_date = DateAccessor().today().strftime("%Y-%m-%d")
                 LOG.info("report to summarize: %s", str(report))
                 update_summary_tables.delay(
                     report.get("schema_name"),
@@ -314,7 +320,6 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
     LOG.info(stmt)
 
     updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
-
     start_date, end_date = updater.update_daily_tables(start_date, end_date)
     updater.update_summary_tables(start_date, end_date)
 
