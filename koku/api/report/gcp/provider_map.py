@@ -16,7 +16,6 @@
 #
 """Provider Mapper for GCP Reports."""
 from django.contrib.postgres.aggregates import ArrayAgg
-from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
@@ -69,7 +68,7 @@ class GCPProviderMap(ProviderMap):
                     ],
                     "instance_type": {"field": "instance_type", "operation": "icontains"},
                 },
-                "group_by_options": ["account", "region", "service", "project", "instance-type"],
+                "group_by_options": ["account", "region", "service", "project", "instance_type"],
                 "tag_column": "tags",
                 "report_type": {
                     "costs": {
@@ -148,7 +147,6 @@ class GCPProviderMap(ProviderMap):
                             "cost_raw": Sum("unblended_cost"),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "count": Sum(Value(0, output_field=DecimalField())),
                             "usage": Sum("usage_amount"),
                         },
                         "aggregate_key": "usage_amount",
@@ -172,8 +170,6 @@ class GCPProviderMap(ProviderMap):
                             "cost_usage": Value(0, output_field=DecimalField()),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
-                            # "count": Max("instance_count"),
-                            "count_units": Value("instance_types", output_field=CharField()),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("hour")),
                             "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
@@ -189,8 +185,7 @@ class GCPProviderMap(ProviderMap):
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
                         "usage_units_fallback": "hour",
-                        "count_units_fallback": "instances",
-                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total", "count"],
+                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"usage": "desc"},
                     },
                     "tags": {"default_ordering": {"cost_total": "desc"}},

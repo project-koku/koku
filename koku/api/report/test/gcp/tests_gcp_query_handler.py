@@ -18,6 +18,7 @@
 import logging
 from datetime import datetime
 from decimal import Decimal
+from decimal import ROUND_HALF_UP
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
@@ -31,6 +32,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilter
 from api.report.gcp.query_handler import GCPReportQueryHandler
 from api.report.gcp.view import GCPCostView
+from api.report.gcp.view import GCPInstanceTypeView
 from api.utils import DateHelper
 from reporting.models import GCPCostEntryBill
 from reporting.models import GCPCostEntryLineItemDailySummary
@@ -162,6 +164,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_query_group_by_partial_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
+        # This might change as we add more gcp generators to nise
         with tenant_context(self.tenant):
             valid_services = [
                 service[0]
@@ -177,7 +180,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filters = {**self.this_month_filter, "service_id__icontains": service}
+        filters = {**self.this_month_filter, "service_alias__icontains": service}
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
@@ -297,6 +300,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_curr_month_by_service_w_limit(self):
         """Test execute_query for current month on monthly breakdown by service with limit."""
+        # This might change as we add more gcp generators to nise
         limit = 1
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]={limit}&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
@@ -322,7 +326,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             for month_item in month_data:
                 service = month_item.get("service")
                 self.assertIsInstance(service, str)
-                if "Others" in service:
+                if "Other" in service:
                     other_string_created = True
                 self.assertIsInstance(month_item.get("values"), list)
             self.assertTrue(other_string_created)
@@ -767,13 +771,8 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_rank_list_by_service_alias(self):
         """Test rank list limit with service_alias grouping."""
-        limit = 2
-        with tenant_context(self.tenant):
-            valid_services = [
-                service[0] for service in GCPCostEntryLineItemDailySummary.objects.values_list("service_id").distinct()
-            ]
-            expected_others = len(valid_services) - limit
-        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]={limit}&group_by[service]=*"  # noqa: E501
+        # This might change as we add more gcp generators to nise
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         data_list = [
@@ -786,7 +785,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             {"service_alias": "1", "total": 5, "rank": 1},
             {"service_alias": "2", "total": 4, "rank": 2},
             {
-                "service": f"{expected_others} Others",
+                "service": "2 Others",
                 "service_alias": "1",
                 "total": 5,
                 "rank": 3,
@@ -955,6 +954,87 @@ class GCPReportQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
+
+        cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
+        for data_item in data:
+            month_val = data_item.get("date")
+            self.assertEqual(month_val, cmonth_str)
+
+    def test_execute_sum_query_instance_type(self):
+        """Test that the sum query runs properly."""
+        url = "?"
+        query_params = self.mocked_query_params(url, GCPInstanceTypeView)
+        handler = GCPReportQueryHandler(query_params)
+
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        filters = self.ten_day_filter
+        for filt in handler._mapper.report_type_map.get("filter"):
+            qf = QueryFilter(**filt)
+            filters.update({qf.composed_query_string(): qf.parameter})
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        query_output = handler.execute_query()
+
+        self.assertIsNotNone(query_output.get("data"))
+        self.assertIsNotNone(query_output.get("total"))
+        total = query_output.get("total")
+        self.assertIsNotNone(total.get("usage", {}).get("value"))
+        self.assertEqual(total.get("usage", {}).get("value"), current_totals.get("usage"))
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
+
+    def test_query_instance_types_with_totals(self):
+        """Test execute_query() - instance types with totals.
+
+        Query for instance_types, validating that cost totals are present.
+
+        """
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[instance_type]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, GCPInstanceTypeView)
+        handler = GCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+
+        for data_item in data:
+            instance_types = data_item.get("instance_types")
+            for it in instance_types:
+                self.assertIsNotNone(it.get("values"))
+                self.assertGreater(len(it.get("values")), 0)
+                for value in it.get("values"):
+                    cost_value = value.get("cost", {}).get("total", {}).get("value")
+                    self.assertIsNotNone(cost_value)
+                    self.assertIsInstance(cost_value, Decimal)
+                    self.assertGreaterEqual(cost_value.quantize(Decimal(".0001"), ROUND_HALF_UP), Decimal(0))
+                    self.assertIsInstance(value.get("usage", {}), dict)
+                    self.assertGreaterEqual(
+                        value.get("usage", {}).get("value", {}).quantize(Decimal(".0001"), ROUND_HALF_UP), Decimal(0)
+                    )
+
+    def test_execute_query_annotate_instance_types(self):
+        """Test that query enters cost unit and usage unit ."""
+        with tenant_context(self.tenant):
+            account = GCPCostEntryLineItemDailySummary.objects.filter(
+                usage_start__gte=self.dh.this_month_start
+            ).values("account_id")[0]
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[account]={account}"  # noqa: E501
+        query_params = self.mocked_query_params(url, GCPInstanceTypeView)
+        handler = GCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get("total"))
+        total = query_output.get("total")
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        filters = {**self.this_month_filter, "account_id": account}
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
