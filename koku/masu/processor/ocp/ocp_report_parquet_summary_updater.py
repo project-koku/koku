@@ -129,7 +129,7 @@ class OCPReportParquetSummaryUpdater:
             LOG.info(
                 "Updating OpenShift label summary tables for \n\tSchema: %s " "\n\tReport Period IDs: %s",
                 self._schema,
-                report_period.id,
+                report_period_ids,
             )
             accessor.populate_pod_label_summary_table(report_period_ids)
             accessor.populate_volume_label_summary_table(report_period_ids)
