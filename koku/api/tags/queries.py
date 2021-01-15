@@ -322,7 +322,6 @@ class TagQueryHandler(QueryHandler):
                     tag_keys_query = tag_keys_query.annotate(**annotations)
                     for annotation_key in annotations.keys():
                         vals.append(annotation_key)
-
                 exclusion = self._get_exclusions("key")
                 tag_keys = list(tag_keys_query.filter(self.query_filter).exclude(exclusion).values_list(*vals).all())
                 converted = self._convert_to_dict(tag_keys, vals)
