@@ -449,7 +449,7 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
                 "metric": {
                     "name": "node_cost_per_month",
                     "label_metric": "Node",
-                    "label_measurement": "Currency",
+                    "label_measurement": "Count",
                     "label_measurement_unit": "node-month",
                 },
                 "description": "",
@@ -472,7 +472,7 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
                 "metric": {
                     "name": "node_cost_per_month",
                     "label_metric": "Node",
-                    "label_measurement": "Currency",
+                    "label_measurement": "Count",
                     "label_measurement_unit": "node-month",
                 },
                 "description": "",

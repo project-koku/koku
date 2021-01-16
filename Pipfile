@@ -69,6 +69,7 @@ model-bakery = ">=1.1"
 koku-nise = ">=2.2"
 pre-commit = ">=2.0"
 responses = ">=0.10"
+matplotlib = ">=3.3"
 
 [requires]
 python_version = "3.8"

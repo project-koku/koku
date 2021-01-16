@@ -91,12 +91,20 @@ def connect(**connect_args):
         prestodb.dbapi.Connection : connection to prestodb if successful
     """
     presto_connect_args = {
-        "host": connect_args.get("host") or os.environ.get("PRESTO_HOST") or "presto",
-        "port": connect_args.get("port") or os.environ.get("PRESTO_PORT") or 8080,
-        "user": connect_args.get("user") or os.environ.get("PRESTO_USER") or "admin",
-        "catalog": connect_args.get("catalog") or os.environ.get("PRESTO_DEFAULT_CATALOG") or "postgres",
+        "host": (
+            connect_args.get("host") or os.environ.get("TRINO_HOST") or os.environ.get("PRESTO_HOST") or "presto"
+        ),
+        "port": (connect_args.get("port") or os.environ.get("TRINO_PORT") or os.environ.get("PRESTO_PORT") or 8080),
+        "user": (connect_args.get("user") or os.environ.get("TRINO_USER") or os.environ.get("PRESTO_USER") or "admin"),
+        "catalog": (
+            connect_args.get("catalog")
+            or os.environ.get("TRINO_DEFAULT_CATALOG")
+            or os.environ.get("PRESTO_DEFAULT_CATALOG")
+            or "postgres"
+        ),
         "isolation_level": (
             connect_args.get("isolation_level")
+            or os.environ.get("TRINO_DEFAULT_ISOLATION_LEVEL")
             or os.environ.get("PRESTO_DEFAULT_ISOLATION_LEVEL")
             or IsolationLevel.AUTOCOMMIT
         ),
@@ -132,7 +140,8 @@ def _execute(presto_cur, presto_stmt):
     """
     Wrapper around the prestodb.dbapi.Cursor.execute() method
     Params:
-        presto_cur (prestodb.dbapi.Cursor) presto connection cursor
+        presto_cur (prestodb.dbapi.Cursor) : presto connection cursor
+        presto_stmt (str) : presto SQL statement
     Returns:
         prestodb.dbapi.Cursor : Cursor after execute method called
     """
