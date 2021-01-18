@@ -69,7 +69,6 @@ class SourcesHTTPClient:
     def get_source_details(self):
         """Get details on source_id."""
         url = "{}/{}/{}".format(self._base_url, "sources", str(self._source_id))
-
         r = self._get_network_response(url, self._identity_header, "Unable to get source details")
         if r.status_code == 404:
             raise SourceNotFoundError(f"Status Code: {r.status_code}")
