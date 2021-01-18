@@ -469,7 +469,7 @@ def listen_for_messages_loop(application_source_id):  # pragma: no cover
         execute_process_queue()
 
 
-RETRY_COUNT = 5
+RETRY_COUNT = Config.RETRY_ATTEMPTS
 
 
 def rewind_consumer_to_retry(consumer, topic_partition):
@@ -480,7 +480,7 @@ def rewind_consumer_to_retry(consumer, topic_partition):
     if RETRY_COUNT == 0:
         LOG.info(f"Committing message: {str(topic_partition)}")
         consumer.commit()
-        RETRY_COUNT = 5
+        RETRY_COUNT = Config.RETRY_ATTEMPTS
         return
 
     SOURCES_KAFKA_LOOP_RETRY.inc()
