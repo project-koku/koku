@@ -30,6 +30,7 @@ class TagsViewTest(IamTestCase):
         # tags
         "aws-tags": "aws-tags-key",
         "azure-tags": "azure-tags-key",
+        "gcp-tags": "gcp-tags-key",
         "openshift-tags": "openshift-tags-key",
         "openshift-aws-tags": "openshift-aws-tags-key",
         "openshift-azure-tags": "openshift-azure-tags-key",
