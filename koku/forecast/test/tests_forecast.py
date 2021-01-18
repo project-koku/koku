@@ -85,51 +85,67 @@ class AWSForecastTest(IamTestCase):
 
     def test_forecast_days_required(self):
         """Test that we accurately select the number of days."""
-        dh = DateHelper()
         params = self.mocked_query_params("?", AWSCostForecastView)
-        with patch("forecast.forecast.Forecast.dh") as mock_dh:
-            mock_dh.today = dh.this_month_start
-            mock_dh.this_month_start = dh.this_month_start
-            mock_dh.this_month_end = dh.this_month_end
-            mock_dh.last_month_start = dh.last_month_start
-            mock_dh.last_month_end = dh.last_month_end
-            forecast = AWSForecast(params)
-            self.assertEqual(forecast.forecast_days_required, dh.this_month_end.day)
 
-        with patch("forecast.forecast.Forecast.dh") as mock_dh:
-            mock_dh.today = datetime(2000, 1, 13, 0, 0, 0, 0)
-            mock_dh.yesterday = datetime(2000, 1, 12, 0, 0, 0, 0)
-            mock_dh.this_month_start = datetime(2000, 1, 1, 0, 0, 0, 0)
-            mock_dh.this_month_end = datetime(2000, 1, 31, 0, 0, 0, 0)
-            mock_dh.last_month_start = datetime(1999, 12, 1, 0, 0, 0, 0)
-            mock_dh.last_month_end = datetime(1999, 12, 31, 0, 0, 0, 0)
+        mock_dh = Mock(spec=DateHelper)
+
+        mock_dh.return_value.today = datetime(2000, 1, 1, 0, 0, 0, 0)
+        mock_dh.return_value.yesterday = datetime(1999, 12, 31, 0, 0, 0, 0)
+        mock_dh.return_value.this_month_start = datetime(2000, 1, 1, 0, 0, 0, 0)
+        mock_dh.return_value.this_month_end = datetime(2000, 1, 31, 0, 0, 0, 0)
+        mock_dh.return_value.last_month_start = datetime(1999, 12, 1, 0, 0, 0, 0)
+        mock_dh.return_value.last_month_end = datetime(1999, 12, 31, 0, 0, 0, 0)
+
+        with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
+            forecast = AWSForecast(params)
+            self.assertEqual(forecast.forecast_days_required, 31)
+
+        mock_dh.return_value.today = datetime(2000, 1, 13, 0, 0, 0, 0)
+        mock_dh.return_value.yesterday = datetime(2000, 1, 12, 0, 0, 0, 0)
+        mock_dh.return_value.this_month_start = datetime(2000, 1, 1, 0, 0, 0, 0)
+        mock_dh.return_value.this_month_end = datetime(2000, 1, 31, 0, 0, 0, 0)
+        mock_dh.return_value.last_month_start = datetime(1999, 12, 1, 0, 0, 0, 0)
+        mock_dh.return_value.last_month_end = datetime(1999, 12, 31, 0, 0, 0, 0)
+
+        with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
             forecast = AWSForecast(params)
             self.assertEqual(forecast.forecast_days_required, 19)
 
-    def test_query_range(self):
+    def test_query_range_under(self):
         """Test that we select the correct range based on day of month."""
-        dh = DateHelper()
         params = self.mocked_query_params("?", AWSCostForecastView)
 
-        with patch("forecast.forecast.Forecast.dh") as mock_dh:
-            mock_dh.today = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 1)
-            mock_dh.yesterday = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 2)
-            mock_dh.this_month_start = dh.this_month_start
-            mock_dh.this_month_end = dh.this_month_end
-            mock_dh.last_month_start = dh.last_month_start
-            mock_dh.last_month_end = dh.last_month_end
-            expected = (dh.last_month_start, mock_dh.yesterday)
+        dh = DateHelper()
+        mock_dh = Mock(spec=DateHelper)
+
+        mock_dh.return_value.today = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 1)
+        mock_dh.return_value.yesterday = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 2)
+        mock_dh.return_value.this_month_start = dh.this_month_start
+        mock_dh.return_value.this_month_end = dh.this_month_end
+        mock_dh.return_value.last_month_start = dh.last_month_start
+        mock_dh.return_value.last_month_end = dh.last_month_end
+
+        with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
+            expected = (dh.last_month_start, dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 2))
             forecast = AWSForecast(params)
             self.assertEqual(forecast.query_range, expected)
 
-        with patch("forecast.forecast.Forecast.dh") as mock_dh:
-            mock_dh.today = dh.this_month_start + timedelta(days=(AWSForecast.MINIMUM))
-            mock_dh.yesterday = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 1)
-            mock_dh.this_month_start = dh.this_month_start
-            mock_dh.this_month_end = dh.this_month_end
-            mock_dh.last_month_start = dh.last_month_start
-            mock_dh.last_month_end = dh.last_month_end
-            expected = (dh.this_month_start, dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 1))
+    def test_query_range_over(self):
+        """Test that we select the correct range based on day of month."""
+        params = self.mocked_query_params("?", AWSCostForecastView)
+
+        dh = DateHelper()
+        mock_dh = Mock(spec=DateHelper)
+
+        mock_dh.return_value.today = dh.this_month_start + timedelta(days=(AWSForecast.MINIMUM + 1))
+        mock_dh.return_value.yesterday = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM)
+        mock_dh.return_value.this_month_start = dh.this_month_start
+        mock_dh.return_value.this_month_end = dh.this_month_end
+        mock_dh.return_value.last_month_start = dh.last_month_start
+        mock_dh.return_value.last_month_end = dh.last_month_end
+
+        with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
+            expected = (dh.this_month_start, dh.this_month_start + timedelta(days=AWSForecast.MINIMUM))
             forecast = AWSForecast(params)
             self.assertEqual(forecast.query_range, expected)
 

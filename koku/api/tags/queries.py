@@ -24,7 +24,6 @@ from tenant_schemas.utils import tenant_context
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
-from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)
 
@@ -68,8 +67,6 @@ class TagQueryHandler(QueryHandler):
         "key": {"field": "key", "operation": "icontains", "composition_key": "key_filter"},
         "value": {"field": "value", "operation": "icontains", "composition_key": "value_filter"},
     }
-
-    dh = DateHelper()
 
     def __init__(self, parameters):
         """Establish tag query handler.
