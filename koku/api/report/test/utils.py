@@ -15,12 +15,17 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test utilities."""
+import csv
 import os
 import pkgutil
 import shutil
+import tempfile
 from unittest.mock import patch
 
+import ciso8601
 from dateutil.relativedelta import relativedelta
+from dateutil.rrule import DAILY
+from dateutil.rrule import rrule
 from django.conf import settings
 from django.test.utils import override_settings
 from jinja2 import Template
@@ -37,6 +42,39 @@ from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_summary_tables
 from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
+
+
+# TODO: Remove this when we get the nise stuff done:
+def create_tmp_gcp_csv(self, start_date, end_date, bill_date):
+    """
+        Create the gcp report manifest until the gcp nise data is done.
+    """
+    template_path = "./koku/masu/test/data/gcp/tmp_example.csv"
+    invoice_month = bill_date.strftime("%Y%m")
+    start_date = start_date
+    end_date = end_date
+
+    temp_dir = tempfile.mkdtemp()
+    test_report = f"{temp_dir}/{invoice_month}_1234_{start_date.date()}:{end_date.date()}.csv"
+    new_csv_list = []
+    with open(template_path) as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            new_csv_list.append(row)
+
+    fieldnames = new_csv_list[0].keys()
+    basic_usage_start = ciso8601.parse_datetime(new_csv_list[0]["usage_start_time"])
+    days_delta = len(list(rrule(DAILY, dtstart=basic_usage_start, until=start_date)))
+    with open(test_report, "w") as newcsvfile:
+        writer = csv.DictWriter(newcsvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in new_csv_list:
+            for key in ["usage_start_time", "usage_end_time"]:
+                new_value = ciso8601.parse_datetime(row[key]) + relativedelta(days=days_delta)
+                row[key] = str(new_value)
+            row["invoice.month"] = invoice_month
+            writer.writerow(row)
+    return test_report
 
 
 class NiseDataLoader:
@@ -294,7 +332,6 @@ class NiseDataLoader:
                 billing_source__data_source=data_source,
                 customer=customer,
             )
-
         for start_date, end_date, bill_date in self.dates:
             manifest = baker.make(
                 "CostUsageReportManifest",
@@ -306,6 +343,14 @@ class NiseDataLoader:
                 update_summary_tables(
                     self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
                 )
+            report_path = create_tmp_gcp_csv(self, start_date, end_date, bill_date)
+            self.process_report(report_path, "PLAIN", Provider.PROVIDER_GCP, provider, manifest)
+            with patch("masu.processor.tasks.chain"), patch.object(settings, "AUTO_DATA_INGEST", False):
+                update_summary_tables(
+                    self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
+                )
+            shutil.rmtree(report_path, ignore_errors=True)
         update_cost_model_costs.s(
             self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
         ).apply()
+        refresh_materialized_views.s(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True).apply()

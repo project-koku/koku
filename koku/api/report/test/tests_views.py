@@ -34,6 +34,7 @@ class ReportViewTest(IamTestCase):
     """Tests the report view."""
 
     ENDPOINTS_AWS = ["reports-aws-costs", "reports-aws-storage", "reports-aws-instance-type"]
+    ENDPOINTS_GCP = ["reports-gcp-costs"]
     ENDPOINTS_AZURE = ["reports-azure-costs", "reports-azure-storage", "reports-azure-instance-type"]
     ENDPOINTS_OPENSHIFT = [
         "reports-openshift-costs",
@@ -58,6 +59,7 @@ class ReportViewTest(IamTestCase):
     ]
     ENDPOINTS = (
         ENDPOINTS_AWS
+        + ENDPOINTS_GCP
         + ENDPOINTS_AZURE
         + ENDPOINTS_OPENSHIFT
         + ENDPOINTS_OPENSHIFT_AWS
@@ -184,6 +186,15 @@ class ReportViewTest(IamTestCase):
     def test_rbacpermissions_valid_aws(self):
         """Test that AWS endpoints accept valid AWS permissions."""
         for endpoint in self.ENDPOINTS_AWS:
+            with self.subTest(endpoint=endpoint):
+                url = reverse(endpoint)
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @RbacPermissions({"gcp.account": {"read": ["*"]}})
+    def test_rbacpermissions_valid_gcp(self):
+        """Test that GCP endpoints accept valid GCP permissions."""
+        for endpoint in self.ENDPOINTS_GCP:
             with self.subTest(endpoint=endpoint):
                 url = reverse(endpoint)
                 response = self.client.get(url, **self.headers)

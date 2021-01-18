@@ -18,8 +18,6 @@
 import datetime
 from unittest.mock import patch
 
-from tenant_schemas.utils import schema_context
-
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -27,7 +25,6 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.gcp.gcp_report_summary_updater import GCPReportSummaryUpdater
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from reporting.provider.gcp.models import GCPCostEntryBill
 
 
 class GCPReportSummaryUpdaterTest(MasuTestCase):
@@ -69,27 +66,30 @@ class GCPReportSummaryUpdaterTest(MasuTestCase):
 
         start_date = self.date_accessor.today_with_timezone("UTC")
         end_date = start_date + datetime.timedelta(days=1)
+        bill_date = start_date.replace(day=1).date()
+
+        with GCPReportDBAccessor(self.schema) as accessor:
+            bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
+            bill.summary_data_creation_datetime = start_date
+            bill.save()
 
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
-        # TODO: Change these tests to use the bill created by nise.
-        with schema_context(self.schema):
-            GCPCostEntryBill.objects.create(
-                provider=self.gcp_provider, billing_period_start=start_date, billing_period_end=end_date
-            )
-            bills = [str(bill.id) for bill in GCPCostEntryBill.objects.all()]
 
         expected_start_date = start_date.date()
         expected_end_date = end_date.date()
 
         self.updater.update_daily_tables(start_date_str, end_date_str)
-        mock_daily.assert_called_with(expected_start_date, expected_end_date, bills)
+        mock_daily.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
         mock_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_summary.assert_called_with(expected_start_date, expected_end_date, bills)
+        mock_summary.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
 
-        self.assertIsNotNone(self.updater._manifest)
+        with GCPReportDBAccessor(self.schema) as accessor:
+            bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
+            self.assertIsNotNone(bill.summary_data_creation_datetime)
+            self.assertIsNotNone(bill.summary_data_updated_datetime)
 
     def test_get_sql_inputs_no_manifest(self):
         """Test if no manifest for codecov."""
