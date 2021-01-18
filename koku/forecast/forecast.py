@@ -62,8 +62,6 @@ class Forecast:
 
     REPORT_TYPE = "costs"
 
-    dh = DateHelper()
-
     def __init__(self, query_params):  # noqa: C901
         """Class Constructor.
 
@@ -73,6 +71,7 @@ class Forecast:
             - filters (QueryFilterCollection)
             - query_range (tuple)
         """
+        self.dh = DateHelper()
         self.params = query_params
 
         # select appropriate model based on access
