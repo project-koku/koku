@@ -32,6 +32,7 @@ from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
 from koku.settings import SOURCES_CLIENT_BASE_URL
+from providers.provider_errors import SkipStatusPush
 from sources.api import get_account_from_header
 from sources.api import get_auth_header
 from sources.storage import get_source_instance
@@ -206,7 +207,10 @@ class AdminSourcesSerializer(SourcesSerializer):
         manager = ProviderBuilder(auth_header)
         validated_data["auth_header"] = auth_header
         source = Sources.objects.create(**validated_data)
-        provider = manager.create_provider_from_source(source)
+        try:
+            provider = manager.create_provider_from_source(source)
+        except SkipStatusPush:
+            raise serializers.ValidationError("GCP billing table not ready")
         source.koku_uuid = provider.uuid
         source.save()
         LOG.info("Admin created Source and Provider.")
