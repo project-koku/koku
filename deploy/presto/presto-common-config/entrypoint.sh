@@ -51,7 +51,7 @@ fi
 
 # add UID to /etc/passwd if missing
 if ! whoami &> /dev/null; then
-    if [ -w /etc/passwd ]; then
+    if test -w /etc/passwd || stat -c "%a" /etc/passwd | grep -qE '.[267].'; then
         echo "Adding user ${USER_NAME:-presto} with current UID $(id -u) to /etc/passwd"
         # Remove existing entry with user first.
         # cannot use sed -i because we do not have permission to write new

@@ -18,6 +18,7 @@
 import logging
 import operator
 from collections import defaultdict
+from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
 from functools import reduce
@@ -37,6 +38,7 @@ from api.report.aws.openshift.provider_map import OCPAWSProviderMap
 from api.report.aws.provider_map import AWSProviderMap
 from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.report.azure.provider_map import AzureProviderMap
+from api.report.gcp.provider_map import GCPProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
 from reporting.provider.aws.models import AWSOrganizationalUnit
@@ -60,8 +62,6 @@ class Forecast:
 
     REPORT_TYPE = "costs"
 
-    dh = DateHelper()
-
     def __init__(self, query_params):  # noqa: C901
         """Class Constructor.
 
@@ -71,6 +71,7 @@ class Forecast:
             - filters (QueryFilterCollection)
             - query_range (tuple)
         """
+        self.dh = DateHelper()
         self.params = query_params
 
         # select appropriate model based on access
@@ -88,19 +89,16 @@ class Forecast:
                 # We have access constraints, but no view to accomodate, default to daily summary table
                 self.cost_summary_table = self.provider_map.report_type_map.get("tables", {}).get("query")
 
-        current_day_of_month = self.dh.today.day
-        yesterday = (self.dh.today - timedelta(days=1)).day
-        last_day_of_month = self.dh.this_month_end.day
-
-        if current_day_of_month == 1:
-            self.forecast_days_required = last_day_of_month
+        # FIXME: replace with rolling 30-day window
+        if self.dh.today.day == 1:
+            self.forecast_days_required = self.dh.this_month_end.day
         else:
-            self.forecast_days_required = last_day_of_month - yesterday
+            self.forecast_days_required = self.dh.this_month_end.day - self.dh.yesterday.day
 
-        if current_day_of_month <= self.MINIMUM:
-            self.query_range = (self.dh.last_month_start, self.dh.last_month_end)
+        if self.dh.today.day <= self.MINIMUM:
+            self.query_range = (self.dh.last_month_start, self.dh.yesterday)
         else:
-            self.query_range = (self.dh.this_month_start, self.dh.today - timedelta(days=1))
+            self.query_range = (self.dh.this_month_start, self.dh.yesterday)
 
         self.filters = QueryFilterCollection()
         self.filters.add(field="usage_start", operation="gte", parameter=self.query_range[0])
@@ -147,21 +145,20 @@ class Forecast:
                     infrastructure_cost=self.infrastructure_cost_term,
                 )
             )
-            total_cost_data = data.values("usage_start", "total_cost")
-            infra_cost_data = data.values("usage_start", "infrastructure_cost")
-            supp_cost_data = data.values("usage_start", "supplementary_cost")
-            cost_predictions["total_cost"] = self._predict(self._uniquify_qset(total_cost_data, field="total_cost"))
-            cost_predictions["infrastructure_cost"] = self._predict(
-                self._uniquify_qset(infra_cost_data, field="infrastructure_cost")
-            )
-            cost_predictions["supplementary_cost"] = self._predict(
-                self._uniquify_qset(supp_cost_data, field="supplementary_cost")
-            )
+
+            for fieldname in ["total_cost", "infrastructure_cost", "supplementary_cost"]:
+                uniq_data = self._uniquify_qset(data.values("usage_start", fieldname), field=fieldname)
+                cost_predictions[fieldname] = self._predict(uniq_data)
+
             cost_predictions = self._key_results_by_date(cost_predictions)
             return self.format_result(cost_predictions)
 
     def _predict(self, data):
         """Handle pre and post prediction work.
+
+        This function handles arranging incoming data to conform with statsmodels requirements.
+        Then after receiving the forecast output, this function handles formatting to conform to
+        API reponse requirements.
 
         Args:
             data (list) a list of (datetime, float) tuples
@@ -171,29 +168,61 @@ class Forecast:
         """
         LOG.debug("Forecast input data: %s", data)
 
-        if len(data) < 2:
+        if len(data) < 3:
             LOG.warning("Unable to calculate forecast. Insufficient data for %s.", self.params.tenant)
             return []
 
         if len(data) < self.MINIMUM:
             LOG.warning("Number of data elements is fewer than the minimum.")
 
-        # arrange the data into a form that statsmodels will accept.
         dates, costs = zip(*data)
-        X = [int(d.strftime("%Y%m%d")) for d in dates]
+
+        X = self._enumerate_dates(dates)
         Y = [float(c) for c in costs]
+
+        # calculate x-values for the prediction range
+        pred_x = [i for i in range(X[-1] + 1, X[-1] + 1 + self.forecast_days_required)]
+
         # run the forecast
         results = self._run_forecast(X, Y)
+
         result_dict = {}
-        for i, value in enumerate(results.prediction):
+        for i, value in enumerate(results.prediction(pred_x)):
+            if i < len(results.confidence_lower):
+                lower = results.confidence_lower[i]
+            else:
+                lower = results.confidence_lower[-1] + results.slope * (i - len(results.confidence_lower))
+
+            if i < len(results.confidence_upper):
+                upper = results.confidence_upper[i]
+            else:
+                upper = results.confidence_upper[-1] + results.slope * (i - len(results.confidence_upper))
+
             result_dict[self.dh.today.date() + timedelta(days=i)] = {
                 "total_cost": value,
-                "confidence_min": results.confidence_lower[i],
-                "confidence_max": results.confidence_upper[i],
+                "confidence_min": lower,
+                "confidence_max": upper,
             }
-        result_dict = self._add_additional_data_points(result_dict, results.slope)
 
         return (result_dict, results.rsquared, results.pvalues)
+
+    def _enumerate_dates(self, date_list):
+        """Given a list of dates, return a list of integers.
+
+        This method works in conjunction with _remove_outliers(). This method works to preserve any gaps
+        in the data created by _remove_outliers() so that the integers used for the X-axis are aligned
+        appropriately.
+
+        Example:
+
+            If _remove_outliers() returns {"2000-01-01": 1.0, "2000-01-03": 1.5}
+            then _enumerate_dates() returns [0, 2]
+        """
+        days = self.dh.list_days(
+            datetime.combine(date_list[0], self.dh.midnight), datetime.combine(date_list[-1], self.dh.midnight)
+        )
+        out = [i for i, day in enumerate(days) if day.date() in date_list]
+        return out
 
     def _remove_outliers(self, data):
         """Remove outliers from our dateset before predicting.
@@ -256,10 +285,7 @@ class Forecast:
                                 "value": f_format % results[key]["infrastructure_cost"][1]["rsquared"],
                                 "units": None,
                             },
-                            "pvalues": {
-                                "value": f_format % results[key]["infrastructure_cost"][2]["pvalues"],
-                                "units": None,
-                            },
+                            "pvalues": {"value": results[key]["infrastructure_cost"][2]["pvalues"], "units": None},
                         },
                         "supplementary": {
                             "total": {
@@ -278,10 +304,7 @@ class Forecast:
                                 "value": f_format % results[key]["supplementary_cost"][1]["rsquared"],
                                 "units": None,
                             },
-                            "pvalues": {
-                                "value": f_format % results[key]["supplementary_cost"][2]["pvalues"],
-                                "units": None,
-                            },
+                            "pvalues": {"value": results[key]["supplementary_cost"][2]["pvalues"], "units": None},
                         },
                         "cost": {
                             "total": {"value": round(results[key]["total_cost"][0]["total_cost"], 3), "units": units},
@@ -294,36 +317,13 @@ class Forecast:
                                 "units": units,
                             },
                             "rsquared": {"value": f_format % results[key]["total_cost"][1]["rsquared"], "units": None},
-                            "pvalues": {"value": f_format % results[key]["total_cost"][2]["pvalues"], "units": None},
+                            "pvalues": {"value": results[key]["total_cost"][2]["pvalues"], "units": None},
                         },
                     }
                 ],
             }
             response.append(dikt)
         return response
-
-    def _add_additional_data_points(self, results, slope):
-        """Add extra entries to make sure we predict the full month."""
-        additional_days_needed = 0
-        dates = results.keys()
-        last_predicted_date = max(dates)
-        days_already_predicted = len(dates)
-
-        last_predicted_cost = results[last_predicted_date]["total_cost"]
-        last_predicted_max = results[last_predicted_date]["confidence_max"]
-        last_predicted_min = results[last_predicted_date]["confidence_min"]
-
-        if days_already_predicted < self.forecast_days_required:
-            additional_days_needed = self.forecast_days_required - days_already_predicted
-
-        for i in range(1, additional_days_needed + 1):
-            results[last_predicted_date + timedelta(days=i)] = {
-                "total_cost": last_predicted_cost + (slope * i),
-                "confidence_min": last_predicted_min + (slope * i),
-                "confidence_max": last_predicted_max + (slope * i),
-            }
-
-        return results
 
     def _run_forecast(self, x, y):
         """Apply the forecast model.
@@ -343,15 +343,17 @@ class Forecast:
                 (float) R-squared value
                 (list) P-values
         """
+        x = sm.add_constant(x)
         model = sm.OLS(y, x)
         results = model.fit()
-        return LinearForecastResult(results)
+        return LinearForecastResult(results, exog=x)
 
     def _uniquify_qset(self, qset, field="total_cost"):
         """Take a QuerySet list, sum costs within the same day, and arrange it into a list of tuples.
 
         Args:
             qset (QuerySet)
+            field (str) - field name in the QuerySet to be summed
 
         Returns:
             [(date, cost), ...]
@@ -392,29 +394,44 @@ class LinearForecastResult:
     Note: this class should be considered read-only
     """
 
-    def __init__(self, regression_result):
+    def __init__(self, regression_result, exog=None):
         """Class constructor.
 
         Args:
             regression_result (RegressionResult) the results of a statsmodels regression
+            exog (array-like) exogenous variables for points to predict
         """
         self._regression_result = regression_result
-        self._std_err, self._conf_lower, self._conf_upper = wls_prediction_std(regression_result)
+        self._std_err, self._conf_lower, self._conf_upper = wls_prediction_std(regression_result, exog=exog)
 
         try:
             LOG.debug(regression_result.summary())
         except (ValueWarning, UserWarning) as exc:
             LOG.warning(exc)
 
-        LOG.debug("Forecast prediction: %s", self.prediction)
         LOG.debug("Forecast interval lower-bound: %s", self.confidence_lower)
         LOG.debug("Forecast interval upper-bound: %s", self.confidence_upper)
 
-    @property
-    def prediction(self):
-        """Forecast prediction."""
+    def prediction(self, to_predict=None):
+        """Forecast prediction.
+
+        Args:
+            to_predict (array-like) - values to predict; uses model training values if not set.
+
+        Returns:
+            (array-like) - an nparray of prediction values or empty list
+        """
         # predict() returns the same number of elements as the number of input observations
-        return self._regression_result.predict()
+        prediction = []
+        try:
+            if to_predict:
+                prediction = self._regression_result.predict(sm.add_constant(to_predict))
+            else:
+                prediction = self._regression_result.predict()
+        except ValueError as exc:
+            LOG.error(exc)
+        LOG.debug("Forecast prediction: %s", prediction)
+        return prediction
 
     @property
     def confidence_lower(self):
@@ -433,19 +450,42 @@ class LinearForecastResult:
 
     @property
     def pvalues(self):
-        """Forecast P-values."""
+        """Forecast P-values.
+
+        The p-values use a two-tailed test. Depending on the prediction, there can be up to two values returned.
+
+        Returns:
+            (str) or [(str), (str)]
+        """
+        f_format = f"%.{Forecast.PRECISION}f"  # avoid converting floats to e-notation
         if len(self._regression_result.pvalues.tolist()) == 1:
-            return self._regression_result.pvalues.tolist()[0]
+            return f_format % self._regression_result.pvalues.tolist()[0]
         else:
-            return self._regression_result.pvalues.tolist()
+            return [f_format % item for item in self._regression_result.pvalues.tolist()]
 
     @property
     def slope(self):
-        """Slope of linear regression."""
-        if len(self._regression_result.params) == 1:
-            return self._regression_result.params[0]
-        else:
-            return self._regression_result.params
+        """Slope estimate of linear regression.
+
+        For a basic linear regression, params is always a list of two values - the slope and the Y-intercept.
+        This assumption is not true for more advanced cases using other types of least-squares regressions.
+
+        Returns:
+            (float) the estimated slope param
+        """
+        return self._regression_result.params[1]
+
+    @property
+    def intercept(self):
+        """Y-intercept estimate of linear regression.
+
+        For a basic linear regression, params is always a list of two values - the slope and the Y-intercept.
+        This assumption is not true for more advanced cases using other types of least-squares regressions.
+
+        Returns:
+            (float) the estimated Y-intercept param
+        """
+        return self._regression_result.params[0]
 
 
 class AWSForecast(Forecast):
@@ -518,3 +558,10 @@ class OCPAllForecast(Forecast):
 
     provider = Provider.OCP_ALL
     provider_map_class = OCPAllProviderMap
+
+
+class GCPForecast(Forecast):
+    """GCP forecasting class."""
+
+    provider = Provider.PROVIDER_GCP
+    provider_map_class = GCPProviderMap

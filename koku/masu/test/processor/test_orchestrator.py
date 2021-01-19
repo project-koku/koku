@@ -107,7 +107,7 @@ class OrchestratorTest(MasuTestCase):
                 else:
                     self.fail("Unexpected provider")
 
-        if len(orchestrator._polling_accounts) != 2:
+        if len(orchestrator._polling_accounts) != 3:
             self.fail("Unexpected number of listener test accounts")
 
         for account in orchestrator._polling_accounts:
@@ -119,6 +119,10 @@ class OrchestratorTest(MasuTestCase):
                 elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
                     self.assertEqual(account.get("credentials"), self.azure_credentials)
                     self.assertEqual(account.get("data_source"), self.azure_data_source)
+                    self.assertEqual(account.get("customer_name"), self.schema)
+                elif account.get("provider_type") in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+                    self.assertEqual(account.get("credentials"), self.gcp_credentials)
+                    self.assertEqual(account.get("data_source"), self.gcp_data_source)
                     self.assertEqual(account.get("customer_name"), self.schema)
                 else:
                     self.fail("Unexpected provider")

@@ -331,5 +331,11 @@ class SourcesViewTests(IamTestCase):
         mock_user = Mock(admin=False, access=permissions)
         request = Mock(user=mock_user)
         excluded = SourcesViewSet.get_excludes(request)
-        expected = [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL, Provider.PROVIDER_OCP]
+        expected = [
+            Provider.PROVIDER_AZURE,
+            Provider.PROVIDER_AZURE_LOCAL,
+            Provider.PROVIDER_OCP,
+            Provider.PROVIDER_GCP,
+            Provider.PROVIDER_GCP_LOCAL,
+        ]
         self.assertEqual(excluded, expected)

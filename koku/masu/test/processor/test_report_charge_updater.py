@@ -21,6 +21,7 @@ from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdat
 from masu.processor.azure.azure_cost_model_cost_updater import AzureCostModelCostUpdater
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
 from masu.processor.cost_model_cost_updater import CostModelCostUpdaterError
+from masu.processor.gcp.gcp_cost_model_cost_updater import GCPCostModelCostUpdater
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.test import MasuTestCase
 
@@ -49,6 +50,14 @@ class CostModelCostUpdaterTest(MasuTestCase):
         """Test that AWS charge updating works as expected."""
         updater = CostModelCostUpdater(self.schema, self.aws_provider_uuid)
         self.assertIsInstance(updater._updater, AWSCostModelCostUpdater)
+        updater.update_cost_model_costs()
+        mock_update.assert_called()
+
+    @patch("masu.processor.cost_model_cost_updater.GCPCostModelCostUpdater.update_summary_cost_model_costs")
+    def test_gcp_route(self, mock_update):
+        """Test that AWS charge updating works as expected."""
+        updater = CostModelCostUpdater(self.schema, self.gcp_provider_uuid)
+        self.assertIsInstance(updater._updater, GCPCostModelCostUpdater)
         updater.update_cost_model_costs()
         mock_update.assert_called()
 
