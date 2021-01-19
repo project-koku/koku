@@ -43,6 +43,7 @@ from api.views import GCPForecastCostView
 from api.views import GCPProjectsView
 from api.views import GCPTagView
 from api.views import metrics
+from api.views import NavigationView
 from api.views import OCPAllCostForecastView
 from api.views import OCPAllCostView
 from api.views import OCPAllInstanceTypeView
@@ -300,6 +301,7 @@ urlpatterns = [
     path("settings", RedirectView.as_view(pattern_name="settings"), name="settings-redirect"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
+    path("navigation/", NavigationView.as_view(), name="navigation"),
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
     path("resource-types/gcp-accounts/", GCPAccountView.as_view(), name="gcp-accounts"),
     path("resource-types/gcp-projects/", GCPProjectsView.as_view(), name="gcp-projects"),

@@ -26,6 +26,7 @@ from api.forecast.views import OCPAWSCostForecastView
 from api.forecast.views import OCPAzureCostForecastView
 from api.forecast.views import OCPCostForecastView
 from api.metrics.views import metrics
+from api.navigation.view import NavigationView
 from api.openapi.view import openapi
 from api.organizations.aws.view import AWSOrgView
 from api.report.all.openshift.view import OCPAllCostView
