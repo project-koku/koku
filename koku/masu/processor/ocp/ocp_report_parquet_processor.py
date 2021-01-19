@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Processor for OCP Parquet files."""
+import datetime
+
 import ciso8601
 import pytz
 from tenant_schemas.utils import schema_context
@@ -72,6 +74,8 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
 
         report_period_start = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
         report_period_end = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
+        # Make end date first of next month
+        report_period_end = report_period_end + datetime.timedelta(days=1)
 
         provider = self._get_provider()
 
