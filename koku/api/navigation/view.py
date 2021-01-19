@@ -18,12 +18,13 @@ import logging
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
+from rest_framework import status
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.pagination import ListPaginator
-from api.navigation.serializers import NavigationSerializer
 from api.query_handler import WILDCARD
 
 LOGGER = logging.getLogger(__name__)
@@ -84,26 +85,41 @@ class NavigationView(APIView):
     """API GET view for Navigation API."""
 
     permission_classes = [AllowAny]
-    serializer = NavigationSerializer
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def get(self, request, **kwargs):
+        query_params = request.query_params
         user_access = request.user.access
         user_org_admin = request.user.admin
 
         source_types = [
-            {"type": "AWS", "access_class": AWSNavigationAccess},
-            {"type": "OCP", "access_class": OCPNavigationAccess},
-            {"type": "GCP", "access_class": GCPNavigationAccess},
+            {"type": "aws", "access_class": AWSNavigationAccess},
+            {"type": "ocp", "access_class": OCPNavigationAccess},
+            {"type": "gcp", "access_class": GCPNavigationAccess},
         ]
+
+        source_type = query_params.get("source_type")
+        if source_type:
+
+            source_accessor = next((item for item in source_types if item.get("type") == source_type.lower()), False)
+            if source_accessor:
+                access_class = source_accessor.get("access_class")
+                if user_org_admin:
+                    access_granted = True
+                else:
+                    access_granted = access_class(user_access).access
+                return Response({"data": access_granted})
+            else:
+                return Response({f"Unknown source type: {source_type}"}, status=status.HTTP_400_BAD_REQUEST)
+
         data = []
         for source_type in source_types:
-            user_access = False
+            access_granted = False
             if user_org_admin:
-                user_access = True
+                access_granted = True
             else:
-                user_access = source_type.get("access_class")(user_access)
-            data.append({source_type.get("type"): user_access})
+                access_granted = source_type.get("access_class")(user_access).access
+            data.append({source_type.get("type"): access_granted})
 
         paginator = ListPaginator(data, request)
 
