@@ -1,32 +1,4 @@
 CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsafe}} AS (
-    WITH cte_array_agg_keys AS (
-        SELECT array_agg(key) as key_array
-        FROM reporting_ocpenabledtagkeys
-    ),
-    cte_filtered_volume_labels AS (
-        SELECT id,
-            jsonb_object_agg(key,value) as volume_labels
-        FROM (
-            SELECT lid.id,
-                -- persistentvolumeclaim_labels values will win in
-                -- the volume label merge
-                lid.persistentvolume_labels || lid.persistentvolumeclaim_labels as volume_labels,
-                aak.key_array
-            FROM reporting_ocpstoragelineitem_daily lid
-            JOIN cte_array_agg_keys aak
-                ON 1=1
-            WHERE lid.usage_start >= {{start_date}}
-                AND lid.usage_start <= {{end_date}}
-                AND lid.cluster_id = {{cluster_id}}
-                AND (
-                    lid.persistentvolume_labels ?| aak.key_array
-                    OR lid.persistentvolumeclaim_labels ?| aak.key_array
-                )
-        ) AS lid,
-        jsonb_each_text(lid.volume_labels) AS labels
-        WHERE key = ANY (key_array)
-        GROUP BY id
-    )
     SELECT uuid_generate_v4() as uuid,
         li.report_period_id,
         li.cluster_id,
@@ -38,7 +10,7 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsa
         li.persistentvolumeclaim,
         li.persistentvolume,
         li.storageclass,
-        coalesce(fvl.volume_labels, '{}'::jsonb) as volume_labels,
+        li.persistentvolume_labels || li.persistentvolumeclaim_labels as volume_labels,
         max(li.persistentvolumeclaim_capacity_bytes) * POWER(2, -30) as persistentvolumeclaim_capacity_gigabyte,
         sum(li.persistentvolumeclaim_capacity_byte_seconds) /
             86400 *
@@ -54,8 +26,6 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsa
             * POWER(2, -30) as persistentvolumeclaim_usage_gigabyte_months,
         ab.provider_id as source_uuid
     FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily AS li
-    LEFT JOIN cte_filtered_volume_labels AS fvl
-        ON li.id = fvl.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
         ON li.cluster_id = ab.cluster_id
     WHERE usage_start >= {{start_date}}
@@ -68,7 +38,7 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsa
         li.usage_end,
         li.namespace,
         li.node,
-        fvl.volume_labels,
+        li.persistentvolume_labels || li.persistentvolumeclaim_labels,
         li.persistentvolume,
         li.persistentvolumeclaim,
         li.storageclass,
