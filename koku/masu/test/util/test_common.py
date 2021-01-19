@@ -282,6 +282,14 @@ class CommonUtilTests(MasuTestCase):
             # Current month, has not been summarized before
             self.assertTrue(common_utils.determine_if_full_summary_update_needed(current_month_bill))
 
+    def test_split_alphanumeric_string(self):
+        """Test the alpha-numeric split function."""
+        s = "4 GiB"
+
+        expected = ["4 ", "GiB"]
+        result = list(common_utils.split_alphanumeric_string(s))
+        self.assertEqual(result, expected)
+
 
 class NamedTemporaryGZipTests(TestCase):
     """Tests for NamedTemporaryGZip."""
