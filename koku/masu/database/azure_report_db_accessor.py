@@ -224,7 +224,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             return summary_item_query
 
     def populate_ocp_on_azure_cost_daily_summary(self, start_date, end_date, cluster_id, bill_ids, markup_value):
-        """Populate the daily cost aggregated summary for OCP on AWS.
+        """Populate the daily cost aggregated summary for OCP on Azure.
 
         Args:
             start_date (datetime.date) The date to start populating the table.
@@ -261,6 +261,27 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         agg_sql_params = {"schema": self.schema}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+
+    def populate_ocp_on_azure_cost_daily_summary_presto(
+        self, start_date, end_date, openshift_provider_uuid, azure_provider_uuid, cluster_id, bill_id, markup_value
+    ):
+        """Populate the daily cost aggregated summary for OCP on Azure."""
+        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpazurecostlineitem_daily_summary.sql")
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "uuid": str(openshift_provider_uuid).replace("-", "_"),
+            "schema": self.schema,
+            "start_date": start_date,
+            "end_date": end_date,
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
+            "azure_source_uuid": azure_provider_uuid,
+            "ocp_source_uuid": openshift_provider_uuid,
+            "cluster_id": cluster_id,
+            "bill_id": bill_id,
+            "markup": markup_value,
+        }
+        self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 
     def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
         """Populate the enabled tag key table.
