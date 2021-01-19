@@ -50,6 +50,10 @@ class AWSCostForecastParamSerializer(ForecastParamSerializer):
     """AWS Cost Forecast Serializer."""
 
 
+class GCPCostForecastParamSerializer(ForecastParamSerializer):
+    """GCP Cost Forecast Serializer."""
+
+
 class AzureCostForecastParamSerializer(ForecastParamSerializer):
     """Azure Cost Forecast Serializer."""
 

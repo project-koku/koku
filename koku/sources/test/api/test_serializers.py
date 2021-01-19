@@ -27,8 +27,10 @@ from api.iam import models as iam_models
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
+from api.provider.provider_builder import ProviderBuilder
 from api.provider.test import PROVIDERS
 from providers.provider_access import ProviderAccessor
+from providers.provider_errors import SkipStatusPush
 from sources.api import get_account_from_header
 from sources.api import HEADER_X_RH_IDENTITY
 from sources.api.serializers import AdminSourcesSerializer
@@ -529,3 +531,25 @@ class SourcesSerializerTests(IamTestCase):
                     self.assertEqual(new_billing, test.get("expected"))
                 except Exception as error:
                     self.fail(str(error))
+
+    @patch("api.provider.serializers.ProviderSerializer.get_request_info")
+    @patch("sources.api.serializers.get_auth_header", return_value=Config.SOURCES_FAKE_HEADER)
+    def test_gcp_admin_add_table_not_ready(self, mock_header, mock_request_info, _):
+        """Test a GCP Admin Source add where the billing table is not ready."""
+        mock_request_info.return_value = self.User, self.Customer
+
+        serializer = AdminSourcesSerializer(context=self.request_context)
+        source = {
+            "source_id": 10,
+            "name": "ProviderGCP",
+            "source_type": "GCP",
+            "authentication": {"credentials": {"project_id": "test-project"}},
+            "billing_source": {"data_source": {"dataset": "first-dataset"}},
+            "auth_header": Config.SOURCES_FAKE_HEADER,
+            "account_id": "acct10001",
+            "offset": 10,
+        }
+        with self.assertRaises(ValidationError):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                with patch.object(ProviderBuilder, "create_provider_from_source", side_effect=SkipStatusPush):
+                    _ = serializer.create(source)

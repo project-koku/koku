@@ -134,6 +134,30 @@ class CommonUtilTests(MasuTestCase):
             self.assertLessEqual(day, end_date.date())
         self.assertEqual(day, end_date.date())
 
+    def test_date_range_pair_date_args(self):
+        """Test that start and end dates are returned by this generator with date args passed instead of str."""
+        start_date = date(2020, 1, 1)
+        end_date = date(2020, 2, 29)
+        step = 3
+
+        date_generator = common_utils.date_range_pair(start_date, end_date, step=step)
+
+        start_date = datetime(start_date.year, start_date.month, start_date.day)
+        end_date = datetime(end_date.year, end_date.month, end_date.day)
+
+        self.assertIsInstance(date_generator, types.GeneratorType)
+
+        first_start, first_end = next(date_generator)
+        self.assertEqual(first_start, start_date.date())
+        self.assertEqual(first_end, start_date.date() + timedelta(days=step))
+
+        for start, end in date_generator:
+            self.assertIsInstance(start, date)
+            self.assertIsInstance(end, date)
+            self.assertGreater(start, start_date.date())
+            self.assertLessEqual(end, end_date.date())
+        self.assertEqual(end, end_date.date())
+
     def test_date_range_pair(self):
         """Test that start and end dates are returned by this generator."""
         start_date = "2020-01-01"
@@ -257,6 +281,14 @@ class CommonUtilTests(MasuTestCase):
 
             # Current month, has not been summarized before
             self.assertTrue(common_utils.determine_if_full_summary_update_needed(current_month_bill))
+
+    def test_split_alphanumeric_string(self):
+        """Test the alpha-numeric split function."""
+        s = "4 GiB"
+
+        expected = ["4 ", "GiB"]
+        result = list(common_utils.split_alphanumeric_string(s))
+        self.assertEqual(result, expected)
 
 
 class NamedTemporaryGZipTests(TestCase):

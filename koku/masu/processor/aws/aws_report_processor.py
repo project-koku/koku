@@ -28,6 +28,7 @@ from django.db import transaction
 from masu.config import Config
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
+from masu.util.common import split_alphanumeric_string
 from reporting.provider.aws.models import AWSCostEntry
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItem
@@ -222,6 +223,30 @@ class AWSReportProcessor(ReportProcessorBase):
 
         self.processed_report.remove_processed_rows()
 
+    def _process_memory_value(self, data):
+        """Parse out value and unit from memory strings."""
+        if "memory" in data and data["memory"] is not None:
+            unit = None
+            try:
+                memory = float(data["memory"])
+            except ValueError:
+                memory = None
+                # Memory can come as a single number or a number with a unit
+                # e.g. "1", "1GB", "1 Gb" so it gets special cased.
+                memory_list = list(split_alphanumeric_string(data["memory"]))
+                if memory_list:
+                    memory = memory_list[0]
+                    if len(memory_list) > 1:
+                        unit = memory_list[1]
+            try:
+                memory = float(memory)
+            except (ValueError, TypeError):
+                memory = None
+                unit = None
+            data["memory"] = memory
+            data["memory_unit"] = unit
+        return data
+
     def _get_data_for_table(self, row, table_name):
         """Extract the data from a row for a specific table.
 
@@ -233,18 +258,6 @@ class AWSReportProcessor(ReportProcessorBase):
             (dict): The data from the row keyed on the DB table's column names
 
         """
-        # Memory can come as a single number or a number with a unit
-        # e.g. "1" vs. "1 Gb" so it gets special cased.
-        if "product/memory" in row and row["product/memory"] is not None:
-            memory_list = row["product/memory"].split(" ")
-            if len(memory_list) > 1:
-                memory, unit = row["product/memory"].split(" ")
-            else:
-                memory = memory_list[0]
-                unit = None
-            row["product/memory"] = memory
-            row["product/memory_unit"] = unit
-
         column_map = REPORT_COLUMN_MAP[table_name]
 
         return {column_map[key]: value for key, value in row.items() if key in column_map}
@@ -436,6 +449,7 @@ class AWSReportProcessor(ReportProcessorBase):
             return self.existing_product_map[key]
 
         data = self._get_data_for_table(row, table_name._meta.db_table)
+        data = self._process_memory_value(data)
         value_set = set(data.values())
         if value_set == {""}:
             return
