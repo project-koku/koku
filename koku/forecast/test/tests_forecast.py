@@ -172,14 +172,12 @@ class AWSForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            # the test data needs to include some jitter to avoid
-            # division-by-zero in the underlying dot-product maths.
             expected.append(
                 {
                     "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
-                    "total_cost": 5 + random.random(),
-                    "infrastructure_cost": 3 + random.random(),
-                    "supplementary_cost": 2 + random.random(),
+                    "total_cost": 5 + (0.01 * n),
+                    "infrastructure_cost": 3 + (0.01 * n),
+                    "supplementary_cost": 2 + (0.01 * n),
                 }
             )
         mock_qset = MockQuerySet(expected)
@@ -199,19 +197,21 @@ class AWSForecastTest(IamTestCase):
 
         for result in results:
             for val in result.get("values", []):
-                self.assertIsInstance(val.get("date"), date)
+                with self.subTest(values=val):
+                    self.assertIsInstance(val.get("date"), date)
 
-                for item, cost in [
-                    (val.get("cost"), 5),
-                    (val.get("infrastructure"), 3),
-                    (val.get("supplementary"), 2),
-                ]:
-                    self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=2.2)
-                    for pval in item.get("pvalues").get("value"):
-                        self.assertGreaterEqual(float(pval), 0)
+                    for item, cost, delta in [
+                        (val.get("cost"), 5, 1),
+                        (val.get("infrastructure"), 3, 1),
+                        (val.get("supplementary"), 2, 1),
+                    ]:
+                        with self.subTest(cost=cost, delta=delta, item=item):
+                            self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=delta)
+                            self.assertGreater(float(item.get("rsquared").get("value")), 0)
+                            for pval in item.get("pvalues").get("value"):
+                                self.assertGreaterEqual(float(pval), 0)
 
     def test_predict_increasing(self):
         """Test that predict() returns expected values for increasing costs."""
@@ -431,14 +431,12 @@ class AzureForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            # the test data needs to include some jitter to avoid
-            # division-by-zero in the underlying dot-product maths.
             expected.append(
                 {
                     "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
-                    "total_cost": 5 + random.random(),
-                    "infrastructure_cost": 3 + random.random(),
-                    "supplementary_cost": 2 + random.random(),
+                    "total_cost": 5 + (0.01 * n),
+                    "infrastructure_cost": 3 + (0.01 * n),
+                    "supplementary_cost": 2 + (0.01 * n),
                 }
             )
         mock_qset = MockQuerySet(expected)
@@ -458,19 +456,21 @@ class AzureForecastTest(IamTestCase):
 
         for result in results:
             for val in result.get("values", []):
-                self.assertIsInstance(val.get("date"), date)
+                with self.subTest(values=val):
+                    self.assertIsInstance(val.get("date"), date)
 
-                for item, cost in [
-                    (val.get("cost"), 5),
-                    (val.get("infrastructure"), 3),
-                    (val.get("supplementary"), 2),
-                ]:
-                    self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=2.2)
-                    for pval in item.get("pvalues").get("value"):
-                        self.assertGreaterEqual(float(pval), 0)
+                    for item, cost, delta in [
+                        (val.get("cost"), 5, 1),
+                        (val.get("infrastructure"), 3, 1),
+                        (val.get("supplementary"), 2, 1),
+                    ]:
+                        with self.subTest(cost=cost, delta=delta, item=item):
+                            self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=delta)
+                            self.assertGreater(float(item.get("rsquared").get("value")), 0)
+                            for pval in item.get("pvalues").get("value"):
+                                self.assertGreaterEqual(float(pval), 0)
 
 
 class GCPForecastTest(IamTestCase):
@@ -482,14 +482,12 @@ class GCPForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            # the test data needs to include some jitter to avoid
-            # division-by-zero in the underlying dot-product maths.
             expected.append(
                 {
                     "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
-                    "total_cost": 5 + random.random(),
-                    "infrastructure_cost": 3 + random.random(),
-                    "supplementary_cost": 2 + random.random(),
+                    "total_cost": 5 + (0.01 * n),
+                    "infrastructure_cost": 3 + (0.01 * n),
+                    "supplementary_cost": 2 + (0.01 * n),
                 }
             )
         mock_qset = MockQuerySet(expected)
@@ -509,19 +507,21 @@ class GCPForecastTest(IamTestCase):
 
         for result in results:
             for val in result.get("values", []):
-                self.assertIsInstance(val.get("date"), date)
+                with self.subTest(values=val):
+                    self.assertIsInstance(val.get("date"), date)
 
-                for item, cost in [
-                    (val.get("cost"), 5),
-                    (val.get("infrastructure"), 3),
-                    (val.get("supplementary"), 2),
-                ]:
-                    self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=2.2)
-                    for pval in item.get("pvalues").get("value"):
-                        self.assertGreaterEqual(float(pval), 0)
+                    for item, cost, delta in [
+                        (val.get("cost"), 5, 1),
+                        (val.get("infrastructure"), 3, 1),
+                        (val.get("supplementary"), 2, 1),
+                    ]:
+                        with self.subTest(cost=cost, delta=delta, item=item):
+                            self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=delta)
+                            self.assertGreater(float(item.get("rsquared").get("value")), 0)
+                            for pval in item.get("pvalues").get("value"):
+                                self.assertGreaterEqual(float(pval), 0)
 
     def test_cost_summary_table(self):
         """Test that we select a valid table or view."""
@@ -560,14 +560,12 @@ class OCPForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            # the test data needs to include some jitter to avoid
-            # division-by-zero in the underlying dot-product maths.
             expected.append(
                 {
                     "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
-                    "total_cost": 5 + random.random(),
-                    "infrastructure_cost": 3 + random.random(),
-                    "supplementary_cost": 2 + random.random(),
+                    "total_cost": 5 + (0.01 * n),
+                    "infrastructure_cost": 3 + (0.01 * n),
+                    "supplementary_cost": 2 + (0.01 * n),
                 }
             )
         mock_qset = MockQuerySet(expected)
@@ -587,19 +585,21 @@ class OCPForecastTest(IamTestCase):
 
         for result in results:
             for val in result.get("values", []):
-                self.assertIsInstance(val.get("date"), date)
+                with self.subTest(values=val):
+                    self.assertIsInstance(val.get("date"), date)
 
-                for item, cost in [
-                    (val.get("cost"), 5),
-                    (val.get("infrastructure"), 3),
-                    (val.get("supplementary"), 2),
-                ]:
-                    self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=2.2)
-                    for pval in item.get("pvalues").get("value"):
-                        self.assertGreaterEqual(float(pval), 0)
+                    for item, cost, delta in [
+                        (val.get("cost"), 5, 1),
+                        (val.get("infrastructure"), 3, 1),
+                        (val.get("supplementary"), 2, 1),
+                    ]:
+                        with self.subTest(cost=cost, delta=delta, item=item):
+                            self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=delta)
+                            self.assertGreater(float(item.get("rsquared").get("value")), 0)
+                            for pval in item.get("pvalues").get("value"):
+                                self.assertGreaterEqual(float(pval), 0)
 
     def test_cost_summary_table(self):
         """Test that we select a valid table or view."""
@@ -643,14 +643,12 @@ class OCPAllForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            # the test data needs to include some jitter to avoid
-            # division-by-zero in the underlying dot-product maths.
             expected.append(
                 {
                     "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
-                    "total_cost": 5 + random.random(),
-                    "infrastructure_cost": 3 + random.random(),
-                    "supplementary_cost": 2 + random.random(),
+                    "total_cost": 5 + (0.01 * n),
+                    "infrastructure_cost": 3 + (0.01 * n),
+                    "supplementary_cost": 2 + (0.01 * n),
                 }
             )
         mock_qset = MockQuerySet(expected)
@@ -670,19 +668,21 @@ class OCPAllForecastTest(IamTestCase):
 
         for result in results:
             for val in result.get("values", []):
-                self.assertIsInstance(val.get("date"), date)
+                with self.subTest(values=val):
+                    self.assertIsInstance(val.get("date"), date)
 
-                for item, cost in [
-                    (val.get("cost"), 5),
-                    (val.get("infrastructure"), 3),
-                    (val.get("supplementary"), 2),
-                ]:
-                    self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=2.2)
-                    for pval in item.get("pvalues").get("value"):
-                        self.assertGreaterEqual(float(pval), 0)
+                    for item, cost, delta in [
+                        (val.get("cost"), 5, 1),
+                        (val.get("infrastructure"), 3, 1),
+                        (val.get("supplementary"), 2, 1),
+                    ]:
+                        with self.subTest(cost=cost, delta=delta, item=item):
+                            self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=delta)
+                            self.assertGreater(float(item.get("rsquared").get("value")), 0)
+                            for pval in item.get("pvalues").get("value"):
+                                self.assertGreaterEqual(float(pval), 0)
 
 
 class OCPAWSForecastTest(IamTestCase):
@@ -694,14 +694,12 @@ class OCPAWSForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            # the test data needs to include some jitter to avoid
-            # division-by-zero in the underlying dot-product maths.
             expected.append(
                 {
                     "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
-                    "total_cost": 5 + random.random(),
-                    "infrastructure_cost": 3 + random.random(),
-                    "supplementary_cost": 2 + random.random(),
+                    "total_cost": 5 + (0.01 * n),
+                    "infrastructure_cost": 3 + (0.01 * n),
+                    "supplementary_cost": 2 + (0.01 * n),
                 }
             )
         mock_qset = MockQuerySet(expected)
@@ -721,19 +719,21 @@ class OCPAWSForecastTest(IamTestCase):
 
         for result in results:
             for val in result.get("values", []):
-                self.assertIsInstance(val.get("date"), date)
+                with self.subTest(values=val):
+                    self.assertIsInstance(val.get("date"), date)
 
-                for item, cost in [
-                    (val.get("cost"), 5),
-                    (val.get("infrastructure"), 3),
-                    (val.get("supplementary"), 2),
-                ]:
-                    self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=2.2)
-                    for pval in item.get("pvalues").get("value"):
-                        self.assertGreaterEqual(float(pval), 0)
+                    for item, cost, delta in [
+                        (val.get("cost"), 5, 1),
+                        (val.get("infrastructure"), 3, 1),
+                        (val.get("supplementary"), 2, 1),
+                    ]:
+                        with self.subTest(cost=cost, delta=delta, item=item):
+                            self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=delta)
+                            self.assertGreater(float(item.get("rsquared").get("value")), 0)
+                            for pval in item.get("pvalues").get("value"):
+                                self.assertGreaterEqual(float(pval), 0)
 
 
 class OCPAzureForecastTest(IamTestCase):
@@ -745,14 +745,12 @@ class OCPAzureForecastTest(IamTestCase):
 
         expected = []
         for n in range(0, 10):
-            # the test data needs to include some jitter to avoid
-            # division-by-zero in the underlying dot-product maths.
             expected.append(
                 {
                     "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
-                    "total_cost": 5 + random.random(),
-                    "infrastructure_cost": 3 + random.random(),
-                    "supplementary_cost": 2 + random.random(),
+                    "total_cost": 5 + (0.01 * n),
+                    "infrastructure_cost": 3 + (0.01 * n),
+                    "supplementary_cost": 2 + (0.01 * n),
                 }
             )
         mock_qset = MockQuerySet(expected)
@@ -773,19 +771,21 @@ class OCPAzureForecastTest(IamTestCase):
 
         for result in results:
             for val in result.get("values", []):
-                self.assertIsInstance(val.get("date"), date)
+                with self.subTest(values=val):
+                    self.assertIsInstance(val.get("date"), date)
 
-                for item, cost in [
-                    (val.get("cost"), 5),
-                    (val.get("infrastructure"), 3),
-                    (val.get("supplementary"), 2),
-                ]:
-                    self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=2.2)
-                    self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=2.2)
-                    for pval in item.get("pvalues").get("value"):
-                        self.assertGreaterEqual(float(pval), 0)
+                    for item, cost, delta in [
+                        (val.get("cost"), 5, 1),
+                        (val.get("infrastructure"), 3, 1),
+                        (val.get("supplementary"), 2, 1),
+                    ]:
+                        with self.subTest(cost=cost, delta=delta, item=item):
+                            self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=delta)
+                            self.assertGreater(float(item.get("rsquared").get("value")), 0)
+                            for pval in item.get("pvalues").get("value"):
+                                self.assertGreaterEqual(float(pval), 0)
 
 
 class LinearForecastResultTest(IamTestCase):
