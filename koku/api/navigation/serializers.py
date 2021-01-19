@@ -15,7 +15,10 @@
 #
 """Serializer for Navigation."""
 from rest_framework import serializers
+
+from api.common import error_obj
 from api.provider.models import Provider
+from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
 from api.report.serializers import handle_invalid_fields
 
 
@@ -35,12 +38,12 @@ class NavigationSerializer(serializers.Serializer):
             (ValidationError): if field inputs are invalid
 
         """
-        import pdb; pdb.set_trace()
-        source_type = data.get("soure_type")
-        if source_type:
-            validate_source_type(self, data)
-        return data
+        handle_invalid_fields(self, data)
 
+        source_type = data.get("source_type")
+        if source_type:
+            self.validate_source_type(self, data)
+        return data
 
     def validate_source_type(self, source_type):
         """Validate credentials field."""

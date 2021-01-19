@@ -15,21 +15,21 @@
 #
 """View for Navigation."""
 import logging
+
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
+from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
-from api.navigation.serializers import NavigationSerializer
 
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.pagination import ListPaginator
-from api.query_params import get_tenant
-from rest_framework.permissions import AllowAny
+from api.navigation.serializers import NavigationSerializer
 from api.query_handler import WILDCARD
 
 LOGGER = logging.getLogger(__name__)
 
 
-class NavigationAccess():
+class NavigationAccess:
     def check_access(self, access_list):
         if access_list:
             if WILDCARD in access_list:
@@ -39,13 +39,13 @@ class NavigationAccess():
                     return True
         return False
 
+
 class AWSNavigationAccess(NavigationAccess):
     def __init__(self, access):
         self.account_access = access.get("aws.account")
 
     @property
     def access(self):
-        import pdb; pdb.set_trace()
         if self.check_access(self.account_access):
             return True
         return False
@@ -56,10 +56,14 @@ class OCPNavigationAccess(NavigationAccess):
         self.cluster_access = access.get("openshift.cluster")
         self.node_access = access.get("openshift.node")
         self.project_access = access.get("openshift.project")
-    
+
     @property
     def access(self):
-        if self.check_access(self.cluster_access) or self.check_access(self.node_access) or self.check_access(self.project_access):
+        if (
+            self.check_access(self.cluster_access)
+            or self.check_access(self.node_access)
+            or self.check_access(self.project_access)
+        ):
             return True
         return False
 
@@ -84,13 +88,14 @@ class NavigationView(APIView):
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def get(self, request, **kwargs):
-        tenant = get_tenant(request.user)
         user_access = request.user.access
         user_org_admin = request.user.admin
 
-        source_types = [{"type": "AWS", "access_class": AWSNavigationAccess},
-                        {"type": "OCP", "access_class": OCPNavigationAccess},
-                        {"type": "GCP", "access_class": GCPNavigationAccess}]
+        source_types = [
+            {"type": "AWS", "access_class": AWSNavigationAccess},
+            {"type": "OCP", "access_class": OCPNavigationAccess},
+            {"type": "GCP", "access_class": GCPNavigationAccess},
+        ]
         data = []
         for source_type in source_types:
             user_access = False
