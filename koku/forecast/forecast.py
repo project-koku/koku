@@ -38,6 +38,7 @@ from api.report.aws.openshift.provider_map import OCPAWSProviderMap
 from api.report.aws.provider_map import AWSProviderMap
 from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.report.azure.provider_map import AzureProviderMap
+from api.report.gcp.provider_map import GCPProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
 from reporting.provider.aws.models import AWSOrganizationalUnit
@@ -61,8 +62,6 @@ class Forecast:
 
     REPORT_TYPE = "costs"
 
-    dh = DateHelper()
-
     def __init__(self, query_params):  # noqa: C901
         """Class Constructor.
 
@@ -72,6 +71,7 @@ class Forecast:
             - filters (QueryFilterCollection)
             - query_range (tuple)
         """
+        self.dh = DateHelper()
         self.params = query_params
 
         # select appropriate model based on access
@@ -346,7 +346,7 @@ class Forecast:
         x = sm.add_constant(x)
         model = sm.OLS(y, x)
         results = model.fit()
-        return LinearForecastResult(results)
+        return LinearForecastResult(results, exog=x)
 
     def _uniquify_qset(self, qset, field="total_cost"):
         """Take a QuerySet list, sum costs within the same day, and arrange it into a list of tuples.
@@ -394,14 +394,15 @@ class LinearForecastResult:
     Note: this class should be considered read-only
     """
 
-    def __init__(self, regression_result):
+    def __init__(self, regression_result, exog=None):
         """Class constructor.
 
         Args:
             regression_result (RegressionResult) the results of a statsmodels regression
+            exog (array-like) exogenous variables for points to predict
         """
         self._regression_result = regression_result
-        self._std_err, self._conf_lower, self._conf_upper = wls_prediction_std(regression_result)
+        self._std_err, self._conf_lower, self._conf_upper = wls_prediction_std(regression_result, exog=exog)
 
         try:
             LOG.debug(regression_result.summary())
@@ -557,3 +558,10 @@ class OCPAllForecast(Forecast):
 
     provider = Provider.OCP_ALL
     provider_map_class = OCPAllProviderMap
+
+
+class GCPForecast(Forecast):
+    """GCP forecasting class."""
+
+    provider = Provider.PROVIDER_GCP
+    provider_map_class = GCPProviderMap
