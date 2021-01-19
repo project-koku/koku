@@ -343,6 +343,31 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
         self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
+    def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, report_period_ids):
+        """Populate the enabled tag key table.
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+            bill_ids (list) A list of bill IDs.
+        Returns
+            (None)
+        """
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        summary_sql = pkgutil.get_data(
+            "masu.database", "sql/reporting_ocpusagelineitem_daily_summary_update_enabled_tags.sql"
+        )
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_ids": report_period_ids,
+            "schema": self.schema,
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        self._execute_raw_sql_query(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+        )
+
     def get_ocp_infrastructure_map(self, start_date, end_date, **kwargs):
         """Get the OCP on infrastructure map.
 
@@ -552,7 +577,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             start_date = start_date.date()
             end_date = end_date.date()
 
-        tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocp_lineitem_daily_summary.sql")
+        tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagelineitem_daily_summary.sql")
         tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
         summary_sql_params = {
             "uuid": str(source).replace("-", "_"),

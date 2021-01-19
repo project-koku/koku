@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the OCPReportParquetProcessor."""
+import datetime
+
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
@@ -54,7 +56,7 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         """Test that a bill is created in the Postgres database."""
         bill_date = DateHelper().next_month_start
         start_date = bill_date
-        end_date = DateHelper().next_month_end
+        end_date = DateHelper().next_month_end + datetime.timedelta(days=1)
         self.processor.create_bill(bill_date.date())
 
         with schema_context(self.schema):
@@ -70,7 +72,7 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         """Test that a bill is created in the Postgres database."""
         bill_date = DateHelper().next_month_start
         start_date = bill_date
-        end_date = DateHelper().next_month_end
+        end_date = DateHelper().next_month_end + datetime.timedelta(days=1)
 
         self.processor.create_bill(str(bill_date.date()))
 

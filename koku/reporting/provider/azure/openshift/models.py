@@ -67,8 +67,6 @@ class OCPAzureCostLineItemDailySummary(models.Model):
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = ArrayField(models.CharField(max_length=253, null=False))
 
-    pod = ArrayField(models.CharField(max_length=253, null=False))
-
     node = models.CharField(max_length=253, null=True)
 
     resource_id = models.CharField(max_length=253, null=True)
@@ -148,8 +146,6 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
-
-    pod = models.CharField(max_length=253, null=True)
 
     node = models.CharField(max_length=253, null=True)
 
