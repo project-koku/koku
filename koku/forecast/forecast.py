@@ -184,10 +184,10 @@ class Forecast:
         pred_x = [i for i in range(X[-1] + 1, X[-1] + 1 + self.forecast_days_required)]
 
         # run the forecast
-        results = self._run_forecast(X, Y)
+        results = self._run_forecast(X, Y, to_predict=pred_x)
 
         result_dict = {}
-        for i, value in enumerate(results.prediction(pred_x)):
+        for i, value in enumerate(results.prediction):
             if i < len(results.confidence_lower):
                 lower = results.confidence_lower[i]
             else:
@@ -325,12 +325,13 @@ class Forecast:
             response.append(dikt)
         return response
 
-    def _run_forecast(self, x, y):
+    def _run_forecast(self, x, y, to_predict=None):
         """Apply the forecast model.
 
         Args:
             x (list) a list of exogenous variables
             y (list) a list of endogenous variables
+            to_predict (list) a list of exogenous variables used in the forecast results
 
         Note:
             both x and y MUST be the same number of elements
@@ -344,9 +345,10 @@ class Forecast:
                 (list) P-values
         """
         x = sm.add_constant(x)
+        to_predict = sm.add_constant(to_predict)
         model = sm.OLS(y, x)
         results = model.fit()
-        return LinearForecastResult(results, exog=x)
+        return LinearForecastResult(results, exog=to_predict)
 
     def _uniquify_qset(self, qset, field="total_cost"):
         """Take a QuerySet list, sum costs within the same day, and arrange it into a list of tuples.
@@ -401,6 +403,7 @@ class LinearForecastResult:
             regression_result (RegressionResult) the results of a statsmodels regression
             exog (array-like) exogenous variables for points to predict
         """
+        self._exog = exog
         self._regression_result = regression_result
         self._std_err, self._conf_lower, self._conf_upper = wls_prediction_std(regression_result, exog=exog)
 
@@ -412,7 +415,8 @@ class LinearForecastResult:
         LOG.debug("Forecast interval lower-bound: %s", self.confidence_lower)
         LOG.debug("Forecast interval upper-bound: %s", self.confidence_upper)
 
-    def prediction(self, to_predict=None):
+    @property
+    def prediction(self):
         """Forecast prediction.
 
         Args:
@@ -424,8 +428,8 @@ class LinearForecastResult:
         # predict() returns the same number of elements as the number of input observations
         prediction = []
         try:
-            if to_predict:
-                prediction = self._regression_result.predict(sm.add_constant(to_predict))
+            if self._exog is not None:
+                prediction = self._regression_result.predict(sm.add_constant(self._exog))
             else:
                 prediction = self._regression_result.predict()
         except ValueError as exc:
