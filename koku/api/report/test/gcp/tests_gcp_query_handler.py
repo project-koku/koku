@@ -40,6 +40,7 @@ from reporting.models import GCPCostSummary
 from reporting.models import GCPCostSummaryByAccount
 from reporting.models import GCPCostSummaryByProject
 from reporting.models import GCPCostSummaryByService
+from reporting.models import GCPTagsSummary
 
 LOG = logging.getLogger(__name__)
 
@@ -1040,3 +1041,17 @@ class GCPReportQueryHandlerTest(IamTestCase):
         for data_item in data:
             month_val = data_item.get("date")
             self.assertEqual(month_val, cmonth_str)
+
+    def test_execute_query_group_by_tag(self):
+        """Test execute_query for current month on monthly breakdown by service."""
+        with tenant_context(self.tenant):
+            tag_object = GCPTagsSummary.objects.first()
+            key = tag_object.key
+            value = tag_object.values[0]
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:{key}]={value}"  # noqa: E501
+        query_params = self.mocked_query_params(url, GCPCostView)
+        handler = GCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get("total"))
