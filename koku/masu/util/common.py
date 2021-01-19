@@ -22,6 +22,7 @@ import json
 import logging
 import re
 from datetime import timedelta
+from itertools import groupby
 from os import remove
 from tempfile import gettempdir
 from uuid import uuid4
@@ -362,3 +363,8 @@ def determine_if_full_summary_update_needed(bill):
         return True
 
     return False
+
+
+def split_alphanumeric_string(s):
+    for k, g in groupby(s, str.isalpha):
+        yield "".join(g)
