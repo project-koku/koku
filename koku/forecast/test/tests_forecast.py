@@ -28,6 +28,7 @@ from statsmodels.tools.sm_exceptions import ValueWarning
 
 from api.forecast.views import AWSCostForecastView
 from api.forecast.views import AzureCostForecastView
+from api.forecast.views import GCPForecastCostView
 from api.forecast.views import OCPAllCostForecastView
 from api.forecast.views import OCPAWSCostForecastView
 from api.forecast.views import OCPAzureCostForecastView
@@ -39,11 +40,15 @@ from api.report.test.tests_queries import assertSameQ
 from api.utils import DateHelper
 from forecast import AWSForecast
 from forecast import AzureForecast
+from forecast import GCPForecast
 from forecast import OCPAllForecast
 from forecast import OCPAWSForecast
 from forecast import OCPAzureForecast
 from forecast import OCPForecast
 from forecast.forecast import LinearForecastResult
+from reporting.provider.gcp.models import GCPCostSummary
+from reporting.provider.gcp.models import GCPCostSummaryByAccount
+from reporting.provider.gcp.models import GCPCostSummaryByProject
 from reporting.provider.ocp.models import OCPCostSummary
 from reporting.provider.ocp.models import OCPCostSummaryByNode
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
@@ -80,51 +85,67 @@ class AWSForecastTest(IamTestCase):
 
     def test_forecast_days_required(self):
         """Test that we accurately select the number of days."""
-        dh = DateHelper()
         params = self.mocked_query_params("?", AWSCostForecastView)
-        with patch("forecast.forecast.Forecast.dh") as mock_dh:
-            mock_dh.today = dh.this_month_start
-            mock_dh.this_month_start = dh.this_month_start
-            mock_dh.this_month_end = dh.this_month_end
-            mock_dh.last_month_start = dh.last_month_start
-            mock_dh.last_month_end = dh.last_month_end
-            forecast = AWSForecast(params)
-            self.assertEqual(forecast.forecast_days_required, dh.this_month_end.day)
 
-        with patch("forecast.forecast.Forecast.dh") as mock_dh:
-            mock_dh.today = datetime(2000, 1, 13, 0, 0, 0, 0)
-            mock_dh.yesterday = datetime(2000, 1, 12, 0, 0, 0, 0)
-            mock_dh.this_month_start = datetime(2000, 1, 1, 0, 0, 0, 0)
-            mock_dh.this_month_end = datetime(2000, 1, 31, 0, 0, 0, 0)
-            mock_dh.last_month_start = datetime(1999, 12, 1, 0, 0, 0, 0)
-            mock_dh.last_month_end = datetime(1999, 12, 31, 0, 0, 0, 0)
+        mock_dh = Mock(spec=DateHelper)
+
+        mock_dh.return_value.today = datetime(2000, 1, 1, 0, 0, 0, 0)
+        mock_dh.return_value.yesterday = datetime(1999, 12, 31, 0, 0, 0, 0)
+        mock_dh.return_value.this_month_start = datetime(2000, 1, 1, 0, 0, 0, 0)
+        mock_dh.return_value.this_month_end = datetime(2000, 1, 31, 0, 0, 0, 0)
+        mock_dh.return_value.last_month_start = datetime(1999, 12, 1, 0, 0, 0, 0)
+        mock_dh.return_value.last_month_end = datetime(1999, 12, 31, 0, 0, 0, 0)
+
+        with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
+            forecast = AWSForecast(params)
+            self.assertEqual(forecast.forecast_days_required, 31)
+
+        mock_dh.return_value.today = datetime(2000, 1, 13, 0, 0, 0, 0)
+        mock_dh.return_value.yesterday = datetime(2000, 1, 12, 0, 0, 0, 0)
+        mock_dh.return_value.this_month_start = datetime(2000, 1, 1, 0, 0, 0, 0)
+        mock_dh.return_value.this_month_end = datetime(2000, 1, 31, 0, 0, 0, 0)
+        mock_dh.return_value.last_month_start = datetime(1999, 12, 1, 0, 0, 0, 0)
+        mock_dh.return_value.last_month_end = datetime(1999, 12, 31, 0, 0, 0, 0)
+
+        with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
             forecast = AWSForecast(params)
             self.assertEqual(forecast.forecast_days_required, 19)
 
-    def test_query_range(self):
+    def test_query_range_under(self):
         """Test that we select the correct range based on day of month."""
-        dh = DateHelper()
         params = self.mocked_query_params("?", AWSCostForecastView)
 
-        with patch("forecast.forecast.Forecast.dh") as mock_dh:
-            mock_dh.today = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 1)
-            mock_dh.yesterday = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 2)
-            mock_dh.this_month_start = dh.this_month_start
-            mock_dh.this_month_end = dh.this_month_end
-            mock_dh.last_month_start = dh.last_month_start
-            mock_dh.last_month_end = dh.last_month_end
-            expected = (dh.last_month_start, mock_dh.yesterday)
+        dh = DateHelper()
+        mock_dh = Mock(spec=DateHelper)
+
+        mock_dh.return_value.today = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 1)
+        mock_dh.return_value.yesterday = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 2)
+        mock_dh.return_value.this_month_start = dh.this_month_start
+        mock_dh.return_value.this_month_end = dh.this_month_end
+        mock_dh.return_value.last_month_start = dh.last_month_start
+        mock_dh.return_value.last_month_end = dh.last_month_end
+
+        with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
+            expected = (dh.last_month_start, dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 2))
             forecast = AWSForecast(params)
             self.assertEqual(forecast.query_range, expected)
 
-        with patch("forecast.forecast.Forecast.dh") as mock_dh:
-            mock_dh.today = dh.this_month_start + timedelta(days=(AWSForecast.MINIMUM))
-            mock_dh.yesterday = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 1)
-            mock_dh.this_month_start = dh.this_month_start
-            mock_dh.this_month_end = dh.this_month_end
-            mock_dh.last_month_start = dh.last_month_start
-            mock_dh.last_month_end = dh.last_month_end
-            expected = (dh.this_month_start, dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 1))
+    def test_query_range_over(self):
+        """Test that we select the correct range based on day of month."""
+        params = self.mocked_query_params("?", AWSCostForecastView)
+
+        dh = DateHelper()
+        mock_dh = Mock(spec=DateHelper)
+
+        mock_dh.return_value.today = dh.this_month_start + timedelta(days=(AWSForecast.MINIMUM + 1))
+        mock_dh.return_value.yesterday = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM)
+        mock_dh.return_value.this_month_start = dh.this_month_start
+        mock_dh.return_value.this_month_end = dh.this_month_end
+        mock_dh.return_value.last_month_start = dh.last_month_start
+        mock_dh.return_value.last_month_end = dh.last_month_end
+
+        with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
+            expected = (dh.this_month_start, dh.this_month_start + timedelta(days=AWSForecast.MINIMUM))
             forecast = AWSForecast(params)
             self.assertEqual(forecast.query_range, expected)
 
@@ -450,6 +471,84 @@ class AzureForecastTest(IamTestCase):
                     self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=2.2)
                     for pval in item.get("pvalues").get("value"):
                         self.assertGreaterEqual(float(pval), 0)
+
+
+class GCPForecastTest(IamTestCase):
+    """Tests the GCPForecast class."""
+
+    def test_predict_flat(self):
+        """Test that predict() returns expected values for flat costs."""
+        dh = DateHelper()
+
+        expected = []
+        for n in range(0, 10):
+            # the test data needs to include some jitter to avoid
+            # division-by-zero in the underlying dot-product maths.
+            expected.append(
+                {
+                    "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
+                    "total_cost": 5 + random.random(),
+                    "infrastructure_cost": 3 + random.random(),
+                    "supplementary_cost": 2 + random.random(),
+                }
+            )
+        mock_qset = MockQuerySet(expected)
+
+        mocked_table = Mock()
+        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+            mock_qset
+        )
+        mocked_table.len = mock_qset.len
+
+        params = self.mocked_query_params("?", AzureCostForecastView)
+        instance = GCPForecast(params)
+
+        instance.cost_summary_table = mocked_table
+
+        results = instance.predict()
+
+        for result in results:
+            for val in result.get("values", []):
+                self.assertIsInstance(val.get("date"), date)
+
+                for item, cost in [
+                    (val.get("cost"), 5),
+                    (val.get("infrastructure"), 3),
+                    (val.get("supplementary"), 2),
+                ]:
+                    self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=2.2)
+                    self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=2.2)
+                    self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=2.2)
+                    self.assertAlmostEqual(float(item.get("rsquared").get("value")), 1, delta=2.2)
+                    for pval in item.get("pvalues").get("value"):
+                        self.assertGreaterEqual(float(pval), 0)
+
+    def test_cost_summary_table(self):
+        """Test that we select a valid table or view."""
+        params = self.mocked_query_params("?", GCPForecastCostView)
+        forecast = GCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, GCPCostSummary)
+
+        params = self.mocked_query_params("?", GCPForecastCostView, access={"gcp.account": {"read": ["1"]}})
+        forecast = GCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, GCPCostSummaryByAccount)
+
+        params = self.mocked_query_params("?", GCPForecastCostView, access={"gcp.project": {"read": ["1"]}})
+        forecast = GCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, GCPCostSummaryByProject)
+
+        params = self.mocked_query_params(
+            "?", GCPForecastCostView, access={"gcp.account": {"read": ["1"]}, "gcp.project": {"read": ["1"]}}
+        )
+        forecast = GCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, GCPCostSummaryByProject)
+
+        params = self.mocked_query_params(
+            "?", GCPForecastCostView, access={"gcp.account": {"read": ["1"]}, "gcp.project": {"read": ["1"]}}
+        )
+
+        forecast = GCPForecast(params)
+        self.assertEqual(forecast.cost_summary_table, GCPCostSummaryByProject)
 
 
 class OCPForecastTest(IamTestCase):

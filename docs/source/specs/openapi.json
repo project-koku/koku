@@ -486,6 +486,51 @@
                 }]
             }
         },
+        "/forecasts/gcp/costs": {
+            "summary": "GCP Cost Forecasts",
+            "get": {
+                "tags":["Forecasts"],
+                "parameters": [{
+                    "$ref": "#/components/parameters/QueryFilter",
+                    "name":"QueryFilter"
+                }],
+                "responses": {
+                    "200": {
+                        "description": "An object describing the cost forecast.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Forecast"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Request Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
         "/forecasts/openshift/costs": {
             "summary": "OpenShift Cost Forecasts",
             "get": {
