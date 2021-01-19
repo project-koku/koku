@@ -143,7 +143,7 @@ class GCPCostEntryLineItemDaily(models.Model):
     cost = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
     currency = models.CharField(max_length=256, null=True, blank=True)
     conversion_rate = models.CharField(max_length=256, null=True, blank=True)
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     usage_unit = models.CharField(max_length=256, null=True, blank=True)
     usage_in_pricing_units = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     usage_pricing_unit = models.CharField(max_length=256, null=True, blank=True)
