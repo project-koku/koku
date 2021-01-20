@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""View for Navigation."""
+"""View for UserAccess."""
 import logging
 
 from django.utils.decorators import method_decorator
@@ -30,7 +30,7 @@ from api.query_handler import WILDCARD
 LOGGER = logging.getLogger(__name__)
 
 
-class NavigationAccess:
+class UserAccess:
     def check_access(self, access_list):
         if access_list:
             if WILDCARD in access_list:
@@ -40,7 +40,7 @@ class NavigationAccess:
         return False
 
 
-class AWSNavigationAccess(NavigationAccess):
+class AWSUserAccess(UserAccess):
     def __init__(self, access):
         self.account_access = access.get("aws.account")
 
@@ -51,7 +51,7 @@ class AWSNavigationAccess(NavigationAccess):
         return False
 
 
-class OCPNavigationAccess(NavigationAccess):
+class OCPUserAccess(UserAccess):
     def __init__(self, access):
         self.cluster_access = access.get("openshift.cluster")
         self.node_access = access.get("openshift.node")
@@ -68,7 +68,7 @@ class OCPNavigationAccess(NavigationAccess):
         return False
 
 
-class AzureNavigationAccess(NavigationAccess):
+class AzureUserAccess(UserAccess):
     def __init__(self, access):
         self.subscription_access = access.get("azure.subscription_guid")
 
@@ -79,7 +79,7 @@ class AzureNavigationAccess(NavigationAccess):
         return False
 
 
-class GCPNavigationAccess(NavigationAccess):
+class GCPUserAccess(UserAccess):
     def __init__(self, access):
         self.account_access = access.get("gcp.account")
         self.project_access = access.get("gcp.project")
@@ -91,7 +91,7 @@ class GCPNavigationAccess(NavigationAccess):
         return False
 
 
-class CostModelNavigationAccess(NavigationAccess):
+class CostModelUserAccess(UserAccess):
     def __init__(self, access):
         self.subscription_access = access.get("cost_model")
 
@@ -102,8 +102,8 @@ class CostModelNavigationAccess(NavigationAccess):
         return False
 
 
-class NavigationView(APIView):
-    """API GET view for Navigation API."""
+class UserAccessView(APIView):
+    """API GET view for User API."""
 
     permission_classes = [AllowAny]
 
@@ -114,11 +114,11 @@ class NavigationView(APIView):
         user_org_admin = request.user.admin
 
         source_types = [
-            {"type": "aws", "access_class": AWSNavigationAccess},
-            {"type": "ocp", "access_class": OCPNavigationAccess},
-            {"type": "gcp", "access_class": GCPNavigationAccess},
-            {"type": "azure", "access_class": AzureNavigationAccess},
-            {"type": "cost_model", "access_class": CostModelNavigationAccess},
+            {"type": "aws", "access_class": AWSUserAccess},
+            {"type": "ocp", "access_class": OCPUserAccess},
+            {"type": "gcp", "access_class": GCPUserAccess},
+            {"type": "azure", "access_class": AzureUserAccess},
+            {"type": "cost_model", "access_class": CostModelUserAccess},
         ]
 
         source_type = query_params.get("type")

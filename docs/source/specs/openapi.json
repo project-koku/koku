@@ -2451,13 +2451,13 @@
                 }
             }
         },
-        "/navigation/": {
+        "/user-access/": {
             "get": {
                 "tags": [
-                    "Navigation"
+                    "UserAccess"
                 ],
                 "summary": "Returns user permission status.",
-                "operationId": "listNavigation",
+                "operationId": "listUserAccess",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryType"
                     }
@@ -2468,7 +2468,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/NavigationListPagination"
+                                    "$ref": "#/components/schemas/UserAccessListPagination"
                                 }
                             }
                         }
@@ -3895,7 +3895,7 @@
             "QueryType": {
                 "name": "type",
                 "in": "query",
-                "description": "String to identify Navigation permission type (i.e. AWS, cost_model).",
+                "description": "String to identify user access permission type (i.e. AWS, cost_model).",
                 "schema": {
                     "type": "string"
                 }
@@ -4554,7 +4554,7 @@
                     }
                 ]
             },
-            "NavigationListPagination": {
+            "UserAccessListPagination": {
                 "allOf": [{
                     "$ref": "#/components/schemas/ListPagination"
                   },
@@ -4567,7 +4567,7 @@
                             "data": {
                                 "type": "array",
                                 "items": {
-                                    "$ref": "#/components/schemas/NavigationTypeOut"
+                                    "$ref": "#/components/schemas/UserAccessTypeOut"
                                 }
                             }
                         }
@@ -4621,7 +4621,7 @@
                     }
                 }
             },
-            "NavigationTypeOut": {
+            "UserAccessTypeOut": {
                 "properties": {
                     "type": {
                         "type": "string"
