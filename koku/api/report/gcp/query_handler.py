@@ -83,8 +83,9 @@ class GCPReportQueryHandler(ReportQueryHandler):
             annotations[q_param] = Concat(db_field, Value(""))
         group_by_fields = self._mapper.provider_map.get("group_by_annotations")
         for group_key in self._get_group_by():
-            for q_param, db_field in group_by_fields[group_key].items():
-                annotations[q_param] = Concat(db_field, Value(""))
+            if group_by_fields.get(group_key):
+                for q_param, db_field in group_by_fields[group_key].items():
+                    annotations[q_param] = Concat(db_field, Value(""))
         return annotations
 
     def _format_query_response(self):
