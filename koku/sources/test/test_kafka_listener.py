@@ -625,14 +625,16 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 json={"data": [{"name": mock_source_name}]},
             )
             m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
-                status_code=200,
-                json={"data": [{"id": resource_id}]},
-            )
-            m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
                 status_code=200,
-                json={"data": [{"id": resource_id}]},
+                json={
+                    "data": [
+                        {
+                            "id": resource_id,
+                            "extra": {"billing_source": {"data_source": {"dataset": "billing_datset"}}},
+                        }
+                    ]
+                },
             )
             m.get(
                 (
@@ -672,7 +674,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         aws_source.save()
         source_type_id = 1
         mock_source_name = "amazon-local"
-        resource_id = 2
+        resource_id = 1
         authentication_id = 3
         with requests_mock.mock() as m:
             m.get(
@@ -691,14 +693,14 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 json={"data": [{"id": resource_id}]},
             )
             m.get(
-                (f"http://www.sources.com/api/v1.0/authentications?" f"[authtype]=arn&[resource_id]={resource_id}"),
+                (f"http://www.sources.com/api/v1.0/authentications?[authtype]=arn&[resource_id]={resource_id}"),
                 status_code=200,
                 json={"data": [{"id": authentication_id}]},
             )
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
                 status_code=200,
-                json={"data": [{"id": 1, "extra":{"foo": "bar"}}]},
+                json={"data": [{"id": resource_id, "extra": {"foo": "bar"}}]},
             )
             m.get(
                 (
@@ -708,6 +710,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 status_code=200,
                 json={"password": authentication},
             )
+
             source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
@@ -919,6 +922,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         application_type = 2
         mock_source_name = "amazon"
         source_type_id = 1
+        resource_id = 3
         source_uid = faker.uuid4()
         test_auth_header = Config.SOURCES_FAKE_HEADER
         ocp_source = Sources(source_id=test_source_id, auth_header=test_auth_header, offset=1)
@@ -943,10 +947,10 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
                 status_code=200,
-                json={"data": [{"id": 1, "extra":{}}]},
+                json={"data": [{"id": resource_id, "extra": {}}]},
             )
             m.get(
-                f"http://www.sources.com/api/v1.0/authentications?[authtype]=arn&[resource_id]=1",
+                f"http://www.sources.com/api/v1.0/authentications?[authtype]=arn&[resource_id]={resource_id}",
                 status_code=200,
                 json={"data": []},
             )
@@ -955,7 +959,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 status_code=200,
                 json={"data": [{"id": application_type}]},
             )
-            m.patch(f"http://www.sources.com/api/v1.0/applications/1", status_code=204)
+            m.patch(f"http://www.sources.com/api/v1.0/applications/{resource_id}", status_code=204)
 
             source_integration.sources_network_info(test_source_id, test_auth_header)
 

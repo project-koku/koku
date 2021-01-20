@@ -25,8 +25,8 @@ from json import dumps as json_dumps
 import requests
 from requests.exceptions import RequestException
 
-from sources.config import Config
 from sources import storage
+from sources.config import Config
 from sources.sources_error_message import SourcesErrorMessage
 
 

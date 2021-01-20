@@ -108,7 +108,7 @@ class SourceDetails:
         self.source_type_name = sources_network.get_source_type_name(self.source_type_id)
         self.source_type = SOURCE_PROVIDER_MAP.get(self.source_type_name)
         self.app_settings = None
-        if self.source_type in (SOURCES_GCP_SOURCE_NAME, SOURCES_GCP_LOCAL_SOURCE_NAME,):
+        if self.source_type_name in (SOURCES_GCP_SOURCE_NAME, SOURCES_GCP_LOCAL_SOURCE_NAME):
             self.app_settings = sources_network.get_application_settings()
 
 
