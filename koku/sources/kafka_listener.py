@@ -106,7 +106,6 @@ class SourceDetails:
         self.source_type_id = int(details.get("source_type_id"))
         self.source_uuid = details.get("uid")
         self.source_type_name = sources_network.get_source_type_name(self.source_type_id)
-        self.endpoint_id = sources_network.get_endpoint_id()
         self.source_type = SOURCE_PROVIDER_MAP.get(self.source_type_name)
         self.app_settings = None
         if self.source_type in (SOURCES_GCP_SOURCE_NAME, SOURCES_GCP_LOCAL_SOURCE_NAME,):
@@ -377,8 +376,6 @@ def cost_mgmt_msg_filter(msg_data):
     if event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
         sources_network = SourcesHTTPClient(auth_header)
 
-        if msg_data.get("resource_type") == "Endpoint":
-            source_id = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
         if msg_data.get("resource_type") == "Application":
             source_id = sources_network.get_source_id_from_applications_id(msg_data.get("resource_id"))
         msg_data["source_id"] = source_id

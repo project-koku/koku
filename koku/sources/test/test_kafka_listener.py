@@ -573,7 +573,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 json={"data": []},
             )
             m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
                 status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
@@ -687,11 +687,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             )
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
-                status_code=200,
-                json={"data": []},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
                 status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
@@ -807,11 +802,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
                 status_code=200,
-                json={"data": []},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
-                status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
             m.get(
@@ -878,11 +868,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             )
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
-                status_code=200,
-                json={"data": []},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
                 status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
@@ -951,7 +936,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 json={"data": [{"name": mock_source_name}]},
             )
             m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
                 status_code=200,
                 json={"data": []},
             )
@@ -1038,8 +1023,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         ):
             with patch.object(SourcesHTTPClient, "get_application_settings", return_value={}):
                 with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="ansible-tower"):
-                    with patch.object(SourcesHTTPClient, "get_endpoint_id", return_value=1):
-                        self.assertIsNone(process_message(test_application_id, msg_data))
+                    self.assertIsNone(process_message(test_application_id, msg_data))
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     @patch("sources.kafka_listener.sources_network_info", returns=None)
@@ -1065,7 +1049,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 "value": {
                     "id": 1,
                     "source_id": 1,
-                    "resource_type": "Endpoint",
+                    "resource_type": "Application",
                     "resource_id": "1",
                     "application_type_id": test_application_id,
                 },
@@ -1077,7 +1061,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 "value": {
                     "id": 1,
                     "source_id": 1,
-                    "resource_type": "Endpoint",
+                    "resource_type": "Application",
                     "resource_id": "1",
                     "application_type_id": test_application_id,
                 },
@@ -1101,7 +1085,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 "value": {
                     "id": 1,
                     "source_id": 1,
-                    "resource_type": "Endpoint",
+                    "resource_type": "Application",
                     "resource_id": "1",
                     "application_type_id": test_application_id,
                 },
@@ -1113,24 +1097,19 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         for test in test_matrix:
             msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
             with patch.object(
-                SourcesHTTPClient, "get_source_id_from_endpoint_id", return_value=test.get("value").get("source_id")
+                SourcesHTTPClient,
+                "get_application_type_is_cost_management",
+                return_value=test.get("expected_cost_mgmt_match"),
             ):
                 with patch.object(
                     SourcesHTTPClient,
-                    "get_application_type_is_cost_management",
+                    "get_source_id_from_applications_id",
                     return_value=test.get("expected_cost_mgmt_match"),
                 ):
-                    with patch.object(
-                        SourcesHTTPClient,
-                        "get_source_id_from_applications_id",
-                        return_value=test.get("expected_cost_mgmt_match"),
-                    ):
-                        with patch.object(
-                            SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}
-                        ):
-                            with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
-                                process_message(test_application_id, msg_data)
-                                test.get("expected_fn")(msg_data, test, mock_save_auth_info)
+                    with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
+                        with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
+                            process_message(test_application_id, msg_data)
+                            test.get("expected_fn")(msg_data, test, mock_save_auth_info)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     @patch("sources.kafka_listener.sources_network_info", returns=None)
@@ -1219,7 +1198,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 "value": {
                     "id": 1,
                     "source_id": 1,
-                    "resource_type": "Endpoint",
+                    "resource_type": "Application",
                     "resource_id": "1",
                     "application_type_id": test_application_id,
                 },
@@ -1243,15 +1222,13 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             test_source.save()
             msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
             with patch.object(
-                SourcesHTTPClient, "get_source_id_from_endpoint_id", return_value=test.get("value").get("source_id")
+                SourcesHTTPClient,
+                "get_application_type_is_cost_management",
+                return_value=test.get("expected_cost_mgmt_match"),
             ):
-                with patch.object(
-                    SourcesHTTPClient,
-                    "get_application_type_is_cost_management",
-                    return_value=test.get("expected_cost_mgmt_match"),
-                ):
-                    with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
-                        with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
+                with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
+                    with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
+                        with patch.object(SourcesHTTPClient, "get_source_id_from_applications_id", return_value=1):
                             process_message(test_application_id, msg_data)
                             test.get("expected_fn")(test)
                             Sources.objects.all().delete()

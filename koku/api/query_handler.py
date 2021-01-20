@@ -59,6 +59,7 @@ class QueryHandler:
 
         """
         LOG.debug(f"Query Params: {parameters}")
+        self.dh = DateHelper()
         parameters = self.filter_to_order_by(parameters)
         self.tenant = parameters.tenant
         self.access = parameters.access
@@ -215,25 +216,24 @@ class QueryHandler:
         time_scope_units = self.get_time_scope_units()
         start = None
         end = None
-        dh = DateHelper()
         if time_scope_units == "month":
             if time_scope_value == -1:
                 # get current month
-                start = dh.this_month_start
-                end = dh.today
+                start = self.dh.this_month_start
+                end = self.dh.today
             else:
                 # get previous month
-                start = dh.last_month_start
-                end = dh.last_month_end
+                start = self.dh.last_month_start
+                end = self.dh.last_month_end
         else:
             if time_scope_value == -10:
                 # get last 10 days
-                start = dh.n_days_ago(dh.this_hour, 9)
-                end = dh.this_hour
+                start = self.dh.n_days_ago(self.dh.this_hour, 9)
+                end = self.dh.this_hour
             else:
                 # get last 30 days
-                start = dh.n_days_ago(dh.this_hour, 29)
-                end = dh.this_hour
+                start = self.dh.n_days_ago(self.dh.this_hour, 29)
+                end = self.dh.this_hour
 
         self.start_datetime = start
         self.end_datetime = end

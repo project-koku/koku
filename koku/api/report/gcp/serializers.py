@@ -72,6 +72,7 @@ class GCPQueryParamSerializer(ParamSerializer):
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     units = serializers.CharField(required=False)
+    check_tags = serializers.BooleanField(required=False, default=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the GCP query param serializer."""

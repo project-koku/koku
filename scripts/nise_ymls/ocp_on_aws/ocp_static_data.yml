@@ -6,6 +6,7 @@ generators:
       nodes:
         - node:
           node_name: aws_compute1
+          node_labels: label_nodeclass:compute
           cpu_cores: 2
           memory_gig: 8
           resource_id: 55555555
@@ -56,6 +57,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: aws_compute2
+          node_labels: label_nodeclass:compute
           cpu_cores: 2
           memory_gig: 8
           resource_id: 55555556
@@ -112,6 +114,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: aws_master
+          node_labels: label_nodeclass:master
           cpu_cores: 2
           memory_gig: 8
           resource_id: 55555558
