@@ -118,7 +118,7 @@ class NavigationView(APIView):
             {"type": "ocp", "access_class": OCPNavigationAccess},
             {"type": "gcp", "access_class": GCPNavigationAccess},
             {"type": "azure", "access_class": AzureNavigationAccess},
-            {"type": "cost_model", "access_class": CostModelNavigationAccess}
+            {"type": "cost_model", "access_class": CostModelNavigationAccess},
         ]
 
         source_type = query_params.get("type")
