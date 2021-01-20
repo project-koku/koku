@@ -273,8 +273,8 @@ def summarize_reports(reports_to_summarize):
             if manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
                 if report.get("start") and report.get("end"):
                     LOG.info("using start and end dates from the manifest")
-                    start_date = report.get("start")
-                    end_date = report.get("end")
+                    start_date = parser.parse(report.get("start")).strftime("%Y-%m-%d")
+                    end_date = parser.parse(report.get("end")).strftime("%Y-%m-%d")
                 else: 
                     LOG.info("generating start and end dates for manifest")
                     start_date = DateAccessor().today() - datetime.timedelta(days=2)

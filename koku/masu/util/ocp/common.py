@@ -127,7 +127,9 @@ def get_report_details(report_directory):
              payload_date: DateTime,
              manifest_path: String,
              uuid: String,
-             manifest_path: String"
+             manifest_path: String",
+             start: DateTime,
+             end: DateTime
 
     """
     manifest_path = "{}/{}".format(report_directory, "manifest.json")
