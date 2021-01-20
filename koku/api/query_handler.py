@@ -343,6 +343,6 @@ class QueryHandler:
                 q_filter = QueryFilter(parameter=access, **_filt)
                 filters.add(q_filter)
         else:
-            filt["operation"] = "in"
+            filt["operation"] = "contains"
             q_filter = QueryFilter(parameter=access, **filt)
             filters.add(q_filter)
