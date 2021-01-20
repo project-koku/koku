@@ -98,7 +98,7 @@ class NavigationView(APIView):
             {"type": "gcp", "access_class": GCPNavigationAccess},
         ]
 
-        source_type = query_params.get("source_type")
+        source_type = query_params.get("type")
         if source_type:
             source_accessor = next((item for item in source_types if item.get("type") == source_type.lower()), False)
             if source_accessor:

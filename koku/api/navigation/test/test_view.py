@@ -199,7 +199,7 @@ class NavigationViewTest(IamTestCase):
     def test_openshift_view_query_read_for_aws(self):
         """Test endpoint runs with a customer owner."""
         url = reverse("navigation")
-        query_url = f"{url}?source_type=aws"
+        query_url = f"{url}?type=aws"
         response = self.client.get(query_url, **self.headers)
 
         self.assertFalse(response.data.get("data"))
@@ -207,7 +207,7 @@ class NavigationViewTest(IamTestCase):
     def test_view_query_invalid_source_type(self):
         """Test endpoint runs with a customer owner."""
         url = reverse("navigation")
-        query_url = f"{url}?source_type=bad"
+        query_url = f"{url}?type=bad"
         response = self.client.get(query_url, **self.headers)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
