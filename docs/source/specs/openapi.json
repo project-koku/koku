@@ -2451,6 +2451,31 @@
                 }
             }
         },
+        "/navigation/": {
+            "get": {
+                "tags": [
+                    "Navigation"
+                ],
+                "summary": "Returns user permission status.",
+                "operationId": "listNavigation",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryType"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NavigationListPagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/sources/": {
             "get": {
                 "tags": [
@@ -3867,6 +3892,14 @@
                     "type": "boolean"
                 }
             },
+            "QueryType": {
+                "name": "type",
+                "in": "query",
+                "description": "String to identify Navigation permission type (i.e. AWS, cost_model).",
+                "schema": {
+                    "type": "string"
+                }
+            },
             "QueryValue": {
                 "in": "query",
                 "name": "value",
@@ -4521,6 +4554,26 @@
                     }
                 ]
             },
+            "NavigationListPagination": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ListPagination"
+                  },
+                  {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/NavigationTypeOut"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
             "ResourceTypeListPagination": {
                 "allOf": [{
                     "$ref": "#/components/schemas/ListPagination"
@@ -4565,6 +4618,16 @@
                 "properties": {
                     "value": {
                         "type": "string"
+                    }
+                }
+            },
+            "NavigationTypeOut": {
+                "properties": {
+                    "type": {
+                        "type": "string"
+                    },
+                    "access": {
+                        "type": "boolean"
                     }
                 }
             },

@@ -33,25 +33,42 @@ class NavigationViewTest(IamTestCase):
 
     @RbacPermissions({"aws.account": {"read": ["*"]}})
     def test_aws_view_read(self):
-        """Test endpoint runs with a customer owner."""
+        """Test navigation view with aws read wildcard permission."""
         url = reverse("navigation")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 3)
-        self.assertTrue({"aws": True} in response.data.get("data"))
-        self.assertTrue({"ocp": False} in response.data.get("data"))
-        self.assertTrue({"gcp": False} in response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
+
+    @RbacPermissions({"aws.account": {"read": ["123"]}})
+    def test_aws_view_read_specific_account(self):
+        """Test navigation view with aws read specific account permission."""
+        url = reverse("navigation")
+        response = self.client.get(url, **self.headers)
+
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
     @RbacPermissions({"aws.account": "*"})
     def test_aws_view_wildcard(self):
-        """Test endpoint runs with a customer owner."""
+        """Test navigation view with aws wildcard permission."""
         url = reverse("navigation")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 3)
-        self.assertTrue({"aws": True} in response.data.get("data"))
-        self.assertTrue({"ocp": False} in response.data.get("data"))
-        self.assertTrue({"gcp": False} in response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
     @RbacPermissions(
         {
@@ -61,14 +78,16 @@ class NavigationViewTest(IamTestCase):
         }
     )
     def test_ocp_view_cluster(self):
-        """Test endpoint runs with a customer owner."""
+        """Test navigation view with openshift cluster read wildcard permission."""
         url = reverse("navigation")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 3)
-        self.assertTrue({"aws": False} in response.data.get("data"))
-        self.assertTrue({"ocp": True} in response.data.get("data"))
-        self.assertTrue({"gcp": False} in response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
     @RbacPermissions(
         {
@@ -78,14 +97,16 @@ class NavigationViewTest(IamTestCase):
         }
     )
     def test_ocp_view_project(self):
-        """Test endpoint runs with a customer owner."""
+        """Test navigation view with openshift project read wildcard permission."""
         url = reverse("navigation")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 3)
-        self.assertTrue({"aws": False} in response.data.get("data"))
-        self.assertTrue({"ocp": True} in response.data.get("data"))
-        self.assertTrue({"gcp": False} in response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
     @RbacPermissions(
         {
@@ -95,100 +116,162 @@ class NavigationViewTest(IamTestCase):
         }
     )
     def test_ocp_view_node(self):
-        """Test endpoint runs with a customer owner."""
+        """Test navigation view with openshift node read wildcard permission."""
         url = reverse("navigation")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 3)
-        self.assertTrue({"aws": False} in response.data.get("data"))
-        self.assertTrue({"ocp": True} in response.data.get("data"))
-        self.assertTrue({"gcp": False} in response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
     @RbacPermissions({"openshift.cluster": "*"})
     def test_ocp_view_cluster_wildcard(self):
-        """Test endpoint runs with a customer owner."""
+        """Test navigation view with openshift cluster wildcard permission."""
         url = reverse("navigation")
 
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 3)
-        self.assertTrue({"aws": False} in response.data.get("data"))
-        self.assertTrue({"ocp": True} in response.data.get("data"))
-        self.assertTrue({"gcp": False} in response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
     @RbacPermissions({"openshift.project": "*"})
     def test_ocp_view_project_wildcard(self):
-        """Test endpoint runs with a customer owner."""
+        """Test navigation view with openshift project wildcard permission."""
         url = reverse("navigation")
 
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 3)
-        self.assertTrue({"aws": False} in response.data.get("data"))
-        self.assertTrue({"ocp": True} in response.data.get("data"))
-        self.assertTrue({"gcp": False} in response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
     @RbacPermissions({"openshift.node": "*"})
     def test_ocp_view_node_wildcard(self):
-        """Test endpoint runs with a customer owner."""
+        """Test navigation view with openshift node wildcard permission."""
         url = reverse("navigation")
 
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 3)
-        self.assertTrue({"aws": False} in response.data.get("data"))
-        self.assertTrue({"ocp": True} in response.data.get("data"))
-        self.assertTrue({"gcp": False} in response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
     @RbacPermissions({"gcp.account": {"read": ["*"]}, "gcp.project": {"read": ["myproject"]}})
     def test_gcp_view_account(self):
-        """Test endpoint runs with a customer owner."""
+        """Test navigation view with gcp account read wildcard permission."""
         url = reverse("navigation")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 3)
-        self.assertTrue({"aws": False} in response.data.get("data"))
-        self.assertTrue({"ocp": False} in response.data.get("data"))
-        self.assertTrue({"gcp": True} in response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
     @RbacPermissions({"gcp.account": {"read": ["myaccount"]}, "gcp.project": {"read": ["*"]}})
     def test_gcp_view_project(self):
-        """Test endpoint runs with a customer owner."""
+        """Test navigation view with gcp project read wildcard permission."""
         url = reverse("navigation")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 3)
-        self.assertTrue({"aws": False} in response.data.get("data"))
-        self.assertTrue({"ocp": False} in response.data.get("data"))
-        self.assertTrue({"gcp": True} in response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
     @RbacPermissions({"gcp.account": "*"})
     def test_gcp_view_account_wildcard(self):
-        """Test endpoint runs with a customer owner."""
+        """Test navigation view with gcp account wildcard permission."""
         url = reverse("navigation")
 
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 3)
-        self.assertTrue({"aws": False} in response.data.get("data"))
-        self.assertTrue({"ocp": False} in response.data.get("data"))
-        self.assertTrue({"gcp": True} in response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
     @RbacPermissions({"gcp.project": "*"})
     def test_gcp_view_project_wildcard(self):
-        """Test endpoint runs with a customer owner."""
+        """Test navigation view with gcp project wildcard permission."""
         url = reverse("navigation")
 
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 3)
-        self.assertTrue({"aws": False} in response.data.get("data"))
-        self.assertTrue({"ocp": False} in response.data.get("data"))
-        self.assertTrue({"gcp": True} in response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
+
+    @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
+    def test_azure_view_read(self):
+        """Test navigation view with azure subscription read wildcard permission."""
+        url = reverse("navigation")
+        response = self.client.get(url, **self.headers)
+
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
+
+    @RbacPermissions({"azure.subscription_guid": "*"})
+    def test_azure_view_wildcard(self):
+        """Test navigation view with azure subscription wildcard permission."""
+        url = reverse("navigation")
+        response = self.client.get(url, **self.headers)
+
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
+
+    def test_view_as_org_admin(self):
+        """Test navigation view as an org admin."""
+        url = reverse("navigation")
+        response = self.client.get(url, **self.headers)
+
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": True} in response.data.get("data"))
+
+    def test_aws_view_query_read_org_admin(self):
+        """Test navigation view query as an org admin."""
+        url = reverse("navigation")
+        query_url = f"{url}?source_type=aws"
+        response = self.client.get(query_url, **self.headers)
+
+        self.assertTrue(response.data.get("data"))
 
     @RbacPermissions({"aws.account": "*"})
     def test_aws_view_query_read(self):
-        """Test endpoint runs with a customer owner."""
+        """Test navigation view query for aws."""
         url = reverse("navigation")
         query_url = f"{url}?source_type=aws"
         response = self.client.get(query_url, **self.headers)
@@ -197,15 +280,24 @@ class NavigationViewTest(IamTestCase):
 
     @RbacPermissions({"openshift.cluster": "*"})
     def test_openshift_view_query_read_for_aws(self):
-        """Test endpoint runs with a customer owner."""
+        """Test navigation view query for aws with openshift permissions."""
         url = reverse("navigation")
         query_url = f"{url}?type=aws"
         response = self.client.get(query_url, **self.headers)
 
         self.assertFalse(response.data.get("data"))
 
+    @RbacPermissions({"cost_model": "*"})
+    def test_cost_model_view_query_read_for_aws(self):
+        """Test navigation view query for cost_model."""
+        url = reverse("navigation")
+        query_url = f"{url}?type=cost_model"
+        response = self.client.get(query_url, **self.headers)
+
+        self.assertTrue(response.data.get("data"))
+
     def test_view_query_invalid_source_type(self):
-        """Test endpoint runs with a customer owner."""
+        """Test navigation view query for invalid type."""
         url = reverse("navigation")
         query_url = f"{url}?type=bad"
         response = self.client.get(query_url, **self.headers)

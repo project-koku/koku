@@ -36,8 +36,7 @@ class NavigationAccess:
             if WILDCARD in access_list:
                 return True
             elif access_list.get("read"):
-                if WILDCARD in access_list.get("read"):
-                    return True
+                return True
         return False
 
 
@@ -69,6 +68,17 @@ class OCPNavigationAccess(NavigationAccess):
         return False
 
 
+class AzureNavigationAccess(NavigationAccess):
+    def __init__(self, access):
+        self.subscription_access = access.get("azure.subscription_guid")
+
+    @property
+    def access(self):
+        if self.check_access(self.subscription_access):
+            return True
+        return False
+
+
 class GCPNavigationAccess(NavigationAccess):
     def __init__(self, access):
         self.account_access = access.get("gcp.account")
@@ -77,6 +87,17 @@ class GCPNavigationAccess(NavigationAccess):
     @property
     def access(self):
         if self.check_access(self.account_access) or self.check_access(self.project_access):
+            return True
+        return False
+
+
+class CostModelNavigationAccess(NavigationAccess):
+    def __init__(self, access):
+        self.subscription_access = access.get("cost_model")
+
+    @property
+    def access(self):
+        if self.check_access(self.subscription_access):
             return True
         return False
 
@@ -96,6 +117,8 @@ class NavigationView(APIView):
             {"type": "aws", "access_class": AWSNavigationAccess},
             {"type": "ocp", "access_class": OCPNavigationAccess},
             {"type": "gcp", "access_class": GCPNavigationAccess},
+            {"type": "azure", "access_class": AzureNavigationAccess},
+            {"type": "cost_model", "access_class": CostModelNavigationAccess}
         ]
 
         source_type = query_params.get("type")
@@ -118,7 +141,7 @@ class NavigationView(APIView):
                 access_granted = True
             else:
                 access_granted = source_type.get("access_class")(user_access).access
-            data.append({source_type.get("type"): access_granted})
+            data.append({"type": source_type.get("type"), "access": access_granted})
 
         paginator = ListPaginator(data, request)
 
