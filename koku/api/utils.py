@@ -208,7 +208,11 @@ class DateHelper:
         end_midnight = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
         start_midnight = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         days = (end_midnight - start_midnight + self.one_day).days
-        return [start_midnight + datetime.timedelta(i) for i in range(days)]
+
+        # built-in range(start, end, step) requires (start < end) == True
+        day_range = range(days, 0) if days < 0 else range(0, days)
+        output = [start_midnight + datetime.timedelta(i) for i in day_range]
+        return output
 
     def list_months(self, start_date, end_date):
         """Return a list of months from the start date til the end date.
