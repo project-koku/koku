@@ -178,11 +178,6 @@ class SourcesHTTPClientTest(TestCase):
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={self.source_id}",
                 status_code=200,
-                json={"data": []},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}",
-                status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
             m.get(
@@ -238,11 +233,6 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={self.source_id}",
-                status_code=200,
-                json={"data": []},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}",
                 status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
@@ -306,11 +296,6 @@ class SourcesHTTPClientTest(TestCase):
                 json={"data": []},
             )
             m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}",
-                status_code=200,
-                json={"data": [{"id": resource_id}]},
-            )
-            m.get(
                 (f"http://www.sources.com/api/v1.0/authentications?" f"[authtype]=arn&[resource_id]={resource_id}"),
                 status_code=200,
                 json={"data": []},
@@ -335,11 +320,6 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={self.source_id}",
-                status_code=200,
-                json={"data": [{"id": resource_id}]},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}",
                 status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
@@ -373,11 +353,6 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=200,
                 json={"data": []},
             )
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}",
-                status_code=200,
-                json={"data": []},
-            )
             with self.assertRaises(SourcesHTTPClientError):
                 client.get_aws_credentials()
 
@@ -389,11 +364,7 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={self.source_id}",
-                status_code=200,
-                json={"data": []},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}", exc=RequestException
+                exc=RequestException,
             )
             with self.assertRaises(SourcesHTTPClientError):
                 client.get_aws_credentials()
@@ -417,11 +388,6 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={self.source_id}",
-                status_code=200,
-                json={"data": []},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}",
                 status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
@@ -504,11 +470,6 @@ class SourcesHTTPClientTest(TestCase):
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={self.source_id}",
                 status_code=200,
-                json={"data": []},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}",
-                status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
             m.get(
@@ -537,11 +498,7 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={self.source_id}",
-                status_code=200,
-                json={"data": []},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}", exc=RequestException
+                exc=RequestException,
             )
             with self.assertRaises(SourcesHTTPClientError):
                 client.get_azure_credentials()
@@ -556,128 +513,8 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=200,
                 json={"data": []},
             )
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}",
-                status_code=200,
-                json={"data": []},
-            )
             with self.assertRaises(SourcesHTTPClientError):
                 client.get_azure_credentials()
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_endpoint_id(self):
-        """Test to get endpoint_id from Source_id."""
-        resource_id = 2
-        source_id = 3
-
-        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={source_id}",
-                status_code=200,
-                json={"data": [{"id": resource_id}]},
-            )
-            response = client.get_endpoint_id()
-            self.assertEqual(response, resource_id)
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_endpoint_id_no_data(self):
-        """Test to get endpoint_id from Source_id with no data in response."""
-        source_id = 3
-
-        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={source_id}",
-                status_code=200,
-                json={"data": []},
-            )
-            self.assertIsNone(client.get_endpoint_id())
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_endpoint_id_misconfigured(self):
-        """Test to get endpoint_id from Source_id with route not found."""
-        resource_id = 2
-        source_id = 3
-
-        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={source_id}",
-                status_code=404,
-                json={"data": [{"id": resource_id}]},
-            )
-            with self.assertRaises(SourceNotFoundError):
-                client.get_endpoint_id()
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_endpoint_ids_connection_error(self):
-        """Test to get endpoint id with connection error."""
-        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}", exc=RequestException
-            )
-            with self.assertRaises(SourcesHTTPClientError):
-                client.get_endpoint_id()
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_source_id_from_endpoint_id(self):
-        """Test to get source_id from resource_id."""
-        resource_id = 2
-        source_id = 3
-
-        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[id]={resource_id}",
-                status_code=200,
-                json={"data": [{"source_id": source_id}]},
-            )
-            response = client.get_source_id_from_endpoint_id(resource_id)
-            self.assertEqual(response, source_id)
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_source_id_from_endpoint_id_no_data(self):
-        """Test to get source_id from resource_id with no data in response."""
-        resource_id = 2
-        source_id = 3
-
-        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[id]={resource_id}",
-                status_code=200,
-                json={"data": []},
-            )
-            self.assertIsNone(client.get_source_id_from_endpoint_id(resource_id))
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_source_id_from_endpoint_id_misconfigured(self):
-        """Test to get source_id from resource_id with route not found."""
-        resource_id = 2
-        source_id = 3
-
-        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[id]={resource_id}",
-                status_code=404,
-                json={"data": [{"id": resource_id}]},
-            )
-            with self.assertRaises(SourceNotFoundError):
-                client.get_source_id_from_endpoint_id(resource_id)
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_source_id_from_endpoint_id_connection_error(self):
-        """Test to get source ID from endpoint ID with connection error."""
-        resource_id = 2
-
-        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
-        with requests_mock.mock() as m:
-            m.get(f"http://www.sources.com/api/v1.0/endpoints?filter[id]={resource_id}", exc=RequestException)
-            with self.assertRaises(SourcesHTTPClientError):
-                client.get_source_id_from_endpoint_id(resource_id)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_get_source_id_from_applications_id(self):
