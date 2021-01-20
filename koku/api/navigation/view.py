@@ -100,7 +100,6 @@ class NavigationView(APIView):
 
         source_type = query_params.get("source_type")
         if source_type:
-
             source_accessor = next((item for item in source_types if item.get("type") == source_type.lower()), False)
             if source_accessor:
                 access_class = source_accessor.get("access_class")
