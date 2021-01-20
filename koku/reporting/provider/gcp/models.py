@@ -137,7 +137,7 @@ class GCPCostEntryLineItemDaily(models.Model):
     cost = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
     currency = models.CharField(max_length=256, null=True, blank=True)
     conversion_rate = models.CharField(max_length=256, null=True, blank=True)
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     usage_unit = models.CharField(max_length=256, null=True, blank=True)
     usage_in_pricing_units = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     usage_pricing_unit = models.CharField(max_length=256, null=True, blank=True)
@@ -218,7 +218,7 @@ class GCPTagsSummary(models.Model):
         """Meta for GCPTagSummary."""
 
         db_table = "reporting_gcptags_summary"
-        unique_together = ("key", "cost_entry_bill", "account_id")
+        unique_together = ("key", "cost_entry_bill", "account_id", "project_id")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
@@ -226,6 +226,8 @@ class GCPTagsSummary(models.Model):
     values = ArrayField(models.TextField())
     cost_entry_bill = models.ForeignKey("GCPCostEntryBill", on_delete=models.CASCADE)
     account_id = models.TextField(null=True)
+    project_id = models.TextField(null=True)
+    project_name = models.TextField(null=True)
 
 
 class GCPTagsValues(models.Model):
@@ -241,6 +243,8 @@ class GCPTagsValues(models.Model):
     key = models.TextField()
     value = models.TextField()
     account_ids = ArrayField(models.TextField())
+    project_ids = ArrayField(models.TextField(), null=True)
+    project_names = ArrayField(models.TextField(), null=True)
 
 
 # Materialized Views for UI Reporting

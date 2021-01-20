@@ -39,7 +39,9 @@ from api.views import CostModelResourceTypesView
 from api.views import DataExportRequestViewSet
 from api.views import GCPAccountView
 from api.views import GCPCostView
+from api.views import GCPForecastCostView
 from api.views import GCPProjectsView
+from api.views import GCPTagView
 from api.views import metrics
 from api.views import OCPAllCostForecastView
 from api.views import OCPAllCostView
@@ -98,6 +100,11 @@ urlpatterns = [
         name="azure-tags",
     ),
     path(
+        "tags/gcp/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPTagView.as_view()),
+        name="gcp-tags",
+    ),
+    path(
         "tags/openshift/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(OCPTagView.as_view()),
         name="openshift-tags",
@@ -137,6 +144,11 @@ urlpatterns = [
         "tags/openshift/<key>/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(OCPTagView.as_view()),
         name="openshift-tags-key",
+    ),
+    path(
+        "tags/gcp/<key>/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPTagView.as_view()),
+        name="gcp-tags-key",
     ),
     path(
         "tags/openshift/infrastructures/all/<key>/",
@@ -306,6 +318,7 @@ urlpatterns = [
     path("resource-types/openshift-nodes/", OCPNodesView.as_view(), name="openshift-nodes"),
     path("resource-types/cost-models/", CostModelResourceTypesView.as_view(), name="cost-models"),
     path("forecasts/aws/costs/", AWSCostForecastView.as_view(), name="aws-cost-forecasts"),
+    path("forecasts/gcp/costs/", GCPForecastCostView.as_view(), name="gcp-cost-forecasts"),
     path("forecasts/azure/costs/", AzureCostForecastView.as_view(), name="azure-cost-forecasts"),
     path("forecasts/openshift/costs/", OCPCostForecastView.as_view(), name="openshift-cost-forecasts"),
     path(

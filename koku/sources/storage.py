@@ -339,20 +339,6 @@ def get_source_type(source_id):
     return source_type
 
 
-def get_source_from_endpoint(endpoint_id):
-    """Get Source ID from Endpoint ID."""
-    source_id = None
-    try:
-        query = Sources.objects.get(endpoint_id=endpoint_id)
-        source_id = query.source_id
-    except Sources.DoesNotExist:
-        LOG.info(f"Endpoint ID {endpoint_id} not associated with Cost Management")
-    except (InterfaceError, OperationalError) as error:
-        LOG.error(f"source.storage.get_source_from_endpoint {type(error).__name__}: {error}")
-        raise error
-    return source_id
-
-
 def add_provider_sources_auth_info(source_id, authentication):
     """
     Add additional Sources information to a Source database object.
@@ -406,9 +392,6 @@ def add_provider_sources_network_info(details, source_id):
             save_needed = True
         if source.source_type != details.source_type:
             source.source_type = details.source_type
-            save_needed = True
-        if str(source.endpoint_id) != details.endpoint_id:
-            source.endpoint_id = details.endpoint_id
             save_needed = True
         if save_needed:
             source.save()
