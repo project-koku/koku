@@ -87,67 +87,87 @@ class AWSForecastTest(IamTestCase):
         """Test that we accurately select the number of days."""
         params = self.mocked_query_params("?", AWSCostForecastView)
 
+        dh = DateHelper()
         mock_dh = Mock(spec=DateHelper)
 
-        mock_dh.return_value.today = datetime(2000, 1, 1, 0, 0, 0, 0)
-        mock_dh.return_value.yesterday = datetime(1999, 12, 31, 0, 0, 0, 0)
-        mock_dh.return_value.this_month_start = datetime(2000, 1, 1, 0, 0, 0, 0)
-        mock_dh.return_value.this_month_end = datetime(2000, 1, 31, 0, 0, 0, 0)
-        mock_dh.return_value.last_month_start = datetime(1999, 12, 1, 0, 0, 0, 0)
-        mock_dh.return_value.last_month_end = datetime(1999, 12, 31, 0, 0, 0, 0)
+        scenarios = [
+            {
+                "today": dh.today,
+                "yesterday": dh.yesterday,
+                "this_month_end": dh.this_month_end,
+                "expected": (dh.this_month_end - dh.yesterday).days,
+            },
+            {
+                "today": datetime(2000, 1, 1, 0, 0, 0, 0),
+                "yesterday": datetime(1999, 12, 31, 0, 0, 0, 0),
+                "this_month_end": datetime(2000, 1, 31, 0, 0, 0, 0),
+                "expected": 31,
+            },
+            {
+                "today": datetime(2000, 1, 31, 0, 0, 0, 0),
+                "yesterday": datetime(2000, 1, 30, 0, 0, 0, 0),
+                "this_month_end": datetime(2000, 1, 31, 0, 0, 0, 0),
+                "expected": 1,
+            },
+        ]
 
-        with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
-            forecast = AWSForecast(params)
-            self.assertEqual(forecast.forecast_days_required, 31)
+        mock_dh.return_value.n_days_ago = dh.n_days_ago  # pass-thru to real function
 
-        mock_dh.return_value.today = datetime(2000, 1, 13, 0, 0, 0, 0)
-        mock_dh.return_value.yesterday = datetime(2000, 1, 12, 0, 0, 0, 0)
-        mock_dh.return_value.this_month_start = datetime(2000, 1, 1, 0, 0, 0, 0)
-        mock_dh.return_value.this_month_end = datetime(2000, 1, 31, 0, 0, 0, 0)
-        mock_dh.return_value.last_month_start = datetime(1999, 12, 1, 0, 0, 0, 0)
-        mock_dh.return_value.last_month_end = datetime(1999, 12, 31, 0, 0, 0, 0)
+        for test in scenarios:
+            with self.subTest(scenario=test):
+                mock_dh.return_value.today = test["today"]
+                mock_dh.return_value.yesterday = test["yesterday"]
+                mock_dh.return_value.this_month_end = test["this_month_end"]
 
-        with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
-            forecast = AWSForecast(params)
-            self.assertEqual(forecast.forecast_days_required, 19)
+                with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
+                    forecast = AWSForecast(params)
+                    self.assertEqual(forecast.forecast_days_required, test["expected"])
 
-    def test_query_range_under(self):
+    def test_query_range(self):
         """Test that we select the correct range based on day of month."""
         params = self.mocked_query_params("?", AWSCostForecastView)
 
         dh = DateHelper()
         mock_dh = Mock(spec=DateHelper)
 
-        mock_dh.return_value.today = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 1)
-        mock_dh.return_value.yesterday = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 2)
-        mock_dh.return_value.this_month_start = dh.this_month_start
-        mock_dh.return_value.this_month_end = dh.this_month_end
-        mock_dh.return_value.last_month_start = dh.last_month_start
-        mock_dh.return_value.last_month_end = dh.last_month_end
+        scenarios = [
+            {
+                "today": dh.today,
+                "yesterday": dh.yesterday,
+                "this_month_end": dh.this_month_end,
+                "expected": (dh.yesterday + timedelta(days=-30), dh.yesterday),
+            },
+            {
+                "today": datetime(2000, 1, 1, 0, 0, 0, 0),
+                "yesterday": datetime(1999, 12, 31, 0, 0, 0, 0),
+                "this_month_end": datetime(2000, 1, 31, 0, 0, 0, 0),
+                "expected": (
+                    datetime(1999, 12, 31, 0, 0, 0, 0) + timedelta(days=-30),
+                    datetime(1999, 12, 31, 0, 0, 0, 0),
+                ),
+            },
+            {
+                "today": datetime(2000, 1, 31, 0, 0, 0, 0),
+                "yesterday": datetime(2000, 1, 30, 0, 0, 0, 0),
+                "this_month_end": datetime(2000, 1, 31, 0, 0, 0, 0),
+                "expected": (
+                    datetime(2000, 1, 30, 0, 0, 0, 0) + timedelta(days=-30),
+                    datetime(2000, 1, 30, 0, 0, 0, 0),
+                ),
+            },
+        ]
 
-        with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
-            expected = (dh.last_month_start, dh.this_month_start + timedelta(days=AWSForecast.MINIMUM - 2))
-            forecast = AWSForecast(params)
-            self.assertEqual(forecast.query_range, expected)
+        mock_dh.return_value.n_days_ago = dh.n_days_ago  # pass-thru to real function
 
-    def test_query_range_over(self):
-        """Test that we select the correct range based on day of month."""
-        params = self.mocked_query_params("?", AWSCostForecastView)
+        for test in scenarios:
+            with self.subTest(scenario=test):
+                mock_dh.return_value.today = test["today"]
+                mock_dh.return_value.yesterday = test["yesterday"]
+                mock_dh.return_value.this_month_end = test["this_month_end"]
 
-        dh = DateHelper()
-        mock_dh = Mock(spec=DateHelper)
-
-        mock_dh.return_value.today = dh.this_month_start + timedelta(days=(AWSForecast.MINIMUM + 1))
-        mock_dh.return_value.yesterday = dh.this_month_start + timedelta(days=AWSForecast.MINIMUM)
-        mock_dh.return_value.this_month_start = dh.this_month_start
-        mock_dh.return_value.this_month_end = dh.this_month_end
-        mock_dh.return_value.last_month_start = dh.last_month_start
-        mock_dh.return_value.last_month_end = dh.last_month_end
-
-        with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
-            expected = (dh.this_month_start, dh.this_month_start + timedelta(days=AWSForecast.MINIMUM))
-            forecast = AWSForecast(params)
-            self.assertEqual(forecast.query_range, expected)
+                with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
+                    forecast = AWSForecast(params)
+                    self.assertEqual(forecast.query_range, test["expected"])
 
     def test_remove_outliers(self):
         """Test that we remove outliers before predicting."""
@@ -293,7 +313,7 @@ class AWSForecastTest(IamTestCase):
         """Test that predict() behaves well with a limited data set."""
         dh = DateHelper()
 
-        num_elements = [1, 2, 3, 4, 5]
+        num_elements = [AWSForecast.MINIMUM - 1, AWSForecast.MINIMUM, AWSForecast.MINIMUM + 1]
 
         for number in num_elements:
             with self.subTest(num_elements=number):
@@ -304,10 +324,9 @@ class AWSForecastTest(IamTestCase):
                     expected.append(
                         {
                             "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
-                            # "usage_start": dh.today.replace(day=n).date(),
-                            "total_cost": 5 + random.random(),
-                            "infrastructure_cost": 3 + random.random(),
-                            "supplementary_cost": 2 + random.random(),
+                            "total_cost": 5 + (0.01 * n),
+                            "infrastructure_cost": 3 + (0.01 * n),
+                            "supplementary_cost": 2 + (0.01 * n),
                         }
                     )
                 mock_qset = MockQuerySet(expected)
@@ -322,41 +341,29 @@ class AWSForecastTest(IamTestCase):
                 instance = AWSForecast(params)
 
                 instance.cost_summary_table = mocked_table
-                if number < 3:
-                    # forecasting isn't possible with less than 3 data points.
+                if number < AWSForecast.MINIMUM:
+                    # forecasting isn't useful with less than the minimum number of data points.
                     with self.assertLogs(logger="forecast.forecast", level=logging.WARNING):
                         results = instance.predict()
                         self.assertEqual(results, [])
                 else:
-                    with self.assertLogs(logger="forecast.forecast", level=logging.WARNING):
-                        results = instance.predict()
+                    results = instance.predict()
 
-                        self.assertNotEqual(results, [])
+                    self.assertNotEqual(results, [])
 
-                        for result in results:
-                            for val in result.get("values", []):
-                                self.assertIsInstance(val.get("date"), date)
+                    for result in results:
+                        for val in result.get("values", []):
+                            self.assertIsInstance(val.get("date"), date)
 
-                                item = val.get("cost")
-                                self.assertGreaterEqual(float(item.get("total").get("value")), 0)
-                                self.assertGreaterEqual(float(item.get("confidence_max").get("value")), 0)
-                                self.assertGreaterEqual(float(item.get("confidence_min").get("value")), 0)
-                                self.assertGreaterEqual(float(item.get("rsquared").get("value")), 0)
-                                for pval in item.get("pvalues").get("value"):
-                                    self.assertGreaterEqual(float(pval), 0)
-                        # test that the results always stop at the end of the month.
-                        self.assertEqual(results[-1].get("date"), dh.this_month_end.date())
-
-    def test_results_never_outside_current_month(self):
-        """Test that our results stop at the end of the current month."""
-        dh = DateHelper()
-        params = self.mocked_query_params("?", AWSCostForecastView)
-        forecast = AWSForecast(params)
-        forecast.forecast_days_required = 100
-        results = forecast.predict()
-        dates = [result.get("date") for result in results]
-        self.assertNotIn(dh.next_month_start, dates)
-        self.assertEqual(dh.this_month_end.date(), max(dates))
+                            item = val.get("cost")
+                            self.assertGreaterEqual(float(item.get("total").get("value")), 0)
+                            self.assertGreaterEqual(float(item.get("confidence_max").get("value")), 0)
+                            self.assertGreaterEqual(float(item.get("confidence_min").get("value")), 0)
+                            self.assertGreaterEqual(float(item.get("rsquared").get("value")), 0)
+                            for pval in item.get("pvalues").get("value"):
+                                self.assertGreaterEqual(float(pval), 0)
+                    # test that the results always stop at the end of the month.
+                    self.assertEqual(results[-1].get("date"), dh.this_month_end.date())
 
     def test_set_access_filter_with_list(self):
         """
