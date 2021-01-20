@@ -30,7 +30,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap
-from api.report.queries import is_grouped_or_filtered_by_project
+from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 
 LOG = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         # super() needs to be called before _get_group_by is called
 
         # Update which field is used to calculate cost by group by param.
-        if is_grouped_or_filtered_by_project(parameters) and parameters.report_type == "costs":
+        if is_grouped_by_project(parameters) and parameters.report_type == "costs":
             self._report_type = parameters.report_type + "_by_project"
             self._mapper = OCPProviderMap(provider=self.provider, report_type=self._report_type)
 
