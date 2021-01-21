@@ -296,6 +296,15 @@ class UserAccessViewTest(IamTestCase):
 
         self.assertTrue(response.data.get("data"))
 
+    @RbacPermissions({"cost_model": {"write": ["*"]}})
+    def test_cost_model_view_query_write_for_aws(self):
+        """Test user-access view query for cost_model with write access."""
+        url = reverse("user-access")
+        query_url = f"{url}?type=cost_model"
+        response = self.client.get(query_url, **self.headers)
+
+        self.assertTrue(response.data.get("data"))
+
     def test_view_query_invalid_source_type(self):
         """Test user-access view query for invalid type."""
         url = reverse("user-access")

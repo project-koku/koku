@@ -25,7 +25,6 @@ from rest_framework.views import APIView
 
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.pagination import ListPaginator
-from api.query_handler import WILDCARD
 
 LOGGER = logging.getLogger(__name__)
 
@@ -33,10 +32,7 @@ LOGGER = logging.getLogger(__name__)
 class UserAccess:
     def check_access(self, access_list):
         if access_list:
-            if WILDCARD in access_list:
-                return True
-            elif access_list.get("read"):
-                return True
+            return True
         return False
 
 
