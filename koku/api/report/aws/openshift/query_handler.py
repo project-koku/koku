@@ -27,7 +27,7 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.aws.openshift.provider_map import OCPAWSProviderMap
 from api.report.aws.query_handler import AWSReportQueryHandler
-from api.report.queries import is_grouped_or_filtered_by_project
+from api.report.queries import is_grouped_by_project
 
 LOG = logging.getLogger(__name__)
 
@@ -135,7 +135,7 @@ class OCPAWSReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
         """
         self._mapper = OCPAWSProviderMap(provider=self.provider, report_type=parameters.report_type)
         # Update which field is used to calculate cost by group by param.
-        if is_grouped_or_filtered_by_project(parameters):
+        if is_grouped_by_project(parameters):
             self._report_type = parameters.report_type + "_by_project"
             self._mapper = OCPAWSProviderMap(provider=self.provider, report_type=self._report_type)
         self.group_by_options = self._mapper.provider_map.get("group_by_options")

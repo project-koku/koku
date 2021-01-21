@@ -72,6 +72,7 @@ from api.views import openapi
 from api.views import ResourceTypeView
 from api.views import SettingsView
 from api.views import StatusView
+from api.views import UserAccessView
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
 from koku.cache import GCP_CACHE_PREFIX
@@ -301,6 +302,7 @@ urlpatterns = [
     path("settings", RedirectView.as_view(pattern_name="settings"), name="settings-redirect"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
+    path("user-access/", UserAccessView.as_view(), name="user-access"),
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
     path("resource-types/gcp-accounts/", GCPAccountView.as_view(), name="gcp-accounts"),
     path("resource-types/gcp-projects/", GCPProjectsView.as_view(), name="gcp-projects"),
