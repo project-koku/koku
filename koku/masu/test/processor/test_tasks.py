@@ -371,7 +371,7 @@ class ProcessReportFileTests(MasuTestCase):
         report_meta["provider_uuid"] = self.ocp_test_provider_uuid
         report_meta["manifest_id"] = 1
 
-        # add a report with start/end dates specified 
+        # add a report with start/end dates specified
         report2_meta = {}
         report2_meta["start_date"] = str(DateHelper().today)
         report2_meta["schema_name"] = self.schema

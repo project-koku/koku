@@ -485,7 +485,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
                                 msg_handler.extract_payload(payload_url, "test_request_id")
                                 expected_path = "{}/{}/{}/".format(
-                                    Config.INSIGHTS_LOCAL_REPORT_DIR, "5997a261-f23e-45d1-8e01-ee3c765f3aec", "20210101-20210201"
+                                    Config.INSIGHTS_LOCAL_REPORT_DIR,
+                                    "5997a261-f23e-45d1-8e01-ee3c765f3aec",
+                                    "20210101-20210201",
                                 )
                                 self.assertTrue(os.path.isdir(expected_path))
                                 shutil.rmtree(fake_dir)
