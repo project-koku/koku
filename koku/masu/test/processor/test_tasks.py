@@ -30,7 +30,6 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import faker
-from dateutil import parser
 from dateutil import relativedelta
 from django.core.cache import caches
 from django.db.models import Max
