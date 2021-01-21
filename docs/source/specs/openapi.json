@@ -396,7 +396,7 @@
                 }]
             }
         },
-        "/forecasts/aws/costs": {
+        "/forecasts/aws/costs/": {
             "summary": "AWS Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -441,7 +441,7 @@
                 }]
             }
         },
-        "/forecasts/azure/costs": {
+        "/forecasts/azure/costs/": {
             "summary": "Azure Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -486,7 +486,7 @@
                 }]
             }
         },
-        "/forecasts/gcp/costs": {
+        "/forecasts/gcp/costs/": {
             "summary": "GCP Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -531,7 +531,7 @@
                 }]
             }
         },
-        "/forecasts/openshift/costs": {
+        "/forecasts/openshift/costs/": {
             "summary": "OpenShift Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -576,7 +576,7 @@
                 }]
             }
         },
-        "/forecasts/openshift/infrastructures/aws/costs": {
+        "/forecasts/openshift/infrastructures/aws/costs/": {
             "summary": "OpenShift on AWS Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -621,7 +621,7 @@
                 }]
             }
         },
-        "/forecasts/openshift/infrastructures/all/costs": {
+        "/forecasts/openshift/infrastructures/all/costs/": {
             "summary": "OpenShift on Cloud Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -666,7 +666,7 @@
                 }]
             }
         },
-        "/forecasts/openshift/infrastructures/azure/costs": {
+        "/forecasts/openshift/infrastructures/azure/costs/": {
             "summary": "OpenShift on Azure Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
