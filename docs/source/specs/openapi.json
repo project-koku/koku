@@ -2451,6 +2451,31 @@
                 }
             }
         },
+        "/user-access/": {
+            "get": {
+                "tags": [
+                    "UserAccess"
+                ],
+                "summary": "Returns user permission status.",
+                "operationId": "listUserAccess",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryType"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserAccessListPagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/sources/": {
             "get": {
                 "tags": [
@@ -3867,6 +3892,14 @@
                     "type": "boolean"
                 }
             },
+            "QueryType": {
+                "name": "type",
+                "in": "query",
+                "description": "String to identify user access permission type (i.e. AWS, cost_model).",
+                "schema": {
+                    "type": "string"
+                }
+            },
             "QueryValue": {
                 "in": "query",
                 "name": "value",
@@ -4521,6 +4554,26 @@
                     }
                 ]
             },
+            "UserAccessListPagination": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ListPagination"
+                  },
+                  {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/UserAccessTypeOut"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
             "ResourceTypeListPagination": {
                 "allOf": [{
                     "$ref": "#/components/schemas/ListPagination"
@@ -4565,6 +4618,16 @@
                 "properties": {
                     "value": {
                         "type": "string"
+                    }
+                }
+            },
+            "UserAccessTypeOut": {
+                "properties": {
+                    "type": {
+                        "type": "string"
+                    },
+                    "access": {
+                        "type": "boolean"
                     }
                 }
             },
