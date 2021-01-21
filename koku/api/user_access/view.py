@@ -31,7 +31,8 @@ LOG = logging.getLogger(__name__)
 
 class UserAccess:
     def check_access(self, access_list):
-        if access_list:
+        LOG.info(f"Access List: {str(access_list)}")
+        if access_list.get("read") or access_list.get("write"):
             return True
         return False
 
@@ -98,17 +99,6 @@ class CostModelUserAccess(UserAccess):
         return False
 
 
-class CostManagementAllAccess(UserAccess):
-    def __init__(self, access):
-        self.all_access = access.get("*")
-
-    @property
-    def access(self):
-        if self.check_access(self.all_access):
-            return True
-        return False
-
-
 class UserAccessView(APIView):
     """API GET view for User API."""
 
@@ -119,7 +109,7 @@ class UserAccessView(APIView):
         query_params = request.query_params
         user_access = request.user.access
         LOG.info(f"User Access RBAC permissions: {str(user_access)}. Org Admin: {str(request.user.admin)}")
-        admin_user = request.user.admin or CostManagementAllAccess(user_access).access
+        admin_user = request.user.admin
         LOG.info(f"User Access admin user: {str(admin_user)}")
 
         source_types = [
