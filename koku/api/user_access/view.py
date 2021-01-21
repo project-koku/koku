@@ -31,7 +31,6 @@ LOG = logging.getLogger(__name__)
 
 class UserAccess:
     def check_access(self, access_list):
-        LOG.info(f"Access List: {str(access_list)}")
         if access_list.get("read") or access_list.get("write"):
             return True
         return False
@@ -108,9 +107,9 @@ class UserAccessView(APIView):
     def get(self, request, **kwargs):
         query_params = request.query_params
         user_access = request.user.access
-        LOG.info(f"User Access RBAC permissions: {str(user_access)}. Org Admin: {str(request.user.admin)}")
+        LOG.debug(f"User Access RBAC permissions: {str(user_access)}. Org Admin: {str(request.user.admin)}")
         admin_user = request.user.admin
-        LOG.info(f"User Access admin user: {str(admin_user)}")
+        LOG.debug(f"User Access admin user: {str(admin_user)}")
 
         source_types = [
             {"type": "aws", "access_class": AWSUserAccess},
