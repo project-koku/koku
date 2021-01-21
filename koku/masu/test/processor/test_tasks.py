@@ -30,6 +30,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import faker
+from dateutil import parser
 from dateutil import relativedelta
 from django.core.cache import caches
 from django.db.models import Max
@@ -369,7 +370,18 @@ class ProcessReportFileTests(MasuTestCase):
         report_meta["provider_type"] = Provider.PROVIDER_OCP
         report_meta["provider_uuid"] = self.ocp_test_provider_uuid
         report_meta["manifest_id"] = 1
-        reports_to_summarize = [report_meta]
+
+        # add a report with start/end dates specified 
+        report2_meta = {}
+        report2_meta["start_date"] = str(DateHelper().today)
+        report2_meta["schema_name"] = self.schema
+        report2_meta["provider_type"] = Provider.PROVIDER_OCP
+        report2_meta["provider_uuid"] = self.ocp_test_provider_uuid
+        report2_meta["manifest_id"] = 2
+        report2_meta["start"] = str(DateHelper().yesterday)
+        report2_meta["end"] = str(DateHelper().today)
+
+        reports_to_summarize = [report_meta, report2_meta]
 
         summarize_reports(reports_to_summarize)
         mock_update_summary.delay.assert_called()

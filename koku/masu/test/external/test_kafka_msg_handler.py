@@ -114,11 +114,15 @@ class KafkaMsgHandlerTest(MasuTestCase):
         super().setUp()
         logging.disable(logging.NOTSET)
         payload_file = open("./koku/masu/test/data/ocp/payload.tar.gz", "rb")
+        payload_file_dates = open("./koku/masu/test/data/ocp/payload2.tar.gz", "rb")
         bad_payload_file = open("./koku/masu/test/data/ocp/bad_payload.tar.gz", "rb")
         no_manifest_file = open("./koku/masu/test/data/ocp/no_manifest.tar.gz", "rb")
 
         self.tarball_file = payload_file.read()
         payload_file.close()
+
+        self.dates_tarball = payload_file_dates.read()
+        payload_file_dates.close()
 
         self.bad_tarball_file = bad_payload_file.read()
         bad_payload_file.close()
@@ -457,6 +461,31 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                 msg_handler.extract_payload(payload_url, "test_request_id")
                                 expected_path = "{}/{}/{}/".format(
                                     Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
+                                )
+                                self.assertTrue(os.path.isdir(expected_path))
+                                shutil.rmtree(fake_dir)
+                                shutil.rmtree(fake_pvc_dir)
+
+    def test_extract_payload_dates(self):
+        """Test to verify extracting payload is successful."""
+
+        fake_account = {"provider_uuid": uuid.uuid4(), "provider_type": "OCP", "schema_name": "testschema"}
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
+        with requests_mock.mock() as m:
+            m.get(payload_url, content=self.dates_tarball)
+
+            fake_dir = tempfile.mkdtemp()
+            fake_pvc_dir = tempfile.mkdtemp()
+            with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
+                with patch.object(Config, "TMP_DIR", fake_dir):
+                    with patch(
+                        "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
+                    ):
+                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
+                            with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
+                                msg_handler.extract_payload(payload_url, "test_request_id")
+                                expected_path = "{}/{}/{}/".format(
+                                    Config.INSIGHTS_LOCAL_REPORT_DIR, "5997a261-f23e-45d1-8e01-ee3c765f3aec", "20210101-20210201"
                                 )
                                 self.assertTrue(os.path.isdir(expected_path))
                                 shutil.rmtree(fake_dir)
