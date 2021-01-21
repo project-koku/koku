@@ -441,6 +441,56 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 msg_handler.summarize_manifest(report_meta)
                 mock_summarize_reports.assert_not_called()
 
+    def test_summarize_manifest_dates(self):
+        """Test report summarization."""
+        report_meta = {
+            "schema_name": "test_schema",
+            "manifest_id": "1",
+            "provider_uuid": uuid.uuid4(),
+            "provider_type": "OCP",
+            "compression": "UNCOMPRESSED",
+            "file": "/path/to/file.csv",
+            "start": str(datetime.today()),
+            "end": str(datetime.today()),
+        }
+        expected_meta = {
+            "schema_name": report_meta.get("schema_name"),
+            "provider_type": report_meta.get("provider_type"),
+            "provider_uuid": report_meta.get("provider_uuid"),
+            "manifest_id": report_meta.get("manifest_id"),
+            "start": report_meta.get("start"),
+            "end": report_meta.get("end"),
+        }
+
+        class FakeManifest:
+            def __init__(self, num_processed_files=1, num_total_files=1):
+                self.num_processed_files = num_processed_files
+                self.num_total_files = num_total_files
+
+            def get_manifest_by_id(self, manifest_id):
+                return self
+
+            def manifest_ready_for_summary(self, manifest_id):
+                return self.num_processed_files == self.num_total_files
+
+        # Check when manifest is done
+        mock_manifest_accessor = FakeManifest(num_processed_files=2, num_total_files=2)
+
+        with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
+            mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
+            with patch("masu.external.kafka_msg_handler.summarize_reports.delay") as mock_summarize_reports:
+                msg_handler.summarize_manifest(report_meta)
+                mock_summarize_reports.assert_called_with([expected_meta])
+
+        # Check when manifest is not done
+        mock_manifest_accessor = FakeManifest(num_processed_files=1, num_total_files=2)
+
+        with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
+            mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
+            with patch("masu.external.kafka_msg_handler.summarize_reports.delay") as mock_summarize_reports:
+                msg_handler.summarize_manifest(report_meta)
+                mock_summarize_reports.assert_not_called()
+
     def test_extract_payload(self):
         """Test to verify extracting payload is successful."""
 
