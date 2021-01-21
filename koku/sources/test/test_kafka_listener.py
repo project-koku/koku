@@ -753,7 +753,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 json={"data": [{"name": mock_source_name}]},
             )
             m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
                 status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
@@ -762,7 +762,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 status_code=200,
                 json={"data": [{"id": authentication_id}]},
             )
-            m.patch(f"http://www.sources.com/api/v1.0/applications/{app_id}", status_code=204)
+            m.patch(f"http://www.sources.com/api/v1.0/applications/{resource_id}", status_code=204)
             source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)

@@ -107,9 +107,7 @@ class SourceDetails:
         self.source_uuid = details.get("uid")
         self.source_type_name = sources_network.get_source_type_name(self.source_type_id)
         self.source_type = SOURCE_PROVIDER_MAP.get(self.source_type_name)
-        self.app_settings = None
-        if self.source_type_name in (SOURCES_GCP_SOURCE_NAME, SOURCES_GCP_LOCAL_SOURCE_NAME):
-            self.app_settings = sources_network.get_application_settings()
+        self.app_settings = sources_network.get_application_settings(self.source_type)
 
 
 def _extract_from_header(headers, header_type):
@@ -356,8 +354,8 @@ def sources_network_info(source_id, auth_header):
 
     storage.add_provider_sources_network_info(src_details, source_id)
     save_auth_info(auth_header, source_id)
-    if src_details.source_type_name in (SOURCES_GCP_SOURCE_NAME, SOURCES_GCP_LOCAL_SOURCE_NAME):
-        app_settings = src_details.app_settings
+    app_settings = src_details.app_settings
+    if app_settings:
         try:
             storage.update_application_settings(source_id, app_settings)
         except storage.SourcesStorageError as error:

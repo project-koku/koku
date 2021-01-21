@@ -24,6 +24,7 @@ from json import dumps as json_dumps
 
 import requests
 from requests.exceptions import RequestException
+from api.provider.models import Provider
 
 from sources import storage
 from sources.config import Config
@@ -145,7 +146,20 @@ class SourcesHTTPClient:
         source_name = endpoint_response.get("data")[0].get("name")
         return source_name
 
-    def get_application_settings(self):
+    def _update_app_settings_for_source_type(self, source_type, app_settings):
+        LOG.info(f"Update settings for: {str(source_type)}")
+        if source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL,):
+            return {"billing_source": {"data_source": {"dataset": app_settings.get("dataset")}}}
+        elif source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL,):
+            return {"billing_source": {"data_source": {"bucket": app_settings.get("bucket")}}}
+        else source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL,):
+            subscription_id = app_settings.get("subscription_id")
+            settings = {"billing_source": {"data_source": {"resource_group": app_settings.get("resource_group",
+                                                           "storage_account": app_settings.get("storage_account"))}},
+                        "authentication": {"subscription_id": app_settings.get("subscription_id")}}
+            return settings
+
+    def get_application_settings(self, source_type):
         """Get the application settings from Sources."""
         application_url = "{}/applications?filter[source_id]={}".format(self._base_url, str(self._source_id))
         r = self._get_network_response(application_url, self._identity_header, "Unable to application settings")
@@ -153,7 +167,11 @@ class SourcesHTTPClient:
         if not applications_response.get("data"):
             raise SourcesHTTPClientError(f"No application data for source: {self._source_id}")
         app_settings = applications_response.get("data")[0].get("extra")
-        return app_settings
+
+        updated_settings = None
+        if app_settings:
+            updated_settings = self._update_app_settings_for_source_type(source_type, app_settings)
+        return updated_settings
 
     def get_aws_credentials(self):
         """Get the roleARN from Sources Authentication service."""
