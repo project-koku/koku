@@ -346,7 +346,15 @@ class QueryHandler:
         else:
             filt["operation"] = "in"
             try:
-                check_field_type = self.query_table._meta.get_field(filt.get("field", "")).get_internal_type()
+                check_field_type = None
+                if hasattr(self, "query_table"):
+                    # Reports APIs
+                    check_field_type = self.query_table._meta.get_field(filt.get("field", "")).get_internal_type()
+                elif hasattr(self, "data_sources"):
+                    # Tags APIs
+                    check_field_type = (
+                        self.data_sources[0].get("db_table")._meta.get_field(filt.get("field", "")).get_internal_type()
+                    )
                 if check_field_type == "ArrayField":
                     filt["operation"] = "contains"
             except FieldDoesNotExist:
