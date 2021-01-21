@@ -166,7 +166,8 @@ class SourcesHTTPClient:
             subscription_id = app_settings.get("subscription_id")
             authentication = {}
             if subscription_id:
-                authentication["subscription_id"] = subscription_id
+                authentication = {"credentials": {}}
+                authentication["credentials"]["subscription_id"] = subscription_id
 
             settings = {}
             if billing_source:
