@@ -98,6 +98,17 @@ class CostModelUserAccess(UserAccess):
         return False
 
 
+class CostManagementAllAccess(UserAccess):
+    def __init__(self, access):
+        self.all_access = access.get("*")
+
+    @property
+    def access(self):
+        if self.check_access(self.all_access):
+            return True
+        return False
+
+
 class UserAccessView(APIView):
     """API GET view for User API."""
 
@@ -107,7 +118,7 @@ class UserAccessView(APIView):
     def get(self, request, **kwargs):
         query_params = request.query_params
         user_access = request.user.access
-        user_org_admin = request.user.admin
+        admin_user = request.user.admin or CostManagementAllAccess(user_access).access
 
         source_types = [
             {"type": "aws", "access_class": AWSUserAccess},
@@ -122,7 +133,7 @@ class UserAccessView(APIView):
             source_accessor = next((item for item in source_types if item.get("type") == source_type.lower()), False)
             if source_accessor:
                 access_class = source_accessor.get("access_class")
-                if user_org_admin:
+                if admin_user:
                     access_granted = True
                 else:
                     access_granted = access_class(user_access).access
@@ -133,7 +144,7 @@ class UserAccessView(APIView):
         data = []
         for source_type in source_types:
             access_granted = False
-            if user_org_admin:
+            if admin_user:
                 access_granted = True
             else:
                 access_granted = source_type.get("access_class")(user_access).access

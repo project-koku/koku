@@ -261,6 +261,19 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "azure", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": True} in response.data.get("data"))
 
+    @RbacPermissions({"*": "*"})
+    def test_view_as_cost_admin(self):
+        """Test user-access view as a cost admin."""
+        url = reverse("user-access")
+        response = self.client.get(url, **self.headers)
+
+        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": True} in response.data.get("data"))
+
     def test_aws_view_query_read_org_admin(self):
         """Test user-access view query as an org admin."""
         url = reverse("user-access")
