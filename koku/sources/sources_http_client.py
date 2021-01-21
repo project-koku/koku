@@ -152,11 +152,29 @@ class SourcesHTTPClient:
             return {"billing_source": {"data_source": {"dataset": app_settings.get("dataset")}}}
         elif source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL,):
             return {"billing_source": {"data_source": {"bucket": app_settings.get("bucket")}}}
-        else source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL,):
+        elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL,):
+            resource_group = app_settings.get("resource_group")
+            storage_account = app_settings.get("storage_account")
+            billing_source = {}
+            if resource_group or storage_account:
+                billing_source = {"data_source": {}}
+                if resource_group:
+                    billing_source["data_source"]["resource_group"] = resource_group
+                if storage_account:
+                    billing_source["data_source"]["storage_account"] = storage_account
+
             subscription_id = app_settings.get("subscription_id")
-            settings = {"billing_source": {"data_source": {"resource_group": app_settings.get("resource_group",
-                                                           "storage_account": app_settings.get("storage_account"))}},
-                        "authentication": {"subscription_id": app_settings.get("subscription_id")}}
+            authentication = {}
+            if subscription_id:
+                authentication["subscription_id"] = subscription_id
+
+            settings = {}
+            if billing_source:
+                settings["billing_source"] = billing_source
+            
+            if authentication:
+                settings["authentication"] = authentication
+
             return settings
 
     def get_application_settings(self, source_type):
