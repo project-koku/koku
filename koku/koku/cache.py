@@ -19,7 +19,6 @@ import logging
 
 from django.conf import settings
 from django.core.cache import caches
-from django.core.cache.backends import locmem
 from django.core.cache.backends.dummy import DummyCache
 from django.core.cache.backends.locmem import LocMemCache
 from django_redis.cache import RedisCache
@@ -57,8 +56,10 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
         all_keys = cache.keys("*")
         all_keys = [key.decode("utf-8") for key in all_keys]
     elif isinstance(cache, LocMemCache):
-        all_keys = list(locmem._caches.get(settings.TEST_CACHE_LOCATION).keys())
-        all_keys = [key.split(":", 2)[-1] for key in all_keys]
+        all_keys = cache._cache.keys()
+        all_keys = list(all_keys)
+        all_keys = [key.split(":") for key in all_keys]
+        all_keys = [":".join(splits[-2:]) for splits in all_keys]
     elif isinstance(cache, DummyCache):
         LOG.info("Skipping cache invalidation because views caching is disabled.")
         return
