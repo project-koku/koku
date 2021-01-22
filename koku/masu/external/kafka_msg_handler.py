@@ -495,6 +495,8 @@ def summarize_manifest(report_meta):
     provider_uuid = report_meta.get("provider_uuid")
     schema_name = report_meta.get("schema_name")
     provider_type = report_meta.get("provider_type")
+    start_date = report_meta.get("start")
+    end_date = report_meta.get("end")
 
     with ReportManifestDBAccessor() as manifest_accesor:
         if manifest_accesor.manifest_ready_for_summary(manifest_id):
@@ -504,6 +506,9 @@ def summarize_manifest(report_meta):
                 "provider_uuid": provider_uuid,
                 "manifest_id": manifest_id,
             }
+            if start_date and end_date:
+                report_meta["start"] = start_date
+                report_meta["end"] = end_date
             async_id = summarize_reports.delay([report_meta])
     return async_id
 
