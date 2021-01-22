@@ -109,5 +109,3 @@ class ProviderErrors:
         "Edit your Azure source and verify the subscription ID."
     )
     AZURE_GENERAL_CLIENT_ERROR_MESSAGE = "Azure client configuration error."
-
-    GCP_INCORRECT_IAM_PERMISSIONS_MESSAGE = "Incorrect IAM permissions"
