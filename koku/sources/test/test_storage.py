@@ -706,3 +706,93 @@ class SourcesStorageTest(TestCase):
                 except Exception as error:
                     self.fail(str(error))
         azure_instance.delete()
+
+    def test_update_application_settings(self):
+        """Test to update application settings."""
+        test_source_id = 3
+        resource_group = "testrg"
+        subscription_id = "testsubid"
+        settings = {
+            "billing_source": {"data_source": {"resource_group": resource_group}},
+            "authentication": {"subscription_id": subscription_id},
+        }
+        azure_obj = Sources(
+            source_id=test_source_id,
+            auth_header=self.test_header,
+            offset=3,
+            source_type=Provider.PROVIDER_AZURE,
+            name="Test AZURE Source",
+        )
+        azure_obj.save()
+
+        storage.update_application_settings(test_source_id, settings)
+        db_obj = Sources.objects.get(source_id=test_source_id)
+
+        self.assertEqual(db_obj.authentication.get("subscription_id"), subscription_id)
+        self.assertEqual(db_obj.billing_source.get("data_source").get("resource_group"), resource_group)
+
+    def test_update_application_settings_only_billing_source(self):
+        """Test to update application settings (only billing_source)."""
+        test_source_id = 3
+        resource_group = "testrg"
+        settings = {"billing_source": {"data_source": {"resource_group": resource_group}}}
+        azure_obj = Sources(
+            source_id=test_source_id,
+            auth_header=self.test_header,
+            offset=3,
+            source_type=Provider.PROVIDER_AZURE,
+            name="Test AZURE Source",
+        )
+        azure_obj.save()
+
+        storage.update_application_settings(test_source_id, settings)
+        db_obj = Sources.objects.get(source_id=test_source_id)
+
+        self.assertIsNone(db_obj.authentication.get("subscription_id"))
+        self.assertEqual(db_obj.billing_source.get("data_source").get("resource_group"), resource_group)
+
+    def test_update_application_settings_only_authentication(self):
+        """Test to update application settings (only authentication)."""
+        test_source_id = 3
+        subscription_id = "testsubid"
+        settings = {"authentication": {"subscription_id": subscription_id}}
+        azure_obj = Sources(
+            source_id=test_source_id,
+            auth_header=self.test_header,
+            offset=3,
+            source_type=Provider.PROVIDER_AZURE,
+            name="Test AZURE Source",
+        )
+        azure_obj.save()
+
+        storage.update_application_settings(test_source_id, settings)
+        db_obj = Sources.objects.get(source_id=test_source_id)
+
+        self.assertEqual(db_obj.authentication.get("subscription_id"), subscription_id)
+        self.assertIsNone(db_obj.billing_source.get("data_source"))
+
+    def test_save_status(self):
+        """Test to verify source status is saved."""
+        test_source_id = 3
+        status = "unavailable"
+        user_facing_string = "Missing credential and billing source"
+        mock_status = {"availability_status": status, "availability_status_error": user_facing_string}
+        azure_obj = Sources(
+            source_id=test_source_id,
+            auth_header=self.test_header,
+            offset=3,
+            source_type=Provider.PROVIDER_AZURE,
+            name="Test AZURE Source",
+        )
+        azure_obj.save()
+
+        return_code = storage.save_status(test_source_id, mock_status)
+        db_obj = Sources.objects.get(source_id=test_source_id)
+        self.assertEqual(db_obj.status, mock_status)
+        self.assertTrue(return_code)
+
+        # Save again and verify return_code is False
+        return_code = storage.save_status(test_source_id, mock_status)
+        db_obj = Sources.objects.get(source_id=test_source_id)
+        self.assertEqual(db_obj.status, mock_status)
+        self.assertFalse(return_code)
