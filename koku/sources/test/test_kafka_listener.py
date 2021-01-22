@@ -612,7 +612,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_type_id = 1
         mock_source_name = "google"
         resource_id = 2
-        authentication_id = 3
         with requests_mock.mock() as m:
             m.get(
                 f"http://www.sources.com/api/v1.0/sources/{test_source_id}",
@@ -639,18 +638,10 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(
                 (
                     f"http://www.sources.com/api/v1.0/authentications?"
-                    f"[authtype]=project_id&[resource_id]={resource_id}"
+                    f"[authtype]=username_password&[resource_id]={resource_id}"
                 ),
                 status_code=200,
-                json={"data": [{"id": authentication_id}]},
-            )
-            m.get(
-                (
-                    f"http://www.sources.com/internal/v1.0/authentications/{authentication_id}"
-                    f"?expose_encrypted_attribute[]=password"
-                ),
-                status_code=200,
-                json={"password": authentication},
+                json={"data": [{"username": authentication}]},
             )
             source_integration.sources_network_info(test_source_id, test_auth_header)
 

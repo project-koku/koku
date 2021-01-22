@@ -24,8 +24,8 @@ from json import dumps as json_dumps
 
 import requests
 from requests.exceptions import RequestException
-from api.provider.models import Provider
 
+from api.provider.models import Provider
 from sources import storage
 from sources.config import Config
 from sources.sources_error_message import SourcesErrorMessage
@@ -146,16 +146,35 @@ class SourcesHTTPClient:
         source_name = endpoint_response.get("data")[0].get("name")
         return source_name
 
+    def _build_app_settings_for_azure(self, app_settings):
+        """Build settings structure for azure."""
+        resource_group = app_settings.get("resource_group")
+        storage_account = app_settings.get("storage_account")
+        if resource_group or storage_account:
+            billing_source = {"data_source": {}}
+            if resource_group:
+                billing_source["data_source"]["resource_group"] = resource_group
+            if storage_account:
+                billing_source["data_source"]["storage_account"] = storage_account
+
     def _update_app_settings_for_source_type(self, source_type, app_settings):
         LOG.info(f"Update settings for: {str(source_type)}")
-        if source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL,):
-            return {"billing_source": {"data_source": {"dataset": app_settings.get("dataset")}}}
-        elif source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL,):
-            return {"billing_source": {"data_source": {"bucket": app_settings.get("bucket")}}}
-        elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL,):
+        settings = {}
+        billing_source = {}
+        authentication = {}
+        if source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+            dataset = app_settings.get("dataset")
+            if dataset:
+                billing_source = {"data_source": {}}
+                billing_source["data_source"]["dataset"] = dataset
+        elif source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+            bucket = app_settings.get("bucket")
+            if bucket:
+                billing_source = {"data_source": {}}
+                billing_source["data_source"]["bucket"] = bucket
+        elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             resource_group = app_settings.get("resource_group")
             storage_account = app_settings.get("storage_account")
-            billing_source = {}
             if resource_group or storage_account:
                 billing_source = {"data_source": {}}
                 if resource_group:
@@ -164,19 +183,17 @@ class SourcesHTTPClient:
                     billing_source["data_source"]["storage_account"] = storage_account
 
             subscription_id = app_settings.get("subscription_id")
-            authentication = {}
             if subscription_id:
                 authentication = {"credentials": {}}
                 authentication["credentials"]["subscription_id"] = subscription_id
 
-            settings = {}
-            if billing_source:
-                settings["billing_source"] = billing_source
-            
-            if authentication:
-                settings["authentication"] = authentication
+        if billing_source:
+            settings["billing_source"] = billing_source
 
-            return settings
+        if authentication:
+            settings["authentication"] = authentication
+
+        return settings
 
     def get_application_settings(self, source_type):
         """Get the application settings from Sources."""
@@ -234,24 +251,15 @@ class SourcesHTTPClient:
         else:
             raise SourcesHTTPClientError(f"Unable to get GCP credentials for Source: {self._source_id}")
 
-        authentications_str = "{}/authentications?[authtype]=project_id&[resource_id]={}"
+        authentications_str = "{}/authentications?[authtype]=username_password&[resource_id]={}"
         authentications_url = authentications_str.format(self._base_url, str(resource_id))
         r = self._get_network_response(authentications_url, self._identity_header, "Unable to GCP credentials")
         authentications_response = r.json()
         if not authentications_response.get("data"):
             raise SourcesHTTPClientError(f"Unable to get GCP credentials for Source: {self._source_id}")
-        authentications_id = authentications_response.get("data")[0].get("id")
-
-        authentications_internal_url = "{}/authentications/{}?expose_encrypted_attribute[]=password".format(
-            self._internal_url, str(authentications_id)
-        )
-        r = self._get_network_response(
-            authentications_internal_url, self._identity_header, "Unable to GCP Credentials"
-        )
-        authentications_internal_response = r.json()
-        password = authentications_internal_response.get("password")
-        if password:
-            return {"project_id": password}
+        project_id = authentications_response.get("data")[0].get("username")
+        if project_id:
+            return {"project_id": project_id}
 
         raise SourcesHTTPClientError(f"Unable to get GCP credentials for Source: {self._source_id}")
 
