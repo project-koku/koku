@@ -259,7 +259,7 @@ class SourcesHTTPClient:
         else:
             raise SourcesHTTPClientError(f"Unable to get GCP credentials for Source: {self._source_id}")
 
-        authentications_str = "{}/authentications?[authtype]=username_password&[resource_id]={}"
+        authentications_str = "{}/authentications?[authtype]=project_id_service_account_json&[resource_id]={}"
         authentications_url = authentications_str.format(self._base_url, str(resource_id))
         r = self._get_network_response(authentications_url, self._identity_header, "Unable to GCP credentials")
         authentications_response = r.json()

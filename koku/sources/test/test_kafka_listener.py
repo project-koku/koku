@@ -638,7 +638,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(
                 (
                     f"http://www.sources.com/api/v1.0/authentications?"
-                    f"[authtype]=username_password&[resource_id]={resource_id}"
+                    f"[authtype]=project_id_service_account_json&[resource_id]={resource_id}"
                 ),
                 status_code=200,
                 json={"data": [{"username": authentication}]},

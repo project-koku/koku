@@ -266,7 +266,7 @@ class SourcesHTTPClientTest(TestCase):
             m.get(
                 (
                     f"http://www.sources.com/api/v1.0/authentications?"
-                    f"[authtype]=username_password&[resource_id]={resource_id}"
+                    f"[authtype]=project_id_service_account_json&[resource_id]={resource_id}"
                 ),
                 status_code=200,
                 json={"data": [{"username": self.authentication}]},
@@ -287,7 +287,10 @@ class SourcesHTTPClientTest(TestCase):
                 json={"data": []},
             )
             m.get(
-                (f"http://www.sources.com/api/v1.0/authentications?" f"[authtype]=arn&[resource_id]={resource_id}"),
+                (
+                    f"http://www.sources.com/api/v1.0/authentications?"
+                    f"[authtype]=project_id_service_account_json&[resource_id]={resource_id}"
+                ),
                 status_code=200,
                 json={"data": []},
             )
@@ -316,7 +319,7 @@ class SourcesHTTPClientTest(TestCase):
             m.get(
                 (
                     f"http://www.sources.com/api/v1.0/authentications?"
-                    f"[authtype]=username_password&[resource_id]={resource_id}"
+                    f"[authtype]=project_id_service_account_json&[resource_id]={resource_id}"
                 ),
                 status_code=200,
                 json={"data": [{"other": self.authentication}]},
