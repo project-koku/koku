@@ -423,7 +423,7 @@ class GCPComputeSummary(models.Model):
         """Meta for GCPComputeSummary."""
 
         db_table = "reporting_gcp_compute_summary"
-        managed = True
+        managed = False
 
     id = models.IntegerField(primary_key=True)
 
