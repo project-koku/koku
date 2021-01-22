@@ -396,7 +396,7 @@
                 }]
             }
         },
-        "/forecasts/aws/costs": {
+        "/forecasts/aws/costs/": {
             "summary": "AWS Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -441,7 +441,7 @@
                 }]
             }
         },
-        "/forecasts/azure/costs": {
+        "/forecasts/azure/costs/": {
             "summary": "Azure Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -486,7 +486,52 @@
                 }]
             }
         },
-        "/forecasts/openshift/costs": {
+        "/forecasts/gcp/costs/": {
+            "summary": "GCP Cost Forecasts",
+            "get": {
+                "tags":["Forecasts"],
+                "parameters": [{
+                    "$ref": "#/components/parameters/QueryFilter",
+                    "name":"QueryFilter"
+                }],
+                "responses": {
+                    "200": {
+                        "description": "An object describing the cost forecast.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Forecast"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Request Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/forecasts/openshift/costs/": {
             "summary": "OpenShift Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -531,7 +576,7 @@
                 }]
             }
         },
-        "/forecasts/openshift/infrastructures/aws/costs": {
+        "/forecasts/openshift/infrastructures/aws/costs/": {
             "summary": "OpenShift on AWS Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -576,7 +621,7 @@
                 }]
             }
         },
-        "/forecasts/openshift/infrastructures/all/costs": {
+        "/forecasts/openshift/infrastructures/all/costs/": {
             "summary": "OpenShift on Cloud Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -621,7 +666,7 @@
                 }]
             }
         },
-        "/forecasts/openshift/infrastructures/azure/costs": {
+        "/forecasts/openshift/infrastructures/azure/costs/": {
             "summary": "OpenShift on Azure Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -2406,6 +2451,31 @@
                 }
             }
         },
+        "/user-access/": {
+            "get": {
+                "tags": [
+                    "UserAccess"
+                ],
+                "summary": "Returns user permission status.",
+                "operationId": "listUserAccess",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryType"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserAccessListPagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/sources/": {
             "get": {
                 "tags": [
@@ -3822,6 +3892,14 @@
                     "type": "boolean"
                 }
             },
+            "QueryType": {
+                "name": "type",
+                "in": "query",
+                "description": "String to identify user access permission type (i.e. AWS, cost_model).",
+                "schema": {
+                    "type": "string"
+                }
+            },
             "QueryValue": {
                 "in": "query",
                 "name": "value",
@@ -4476,6 +4554,26 @@
                     }
                 ]
             },
+            "UserAccessListPagination": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ListPagination"
+                  },
+                  {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/UserAccessTypeOut"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
             "ResourceTypeListPagination": {
                 "allOf": [{
                     "$ref": "#/components/schemas/ListPagination"
@@ -4520,6 +4618,16 @@
                 "properties": {
                     "value": {
                         "type": "string"
+                    }
+                }
+            },
+            "UserAccessTypeOut": {
+                "properties": {
+                    "type": {
+                        "type": "string"
+                    },
+                    "access": {
+                        "type": "boolean"
                     }
                 }
             },
