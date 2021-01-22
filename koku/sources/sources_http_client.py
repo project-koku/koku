@@ -146,50 +146,58 @@ class SourcesHTTPClient:
         source_name = endpoint_response.get("data")[0].get("name")
         return source_name
 
+    def _build_app_settings_for_gcp(self, app_settings):
+        """Build settings structure for gcp."""
+        billing_source = {}
+        dataset = app_settings.get("dataset")
+        if dataset:
+            billing_source = {"data_source": {}}
+            billing_source["data_source"]["dataset"] = dataset
+        return billing_source
+
+    def _build_app_settings_for_aws(self, app_settings):
+        """Build settings structure for aws."""
+        billing_source = {}
+        bucket = app_settings.get("bucket")
+        if bucket:
+            billing_source = {"data_source": {}}
+            billing_source["data_source"]["bucket"] = bucket
+        return billing_source
+
     def _build_app_settings_for_azure(self, app_settings):
         """Build settings structure for azure."""
+        billing_source = {}
+        authentication = {}
         resource_group = app_settings.get("resource_group")
         storage_account = app_settings.get("storage_account")
+        subscription_id = app_settings.get("subscription_id")
+
         if resource_group or storage_account:
             billing_source = {"data_source": {}}
             if resource_group:
                 billing_source["data_source"]["resource_group"] = resource_group
             if storage_account:
                 billing_source["data_source"]["storage_account"] = storage_account
+        if subscription_id:
+            authentication = {"credentials": {}}
+            authentication["credentials"]["subscription_id"] = subscription_id
+        return billing_source, authentication
 
     def _update_app_settings_for_source_type(self, source_type, app_settings):
-        LOG.info(f"Update settings for: {str(source_type)}")
+        """Update application settings."""
         settings = {}
         billing_source = {}
         authentication = {}
-        if source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-            dataset = app_settings.get("dataset")
-            if dataset:
-                billing_source = {"data_source": {}}
-                billing_source["data_source"]["dataset"] = dataset
-        elif source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            bucket = app_settings.get("bucket")
-            if bucket:
-                billing_source = {"data_source": {}}
-                billing_source["data_source"]["bucket"] = bucket
-        elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            resource_group = app_settings.get("resource_group")
-            storage_account = app_settings.get("storage_account")
-            if resource_group or storage_account:
-                billing_source = {"data_source": {}}
-                if resource_group:
-                    billing_source["data_source"]["resource_group"] = resource_group
-                if storage_account:
-                    billing_source["data_source"]["storage_account"] = storage_account
 
-            subscription_id = app_settings.get("subscription_id")
-            if subscription_id:
-                authentication = {"credentials": {}}
-                authentication["credentials"]["subscription_id"] = subscription_id
+        if source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+            billing_source = self._build_app_settings_for_gcp(app_settings)
+        elif source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+            billing_source = self._build_app_settings_for_aws(app_settings)
+        elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            billing_source, authentication = self._build_app_settings_for_azure(app_settings)
 
         if billing_source:
             settings["billing_source"] = billing_source
-
         if authentication:
             settings["authentication"] = authentication
 
