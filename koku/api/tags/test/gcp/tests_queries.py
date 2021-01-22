@@ -156,7 +156,7 @@ class GCPTagQueryHandlerTest(IamTestCase):
 
     def test_get_tags_for_key_filter(self):
         """Test that get tags runs properly with key query."""
-        key = "test_storage_key"
+        key = "vm_key_proj2"
         url = f"?filter[key]={key}"
         query_params = self.mocked_query_params(url, GCPTagView)
         handler = GCPTagQueryHandler(query_params)
@@ -170,7 +170,7 @@ class GCPTagQueryHandlerTest(IamTestCase):
 
     def test_get_tag_values_for_value_filter(self):
         """Test that get tag values runs properly with value query."""
-        key = "test_storage_key"
+        key = "vm_key_proj2"
         value = "test_storage_label"
         url = f"?filter[value]={value}"
         query_params = self.mocked_query_params(url, GCPTagView)
