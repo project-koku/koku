@@ -44,7 +44,6 @@ class GCPProviderMap(ProviderMap):
                 "provider": Provider.PROVIDER_GCP,
                 "annotations": {},  # Annotations that should always happen
                 "group_by_annotations": {
-                    "region": {"service": "service_alias"},
                     "account": {"account": "account_id"},
                     "project": {"project": "project_id"},
                     "service": {"service": "service_alias"},
