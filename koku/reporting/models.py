@@ -90,6 +90,11 @@ from reporting.provider.azure.openshift.models import OCPAzureDatabaseSummary
 from reporting.provider.azure.openshift.models import OCPAzureNetworkSummary
 from reporting.provider.azure.openshift.models import OCPAzureStorageSummary
 from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
+from reporting.provider.gcp.models import GCPComputeSummary
+from reporting.provider.gcp.models import GCPComputeSummaryByAccount
+from reporting.provider.gcp.models import GCPComputeSummaryByProject
+from reporting.provider.gcp.models import GCPComputeSummaryByRegion
+from reporting.provider.gcp.models import GCPComputeSummaryByService
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPCostEntryProductService
@@ -203,4 +208,9 @@ GCP_MATERIALIZED_VIEWS = (
     GCPCostSummaryByProject,
     GCPCostSummaryByRegion,
     GCPCostSummaryByService,
+    GCPComputeSummary,
+    GCPComputeSummaryByProject,
+    GCPComputeSummaryByAccount,
+    GCPComputeSummaryByService,
+    GCPComputeSummaryByRegion,
 )

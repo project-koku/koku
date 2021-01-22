@@ -26,12 +26,12 @@ from rest_framework.views import APIView
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.pagination import ListPaginator
 
-LOGGER = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 class UserAccess:
     def check_access(self, access_list):
-        if access_list:
+        if access_list.get("read") or access_list.get("write"):
             return True
         return False
 
@@ -98,17 +98,6 @@ class CostModelUserAccess(UserAccess):
         return False
 
 
-class CostManagementAllAccess(UserAccess):
-    def __init__(self, access):
-        self.all_access = access.get("*")
-
-    @property
-    def access(self):
-        if self.check_access(self.all_access):
-            return True
-        return False
-
-
 class UserAccessView(APIView):
     """API GET view for User API."""
 
@@ -118,7 +107,9 @@ class UserAccessView(APIView):
     def get(self, request, **kwargs):
         query_params = request.query_params
         user_access = request.user.access
-        admin_user = request.user.admin or CostManagementAllAccess(user_access).access
+        LOG.debug(f"User Access RBAC permissions: {str(user_access)}. Org Admin: {str(request.user.admin)}")
+        admin_user = request.user.admin
+        LOG.debug(f"User Access admin user: {str(admin_user)}")
 
         source_types = [
             {"type": "aws", "access_class": AWSUserAccess},
