@@ -27,6 +27,12 @@ VIEWS = (
     "reporting_gcp_cost_summary_by_project",
     "reporting_gcp_cost_summary_by_region",
     "reporting_gcp_cost_summary_by_service",
+    "reporting_gcp_cost_summary_by_account",
+    "reporting_gcp_compute_summary",
+    "reporting_gcp_compute_summary_by_project",
+    "reporting_gcp_compute_summary_by_region",
+    "reporting_gcp_compute_summary_by_service",
+    "reporting_gcp_compute_summary_by_account",
 )
 
 
@@ -137,7 +143,7 @@ class GCPCostEntryLineItemDaily(models.Model):
     cost = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
     currency = models.CharField(max_length=256, null=True, blank=True)
     conversion_rate = models.CharField(max_length=256, null=True, blank=True)
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     usage_unit = models.CharField(max_length=256, null=True, blank=True)
     usage_in_pricing_units = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     usage_pricing_unit = models.CharField(max_length=256, null=True, blank=True)
@@ -218,7 +224,7 @@ class GCPTagsSummary(models.Model):
         """Meta for GCPTagSummary."""
 
         db_table = "reporting_gcptags_summary"
-        unique_together = ("key", "cost_entry_bill", "account_id")
+        unique_together = ("key", "cost_entry_bill", "account_id", "project_id")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
@@ -226,6 +232,8 @@ class GCPTagsSummary(models.Model):
     values = ArrayField(models.TextField())
     cost_entry_bill = models.ForeignKey("GCPCostEntryBill", on_delete=models.CASCADE)
     account_id = models.TextField(null=True)
+    project_id = models.TextField(null=True)
+    project_name = models.TextField(null=True)
 
 
 class GCPTagsValues(models.Model):
@@ -241,6 +249,8 @@ class GCPTagsValues(models.Model):
     key = models.TextField()
     value = models.TextField()
     account_ids = ArrayField(models.TextField())
+    project_ids = ArrayField(models.TextField(), null=True)
+    project_names = ArrayField(models.TextField(), null=True)
 
 
 # Materialized Views for UI Reporting
@@ -400,3 +410,191 @@ class GCPCostSummaryByService(models.Model):
     service_id = models.CharField(max_length=256, null=True)
 
     service_alias = models.CharField(max_length=256, null=True, blank=True)
+
+
+class GCPComputeSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class Meta:
+        """Meta for GCPComputeSummary."""
+
+        db_table = "reporting_gcp_compute_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+
+class GCPComputeSummaryByProject(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by account.
+
+    """
+
+    class Meta:
+        """Meta for GCPComputeSummaryByProject."""
+
+        db_table = "reporting_gcp_compute_summary_by_project"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+    project_id = models.CharField(unique=True, max_length=256)
+
+    project_name = models.CharField(max_length=256)
+
+    account_id = models.CharField(max_length=50, null=False)
+
+
+class GCPComputeSummaryByService(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage by service and instance type.
+
+    """
+
+    class Meta:
+        """Meta for GCPComputeSummaryByService."""
+
+        db_table = "reporting_gcp_compute_summary_by_service"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+    service_id = models.CharField(max_length=256, null=True)
+
+    service_alias = models.CharField(max_length=256, null=True, blank=True)
+
+    account_id = models.CharField(max_length=50, null=False)
+
+
+class GCPComputeSummaryByAccount(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by service and instance type.
+
+    """
+
+    class Meta:
+        """Meta for GCPComputeSummaryByAccount."""
+
+        db_table = "reporting_gcp_compute_summary_by_account"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+    account_id = models.CharField(max_length=50, null=False)
+
+
+class GCPComputeSummaryByRegion(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by service and instance type.
+
+    """
+
+    class Meta:
+        """Meta for GCPComputeSummaryByRegion."""
+
+        db_table = "reporting_gcp_compute_summary_by_region"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+    account_id = models.CharField(max_length=50, null=False)
+
+    region = models.CharField(max_length=50, null=True)

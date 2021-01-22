@@ -106,7 +106,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         data_loader.load_openshift_data(customer, "ocp_aws_static_data.yml", "OCP-on-AWS")
                         data_loader.load_openshift_data(customer, "ocp_azure_static_data.yml", "OCP-on-Azure")
                         data_loader.load_azure_data(customer, "azure_static_data.yml")
-                        data_loader.load_gcp_data(customer)
+                        data_loader.load_gcp_data(customer, "gcp_static_data.yml")
                         for account in [("10002", "acct10002"), ("12345", "acct12345")]:
                             tenant = Tenant.objects.get_or_create(schema_name=account[1])[0]
                             tenant.save()

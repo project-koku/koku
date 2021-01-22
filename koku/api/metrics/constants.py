@@ -52,6 +52,7 @@ SOURCE_TYPE_MAP = {
     Provider.PROVIDER_OCP: "OpenShift Container Platform",
     Provider.PROVIDER_AWS: "Amazon Web Services",
     Provider.PROVIDER_AZURE: "Microsoft Azure",
+    Provider.PROVIDER_GCP: "Google Cloud Platform",
 }
 
 COST_MODEL_METRIC_MAP = [
@@ -107,7 +108,7 @@ COST_MODEL_METRIC_MAP = [
         "source_type": "OCP",
         "metric": "node_cost_per_month",
         "label_metric": "Node",
-        "label_measurement": "Currency",
+        "label_measurement": "Count",
         "label_measurement_unit": "node-month",
         "default_cost_type": "Infrastructure",
     },
@@ -115,7 +116,7 @@ COST_MODEL_METRIC_MAP = [
         "source_type": "OCP",
         "metric": "cluster_cost_per_month",
         "label_metric": "Cluster",
-        "label_measurement": "Currency",
+        "label_measurement": "Count",
         "label_measurement_unit": "cluster-month",
         "default_cost_type": "Infrastructure",
     },
@@ -123,7 +124,7 @@ COST_MODEL_METRIC_MAP = [
         "source_type": "OCP",
         "metric": "pvc_cost_per_month",
         "label_metric": "Persistent volume claims",
-        "label_measurement": "Currency",
+        "label_measurement": "Count",
         "label_measurement_unit": "pvc-month",
         "default_cost_type": "Infrastructure",
     },

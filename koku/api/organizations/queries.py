@@ -28,7 +28,6 @@ from tenant_schemas.utils import tenant_context
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
-from api.utils import DateHelper
 
 
 LOG = logging.getLogger(__name__)
@@ -70,8 +69,6 @@ class OrgQueryHandler(QueryHandler):
     data_sources = []
     SUPPORTED_FILTERS = []
     FILTER_MAP = {}
-
-    dh = DateHelper()
 
     def __init__(self, parameters):
         """Establish org query handler.

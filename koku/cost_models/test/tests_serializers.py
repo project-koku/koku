@@ -483,7 +483,7 @@ class CostModelSerializerTest(IamTestCase):
             with self.assertRaises(serializers.ValidationError):
                 self.assertFalse(serializer.is_valid(raise_exception=True))
         result_err_msg = serializer.errors["rates"][0]["tag_values"]["value"][0]
-        expected_err_msg = "A tag rate value must be positive."
+        expected_err_msg = "A tag rate value must be nonnegative."
         self.assertEqual(result_err_msg, expected_err_msg)
 
     def test_tag_rates_error_on_negitive_usage_start(self):
