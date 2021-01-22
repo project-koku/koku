@@ -49,7 +49,6 @@ class GCPProviderMap(ProviderMap):
                 "provider": Provider.PROVIDER_GCP,
                 "annotations": {},  # Annotations that should always happen
                 "group_by_annotations": {
-                    "region": {"service": "service_alias"},
                     "account": {"account": "account_id"},
                     "project": {"project": "project_id"},
                     "service": {"service": "service_alias"},
@@ -66,9 +65,8 @@ class GCPProviderMap(ProviderMap):
                         {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},
                         {"field": "project_id", "operation": "icontains", "composition_key": "project_filter"},
                     ],
-                    "instance_type": {"field": "instance_type", "operation": "icontains"},
                 },
-                "group_by_options": ["account", "region", "service", "project", "instance_type"],
+                "group_by_options": ["account", "region", "service", "project"],
                 "tag_column": "tags",
                 "report_type": {
                     "costs": {
@@ -177,7 +175,6 @@ class GCPProviderMap(ProviderMap):
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [
                             {"field": "instance_type", "operation": "isnull", "parameter": False},
-                            # I assume we only want the core hours
                             {"field": "unit", "operation": "exact", "parameter": "hour"},
                         ],
                         "group_by": ["instance_type"],
