@@ -20,7 +20,7 @@ import logging
 from api.models import Provider
 from api.report.all.openshift.provider_map import OCPAllProviderMap
 from api.report.aws.openshift.query_handler import OCPInfrastructureReportQueryHandlerBase
-from api.report.queries import is_grouped_or_filtered_by_project
+from api.report.queries import is_grouped_by_project
 
 LOG = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
         """
         self._mapper = OCPAllProviderMap(provider=self.provider, report_type=parameters.report_type)
         # Update which field is used to calculate cost by group by param.
-        if is_grouped_or_filtered_by_project(parameters):
+        if is_grouped_by_project(parameters):
             self._report_type = parameters.report_type + "_by_project"
             self._mapper = OCPAllProviderMap(provider=self.provider, report_type=self._report_type)
 
