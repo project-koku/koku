@@ -89,16 +89,10 @@ class Forecast:
                 # We have access constraints, but no view to accomodate, default to daily summary table
                 self.cost_summary_table = self.provider_map.report_type_map.get("tables", {}).get("query")
 
-        # FIXME: replace with rolling 30-day window
-        if self.dh.today.day == 1:
-            self.forecast_days_required = self.dh.this_month_end.day
-        else:
-            self.forecast_days_required = self.dh.this_month_end.day - self.dh.yesterday.day
+        self.forecast_days_required = (self.dh.this_month_end - self.dh.yesterday).days
 
-        if self.dh.today.day <= self.MINIMUM:
-            self.query_range = (self.dh.last_month_start, self.dh.yesterday)
-        else:
-            self.query_range = (self.dh.this_month_start, self.dh.yesterday)
+        # forecasts use a rolling window
+        self.query_range = (self.dh.n_days_ago(self.dh.yesterday, 30), self.dh.yesterday)
 
         self.filters = QueryFilterCollection()
         self.filters.add(field="usage_start", operation="gte", parameter=self.query_range[0])
@@ -168,12 +162,13 @@ class Forecast:
         """
         LOG.debug("Forecast input data: %s", data)
 
-        if len(data) < 3:
-            LOG.warning("Unable to calculate forecast. Insufficient data for %s.", self.params.tenant)
-            return []
-
         if len(data) < self.MINIMUM:
-            LOG.warning("Number of data elements is fewer than the minimum.")
+            LOG.warning(
+                "Number of data elements (%s) is fewer than the minimum (%s). Unable to generate forecast.",
+                len(data),
+                self.MINIMUM,
+            )
+            return []
 
         dates, costs = zip(*data)
 
