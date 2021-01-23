@@ -19,6 +19,6 @@ def apply_public_func_updates(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0033_sources_name_text")]
+    dependencies = [("api", "0034_remove_sources_endpoint_id")]
 
     operations = [migrations.RunPython(code=apply_public_func_updates)]
