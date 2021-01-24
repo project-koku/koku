@@ -465,7 +465,9 @@ class ProviderManagerTest(IamTestCase):
 
     def test_provider_statistics(self):
         """Test that the provider statistics method returns report stats."""
-        provider = Provider.objects.first()
+        provider = Provider.objects.filter(data_updated_timestamp__isnull=False).first()
+
+        self.assertIsNotNone(provider)
 
         provider_uuid = provider.uuid
         manager = ProviderManager(provider_uuid)
@@ -473,6 +475,7 @@ class ProviderManagerTest(IamTestCase):
 
         self.assertIn(str(self.dh.this_month_start.date()), stats.keys())
         self.assertIn(str(self.dh.last_month_start.date()), stats.keys())
+
         for key, value in stats.items():
             if key == "data_updated_date":
                 value_data = value

@@ -117,28 +117,23 @@ class OCPReportParquetSummaryUpdater:
                     self._provider.uuid,
                     self._cluster_id,
                     report_period.id,
-                    report_period.report_period_start.date(),
-                    report_period.report_period_end.date(),
+                    start_date,
+                    end_date,
                 )
                 # This will process POD and STORAGE together
                 accessor.populate_line_item_daily_summary_table_presto(
-                    report_period.report_period_start.date(),
-                    report_period.report_period_end.date(),
-                    report_period.id,
-                    self._cluster_id,
-                    self._cluster_alias,
-                    self._provider.uuid,
+                    start_date, end_date, report_period.id, self._cluster_id, self._cluster_alias, self._provider.uuid
                 )
 
             # This will process POD and STORAGE together
             LOG.info(
                 "Updating OpenShift label summary tables for \n\tSchema: %s " "\n\tReport Period IDs: %s",
                 self._schema,
-                report_period.id,
+                report_period_ids,
             )
-            accessor.populate_pod_label_summary_table_presto(
-                report_period_ids, start_date, end_date, self._provider.uuid
-            )
+            accessor.populate_pod_label_summary_table(report_period_ids)
+            accessor.populate_volume_label_summary_table(report_period_ids)
+            accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
 
             LOG.info("Updating OpenShift report periods")
             for period in report_periods:

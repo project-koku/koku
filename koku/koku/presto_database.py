@@ -91,12 +91,20 @@ def connect(**connect_args):
         prestodb.dbapi.Connection : connection to prestodb if successful
     """
     presto_connect_args = {
-        "host": connect_args.get("host") or os.environ.get("PRESTO_HOST") or "presto",
-        "port": connect_args.get("port") or os.environ.get("PRESTO_PORT") or 8080,
-        "user": connect_args.get("user") or os.environ.get("PRESTO_USER") or "admin",
-        "catalog": connect_args.get("catalog") or os.environ.get("PRESTO_DEFAULT_CATALOG") or "postgres",
+        "host": (
+            connect_args.get("host") or os.environ.get("TRINO_HOST") or os.environ.get("PRESTO_HOST") or "presto"
+        ),
+        "port": (connect_args.get("port") or os.environ.get("TRINO_PORT") or os.environ.get("PRESTO_PORT") or 8080),
+        "user": (connect_args.get("user") or os.environ.get("TRINO_USER") or os.environ.get("PRESTO_USER") or "admin"),
+        "catalog": (
+            connect_args.get("catalog")
+            or os.environ.get("TRINO_DEFAULT_CATALOG")
+            or os.environ.get("PRESTO_DEFAULT_CATALOG")
+            or "postgres"
+        ),
         "isolation_level": (
             connect_args.get("isolation_level")
+            or os.environ.get("TRINO_DEFAULT_ISOLATION_LEVEL")
             or os.environ.get("PRESTO_DEFAULT_ISOLATION_LEVEL")
             or IsolationLevel.AUTOCOMMIT
         ),
@@ -132,7 +140,8 @@ def _execute(presto_cur, presto_stmt):
     """
     Wrapper around the prestodb.dbapi.Cursor.execute() method
     Params:
-        presto_cur (prestodb.dbapi.Cursor) presto connection cursor
+        presto_cur (prestodb.dbapi.Cursor) : presto connection cursor
+        presto_stmt (str) : presto SQL statement
     Returns:
         prestodb.dbapi.Cursor : Cursor after execute method called
     """
@@ -198,7 +207,7 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
                 p_stmt = p_stmt[:-1]
 
             # This is typically for jinjasql templated sql
-            if preprocessor:
+            if preprocessor and params:
                 try:
                     stmt, s_params = preprocessor(p_stmt, params)
                 # If a different preprocessor is used, we can't know what the exception type is.
@@ -212,5 +221,4 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
                 stmt, s_params = p_stmt, params
 
             results.extend(execute(presto_conn, stmt, params=s_params))
-
     return results

@@ -18,8 +18,10 @@
 import logging
 import pkgutil
 import uuid
+from os import path
 
 from dateutil.parser import parse
+from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
@@ -28,8 +30,11 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItem
+from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
+from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
+from reporting_common.models import CostUsageReportStatus
 
 LOG = logging.getLogger(__name__)
 
@@ -86,12 +91,28 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             return {(project["account_id"], project["project_id"]): project["id"] for project in projects}
 
     def get_lineitem_query_for_billid(self, bill_id):
-        """Get the AWS cost entry line item for a given bill query."""
+        """Get the GCP cost entry line item for a given bill query."""
         table_name = GCPCostEntryLineItem
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
             line_item_query = base_query.filter(cost_entry_bill_id=bill_id)
             return line_item_query
+
+    def get_daily_query_for_billid(self, bill_id):
+        """Get the GCP cost daily item for a given bill query."""
+        table_name = GCPCostEntryLineItemDaily
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            daily_item_query = base_query.filter(cost_entry_bill_id=bill_id)
+            return daily_item_query
+
+    def get_summary_query_for_billid(self, bill_id):
+        """Get the GCP cost summary item for a given bill query."""
+        table_name = GCPCostEntryLineItemDailySummary
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
+            return summary_item_query
 
     def populate_line_item_daily_table(self, start_date, end_date, bill_ids):
         """Populate the daily aggregate of line items table.
@@ -129,6 +150,17 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             bills = bills.filter(billing_period_start=bill_date)
         return bills
 
+    def get_bill_query_before_date(self, date, provider_uuid=None):
+        """Get the cost entry bill objects with billing period before provided date."""
+        table_name = GCPCostEntryBill
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            if provider_uuid:
+                cost_entry_bill_query = base_query.filter(billing_period_start__lte=date, provider_id=provider_uuid)
+            else:
+                cost_entry_bill_query = base_query.filter(billing_period_start__lte=date)
+            return cost_entry_bill_query
+
     def populate_line_item_daily_summary_table(self, start_date, end_date, bill_ids):
         """Populate the daily aggregated summary of line items table.
 
@@ -164,3 +196,39 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+
+    def populate_markup_cost(self, markup, start_date, end_date, bill_ids=None):
+        """Set markup costs in the database."""
+        with schema_context(self.schema):
+            if bill_ids and start_date and end_date:
+                for bill_id in bill_ids:
+                    GCPCostEntryLineItemDailySummary.objects.filter(
+                        cost_entry_bill_id=bill_id, usage_start__gte=start_date, usage_start__lte=end_date
+                    ).update(markup_cost=(F("unblended_cost") * markup))
+            elif bill_ids:
+                for bill_id in bill_ids:
+                    GCPCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
+                        markup_cost=(F("unblended_cost") * markup)
+                    )
+
+    def get_gcp_scan_range_from_report_name(self, manifest_id=None, report_name=""):
+        """Given a manifest_id return the scan range for the
+
+        """
+        scan_range = {}
+        if manifest_id:
+            record = CostUsageReportStatus.objects.filter(manifest_id=manifest_id).first()
+            if record:
+                report_path = record.report_name
+                report_name = path.basename(report_path)
+            else:
+                return scan_range
+        report_name = path.splitext(report_name)[0]
+        try:
+            date_range = report_name.split("_")[-1]
+            scan_start, scan_end = date_range.split(":")
+            scan_range["start"] = scan_start
+            scan_range["end"] = scan_end
+        except ValueError:
+            pass
+        return scan_range

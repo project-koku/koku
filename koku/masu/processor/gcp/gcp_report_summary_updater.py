@@ -15,14 +15,12 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Updates gcp report summary tables in the database."""
-import calendar
 import datetime
 import logging
 
 from tenant_schemas.utils import schema_context
 
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from masu.util.gcp.common import get_bills_from_provider
@@ -50,21 +48,9 @@ class GCPReportSummaryUpdater:
         with GCPReportDBAccessor(self._schema) as accessor:
             # This is the normal processing route
             if self._manifest:
-                # Override the bill date to correspond with the manifest
-                bill_date = self._manifest.billing_period_start_datetime.date()
-                bills = accessor.get_cost_entry_bills_query_by_provider(self._provider.uuid)
-                bills = bills.filter(billing_period_start=bill_date).all()
-                first_bill = bills.filter(billing_period_start=bill_date).first()
-                do_month_update = False
-                with schema_context(self._schema):
-                    if first_bill:
-                        do_month_update = self._determine_if_full_summary_update_needed(first_bill)
-                if do_month_update:
-                    last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
-                    start_date = bill_date.strftime("%Y-%m-%d")
-                    end_date = bill_date.replace(day=last_day_of_month)
-                    end_date = end_date.strftime("%Y-%m-%d")
-                    LOG.info("Overriding start and end date to process full month.")
+                report_range = accessor.get_gcp_scan_range_from_report_name(manifest_id=self._manifest.id)
+                start_date = report_range.get("start", start_date)
+                end_date = report_range.get("end", end_date)
 
         return start_date, end_date
 
@@ -149,24 +135,3 @@ class GCPReportSummaryUpdater:
                 bill.save()
 
         return start_date, end_date
-
-    def _determine_if_full_summary_update_needed(self, bill):
-        """Decide whether to update summary tables for full billing period."""
-        summary_creation = bill.summary_data_creation_datetime
-        # finalized_datetime = bill.finalized_datetime
-
-        is_done_processing = False
-        with ReportManifestDBAccessor() as manifest_accesor:
-            is_done_processing = manifest_accesor.manifest_ready_for_summary(self._manifest.id)
-        is_newly_finalized = False
-        # if finalized_datetime is not None:
-        #     is_newly_finalized = finalized_datetime.date() == now_utc.date()
-
-        is_new_bill = summary_creation is None
-
-        # Do a full month update if we just finished processing a finalized
-        # bill or we just finished processing a bill for the first time
-        if (is_done_processing and is_newly_finalized) or (is_done_processing and is_new_bill):  # noqa: W504
-            return True
-
-        return False

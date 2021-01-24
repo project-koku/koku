@@ -19,6 +19,7 @@ import datetime
 import logging
 
 from dateutil import relativedelta
+from django.core.exceptions import FieldDoesNotExist
 from django.db.models.functions import TruncDay
 from django.db.models.functions import TruncMonth
 
@@ -59,6 +60,7 @@ class QueryHandler:
 
         """
         LOG.debug(f"Query Params: {parameters}")
+        self.dh = DateHelper()
         parameters = self.filter_to_order_by(parameters)
         self.tenant = parameters.tenant
         self.access = parameters.access
@@ -215,25 +217,24 @@ class QueryHandler:
         time_scope_units = self.get_time_scope_units()
         start = None
         end = None
-        dh = DateHelper()
         if time_scope_units == "month":
             if time_scope_value == -1:
                 # get current month
-                start = dh.this_month_start
-                end = dh.today
+                start = self.dh.this_month_start
+                end = self.dh.today
             else:
                 # get previous month
-                start = dh.last_month_start
-                end = dh.last_month_end
+                start = self.dh.last_month_start
+                end = self.dh.last_month_end
         else:
             if time_scope_value == -10:
                 # get last 10 days
-                start = dh.n_days_ago(dh.this_hour, 9)
-                end = dh.this_hour
+                start = self.dh.n_days_ago(self.dh.this_hour, 9)
+                end = self.dh.this_hour
             else:
                 # get last 30 days
-                start = dh.n_days_ago(dh.this_hour, 29)
-                end = dh.this_hour
+                start = self.dh.n_days_ago(self.dh.this_hour, 29)
+                end = self.dh.this_hour
 
         self.start_datetime = start
         self.end_datetime = end
@@ -344,5 +345,20 @@ class QueryHandler:
                 filters.add(q_filter)
         else:
             filt["operation"] = "in"
+            try:
+                check_field_type = None
+                if hasattr(self, "query_table"):
+                    # Reports APIs
+                    check_field_type = self.query_table._meta.get_field(filt.get("field", "")).get_internal_type()
+                elif hasattr(self, "data_sources"):
+                    # Tags APIs
+                    check_field_type = (
+                        self.data_sources[0].get("db_table")._meta.get_field(filt.get("field", "")).get_internal_type()
+                    )
+                if check_field_type == "ArrayField":
+                    filt["operation"] = "contains"
+            except FieldDoesNotExist:
+                pass
+
             q_filter = QueryFilter(parameter=access, **filt)
             filters.add(q_filter)

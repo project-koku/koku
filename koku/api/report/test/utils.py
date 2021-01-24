@@ -19,6 +19,7 @@ import os
 import pkgutil
 import shutil
 from unittest.mock import patch
+from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
@@ -281,9 +282,10 @@ class NiseDataLoader:
         refresh_materialized_views.s(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True).apply()
         shutil.rmtree(base_path, ignore_errors=True)
 
-    def load_gcp_data(self, customer):
+    def load_gcp_data(self, customer, static_data_file):
         """Load GCP data into the database."""
         provider_type = Provider.PROVIDER_GCP_LOCAL
+        nise_provider_type = provider_type.replace("-local", "")
         credentials = {"project_id": "test_project_id"}
         data_source = {"table_id": "test_table_id", "dataset": "test_dataset"}
         with patch.object(settings, "AUTO_DATA_INGEST", False):
@@ -294,7 +296,10 @@ class NiseDataLoader:
                 billing_source__data_source=data_source,
                 customer=customer,
             )
-
+        etag = uuid4()
+        template, static_data_path = self.prepare_template(provider_type, static_data_file)
+        options = {"static_report_file": static_data_path, "gcp_bucket_name": self.nise_data_path, "gcp_etag": etag}
+        base_path = f"{self.nise_data_path}"
         for start_date, end_date, bill_date in self.dates:
             manifest = baker.make(
                 "CostUsageReportManifest",
@@ -302,6 +307,16 @@ class NiseDataLoader:
                 provider=provider,
                 billing_period_start_datetime=bill_date,
             )
+            with open(static_data_path, "w") as f:
+                f.write(template.render(start_date=start_date, end_date=end_date))
+
+            run(nise_provider_type.lower(), options)
+
+            report_path = f"{base_path}/{etag}"
+            for report in os.scandir(report_path):
+                if os.path.isdir(report):
+                    continue
+                self.process_report(report, "PLAIN", provider_type, provider, manifest)
             with patch("masu.processor.tasks.chain"), patch.object(settings, "AUTO_DATA_INGEST", False):
                 update_summary_tables(
                     self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
@@ -309,3 +324,5 @@ class NiseDataLoader:
         update_cost_model_costs.s(
             self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
         ).apply()
+        refresh_materialized_views.s(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True).apply()
+        shutil.rmtree(base_path, ignore_errors=True)

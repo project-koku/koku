@@ -25,6 +25,7 @@ from api.report.serializers import validate_field
 OCP_FILTER_OP_FIELDS = ["project", "enabled", "cluster"]
 AWS_FILTER_OP_FIELDS = ["account"]
 AZURE_FILTER_OP_FIELDS = ["subscription_guid"]
+GCP_FILTER_OP_FIELDS = ["account", "project"]
 
 
 class FilterSerializer(serializers.Serializer):
@@ -148,6 +149,18 @@ class OCPAllFilterSerializer(AWSFilterSerializer, AzureFilterSerializer, OCPFilt
         )
 
 
+class GCPFilterSerializer(FilterSerializer):
+    """Serializer for handling tag query parameter filter."""
+
+    account = StringOrListField(child=serializers.CharField(), required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the GCPFilterSerializer."""
+        super().__init__(*args, **kwargs)
+        add_operator_specified_fields(self.fields, GCP_FILTER_OP_FIELDS)
+
+
 class TagsQueryParamSerializer(serializers.Serializer):
     """Serializer for handling query parameters."""
 
@@ -247,3 +260,23 @@ class OCPAzureTagsQueryParamSerializer(AzureTagsQueryParamSerializer, OCPTagsQue
     """Serializer for handling OCP-on-Azure tag query parameters."""
 
     filter = OCPAzureFilterSerializer(required=False)
+
+
+class GCPTagsQueryParamSerializer(TagsQueryParamSerializer):
+    """Serializer for handling GCP tag query parameters."""
+
+    filter = GCPFilterSerializer(required=False)
+
+    def validate_filter(self, value):
+        """Validate incoming filter data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if filter field inputs are invalid
+
+        """
+        validate_field(self, "filter", GCPFilterSerializer, value)
+        return value

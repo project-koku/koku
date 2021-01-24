@@ -30,6 +30,7 @@ from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdate
 from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
 from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
 from masu.processor.gcp.gcp_report_summary_updater import GCPReportSummaryUpdater
+from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdater
 from masu.processor.ocp.ocp_report_summary_updater import OCPReportSummaryUpdater
@@ -107,9 +108,15 @@ class ReportSummaryUpdater:
         else:
             return (None, None)
 
+        ocp_cloud_updater = (
+            OCPCloudParquetReportSummaryUpdater if settings.ENABLE_PARQUET_PROCESSING else OCPCloudReportSummaryUpdater
+        )
+
+        LOG.info(f"Set report_summary_updater = {report_summary_updater.__name__}")
+
         return (
             report_summary_updater(self._schema, self._provider, self._manifest),
-            OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+            ocp_cloud_updater(self._schema, self._provider, self._manifest),
         )
 
     def _format_dates(self, start_date, end_date):

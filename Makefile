@@ -101,6 +101,7 @@ help:
 	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
 	@echo "  superuser                             create a Django super user"
 	@echo "  unittest                              run unittests"
+	@echo "  local-upload-data                     upload data to Ingress if it is up and running locally"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
 	@echo "  docker-up                            run docker-compose up --build -d"
@@ -363,10 +364,11 @@ docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 
 docker-metastore-setup:
 	@cp -fr deploy/metastore/ testing/metastore/
-	@chmod -R o+rwx ./testing/metastore
+	find ./testing/metastore -type d -exec chmod a+rwx {} \;
 	@[[ ! -d ./testing/metastore/db-data ]] && mkdir -p -m a+rwx ./testing/metastore/db-data || chmod a+rwx ./testing/metastore/db-data
 	@cp -fr deploy/hadoop/ testing/hadoop/
-	@chmod o+rwx ./testing/hadoop
+#	@[[ ! -d ./testing/hadoop/hadoop-logs ]] && mkdir -p -m a+rwx ./hadoop/hadoop-logs || chmod a+rwx ./hadoop/hadoop-logs
+	find ./testing/hadoop -type d -exec chmod a+rwx {} \;
 	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
 	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' testing/metastore/hive-config/hive-site.xml
@@ -375,9 +377,9 @@ docker-metastore-setup:
 
 docker-presto-setup:
 	@cp -fr deploy/presto/ testing/presto/
-	@chmod o+rwx ./testing/presto
+	find ./testing/presto -type d -exec chmod a+rwx {} \;
 	@cp -fr deploy/hadoop/ testing/hadoop/
-	@chmod o+rwx ./testing/hadoop
+	find ./testing/hadoop -type d -exec chmod a+rwx {} \;
 	@[[ ! -d ./testing/parquet_data ]] && mkdir -p -m a+rwx ./testing/parquet_data || chmod a+rwx ./testing/parquet_data
 	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
 	@$(SED_IN_PLACE) -e 's/DATABASE_NAME/$(shell echo $(or $(DATABASE_NAME),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
@@ -390,6 +392,9 @@ docker-presto-cleanup:
 
 docker-presto-up: docker-metastore-setup docker-presto-setup
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d
+
+docker-presto-ps:
+	docker-compose -f ./testing/compose_files/docker-compose-presto.yml ps
 
 docker-presto-down:
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down -v
@@ -534,6 +539,12 @@ backup-local-db-dir:
 	@$(PREFIX) cp -rp ./pg_data ./pg_data.bak
 	@cd - >/dev/null
 	$(DOCKER_COMPOSE) start db
+
+local-upload-data:
+	curl -vvvv -F "upload=@$(file);type=application/vnd.redhat.hccm.$(basename $(basename $(notdir $(file))))+tgz" \
+		-H "x-rh-identity: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAiaW50ZXJuYWwiOiB7Im9yZ19pZCI6ICI1NDMyMSJ9fX0=" \
+		-H "x-rh-request_id: testtesttest" \
+		localhost:8080/api/ingress/v1/upload
 
 
 restore-local-db-dir:

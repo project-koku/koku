@@ -234,7 +234,7 @@ if [[ ${DEPLOY_SOURCES} ]]; then
     echo "Creating sources application."
     ${IQE_CONTAINER} "iqe oc deploy -t templates -s sources,platform-mq -e dev ${DEPLOY_PROJECT} --secrets-src-project ${SECRETS_PROJECT}" || true
 fi
-if [[ ${DEPLOY_HCCM_OPTIONAL} ]]; then
+if [[ "${DEPLOY_HCCM_OPTIONAL:-0}" != "0" ]]; then
     echo "Creating HCCM & HCCM-Optional application."
     ${IQE_CONTAINER} "iqe oc deploy -t templates -s hccm,hccm-optional -e dev ${DEPLOY_PROJECT} --secrets-src-project ${SECRETS_PROJECT}" || true
 else

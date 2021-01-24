@@ -37,8 +37,11 @@ from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.util.common import month_date_range_tuple
+from reporting.models import OCPEnabledTagKeys
+from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsageLineItem
 from reporting.models import OCPUsageLineItemDailySummary
+from reporting.models import OCPUsagePodLabelSummary
 from reporting.models import OCPUsageReport
 from reporting.models import OCPUsageReportPeriod
 from reporting_common import REPORT_COLUMN_MAP
@@ -2100,3 +2103,50 @@ select * from eek where val1 in {{report_period_ids}} ;
                                     cost_fields[0]
                                 )
                                 self.assertAlmostEqual(actual_diff, expected_diff)
+
+    def test_update_line_item_daily_summary_with_enabled_tags(self):
+        """Test that we filter the daily summary table's tags with only enabled tags."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        report_periods = self.accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, start_date)
+
+        with schema_context(self.schema):
+            OCPUsagePodLabelSummary.objects.all().delete()
+            OCPStorageVolumeLabelSummary.objects.all().delete()
+            key_to_keep = OCPEnabledTagKeys.objects.first()
+            OCPEnabledTagKeys.objects.exclude(key=key_to_keep.key).delete()
+            report_period_ids = [report_period.id for report_period in report_periods]
+            self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
+            tags = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=start_date, report_period_id__in=report_period_ids
+                )
+                .values_list("pod_labels")
+                .distinct()
+            )
+
+            for tag in tags:
+                tag_dict = tag[0]
+                tag_keys = list(tag_dict.keys())
+                if tag_keys:
+                    self.assertEqual([key_to_keep.key], tag_keys)
+                else:
+                    self.assertEqual([], tag_keys)
+
+            tags = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=start_date, report_period_id__in=report_period_ids
+                )
+                .values_list("volume_labels")
+                .distinct()
+            )
+
+            for tag in tags:
+                tag_dict = tag[0]
+                tag_keys = list(tag_dict.keys())
+                if tag_keys:
+                    self.assertEqual([key_to_keep.key], tag_keys)
+                else:
+                    self.assertEqual([], tag_keys)

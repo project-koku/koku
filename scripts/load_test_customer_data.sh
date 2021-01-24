@@ -88,6 +88,7 @@ python scripts/render_nise_yamls.py -f "scripts/nise_ymls/ocp_on_aws/ocp_static_
 python scripts/render_nise_yamls.py -f "scripts/nise_ymls/ocp_on_azure/azure_static_data.yml" -o "scripts/nise_ymls/ocp_on_azure/azure_static_data_rendered.yml" -s "$START_DATE" -e "$END_DATE"
 python scripts/render_nise_yamls.py -f "scripts/nise_ymls/ocp_on_azure/ocp_static_data.yml" -o "scripts/nise_ymls/ocp_on_azure/ocp_static_data_rendered.yml" -s "$START_DATE" -e "$END_DATE"
 python scripts/render_nise_yamls.py -f "scripts/nise_ymls/azure_v2.yml" -o "scripts/nise_ymls/azure_v2_rendered.yml" -s "$START_DATE" -e "$END_DATE"
+python scripts/render_nise_yamls.py -f "scripts/nise_ymls/gcp/gcp_static_data.yml" -o "scripts/nise_ymls/gcp/gcp_static_data_rendered.yml" -s "$START_DATE" -e "$END_DATE"
 
 # OpenShift on AWS
 nise report aws --static-report-file "scripts/nise_ymls/ocp_on_aws/aws_static_data_rendered.yml" --aws-s3-report-name None --aws-s3-bucket-name "$KOKU_PATH/testing/local_providers/aws_local"
@@ -103,11 +104,15 @@ nise report ocp --ocp-cluster-id my-ocp-cluster-3 --insights-upload "$KOKU_PATH/
 # Azure v2 report
 nise report azure --static-report-file "scripts/nise_ymls/azure_v2_rendered.yml" --azure-container-name "$KOKU_PATH/testing/local_providers/azure_local" --azure-report-name azure-report-v2 --version-two
 
+# GCP report
+nise report gcp --static-report-file "scripts/nise_ymls/gcp/gcp_static_data_rendered.yml" --gcp-bucket-name "$KOKU_PATH/testing/local_providers/gcp_local"
+
 rm scripts/nise_ymls/ocp_on_aws/aws_static_data_rendered.yml
 rm scripts/nise_ymls/ocp_on_aws/ocp_static_data_rendered.yml
 rm scripts/nise_ymls/ocp_on_azure/azure_static_data_rendered.yml
 rm scripts/nise_ymls/ocp_on_azure/ocp_static_data_rendered.yml
 rm scripts/nise_ymls/azure_v2_rendered.yml
+rm scripts/nise_ymls/gcp/gcp_static_data_rendered.yml
 
 OCP_ON_PREM_UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = 'Test OCP on Premises'" | head -1 | sed -e 's/^[ \t]*//')
 COST_MODEL_JSON=$(cat "$KOKU_PATH/scripts/openshift_on_prem_cost_model.json" | sed -e "s/PROVIDER_UUID/$OCP_ON_PREM_UUID/g")

@@ -73,6 +73,7 @@ from masu.test.database.helpers import ReportObjectCreator
 from masu.test.external.downloader.aws import fake_arn
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
+from reporting.models import GCP_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
 from reporting_common.models import CostUsageReportStatus
 
@@ -368,7 +369,18 @@ class ProcessReportFileTests(MasuTestCase):
         report_meta["provider_type"] = Provider.PROVIDER_OCP
         report_meta["provider_uuid"] = self.ocp_test_provider_uuid
         report_meta["manifest_id"] = 1
-        reports_to_summarize = [report_meta]
+
+        # add a report with start/end dates specified
+        report2_meta = {}
+        report2_meta["start_date"] = str(DateHelper().today)
+        report2_meta["schema_name"] = self.schema
+        report2_meta["provider_type"] = Provider.PROVIDER_OCP
+        report2_meta["provider_uuid"] = self.ocp_test_provider_uuid
+        report2_meta["manifest_id"] = 2
+        report2_meta["start"] = str(DateHelper().yesterday)
+        report2_meta["end"] = str(DateHelper().today)
+
+        reports_to_summarize = [report_meta, report2_meta]
 
         summarize_reports(reports_to_summarize)
         mock_update_summary.delay.assert_called()
@@ -850,6 +862,37 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             self.assertIsNotNone(manifest.manifest_completed_datetime)
 
         with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
+            self.assertIsNotNone(accessor.provider.data_updated_timestamp)
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_refresh_materialized_views_gcp(self, mock_cache):
+        """Test that materialized views are refreshed."""
+        manifest_dict = {
+            "assembly_id": "12345",
+            "billing_period_start_datetime": DateHelper().today,
+            "num_total_files": 2,
+            "provider_uuid": self.gcp_provider_uuid,
+        }
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.add(**manifest_dict)
+            manifest.save()
+
+        refresh_materialized_views(
+            self.schema, Provider.PROVIDER_GCP, provider_uuid=self.gcp_provider_uuid, manifest_id=manifest.id
+        )
+
+        views_to_check = [view for view in GCP_MATERIALIZED_VIEWS if "Cost" in view._meta.db_table]
+
+        with schema_context(self.schema):
+            for view in views_to_check:
+                self.assertNotEqual(view.objects.count(), 0)
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(manifest.id)
+            self.assertIsNotNone(manifest.manifest_completed_datetime)
+
+        with ProviderDBAccessor(self.gcp_provider_uuid) as accessor:
             self.assertIsNotNone(accessor.provider.data_updated_timestamp)
 
     @patch("masu.processor.tasks.WorkerCache.release_single_task")

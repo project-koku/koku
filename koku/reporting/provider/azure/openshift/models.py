@@ -55,6 +55,8 @@ class OCPAzureCostLineItemDailySummary(models.Model):
             # Function: (upper(service_name) gin_trgm_ops)
         ]
 
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
@@ -64,8 +66,6 @@ class OCPAzureCostLineItemDailySummary(models.Model):
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = ArrayField(models.CharField(max_length=253, null=False))
-
-    pod = ArrayField(models.CharField(max_length=253, null=False))
 
     node = models.CharField(max_length=253, null=True)
 
@@ -132,6 +132,8 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
             models.Index(fields=["instance_type"], name="ocpazure_proj_inst_type_idx"),
         ]
 
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
@@ -144,8 +146,6 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
-
-    pod = models.CharField(max_length=253, null=True)
 
     node = models.CharField(max_length=253, null=True)
 

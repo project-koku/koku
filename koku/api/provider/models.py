@@ -182,7 +182,7 @@ class Sources(models.Model):
     source_uuid = models.UUIDField(unique=True, null=True)
 
     # Source name.
-    name = models.CharField(max_length=256, null=True)
+    name = models.TextField(null=True)
 
     # Red Hat identity header.  Passed along to Koku API for entitlement and rbac reasons.
     auth_header = models.TextField(null=True)
@@ -190,15 +190,12 @@ class Sources(models.Model):
     # Kafka message offset for Platform-Sources kafka stream
     offset = models.IntegerField(null=False)
 
-    # Endpoint ID.  Identifier to connect source to authentication.
-    endpoint_id = models.IntegerField(null=True)
-
     # Koku Specific data.
     # Customer Account ID
-    account_id = models.CharField(max_length=150, null=True)
+    account_id = models.TextField(null=True)
 
     # Provider type (i.e. AWS, OCP, AZURE)
-    source_type = models.CharField(max_length=50, null=False)
+    source_type = models.TextField(null=False)
 
     # Provider authentication (AWS roleARN, OCP Sources UID, etc.)
     authentication = JSONField(null=False, default=dict)
@@ -207,7 +204,7 @@ class Sources(models.Model):
     billing_source = JSONField(null=True, default=dict)
 
     # Unique identifier for koku Provider
-    koku_uuid = models.CharField(max_length=512, null=True, unique=True)
+    koku_uuid = models.TextField(null=True, unique=True)
 
     # When source has been deleted on Platform-Sources this is True indicating it hasn't been
     # removed on the Koku side yet.  Entry is removed entirely once Koku-Provider was successfully
