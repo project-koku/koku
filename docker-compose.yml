@@ -353,6 +353,7 @@ services:
         - SOURCES_KAFKA_HOST=${SOURCES_KAFKA_HOST-kafka}
         - SOURCES_KAFKA_PORT=${SOURCES_KAFKA_PORT-29092}
         - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
+        - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
         - prometheus_multiproc_dir=/tmp
       privileged: true
       ports:
