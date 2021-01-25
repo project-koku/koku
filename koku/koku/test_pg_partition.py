@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import connection as conn
 from tenant_schemas.utils import schema_context
 
@@ -593,3 +595,31 @@ select (
                 )
                 res = cur.fetchone()
             self.assertEqual(res, (1, 1))
+
+            # test that insert with new partition bounds will work successfully
+            new_ocp_lids = OCPUsageLineItemDailySummary(uuid=uuid.uuid4())
+            for col in (x for x in new_ocp_lids._meta.fields if x.name != "uuid"):
+                setattr(new_ocp_lids, col.name, getattr(ocp_lids, col.name, None))
+            new_day = (
+                new_ocp_lids.usage_start.day + 1
+                if new_ocp_lids.usage_start.day < 28
+                else new_ocp_lids.usage_start.day - 1
+            )
+            new_ocp_lids.usage_start = ocp_lids.usage_start.replace(day=new_day)
+            new_ocp_lids.save()
+
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+select (
+    select count(*) as a_num_recs
+      from {a_newpart}
+) as "num_aws_lids_default",
+(
+    select count(*) as o_num_recs
+      from {o_newpart}
+) as "num_ocp_lids_default";
+"""
+                )
+                res = cur.fetchone()
+            self.assertEqual(res, (1, 2))
