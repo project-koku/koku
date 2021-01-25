@@ -18,12 +18,12 @@
 import logging
 
 from django.conf import settings
-from django.db import connection
 from django.db import IntegrityError
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.utils.encoding import force_text
+from django.views.decorators.cache import cache_page
 from django.views.decorators.cache import never_cache
 from django_filters import FilterSet
 from django_filters.rest_framework import DjangoFilterBackend
@@ -47,6 +47,8 @@ from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
+from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
+from koku.cache import SOURCES_PREFIX
 from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesDependencyError
 from sources.api.serializers import SourcesSerializer
@@ -59,6 +61,7 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
     @method_decorator(never_cache)
     def destroy(self, request, *args, **kwargs):
         """Delete a source."""
+        invalidate_view_cache_for_tenant_and_cache_key(request.tenant.schema_name, cache_key_prefix=SOURCES_PREFIX)
         source = self.get_object()
         manager = ProviderBuilder(request.user.identity_header.get("encoded"))
         for _ in range(5):
@@ -200,13 +203,13 @@ class SourcesViewSet(*MIXIN_LIST):
     def _get_account_and_tenant(self, request):
         """Get account_id and tenant from request."""
         account_id = request.user.customer.account_id
-        schema_name = create_schema_name(account_id)
-        tenant = tenant = Tenant.objects.get(schema_name=schema_name)
+        tenant = request.tenant
         return (account_id, tenant)
 
     @method_decorator(never_cache)
     def update(self, request, *args, **kwargs):
         """Update a Source."""
+        invalidate_view_cache_for_tenant_and_cache_key(request.tenant.schema_name, cache_key_prefix=SOURCES_PREFIX)
         try:
             return super().update(request=request, args=args, kwargs=kwargs)
         except (SourcesStorageError, ParseError) as error:
@@ -214,7 +217,7 @@ class SourcesViewSet(*MIXIN_LIST):
         except SourcesDependencyError as error:
             raise SourcesDependencyException(str(error))
 
-    @method_decorator(never_cache)
+    @method_decorator(cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=SOURCES_PREFIX))
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
         response = super().list(request=request, args=args, kwargs=kwargs)
@@ -235,15 +238,12 @@ class SourcesViewSet(*MIXIN_LIST):
                 source["active"] = manager.get_active_status()
                 source["current_month_data"] = manager.get_current_month_data_exists()
                 source["infrastructure"] = manager.get_infrastructure_name()
-                connection.set_tenant(tenant)
                 source["cost_models"] = [
                     {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
                 ]
-                connection.set_schema_to_public()
-        connection.set_schema_to_public()
         return response
 
-    @method_decorator(never_cache)
+    @method_decorator(cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=SOURCES_PREFIX))
     def retrieve(self, request, *args, **kwargs):
         """Get a source."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
@@ -263,11 +263,9 @@ class SourcesViewSet(*MIXIN_LIST):
             response.data["active"] = manager.get_active_status()
             response.data["current_month_data"] = manager.get_current_month_data_exists()
             response.data["infrastructure"] = manager.get_infrastructure_name()
-            connection.set_tenant(tenant)
             response.data["cost_models"] = [
                 {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
             ]
-        connection.set_schema_to_public()
         return response
 
     @method_decorator(never_cache)

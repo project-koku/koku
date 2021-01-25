@@ -190,7 +190,12 @@ TEST_CACHE_LOCATION = "unique-snowflake"
 if "test" in sys.argv:
     TEST_RUNNER = "koku.koku_test_runner.KokuTestRunner"
     CACHES = {
-        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": TEST_CACHE_LOCATION,
+            "KEY_FUNCTION": "tenant_schemas.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+        },
         "rbac": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
         "worker": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
     }
