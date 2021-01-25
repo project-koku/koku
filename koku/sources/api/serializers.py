@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Sources Model Serializers."""
-import copy
 import logging
 from socket import gaierror
 from uuid import uuid4
@@ -35,8 +34,11 @@ from koku.settings import SOURCES_CLIENT_BASE_URL
 from providers.provider_errors import SkipStatusPush
 from sources.api import get_account_from_header
 from sources.api import get_auth_header
+from sources.storage import _update_authentication
+from sources.storage import _update_billing_source
 from sources.storage import get_source_instance
 from sources.storage import SourcesStorageError
+
 
 LOG = logging.getLogger(__name__)
 
@@ -90,54 +92,6 @@ class SourcesSerializer(serializers.ModelSerializer):
         """Get the source_uuid."""
         return obj.source_uuid
 
-    def _validate_billing_source(self, provider_type, billing_source):  # noqa: C901
-        """Validate billing source parameters."""
-        if provider_type == Provider.PROVIDER_AWS:
-            # TODO: Remove `and not billing_source.get("bucket")` if UI is updated to send "data_source" field
-            if not billing_source.get("data_source", {}).get("bucket") and not billing_source.get("bucket"):
-                raise SourcesStorageError("Missing AWS bucket.")
-        elif provider_type == Provider.PROVIDER_AZURE:
-            data_source = billing_source.get("data_source")
-            if not data_source:
-                raise SourcesStorageError("Missing AZURE data_source.")
-            if not data_source.get("resource_group"):
-                raise SourcesStorageError("Missing AZURE resource_group")
-            if not data_source.get("storage_account"):
-                raise SourcesStorageError("Missing AZURE storage_account")
-        elif provider_type == Provider.PROVIDER_GCP:
-            data_source = billing_source.get("data_source")
-            if not data_source:
-                raise SourcesStorageError("Missing GCP data_source.")
-            if not data_source.get("dataset"):
-                raise SourcesStorageError("Missing GCP dataset")
-
-    def _update_billing_source(self, instance, billing_source):
-        if instance.source_type not in ALLOWED_BILLING_SOURCE_PROVIDERS:
-            raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
-        if instance.billing_source.get("data_source"):
-            billing_copy = copy.deepcopy(instance.billing_source.get("data_source"))
-            data_source = billing_source.get("data_source", {})
-            if data_source.get("resource_group") or data_source.get("storage_account"):
-                billing_copy.update(billing_source.get("data_source"))
-                billing_source["data_source"] = billing_copy
-        self._validate_billing_source(instance.source_type, billing_source)
-        # This if statement can also be removed if UI is updated to send "data_source" field
-        if instance.source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL) and not billing_source.get(
-            "data_source"
-        ):
-            billing_source = {"data_source": billing_source}
-        return billing_source
-
-    def _update_authentication(self, instance, authentication):
-        if instance.source_type not in ALLOWED_AUTHENTICATION_PROVIDERS:
-            raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
-        auth_dict = instance.authentication
-        if not auth_dict.get("credentials"):
-            auth_dict["credentials"] = {"subscription_id": None}
-        subscription_id = authentication.get("credentials", {}).get("subscription_id")
-        auth_dict["credentials"]["subscription_id"] = subscription_id
-        return auth_dict
-
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
         billing_source = validated_data.get("billing_source")
@@ -146,10 +100,10 @@ class SourcesSerializer(serializers.ModelSerializer):
         try:
             with ServerProxy(SOURCES_CLIENT_BASE_URL) as sources_client:
                 if billing_source:
-                    billing_source = self._update_billing_source(instance, billing_source)
+                    billing_source = _update_billing_source(instance, billing_source)
                     sources_client.update_billing_source(instance.source_id, billing_source)
                 if authentication:
-                    authentication = self._update_authentication(instance, authentication)
+                    authentication = _update_authentication(instance, authentication)
                     sources_client.update_authentication(instance.source_id, authentication)
         except Fault as error:
             LOG.error(f"Sources update error: {error}")

@@ -8,6 +8,7 @@ from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from rest_framework import serializers
 
+from ..provider_errors import ProviderErrors
 from ..provider_errors import SkipStatusPush
 from ..provider_interface import ProviderInterface
 from api.common import error_obj
@@ -70,9 +71,11 @@ class GCPProvider(ProviderInterface):
 
             for required_permission in REQUIRED_IAM_PERMISSIONS:
                 if required_permission not in permissions:
-                    key = "authentication.project_id"
-                    err_msg = f"Improper IAM permissions: {permissions}."
-                    raise serializers.ValidationError(error_obj(key, err_msg))
+                    key = ProviderErrors.GCP_INCORRECT_IAM_PERMISSIONS
+                    internal_message = f"Improper IAM permissions: {permissions}."
+                    LOG.warning(internal_message)
+                    message = f"Incorrect IAM permissions for project {project}"
+                    raise serializers.ValidationError(error_obj(key, message))
 
         except GoogleCloudError as e:
             key = "authentication.project_id"
