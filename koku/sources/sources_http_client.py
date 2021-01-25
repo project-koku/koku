@@ -25,6 +25,8 @@ from json import dumps as json_dumps
 import requests
 from requests.exceptions import RequestException
 
+from api.provider.models import Provider
+from sources import storage
 from sources.config import Config
 from sources.sources_error_message import SourcesErrorMessage
 
@@ -144,6 +146,77 @@ class SourcesHTTPClient:
         source_name = endpoint_response.get("data")[0].get("name")
         return source_name
 
+    def _build_app_settings_for_gcp(self, app_settings):
+        """Build settings structure for gcp."""
+        billing_source = {}
+        dataset = app_settings.get("dataset")
+        if dataset:
+            billing_source = {"data_source": {}}
+            billing_source["data_source"]["dataset"] = dataset
+        return billing_source
+
+    def _build_app_settings_for_aws(self, app_settings):
+        """Build settings structure for aws."""
+        billing_source = {}
+        bucket = app_settings.get("bucket")
+        if bucket:
+            billing_source = {"data_source": {}}
+            billing_source["data_source"]["bucket"] = bucket
+        return billing_source
+
+    def _build_app_settings_for_azure(self, app_settings):
+        """Build settings structure for azure."""
+        billing_source = {}
+        authentication = {}
+        resource_group = app_settings.get("resource_group")
+        storage_account = app_settings.get("storage_account")
+        subscription_id = app_settings.get("subscription_id")
+
+        if resource_group or storage_account:
+            billing_source = {"data_source": {}}
+            if resource_group:
+                billing_source["data_source"]["resource_group"] = resource_group
+            if storage_account:
+                billing_source["data_source"]["storage_account"] = storage_account
+        if subscription_id:
+            authentication = {"credentials": {}}
+            authentication["credentials"]["subscription_id"] = subscription_id
+        return billing_source, authentication
+
+    def _update_app_settings_for_source_type(self, source_type, app_settings):
+        """Update application settings."""
+        settings = {}
+        billing_source = {}
+        authentication = {}
+
+        if source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+            billing_source = self._build_app_settings_for_gcp(app_settings)
+        elif source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+            billing_source = self._build_app_settings_for_aws(app_settings)
+        elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            billing_source, authentication = self._build_app_settings_for_azure(app_settings)
+
+        if billing_source:
+            settings["billing_source"] = billing_source
+        if authentication:
+            settings["authentication"] = authentication
+
+        return settings
+
+    def get_application_settings(self, source_type):
+        """Get the application settings from Sources."""
+        application_url = "{}/applications?filter[source_id]={}".format(self._base_url, str(self._source_id))
+        r = self._get_network_response(application_url, self._identity_header, "Unable to application settings")
+        applications_response = r.json()
+        if not applications_response.get("data"):
+            raise SourcesHTTPClientError(f"No application data for source: {self._source_id}")
+        app_settings = applications_response.get("data")[0].get("extra")
+
+        updated_settings = None
+        if app_settings:
+            updated_settings = self._update_app_settings_for_source_type(source_type, app_settings)
+        return updated_settings
+
     def get_aws_credentials(self):
         """Get the roleARN from Sources Authentication service."""
         url = "{}/applications?filter[source_id]={}".format(self._base_url, str(self._source_id))
@@ -186,24 +259,15 @@ class SourcesHTTPClient:
         else:
             raise SourcesHTTPClientError(f"Unable to get GCP credentials for Source: {self._source_id}")
 
-        authentications_str = "{}/authentications?[authtype]=project_id&[resource_id]={}"
+        authentications_str = "{}/authentications?[authtype]=project_id_service_account_json&[resource_id]={}"
         authentications_url = authentications_str.format(self._base_url, str(resource_id))
         r = self._get_network_response(authentications_url, self._identity_header, "Unable to GCP credentials")
         authentications_response = r.json()
         if not authentications_response.get("data"):
             raise SourcesHTTPClientError(f"Unable to get GCP credentials for Source: {self._source_id}")
-        authentications_id = authentications_response.get("data")[0].get("id")
-
-        authentications_internal_url = "{}/authentications/{}?expose_encrypted_attribute[]=password".format(
-            self._internal_url, str(authentications_id)
-        )
-        r = self._get_network_response(
-            authentications_internal_url, self._identity_header, "Unable to GCP Credentials"
-        )
-        authentications_internal_response = r.json()
-        password = authentications_internal_response.get("password")
-        if password:
-            return {"project_id": password}
+        project_id = authentications_response.get("data")[0].get("username")
+        if project_id:
+            return {"project_id": project_id}
 
         raise SourcesHTTPClientError(f"Unable to get GCP credentials for Source: {self._source_id}")
 
@@ -318,12 +382,12 @@ class SourcesHTTPClient:
             application_url = f"{self._base_url}/applications/{str(application_id)}"
 
             json_data = self.build_source_status(error_msg)
-
-            application_response = requests.patch(application_url, json=json_data, headers=status_header)
-            if application_response.status_code != 204:
-                raise SourcesHTTPClientError(
-                    f"Unable to set status for Source {self._source_id}. Reason: "
-                    f"Status code: {application_response.status_code}. Response: {application_response.text}."
-                )
-            return True
+            if storage.save_status(self._source_id, json_data):
+                application_response = requests.patch(application_url, json=json_data, headers=status_header)
+                if application_response.status_code != 204:
+                    raise SourcesHTTPClientError(
+                        f"Unable to set status for Source {self._source_id}. Reason: "
+                        f"Status code: {application_response.status_code}. Response: {application_response.text}."
+                    )
+                return True
         return False
