@@ -183,9 +183,10 @@ BEGIN
             EXECUTE 'CREATE TABLE IF NOT EXISTS ' || dest_obj || ' (LIKE ' || source_obj || ' INCLUDING ALL) ;';
         END IF;
 
-        IF copy_data OR
-           (object_rec.table_name ~ 'partitioned_tables') OR
-           (object_rec.table_name ~ 'django_migrations')
+        IF (copy_data OR
+            (object_rec.table_name ~ 'partitioned_tables') OR
+            (object_rec.table_name ~ 'django_migrations')) AND
+           (object_rec.table_kind = 'r')
         THEN
             IF _verbose
             THEN
