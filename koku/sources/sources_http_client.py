@@ -235,6 +235,14 @@ class SourcesHTTPClient:
         if not authentications_response.get("data"):
             raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
 
+        username = authentications_response.get("data")[0].get("username")
+        LOG.info(f"AUTH RESPONSE: {str(authentications_response)}")
+
+        # Platform sources is moving the ARN from the password to the username field.
+        # We are supporting both until the this change has made it to all environments.
+        if username:
+            return {"role_arn": username}
+
         authentications_id = authentications_response.get("data")[0].get("id")
 
         authentications_internal_url = "{}/authentications/{}?expose_encrypted_attribute[]=password".format(
