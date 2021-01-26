@@ -39,6 +39,7 @@ from api.views import CostModelResourceTypesView
 from api.views import DataExportRequestViewSet
 from api.views import GCPAccountView
 from api.views import GCPCostView
+from api.views import GCPForecastCostView
 from api.views import GCPProjectsView
 from api.views import GCPTagView
 from api.views import metrics
@@ -70,6 +71,7 @@ from api.views import openapi
 from api.views import ResourceTypeView
 from api.views import SettingsView
 from api.views import StatusView
+from api.views import UserAccessView
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
 from koku.cache import GCP_CACHE_PREFIX
@@ -299,6 +301,7 @@ urlpatterns = [
     path("settings", RedirectView.as_view(pattern_name="settings"), name="settings-redirect"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
+    path("user-access/", UserAccessView.as_view(), name="user-access"),
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
     path("resource-types/gcp-accounts/", GCPAccountView.as_view(), name="gcp-accounts"),
     path("resource-types/gcp-projects/", GCPProjectsView.as_view(), name="gcp-projects"),
@@ -317,6 +320,7 @@ urlpatterns = [
     path("resource-types/openshift-nodes/", OCPNodesView.as_view(), name="openshift-nodes"),
     path("resource-types/cost-models/", CostModelResourceTypesView.as_view(), name="cost-models"),
     path("forecasts/aws/costs/", AWSCostForecastView.as_view(), name="aws-cost-forecasts"),
+    path("forecasts/gcp/costs/", GCPForecastCostView.as_view(), name="gcp-cost-forecasts"),
     path("forecasts/azure/costs/", AzureCostForecastView.as_view(), name="azure-cost-forecasts"),
     path("forecasts/openshift/costs/", OCPCostForecastView.as_view(), name="openshift-cost-forecasts"),
     path(
