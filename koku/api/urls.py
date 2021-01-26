@@ -346,7 +346,7 @@ urlpatterns = [
     ),
     path(
         "reports/gcp/instance-types/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AZURE_CACHE_PREFIX)(
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(
             GCPInstanceTypeView.as_view()
         ),
         name="reports-gcp-instance-type",
