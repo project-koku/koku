@@ -237,6 +237,21 @@ def construct_parquet_reports(request_id, context, report_meta, payload_destinat
     return daily_parquet_files
 
 
+def find_invalid_csvs(dir_path):
+    invalid_csvs = []
+    for (root, _, filenames) in os.walk(dir_path):
+        csv_reports = [fl for fl in filenames if fl.endswith(".csv")]
+        for csv_report in csv_reports:
+            file_path = f"{root}/{csv_report}"
+            try:
+                _, report_type = utils.detect_type(file_path)
+                if report_type == utils.OCPReportTypes.UNKNOWN:
+                    raise Exception("OCP report type is unknown")
+            except Exception as error:
+                invalid_csvs.append((file_path, error))
+    return invalid_csvs
+
+
 # pylint: disable=too-many-locals
 def extract_payload(url, request_id, context={}):  # noqa: C901
     """
@@ -312,6 +327,15 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     report_meta["schema_name"] = schema_name
     report_meta["account"] = schema_name[4:]
     report_meta["request_id"] = request_id
+
+    invalid_csvs = find_invalid_csvs(temp_dir)
+    for file_path, excp in invalid_csvs:
+        LOG.warning(f"{file_path} is an invalid CSV report. Reason: {str(excp)}")
+    if len(invalid_csvs) > 0:
+        msg = f"Found invalid OCP reports from {cluster_id}"
+        LOG.warning(log_json(request_id, msg, context))
+        shutil.rmtree(temp_dir)
+        return None
 
     # Create directory tree for report.
     usage_month = utils.month_date_range(report_meta.get("date"))

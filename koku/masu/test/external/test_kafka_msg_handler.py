@@ -117,6 +117,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
         payload_file_dates = open("./koku/masu/test/data/ocp/payload2.tar.gz", "rb")
         bad_payload_file = open("./koku/masu/test/data/ocp/bad_payload.tar.gz", "rb")
         no_manifest_file = open("./koku/masu/test/data/ocp/no_manifest.tar.gz", "rb")
+        bad_csv_reports_file = open("./koku/masu/test/data/ocp/bad_csv_reports.tar.gz", "rb")
+        unknown_ocp_reports_file = open("./koku/masu/test/data/ocp/unknown_ocp_report.tar.gz", "rb")
 
         self.tarball_file = payload_file.read()
         payload_file.close()
@@ -129,6 +131,12 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         self.no_manifest_file = no_manifest_file.read()
         no_manifest_file.close()
+
+        self.bad_csv_reports_file = bad_csv_reports_file.read()
+        bad_csv_reports_file.close()
+
+        self.unknown_ocp_reports_file = unknown_ocp_reports_file.read()
+        unknown_ocp_reports_file.close()
 
         self.cluster_id = "my-ocp-cluster-1"
         self.date_range = "20190201-20190301"
@@ -600,6 +608,66 @@ class KafkaMsgHandlerTest(MasuTestCase):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
                                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
                                     msg_handler.extract_payload(payload_url, "test_request_id")
+                                shutil.rmtree(fake_dir)
+                                shutil.rmtree(fake_pvc_dir)
+
+    def test_extract_bad_csv_report(self):
+        """Test to verify extracting payload with bad csv report will be deleted."""
+        fake_account = {"provider_uuid": uuid.uuid4(), "provider_type": "OCP", "schema_name": "testschema"}
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
+        with requests_mock.mock() as m:
+            m.get(payload_url, content=self.bad_csv_reports_file)
+
+            fake_dir = tempfile.mkdtemp()
+            fake_pvc_dir = tempfile.mkdtemp()
+            with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
+                with patch.object(Config, "TMP_DIR", fake_dir):
+                    with patch(
+                        "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
+                    ):
+                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
+                            with patch("masu.external.kafka_msg_handler.record_report_status"):
+                                with patch("masu.external.kafka_msg_handler.LOG") as LOG_mock:
+                                    res = msg_handler.extract_payload(payload_url, "test_request_id")
+                                self.assertTrue(
+                                    "is an invalid CSV report. Reason: Error tokenizing data"
+                                    in LOG_mock.warning.mock_calls[0].args[0]
+                                )
+                                self.assertTrue(
+                                    "Found invalid OCP reports" in LOG_mock.warning.mock_calls[1].args[0]["message"]
+                                )
+                                self.assertTrue("account" in LOG_mock.warning.mock_calls[1].args[0])
+                                self.assertIsNone(res)
+                                shutil.rmtree(fake_dir)
+                                shutil.rmtree(fake_pvc_dir)
+
+    def test_extract_unknown_ocp_report(self):
+        """Test to verify extracting payload with unknown ocp report will be deleted."""
+        fake_account = {"provider_uuid": uuid.uuid4(), "provider_type": "OCP", "schema_name": "testschema"}
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
+        with requests_mock.mock() as m:
+            m.get(payload_url, content=self.unknown_ocp_reports_file)
+
+            fake_dir = tempfile.mkdtemp()
+            fake_pvc_dir = tempfile.mkdtemp()
+            with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
+                with patch.object(Config, "TMP_DIR", fake_dir):
+                    with patch(
+                        "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
+                    ):
+                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
+                            with patch("masu.external.kafka_msg_handler.record_report_status"):
+                                with patch("masu.external.kafka_msg_handler.LOG") as LOG_mock:
+                                    res = msg_handler.extract_payload(payload_url, "test_request_id")
+                                self.assertTrue(
+                                    "is an invalid CSV report. Reason: OCP report type is unknown"
+                                    in LOG_mock.warning.mock_calls[0].args[0]
+                                )
+                                self.assertTrue(
+                                    "Found invalid OCP reports" in LOG_mock.warning.mock_calls[1].args[0]["message"]
+                                )
+                                self.assertTrue("account" in LOG_mock.warning.mock_calls[1].args[0])
+                                self.assertIsNone(res)
                                 shutil.rmtree(fake_dir)
                                 shutil.rmtree(fake_pvc_dir)
 
