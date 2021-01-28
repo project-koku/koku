@@ -44,7 +44,7 @@ def cleanup(request):
     """Return download file async task ID."""
     cleaning_list = build_list()
     response = {}
-
+    import pdb; pdb.set_trace()
     providers_without_sources = []
     for provider in cleaning_list.get("providers_without_sources"):
         providers_without_sources.append(f"{provider.name} ({provider.uuid})")
