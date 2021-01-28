@@ -33,7 +33,6 @@ from sources.sources_http_client import SourcesHTTPClient, SourceNotFoundError, 
 
 LOG = logging.getLogger(__name__)
 
-
 @never_cache
 @api_view(http_method_names=["GET", "DELETE"])
 @permission_classes((AllowAny,))
@@ -58,15 +57,21 @@ def cleanup(request):
     response["out_of_order_deletes"] = out_of_order_delete
     response["missing_sources"] = missing_sources
 
+    params = request.query_params
+    LOG.info(f"PARAMS: {str(params)}")
     if request.method == "DELETE":
-        cleanup_from_list(cleaning_list)
+        if "providers_without_sources" in params.keys():
+            cleanup_provider_without_source(cleaning_list)
+        if "out_of_order_deletes" in params.keys():
+            cleanup_out_of_order_deletes(cleaning_list)
+        if "missing_sources" in params.keys():
+            cleanup_missing_sources(cleaning_list)
 
     return Response(response)
 
-def cleanup_from_list(cleaning_list):
+
+def cleanup_provider_without_source(cleaning_list):
     provider_without_source = cleaning_list.get("providers_without_sources")
-    out_of_order_deletes = cleaning_list.get("out_of_order_deletes")
-    missing_sources = cleaning_list.get("missing_sources")
 
     if provider_without_source:
         materialized_views_to_update = []
@@ -84,11 +89,18 @@ def cleanup_from_list(cleaning_list):
             LOG.info(f"Refreshing Materialized Views: {str(mat_view)}")
             refresh_materialized_views(mat_view.get("schema"), mat_view.get("type"))
 
+
+def cleanup_out_of_order_deletes(cleaning_list):
+    out_of_order_deletes = cleaning_list.get("out_of_order_deletes")
+
     if out_of_order_deletes:
         for source in out_of_order_deletes:
             LOG.info(f"Removing out of order delete Source: {str(source)}")
             Sources.objects.get(source_id=source.source_id).delete()
     
+def cleanup_missing_sources(cleaning_list):
+    missing_sources = cleaning_list.get("missing_sources")
+
     if missing_sources:
         for source in missing_sources:
             LOG.info(f"Removing missing Source: {str(source)}")
