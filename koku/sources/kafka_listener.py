@@ -376,12 +376,10 @@ def cost_mgmt_msg_filter(msg_data):
 
         if msg_data.get("resource_type") == "Application":
             source_id = sources_network.get_source_id_from_applications_id(msg_data.get("resource_id"))
-        msg_data["source_id"] = source_id
-        if not sources_network.get_application_type_is_cost_management(source_id):
-            LOG.info(f"Resource id {msg_data.get('resource_id')} not associated with cost-management.")
-            return None
-    else:
-        source_id = msg_data.get("source_id")
+            msg_data["source_id"] = source_id
+            if not sources_network.get_application_type_is_cost_management(source_id):
+                LOG.info(f"Resource id {msg_data.get('resource_id')} not associated with cost-management.")
+                return None
 
     return msg_data
 

@@ -5,12 +5,14 @@ from unittest.mock import patch
 from django.test import TestCase
 from faker import Faker
 from google.cloud.exceptions import GoogleCloudError
+from google.cloud.exceptions import NotFound
 from rest_framework.serializers import ValidationError
 
 from api.models import Provider
 from providers.gcp.provider import GCPProvider
 from providers.gcp.provider import REQUIRED_IAM_PERMISSIONS
 from providers.provider_errors import SkipStatusPush
+
 
 FAKE = Faker()
 
@@ -133,4 +135,21 @@ class GCPProviderTestCase(TestCase):
         credentials_param = {"project_id": FAKE.word()}
         provider = GCPProvider()
         with self.assertRaises(SkipStatusPush):
+            provider.cost_usage_source_is_reachable(credentials_param, billing_source_param)
+
+    @patch("providers.gcp.provider.bigquery")
+    @patch("providers.gcp.provider.discovery")
+    @patch("providers.gcp.provider.google.auth.default")
+    def test_cost_usage_source_is_reachable_dataset_not_found(self, mock_auth, mock_discovery, mock_bigquery):
+        """Test that cost_usage_source_is_reachable throws appropriate error when dataset is not found."""
+        mock_bigquery.Client.side_effect = NotFound(message="Not Found")
+        gcp_creds = MagicMock()
+        mock_auth.return_value = (gcp_creds, MagicMock())
+        mock_discovery.build.return_value.projects.return_value.testIamPermissions.return_value.execute.return_value.get.return_value = (  # noqa: E501
+            REQUIRED_IAM_PERMISSIONS
+        )
+        billing_source_param = {"dataset": FAKE.word()}
+        credentials_param = {"project_id": FAKE.word()}
+        provider = GCPProvider()
+        with self.assertRaises(ValidationError):
             provider.cost_usage_source_is_reachable(credentials_param, billing_source_param)
