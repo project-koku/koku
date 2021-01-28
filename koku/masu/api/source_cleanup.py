@@ -24,14 +24,17 @@ from rest_framework.decorators import renderer_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
 from api.provider.models import Sources
-from tenant_schemas.utils import schema_context
 from masu.processor.tasks import refresh_materialized_views
-from sources.sources_http_client import SourcesHTTPClient, SourceNotFoundError, SourcesHTTPClientError
+from sources.sources_http_client import SourceNotFoundError
+from sources.sources_http_client import SourcesHTTPClient
+from sources.sources_http_client import SourcesHTTPClientError
 
 LOG = logging.getLogger(__name__)
+
 
 @never_cache
 @api_view(http_method_names=["GET", "DELETE"])
@@ -45,20 +48,21 @@ def cleanup(request):
     providers_without_sources = []
     for provider in cleaning_list.get("providers_without_sources"):
         providers_without_sources.append(f"{provider.name} ({provider.uuid})")
-    
+
     out_of_order_delete = []
     for source in cleaning_list.get("out_of_order_deletes"):
         out_of_order_delete.append(f"Source ID: {source.source_id})")
-    
+
     missing_sources = []
     for source in cleaning_list.get("missing_sources"):
         missing_sources.append(f"Source ID: {source.source_id})")
+
     response["providers_without_sources"] = providers_without_sources
     response["out_of_order_deletes"] = out_of_order_delete
     response["missing_sources"] = missing_sources
 
     params = request.query_params
-    LOG.info(f"PARAMS: {str(params)}")
+
     if request.method == "DELETE":
         if "providers_without_sources" in params.keys():
             cleanup_provider_without_source(cleaning_list)
@@ -84,7 +88,7 @@ def cleanup_provider_without_source(cleaning_list):
                 mat_view_dict = {"schema": schema_name, "type": provider_type}
                 if mat_view_dict not in materialized_views_to_update:
                     materialized_views_to_update.append(mat_view_dict)
-        
+
         for mat_view in materialized_views_to_update:
             LOG.info(f"Refreshing Materialized Views: {str(mat_view)}")
             refresh_materialized_views(mat_view.get("schema"), mat_view.get("type"))
@@ -97,7 +101,8 @@ def cleanup_out_of_order_deletes(cleaning_list):
         for source in out_of_order_deletes:
             LOG.info(f"Removing out of order delete Source: {str(source)}")
             Sources.objects.get(source_id=source.source_id).delete()
-    
+
+
 def cleanup_missing_sources(cleaning_list):
     missing_sources = cleaning_list.get("missing_sources")
 
@@ -106,10 +111,9 @@ def cleanup_missing_sources(cleaning_list):
             LOG.info(f"Removing missing Source: {str(source)}")
             Sources.objects.get(source_id=source.source_id).delete()
 
-def build_list():
-    source_status_list = []
+
+def _providers_without_sources():
     providers = Provider.objects.all()
-    sources = Sources.objects.all()
 
     providers_without_sources = []
     for provider in providers:
@@ -118,26 +122,43 @@ def build_list():
         except Sources.DoesNotExist:
             LOG.info(f"No Source found for Provider {provider.name} ({provider.uuid})")
             providers_without_sources.append(provider)
+    return providers_without_sources
 
+
+def _sources_out_of_order_deletes():
+    sources_out_of_order_delete = []
     try:
-        sources_out_of_order_delete = []
         out_of_order_list = Sources.objects.filter(out_of_order_delete=True, koku_uuid=None).all()
         for source in out_of_order_list:
             LOG.info(f"Out of order source: {str(source)}")
             sources_out_of_order_delete.append(source)
     except Sources.DoesNotExist:
         pass
+    return sources_out_of_order_delete
+
+
+def _missing_sources():
+    sources = Sources.objects.all()
 
     missing_sources = []
     for source in sources:
         try:
             sources_client = SourcesHTTPClient(source.auth_header, source.source_id)
-            details = sources_client.get_source_details()
+            _ = sources_client.get_source_details()
         except SourceNotFoundError:
-            LOG.info(f"Source {source.name} ID: {source.source_id} UUID: {source.source_uuid} not found in plaform sources")
+            LOG.info(
+                f"Source {source.name} ID: {source.source_id} UUID: {source.source_uuid} not found in plaform sources"
+            )
             missing_sources.append(source)
         except SourcesHTTPClientError:
             LOG.info("Unable to reach platform sources")
+    return missing_sources
+
+
+def build_list():
+    providers_without_sources = _providers_without_sources()
+    sources_out_of_order_delete = _sources_out_of_order_deletes()
+    missing_sources = _missing_sources()
 
     response = {}
     response["providers_without_sources"] = providers_without_sources

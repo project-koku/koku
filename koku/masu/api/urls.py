@@ -16,6 +16,7 @@
 """Describes the urls and patterns for the API application."""
 from django.urls import path
 
+from masu.api.views import cleanup
 from masu.api.views import crawl_account_hierarchy
 from masu.api.views import download_report
 from masu.api.views import enabled_tags
@@ -25,7 +26,6 @@ from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
 from masu.api.views import update_cost_model_costs
 from masu.api.views import upload_normalized_data
-from masu.api.views import cleanup
 
 urlpatterns = [
     path("status/", get_status, name="server-status"),
