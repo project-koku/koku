@@ -137,7 +137,6 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             "bill_ids": bill_ids,
             "schema": self.schema,
         }
-        LOG.info(f"DAILY SUMMARY PARAMS: {str(daily_sql_params)}")
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
         self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 

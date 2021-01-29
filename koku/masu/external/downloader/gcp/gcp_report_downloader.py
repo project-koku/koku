@@ -101,7 +101,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             [self.credentials.get("project_id"), self.data_source.get("dataset"), self.data_source.get("table_id")]
         )
         self.scan_start, self.scan_end = self._generate_default_scan_range()
-        LOG.info(f"DEFAULT SCAN RANGE: {str(self.scan_start)} - {str(self.scan_end)}")
         try:
             GCPProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
             self.etag = self._generate_etag()
