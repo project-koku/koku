@@ -25,13 +25,13 @@ from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
 from google.cloud.exceptions import GoogleCloudError
 from rest_framework.exceptions import ValidationError
-from masu.external.date_accessor import DateAccessor
 
 from api.common import log_json
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
+from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from providers.gcp.provider import GCPProvider
@@ -125,10 +125,13 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         date to the table and md5 hash it.
         """
         import datetime
+
         try:
-            client = bigquery.Client()
-            billing_table_obj = client.get_table(self.table_name)
-            #last_modified = billing_table_obj.modified
+            # Temporary hack to allow for time traveling with DateAccessor and DATE_OVERRIDE
+
+            # client = bigquery.Client()
+            # billing_table_obj = client.get_table(self.table_name)
+            # last_modified = billing_table_obj.modified
             last_modified = datetime.datetime.today()
             modified_hash = hashlib.md5(str(last_modified).encode())
             modified_hash = modified_hash.hexdigest()

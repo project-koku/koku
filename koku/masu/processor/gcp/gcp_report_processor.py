@@ -26,7 +26,6 @@ import ciso8601
 import pandas
 import pytz
 from dateutil import parser
-from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.db import transaction
 
@@ -116,7 +115,13 @@ class GCPReportProcessor(ReportProcessorBase):
         if not self.scan_start or not self.scan_end:
             err_msg = f"Error recovering start and end date from csv report ({self._report_name})."
             raise ProcessedGCPReportError(err_msg)
-        LOG.info("Initialized report processor for file: %s and schema: %s, Range: %s to %s", report_path, self._schema, self.scan_start, self.scan_end)
+        LOG.info(
+            "Initialized report processor for file: %s and schema: %s, Range: %s to %s",
+            report_path,
+            self._schema,
+            self.scan_start,
+            self.scan_end,
+        )
 
         self.line_item_columns = None
 
@@ -141,9 +146,9 @@ class GCPReportProcessor(ReportProcessorBase):
         gcp_date_filters = {"usage_start__gte": scan_start, "usage_end__lte": scan_end}
         if not self._manifest_id:
             return False
-        with ReportManifestDBAccessor() as manifest_accessor:		
-            num_processed_files = manifest_accessor.number_of_files_processed(self._manifest_id)		
-            if num_processed_files != 0:		
+        with ReportManifestDBAccessor() as manifest_accessor:
+            num_processed_files = manifest_accessor.number_of_files_processed(self._manifest_id)
+            if num_processed_files != 0:
                 return False
 
         with GCPReportDBAccessor(self._schema) as accessor:
