@@ -116,7 +116,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         today = DateAccessor().today().date()
         scan_start = today - datetime.timedelta(days=range_length)
-        scan_end = today
+        scan_end = today + relativedelta(days=1)
         return scan_start, scan_end
 
     def _generate_etag(self):
