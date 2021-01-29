@@ -25,6 +25,7 @@ from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
 from google.cloud.exceptions import GoogleCloudError
 from rest_framework.exceptions import ValidationError
+from masu.external.date_accessor import DateAccessor
 
 from api.common import log_json
 from api.utils import DateHelper
@@ -100,6 +101,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             [self.credentials.get("project_id"), self.data_source.get("dataset"), self.data_source.get("table_id")]
         )
         self.scan_start, self.scan_end = self._generate_default_scan_range()
+        LOG.info(f"DEFAULT SCAN RANGE: {str(self.scan_start)} - {str(self.scan_end)}")
         try:
             GCPProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
             self.etag = self._generate_etag()
@@ -112,9 +114,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
             Generates the first date of the date range.
         """
-        today = datetime.datetime.today().date()
+        today = DateAccessor().today().date()
         scan_start = today - datetime.timedelta(days=range_length)
-        scan_end = datetime.datetime.today().date()
+        scan_end = today
         return scan_start, scan_end
 
     def _generate_etag(self):
@@ -123,10 +125,12 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         To generate the etag, we use BigQuery to collect the last modified
         date to the table and md5 hash it.
         """
+        import datetime
         try:
             client = bigquery.Client()
             billing_table_obj = client.get_table(self.table_name)
-            last_modified = billing_table_obj.modified
+            #last_modified = billing_table_obj.modified
+            last_modified = datetime.datetime.today()
             modified_hash = hashlib.md5(str(last_modified).encode())
             modified_hash = modified_hash.hexdigest()
         except GoogleCloudError as err:
@@ -188,8 +192,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             Manifest-like dict with list of relevant found files.
 
         """
-        # end date is effectively the inclusive "end of the month" from the start.
-        end_date = start_date + relativedelta(months=1) - relativedelta(days=1)
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
@@ -200,10 +202,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             # downloading this month, so we need to update our
             # scan range to include the full month.
             self.scan_start = start_date
-            if isinstance(end_date, datetime.datetime):
-                end_date = end_date.date()
-            if end_date < self.scan_end:
-                self.scan_end = end_date
 
         invoice_month = start_date.strftime("%Y%m")
         file_names = self._get_relevant_file_names(invoice_month)
@@ -212,10 +210,11 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest_data = {
             "assembly_id": fake_assembly_id,
             "compression": UNCOMPRESSED,
-            "start_date": start_date,
-            "end_date": end_date,  # inclusive end date
+            "start_date": self.scan_start,
+            "end_date": self.scan_end,  # inclusive end date
             "file_names": list(file_names),
         }
+        LOG.info(f"Manifest Data: {str(manifest_data)}")
         return manifest_data
 
     def _generate_assembly_id(self, invoice_month):
@@ -291,8 +290,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 query = f"""
                 SELECT {",".join(self.gcp_big_query_columns)}
                 FROM {self.table_name}
-                WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
-                AND DATE(_PARTITIONTIME) <= '{scan_end}'
+                WHERE usage_start_time >= '{scan_start}'
+                AND usage_end_time <= '{scan_end}'
                 AND invoice.month = '{invoice_month}'
                 """
                 LOG.info(f"Using querying for invoice_month ({invoice_month})")
@@ -300,8 +299,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 query = f"""
                 SELECT {",".join(self.gcp_big_query_columns)}
                 FROM {self.table_name}
-                WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
-                AND DATE(_PARTITIONTIME) <= '{scan_end}'
+                WHERE usage_start_time >= '{scan_start}'
+                AND usage_end_time <= '{scan_end}'
                 """
             client = bigquery.Client()
             query_job = client.query(query)

@@ -80,12 +80,13 @@ class GCPReportSummaryUpdater:
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
                     "Updating GCP report daily tables for \n\tSchema: %s"
-                    "\n\tProvider: %s \n\tDates: %s - %s\n\tBills: %s",
+                    "\n\tProvider: %s \n\tDates: %s - %s\n\tBills: %s\n\tManifest ID: %s",
                     self._schema,
                     self._provider.uuid,
                     start,
                     end,
                     str(bill_ids),
+                    str(self._manifest)
                 )
                 accessor.populate_line_item_daily_table(start, end, bill_ids)
 
