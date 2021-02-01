@@ -194,6 +194,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             Manifest-like dict with list of relevant found files.
 
         """
+        # end date is effectively the inclusive "end of the month" from the start.
+        end_date = start_date + relativedelta(months=1)
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
@@ -204,6 +206,10 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             # downloading this month, so we need to update our
             # scan range to include the full month.
             self.scan_start = start_date
+            if isinstance(end_date, datetime.datetime):
+                end_date = end_date.date()
+            if end_date < self.scan_end:
+                self.scan_end = end_date
 
         invoice_month = start_date.strftime("%Y%m")
         file_names = self._get_relevant_file_names(invoice_month)
@@ -293,7 +299,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 SELECT {",".join(self.gcp_big_query_columns)}
                 FROM {self.table_name}
                 WHERE usage_start_time >= '{scan_start}'
-                AND usage_end_time <= '{scan_end}'
+                AND usage_end_time < '{scan_end}'
                 AND invoice.month = '{invoice_month}'
                 """
                 LOG.info(f"Using querying for invoice_month ({invoice_month})")
@@ -302,7 +308,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 SELECT {",".join(self.gcp_big_query_columns)}
                 FROM {self.table_name}
                 WHERE usage_start_time >= '{scan_start}'
-                AND usage_end_time <= '{scan_end}'
+                AND usage_end_time < '{scan_end}'
                 """
             client = bigquery.Client()
             query_job = client.query(query)

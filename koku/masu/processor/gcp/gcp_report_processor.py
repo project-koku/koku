@@ -143,9 +143,8 @@ class GCPReportProcessor(ReportProcessorBase):
     def _delete_line_items_in_range(self, bill_id):
         """Delete stale data between date range."""
         scan_start = ciso8601.parse_datetime(self.scan_start).date()
-        scan_end = ciso8601.parse_datetime(self.scan_end).date()
-        end_date = scan_end + relativedelta(days=1)
-        gcp_date_filters = {"usage_start__gte": scan_start, "usage_end__lte": end_date}
+        scan_end = (ciso8601.parse_datetime(self.scan_end) + relativedelta(days=1)).date()
+        gcp_date_filters = {"usage_start__gte": scan_start, "usage_end__lt": scan_end}
 
         if not self._manifest_id:
             return False
@@ -165,7 +164,7 @@ class GCPReportProcessor(ReportProcessorBase):
                     f" provider_uuid: {self._provider_uuid}\n"
                     f" bill ID: {bill_id}\n"
                     f" on or after {scan_start}\n"
-                    f" before {end_date}\n"
+                    f" before {scan_end}\n"
                 )
                 LOG.info(log_statement)
         return True
