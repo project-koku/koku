@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-DROP FUNCTION IF EXISTS public.trfn_manage_date_range_partition();
 CREATE OR REPLACE FUNCTION public.trfn_manage_date_range_partition() RETURNS TRIGGER AS $$
 DECLARE
     alter_stmt text = '';
