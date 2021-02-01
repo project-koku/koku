@@ -33,6 +33,11 @@ VIEWS = (
     "reporting_gcp_compute_summary_by_region",
     "reporting_gcp_compute_summary_by_service",
     "reporting_gcp_compute_summary_by_account",
+    "reporting_gcp_storage_summary",
+    "reporting_gcp_storage_summary_by_project",
+    "reporting_gcp_storage_summary_by_region",
+    "reporting_gcp_storage_summary_by_service",
+    "reporting_gcp_storage_summary_by_account",
 )
 
 
@@ -642,7 +647,7 @@ class GCPStorageSummaryByProject(models.Model):
     class Meta:
         """Meta for GCPStorageSummaryByProject."""
 
-        db_table = "reporting_gcp_story_summary_by_project"
+        db_table = "reporting_gcp_storage_summary_by_project"
         managed = False
 
     id = models.IntegerField(primary_key=True)
@@ -680,7 +685,7 @@ class GCPStorageSummaryByService(models.Model):
     class Meta:
         """Meta for GCPStorageSummaryByService."""
 
-        db_table = "reporting_gcp_compute_summary_by_service"
+        db_table = "reporting_gcp_storage_summary_by_service"
         managed = False
 
     id = models.IntegerField(primary_key=True)

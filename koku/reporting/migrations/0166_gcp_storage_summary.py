@@ -19,10 +19,5 @@ def add_gcp_storage_views(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        (
-            "reporting",
-            "0164_gcpcomputesummary_gcpcomputesummarybyaccount_gcpcomputesummarybyproject_gcpcomputesummarybyregion_gc",
-        )
-    ]
+    dependencies = [("reporting", "0165_repartition_default_data")]
     operations = [migrations.RunPython(add_gcp_storage_views)]
