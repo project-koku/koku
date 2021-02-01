@@ -26,6 +26,7 @@ import ciso8601
 import pandas
 import pytz
 from dateutil import parser
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.db import transaction
 
@@ -143,7 +144,9 @@ class GCPReportProcessor(ReportProcessorBase):
         """Delete stale data between date range."""
         scan_start = ciso8601.parse_datetime(self.scan_start).date()
         scan_end = ciso8601.parse_datetime(self.scan_end).date()
-        gcp_date_filters = {"usage_start__gte": scan_start, "usage_end__lte": scan_end}
+        end_date = scan_end + relativedelta(days=1)
+        gcp_date_filters = {"usage_start__gte": scan_start, "usage_end__lte": end_date}
+
         if not self._manifest_id:
             return False
         with ReportManifestDBAccessor() as manifest_accessor:
@@ -162,7 +165,7 @@ class GCPReportProcessor(ReportProcessorBase):
                     f" provider_uuid: {self._provider_uuid}\n"
                     f" bill ID: {bill_id}\n"
                     f" on or after {scan_start}\n"
-                    f" before {scan_end}\n"
+                    f" before {end_date}\n"
                 )
                 LOG.info(log_statement)
         return True
