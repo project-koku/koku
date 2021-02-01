@@ -353,14 +353,11 @@
             "version": "==3.8.4"
         },
         "google-api-core": {
-            "extras": [
-                "grpc"
-            ],
             "hashes": [
-                "sha256:4656345cba9627ab1290eab51300a6397cc50370d99366133df1ae64b744e1eb",
-                "sha256:d967beae8d8acdb88fb2f6f769e2ee0ee813042576a08891bded3b8e234150ae"
+                "sha256:0e152ec37b8481d1be1258d95844a5a7031cd3d83d7c7046d9e9b2d807042440",
+                "sha256:292dd636ed381098d24b7093ccb826b2278a12d886a3fc982084069aa24a8fbb"
             ],
-            "version": "==1.25.0"
+            "version": "==1.25.1"
         },
         "google-api-python-client": {
             "hashes": [
@@ -1459,14 +1456,11 @@
             "version": "==1.5.0"
         },
         "google-api-core": {
-            "extras": [
-                "grpc"
-            ],
             "hashes": [
-                "sha256:4656345cba9627ab1290eab51300a6397cc50370d99366133df1ae64b744e1eb",
-                "sha256:d967beae8d8acdb88fb2f6f769e2ee0ee813042576a08891bded3b8e234150ae"
+                "sha256:0e152ec37b8481d1be1258d95844a5a7031cd3d83d7c7046d9e9b2d807042440",
+                "sha256:292dd636ed381098d24b7093ccb826b2278a12d886a3fc982084069aa24a8fbb"
             ],
-            "version": "==1.25.0"
+            "version": "==1.25.1"
         },
         "google-auth": {
             "hashes": [
