@@ -23,6 +23,10 @@ generators:
       #Adding a different service for limit testing
       service.description: "Stackdriver Logging"
       service.id: "5490-F7B7-8DF6"
+  - CloudStorageGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      currency: USD
 
 projects:
   -
