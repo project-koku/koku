@@ -300,7 +300,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     account = get_account_from_cluster_id(cluster_id, request_id, context)
     if not account:
         msg = f"Recieved unexpected OCP report from {cluster_id}"
-        LOG.error(log_json(request_id, msg, context))
+        LOG.warning(log_json(request_id, msg, context))
         shutil.rmtree(temp_dir)
         return None
     schema_name = account.get("schema_name")
