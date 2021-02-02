@@ -299,7 +299,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 SELECT {",".join(self.gcp_big_query_columns)}
                 FROM {self.table_name}
                 WHERE usage_start_time >= '{scan_start}'
-                AND usage_end_time < '{scan_end}'
+                AND usage_start_time < '{scan_end}'
                 AND invoice.month = '{invoice_month}'
                 """
                 LOG.info(f"Using querying for invoice_month ({invoice_month})")
@@ -308,7 +308,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 SELECT {",".join(self.gcp_big_query_columns)}
                 FROM {self.table_name}
                 WHERE usage_start_time >= '{scan_start}'
-                AND usage_end_time < '{scan_end}'
+                AND usage_start_time < '{scan_end}'
                 """
             client = bigquery.Client()
             query_job = client.query(query)
