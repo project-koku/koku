@@ -230,7 +230,7 @@ def get_sources_msg_data(msg, app_type_id):
                     )
             elif event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
                 LOG.debug("Authentication Message: %s", str(msg))
-                if value.get("resource_type") in ("Endpoint", "Application"):
+                if value.get("resource_type") in ("Application",):
                     msg_data["event_type"] = event_type
                     msg_data["offset"] = msg.offset()
                     msg_data["partition"] = msg.partition()

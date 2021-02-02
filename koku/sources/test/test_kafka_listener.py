@@ -377,8 +377,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             self.assertEqual(response.get("source_id"), 1)
             self.assertEqual(response.get("auth_header"), test_auth_header)
 
-    def test_get_sources_msg_authentication(self):
-        """Test to get sources details from msg for Authentication.create event."""
+    def test_get_sources_msg_authentication_unsuported_auth_endpoint(self):
+        """Test to ensure Authentication event for Endpoint is filtered."""
         test_topic = "platform.sources.event-stream"
         authentication_events = ["Authentication.create", "Authentication.update"]
         test_offset = 5
@@ -394,13 +394,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 auth_header=test_auth_header,
                 value=bytes(test_value, encoding="utf-8"),
             )
-
             response = source_integration.get_sources_msg_data(msg, cost_management_app_type)
-            self.assertEqual(response.get("event_type"), event)
-            self.assertEqual(response.get("resource_id"), 1)
-            self.assertEqual(response.get("resource_type"), "Endpoint")
-            self.assertEqual(response.get("auth_header"), test_auth_header)
-            self.assertEqual(response.get("offset"), test_offset)
+            self.assertEqual(response, {})
 
     def test_get_sources_msg_data_other(self):
         """Test to get sources details from other message."""
