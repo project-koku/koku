@@ -33,6 +33,7 @@ from api.models import Provider
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util import common as utils
+from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
 
 LOG = logging.getLogger(__name__)
 
@@ -364,6 +365,12 @@ def aws_post_processor(data_frame):
         axis=1,
     )
     data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
+
+    columns = set(list(data_frame))
+    columns = set(PRESTO_REQUIRED_COLUMNS).union(columns)
+    columns = sorted(list(columns))
+
+    return data_frame.reindex(columns=columns)
     return data_frame
 
 
