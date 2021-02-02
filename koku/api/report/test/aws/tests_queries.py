@@ -97,7 +97,9 @@ class AWSReportQueryTest(IamTestCase):
             self.services = [entry.get("product_code") for entry in self.services]
 
             self.availability_zone = (
-                AWSCostEntryLineItemDailySummary.objects.filter(availability_zone__isnull=False)
+                AWSCostEntryLineItemDailySummary.objects.filter(
+                    availability_zone__isnull=False, usage_start__gte=self.dh.this_month_start
+                )
                 .values("availability_zone")
                 .distinct()
                 .first()
