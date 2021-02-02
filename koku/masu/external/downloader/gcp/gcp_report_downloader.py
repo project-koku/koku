@@ -31,6 +31,7 @@ from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
+from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from providers.gcp.provider import GCPProvider
@@ -112,9 +113,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
             Generates the first date of the date range.
         """
-        today = datetime.datetime.today().date()
+        today = DateAccessor().today().date()
         scan_start = today - datetime.timedelta(days=range_length)
-        scan_end = datetime.datetime.today().date()
+        scan_end = today + relativedelta(days=1)
         return scan_start, scan_end
 
     def _generate_etag(self):
@@ -123,6 +124,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         To generate the etag, we use BigQuery to collect the last modified
         date to the table and md5 hash it.
         """
+
         try:
             client = bigquery.Client()
             billing_table_obj = client.get_table(self.table_name)
@@ -189,7 +191,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         # end date is effectively the inclusive "end of the month" from the start.
-        end_date = start_date + relativedelta(months=1) - relativedelta(days=1)
+        end_date = start_date + relativedelta(months=1)
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
@@ -212,10 +214,11 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest_data = {
             "assembly_id": fake_assembly_id,
             "compression": UNCOMPRESSED,
-            "start_date": start_date,
-            "end_date": end_date,  # inclusive end date
+            "start_date": self.scan_start,
+            "end_date": self.scan_end,  # inclusive end date
             "file_names": list(file_names),
         }
+        LOG.info(f"Manifest Data: {str(manifest_data)}")
         return manifest_data
 
     def _generate_assembly_id(self, invoice_month):
@@ -291,8 +294,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 query = f"""
                 SELECT {",".join(self.gcp_big_query_columns)}
                 FROM {self.table_name}
-                WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
-                AND DATE(_PARTITIONTIME) <= '{scan_end}'
+                WHERE usage_start_time >= '{scan_start}'
+                AND usage_start_time < '{scan_end}'
                 AND invoice.month = '{invoice_month}'
                 """
                 LOG.info(f"Using querying for invoice_month ({invoice_month})")
@@ -300,8 +303,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 query = f"""
                 SELECT {",".join(self.gcp_big_query_columns)}
                 FROM {self.table_name}
-                WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
-                AND DATE(_PARTITIONTIME) <= '{scan_end}'
+                WHERE usage_start_time >= '{scan_start}'
+                AND usage_start_time < '{scan_end}'
                 """
             client = bigquery.Client()
             query_job = client.query(query)
