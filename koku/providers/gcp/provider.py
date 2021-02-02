@@ -4,10 +4,12 @@ import logging
 import google.auth
 from google.cloud import bigquery
 from google.cloud.exceptions import GoogleCloudError
+from google.cloud.exceptions import NotFound
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from rest_framework import serializers
 
+from ..provider_errors import ProviderErrors
 from ..provider_errors import SkipStatusPush
 from ..provider_interface import ProviderInterface
 from api.common import error_obj
@@ -49,6 +51,24 @@ class GCPProvider(ProviderInterface):
         except Sources.DoesNotExist:
             LOG.info("Source not found, unable to update data source.")
 
+    def _detect_billing_export_table(self, data_source, credentials):
+        """Verify that dataset and billing export table exists."""
+        proj_table = f"{credentials.get('project_id')}.{data_source.get('dataset')}"
+        try:
+            bigquery_table_id = self.get_table_id(proj_table)
+            if bigquery_table_id:
+                data_source["table_id"] = bigquery_table_id
+                self.update_source_data_source(credentials, data_source)
+            else:
+                raise SkipStatusPush("Table ID not ready.")
+        except NotFound as e:
+            key = "billing_source.dataset"
+            LOG.info(error_obj(key, e.message))
+            message = (
+                f"Unable to find dataset: {data_source.get('dataset')} in project: {credentials.get('project_id')}"
+            )
+            raise serializers.ValidationError(error_obj(key, message))
+
     def cost_usage_source_is_reachable(self, credentials, data_source):
         """
         Verify that the GCP bucket exists and is reachable.
@@ -59,7 +79,7 @@ class GCPProvider(ProviderInterface):
 
         """
         try:
-            project = credentials.get("project_id")
+            project = credentials.get("project_id", "")
             gcp_credentials, _ = google.auth.default()
             # https://github.com/googleapis/google-api-python-client/issues/299
             service = discovery.build("cloudresourcemanager", "v1", credentials=gcp_credentials, cache_discovery=False)
@@ -70,27 +90,25 @@ class GCPProvider(ProviderInterface):
 
             for required_permission in REQUIRED_IAM_PERMISSIONS:
                 if required_permission not in permissions:
-                    key = "authentication.project_id"
-                    err_msg = f"Improper IAM permissions: {permissions}."
-                    raise serializers.ValidationError(error_obj(key, err_msg))
+                    key = ProviderErrors.GCP_INCORRECT_IAM_PERMISSIONS
+                    internal_message = f"Improper IAM permissions: {permissions}."
+                    LOG.warning(internal_message)
+                    message = f"Incorrect IAM permissions for project {project}"
+                    raise serializers.ValidationError(error_obj(key, message))
 
         except GoogleCloudError as e:
             key = "authentication.project_id"
             raise serializers.ValidationError(error_obj(key, e.message))
         except HttpError as err:
             reason = err._get_reason()
+            if reason == "Not Found":
+                reason = "Project ID not found"
             key = "authentication.project_id"
             LOG.info(error_obj(key, reason))
             raise serializers.ValidationError(error_obj(key, reason))
 
         if not data_source.get("table_id"):
-            proj_table = f"{credentials.get('project_id')}.{data_source.get('dataset')}"
-            bigquery_table_id = self.get_table_id(proj_table)
-            if bigquery_table_id:
-                data_source["table_id"] = bigquery_table_id
-                self.update_source_data_source(credentials, data_source)
-            else:
-                raise SkipStatusPush("Table ID not ready.")
+            self._detect_billing_export_table(data_source, credentials)
 
         return True
 
