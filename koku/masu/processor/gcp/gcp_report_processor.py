@@ -116,13 +116,7 @@ class GCPReportProcessor(ReportProcessorBase):
         if not self.scan_start or not self.scan_end:
             err_msg = f"Error recovering start and end date from csv report ({self._report_name})."
             raise ProcessedGCPReportError(err_msg)
-        LOG.info(
-            "Initialized report processor for file: %s and schema: %s, Range: %s to %s",
-            report_path,
-            self._schema,
-            self.scan_start,
-            self.scan_end,
-        )
+        LOG.info("Initialized report processor for file: %s and schema: %s", report_path, self._schema)
 
         self.line_item_columns = None
 
