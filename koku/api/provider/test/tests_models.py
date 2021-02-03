@@ -20,16 +20,43 @@ from unittest.mock import call
 from unittest.mock import patch
 from uuid import UUID
 
+from django.core.validators import ValidationError
 from django.test.utils import override_settings
 from faker import Faker
 from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider
+from api.provider.models import Sources
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
 from masu.test import MasuTestCase
 
 FAKE = Faker()
+
+
+class SourcesModelTest(MasuTestCase):
+    """Tests on the Sources model"""
+
+    def test_text_field_max_len(self):
+        """Test that insert of data > Sources._meta.fields['name'].max_length will throw an exception."""
+        max_length = Sources._meta.get_field("name").max_length
+        long_name = "x" * (max_length + 1)
+        max_name = "x" * max_length
+        short_name = "x" * (max_length - 1)
+        long_source = Sources(
+            source_id=-10, name=long_name, offset=1, source_type=Provider.PROVIDER_AWS, authentication={}
+        )
+        max_source = Sources(
+            source_id=-11, name=max_name, offset=1, source_type=Provider.PROVIDER_AWS, authentication={}
+        )
+        short_source = Sources(
+            source_id=-12, name=short_name, offset=1, source_type=Provider.PROVIDER_AWS, authentication={}
+        )
+        with tenant_context(self.tenant):
+            with self.assertRaises(ValidationError):
+                long_source.save()
+            max_source.save()
+            short_source.save()
 
 
 class ProviderModelTest(MasuTestCase):
