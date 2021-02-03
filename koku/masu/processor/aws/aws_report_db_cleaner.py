@@ -75,16 +75,13 @@ class AWSReportDBCleaner:
                     removed_payer_account_id = bill.payer_account_id
                     removed_billing_period_start = bill.billing_period_start
 
-                    del_count = -1
                     del_total = 0
                     if not simulate:
+                        ct_lineitem_query = accessor.get_lineitem_query_for_billid(bill_id)
                         # Change the returned query into a SELECT ... FOR UPDATE SKIP LOCKED query
-                        lineitem_query = (
-                            accessor.get_lineitem_query_for_billid(bill_id)
-                            .select_for_update(skip_locked=True)
-                            .values_list("pk")
-                        )
+                        lineitem_query = ct_lineitem_query.select_for_update(skip_locked=True).values_list("pk")
                         # Remove any ordering
+                        ct_lineitem_query.query.clear_ordering(True)
                         lineitem_query.query.clear_ordering(True)
                         # Use the line_item_query as a subquery with a LIMIT clause
                         del_lineitem_query = lineitem_query.model.objects.filter(
@@ -93,12 +90,29 @@ class AWSReportDBCleaner:
                         # Remove any ordering
                         del_lineitem_query.query.clear_ordering(True)
 
-                        while del_count != 0:
-                            # The use of FOR UPDATE demands a transaction!
-                            with transaction.atomic():
-                                del_count = del_lineitem_query.delete()[0]
-                            del_total += del_count
-                            LOG.info("Removing %s cost entry line items for bill id %s", del_count, bill_id)
+                        iterations = 0
+                        max_iterations = os.getenv("PURGE_CYCLE_MAX_ITER", 3)
+                        while iterations < max_iterations:
+                            del_count = -1
+                            while del_count != 0:
+                                # The use of FOR UPDATE demands a transaction!
+                                with transaction.atomic():
+                                    del_count = del_lineitem_query.delete()[0]
+                                del_total += del_count
+                                LOG.info(
+                                    "Removing %s cost entry line items for bill id %s (%s)",
+                                    del_count,
+                                    bill_id,
+                                    iterations,
+                                )
+
+                            remainder = ct_lineitem_query.count()
+                            if remainder > 0:
+                                iterations += 1
+                            else:
+                                break
+                        if iterations >= max_iterations:
+                            LOG.error(f"Due to possible lock contention, there are {remainder} records remaining.")
 
                     LOG.info(
                         "%s Line item data removed for Account Payer ID: %s with billing period: %s",
