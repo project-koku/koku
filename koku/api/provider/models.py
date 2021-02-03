@@ -19,9 +19,12 @@ import logging
 from uuid import uuid4
 
 from django.conf import settings
+from django.core.validators import MaxLengthValidator
 from django.db import models
 from django.db import transaction
 from django.db.models import JSONField
+
+from api.model_utils import RunFieldValidators
 
 LOG = logging.getLogger(__name__)
 
@@ -162,7 +165,7 @@ class Provider(models.Model):
             transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid))
 
 
-class Sources(models.Model):
+class Sources(RunFieldValidators, models.Model):
     """Platform-Sources table.
 
     Used for managing Platform-Sources.
@@ -182,7 +185,7 @@ class Sources(models.Model):
     source_uuid = models.UUIDField(unique=True, null=True)
 
     # Source name.
-    name = models.TextField(null=True)
+    name = models.TextField(max_length=256, null=True, validators=[MaxLengthValidator(256)])
 
     # Red Hat identity header.  Passed along to Koku API for entitlement and rbac reasons.
     auth_header = models.TextField(null=True)
