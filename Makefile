@@ -101,6 +101,7 @@ help:
 	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
 	@echo "  superuser                             create a Django super user"
 	@echo "  unittest                              run unittests"
+	@echo "  local-upload-data                     upload data to Ingress if it is up and running locally"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
 	@echo "  docker-up                            run docker-compose up --build -d"
@@ -538,6 +539,12 @@ backup-local-db-dir:
 	@$(PREFIX) cp -rp ./pg_data ./pg_data.bak
 	@cd - >/dev/null
 	$(DOCKER_COMPOSE) start db
+
+local-upload-data:
+	curl -vvvv -F "upload=@$(file);type=application/vnd.redhat.hccm.$(basename $(basename $(notdir $(file))))+tgz" \
+		-H "x-rh-identity: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAiaW50ZXJuYWwiOiB7Im9yZ19pZCI6ICI1NDMyMSJ9fX0=" \
+		-H "x-rh-request_id: testtesttest" \
+		localhost:8080/api/ingress/v1/upload
 
 
 restore-local-db-dir:

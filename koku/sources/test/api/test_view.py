@@ -23,6 +23,7 @@ from unittest.mock import PropertyMock
 from uuid import uuid4
 
 import requests_mock
+from django.core.cache import caches
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -71,6 +72,11 @@ class SourcesViewTests(IamTestCase):
 
         mock_url = PropertyMock(return_value="http://www.sourcesclient.com/api/v1/sources/")
         SourcesViewSet.url = mock_url
+
+    def tearDown(self):
+        """Tear down each test."""
+        cache = caches["default"]
+        cache.clear()
 
     def test_source_update(self):
         """Test the PATCH endpoint."""

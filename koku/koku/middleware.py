@@ -363,6 +363,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             "is_admin": is_admin,
         }
         LOG.info(stmt)
+
         return response
 
 
