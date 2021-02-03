@@ -19,9 +19,12 @@ import csv
 import gzip
 import io
 import logging
+import os
 
 import ciso8601
 from dateutil.relativedelta import relativedelta
+from django.db import transaction
+from django.db.models import Subquery
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
@@ -226,6 +229,7 @@ class ReportProcessorBase:
             provider_uuid = manifest.provider_id
 
         date_filter = self.get_date_column_filter()
+        del_record_limit = os.getenv("PURGE_CYCLE_RECORD_LIMIT", 5000)
 
         with db_accessor(self._schema) as accessor:
             bills = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
@@ -248,7 +252,26 @@ class ReportProcessorBase:
                         f" on or after {delete_date}."
                     )
                     LOG.info(log_statement)
-                    line_item_query.delete()
+
+                    # Change the returned query into a SELECT ... FOR UPDATE SKIP LOCKED query
+                    line_item_query = line_item_query.select_for_update(skip_locked=True).values_list("pk")
+                    # Remove any ordering
+                    line_item_query.query.clear_ordering(True)
+                    # Use the line_item_query as a subquery with a LIMIT clause
+                    del_line_item_query = line_item_query.model.objects.filter(
+                        pk__in=Subquery(line_item_query[:del_record_limit])
+                    )
+                    # Remove any ordering
+                    del_line_item_query.query.clear_ordering(True)
+
+                    del_count = -1
+                    del_total = 0
+                    while del_count != 0:
+                        # The use of FOR UPDATE demands a transaction!
+                        with transaction.atomic():
+                            del_count = del_line_item_query.delete()[0]
+                        del_total += del_count
+                    LOG.info(f"Deleted {del_total} records")
 
         return True
 
