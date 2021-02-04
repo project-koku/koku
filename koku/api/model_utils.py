@@ -17,7 +17,7 @@
 """Django model mixins and utilities."""
 
 
-class RunFieldValidators:
+class RunTextFieldValidators:
     """
     Mixin to run all field validators on a save method call
     This mixin should appear BEFORE Model.
@@ -27,6 +27,8 @@ class RunFieldValidators:
         """
         For all fields, run any default and specified validators before calling save
         """
-        for f in (c for c in self._meta.get_fields() if hasattr(self, c.name)):
+        for f in (
+            c for c in self._meta.get_fields() if hasattr(self, c.name) and c.get_internal_type() == "TextField"
+        ):
             f.run_validators(getattr(self, f.name))
         super().save(*args, **kwargs)
