@@ -46,6 +46,7 @@ from forecast import OCPAWSForecast
 from forecast import OCPAzureForecast
 from forecast import OCPForecast
 from forecast.forecast import LinearForecastResult
+from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPCostSummary
 from reporting.provider.gcp.models import GCPCostSummaryByAccount
 from reporting.provider.gcp.models import GCPCostSummaryByProject
@@ -427,6 +428,13 @@ class AWSForecastTest(IamTestCase):
             with self.subTest(dates=scenario["dates"], expected=scenario["expected"]):
                 out = instance._enumerate_dates(scenario["dates"])
                 self.assertEqual(out, scenario["expected"])
+
+    def test_summary_table(self):
+        """COST-908: Test that the expected summary table is used."""
+        mock_access = {"aws.organizational_unit": {"read": ["1234", "5678"]}}
+        params = self.mocked_query_params("?", AWSCostForecastView, access=mock_access)
+        instance = AWSForecast(params)
+        self.assertEqual(instance.cost_summary_table, AWSCostEntryLineItemDailySummary)
 
 
 class AzureForecastTest(IamTestCase):
