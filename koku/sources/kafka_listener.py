@@ -317,8 +317,7 @@ def save_auth_info(auth_header, source_id):
     try:
         authentication = get_authentication(source_type, sources_network)
     except SourcesHTTPClientError as error:
-        LOG.info(f"Authentication info not available for Source ID: {source_id}")
-        sources_network.set_source_status(error)
+        LOG.info(f"Authentication info not available for Source ID: {source_id}. Error: {str(error)}")
     else:
         if not authentication:
             return

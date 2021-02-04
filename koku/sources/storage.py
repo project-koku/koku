@@ -55,6 +55,7 @@ def _aws_provider_ready_for_create(provider):
         and provider.auth_header
         and provider.billing_source
         and provider.authentication
+        and not provider.status
         and not provider.koku_uuid
     ):
         return True
@@ -68,6 +69,7 @@ def _ocp_provider_ready_for_create(provider):
         and provider.name
         and provider.authentication
         and provider.auth_header
+        and not provider.status
         and not provider.koku_uuid
     ):
         return True
@@ -81,6 +83,7 @@ def _azure_provider_ready_for_create(provider):
         and provider.name
         and provider.auth_header
         and provider.billing_source
+        and not provider.status
         and not provider.koku_uuid
     ):
         billing_source = provider.billing_source.get("data_source", {})
@@ -102,6 +105,7 @@ def _gcp_provider_ready_for_create(provider):
         and provider.auth_header
         and provider.billing_source.get("data_source")
         and provider.authentication.get("credentials")
+        and not provider.status
         and not provider.koku_uuid
     ):
         return True

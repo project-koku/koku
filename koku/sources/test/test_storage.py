@@ -59,6 +59,7 @@ class MockProvider:
         self.offset = offset
         self.pending_delete = pending_delete
         self.koku_uuid = koku_uuid
+        self.status = {}
 
 
 class SourcesStorageTest(TestCase):
