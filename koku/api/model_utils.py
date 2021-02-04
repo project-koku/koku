@@ -30,5 +30,9 @@ class RunTextFieldValidators:
         for f in (
             c for c in self._meta.get_fields() if hasattr(self, c.name) and c.get_internal_type() == "TextField"
         ):
-            f.run_validators(getattr(self, f.name))
+            val = getattr(self, f.name)
+            if val is not None:
+                val = str(val)
+            f.run_validators(val)
+
         super().save(*args, **kwargs)
