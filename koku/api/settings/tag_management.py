@@ -135,8 +135,10 @@ class TagManagementSettings:
             avail_objs = [{"value": tag_key, "label": tag_key} for tag_key in available]
             dual_list_options = {
                 "options": avail_objs,
-                "leftTitle": obtainTagKeysProvidersParams[providerName]["leftLabel"],
-                "rightTitle": obtainTagKeysProvidersParams[providerName]["rightLabel"],
+                "isSortable": True,
+                "isSearchable": True,
+                "availableOptionsTitle": obtainTagKeysProvidersParams[providerName]["leftLabel"],
+                "chosenOptionsTitle": obtainTagKeysProvidersParams[providerName]["rightLabel"],
                 "noValueTitle": "No enabled tag keys",
                 "noOptionsTitle": "No available tag keys",
                 "filterOptionsTitle": "Filter by available tag keys",
