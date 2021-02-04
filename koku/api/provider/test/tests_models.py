@@ -52,11 +52,17 @@ class SourcesModelTest(MasuTestCase):
         short_source = Sources(
             source_id=-12, name=short_name, offset=1, source_type=Provider.PROVIDER_AWS, authentication={}
         )
+        int_source = Sources(source_id=-13, name=10, offset=1, source_type=Provider.PROVIDER_AWS, authentication={})
+        none_source = Sources(source_id=-14, name=None, offset=1, source_type=Provider.PROVIDER_AWS, authentication={})
+        unnamed_source = Sources(source_id=-15, offset=1, source_type=Provider.PROVIDER_AWS, authentication={})
         with tenant_context(self.tenant):
             with self.assertRaises(ValidationError):
                 long_source.save()
             max_source.save()
             short_source.save()
+            int_source.save()
+            none_source.save()
+            unnamed_source.save()
 
 
 class ProviderModelTest(MasuTestCase):
