@@ -440,6 +440,7 @@ def process_message(app_type_id, msg):  # noqa: C901
         storage.enqueue_source_delete(msg_data.get("source_id"), msg_data.get("offset"))
 
     if msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
+        sources_network_info(msg_data.get("source_id"), msg_data.get("auth_header"))
         storage.enqueue_source_update(msg_data.get("source_id"))
 
 
