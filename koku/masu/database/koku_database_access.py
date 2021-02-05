@@ -117,15 +117,21 @@ class KokuDBAccess:
             deleteme.delete()
 
 
+def mtd_check_remainder(base_select_query):
+    return base_select_query.count()
+
+
 def mini_transaction_delete(base_select_query):
     """
     Uses a select query to make a mini transactinal delete loop.
     Schema should be set before calling this function.
     Args:
         base_select_query (QuerySet) : Single-table django select query
+    Returns:
+        tuple : (deleted_record_total, records_remaining)
     """
-    del_record_limit = os.getenv("DELETE_CYCLE_RECORD_LIMIT", 5000)
-    max_iterations = os.getenv("DELETE_CYCLE_MAX_RETRY", 3)
+    del_record_limit = int(os.getenv("DELETE_CYCLE_RECORD_LIMIT", 5000))
+    max_iterations = int(os.getenv("DELETE_CYCLE_MAX_RETRY", 3))
 
     # Change the base query into a SELECT ... FOR UPDATE SKIP LOCKED query
     delete_subquery = base_select_query.select_for_update(skip_locked=True).values_list("pk")
@@ -139,6 +145,7 @@ def mini_transaction_delete(base_select_query):
 
     iterations = 0
     del_total = 0
+    remainder = 0
     while iterations < max_iterations:
         del_count = -1
         while del_count != 0:
@@ -147,13 +154,15 @@ def mini_transaction_delete(base_select_query):
                 del_count = delete_query.delete()[0]
             del_total += del_count
 
-        remainder = base_select_query.count()
+        remainder = mtd_check_remainder(base_select_query)
         if remainder > 0:
             iterations += 1
         else:
             break
 
-    LOG.info(f"Removed {del_total} records")
+    LOG.debug(f"Removed {del_total} records")
 
-    if iterations >= max_iterations:
+    if (iterations >= max_iterations) and (remainder > 0):
         LOG.error(f"Due to possible lock contention, there are {remainder} records remaining.")
+
+    return (del_total, remainder)

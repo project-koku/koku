@@ -19,15 +19,13 @@ import csv
 import gzip
 import io
 import logging
-import os
 
 import ciso8601
 from dateutil.relativedelta import relativedelta
-from django.db import transaction
-from django.db.models import Subquery
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
+from masu.database.koku_database_access import mini_transaction_delete
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
@@ -229,20 +227,19 @@ class ReportProcessorBase:
             provider_uuid = manifest.provider_id
 
         date_filter = self.get_date_column_filter()
-        del_record_limit = os.getenv("PURGE_CYCLE_RECORD_LIMIT", 5000)
 
         with db_accessor(self._schema) as accessor:
             bills = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
             bills = bills.filter(billing_period_start=bill_date).all()
             with schema_context(self._schema):
                 for bill in bills:
-                    ct_line_item_query = accessor.get_lineitem_query_for_billid(bill.id)
+                    line_item_query = accessor.get_lineitem_query_for_billid(bill.id)
                     delete_date = bill_date
                     if not is_finalized and not is_full_month:
                         delete_date = self.data_cutoff_date
                         # This means we are processing a mid-month update
                         # and only need to delete a small window of data
-                        ct_line_item_query = ct_line_item_query.filter(**date_filter)
+                        line_item_query = line_item_query.filter(**date_filter)
                     log_statement = (
                         f"Deleting data for:\n"
                         f" schema_name: {self._schema}\n"
@@ -252,36 +249,8 @@ class ReportProcessorBase:
                         f" on or after {delete_date}."
                     )
                     LOG.info(log_statement)
-                    # Change the returned query into a SELECT ... FOR UPDATE SKIP LOCKED query
-                    line_item_query = ct_line_item_query.select_for_update(skip_locked=True).values_list("pk")
-                    # Remove any ordering
-                    ct_line_item_query.query.clear_ordering(True)
-                    line_item_query.query.clear_ordering(True)
-                    # Use the line_item_query as a subquery with a LIMIT clause
-                    del_line_item_query = line_item_query.model.objects.filter(
-                        pk__in=Subquery(line_item_query[:del_record_limit])
-                    )
-                    # Remove any ordering
-                    del_line_item_query.query.clear_ordering(True)
-                    iterations = 0
-                    max_iterations = os.getenv("PURGE_CYCLE_MAX_ITER", 3)
-                    del_total = 0
-                    while iterations < max_iterations:
-                        del_count = -1
-                        while del_count != 0:
-                            # The use of FOR UPDATE demands a transaction!
-                            with transaction.atomic():
-                                del_count = del_line_item_query.delete()[0]
-                            del_total += del_count
-                        LOG.info(f"Deleted {del_total} records")
-
-                        remainder = ct_line_item_query.count()
-                        if remainder > 0:
-                            iterations += 1
-                        else:
-                            break
-                    if iterations >= max_iterations:
-                        LOG.error(f"Due to possible lock contention, there are {remainder} records remaining.")
+                    del_count, remainder = mini_transaction_delete(line_item_query)
+                    LOG.info(f"Deleted {del_count} records for bill id {bill.id}")
 
         return True
 
