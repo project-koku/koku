@@ -528,17 +528,27 @@ def update_application_settings(source_id, settings):
     billing_source = settings.get("billing_source")
     authentication = settings.get("authentication")
     if billing_source:
+        updated_billing_source = None
         instance = get_source(source_id, "Unable to add billing source", LOG.error)
         if instance.billing_source:
-            billing_source = _update_billing_source(instance, billing_source)
-        instance.billing_source = billing_source
-        instance.pending_update = True
-        instance.save()
+            updated_billing_source = _update_billing_source(instance, billing_source)
+        if instance.billing_source != updated_billing_source:
+            if instance.billing_source:
+                # Queue pending provider update if the billing source was previously
+                # populated and now has changed.
+                instance.pending_update = True
+            instance.billing_source = billing_source
+            instance.save()
 
     if authentication:
+        updated_authentication = None
         instance = get_source(source_id, "Unable to add authentication", LOG.error)
         if instance.authentication:
-            authentication = _update_authentication(instance, authentication)
-        instance.authentication = authentication
-        instance.pending_update = True
-        instance.save()
+            updated_authentication = _update_authentication(instance, authentication)
+        if instance.authentication != updated_authentication:
+            if instance.authentication:
+                # Queue pending provider update if the authentication was previously
+                # populated and now has changed.
+                instance.pending_update = True
+            instance.authentication = authentication
+            instance.save()
