@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the UserAccess view."""
+from django.test.utils import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -554,3 +555,91 @@ class UserAccessViewTest(IamTestCase):
         response = self.client.get(query_url, **self.headers)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @override_settings(ENABLE_PRERELEASE_FEATURES=True)
+    @RbacPermissions({"aws.account": {"read": ["*"]}})
+    def test_view_beta_flag_true(self):
+        """Test user-access view query using beta flag.
+
+        Scenarios:
+            pre-release features: allowed
+            user access: allowed
+            beta flag: true or false
+
+        Expected:
+            beta true result: true
+            beta false result: true
+        """
+        url = reverse("user-access")
+
+        for flag, expected in [(True, True), (False, True)]:
+            with self.subTest(flag=flag, expected=expected):
+                query_url = f"{url}?type=aws&beta={flag}"
+                response = self.client.get(query_url, **self.headers)
+                self.assertEqual(response.data.get("data"), expected)
+
+    @override_settings(ENABLE_PRERELEASE_FEATURES=False)
+    @RbacPermissions({"aws.account": {"read": ["*"]}})
+    def test_view_beta_flag_false(self):
+        """Test user-access view query using beta flag.
+
+        Scenarios:
+            pre-release features: disallowed
+            user access: allowed
+            beta flag: true or false
+
+        Expected:
+            beta true result: false
+            beta false result: true
+        """
+        url = reverse("user-access")
+
+        for flag, expected in [(True, False), (False, True)]:
+            with self.subTest(flag=flag, expected=expected):
+                query_url = f"{url}?type=aws&beta={flag}"
+                response = self.client.get(query_url, **self.headers)
+                self.assertEqual(response.data.get("data"), expected)
+
+    @override_settings(ENABLE_PRERELEASE_FEATURES=True)
+    @RbacPermissions({"something.else": {"read": ["*"]}})
+    def test_view_beta_flag_true_unauth(self):
+        """Test user-access view query using beta flag.
+
+        Scenarios:
+            pre-release features: allowed
+            user access: disallowed
+            beta flag: true or false
+
+        Expected:
+            beta true result: false
+            beta false result: false
+        """
+        url = reverse("user-access")
+
+        for flag, expected in [(True, False), (False, False)]:
+            with self.subTest(flag=flag, expected=expected):
+                query_url = f"{url}?type=aws&beta={flag}"
+                response = self.client.get(query_url, **self.headers)
+                self.assertEqual(response.data.get("data"), expected)
+
+    @override_settings(ENABLE_PRERELEASE_FEATURES=False)
+    @RbacPermissions({"something.else": {"read": ["*"]}})
+    def test_view_beta_flag_false_unauth(self):
+        """Test user-access view query using beta flag.
+
+        Scenarios:
+            pre-release features: disallowed
+            user access: disallowed
+            beta flag: true or false
+
+        Expected:
+            beta true result: false
+            beta false result: false
+        """
+        url = reverse("user-access")
+
+        for flag, expected in [(True, False), (False, False)]:
+            with self.subTest(flag=flag, expected=expected):
+                query_url = f"{url}?type=aws&beta={flag}"
+                response = self.client.get(query_url, **self.headers)
+                self.assertEqual(response.data.get("data"), expected)

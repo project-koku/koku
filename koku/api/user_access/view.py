@@ -16,6 +16,7 @@
 """View for UserAccess."""
 import logging
 
+from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import status
@@ -51,6 +52,7 @@ class UIFeatureAccess:
 
         Args:
             access (dict) - an RBAC dict; see: koku.koku.middleware.IdentityHeaderMiddleware
+
         """
         self.access_dict = access
 
@@ -129,6 +131,9 @@ class UserAccessView(APIView):
 
         Args:
             request (Request) HTTP Request object
+                - request.query_params (dict)
+                    - type (str) - the name of the feature; feature type
+                    - beta (bool) - feature flag; this signals that this is a pre-release feature.
             kwargs (dict) optional keyword args
         """
         query_params = request.query_params
@@ -136,6 +141,11 @@ class UserAccessView(APIView):
         LOG.debug(f"User Access RBAC permissions: {str(user_access)}. Org Admin: {str(request.user.admin)}")
         admin_user = request.user.admin
         LOG.debug(f"User Access admin user: {str(admin_user)}")
+
+        # only show pre-release features in approved environments
+        flag = query_params.get("beta", "False")  # query_params are strings, not bools.
+        if flag.lower() == "true" and not settings.ENABLE_PRERELEASE_FEATURES:
+            return Response({"data": False})
 
         source_type = query_params.get("type")
         if source_type:
