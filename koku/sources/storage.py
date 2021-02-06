@@ -556,12 +556,12 @@ def _update_billing_source(instance, billing_source):
 def _update_authentication(instance, authentication):
     if instance.source_type not in ALLOWED_AUTHENTICATION_PROVIDERS:
         raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
-    auth_dict = instance.authentication
-    if not auth_dict.get("credentials"):
-        auth_dict["credentials"] = {"subscription_id": None}
+    auth_copy = copy.deepcopy(instance.authentication)
+    if not auth_copy.get("credentials"):
+        auth_copy["credentials"] = {"subscription_id": None}
     subscription_id = authentication.get("credentials", {}).get("subscription_id")
-    auth_dict["credentials"]["subscription_id"] = subscription_id
-    return auth_dict
+    auth_copy["credentials"]["subscription_id"] = subscription_id
+    return auth_copy
 
 
 def update_application_settings(source_id, settings):
@@ -593,4 +593,6 @@ def update_application_settings(source_id, settings):
                 # populated and now has changed.
                 instance.pending_update = True
             instance.authentication = authentication
+            if updated_authentication:
+                instance.authentication = updated_authentication
             instance.save()
