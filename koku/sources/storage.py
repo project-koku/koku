@@ -47,17 +47,30 @@ class SourcesStorageError(Exception):
     """Sources Storage error."""
 
 
+def aws_settings_ready(provider):
+    """Verify that the Application Settings are complete."""
+    if provider.billing_source and provider.authentication:
+        return True
+    return False
+
+
 def _aws_provider_ready_for_create(provider):
     """Determine if AWS provider is ready for provider creation."""
     if (
         provider.source_id
         and provider.name
         and provider.auth_header
-        and provider.billing_source
-        and provider.authentication
+        and aws_settings_ready(provider)
         and not provider.status
         and not provider.koku_uuid
     ):
+        return True
+    return False
+
+
+def ocp_settings_ready(provider):
+    """Verify that the Application Settings are complete."""
+    if provider.authentication:
         return True
     return False
 
@@ -67,12 +80,25 @@ def _ocp_provider_ready_for_create(provider):
     if (
         provider.source_id
         and provider.name
-        and provider.authentication
+        and ocp_settings_ready(provider)
         and provider.auth_header
         and not provider.status
         and not provider.koku_uuid
     ):
         return True
+    return False
+
+
+def azure_settings_ready(provider):
+    """Verify that the Application Settings are complete."""
+    billing_source = provider.billing_source.get("data_source", {})
+    authentication = provider.authentication.get("credentials", {})
+    if billing_source and authentication:
+        if (
+            set(authentication.keys()) == REQUIRED_AZURE_AUTH_KEYS
+            and set(billing_source.keys()) == REQUIRED_AZURE_BILLING_KEYS
+        ):
+            return True
     return False
 
 
@@ -82,18 +108,18 @@ def _azure_provider_ready_for_create(provider):
         provider.source_id
         and provider.name
         and provider.auth_header
-        and provider.billing_source
+        and azure_settings_ready(provider)
         and not provider.status
         and not provider.koku_uuid
     ):
-        billing_source = provider.billing_source.get("data_source", {})
-        authentication = provider.authentication.get("credentials", {})
-        if billing_source and authentication:
-            if (
-                set(authentication.keys()) == REQUIRED_AZURE_AUTH_KEYS
-                and set(billing_source.keys()) == REQUIRED_AZURE_BILLING_KEYS
-            ):
-                return True
+        return True
+    return False
+
+
+def gcp_settings_ready(provider):
+    """Verify that the Application Settings are complete."""
+    if provider.billing_source.get("data_source") and provider.authentication.get("credentials"):
+        return True
     return False
 
 
@@ -103,8 +129,7 @@ def _gcp_provider_ready_for_create(provider):
         provider.source_id
         and provider.name
         and provider.auth_header
-        and provider.billing_source.get("data_source")
-        and provider.authentication.get("credentials")
+        and gcp_settings_ready(provider)
         and not provider.status
         and not provider.koku_uuid
     ):
@@ -130,6 +155,23 @@ def screen_and_build_provider_sync_create_event(provider):
     if screen_fn and screen_fn(provider) and not provider.pending_delete:
         provider_event = {"operation": "create", "provider": provider, "offset": provider.offset}
     return provider_event
+
+
+APP_SETTINGS_SCREEN_MAP = {
+    Provider.PROVIDER_AWS: aws_settings_ready,
+    Provider.PROVIDER_AWS_LOCAL: aws_settings_ready,
+    Provider.PROVIDER_OCP: ocp_settings_ready,
+    Provider.PROVIDER_AZURE: azure_settings_ready,
+    Provider.PROVIDER_AZURE_LOCAL: azure_settings_ready,
+    Provider.PROVIDER_GCP: gcp_settings_ready,
+    Provider.PROVIDER_GCP_LOCAL: gcp_settings_ready,
+}
+
+
+def source_settings_complete(provider):
+    """Determine if the source application settings are complete."""
+    screen_fn = APP_SETTINGS_SCREEN_MAP.get(provider.source_type)
+    return screen_fn(provider)
 
 
 def load_providers_to_create():

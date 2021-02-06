@@ -34,7 +34,7 @@ from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
-from django.db.models import Q
+from sources.storage import source_settings_complete
 
 LOG = logging.getLogger(__name__)
 
@@ -47,8 +47,8 @@ class SourceStatus:
         self.request = request
         self.user = request.user
         self.source_id = source_id
-        self.source = Sources.objects.filter(Q(source_id=source_id), ~Q(billing_source={}), ~Q(authentication={})).first()
-        if not self.source:
+        self.source = Sources.objects.get(source_id=source_id)
+        if not source_settings_complete(self.source):
             raise ObjectDoesNotExist(f"Source ID: {self.source_id} not ready for status")
         self.sources_client = SourcesHTTPClient(self.source.auth_header, source_id=source_id)
 
