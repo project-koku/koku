@@ -122,7 +122,7 @@ class SourcesStatusTest(IamTestCase):
                 source_id=1,
                 name="New AWS Mock Test Source",
                 source_type=Provider.PROVIDER_AWS,
-                authentication={},
+                authentication={"authentication": {"rolearn": "myarn"}},
                 billing_source={"bucket": "my-bucket"},
                 koku_uuid="",
                 offset=1,
@@ -143,7 +143,7 @@ class SourcesStatusTest(IamTestCase):
                 source_id=1,
                 name="New AWS Mock Test Source",
                 source_type=Provider.PROVIDER_AWS,
-                authentication={},
+                authentication={"authentication": {"rolearn": "myarn"}},
                 billing_source={"bucket": "my-bucket"},
                 koku_uuid="",
                 offset=1,
@@ -167,8 +167,15 @@ class SourcesStatusTest(IamTestCase):
             {
                 "name": "New Azure Mock Test Source",
                 "source_type": Provider.PROVIDER_AZURE,
-                "authentication": {"credentials": {"azure": "creds"}},
-                "billing_source": {"data_source": {"azure": "source"}},
+                "authentication": {
+                    "credentials": {
+                        "subscription_id": "subid",
+                        "client_id": "testid",
+                        "tenant_id": "tenant",
+                        "client_secret": "secret",
+                    }
+                },
+                "billing_source": {"data_source": {"resource_group": "rg", "storage_account": "sa"}},
                 "offset": 1,
             },
             {
