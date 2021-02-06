@@ -47,7 +47,7 @@ class SourceStatus:
         self.request = request
         self.user = request.user
         self.source_id = source_id
-        self.source = Sources.objects.filter(Q(source_id=2), ~Q(billing_source={}), ~Q(authentication={})).first()
+        self.source = Sources.objects.filter(Q(source_id=source_id), ~Q(billing_source={}), ~Q(authentication={})).first()
         if not self.source:
             raise ObjectDoesNotExist(f"Source ID: {self.source_id} not ready for status")
         self.sources_client = SourcesHTTPClient(self.source.auth_header, source_id=source_id)
