@@ -466,7 +466,9 @@ def add_provider_koku_uuid(source_id, koku_uuid):
         None
 
     """
+    LOG.info(f"Attempting to add provider uuid {str(koku_uuid)} to Source ID: {str(source_id)}")
     source = get_source(source_id, f"Source ID {source_id} does not exist.", LOG.error)
+    LOG.info(f"Source when attempting to add provider uuid: {str(source)}")
     if source and source.koku_uuid != koku_uuid:
         LOG.info(f"Adding provider uuid {str(koku_uuid)} to Source ID: {str(source_id)}")
         source.koku_uuid = koku_uuid

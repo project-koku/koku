@@ -566,9 +566,12 @@ def execute_koku_provider_op(msg):
             LOG.info(f"Creating Koku Provider for Source ID: {str(provider.source_id)}")
             instance = account_coordinator.create_account(provider)
             LOG.info(f"Created provider {instance.uuid} for Source ID: {provider.source_id}")
+            LOG.info(f"Source after Provider Create: {str(provider)}")
         elif operation == "update":
             instance = account_coordinator.update_account(provider)
             LOG.info(f"Updated provider {instance.uuid} for Source ID: {provider.source_id}")
+            LOG.info(f"Source after Provider Update: {str(provider)}")
+
         elif operation == "destroy":
             account_coordinator.destroy_account(provider)
             LOG.info(f"Destroyed provider {provider.koku_uuid} for Source ID: {provider.source_id}")
