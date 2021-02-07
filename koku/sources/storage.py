@@ -579,6 +579,7 @@ def update_application_settings(source_id, settings):
                 # Queue pending provider update if the billing source was previously
                 # populated and now has changed.
                 instance.pending_update = True
+                instance.status = {}
             instance.billing_source = billing_source
             instance.save()
 
@@ -592,6 +593,7 @@ def update_application_settings(source_id, settings):
                 # Queue pending provider update if the authentication was previously
                 # populated and now has changed.
                 instance.pending_update = True
+                instance.status = {}
             instance.authentication = authentication
             if updated_authentication:
                 instance.authentication = updated_authentication
