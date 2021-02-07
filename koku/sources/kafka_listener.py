@@ -402,7 +402,7 @@ def process_message(app_type_id, msg):  # noqa: C901
         None
 
     """
-    LOG.info(f"Processing Event: {msg}")
+    LOG.debug(f"Processing Event: {msg}")
     msg_data = None
     try:
         msg_data = cost_mgmt_msg_filter(msg)
