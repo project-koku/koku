@@ -49,7 +49,7 @@ class SourcesStorageError(Exception):
 
 def aws_settings_ready(provider):
     """Verify that the Application Settings are complete."""
-    if provider.billing_source and provider.authentication:
+    if not provider.pending_update and provider.billing_source and provider.authentication:
         return True
     return False
 
@@ -171,8 +171,7 @@ APP_SETTINGS_SCREEN_MAP = {
 def source_settings_complete(provider):
     """Determine if the source application settings are complete."""
     screen_fn = APP_SETTINGS_SCREEN_MAP.get(provider.source_type)
-    return False
-    #return screen_fn(provider)
+    return screen_fn(provider)
 
 
 def load_providers_to_create():
