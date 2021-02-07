@@ -61,7 +61,6 @@ def _aws_provider_ready_for_create(provider):
         and provider.name
         and provider.auth_header
         and aws_settings_ready(provider)
-        and not provider.pending_update
         and not provider.status
         and not provider.koku_uuid
     ):
@@ -583,7 +582,8 @@ def update_application_settings(source_id, settings):
             if instance.billing_source:
                 # Queue pending provider update if the billing source was previously
                 # populated and now has changed.
-                instance.pending_update = True
+                if instance.koku_uuid:
+                    instance.pending_update = True
                 instance.status = {}
             instance.billing_source = billing_source
             if updated_billing_source:
