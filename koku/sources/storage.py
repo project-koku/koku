@@ -296,6 +296,7 @@ def enqueue_source_update(source_id):
     """
     source = get_source(source_id, f"Unable to enqueue source update. Source ID {source_id} not found.", LOG.error)
     if source and source.koku_uuid and not source.pending_delete and not source.pending_update:
+        LOG.info(f"Pending Update Queued for Source ID: {str(source_id)}")
         source.pending_update = True
         source.save(update_fields=["pending_update"])
 
@@ -582,6 +583,9 @@ def update_application_settings(source_id, settings):
                 instance.pending_update = True
                 instance.status = {}
             instance.billing_source = billing_source
+            if updated_billing_source:
+                LOG.info(f"Updating Source ID Billing Source {instance.billing_source} to {updated_billing_source}")
+                instance.billing_source = updated_billing_source
             instance.save()
 
     if authentication:
@@ -597,5 +601,6 @@ def update_application_settings(source_id, settings):
                 instance.status = {}
             instance.authentication = authentication
             if updated_authentication:
+                LOG.info(f"Updating Source ID Authentication {instance.authentication} to {updated_authentication}")
                 instance.authentication = updated_authentication
             instance.save()
