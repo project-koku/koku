@@ -49,7 +49,7 @@ class SourcesStorageError(Exception):
 
 def aws_settings_ready(provider):
     """Verify that the Application Settings are complete."""
-    if provider.koku_uuid and provider.billing_source and provider.authentication:
+    if provider.billing_source and provider.authentication:
         return True
     return False
 
@@ -171,8 +171,10 @@ APP_SETTINGS_SCREEN_MAP = {
 def source_settings_complete(provider):
     """Determine if the source application settings are complete."""
     LOG.info(f"SOURCE WHEN CHECKING IF SETTINGS ARE COMPLETE: {str(provider)}")
-    screen_fn = APP_SETTINGS_SCREEN_MAP.get(provider.source_type)
-    return screen_fn(provider)
+    is provider.koku_uuid:
+        screen_fn = APP_SETTINGS_SCREEN_MAP.get(provider.source_type)
+        return screen_fn(provider)
+    return False
 
 
 def load_providers_to_create():
