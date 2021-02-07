@@ -583,8 +583,7 @@ def update_application_settings(source_id, settings):
             if instance.billing_source:
                 # Queue pending provider update if the billing source was previously
                 # populated and now has changed.
-                if instance.koku_uuid:
-                    instance.pending_update = True
+                instance.pending_update = True
                 instance.status = {}
             instance.billing_source = billing_source
             if updated_billing_source:
