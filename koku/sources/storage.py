@@ -61,6 +61,7 @@ def _aws_provider_ready_for_create(provider):
         and provider.name
         and provider.auth_header
         and aws_settings_ready(provider)
+        and not provider.pending_update
         and not provider.status
         and not provider.koku_uuid
     ):
