@@ -57,6 +57,7 @@ class SourcesProviderCoordinator:
         """Call to update provider."""
         try:
             provider = self._provider_builder.update_provider_from_source(source)
+            add_provider_koku_uuid(self._source_id, provider.uuid)
             clear_update_flag(self._source_id)
         except ProviderBuilderError as provider_err:
             raise SourcesProviderCoordinatorError(str(provider_err))
