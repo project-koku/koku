@@ -49,7 +49,7 @@ class SourcesStorageError(Exception):
 
 def aws_settings_ready(provider):
     """Verify that the Application Settings are complete."""
-    if provider.billing_source and provider.authentication:
+    if provider.koku_uuid and provider.billing_source and provider.authentication:
         return True
     return False
 
