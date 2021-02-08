@@ -24,7 +24,7 @@ from django.db import models
 from django.db import transaction
 from django.db.models import JSONField
 
-from api.model_utils import RunFieldValidators
+from api.model_utils import RunTextFieldValidators
 
 LOG = logging.getLogger(__name__)
 
@@ -165,7 +165,7 @@ class Provider(models.Model):
             transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid))
 
 
-class Sources(RunFieldValidators, models.Model):
+class Sources(RunTextFieldValidators, models.Model):
     """Platform-Sources table.
 
     Used for managing Platform-Sources.
