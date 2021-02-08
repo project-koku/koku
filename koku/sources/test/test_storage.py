@@ -808,7 +808,7 @@ class SourcesStorageTest(TestCase):
         self.assertEqual(db_obj.billing_source.get("data_source").get("resource_group"), resource_group)
         self.assertEqual(db_obj.billing_source.get("data_source").get("storage_account"), storage_account)
 
-    def test_update_application_settings_billing_and_auth_startingwith_billing(self):
+    def test_update_application_settings_billing_and_auth_starting_with_billing(self):
         """Test to update application settings with both billing and auth where billing already exists."""
         test_source_id = 3
         subscription_id = "testsubid"
