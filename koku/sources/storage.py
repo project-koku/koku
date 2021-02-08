@@ -582,7 +582,6 @@ def _update_billing_source_app_settings(source_id, billing_source):
             instance.status = {}
         instance.billing_source = billing_source
         if updated_billing_source:
-            LOG.info(f"Updating Source ID Billing Source {instance.billing_source} to {updated_billing_source}")
             instance.billing_source = updated_billing_source
         instance.save()
 
@@ -601,7 +600,6 @@ def _update_authentication_app_settings(source_id, authentication):
             instance.status = {}
         instance.authentication = authentication
         if updated_authentication:
-            LOG.info(f"Updating Source ID Authentication {instance.authentication} to {updated_authentication}")
             instance.authentication = updated_authentication
         instance.save()
 

@@ -772,6 +772,42 @@ class SourcesStorageTest(TestCase):
         self.assertEqual(db_obj.authentication.get("subscription_id"), subscription_id)
         self.assertIsNone(db_obj.billing_source.get("data_source"))
 
+    def test_update_application_settings_billing_and_auth(self):
+        """Test to update application settings with both billing and auth."""
+        test_source_id = 3
+        subscription_id = "testsubid"
+        tenant_id = "testtenant"
+        client_id = "myclientid"
+        client_secret = "mysecret"
+        resource_group = "myrg"
+        storage_account = "mysa"
+        settings = {
+            "billing_source": {"data_source": {"resource_group": resource_group, "storage_account": storage_account}},
+            "authentication": {"credentials": {"subscription_id": subscription_id}},
+        }
+
+        azure_obj = Sources(
+            source_id=test_source_id,
+            auth_header=self.test_header,
+            offset=3,
+            authentication={
+                "credentials": {"client_id": client_id, "tenant_id": tenant_id, "client_secret": client_secret}
+            },
+            source_type=Provider.PROVIDER_AZURE,
+            name="Test AZURE Source",
+        )
+        azure_obj.save()
+
+        storage.update_application_settings(test_source_id, settings)
+        db_obj = Sources.objects.get(source_id=test_source_id)
+
+        self.assertEqual(db_obj.authentication.get("credentials").get("subscription_id"), subscription_id)
+        self.assertEqual(db_obj.authentication.get("credentials").get("client_secret"), client_secret)
+        self.assertEqual(db_obj.authentication.get("credentials").get("client_id"), client_id)
+        self.assertEqual(db_obj.authentication.get("credentials").get("tenant_id"), tenant_id)
+        self.assertEqual(db_obj.billing_source.get("data_source").get("resource_group"), resource_group)
+        self.assertEqual(db_obj.billing_source.get("data_source").get("storage_account"), storage_account)
+
     def test_save_status(self):
         """Test to verify source status is saved."""
         test_source_id = 3
