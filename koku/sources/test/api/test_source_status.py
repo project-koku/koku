@@ -124,7 +124,7 @@ class SourcesStatusTest(IamTestCase):
                 source_type=Provider.PROVIDER_AWS,
                 authentication={"authentication": {"rolearn": "myarn"}},
                 billing_source={"bucket": "my-bucket"},
-                koku_uuid="",
+                koku_uuid="uuid",
                 offset=1,
             )
             json_data = {"source_id": 1}
@@ -145,7 +145,7 @@ class SourcesStatusTest(IamTestCase):
                 source_type=Provider.PROVIDER_AWS,
                 authentication={"authentication": {"rolearn": "myarn"}},
                 billing_source={"bucket": "my-bucket"},
-                koku_uuid="",
+                koku_uuid="uuid",
                 offset=1,
             )
             json_data = {"source_id": 1}
