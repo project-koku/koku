@@ -47,6 +47,7 @@ class SourcesProviderCoordinator:
     def create_account(self, source):
         """Call to create provider."""
         try:
+            LOG.info(f"Creating Provider for Source ID: {str(self._source_id)}")
             provider = self._provider_builder.create_provider_from_source(source)
             add_provider_koku_uuid(self._source_id, provider.uuid)
         except ProviderBuilderError as provider_err:
@@ -56,6 +57,7 @@ class SourcesProviderCoordinator:
     def update_account(self, source):
         """Call to update provider."""
         try:
+            LOG.info(f"Updating Provider for Source ID: {str(self._source_id)}")
             provider = self._provider_builder.update_provider_from_source(source)
             clear_update_flag(self._source_id)
         except ProviderBuilderError as provider_err:
