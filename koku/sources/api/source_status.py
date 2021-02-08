@@ -90,7 +90,7 @@ class SourceStatus:
         try:
             status_obj = self.status()
             # self.sources_client.set_source_status(status_obj)
-            LOG.info(f"Pushing Source status- Source ID: {str(self._source_id)}: Status: {str(status_obj)}")
+            LOG.info(f"Source status for Source ID: {str(self.source_id)}: Status: {str(status_obj)}")
         except SkipStatusPush as error:
             LOG.info(f"Platform sources status push skipped. Reason: {str(error)}")
         except SourcesHTTPClientError as error:
