@@ -568,41 +568,51 @@ def _update_authentication(instance, authentication):
     return auth_copy
 
 
-def update_application_settings(source_id, settings):  # noqa: C901
+def _update_billing_source_app_settings(source_id, billing_source):
+    """Helper method to update source billing source app settings."""
+    updated_billing_source = None
+    instance = get_source(source_id, "Unable to add billing source", LOG.error)
+    if instance.billing_source:
+        updated_billing_source = _update_billing_source(instance, billing_source)
+    if instance.billing_source != updated_billing_source:
+        if instance.billing_source:
+            # Queue pending provider update if the billing source was previously
+            # populated and now has changed.
+            instance.pending_update = True
+            instance.status = {}
+        instance.billing_source = billing_source
+        if updated_billing_source:
+            LOG.info(f"Updating Source ID Billing Source {instance.billing_source} to {updated_billing_source}")
+            instance.billing_source = updated_billing_source
+        instance.save()
+
+
+def _update_authentication_app_settings(source_id, authentication):
+    """Helper method to update source billing source app settings."""
+    updated_authentication = None
+    instance = get_source(source_id, "Unable to add authentication", LOG.error)
+    if instance.authentication:
+        updated_authentication = _update_authentication(instance, authentication)
+    if instance.authentication != updated_authentication:
+        if instance.authentication:
+            # Queue pending provider update if the authentication was previously
+            # populated and now has changed.
+            instance.pending_update = True
+            instance.status = {}
+        instance.authentication = authentication
+        if updated_authentication:
+            LOG.info(f"Updating Source ID Authentication {instance.authentication} to {updated_authentication}")
+            instance.authentication = updated_authentication
+        instance.save()
+
+
+def update_application_settings(source_id, settings):
     """Store billing source update."""
     LOG.info(f"Found settings: {str(settings)}")
     billing_source = settings.get("billing_source")
     authentication = settings.get("authentication")
     if billing_source:
-        updated_billing_source = None
-        instance = get_source(source_id, "Unable to add billing source", LOG.error)
-        if instance.billing_source:
-            updated_billing_source = _update_billing_source(instance, billing_source)
-        if instance.billing_source != updated_billing_source:
-            if instance.billing_source:
-                # Queue pending provider update if the billing source was previously
-                # populated and now has changed.
-                instance.pending_update = True
-                instance.status = {}
-            instance.billing_source = billing_source
-            if updated_billing_source:
-                LOG.info(f"Updating Source ID Billing Source {instance.billing_source} to {updated_billing_source}")
-                instance.billing_source = updated_billing_source
-            instance.save()
+        _update_billing_source_app_settings(source_id, billing_source)
 
     if authentication:
-        updated_authentication = None
-        instance = get_source(source_id, "Unable to add authentication", LOG.error)
-        if instance.authentication:
-            updated_authentication = _update_authentication(instance, authentication)
-        if instance.authentication != updated_authentication:
-            if instance.authentication:
-                # Queue pending provider update if the authentication was previously
-                # populated and now has changed.
-                instance.pending_update = True
-                instance.status = {}
-            instance.authentication = authentication
-            if updated_authentication:
-                LOG.info(f"Updating Source ID Authentication {instance.authentication} to {updated_authentication}")
-                instance.authentication = updated_authentication
-            instance.save()
+        _update_authentication_app_settings(source_id, authentication)

@@ -208,6 +208,89 @@ class SourcesStatusTest(IamTestCase):
                     self.assertEquals("available", actual_source_status.get("availability_status"))
                     self.assertTrue(Provider.objects.get(uuid=provider.uuid).active)
 
+    def test_not_ready_for_status(self):
+        """Test that availability status when source is not ready for status check."""
+        request = self.request_context.get("request")
+        test_matrix = [
+            {
+                "name": "New AWS Mock Test Source",
+                "source_type": Provider.PROVIDER_AWS,
+                "authentication": {},
+                "billing_source": {"data_source": {"bucket": "my-bucket"}},
+                "offset": 1,
+            },
+            {
+                "name": "New Azure Mock Test Source",
+                "source_type": Provider.PROVIDER_AZURE,
+                "authentication": {
+                    "credentials": {"client_id": "testid", "tenant_id": "tenant", "client_secret": "secret"}
+                },
+                "billing_source": {"data_source": {"resource_group": "rg", "storage_account": "sa"}},
+                "offset": 1,
+            },
+            {
+                "name": "New Azure Mock Test Source 2",
+                "source_type": Provider.PROVIDER_AZURE,
+                "authentication": {
+                    "credentials": {
+                        "subscription_id": "subid",
+                        "client_id": "testid",
+                        "tenant_id": "tenant",
+                        "client_secret": "secret",
+                    }
+                },
+                "billing_source": {"data_source": {"storage_account": "sa"}},
+                "offset": 1,
+            },
+            {
+                "name": "New Azure Mock Test Source 3",
+                "source_type": Provider.PROVIDER_AZURE,
+                "authentication": {
+                    "credentials": {
+                        "subscription_id": "subid",
+                        "client_id": "testid",
+                        "tenant_id": "tenant",
+                        "client_secret": "secret",
+                    }
+                },
+                "billing_source": {},
+                "offset": 1,
+            },
+            {
+                "name": "New Azure Mock Test Source 4",
+                "source_type": Provider.PROVIDER_AZURE,
+                "authentication": {},
+                "billing_source": {"data_source": {"resource_group": "rg", "storage_account": "sa"}},
+                "offset": 1,
+            },
+            {
+                "name": "New OCP Mock Test Source",
+                "source_type": Provider.PROVIDER_OCP,
+                "authentication": {},
+                "offset": 1,
+            },
+            {
+                "name": "New GCP Mock Test Source",
+                "source_type": Provider.PROVIDER_GCP,
+                "authentication": {"credentials": {"project_id": "test_project_id"}},
+                "billing_source": {},
+                "offset": 1,
+            },
+        ]
+        for i, test in enumerate(test_matrix):
+            with self.subTest(test=test):
+                with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                    provider = Provider.objects.create(
+                        name=test.get("name"), created_by=request.user, customer=request.user.customer, active=True
+                    )
+                    test["koku_uuid"] = str(provider.uuid)
+                    url = reverse("source-status")
+                    client = APIClient()
+                    # Insert a source with ID 1
+                    Sources.objects.create(source_id=i, **test)
+                    response = client.get(url + f"?source_id={i}", **self.headers)
+                    self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_aws_unavailable(self):
         """Test that the API returns status when a source is configured correctly."""
         url = reverse("source-status")
