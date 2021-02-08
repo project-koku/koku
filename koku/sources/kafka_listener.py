@@ -317,8 +317,7 @@ def save_auth_info(auth_header, source_id):
     try:
         authentication = get_authentication(source_type, sources_network)
     except SourcesHTTPClientError as error:
-        LOG.info(f"Authentication info not available for Source ID: {source_id}")
-        sources_network.set_source_status(error)
+        LOG.info(f"Authentication info not available for Source ID: {source_id}. Error: {str(error)}")
     else:
         if not authentication:
             return
@@ -403,7 +402,7 @@ def process_message(app_type_id, msg):  # noqa: C901
         None
 
     """
-    LOG.info(f"Processing Event: {msg}")
+    LOG.debug(f"Processing Event: {msg}")
     msg_data = None
     try:
         msg_data = cost_mgmt_msg_filter(msg)
@@ -441,6 +440,7 @@ def process_message(app_type_id, msg):  # noqa: C901
         storage.enqueue_source_delete(msg_data.get("source_id"), msg_data.get("offset"))
 
     if msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
+        sources_network_info(msg_data.get("source_id"), msg_data.get("auth_header"))
         storage.enqueue_source_update(msg_data.get("source_id"))
 
 
@@ -565,13 +565,14 @@ def execute_koku_provider_op(msg):
         if operation == "create":
             LOG.info(f"Creating Koku Provider for Source ID: {str(provider.source_id)}")
             instance = account_coordinator.create_account(provider)
-            LOG.info(f"Creating provider {instance.uuid} for Source ID: {provider.source_id}")
+            LOG.info(f"Created provider {instance.uuid} for Source ID: {provider.source_id}")
         elif operation == "update":
             instance = account_coordinator.update_account(provider)
-            LOG.info(f"Updating provider {instance.uuid} for Source ID: {provider.source_id}")
+            LOG.info(f"Updated provider {instance.uuid} for Source ID: {provider.source_id}")
+
         elif operation == "destroy":
             account_coordinator.destroy_account(provider)
-            LOG.info(f"Destroying provider {provider.koku_uuid} for Source ID: {provider.source_id}")
+            LOG.info(f"Destroyed provider {provider.koku_uuid} for Source ID: {provider.source_id}")
         else:
             LOG.error(f"unknown operation: {operation}")
         sources_client.set_source_status(None)
