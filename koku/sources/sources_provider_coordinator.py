@@ -51,7 +51,6 @@ class SourcesProviderCoordinator:
             provider = self._provider_builder.create_provider_from_source(source)
             add_provider_koku_uuid(self._source_id, provider.uuid)
         except ProviderBuilderError as provider_err:
-            LOG.info(f"COORDINATOR ERROR: {str(provider_err)}")
             raise SourcesProviderCoordinatorError(str(provider_err))
         return provider
 

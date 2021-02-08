@@ -170,7 +170,6 @@ APP_SETTINGS_SCREEN_MAP = {
 
 def source_settings_complete(provider):
     """Determine if the source application settings are complete."""
-    LOG.info(f"SOURCE WHEN CHECKING IF SETTINGS ARE COMPLETE: {str(provider)}")
     if provider.koku_uuid:
         screen_fn = APP_SETTINGS_SCREEN_MAP.get(provider.source_type)
         return screen_fn(provider)
@@ -299,7 +298,6 @@ def enqueue_source_update(source_id):
     """
     source = get_source(source_id, f"Unable to enqueue source update. Source ID {source_id} not found.", LOG.error)
     if source and source.koku_uuid and not source.pending_delete and not source.pending_update:
-        LOG.info(f"Pending Update Queued for Source ID: {str(source_id)}")
         source.pending_update = True
         source.save(update_fields=["pending_update"])
 
@@ -471,7 +469,6 @@ def add_provider_koku_uuid(source_id, koku_uuid):
     """
     LOG.info(f"Attempting to add provider uuid {str(koku_uuid)} to Source ID: {str(source_id)}")
     source = get_source(source_id, f"Source ID {source_id} does not exist.", LOG.error)
-    LOG.info(f"Source when attempting to add provider uuid: {str(source)}")
     if source and source.koku_uuid != koku_uuid:
         LOG.info(f"Adding provider uuid {str(koku_uuid)} to Source ID: {str(source_id)}")
         source.koku_uuid = koku_uuid
@@ -571,7 +568,7 @@ def _update_authentication(instance, authentication):
     return auth_copy
 
 
-def update_application_settings(source_id, settings):
+def update_application_settings(source_id, settings):  # noqa: C901
     """Store billing source update."""
     LOG.info(f"Found settings: {str(settings)}")
     billing_source = settings.get("billing_source")
