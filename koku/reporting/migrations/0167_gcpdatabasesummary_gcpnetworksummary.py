@@ -19,7 +19,7 @@ def add_gcp_views(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0165_repartition_default_data")]
+    dependencies = [("reporting", "0166_gcp_storage_summary")]
 
     operations = [
         migrations.CreateModel(
