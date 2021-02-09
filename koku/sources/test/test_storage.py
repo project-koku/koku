@@ -848,6 +848,59 @@ class SourcesStorageTest(TestCase):
         self.assertEqual(db_obj.billing_source.get("data_source").get("resource_group"), resource_group)
         self.assertEqual(db_obj.billing_source.get("data_source").get("storage_account"), storage_account)
 
+    def test_update_application_settings_gcp_table_id_present(self):
+        """Test to update application settings for GCP when table ID is known."""
+        test_source_id = 3
+        old_dataset = "olddataset"
+        new_dataset = "newdataset"
+        project_id = "myproject"
+        table_id = "bigquerytableid"
+        settings = {"billing_source": {"data_source": {"dataset": new_dataset}}}
+
+        gcp_obj = Sources(
+            source_id=test_source_id,
+            auth_header=self.test_header,
+            offset=3,
+            authentication={"credentials": {"project_id": project_id}},
+            billing_source={"data_source": {"dataset": old_dataset, "table_id": table_id}},
+            source_type=Provider.PROVIDER_GCP,
+            name="Test GCP Source",
+        )
+        gcp_obj.save()
+
+        storage.update_application_settings(test_source_id, settings)
+        db_obj = Sources.objects.get(source_id=test_source_id)
+
+        self.assertEqual(db_obj.authentication.get("credentials").get("project_id"), project_id)
+        self.assertEqual(db_obj.billing_source.get("data_source").get("dataset"), new_dataset)
+        self.assertEqual(db_obj.billing_source.get("data_source").get("table_id"), table_id)
+
+    def test_update_application_settings_gcp_table_id_not_present(self):
+        """Test to update application settings for GCP when table ID is not known."""
+        test_source_id = 3
+        old_dataset = "olddataset"
+        new_dataset = "newdataset"
+        project_id = "myproject"
+        settings = {"billing_source": {"data_source": {"dataset": new_dataset}}}
+
+        gcp_obj = Sources(
+            source_id=test_source_id,
+            auth_header=self.test_header,
+            offset=3,
+            authentication={"credentials": {"project_id": project_id}},
+            billing_source={"data_source": {"dataset": old_dataset}},
+            source_type=Provider.PROVIDER_GCP,
+            name="Test GCP Source",
+        )
+        gcp_obj.save()
+
+        storage.update_application_settings(test_source_id, settings)
+        db_obj = Sources.objects.get(source_id=test_source_id)
+
+        self.assertEqual(db_obj.authentication.get("credentials").get("project_id"), project_id)
+        self.assertEqual(db_obj.billing_source.get("data_source").get("dataset"), new_dataset)
+        self.assertIsNone(db_obj.billing_source.get("data_source").get("table_id"))
+
     def test_save_status(self):
         """Test to verify source status is saved."""
         test_source_id = 3

@@ -548,6 +548,9 @@ def _update_billing_source(instance, billing_source):
         if data_source.get("resource_group") or data_source.get("storage_account"):
             billing_copy.update(billing_source.get("data_source"))
             billing_source["data_source"] = billing_copy
+        if billing_copy.get("table_id"):
+            billing_copy.update(billing_source.get("data_source"))
+            billing_source["data_source"]["table_id"] = billing_copy.get("table_id")
     _validate_billing_source(instance.source_type, billing_source)
     # This if statement can also be removed if UI is updated to send "data_source" field
     if instance.source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL) and not billing_source.get(
