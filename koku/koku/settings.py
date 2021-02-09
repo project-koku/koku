@@ -418,7 +418,7 @@ MASU_API_REPORT_DATA = f"{API_PATH_PREFIX}/v1/report_data/"
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
 RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", "5672")
 
-CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
+CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 CELERY_RESULTS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 CELERY_IMPORTS = ("masu.processor.tasks", "masu.celery.tasks", "koku.metrics")
 CELERY_BROKER_POOL_LIMIT = None
@@ -469,3 +469,7 @@ except JSONDecodeError:
     pass
 
 OPENSHIFT_DOC_VERSION = ENVIRONMENT.get_value("OPENSHIFT_DOC_VERSION", default="4.5")
+
+# Aids the UI in showing pre-release features in allowed environments.
+# see: koku.api.user_access.view
+ENABLE_PRERELEASE_FEATURES = ENVIRONMENT.bool("ENABLE_PRERELEASE_FEATURES", default=False)
