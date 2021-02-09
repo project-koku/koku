@@ -103,6 +103,8 @@ from reporting.provider.gcp.models import GCPCostSummaryByAccount
 from reporting.provider.gcp.models import GCPCostSummaryByProject
 from reporting.provider.gcp.models import GCPCostSummaryByRegion
 from reporting.provider.gcp.models import GCPCostSummaryByService
+from reporting.provider.gcp.models import GCPDatabaseSummary
+from reporting.provider.gcp.models import GCPNetworkSummary
 from reporting.provider.gcp.models import GCPTagsSummary
 from reporting.provider.ocp.costs.models import CostSummary
 from reporting.provider.ocp.models import OCPCostSummary
@@ -213,4 +215,6 @@ GCP_MATERIALIZED_VIEWS = (
     GCPComputeSummaryByAccount,
     GCPComputeSummaryByService,
     GCPComputeSummaryByRegion,
+    GCPNetworkSummary,
+    GCPDatabaseSummary,
 )
