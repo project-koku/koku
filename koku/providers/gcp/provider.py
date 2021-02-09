@@ -107,8 +107,7 @@ class GCPProvider(ProviderInterface):
             LOG.info(error_obj(key, reason))
             raise serializers.ValidationError(error_obj(key, reason))
 
-        if not data_source.get("table_id"):
-            self._detect_billing_export_table(data_source, credentials)
+        self._detect_billing_export_table(data_source, credentials)
 
         return True
 
