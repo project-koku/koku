@@ -59,6 +59,7 @@ class MockProvider:
         self.offset = offset
         self.pending_delete = pending_delete
         self.koku_uuid = koku_uuid
+        self.status = {}
 
 
 class SourcesStorageTest(TestCase):
@@ -770,6 +771,135 @@ class SourcesStorageTest(TestCase):
 
         self.assertEqual(db_obj.authentication.get("subscription_id"), subscription_id)
         self.assertIsNone(db_obj.billing_source.get("data_source"))
+
+    def test_update_application_settings_billing_and_auth_starting_with_auth(self):
+        """Test to update application settings with both billing and auth where auth already exists."""
+        test_source_id = 3
+        subscription_id = "testsubid"
+        tenant_id = "testtenant"
+        client_id = "myclientid"
+        client_secret = "mysecret"
+        resource_group = "myrg"
+        storage_account = "mysa"
+        settings = {
+            "billing_source": {"data_source": {"resource_group": resource_group, "storage_account": storage_account}},
+            "authentication": {"credentials": {"subscription_id": subscription_id}},
+        }
+
+        azure_obj = Sources(
+            source_id=test_source_id,
+            auth_header=self.test_header,
+            offset=3,
+            authentication={
+                "credentials": {"client_id": client_id, "tenant_id": tenant_id, "client_secret": client_secret}
+            },
+            source_type=Provider.PROVIDER_AZURE,
+            name="Test AZURE Source",
+        )
+        azure_obj.save()
+
+        storage.update_application_settings(test_source_id, settings)
+        db_obj = Sources.objects.get(source_id=test_source_id)
+
+        self.assertEqual(db_obj.authentication.get("credentials").get("subscription_id"), subscription_id)
+        self.assertEqual(db_obj.authentication.get("credentials").get("client_secret"), client_secret)
+        self.assertEqual(db_obj.authentication.get("credentials").get("client_id"), client_id)
+        self.assertEqual(db_obj.authentication.get("credentials").get("tenant_id"), tenant_id)
+        self.assertEqual(db_obj.billing_source.get("data_source").get("resource_group"), resource_group)
+        self.assertEqual(db_obj.billing_source.get("data_source").get("storage_account"), storage_account)
+
+    def test_update_application_settings_billing_and_auth_starting_with_billing(self):
+        """Test to update application settings with both billing and auth where billing already exists."""
+        test_source_id = 3
+        subscription_id = "testsubid"
+        tenant_id = "testtenant"
+        client_id = "myclientid"
+        client_secret = "mysecret"
+        resource_group = "myrg"
+        storage_account = "mysa"
+        settings = {
+            "billing_source": {"data_source": {"storage_account": storage_account}},
+            "authentication": {
+                "credentials": {
+                    "subscription_id": subscription_id,
+                    "client_id": client_id,
+                    "tenant_id": tenant_id,
+                    "client_secret": client_secret,
+                }
+            },
+        }
+
+        azure_obj = Sources(
+            source_id=test_source_id,
+            auth_header=self.test_header,
+            offset=3,
+            billing_source={"data_source": {"resource_group": resource_group}},
+            source_type=Provider.PROVIDER_AZURE,
+            name="Test AZURE Source",
+        )
+        azure_obj.save()
+        storage.update_application_settings(test_source_id, settings)
+        db_obj = Sources.objects.get(source_id=test_source_id)
+
+        self.assertEqual(db_obj.authentication.get("credentials").get("subscription_id"), subscription_id)
+        self.assertEqual(db_obj.authentication.get("credentials").get("client_secret"), client_secret)
+        self.assertEqual(db_obj.authentication.get("credentials").get("client_id"), client_id)
+        self.assertEqual(db_obj.authentication.get("credentials").get("tenant_id"), tenant_id)
+        self.assertEqual(db_obj.billing_source.get("data_source").get("resource_group"), resource_group)
+        self.assertEqual(db_obj.billing_source.get("data_source").get("storage_account"), storage_account)
+
+    def test_update_application_settings_gcp_table_id_present(self):
+        """Test to update application settings for GCP when table ID is known."""
+        test_source_id = 3
+        old_dataset = "olddataset"
+        new_dataset = "newdataset"
+        project_id = "myproject"
+        table_id = "bigquerytableid"
+        settings = {"billing_source": {"data_source": {"dataset": new_dataset}}}
+
+        gcp_obj = Sources(
+            source_id=test_source_id,
+            auth_header=self.test_header,
+            offset=3,
+            authentication={"credentials": {"project_id": project_id}},
+            billing_source={"data_source": {"dataset": old_dataset, "table_id": table_id}},
+            source_type=Provider.PROVIDER_GCP,
+            name="Test GCP Source",
+        )
+        gcp_obj.save()
+
+        storage.update_application_settings(test_source_id, settings)
+        db_obj = Sources.objects.get(source_id=test_source_id)
+
+        self.assertEqual(db_obj.authentication.get("credentials").get("project_id"), project_id)
+        self.assertEqual(db_obj.billing_source.get("data_source").get("dataset"), new_dataset)
+        self.assertEqual(db_obj.billing_source.get("data_source").get("table_id"), table_id)
+
+    def test_update_application_settings_gcp_table_id_not_present(self):
+        """Test to update application settings for GCP when table ID is not known."""
+        test_source_id = 3
+        old_dataset = "olddataset"
+        new_dataset = "newdataset"
+        project_id = "myproject"
+        settings = {"billing_source": {"data_source": {"dataset": new_dataset}}}
+
+        gcp_obj = Sources(
+            source_id=test_source_id,
+            auth_header=self.test_header,
+            offset=3,
+            authentication={"credentials": {"project_id": project_id}},
+            billing_source={"data_source": {"dataset": old_dataset}},
+            source_type=Provider.PROVIDER_GCP,
+            name="Test GCP Source",
+        )
+        gcp_obj.save()
+
+        storage.update_application_settings(test_source_id, settings)
+        db_obj = Sources.objects.get(source_id=test_source_id)
+
+        self.assertEqual(db_obj.authentication.get("credentials").get("project_id"), project_id)
+        self.assertEqual(db_obj.billing_source.get("data_source").get("dataset"), new_dataset)
+        self.assertIsNone(db_obj.billing_source.get("data_source").get("table_id"))
 
     def test_save_status(self):
         """Test to verify source status is saved."""

@@ -18,6 +18,8 @@
 """draw a graph from cost & forecast data."""
 import datetime
 import json
+import sys
+from pprint import pformat
 
 import matplotlib as mlt
 import matplotlib.pyplot as plt
@@ -35,7 +37,19 @@ def _get_data(url):
     except HTTPError as err:
         print("Error: %s" % err)
 
-    resp = json.loads(response.content)
+    try:
+        resp = json.loads(response.content)
+    except json.decoder.JSONDecodeError as exc:
+        print("Error decoding API response: %s" % exc)
+
+        from bs4 import BeautifulSoup
+
+        errdoc = BeautifulSoup(response.content, "html.parser")
+        print(errdoc.find(id="traceback_area").get_text())
+
+        # print(response.text)
+        sys.exit(1)
+
     # print(resp)
     return resp.get("data")
 
@@ -79,7 +93,13 @@ print("Cost Y: %s" % y)
 ax.scatter(x, y, label="aws cost")
 
 forecast_data = _get_data(FORECAST_URL)
-x, y, upper, lower = _get_values("cost", forecast_data, fields=["total", "upper_conf_y", "lower_conf_y"])
+
+try:
+    x, y, upper, lower = _get_values("cost", forecast_data, fields=["total", "upper_conf_y", "lower_conf_y"])
+except ValueError:
+    print("Error: unexpected API response")
+    print("Response: %s" % pformat(forecast_data))
+    sys.exit(-1)
 
 print("Forecast X: %s" % x)
 print("Forecast Y: %s" % y)
