@@ -200,7 +200,7 @@ class GCPCostEntryLineItemDailySummary(models.Model):
     instance_type = models.CharField(max_length=50, null=True)
     unit = models.CharField(max_length=63, null=True)
     line_item_type = models.CharField(max_length=256, null=True)
-    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
 
     # The following fields are aggregates
