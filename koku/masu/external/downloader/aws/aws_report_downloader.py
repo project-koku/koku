@@ -268,7 +268,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             )
             utils.remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
 
-        return full_file_path, s3_etag, file_creation_date
+        return full_file_path, s3_etag, file_creation_date, []
 
     def get_manifest_context_for_date(self, date):
         """
