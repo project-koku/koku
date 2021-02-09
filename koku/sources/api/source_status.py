@@ -34,6 +34,7 @@ from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
+from sources.storage import source_settings_complete
 
 LOG = logging.getLogger(__name__)
 
@@ -47,6 +48,8 @@ class SourceStatus:
         self.user = request.user
         self.source_id = source_id
         self.source = Sources.objects.get(source_id=source_id)
+        if not source_settings_complete(self.source):
+            raise ObjectDoesNotExist(f"Source ID: {self.source_id} not ready for status")
         self.sources_client = SourcesHTTPClient(self.source.auth_header, source_id=source_id)
 
     @property
@@ -86,7 +89,8 @@ class SourceStatus:
         """Push status_msg to platform sources."""
         try:
             status_obj = self.status()
-            self.sources_client.set_source_status(status_obj)
+            # self.sources_client.set_source_status(status_obj)
+            LOG.info(f"Source status for Source ID: {str(self.source_id)}: Status: {str(status_obj)}")
         except SkipStatusPush as error:
             LOG.info(f"Platform sources status push skipped. Reason: {str(error)}")
         except SourcesHTTPClientError as error:
