@@ -50,6 +50,7 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
+from masu.exceptions import AbortMasuProcessing
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
@@ -94,6 +95,14 @@ class FakeDownloader(Mock):
         return fake_file_list
 
 
+class FakeDownloaderAbort(Mock):
+    """Fake Downloader."""
+
+    def download_report(self):
+        """Get reports for fake downloader."""
+        raise AbortMasuProcessing()
+
+
 class GetReportFileTests(MasuTestCase):
     """Test Cases for the celery task."""
 
@@ -117,6 +126,30 @@ class GetReportFileTests(MasuTestCase):
 
         self.assertIsInstance(report, list)
         self.assertGreater(len(report), 0)
+
+    @patch("masu.processor._tasks.download.ReportDownloader", return_value=FakeDownloaderAbort)
+    def test_get_report_abort(self, fake_abort_downloader):
+        """Test catch AbortMasuProcessing exception."""
+        expected_log = (
+            'WARNING:masu.processor._tasks.download:Caught "AbortMasuProcessing" event. Abort file processing.'
+        )
+        account = fake_arn(service="iam", generate_account_id=True)
+        with self.assertLogs(logger="masu.processor._tasks", level=logging.WARNING) as _logger:
+            report = _get_report_files(
+                Mock(),
+                customer_name=self.fake.word(),
+                authentication=account,
+                provider_type=Provider.PROVIDER_AWS,
+                report_month=DateHelper().today,
+                provider_uuid=self.aws_provider_uuid,
+                billing_source=self.fake.word(),
+                cache_key=self.fake.word(),
+                report_context={},
+            )
+            self.assertIn(expected_log, _logger.output)
+
+        self.assertIsInstance(report, dict)
+        self.assertEqual(len(report), 0)
 
     @patch("masu.processor._tasks.download.ReportDownloader", return_value=FakeDownloader)
     def test_disk_status_logging(self, fake_downloader):

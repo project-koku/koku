@@ -83,7 +83,6 @@ def _get_report_files(
         disk_msg = f"Unable to find available disk space. {Config.PVC_DIR} does not exist"
     LOG.info(log_json(request_id, disk_msg, context))
 
-    report = None
     try:
         downloader = ReportDownloader(
             customer_name=customer_name,
@@ -98,7 +97,7 @@ def _get_report_files(
         report = downloader.download_report(report_context)
     except AbortMasuProcessing as abrt:
         worker_stats.PROCESS_REPORT_ABORT_COUNTER.labels(provider_type=provider_type).inc()
-        LOG.warning(f"""Caught "{abrt.__name__}" event. Abort file processing.""")
+        LOG.warning(f"""Caught "{abrt.__class__.__name__}" event. Abort file processing.""")
         LOG.warning(log_json(request_id, str(abrt), context))
         return {}
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
