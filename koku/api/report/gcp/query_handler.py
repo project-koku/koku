@@ -37,8 +37,16 @@ class GCPReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for GCP."""
 
     provider = Provider.PROVIDER_GCP
-    network_services = {}  # FIXME: When we start working on networking apis
-    database_services = {}  # FIXME: When we start working on database apis
+
+    network_services = {
+        "VPC network",
+        "Network services",
+        "Hybrid Connectivity",
+        "Network Service Tiers",
+        "Network Security",
+        "Network Intelligence",
+    }
+    database_services = {"Bigtable", "Datastore", "Database Migrations", "Firestore", "MemoryStore", "Spanner", "SQL"}
 
     def __init__(self, parameters):
         """Establish GCP report query handler.
