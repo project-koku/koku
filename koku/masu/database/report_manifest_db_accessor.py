@@ -15,18 +15,23 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report manifest database accessor for cost usage reports."""
+import re
+
 from celery.utils.log import get_task_logger
 from django.db.models import F
 from django.db.models.expressions import Window
 from django.db.models.functions import RowNumber
+from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
 
 from masu.database.koku_database_access import KokuDBAccess
+from masu.exceptions import AbortMasuProcessing
 from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
 LOG = get_task_logger(__name__)
+FK_VIOLATION_CHECK = re.compile(r".+violates foreign key.+Key \(.+\) is not present in table", re.DOTALL)
 
 
 class ReportManifestDBAccessor(KokuDBAccess):
@@ -84,7 +89,20 @@ class ReportManifestDBAccessor(KokuDBAccess):
             uuid = kwargs.pop("provider_uuid")
             kwargs["provider_id"] = uuid
 
-        return super().add(**kwargs)
+        try:
+            res = super().add(**kwargs)
+        except IntegrityError as e:
+            msg = f"""Caught exception {e.__name__}: "{e}"."""
+            # Check for a foreign key violation where the key source does not exist
+            if any(FK_VIOLATION_CHECK.search(arg) for arg in e.args):
+                msg += " A source may have been deleted during processing."
+                LOG.warning(msg)
+                raise AbortMasuProcessing(msg)
+            else:
+                # Raise any other Integrity Error
+                raise e
+
+        return res
 
     def manifest_ready_for_summary(self, manifest_id):
         """Determine if the manifest is ready to summarize."""

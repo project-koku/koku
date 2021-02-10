@@ -18,15 +18,10 @@
 import logging
 
 from django.db import transaction
-from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
-
-from masu.database import MasuTasks
-from masu.database.exceptions import AbortMasuProcessing
 
 
 LOG = logging.getLogger(__name__)
-MASU_PROCESSING = (MasuTasks.PROCESS_MANIFEST,)
 
 
 class KokuDBAccess:
@@ -97,20 +92,9 @@ class KokuDBAccess:
             (Object): new model object
 
         """
-        extras = kwargs.pop("__extras", {})
-        masu_task = extras.get("masu_task", MasuTasks.UNKNOWN)
-
-        try:
-            with schema_context(self.schema):
-                new_entry = self._table.objects.create(**kwargs)
-                new_entry.save()
-        except IntegrityError as e:
-            if masu_task in MASU_PROCESSING:
-                msg = f"""masu task: {extras["masu_task"].name}: Caught exception {e.__name__}: "{e}"."""
-                LOG.warning(msg)
-                raise AbortMasuProcessing(msg)
-            else:
-                raise e
+        with schema_context(self.schema):
+            new_entry = self._table.objects.create(**kwargs)
+            new_entry.save()
 
         return new_entry
 

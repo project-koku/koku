@@ -104,8 +104,7 @@ def _get_report_files(
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
         worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
         LOG.error(log_json(request_id, str(err), context))
-        raise err
-    finally:
         WorkerCache().remove_task_from_cache(cache_key)
+        raise err
 
     return report
