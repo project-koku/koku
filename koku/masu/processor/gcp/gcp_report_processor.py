@@ -240,8 +240,11 @@ class GCPReportProcessor(ReportProcessorBase):
         if key in self.processed_report.bills:
             return self.processed_report.bills[key]
 
-        bill_id = report_db_accessor.insert_on_conflict_do_nothing(
-            table_name, data, conflict_columns=["billing_period_start", "provider_id"]
+        bill_id = self.fk_violation_check(
+            report_db_accessor.insert_on_conflict_do_nothing,
+            table_name,
+            data,
+            conflict_columns=["billing_period_start", "provider_id"],
         )
         self.processed_report.bills[key] = bill_id
 
@@ -265,8 +268,8 @@ class GCPReportProcessor(ReportProcessorBase):
         if key in self.processed_report.projects:
             return self.processed_report.projects[key]
 
-        project_id = report_db_accessor.insert_on_conflict_do_nothing(
-            table_name, data, conflict_columns=["project_id"]
+        project_id = self.fk_violation_check(
+            report_db_accessor.insert_on_conflict_do_nothing, table_name, data, conflict_columns=["project_id"]
         )
 
         self.processed_report.projects[key] = project_id
@@ -290,8 +293,11 @@ class GCPReportProcessor(ReportProcessorBase):
         if key in self.existing_product_map:
             return self.existing_product_map[key]
 
-        service_product_id = report_db_accessor.insert_on_conflict_do_nothing(
-            table_name, data, conflict_columns=["service_id", "service_alias", "sku_id", "sku_alias"]
+        service_product_id = self.fk_violation_check(
+            report_db_accessor.insert_on_conflict_do_nothing,
+            table_name,
+            data,
+            conflict_columns=["service_id", "service_alias", "sku_id", "sku_alias"],
         )
 
         self.processed_report.products[key] = service_product_id

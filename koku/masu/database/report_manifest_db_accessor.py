@@ -15,8 +15,6 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report manifest database accessor for cost usage reports."""
-import re
-
 from celery.utils.log import get_task_logger
 from django.db.models import F
 from django.db.models.expressions import Window
@@ -24,6 +22,7 @@ from django.db.models.functions import RowNumber
 from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
 
+from masu.database import FK_VIOLATION_CHECK
 from masu.database.koku_database_access import KokuDBAccess
 from masu.exceptions import AbortMasuProcessing
 from masu.external.date_accessor import DateAccessor
@@ -31,7 +30,6 @@ from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
 LOG = get_task_logger(__name__)
-FK_VIOLATION_CHECK = re.compile(r".+violates foreign key.+Key \(.+\) is not present in table", re.DOTALL)
 
 
 class ReportManifestDBAccessor(KokuDBAccess):

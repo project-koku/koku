@@ -16,11 +16,14 @@
 #
 """Test the ReportStatsDBAccessor utility object."""
 from datetime import datetime
+from unittest import mock
 
 from dateutil import parser
+from django.db.utils import IntegrityError
 
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
+from masu.exceptions import AbortMasuProcessing
 from masu.test import MasuTestCase
 from reporting_common.models import CostUsageReportStatus
 
@@ -146,3 +149,50 @@ class ReportStatsDBAccessorTest(MasuTestCase):
         self.assertIsNotNone(saver.get_last_started_datetime())
         saver.clear_last_started_datetime()
         self.assertIsNone(saver.get_last_started_datetime())
+
+    def test_stats_update_abort(self):
+        """Test that ReportStatsDBAccessor.update can properly throw AbortMasuProcessing"""
+        abrt_msg = (
+            'insert or update on table "api_user" violates foreign key constraint "api_user_customer_id_90bd21ef_fk_'
+            + 'api_customer_id"\nDETAIL:  Key (customer_id)=(-1) is not present in table "api_customer".\n'
+        )
+        exc_msg = "duplicate key value violates unique constraint"
+
+        saver = ReportStatsDBAccessor("myreport", self.manifest_id)
+
+        with mock.patch("reporting_common.models.CostUsageReportStatus.save") as obj_save_method:
+            obj_save_method.side_effect = IntegrityError(abrt_msg)
+            with self.assertRaises(AbortMasuProcessing):
+                saver.update(
+                    last_completed_datetime="2011-1-1 11:11:11",
+                    last_started_datetime="2022-2-2 22:22:22",
+                    etag="myetag",
+                )
+
+        with mock.patch("reporting_common.models.CostUsageReportStatus.save") as obj_save_method:
+            obj_save_method.side_effect = IntegrityError(exc_msg)
+            with self.assertRaises(IntegrityError):
+                saver.update(
+                    last_completed_datetime="2011-1-1 11:11:11",
+                    last_started_datetime="2022-2-2 22:22:22",
+                    etag="myetag",
+                )
+
+    @mock.patch("masu.database.koku_database_access.KokuDBAccess.does_db_entry_exist", return_value=False)
+    def test_stats_add_abort(self, exists):
+        """Test that ReportStatsDBAccessor.add can properly throw AbortMasuProcessing"""
+        abrt_msg = (
+            'insert or update on table "api_user" violates foreign key constraint "api_user_customer_id_90bd21ef_fk_'
+            + 'api_customer_id"\nDETAIL:  Key (customer_id)=(-1) is not present in table "api_customer".\n'
+        )
+        exc_msg = "duplicate key value violates unique constraint"
+
+        with mock.patch("masu.database.koku_database_access.KokuDBAccess.add") as kdba:
+            kdba.side_effect = IntegrityError(abrt_msg)
+            with self.assertRaises(AbortMasuProcessing):
+                ReportStatsDBAccessor("myreport", self.manifest_id)
+
+        with mock.patch("masu.database.koku_database_access.KokuDBAccess.add") as kdba:
+            kdba.side_effect = IntegrityError(exc_msg)
+            with self.assertRaises(IntegrityError):
+                ReportStatsDBAccessor("myreport", self.manifest_id)

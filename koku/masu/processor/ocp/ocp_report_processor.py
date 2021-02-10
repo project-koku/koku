@@ -152,8 +152,11 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         data = {"report_period_id": report_period_id, "interval_start": start, "interval_end": end}
         with transaction.atomic():
-            report_id = report_db_accessor.insert_on_conflict_do_nothing(
-                table_name, data, conflict_columns=["report_period_id", "interval_start"]
+            report_id = self.fk_violation_check(
+                report_db_accessor.insert_on_conflict_do_nothing,
+                table_name,
+                data,
+                conflict_columns=["report_period_id", "interval_start"],
             )
 
         self.processed_report.reports[key] = report_id
@@ -192,8 +195,11 @@ class OCPReportProcessorBase(ReportProcessorBase):
         }
 
         with transaction.atomic():
-            report_period_id = report_db_accessor.insert_on_conflict_do_nothing(
-                table_name, data, conflict_columns=["cluster_id", "report_period_start", "provider_id"]
+            report_period_id = self.fk_violation_check(
+                report_db_accessor.insert_on_conflict_do_nothing,
+                table_name,
+                data,
+                conflict_columns=["cluster_id", "report_period_start", "provider_id"],
             )
 
         self.processed_report.report_periods[key] = report_period_id

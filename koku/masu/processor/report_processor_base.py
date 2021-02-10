@@ -22,11 +22,14 @@ import logging
 
 import ciso8601
 from dateutil.relativedelta import relativedelta
+from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
+from masu.database import FK_VIOLATION_CHECK
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.exceptions import AbortMasuProcessing
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED
 from masu.external.date_accessor import DateAccessor
@@ -126,8 +129,7 @@ class ReportProcessorBase:
         """Save current batch of records to the database."""
         columns = tuple(self.processed_report.line_items[0].keys())
         csv_file = self._write_processed_rows_to_csv()
-
-        report_db_accessor.bulk_insert_rows(csv_file, temp_table, columns)
+        self.fk_violation_check(report_db_accessor.bulk_insert_rows, csv_file, temp_table, columns)
 
     def _should_process_row(self, row, date_column, is_full_month, is_finalized=None):
         """Determine if we want to process this row.
@@ -260,6 +262,22 @@ class ReportProcessorBase:
             return {"usage_date__gte": self.data_cutoff_date}
         else:
             return {"usage_start__gte": self.data_cutoff_date}
+
+    def fk_violation_check(self, db_accessor_method, *accessor_args, **accessor_kwargs):
+        try:
+            res = db_accessor_method(*accessor_args, **accessor_kwargs)
+        except IntegrityError as e:
+            msg = f"""Caught exception {e.__class__.__name__}: "{e}"."""
+            # Check for a foreign key violation where the key source does not exist
+            if any(FK_VIOLATION_CHECK.search(arg) for arg in e.args):
+                msg += " A source may have been deleted during processing."
+                LOG.warning(msg)
+                raise AbortMasuProcessing(msg)
+            else:
+                # Raise any other Integrity Error
+                raise e
+
+        return res
 
     @staticmethod
     def remove_temp_cur_files(report_path):

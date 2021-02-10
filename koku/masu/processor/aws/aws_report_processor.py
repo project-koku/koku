@@ -321,7 +321,8 @@ class AWSReportProcessor(ReportProcessorBase):
         data["provider_id"] = self._provider_uuid
 
         with transaction.atomic():
-            bill_id = report_db_accessor.insert_on_conflict_do_nothing(
+            bill_id = self.fk_violation_check(
+                report_db_accessor.insert_on_conflict_do_nothing,
                 table_name,
                 data,
                 conflict_columns=["bill_type", "payer_account_id", "billing_period_start", "provider_id"],
@@ -355,7 +356,7 @@ class AWSReportProcessor(ReportProcessorBase):
 
         data = {"bill_id": bill_id, "interval_start": start, "interval_end": end}
         with transaction.atomic():
-            cost_entry_id = report_db_accessor.insert_on_conflict_do_nothing(table_name, data)
+            cost_entry_id = self.fk_violation_check(report_db_accessor.insert_on_conflict_do_nothing, table_name, data)
         self.processed_report.cost_entries[key] = cost_entry_id
 
         return cost_entry_id
@@ -421,7 +422,7 @@ class AWSReportProcessor(ReportProcessorBase):
             return
 
         with transaction.atomic():
-            pricing_id = report_db_accessor.insert_on_conflict_do_nothing(table_name, data)
+            pricing_id = self.fk_violation_check(report_db_accessor.insert_on_conflict_do_nothing, table_name, data)
         self.processed_report.pricing[key] = pricing_id
 
         return pricing_id
@@ -454,8 +455,11 @@ class AWSReportProcessor(ReportProcessorBase):
         if value_set == {""}:
             return
         with transaction.atomic():
-            product_id = report_db_accessor.insert_on_conflict_do_nothing(
-                table_name, data, conflict_columns=["sku", "product_name", "region"]
+            product_id = self.fk_violation_check(
+                report_db_accessor.insert_on_conflict_do_nothing,
+                table_name,
+                data,
+                conflict_columns=["sku", "product_name", "region"],
             )
         self.processed_report.products[key] = product_id
         return product_id
@@ -489,15 +493,16 @@ class AWSReportProcessor(ReportProcessorBase):
             return reservation_id
 
         # Special rows with additional reservation information
+        insert_kwargs = {"conflict_columns": ["reservation_arn"]}
+        if line_item_type == "rifee":
+            insert_kwargs["set_columns"] = list(data.keys())
+            method = report_db_accessor.insert_on_conflict_do_update
+        else:
+            method = report_db_accessor.insert_on_conflict_do_nothing
+
         with transaction.atomic():
-            if line_item_type == "rifee":
-                reservation_id = report_db_accessor.insert_on_conflict_do_update(
-                    table_name, data, conflict_columns=["reservation_arn"], set_columns=list(data.keys())
-                )
-            else:
-                reservation_id = report_db_accessor.insert_on_conflict_do_nothing(
-                    table_name, data, conflict_columns=["reservation_arn"]
-                )
+            reservation_id = self.fk_violation_check(method, table_name, data, **insert_kwargs)
+
         self.processed_report.reservations[arn] = reservation_id
 
         return reservation_id

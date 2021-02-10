@@ -173,8 +173,11 @@ class AzureReportProcessor(ReportProcessorBase):
         data["billing_period_start"] = datetime.strftime(start_date_utc, "%Y-%m-%d %H:%M%z")
         data["billing_period_end"] = datetime.strftime(end_date_utc, "%Y-%m-%d %H:%M%z")
         with transaction.atomic():
-            bill_id = report_db_accessor.insert_on_conflict_do_nothing(
-                AzureCostEntryBill, data, conflict_columns=["billing_period_start", "provider_id"]
+            bill_id = self.fk_violation_check(
+                report_db_accessor.insert_on_conflict_do_nothing,
+                AzureCostEntryBill,
+                data,
+                conflict_columns=["billing_period_start", "provider_id"],
             )
 
         self.processed_report.bills[key] = bill_id
@@ -218,7 +221,8 @@ class AzureReportProcessor(ReportProcessorBase):
         data["instance_type"] = instance_type
         data["provider_id"] = self._provider_uuid
         with transaction.atomic():
-            product_id = report_db_accessor.insert_on_conflict_do_nothing(
+            product_id = self.fk_violation_check(
+                report_db_accessor.insert_on_conflict_do_nothing,
                 AzureCostEntryProductService,
                 data,
                 conflict_columns=["instance_id", "instance_type", "service_tier", "service_name"],
@@ -252,8 +256,8 @@ class AzureReportProcessor(ReportProcessorBase):
             return
         data["provider_id"] = self._provider_uuid
         with transaction.atomic():
-            meter_pk = report_db_accessor.insert_on_conflict_do_nothing(
-                AzureMeter, data, conflict_columns=["meter_id"]
+            meter_pk = self.fk_violation_check(
+                report_db_accessor.insert_on_conflict_do_nothing, AzureMeter, data, conflict_columns=["meter_id"]
             )
         self.processed_report.meters[key] = meter_pk
         return meter_pk

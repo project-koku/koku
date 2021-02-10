@@ -15,9 +15,16 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Downloader for cost usage reports."""
+from celery.utils.log import get_task_logger
+from django.db.utils import IntegrityError
+
+from masu.database import FK_VIOLATION_CHECK
 from masu.database.koku_database_access import KokuDBAccess
+from masu.exceptions import AbortMasuProcessing
 from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportStatus
+
+LOG = get_task_logger(__name__)
 
 
 class ReportStatsDBAccessor(KokuDBAccess):
@@ -154,6 +161,29 @@ class ReportStatsDBAccessor(KokuDBAccess):
         """
         return self._obj.etag
 
+    def add(self, **kwargs):
+        """
+        Add a CostUsageReportStatus record to the database.
+        Args:
+            kwargs : CostUsageReportStatus model fields and values
+        Returns:
+            CostUsageReportStatus model instance
+        """
+        try:
+            res = super().add(**kwargs)
+        except IntegrityError as e:
+            msg = f"""Caught exception {e.__class__.__name__}: "{e}"."""
+            # Check for a foreign key violation where the key source does not exist
+            if any(FK_VIOLATION_CHECK.search(arg) for arg in e.args):
+                msg += " A source may have been deleted during processing."
+                LOG.warning(msg)
+                raise AbortMasuProcessing(msg)
+            else:
+                # Raise any other Integrity Error
+                raise e
+
+        return res
+
     def update(self, cursor_position=None, last_completed_datetime=None, last_started_datetime=None, etag=None):
         """
         Update a CUR statistics record in the database.
@@ -176,4 +206,16 @@ class ReportStatsDBAccessor(KokuDBAccess):
             obj_to_update.last_started_datetime = last_started_datetime
         if etag:
             obj_to_update.etag = etag
-        obj_to_update.save()
+
+        try:
+            obj_to_update.save()
+        except IntegrityError as e:
+            msg = f"""Caught exception {e.__class__.__name__}: "{e}"."""
+            # Check for a foreign key violation where the key source does not exist
+            if any(FK_VIOLATION_CHECK.search(arg) for arg in e.args):
+                msg += " A source may have been deleted during processing."
+                LOG.warning(msg)
+                raise AbortMasuProcessing(msg)
+            else:
+                # Raise any other Integrity Error
+                raise e

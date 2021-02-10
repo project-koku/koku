@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database subpackage."""
+import re
 
 AWS_CUR_TABLE_MAP = {
     "cost_entry": "reporting_awscostentry",
@@ -71,3 +72,5 @@ GCP_REPORT_TABLE_MAP = {
     "product": "reporting_gcpcostentryproductservice",
     "project": "reporting_gcpproject",
 }
+
+FK_VIOLATION_CHECK = re.compile(r".+violates foreign key.+Key \(.+\) is not present in table", re.DOTALL)

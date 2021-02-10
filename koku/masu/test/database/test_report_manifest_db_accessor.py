@@ -185,6 +185,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
         self.assertFalse(ReportManifestDBAccessor().is_last_completed_datetime_null(manifest_id))
 
     def test_masu_process_manifest_abort(self):
+        """Test that manifest manipulation can throw AbortMasuProcessing on FK violation"""
         abrt_msg = (
             'insert or update on table "api_user" violates foreign key constraint "api_user_customer_id_90bd21ef_fk_'
             + 'api_customer_id"\nDETAIL:  Key (customer_id)=(-1) is not present in table "api_customer".\n'
