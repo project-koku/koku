@@ -41,6 +41,7 @@ class SourcesPatchHandler:
         instance = storage.get_source(source_id, "Unable to PATCH", LOG.error)
         instance.billing_source = billing_source
         if instance.source_uuid:
+            instance.status = {}
             instance.pending_update = True
 
         instance.save()
@@ -52,6 +53,7 @@ class SourcesPatchHandler:
         instance = storage.get_source(source_id, "Unable to PATCH", LOG.error)
         instance.authentication = authentication
         if instance.source_uuid:
+            instance.status = {}
             instance.pending_update = True
 
         instance.save()

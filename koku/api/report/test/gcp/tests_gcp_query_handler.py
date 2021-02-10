@@ -33,6 +33,7 @@ from api.query_filter import QueryFilter
 from api.report.gcp.query_handler import GCPReportQueryHandler
 from api.report.gcp.view import GCPCostView
 from api.report.gcp.view import GCPInstanceTypeView
+from api.report.gcp.view import GCPStorageView
 from api.utils import DateHelper
 from reporting.models import GCPCostEntryBill
 from reporting.models import GCPCostEntryLineItemDailySummary
@@ -1055,3 +1056,30 @@ class GCPReportQueryHandlerTest(IamTestCase):
         data = query_output.get("data")
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
+
+    def test_query_storage_with_totals(self):
+        """Test execute_query() - storage with totals.
+
+        Query for storage, validating that cost totals are present.
+        """
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, GCPStorageView)
+        handler = GCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+        service_checked = False
+        for data_item in data:
+            services = data_item.get("services")
+            self.assertIsNotNone(services)
+            for srv in services:
+                if srv.get("service") == "Cloud Storage":
+                    self.assertIsNotNone(srv.get("values"))
+                    self.assertGreater(len(srv.get("values")), 0)
+                    for value in srv.get("values"):
+                        cost_total = value.get("cost", {}).get("total", {}).get("value")
+                        self.assertIsInstance(cost_total, Decimal)
+                        self.assertNotEqual(cost_total, Decimal(0))
+                        self.assertIsInstance(value.get("usage", {}).get("value"), Decimal)
+                    service_checked = True
+        self.assertTrue(service_checked)
