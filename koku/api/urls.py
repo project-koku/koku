@@ -42,6 +42,7 @@ from api.views import GCPCostView
 from api.views import GCPForecastCostView
 from api.views import GCPInstanceTypeView
 from api.views import GCPProjectsView
+from api.views import GCPStorageView
 from api.views import GCPTagView
 from api.views import metrics
 from api.views import OCPAllCostForecastView
@@ -350,6 +351,11 @@ urlpatterns = [
             GCPInstanceTypeView.as_view()
         ),
         name="reports-gcp-instance-type",
+    ),
+    path(
+        "reports/gcp/storage/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPStorageView.as_view()),
+        name="reports-gcp-storage",
     ),
 ]
 urlpatterns += ROUTER.urls

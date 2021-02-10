@@ -390,6 +390,7 @@ class SourcesHTTPClient:
 
             json_data = self.build_source_status(error_msg)
             if storage.save_status(self._source_id, json_data):
+                LOG.info(f"Setting Source Status for Source ID: {str(self._source_id)}: {str(json_data)}")
                 application_response = requests.patch(application_url, json=json_data, headers=status_header)
                 if application_response.status_code != 204:
                     raise SourcesHTTPClientError(
