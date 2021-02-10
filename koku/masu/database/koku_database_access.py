@@ -95,8 +95,7 @@ class KokuDBAccess:
         with schema_context(self.schema):
             new_entry = self._table.objects.create(**kwargs)
             new_entry.save()
-
-        return new_entry
+            return new_entry
 
     def delete(self, obj=None):
         """
