@@ -74,5 +74,5 @@ SOURCES_HTTP_CLIENT_ERROR_COUNTER = Counter(
 )
 
 PROCESS_REPORT_ABORT_COUNTER = Counter(
-    "process_report_abort_count", "Number of files processing aborted"["provider_type"], registry=WORKER_REGISTRY
+    "process_report_abort_count", "Number of files processing aborted", ["provider_type"], registry=WORKER_REGISTRY
 )
