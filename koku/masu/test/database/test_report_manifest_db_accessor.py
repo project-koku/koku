@@ -16,14 +16,17 @@
 #
 """Test the ReportManifestDBAccessor."""
 import copy
+from unittest import mock
 
 from dateutil.relativedelta import relativedelta
+from django.db.utils import IntegrityError
 from faker import Faker
 from model_bakery import baker
 from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.exceptions import AbortMasuProcessing
 from masu.external.date_accessor import DateAccessor
 from masu.test.database.helpers import ManifestCreationHelper
 from reporting_common.models import CostUsageReportManifest
@@ -180,3 +183,20 @@ class ReportManifestDBAccessorTest(IamTestCase):
         CostUsageReportStatus.objects.filter(manifest_id=manifest_id).update(last_completed_datetime=FAKE.date())
 
         self.assertFalse(ReportManifestDBAccessor().is_last_completed_datetime_null(manifest_id))
+
+    def test_masu_process_manifest_abort(self):
+        abrt_msg = (
+            'insert or update on table "api_user" violates foreign key constraint "api_user_customer_id_90bd21ef_fk_'
+            + 'api_customer_id"\nDETAIL:  Key (customer_id)=(-1) is not present in table "api_customer".\n'
+        )
+        exc_msg = "duplicate key value violates unique constraint"
+
+        with mock.patch("masu.database.koku_database_access.KokuDBAccess.add") as kdba_add:
+            kdba_add.side_effect = IntegrityError(abrt_msg)
+            with self.assertRaises(AbortMasuProcessing):
+                ReportManifestDBAccessor().add()
+
+        with mock.patch("masu.database.koku_database_access.KokuDBAccess.add") as kdba_add:
+            kdba_add.side_effect = IntegrityError(exc_msg)
+            with self.assertRaises(IntegrityError):
+                ReportManifestDBAccessor().add()

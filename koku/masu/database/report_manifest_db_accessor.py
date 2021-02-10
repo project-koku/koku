@@ -92,7 +92,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
         try:
             res = super().add(**kwargs)
         except IntegrityError as e:
-            msg = f"""Caught exception {e.__name__}: "{e}"."""
+            msg = f"""Caught exception {e.__class__.__name__}: "{e}"."""
             # Check for a foreign key violation where the key source does not exist
             if any(FK_VIOLATION_CHECK.search(arg) for arg in e.args):
                 msg += " A source may have been deleted during processing."
