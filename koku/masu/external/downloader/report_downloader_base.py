@@ -21,7 +21,6 @@ from tempfile import mkdtemp
 from django.db.utils import IntegrityError
 
 from api.common import log_json
-from masu.database import MasuTasks
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 
@@ -86,7 +85,6 @@ class ReportDownloaderBase:
                     "num_total_files": num_of_files,
                     "provider_uuid": self._provider_uuid,
                     "manifest_modified_datetime": manifest_modified_datetime,
-                    "__extras": {"masu_task": MasuTasks.PROCESS_MANIFEST},
                 }
                 try:
                     manifest_entry = manifest_accessor.add(**manifest_dict)
