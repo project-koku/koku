@@ -34,6 +34,7 @@ GCP_SERVICE_LINE_ITEM_TYPE_MAP = {
     "VMware Engine": "usage",
     "Filestore": "storage",
     "Storage": "storage",
+    "Cloud Storage": "storage",
     "Data Transfer": "storage",
     "VPC network": "network",
     "Network services": "network",

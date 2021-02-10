@@ -43,3 +43,9 @@ class GCPInstanceTypeView(GCPView):
     """Get inventory data."""
 
     report = "instance_type"
+
+
+class GCPStorageView(GCPView):
+    """Get inventory storage data."""
+
+    report = "storage"
