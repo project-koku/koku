@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database subpackage."""
+from enum import Enum
+
 
 AWS_CUR_TABLE_MAP = {
     "cost_entry": "reporting_awscostentry",
@@ -71,3 +73,11 @@ GCP_REPORT_TABLE_MAP = {
     "product": "reporting_gcpcostentryproductservice",
     "project": "reporting_gcpproject",
 }
+
+
+class MasuTasks(Enum):
+    UNKNOWN = 0
+    PROCESS_MANIFEST = 1
+
+
+#    PROCESS_FILE = 2

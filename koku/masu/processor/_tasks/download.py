@@ -21,6 +21,7 @@ from celery.utils.log import get_task_logger
 import masu.prometheus_stats as worker_stats
 from api.common import log_json
 from masu.config import Config
+from masu.exceptions import AbortMasuProcessing
 from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.report_downloader import ReportDownloader
@@ -95,10 +96,16 @@ def _get_report_files(
             request_id=task.request.id,
         )
         report = downloader.download_report(report_context)
+    except AbortMasuProcessing as abrt:
+        worker_stats.PROCESS_REPORT_ABORT_COUNTER.labels(provider_type=provider_type).inc()
+        LOG.warning(f"""Caught "{abrt.__name__}" event. Abort file processing.""")
+        LOG.warning(log_json(request_id, str(abrt), context))
+        return {}
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
         worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-        WorkerCache().remove_task_from_cache(cache_key)
         LOG.error(log_json(request_id, str(err), context))
         raise err
+    finally:
+        WorkerCache().remove_task_from_cache(cache_key)
 
     return report

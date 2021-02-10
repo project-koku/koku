@@ -72,3 +72,7 @@ SOURCES_PROVIDER_OP_RETRY_LOOP_COUNTER = Counter(
 SOURCES_HTTP_CLIENT_ERROR_COUNTER = Counter(
     "sources_http_client_errors", "Number of sources http client errors", registry=WORKER_REGISTRY
 )
+
+PROCESS_REPORT_ABORT_COUNTER = Counter(
+    "process_report_abort_count", "Number of files processing aborted"["provider_type"], registry=WORKER_REGISTRY
+)

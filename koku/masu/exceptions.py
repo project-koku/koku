@@ -35,3 +35,7 @@ class CURAccountsInterfaceError(Exception):
 
 class HasherError(Exception):
     """Hasher Utility class error."""
+
+
+class AbortMasuProcessing(Exception):
+    """Abort processing due to known condition(s)."""
