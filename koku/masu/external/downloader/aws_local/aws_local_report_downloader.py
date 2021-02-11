@@ -126,7 +126,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest = "{}/{}-Manifest.json".format(self._get_report_path(date_time), self.report_name)
 
         try:
-            manifest_file, _, manifest_modified_timestamp = self.download_file(manifest)
+            manifest_file, _, manifest_modified_timestamp, __ = self.download_file(manifest)
         except AWSReportDownloaderNoFileError as err:
             msg = f"Unable to get report manifest. Reason: {str(err)}"
             LOG.info(log_json(self.request_id, msg, self.context))
