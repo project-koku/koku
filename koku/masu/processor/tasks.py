@@ -43,6 +43,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
+from masu.exceptions import AbortMasuProcessing
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
@@ -206,6 +207,11 @@ def get_report_files(
             LOG.error(str(processing_error))
             WorkerCache().remove_task_from_cache(cache_key)
             raise processing_error
+        except AbortMasuProcessing as abrt:
+            worker_stats.PROCESS_REPORT_ABORT_COUNTER.labels(provider_type=provider_type).inc()
+            LOG.warning(f"""Caught "{abrt.__class__.__name__}" event. Abort file processing.""")
+            LOG.warning(str(abrt))
+            return {}
         except NotImplementedError as err:
             LOG.info(str(err))
             WorkerCache().remove_task_from_cache(cache_key)
