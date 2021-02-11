@@ -132,6 +132,62 @@ class SourcesStatusTest(IamTestCase):
                 response = client.post(url, data=json_data, **self.headers)
             self.assertEquals(response.status_code, 204)
 
+    @patch("sources.api.source_status.enqueue_source_update")
+    @patch("sources.api.source_status.SourcesHTTPClient.get_source_details")
+    def test_update_source_name(self, mock_get_source_details, mock_enqueue_update):
+        """Test that the source name is queued for update when out of sync with platform."""
+        mock_status = {"availability_status": "available", "availability_status_error": ""}
+
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
+            # Insert a source with ID 1
+            test_source_id = 1
+            Sources.objects.create(
+                source_id=test_source_id,
+                name="New AWS Mock Test Source",
+                source_type=Provider.PROVIDER_AWS,
+                authentication={"authentication": {"rolearn": "myarn"}},
+                billing_source={"bucket": "my-bucket"},
+                koku_uuid="uuid",
+                offset=1,
+            )
+            request = self.request_context.get("request")
+            status_obj = SourceStatus(request, test_source_id)
+            with patch.object(
+                SourcesHTTPClient, "get_source_details", return_value={"name": "New Name", "source_type_id": "1"}
+            ):
+                with patch.object(SourcesHTTPClient, "get_source_type_name", return_value=Provider.PROVIDER_AWS):
+                    with patch.object(SourcesHTTPClient, "get_application_settings", return_value={}):
+                        status_obj.update_source_name()
+                        mock_enqueue_update.assert_called()
+
+    @patch("sources.api.source_status.enqueue_source_update")
+    @patch("sources.api.source_status.SourcesHTTPClient.get_source_details")
+    def test_update_source_name_no_change(self, mock_get_source_details, mock_enqueue_update):
+        """Test that the source name is not queued for update when out of sync with platform."""
+        mock_status = {"availability_status": "available", "availability_status_error": ""}
+        source_name = "AWS source"
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
+            # Insert a source with ID 1
+            test_source_id = 1
+            Sources.objects.create(
+                source_id=test_source_id,
+                name=source_name,
+                source_type=Provider.PROVIDER_AWS,
+                authentication={"authentication": {"rolearn": "myarn"}},
+                billing_source={"bucket": "my-bucket"},
+                koku_uuid="uuid",
+                offset=1,
+            )
+            request = self.request_context.get("request")
+            status_obj = SourceStatus(request, test_source_id)
+            with patch.object(
+                SourcesHTTPClient, "get_source_details", return_value={"name": source_name, "source_type_id": "1"}
+            ):
+                with patch.object(SourcesHTTPClient, "get_source_type_name", return_value=Provider.PROVIDER_AWS):
+                    with patch.object(SourcesHTTPClient, "get_application_settings", return_value={}):
+                        status_obj.update_source_name()
+                        mock_enqueue_update.assert_not_called()
+
     def test_post_status_error(self):
         """Test that the API pushes sources status with POST with connection error."""
         mock_status = {"availability_status": "available", "availability_status_error": ""}
