@@ -39,14 +39,22 @@ class GCPReportQueryHandler(ReportQueryHandler):
     provider = Provider.PROVIDER_GCP
 
     network_services = {
-        "VPC network",
-        "Network services",
-        "Hybrid Connectivity",
-        "Network Service Tiers",
-        "Network Security",
-        "Network Intelligence",
+        "Network",
+        "VPC"
+        "Firewall"
+        "Route"
+        "IP"
+        "DNS"
+        "CDN"
+        "NAT"
+        "Traffic Director"
+        "Service Discovery"
+        "Cloud Domains"
+        "Private Service Connect"
+        "Cloud Armor",
     }
-    database_services = {"Bigtable", "Datastore", "Database Migrations", "Firestore", "MemoryStore", "Spanner", "SQL"}
+
+    database_services = {"SQL", "Spanner", "Bigtable", "Firestore", "Firebase", "Memorystore", "MongoDB"}
 
     def __init__(self, parameters):
         """Establish GCP report query handler.

@@ -14,13 +14,13 @@ CREATE MATERIALIZED VIEW reporting_gcp_database_summary AS(
         max(source_uuid::text)::uuid as source_uuid
     FROM reporting_gcpcostentrylineitem_daily_summary
     -- Get data for this month or last month
-    WHERE sku_alias LIKE '%SQL%'
-        OR sku_alias LIKE '%Spanner%'
-        OR sku_alias LIKE '%Bigtable%'
-        OR sku_alias LIKE '%Firestore%'
-        OR sku_alias LIKE '%Firebase%'
-        OR sku_alias LIKE '%Memorystore%'
-        OR sku_alias LIKE '%MongoDB%'
+    WHERE service_alias LIKE '%SQL%'
+        OR service_alias LIKE '%Spanner%'
+        OR service_alias LIKE '%Bigtable%'
+        OR service_alias LIKE '%Firestore%'
+        OR service_alias LIKE '%Firebase%'
+        OR service_alias LIKE '%Memorystore%'
+        OR service_alias LIKE '%MongoDB%'
         AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
     GROUP BY usage_start, account_id
 )

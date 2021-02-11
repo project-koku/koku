@@ -14,19 +14,19 @@ CREATE MATERIALIZED VIEW reporting_gcp_network_summary AS(
         max(source_uuid::text)::uuid as source_uuid
     FROM reporting_gcpcostentrylineitem_daily_summary
     -- Get data for this month or last month
-    WHERE sku_alias LIKE '%Network%'
-        OR sku_alias LIKE '%VPC%'
-        OR sku_alias LIKE '%Firewall%'
-        OR sku_alias LIKE '%Route%'
-        OR sku_alias LIKE '%IP%'
-        OR sku_alias LIKE '%DNS%'
-        OR sku_alias LIKE '%CDN%'
-        OR sku_alias LIKE '%NAT%'
-        OR sku_alias LIKE '%Traffic Director%'
-        OR sku_alias LIKE '%Service Discovery%'
-        OR sku_alias LIKE '%Cloud Domains%'
-        OR sku_alias LIKE '%Private Service Connect$'
-        OR sku_alias LIKE '%Cloud Armor%'
+    WHERE service_alias LIKE '%Network%'
+        OR service_alias LIKE '%VPC%'
+        OR service_alias LIKE '%Firewall%'
+        OR service_alias LIKE '%Route%'
+        OR service_alias LIKE '%IP%'
+        OR service_alias LIKE '%DNS%'
+        OR service_alias LIKE '%CDN%'
+        OR service_alias LIKE '%NAT%'
+        OR service_alias LIKE '%Traffic Director%'
+        OR service_alias LIKE '%Service Discovery%'
+        OR service_alias LIKE '%Cloud Domains%'
+        OR service_alias LIKE '%Private Service Connect%'
+        OR service_alias LIKE '%Cloud Armor%'
         AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
     GROUP BY usage_start, account_id
 )
