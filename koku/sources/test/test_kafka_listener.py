@@ -401,16 +401,12 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         """Test to get sources details from other message."""
         test_topic = "platform.sources.event-stream"
         test_offset = 5
-        test_partition = 1
         cost_management_app_type = 2
         test_auth_header = "testheader"
         test_value = '{"id":1,"source_id":1,"application_type_id":2}'
         source_events = [
             {"event": "Source.create", "expected_response": {}},
-            {
-                "event": "Source.update",
-                "expected_response": {},
-            },
+            {"event": "Source.update", "expected_response": {}},
         ]
         for test in source_events:
             msg = ConsumerRecord(
@@ -1094,7 +1090,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                         with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
                             process_message(test_application_id, msg_data)
                             test.get("expected_fn")(msg_data, test, mock_save_auth_info)
-
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_process_message_destroy(self):
