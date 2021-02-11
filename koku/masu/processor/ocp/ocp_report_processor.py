@@ -92,9 +92,9 @@ class OCPReportProcessor:
         elif self.report_type == utils.OCPReportTypes.UNKNOWN:
             raise OCPReportProcessorError("Unknown OCP report type.")
 
-    def process(self):
+    def process(self, context=None):
         """Process report file."""
-        return self._processor.process()
+        return self._processor.process(context=context)
 
     def remove_temp_cur_files(self, report_path):
         """Process temporary files."""
