@@ -23,7 +23,6 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.utils.encoding import force_text
-from django.views.decorators.cache import cache_page
 from django.views.decorators.cache import never_cache
 from django_filters import FilterSet
 from django_filters.rest_framework import DjangoFilterBackend
@@ -47,8 +46,6 @@ from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
-from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
-from koku.cache import SOURCES_PREFIX
 from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesDependencyError
 from sources.api.serializers import SourcesSerializer
@@ -61,7 +58,6 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
     @method_decorator(never_cache)
     def destroy(self, request, *args, **kwargs):
         """Delete a source."""
-        invalidate_view_cache_for_tenant_and_cache_key(request.tenant.schema_name, cache_key_prefix=SOURCES_PREFIX)
         source = self.get_object()
         manager = ProviderBuilder(request.user.identity_header.get("encoded"))
         for _ in range(5):
@@ -209,7 +205,6 @@ class SourcesViewSet(*MIXIN_LIST):
     @method_decorator(never_cache)
     def update(self, request, *args, **kwargs):
         """Update a Source."""
-        invalidate_view_cache_for_tenant_and_cache_key(request.tenant.schema_name, cache_key_prefix=SOURCES_PREFIX)
         try:
             return super().update(request=request, args=args, kwargs=kwargs)
         except (SourcesStorageError, ParseError) as error:
@@ -217,7 +212,7 @@ class SourcesViewSet(*MIXIN_LIST):
         except SourcesDependencyError as error:
             raise SourcesDependencyException(str(error))
 
-    @method_decorator(cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=SOURCES_PREFIX))
+    @method_decorator(never_cache)
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
         response = super().list(request=request, args=args, kwargs=kwargs)
@@ -243,7 +238,7 @@ class SourcesViewSet(*MIXIN_LIST):
                 ]
         return response
 
-    @method_decorator(cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=SOURCES_PREFIX))
+    @method_decorator(never_cache)
     def retrieve(self, request, *args, **kwargs):
         """Get a source."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
