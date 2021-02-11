@@ -132,7 +132,7 @@ class ReportProcessor:
 
         """
         try:
-            return self._processor.process()
+            return self._processor.process(context=self.context)
         except (InterfaceError, DjangoInterfaceError, OperationalError) as err:
             raise ReportProcessorDBError(str(err))
         except Exception as err:

@@ -220,7 +220,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         self.processed_report.remove_processed_rows()
 
-    def process(self):
+    def process(self, context=None):
         """Process usage report file.
 
         Returns:

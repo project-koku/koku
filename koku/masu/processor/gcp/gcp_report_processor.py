@@ -340,7 +340,7 @@ class GCPReportProcessor(ReportProcessorBase):
         self.processed_report.remove_processed_rows()
 
     @transaction.atomic
-    def process(self):
+    def process(self, context=None):
         """Process GCP billing file."""
         row_count = 0
 

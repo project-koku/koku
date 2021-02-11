@@ -114,7 +114,7 @@ class AWSReportProcessor(ReportProcessorBase):
         )
         LOG.info(stmt)
 
-    def process(self):  # noqa: C901
+    def process(self, context=None):  # noqa: C901
         """Process CUR file.
 
         Returns:
