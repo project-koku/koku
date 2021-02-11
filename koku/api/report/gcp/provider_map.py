@@ -37,6 +37,8 @@ from reporting.provider.gcp.models import GCPCostSummaryByAccount
 from reporting.provider.gcp.models import GCPCostSummaryByProject
 from reporting.provider.gcp.models import GCPCostSummaryByRegion
 from reporting.provider.gcp.models import GCPCostSummaryByService
+from reporting.provider.gcp.models import GCPDatabaseSummary
+from reporting.provider.gcp.models import GCPNetworkSummary
 from reporting.provider.gcp.models import GCPStorageSummary
 from reporting.provider.gcp.models import GCPStorageSummaryByAccount
 from reporting.provider.gcp.models import GCPStorageSummaryByProject
@@ -285,6 +287,18 @@ class GCPProviderMap(ProviderMap):
                 ("account", "service"): GCPStorageSummaryByService,
                 ("project",): GCPStorageSummaryByProject,
                 ("account", "project"): GCPStorageSummaryByProject,
+            },
+            "database": {
+                "default": GCPDatabaseSummary,
+                ("service",): GCPDatabaseSummary,
+                ("account", "service"): GCPDatabaseSummary,
+                ("account",): GCPDatabaseSummary,
+            },
+            "network": {
+                "default": GCPNetworkSummary,
+                ("service",): GCPNetworkSummary,
+                ("account", "service"): GCPNetworkSummary,
+                ("account",): GCPNetworkSummary,
             },
         }
         super().__init__(provider, report_type)
