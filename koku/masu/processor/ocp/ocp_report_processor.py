@@ -238,7 +238,11 @@ class OCPReportProcessorBase(ReportProcessorBase):
                     li_usage_dt = row.get("report_period_start")
                     if li_usage_dt:
                         try:
-                            li_usage_dt = ciso8601.parse_datetime(li_usage_dt).date().replace(day=1)
+                            li_usage_dt = (
+                                ciso8601.parse_datetime(li_usage_dt.replace(" +0000 UTC", "+0000"))
+                                .date()
+                                .replace(day=1)
+                            )
                         except (ValueError, TypeError):
                             pass  # This is just gathering requested partition start values
                             # If it's invalid, then it's OK to omit storing that value

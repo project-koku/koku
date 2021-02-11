@@ -18,7 +18,6 @@
 import logging
 
 from django.conf import settings
-from django.db import connection
 from django.db import IntegrityError
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -200,8 +199,7 @@ class SourcesViewSet(*MIXIN_LIST):
     def _get_account_and_tenant(self, request):
         """Get account_id and tenant from request."""
         account_id = request.user.customer.account_id
-        schema_name = create_schema_name(account_id)
-        tenant = tenant = Tenant.objects.get(schema_name=schema_name)
+        tenant = request.tenant
         return (account_id, tenant)
 
     @method_decorator(never_cache)
@@ -235,12 +233,9 @@ class SourcesViewSet(*MIXIN_LIST):
                 source["active"] = manager.get_active_status()
                 source["current_month_data"] = manager.get_current_month_data_exists()
                 source["infrastructure"] = manager.get_infrastructure_name()
-                connection.set_tenant(tenant)
                 source["cost_models"] = [
                     {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
                 ]
-                connection.set_schema_to_public()
-        connection.set_schema_to_public()
         return response
 
     @method_decorator(never_cache)
@@ -263,11 +258,9 @@ class SourcesViewSet(*MIXIN_LIST):
             response.data["active"] = manager.get_active_status()
             response.data["current_month_data"] = manager.get_current_month_data_exists()
             response.data["infrastructure"] = manager.get_infrastructure_name()
-            connection.set_tenant(tenant)
             response.data["cost_models"] = [
                 {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
             ]
-        connection.set_schema_to_public()
         return response
 
     @method_decorator(never_cache)
