@@ -41,6 +41,9 @@ VIEWS = (
 )
 
 
+PRESTO_LINE_ITEM_TABLE = "gcp_line_items"
+
+
 class GCPCostEntryBill(models.Model):
     """The billing information for a Cost Usage Report.
 
