@@ -32,8 +32,10 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
+from sources.kafka_listener import sources_network_info
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
+from sources.storage import enqueue_source_update
 from sources.storage import source_settings_complete
 
 LOG = logging.getLogger(__name__)
@@ -90,6 +92,10 @@ class SourceStatus:
         try:
             status_obj = self.status()
             # self.sources_client.set_source_status(status_obj)
+            source_details = self.sources_client.get_source_details()
+            if source_details.get("name") != self.source.name:
+                sources_network_info(self.source_id, self.source.auth_header)
+                enqueue_source_update(self.source_id)
             LOG.info(f"Source status for Source ID: {str(self.source_id)}: Status: {str(status_obj)}")
         except SkipStatusPush as error:
             LOG.info(f"Platform sources status push skipped. Reason: {str(error)}")
