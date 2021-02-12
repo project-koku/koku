@@ -18,6 +18,7 @@ import logging
 import threading
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -32,10 +33,9 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
-from sources.kafka_listener import sources_network_info
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
-from sources.storage import enqueue_source_update
+from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.storage import source_settings_complete
 
 LOG = logging.getLogger(__name__)
@@ -87,12 +87,15 @@ class SourceStatus:
         provider_type = self.source.source_type
         return self.determine_status(provider_type, source_authentication, source_billing_source)
 
+    @transaction.atomic
     def update_source_name(self):
         """Update source name if it is out of sync with platform."""
         source_details = self.sources_client.get_source_details()
         if source_details.get("name") != self.source.name:
-            sources_network_info(self.source_id, self.source.auth_header)
-            enqueue_source_update(self.source_id)
+            self.source.name = source_details.get("name")
+            self.source.save()
+            builder = SourcesProviderCoordinator(self.source_id, self.source.auth_header)
+            builder.update_account(self.source)
 
     def push_status(self):
         """Push status_msg to platform sources."""
