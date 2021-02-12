@@ -170,8 +170,6 @@ REPORT_COLUMN_MAP = defaultdict(
             "cost": "cost",
             "currency": "currency",
             "currency_conversion_rate": "conversion_rate",
-            "usage.amount": "usage_amount",
-            "usage.unit": "usage_unit",
             "usage.amount_in_pricing_units": "usage_to_pricing_units",
             "usage.pricing_unit": "usage_pricing_unit",
             "credits": "credits",
