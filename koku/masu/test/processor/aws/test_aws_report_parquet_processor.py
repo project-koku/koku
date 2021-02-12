@@ -96,7 +96,7 @@ class AWSReportProcessorParquetTest(MasuTestCase):
         table_name = f"{pg_table}_{bill_date.strftime('%Y_%m')}"
         expected_log = (
             f"INFO:masu.processor.report_parquet_processor_base:"
-            f"Created a new parttiion for {pg_table} : {table_name}"
+            f"Created a new partition for {pg_table} : {table_name}"
         )
 
         with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:

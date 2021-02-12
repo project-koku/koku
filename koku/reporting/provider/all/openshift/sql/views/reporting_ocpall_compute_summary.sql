@@ -19,7 +19,7 @@ CREATE MATERIALIZED VIEW reporting_ocpall_compute_summary AS (
         max(lids.currency_code) as currency_code,
         max(lids.source_uuid::text)::uuid as source_uuid
     FROM reporting_ocpallcostlineitem_daily_summary lids
-    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+    WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
         AND instance_type IS NOT NULL
     GROUP BY lids.usage_start,
         lids.cluster_id,
