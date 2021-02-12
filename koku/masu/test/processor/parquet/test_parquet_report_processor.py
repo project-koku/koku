@@ -59,9 +59,10 @@ class TestParquetReportProcessor(MasuTestCase):
         self.account_id = self.schema[4:]
         self.manifest_id = 1
         self.report_name = "koku-1.csv.gz"
+        self.report_path = f"/my/{self.test_assembly_id}/{self.report_name}"
         self.report_processor = ParquetReportProcessor(
             schema_name=self.schema,
-            report_path=f"/my/{self.test_assembly_id}/{self.report_name}",
+            report_path=self.report_path,
             compression="GZIP",
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
@@ -388,10 +389,11 @@ class TestParquetReportProcessor(MasuTestCase):
             Provider.PROVIDER_AWS_LOCAL,
             str(DateHelper().today.date()),
             self.manifest_id,
-            [self.report_name],
+            [self.report_path],
         )
         mock_convert.reset_mock()
 
+        file_list = ["path/to/file_one", "path/to/file_two", "path/to/file_three"]
         ocp_processor = ParquetReportProcessor(
             schema_name=self.schema,
             report_path=f"/my/{self.test_assembly_id}/{self.report_name}",
@@ -399,7 +401,7 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.ocp_provider_uuid,
             provider_type=Provider.PROVIDER_OCP,
             manifest_id=self.manifest_id,
-            context={"request_id": self.request_id, "start_date": DateHelper().today},
+            context={"request_id": self.request_id, "start_date": DateHelper().today, "split_files": file_list},
         )
         ocp_processor.process()
         mock_convert.assert_called_with(
@@ -409,5 +411,5 @@ class TestParquetReportProcessor(MasuTestCase):
             Provider.PROVIDER_OCP,
             str(DateHelper().today.date()),
             self.manifest_id,
-            [],
+            file_list,
         )

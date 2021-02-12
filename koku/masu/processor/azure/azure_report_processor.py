@@ -343,7 +343,7 @@ class AzureReportProcessor(ReportProcessorBase):
             return True
         return False
 
-    def process(self, context=None):  # noqa: C901
+    def process(self):  # noqa: C901
         """Process cost/usage file.
 
         Returns:

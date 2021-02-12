@@ -67,6 +67,7 @@ class ParquetReportProcessor:
         self._request_id = context.get("request_id")
         self._start_date = context.get("start_date")
         self.presto_table_exists = {}
+        self._file_list = context.get("split_files") if context.get("split_files") else [self._report_file]
 
     def convert_to_parquet(  # noqa: C901
         self, request_id, account, provider_uuid, provider_type, start_date, manifest_id, files=[], context={}
@@ -337,13 +338,12 @@ class ParquetReportProcessor:
         # Delete the local parquet files
         shutil.rmtree(local_path, ignore_errors=True)
         # Now we can delete the local CSV
-        os.remove(csv_filename)
+        if os.path.exists(csv_filename):
+            os.remove(csv_filename)
         return True
 
-    def process(self, context=None):
+    def process(self):
         """Convert to parquet."""
-
-        file_list = context.get("split_files") if context.get("split_files") else [self._report_file]
 
         LOG.info(f"Parquet conversion: start_date = {str(self._start_date)}. File: {str(self._report_file)}")
         if self._start_date:
@@ -355,7 +355,7 @@ class ParquetReportProcessor:
                 self._provider_type,
                 start_date_str,
                 self._manifest_id,
-                file_list,
+                self._file_list,
             )
 
         # Clean up the original downloaded file

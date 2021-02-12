@@ -163,7 +163,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         expected_full_path = f"{DATA_DIR}/{mock_name}/gcp/{key}"
         downloader = self.create_gcp_downloader_with_mocked_values(customer_name=mock_name)
         with patch("masu.external.downloader.gcp.gcp_report_downloader.open"):
-            full_path, etag, date = downloader.download_file(key)
+            full_path, etag, date, _ = downloader.download_file(key)
             mock_makedirs.assert_called()
             self.assertEqual(etag, self.etag)
             self.assertEqual(date, self.today)
