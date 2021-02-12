@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 import logging
+import os
 import uuid
 from datetime import timedelta
 from unittest.mock import patch
@@ -104,6 +105,14 @@ class TestParquetReportProcessor(MasuTestCase):
             with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
                 self.report_processor.convert_to_parquet(
                     "request_id", "account", "provider_uuid", "provider_type", "bad_date", "manifest_id", "csv_file"
+                )
+                self.assertIn(expected, " ".join(logger.output))
+
+        expected = "Could not establish report type"
+        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+            with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
+                self.report_processor.convert_to_parquet(
+                    "request_id", "account", "provider_uuid", "OCP", "2020-01-01T12:00:00", "manifest_id", "csv_file"
                 )
                 self.assertIn(expected, " ".join(logger.output))
 
@@ -413,3 +422,49 @@ class TestParquetReportProcessor(MasuTestCase):
             self.manifest_id,
             file_list,
         )
+
+    @patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket")
+    @patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.create_parquet_table")
+    def test_process_gcp(self, mock_create_table, mock_s3_copy):
+        """Test the processor for GCP."""
+
+        report_path = "/tmp/original_csv.csv"
+        with open(report_path, "w") as f:
+            f.write("one,two,three")
+        self.assertTrue(os.path.exists(report_path))
+
+        file_list = ["/tmp/file_one.csv", "/tmp/file_two.csv", "/tmp/file_three.csv"]
+        for path in file_list:
+            with open(path, "w") as f:
+                f.write("one,two,three")
+            self.assertTrue(os.path.exists(path))
+
+        gcp_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=report_path,
+            compression="GZIP",
+            provider_uuid=self.gcp_provider_uuid,
+            provider_type=Provider.PROVIDER_GCP,
+            manifest_id=self.manifest_id,
+            context={"request_id": self.request_id, "start_date": DateHelper().today, "split_files": file_list},
+        )
+
+        with patch(
+            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_to_parquet"
+        ) as mock_convert:
+            gcp_processor.process()
+            mock_convert.assert_called_with(
+                self.request_id,
+                self.account_id,
+                self.gcp_provider_uuid,
+                Provider.PROVIDER_GCP,
+                str(DateHelper().today.date()),
+                self.manifest_id,
+                file_list,
+            )
+
+        gcp_processor.process()
+
+        self.assertFalse(os.path.exists(report_path))
+        for path in file_list:
+            self.assertFalse(os.path.exists(report_path))

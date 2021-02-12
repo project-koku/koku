@@ -45,7 +45,7 @@ DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
-def divide_csv_daily(file_path, filename):
+def divide_csv_daily(file_path):
     """
     Split local file into daily content.
     """
@@ -91,7 +91,7 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
     """
     daily_file_names = []
     if settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING:
-        daily_files = divide_csv_daily(filepath, filename)
+        daily_files = divide_csv_daily(filepath)
         for daily_file in daily_files:
             # Push to S3
             s3_csv_path = get_path_prefix(
