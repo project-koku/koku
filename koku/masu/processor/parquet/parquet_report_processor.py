@@ -62,7 +62,8 @@ class ParquetReportProcessor:
         self._schema_name = schema_name
         self._provider_uuid = provider_uuid
         self._report_file = report_path
-        self._provider_type = provider_type
+        # Remove local from string so we can store local/test and real sources together in S3/Trino
+        self._provider_type = provider_type.replace("-local", "")
         self._manifest_id = manifest_id
         self._request_id = context.get("request_id")
         self._start_date = context.get("start_date")
