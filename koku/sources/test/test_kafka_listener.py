@@ -401,22 +401,12 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         """Test to get sources details from other message."""
         test_topic = "platform.sources.event-stream"
         test_offset = 5
-        test_partition = 1
         cost_management_app_type = 2
         test_auth_header = "testheader"
         test_value = '{"id":1,"source_id":1,"application_type_id":2}'
         source_events = [
             {"event": "Source.create", "expected_response": {}},
-            {
-                "event": "Source.update",
-                "expected_response": {
-                    "source_id": 1,
-                    "offset": test_offset,
-                    "partition": test_partition,
-                    "event_type": "Source.update",
-                    "auth_header": test_auth_header,
-                },
-            },
+            {"event": "Source.update", "expected_response": {}},
         ]
         for test in source_events:
             msg = ConsumerRecord(
@@ -1102,44 +1092,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                             test.get("expected_fn")(msg_data, test, mock_save_auth_info)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    @patch("sources.kafka_listener.sources_network_info", returns=None)
-    @patch("sources.kafka_listener.save_auth_info", returns=None)
-    def test_process_message_source_update(self, mock_save_auth_info, mock_sources_network_info):
-        """Test the process_message function for source_update."""
-        test_application_id = 2
-
-        def _expected_source_update(msg_data, expected_known_source, sources_network_info_mock):
-            if expected_known_source:
-                sources_network_info_mock.assert_called()
-            else:
-                sources_network_info_mock.assert_not_called()
-
-        test_matrix = [
-            {
-                "event": source_integration.KAFKA_SOURCE_UPDATE,
-                "value": {"id": 1},
-                "expected_known_source": False,
-                "expected_fn": _expected_source_update,
-            },
-            {
-                "event": source_integration.KAFKA_SOURCE_UPDATE,
-                "value": {"id": 1},
-                "expected_known_source": True,
-                "expected_fn": _expected_source_update,
-            },
-        ]
-
-        for test in test_matrix:
-            msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
-            with patch(
-                "sources.kafka_listener.storage.is_known_source", return_value=test.get("expected_known_source")
-            ):
-                with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
-                    with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
-                        process_message(test_application_id, msg_data)
-                        test.get("expected_fn")(msg_data, test.get("expected_known_source"), mock_sources_network_info)
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_process_message_destroy(self):
         """Test the process_message function for application and source destroy."""
         test_application_id = 2
@@ -1194,12 +1146,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 },
                 "expected_cost_mgmt_match": True,
                 "expected_fn": _expected_update,
-            },
-            {
-                "event": source_integration.KAFKA_SOURCE_UPDATE,
-                "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
-                "expected_fn": _expected_update,
-            },
+            }
         ]
 
         for test in test_matrix:
