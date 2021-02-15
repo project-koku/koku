@@ -103,6 +103,16 @@ class GCPAuthenticationSerializer(ProviderAuthenticationSerializer):
         return validate_field(creds, fields, key)
 
 
+class IBMAuthenticationSerializer(ProviderAuthenticationSerializer):
+    """IBM auth serializer."""
+
+    def validate_credentials(self, creds):
+        """Validate credentials field."""
+        key = "iam_token"
+        fields = ["iam_token"]
+        return validate_field(creds, fields, key)
+
+
 class OCPAuthenticationSerializer(ProviderAuthenticationSerializer):
     """OCP auth serializer."""
 
@@ -164,6 +174,16 @@ class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
         return data
 
 
+class IBMBillingSourceSerializer(ProviderBillingSourceSerializer):
+    """IBM billing source serializer."""
+
+    def validate_data_source(self, data_source):
+        """Validate data_source field."""
+        key = "provider.data_source"
+        fields = ["enterprise_id"]
+        return validate_field(data_source, fields, key)
+
+
 class OCPBillingSourceSerializer(ProviderBillingSourceSerializer):
     """OCP billing source serializer."""
 
@@ -178,6 +198,7 @@ AUTHENTICATION_SERIALIZERS = {
     Provider.PROVIDER_AZURE_LOCAL: AzureAuthenticationSerializer,
     Provider.PROVIDER_GCP: GCPAuthenticationSerializer,
     Provider.PROVIDER_GCP_LOCAL: GCPAuthenticationSerializer,
+    Provider.PROVIDER_IBM: IBMAuthenticationSerializer,
     Provider.PROVIDER_OCP: OCPAuthenticationSerializer,
     Provider.OCP_AWS: AWSAuthenticationSerializer,
     Provider.OCP_AZURE: AzureAuthenticationSerializer,
@@ -192,6 +213,7 @@ BILLING_SOURCE_SERIALIZERS = {
     Provider.PROVIDER_AZURE_LOCAL: AzureBillingSourceSerializer,
     Provider.PROVIDER_GCP: GCPBillingSourceSerializer,
     Provider.PROVIDER_GCP_LOCAL: GCPBillingSourceSerializer,
+    Provider.PROVIDER_IBM: IBMBillingSourceSerializer,
     Provider.PROVIDER_OCP: OCPBillingSourceSerializer,
     Provider.OCP_AWS: AWSBillingSourceSerializer,
     Provider.OCP_AZURE: AzureBillingSourceSerializer,
