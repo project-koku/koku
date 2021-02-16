@@ -395,7 +395,7 @@ class TestParquetReportProcessor(MasuTestCase):
             self.request_id,
             self.account_id,
             self.aws_provider_uuid,
-            Provider.PROVIDER_AWS_LOCAL,
+            Provider.PROVIDER_AWS,
             str(DateHelper().today.date()),
             self.manifest_id,
             [self.report_path],
