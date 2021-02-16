@@ -2,7 +2,7 @@ DROP INDEX IF EXISTS gcp_cost_summary_project;
 DROP MATERIALIZED VIEW IF EXISTS reporting_gcp_cost_summary_by_project;
 
 CREATE MATERIALIZED VIEW reporting_gcp_cost_summary_by_project AS(
-    SELECT row_number() OVER(ORDER BY usage_start, project_id, account_id) as id,
+    SELECT row_number() OVER(ORDER BY usage_start, project_id, project_name, account_id) as id,
         usage_start,
         usage_start as usage_end,
         sum(unblended_cost) as unblended_cost,
