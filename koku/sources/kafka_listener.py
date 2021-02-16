@@ -64,7 +64,6 @@ KAFKA_APPLICATION_UPDATE = "Application.update"
 KAFKA_APPLICATION_DESTROY = "Application.destroy"
 KAFKA_AUTHENTICATION_CREATE = "Authentication.create"
 KAFKA_AUTHENTICATION_UPDATE = "Authentication.update"
-KAFKA_SOURCE_UPDATE = "Source.update"
 KAFKA_SOURCE_DESTROY = "Source.destroy"
 KAFKA_HDR_RH_IDENTITY = "x-rh-identity"
 KAFKA_HDR_EVENT_TYPE = "event_type"
@@ -241,7 +240,7 @@ def get_sources_msg_data(msg, app_type_id):
                         f"Authentication Create/Update Message headers for Source ID: "
                         f"{value.get('resource_id')}: {str(msg.headers())}"
                     )
-            elif event_type in (KAFKA_SOURCE_DESTROY, KAFKA_SOURCE_UPDATE):
+            elif event_type in (KAFKA_SOURCE_DESTROY,):
                 msg_data["event_type"] = event_type
                 msg_data["offset"] = msg.offset()
                 msg_data["partition"] = msg.partition()
@@ -427,7 +426,7 @@ def process_message(app_type_id, msg):  # noqa: C901
 
         save_auth_info(msg_data.get("auth_header"), msg_data.get("source_id"))
 
-    elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_APPLICATION_UPDATE):
+    elif msg_data.get("event_type") in (KAFKA_APPLICATION_UPDATE,):
         if storage.is_known_source(msg_data.get("source_id")) is False:
             LOG.info("Update event for unknown source id, skipping...")
             return
@@ -439,7 +438,7 @@ def process_message(app_type_id, msg):  # noqa: C901
     elif msg_data.get("event_type") in (KAFKA_SOURCE_DESTROY,):
         storage.enqueue_source_delete(msg_data.get("source_id"), msg_data.get("offset"))
 
-    if msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
+    if msg_data.get("event_type") in (KAFKA_AUTHENTICATION_UPDATE,):
         sources_network_info(msg_data.get("source_id"), msg_data.get("auth_header"))
         storage.enqueue_source_update(msg_data.get("source_id"))
 
@@ -467,6 +466,7 @@ def listen_for_messages_loop(application_source_id):  # pragma: no cover
         if len(msg_list) == 1:
             msg = msg_list.pop()
         else:
+            consumer.commit()
             continue
 
         listen_for_messages(msg, consumer, application_source_id)
@@ -526,6 +526,8 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
             except SourceNotFoundError:
                 LOG.warning(f"Source not found in platform sources. Skipping msg: {msg}")
                 consumer.commit()
+        else:
+            consumer.commit()
 
     except KafkaError as error:
         LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
