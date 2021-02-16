@@ -1180,14 +1180,27 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         cost_management_app_type = 2
 
         test_matrix = [
-            {"test_value": '{"id": 1, "source_id": 1, "application_type_id": 2', "expected_process": False},
-            {"test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}), "expected_process": True},
+            {
+                "test_value": '{"id": 1, "source_id": 1, "application_type_id": 2',
+                "operation": "Application.create",
+                "expected_process": False,
+            },
+            {
+                "test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}),
+                "operation": "Source.update",
+                "expected_process": False,
+            },
+            {
+                "test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}),
+                "operation": "Application.create",
+                "expected_process": True,
+            },
         ]
         for test in test_matrix:
             msg = ConsumerRecord(
                 topic="platform.sources.event-stream",
                 offset=5,
-                event_type="Application.create",
+                event_type=test.get("operation"),
                 auth_header="testheader",
                 value=bytes(test.get("test_value"), encoding="utf-8"),
             )
