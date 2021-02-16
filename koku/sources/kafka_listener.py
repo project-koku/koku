@@ -525,6 +525,8 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
             except SourceNotFoundError:
                 LOG.warning(f"Source not found in platform sources. Skipping msg: {msg}")
                 consumer.commit()
+        else:
+            consumer.commit()
 
     except KafkaError as error:
         LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
