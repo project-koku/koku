@@ -140,13 +140,15 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
     # We need to normalize capitalization and "-local" dev providers.
     account = schema_name[4:]
 
+    # Data in object storage does not use the local designation
+    source_type = provider_type.replace("-local", "")
     path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.CSV_DATA_TYPE}"
-    prefix = f"{path_prefix}/{account}/{provider_uuid}/"
+    prefix = f"{path_prefix}/{account}/{source_type}/source={provider_uuid}/"
     LOG.info("Attempting to delete our archived data in S3 under %s", prefix)
     deleted_archived_with_prefix(settings.S3_BUCKET_NAME, prefix)
 
     path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
-    prefix = f"{path_prefix}/{account}/{provider_uuid}/"
+    prefix = f"{path_prefix}/{account}/{source_type}/source={provider_uuid}/"
     LOG.info("Attempting to delete our archived data in S3 under %s", prefix)
     deleted_archived_with_prefix(settings.S3_BUCKET_NAME, prefix)
 
