@@ -466,6 +466,7 @@ def listen_for_messages_loop(application_source_id):  # pragma: no cover
         if len(msg_list) == 1:
             msg = msg_list.pop()
         else:
+            consumer.commit()
             continue
 
         listen_for_messages(msg, consumer, application_source_id)

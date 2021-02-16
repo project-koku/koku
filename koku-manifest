@@ -5,7 +5,7 @@ mgmt_services/cost-mgmt:koku/python-asgiref:3.3.1.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-common:1.1.26.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-core:1.11.0.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-mgmt-core:1.2.2.pipfile
-mgmt_services/cost-mgmt:koku/python-azure-mgmt-costmanagement:1.0.0.pipfile
+mgmt_services/cost-mgmt:koku/python-azure-mgmt-costmanagement:0.2.0.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-mgmt-resource:15.0.0.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-mgmt-storage:11.2.0.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-storage-blob:12.7.1.pipfile
