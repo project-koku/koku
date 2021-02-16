@@ -21,5 +21,5 @@ WITH DATA
 ;
 
 CREATE UNIQUE INDEX gcp_cost_summary_project
-ON reporting_gcp_cost_summary_by_project (usage_start, project_id, account_id)
+ON reporting_gcp_cost_summary_by_project (usage_start, project_id, project_name, account_id)
 ;
