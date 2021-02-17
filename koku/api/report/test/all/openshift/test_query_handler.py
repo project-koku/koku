@@ -205,3 +205,18 @@ class OCPAllQueryHandlerTest(IamTestCase):
         handler.set_access_filters(access, filt, filters)
         expected = [QueryFilter(field=field, operation="contains", parameter=access)]
         self.assertEqual(filters._filters, expected)
+
+    @RbacPermissions({"openshift.project": {"read": ["analytics"]}})
+    def test_set_access_filters_with_array_field_and_list(self):
+        """Test that a filter is correctly set for arrays."""
+
+        query_params = self.mocked_query_params("?filter[project]=analytics", OCPAllCostView)
+        # the mocked query parameters dont include the key from the url so it needs to be added
+        handler = OCPAllReportQueryHandler(query_params)
+        field = "namespace"
+        access = ["analytics"]
+        filt = [{"field": field}]
+        filters = QueryFilterCollection()
+        handler.set_access_filters(access, filt, filters)
+        expected = [QueryFilter(field=field, operation="contains", parameter=access)]
+        self.assertEqual(filters._filters, expected)
