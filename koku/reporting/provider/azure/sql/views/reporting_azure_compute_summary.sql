@@ -27,7 +27,7 @@ CREATE MATERIALIZED VIEW reporting_azure_compute_summary AS(
             MAX(currency) AS currency,
             max(source_uuid::text)::uuid as source_uuid
         FROM reporting_azurecostentrylineitem_daily_summary
-        WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+        WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
             AND instance_type IS NOT NULL
             AND unit_of_measure = 'Hrs'
         GROUP BY usage_start, subscription_guid, instance_type
@@ -44,7 +44,7 @@ CREATE MATERIALIZED VIEW reporting_azure_compute_summary AS(
                 instance_type,
                 UNNEST(instance_ids) AS instance_id
             FROM reporting_azurecostentrylineitem_daily_summary
-            WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+            WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
                 AND instance_type IS NOT NULL
         ) AS x
         GROUP BY usage_start, subscription_guid, instance_type

@@ -27,7 +27,7 @@ CREATE MATERIALIZED VIEW reporting_gcp_network_summary AS(
         OR service_alias LIKE '%Cloud Domains%'
         OR service_alias LIKE '%Private Service Connect%'
         OR service_alias LIKE '%Cloud Armor%'
-        AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+        AND usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
     GROUP BY usage_start, account_id
 )
 WITH DATA
