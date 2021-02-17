@@ -118,7 +118,7 @@ class Config:
     REPORTING_DECIMAL_PRECISION = 9
 
     # Specify the number of months (bills) to ingest
-    INITIAL_INGEST_NUM_MONTHS = int(os.getenv("INITIAL_INGEST_NUM_MONTHS", "2"))
+    INITIAL_INGEST_NUM_MONTHS = int(os.getenv("INITIAL_INGEST_NUM_MONTHS", "3"))
 
     # Override the initial ingest requirement to allow INITIAL_INGEST_NUM_MONTHS
     INGEST_OVERRIDE = False if os.getenv("INITIAL_INGEST_OVERRIDE", "False") == "False" else True

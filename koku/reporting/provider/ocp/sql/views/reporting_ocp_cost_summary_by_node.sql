@@ -27,7 +27,7 @@ CREATE MATERIALIZED VIEW reporting_ocp_cost_summary_by_node AS(
         source_uuid
     FROM reporting_ocpusagelineitem_daily_summary
     -- Get data for this month or last month
-    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+    WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
     GROUP BY usage_start, cluster_id, cluster_alias, node, source_uuid
 )
 WITH DATA

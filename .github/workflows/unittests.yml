@@ -33,8 +33,10 @@ jobs:
         ports:
           - 5432:5432
     steps:
-      - name: Checkout repsository
+      - name: Checkout repository
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
       - name: Display build environment
         run: printenv

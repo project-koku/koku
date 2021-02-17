@@ -1,4 +1,5 @@
 """Test GCP Provider."""
+import copy
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -9,6 +10,7 @@ from google.cloud.exceptions import NotFound
 from rest_framework.serializers import ValidationError
 
 from api.models import Provider
+from api.provider.models import Sources
 from providers.gcp.provider import GCPProvider
 from providers.gcp.provider import REQUIRED_IAM_PERMISSIONS
 from providers.provider_errors import SkipStatusPush
@@ -157,3 +159,62 @@ class GCPProviderTestCase(TestCase):
         provider = GCPProvider()
         with self.assertRaises(ValidationError):
             provider.cost_usage_source_is_reachable(credentials_param, billing_source_param)
+
+    def test_update_data_source(self):
+        """Test that the GCP datasource is updated for given dataset."""
+        source_id = 13
+        credentials = {"project_id": "test_project"}
+        test_dataset_table_id = "test_table_id"
+        data_source = {"dataset": "test_dataset"}
+
+        gcp_source = {
+            "source_id": source_id,
+            "source_uuid": FAKE.uuid4(),
+            "name": "Provider GCP",
+            "source_type": "GCP",
+            "authentication": {"credentials": credentials},
+            "billing_source": {"data_source": data_source},
+            "auth_header": "fakeauthheader",
+            "account_id": "acct10001",
+            "offset": 12,
+        }
+        provider = Sources(**gcp_source)
+        provider.save()
+
+        provider = GCPProvider()
+        updated_data_source = copy.deepcopy(data_source)
+        updated_data_source["table_id"] = test_dataset_table_id
+        provider.update_source_data_source(credentials, updated_data_source)
+
+        db_obj = Sources.objects.get(source_id=source_id)
+
+        self.assertEquals(db_obj.billing_source, {"data_source": updated_data_source})
+
+        gcp2_source_id = 14
+        gcp2_dataset_table_id = "test_table_id_2"
+        data_source_2 = {"dataset": "test_dataset_2"}
+
+        gcp_source2 = {
+            "source_id": gcp2_source_id,
+            "source_uuid": FAKE.uuid4(),
+            "name": "Provider GCP 2",
+            "source_type": "GCP",
+            "authentication": {"credentials": credentials},
+            "billing_source": {"data_source": data_source_2},
+            "auth_header": "fakeauthheader",
+            "account_id": "acct10001",
+            "offset": 12,
+        }
+        provider_2 = Sources(**gcp_source2)
+        provider_2.save()
+
+        updated_data_source_2 = copy.deepcopy(data_source_2)
+        updated_data_source_2["table_id"] = gcp2_dataset_table_id
+
+        GCPProvider().update_source_data_source(credentials, updated_data_source_2)
+
+        db_obj_2 = Sources.objects.get(source_id=gcp2_source_id)
+        self.assertEquals(
+            Sources.objects.get(source_id=source_id).billing_source, {"data_source": updated_data_source}
+        )
+        self.assertEquals(db_obj_2.billing_source, {"data_source": updated_data_source_2})
