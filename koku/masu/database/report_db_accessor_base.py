@@ -31,10 +31,15 @@ from tenant_schemas.utils import schema_context
 import koku.presto_database as kpdb
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
+from masu.database.koku_database_access import mini_transaction_delete
 from reporting.models import PartitionedTable
 from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
+
+
+class ReportDBAccessorException(Exception):
+    """Postgres summary table is not defined."""
 
 
 class ReportSchema:
@@ -79,6 +84,11 @@ class ReportDBAccessorBase(KokuDBAccess):
     def decimal_precision(self):
         """Return database precision for decimal values."""
         return f"0E-{Config.REPORTING_DECIMAL_PRECISION}"
+
+    @property
+    def line_item_daily_summary_table(self):
+        """Require this property in subclases."""
+        raise ReportDBAccessorException("This must be a property on the sub class.")
 
     def create_temp_table(self, table_name, drop_column=None):
         """Create a temporary table and return the table name."""
@@ -421,3 +431,13 @@ class ReportDBAccessorBase(KokuDBAccess):
             )
         if created:
             LOG.info(f"Created a new partition for {newpart.partition_of_table_name} : {newpart.table_name}")
+
+    def delete_line_item_daily_summary_entries_for_date_range(self, start_date, end_date):
+        msg = f"Deleting records from {self.line_item_daily_summary_table} from {start_date} to {end_date}"
+        LOG.info(msg)
+        select_query = self.line_item_daily_summary_table.objects.filter(
+            usage_start__gte=start_date, usage_start__lte=end_date
+        )
+        count, _ = mini_transaction_delete(select_query)
+        msg = f"Deleted {count} records from {self.line_item_daily_summary_table}"
+        LOG.info(msg)
