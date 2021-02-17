@@ -24,6 +24,7 @@ from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
+from masu.external.downloader.gcp.gcp_report_downloader import create_daily_archives
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 
 DATA_DIR = Config.TMP_DIR
@@ -201,7 +202,19 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         msg = f"Returning full_file_path: {full_local_path}"
         LOG.info(log_json(self.request_id, msg, self.context))
         dh = DateHelper()
-        return full_local_path, etag, dh.today
+
+        file_names = create_daily_archives(
+            self.request_id,
+            self.account,
+            self._provider_uuid,
+            key,
+            full_local_path,
+            manifest_id,
+            start_date,
+            self.context,
+        )
+
+        return full_local_path, etag, dh.today, file_names
 
     def _get_local_file_path(self, key, etag):
         """

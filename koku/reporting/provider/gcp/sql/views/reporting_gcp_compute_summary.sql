@@ -13,7 +13,7 @@ CREATE MATERIALIZED VIEW reporting_gcp_compute_summary AS (
         MAX(currency) AS currency,
         source_uuid
     FROM reporting_gcpcostentrylineitem_daily_summary
-    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+    WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
         AND instance_type IS NOT NULL
     GROUP BY usage_start, instance_type, source_uuid
 )

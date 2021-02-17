@@ -16,7 +16,9 @@
 #
 """GCP utility functions and vars."""
 import datetime
+import json
 import logging
+from json.decoder import JSONDecodeError
 
 from tenant_schemas.utils import schema_context
 
@@ -96,3 +98,47 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
             bills = bills.all()
 
     return bills
+
+
+def process_gcp_labels(label_string):
+    """Convert the report string to a JSON dictionary.
+
+    Args:
+        label_string (str): The raw report string of pod labels
+
+    Returns:
+        (dict): The JSON dictionary made from the label string
+
+    """
+    label_dict = {}
+    try:
+        labels = json.loads(label_string.replace("'", '"'))
+        label_dict = {entry.get("key"): entry.get("value") for entry in labels}
+    except JSONDecodeError:
+        LOG.warning("Unable to process GCP labels.")
+
+    return json.dumps(label_dict)
+
+
+def process_gcp_credits(credit_string):
+    """Process the credits column, which is non-standard JSON."""
+    credit_dict = {}
+    try:
+        credits = json.loads(credit_string.replace("'", '"').replace("None", '"None"'))
+        if credits:
+            credit_dict = credits[0]
+    except JSONDecodeError:
+        LOG.warning("Unable to process GCP credits.")
+
+    return json.dumps(credit_dict)
+
+
+def gcp_post_processor(data_frame):
+    """Guarantee column order for Azure parquet files"""
+    columns = list(data_frame)
+    for column in columns:
+        if "." in column:
+            new_col_name = column.replace(".", "_")
+            data_frame[new_col_name] = data_frame[column]
+            data_frame = data_frame.drop(columns=[column])
+    return data_frame

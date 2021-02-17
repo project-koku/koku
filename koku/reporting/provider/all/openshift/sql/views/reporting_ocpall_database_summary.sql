@@ -17,7 +17,7 @@ CREATE MATERIALIZED VIEW reporting_ocpall_database_summary AS (
         max(lids.currency_code) as currency_code,
         max(lids.source_uuid::text)::uuid as source_uuid
     FROM reporting_ocpallcostlineitem_daily_summary lids
-    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+    WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
         AND (
             product_code IN ('AmazonRDS','AmazonDynamoDB','AmazonElastiCache','AmazonNeptune','AmazonRedshift','AmazonDocumentDB','Cosmos DB','Cache for Redis')
                 OR product_code LIKE '%Database%'
