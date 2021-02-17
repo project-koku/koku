@@ -21,12 +21,15 @@ import hashlib
 import logging
 import os
 
+import pandas as pd
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from google.cloud import bigquery
 from google.cloud.exceptions import GoogleCloudError
 from rest_framework.exceptions import ValidationError
 
 from api.common import log_json
+from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -34,10 +37,77 @@ from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.util.aws.common import copy_local_report_file_to_s3_bucket
+from masu.util.common import get_path_prefix
 from providers.gcp.provider import GCPProvider
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
+
+
+def divide_csv_daily(file_path):
+    """
+    Split local file into daily content.
+    """
+    daily_files = []
+    directory = os.path.dirname(file_path)
+
+    try:
+        data_frame = pd.read_csv(file_path)
+    except Exception as error:
+        LOG.error(f"File {file_path} could not be parsed. Reason: {str(error)}")
+        raise error
+
+    unique_times = data_frame.usage_start_time.unique()
+    days = list({cur_dt[:10] for cur_dt in unique_times})
+    daily_data_frames = [
+        {"data_frame": data_frame[data_frame.usage_start_time.str.contains(cur_day)], "date": cur_day}
+        for cur_day in days
+    ]
+
+    for daily_data in daily_data_frames:
+        day = daily_data.get("date")
+        df = daily_data.get("data_frame")
+        day_file = f"{day}.csv"
+        day_filepath = f"{directory}/{day_file}"
+        df.to_csv(day_filepath, index=False, header=True)
+        daily_files.append({"filename": day_file, "filepath": day_filepath})
+    return daily_files
+
+
+def create_daily_archives(request_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+    """
+    Create daily CSVs from incoming report and archive to S3.
+
+    Args:
+        request_id (str): The request id
+        account (str): The account number
+        provider_uuid (str): The uuid of a provider
+        filename (str): The OCP file name
+        filepath (str): The full path name of the file
+        manifest_id (int): The manifest identifier
+        start_date (Datetime): The start datetime of incoming report
+        context (Dict): Logging context dictionary
+    """
+    daily_file_names = []
+    if settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING:
+        daily_files = divide_csv_daily(filepath)
+        for daily_file in daily_files:
+            # Push to S3
+            s3_csv_path = get_path_prefix(
+                account, Provider.PROVIDER_GCP, provider_uuid, start_date, Config.CSV_DATA_TYPE
+            )
+            copy_local_report_file_to_s3_bucket(
+                request_id,
+                s3_csv_path,
+                daily_file.get("filepath"),
+                daily_file.get("filename"),
+                manifest_id,
+                start_date,
+                context,
+            )
+            daily_file_names.append(daily_file.get("filepath"))
+    return daily_file_names
 
 
 class GCPReportDownloaderError(Exception):
@@ -343,7 +413,19 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         msg = f"Returning full_file_path: {full_local_path}"
         LOG.info(log_json(self.request_id, msg, self.context))
         dh = DateHelper()
-        return full_local_path, self.etag, dh.today
+
+        file_names = create_daily_archives(
+            self.request_id,
+            self.account,
+            self._provider_uuid,
+            key,
+            full_local_path,
+            manifest_id,
+            start_date,
+            self.context,
+        )
+
+        return full_local_path, self.etag, dh.today, file_names
 
     def _get_local_directory_path(self):
         """
