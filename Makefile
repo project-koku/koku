@@ -37,9 +37,9 @@ OC_TEMPLATES = $(wildcard $(OC_TEMPLATE_DIR))
 
 # Docker compose specific file
 ifdef compose_file
-    DOCKER_COMPOSE = docker-compose -f $(compose_file)
+    DOCKER_COMPOSE = $(DOCKER)-compose -f $(compose_file)
 else
-	DOCKER_COMPOSE = docker-compose
+	DOCKER_COMPOSE = $(DOCKER)-compose
 endif
 
 # Platform differences
@@ -168,7 +168,7 @@ create-test-customer-no-sources: run-migrations docker-up-koku
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-sources --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
 
 load-test-customer-data:
-	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
+	$(TOPDIR)/scripts/load_test_customer_data.sh $(start) $(end)
 	make load-aws-org-unit-tree
 
 load-aws-org-unit-tree:
