@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the GCP common util."""
+import pandas as pd
 from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
@@ -122,3 +123,33 @@ class TestGCPUtils(MasuTestCase):
             bill_ids = [str(bill.id) for bill in bills]
 
         self.assertEqual(bill_ids, expected_bill_ids)
+
+    def test_process_gcp_labels(self):
+        """Test that labels are formatted properly."""
+        label_string = "[{'key': 'key_one', 'value': 'value_one'}, {'key': 'key_two', 'value': 'value_two'}]"
+
+        expected = '{"key_one": "value_one", "key_two": "value_two"}'
+        label_result = utils.process_gcp_labels(label_string)
+
+        self.assertEqual(label_result, expected)
+
+    def test_process_gcp_credits(self):
+        """Test that credits are formatted properly."""
+        credit_string = "[{'first': 'yes', 'second': None, 'third': 'no'}]"
+
+        expected = '{"first": "yes", "second": "None", "third": "no"}'
+        credit_result = utils.process_gcp_credits(credit_string)
+
+        self.assertEqual(credit_result, expected)
+
+    def test_post_processor(self):
+        """Test that data frame post processing succeeds."""
+        data = {"column.one": [1, 2, 3], "column.two": [4, 5, 6], "three": [7, 8, 9]}
+        expected_columns = ["column_one", "column_two", "three"]
+
+        df = pd.DataFrame(data)
+
+        result_df = utils.gcp_post_processor(df)
+
+        result_columns = list(result_df)
+        self.assertEqual(sorted(result_columns), sorted(expected_columns))
