@@ -151,69 +151,64 @@ class KokuCustomerOnboarder:
         with psycopg2.connect(**dbinfo) as conn:
             cursor = conn.cursor()
 
-        if source_type in SUPPORTED_SOURCES_DB:
-            source = "%s_source" % source_type.lower()
+            if source_type in SUPPORTED_SOURCES_DB:
+                source = "%s_source" % source_type.lower()
 
-        for source_dict in self.customer.get("sources"):
-            if source not in source_dict.keys():
-                continue
-            credentials = source_dict.get("authentication").get("credentials", {})
-            data_source = source_dict.get("billing_source").get("data_source", {})
-            source_name = source_dict.get("source_name", source)
+            for source_dict in self.customer.get("sources"):
+                if source not in source_dict:
+                    continue
+                credentials = source_dict.get("authentication").get("credentials", {})
+                data_source = source_dict.get("billing_source").get("data_source", {})
+                source_name = source_dict.get("source_name", source)
 
-            billing_sql = """
-                SELECT id FROM api_providerbillingsource
-                WHERE data_source = %s
+                billing_sql = """
+SELECT id FROM api_providerbillingsource
+WHERE data_source = %s
+;
+"""
+                values = [json_dumps(data_source)]
+                try:
+                    cursor.execute(billing_sql, values)
+                except psycopg2.ProgrammingError:
+                    conn.rollback()
+                    billing_id = None
+                else:
+                    billing_id = cursor.fetchone() or None
+                    if billing_id:
+                        billing_id = billing_id[0]
 
-            """
-            values = [json_dumps(data_source)]
-            cursor.execute(billing_sql, values)
-            billing_id = None
-            try:
-                billing_id = cursor.fetchone()
-                if billing_id:
-                    billing_id = billing_id[0]
-            except psycopg2.ProgrammingError:
-                pass
-            finally:
                 if billing_id is None:
-
                     billing_sql = """
-                        INSERT INTO api_providerbillingsource (uuid, data_source)
-                        VALUES (%s, %s)
-                        RETURNING id
-                        ;
-                    """
+INSERT INTO api_providerbillingsource (uuid, data_source)
+VALUES (%s, %s)
+RETURNING id
+;
+"""
                     values = [str(uuid4()), json_dumps(data_source)]
                     cursor.execute(billing_sql, values)
                     billing_id = cursor.fetchone()[0]
-            conn.commit()
 
-            auth_sql = """
-                INSERT INTO api_providerauthentication (uuid,
-                                                        credentials)
-                VALUES (%s, %s)
-                RETURNING id
-                ;
-            """
-            values = [str(uuid4()), json_dumps(credentials)]
+                auth_sql = """
+INSERT INTO api_providerauthentication (uuid, credentials)
+VALUES (%s, %s)
+RETURNING id
+;
+"""
+                values = [str(uuid4()), json_dumps(credentials)]
+                cursor.execute(auth_sql, values)
+                auth_id = cursor.fetchone()[0]
 
-            cursor.execute(auth_sql, values)
-            auth_id = cursor.fetchone()[0]
-            conn.commit()
+                provider_sql = """
+INSERT INTO api_provider (uuid, name, type, authentication_id, billing_source_id,
+                        created_by_id, customer_id, setup_complete, active)
+VALUES(%s, %s, %s, %s, %s, 1, 1, False, True)
+/* RETURNING uuid */
+;
+"""
+                values = [str(uuid4()), source_name, source_type, auth_id, billing_id]
+                cursor.execute(provider_sql, values)
 
-            provider_sql = """
-                INSERT INTO api_provider (uuid, name, type, authentication_id, billing_source_id,
-                                        created_by_id, customer_id, setup_complete, active)
-                VALUES(%s, %s, %s, %s, %s, 1, 1, False, True)
-                RETURNING uuid
-                ;
-            """
-            values = [str(uuid4()), source_name, source_type, auth_id, billing_id]
-
-            cursor.execute(provider_sql, values)
-        conn.commit()
-        conn.close()
+                conn.commit()
 
     def create_sources_db(self, skip_sources):
         """Create a Koku source by inserting into the Koku DB."""
