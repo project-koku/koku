@@ -102,8 +102,7 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
                 start_date,
                 context,
             )
-            daily_file_names.append(daily_file.get("filename"))
-            os.remove(daily_file.get("filepath"))
+            daily_file_names.append(daily_file.get("filepath"))
     return daily_file_names
 
 
@@ -255,7 +254,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             shutil.move(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
-        create_daily_archives(
+        file_names = create_daily_archives(
             self.request_id,
             self.account,
             self._provider_uuid,
@@ -265,7 +264,8 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             start_date,
             self.context,
         )
-        return full_file_path, ocp_etag, file_creation_date
+
+        return full_file_path, ocp_etag, file_creation_date, file_names
 
     def get_local_file_for_report(self, report):
         """Get full path for local report file."""
