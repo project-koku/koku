@@ -35,7 +35,7 @@ CREATE MATERIALIZED VIEW reporting_aws_compute_summary_by_service AS (
             MAX(currency_code) AS currency_code,
             MAX(source_uuid::text)::uuid as source_uuid
         FROM reporting_awscostentrylineitem_daily_summary
-        WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+        WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
             AND instance_type IS NOT NULL
         GROUP BY usage_start, usage_account_id, product_code, product_family, instance_type
     ) AS c
@@ -57,7 +57,7 @@ CREATE MATERIALIZED VIEW reporting_aws_compute_summary_by_service AS (
                 instance_type,
                 UNNEST(resource_ids) AS resource_id
             FROM reporting_awscostentrylineitem_daily_summary
-            WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+            WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
                 AND instance_type IS NOT NULL
         ) AS x
         GROUP BY usage_start, usage_account_id, product_code, product_family, instance_type
