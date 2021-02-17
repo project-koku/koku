@@ -821,6 +821,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -887,6 +893,14 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate",
+                        "name":"QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate",
+                        "name":"QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -953,6 +967,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1019,6 +1039,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1088,6 +1114,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/QueryComputeCount"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1154,6 +1186,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1223,6 +1261,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/QueryComputeCount"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1289,6 +1333,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1355,6 +1405,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1421,6 +1477,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1484,6 +1546,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1547,6 +1615,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1610,6 +1684,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1676,6 +1756,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1742,6 +1828,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1808,6 +1900,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1874,6 +1972,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1940,6 +2044,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -2006,6 +2116,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -2072,6 +2188,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -2138,6 +2260,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -2204,6 +2332,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -3933,6 +4067,15 @@
                     "type": "string"
                 }
             },
+            "QueryEndDate": {
+                "name": "end_date",
+                "in": "query",
+                "description": "String to indicate end date of date range.",
+                "schema": {
+                    "type": "string",
+                    "example": "1970-01-01"
+                }
+            },
             "QueryFilter": {
                 "name": "filter",
                 "required": false,
@@ -4025,6 +4168,15 @@
                 "description": "Flag to indicate whether or not only the tag key values will be returned.",
                 "schema": {
                     "type": "boolean"
+                }
+            },
+            "QueryStartDate": {
+                "name": "start_date",
+                "in": "query",
+                "description": "String to indicate start date of date range.",
+                "schema": {
+                    "type": "string",
+                    "example": "1970-01-01"
                 }
             },
             "QueryType": {
