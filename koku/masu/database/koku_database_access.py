@@ -95,7 +95,7 @@ class KokuDBAccess:
 
         """
         with schema_context(self.schema):
-            new_entry = self._table.objects.create(**kwargs)
+            new_entry, _ = self._table.objects.get_or_create(**kwargs)
             new_entry.save()
             return new_entry
 
