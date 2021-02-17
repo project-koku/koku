@@ -420,4 +420,4 @@ class ReportDBAccessorBase(KokuDBAccess):
                 table_name=partition_record["table_name"],
             )
         if created:
-            LOG.info(f"Created a new parttiion for {newpart.partition_of_table_name} : {newpart.table_name}")
+            LOG.info(f"Created a new partition for {newpart.partition_of_table_name} : {newpart.table_name}")
