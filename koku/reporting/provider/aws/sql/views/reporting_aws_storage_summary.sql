@@ -16,7 +16,7 @@ CREATE MATERIALIZED VIEW reporting_aws_storage_summary AS(
     -- Get data for this month or last month
     WHERE product_family LIKE '%Storage%'
         AND unit = 'GB-Mo'
-        AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+        AND usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
     GROUP BY usage_start, source_uuid, product_family
 )
 WITH DATA

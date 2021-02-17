@@ -16,7 +16,7 @@ CREATE MATERIALIZED VIEW reporting_azure_database_summary AS(
     FROM reporting_azurecostentrylineitem_daily_summary
     -- Get data for this month or last month
     WHERE service_name IN ('Cosmos DB','Cache for Redis') OR service_name ILIKE '%database%'
-        AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+        AND usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
     GROUP BY usage_start, subscription_guid, service_name
 )
 WITH DATA

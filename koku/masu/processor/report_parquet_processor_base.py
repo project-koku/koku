@@ -147,4 +147,4 @@ class ReportParquetProcessorBase:
                 active=True,
             )
             if created:
-                LOG.info(f"Created a new parttiion for {record.partition_of_table_name} : {record.table_name}")
+                LOG.info(f"Created a new partition for {record.partition_of_table_name} : {record.table_name}")
