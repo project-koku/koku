@@ -236,7 +236,7 @@ class AWSReportQueryTest(IamTestCase):
         url = "?filter[time_scope_value]=-10"
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
-        self.assertEqual(handler.get_resolution(), "daily")
+        self.assertEqual(handler.resolution, "daily")
 
     def test_get_time_scope_units_empty_default(self):
         """Test get_time_scope_units returns default when query params are empty."""
