@@ -438,6 +438,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         select_query = self.line_item_daily_summary_table.objects.filter(
             source_uuid=source_uuid, usage_start__gte=start_date, usage_start__lte=end_date
         )
-        count, _ = mini_transaction_delete(select_query)
+        with schema_context(self.schema):
+            count, _ = mini_transaction_delete(select_query)
         msg = f"Deleted {count} records from {self.line_item_daily_summary_table}"
         LOG.info(msg)

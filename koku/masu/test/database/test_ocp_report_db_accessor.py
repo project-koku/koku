@@ -2153,20 +2153,19 @@ select * from eek where val1 in {{report_period_ids}} ;
 
     def test_delete_line_item_daily_summary_entries_for_date_range(self):
         """Test that daily summary rows are deleted."""
-        dh = DateHelper()
-
-        end_date = dh.today.date()
-        start_date = dh.n_days_ago(end_date, 1)
+        with schema_context(self.schema):
+            start_date = OCPUsageLineItemDailySummary.objects.aggregate(Max("usage_start")).get("usage_start__max")
+            end_date = start_date
 
         table_query = OCPUsageLineItemDailySummary.objects.filter(
             source_uuid=self.ocp_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
         )
         with schema_context(self.schema):
-            self.assertNotEqual(table_query.count())
+            self.assertNotEqual(table_query.count(), 0)
 
         self.accessor.delete_line_item_daily_summary_entries_for_date_range(
             self.ocp_provider_uuid, start_date, end_date
         )
 
         with schema_context(self.schema):
-            self.assertEqual(table_query.count())
+            self.assertEqual(table_query.count(), 0)

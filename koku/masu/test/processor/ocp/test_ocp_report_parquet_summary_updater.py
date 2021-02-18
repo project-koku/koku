@@ -93,7 +93,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         end_date_str = end_date.strftime("%Y-%m-%d")
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_delete.assert_called_with(self.aws_provider.uuid, start_date, end_date)
+        mock_delete.assert_called_with(self.ocp_provider.uuid, start_date.date(), end_date.date())
         mock_sum.assert_called()
         mock_tag_sum.assert_called()
         mock_vol_tag_sum.assert_called()
