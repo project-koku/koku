@@ -53,6 +53,10 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
 
+    @property
+    def line_item_daily_summary_table(self):
+        return GCPCostEntryLineItemDailySummary
+
     def get_cost_entry_bills(self):
         """Get all cost entry bill objects."""
         table_name = GCPCostEntryBill
