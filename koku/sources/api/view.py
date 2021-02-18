@@ -218,7 +218,11 @@ class SourcesViewSet(*MIXIN_LIST):
         response = super().list(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
         for source in response.data["data"]:
-            if source.get("authentication", {}).get("credentials", {}).get("client_secret"):
+            if (
+                source.get("authentication")
+                and source.get("authentication").get("credentials")
+                and source.get("authentication").get("credentials").get("client_secret")
+            ):
                 del source["authentication"]["credentials"]["client_secret"]
             try:
                 manager = ProviderManager(source["uuid"])
