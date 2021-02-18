@@ -120,6 +120,7 @@ class GCPReportParquetSummaryUpdater:
                 start_date,
                 end_date,
             )
+            accessor.delete_line_item_daily_summary_entries_for_date_range(self._provider.uuid, start_date, end_date)
             accessor.populate_line_item_daily_summary_table_presto(
                 start_date, end_date, self._provider.uuid, current_bill_id, markup_value
             )
