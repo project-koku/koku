@@ -39,7 +39,7 @@ LOG = logging.getLogger(__name__)
 
 
 class ReportDBAccessorException(Exception):
-    """Postgres summary table is not defined."""
+    """An error in the DB accessor."""
 
 
 class ReportSchema:
