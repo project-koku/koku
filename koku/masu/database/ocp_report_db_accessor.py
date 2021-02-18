@@ -79,7 +79,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     @property
     def line_item_daily_summary_table(self):
-        return OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        return OCPUsageLineItemDailySummary
 
     def get_current_usage_report(self):
         """Get the most recent usage report object."""

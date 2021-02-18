@@ -57,7 +57,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
 
     @property
     def line_item_daily_summary_table(self):
-        return AWS_CUR_TABLE_MAP["line_item_daily_summary"]
+        return AWSCostEntryLineItemDailySummary
 
     def get_cost_entry_bills(self):
         """Get all cost entry bill objects."""
