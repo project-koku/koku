@@ -3,36 +3,6 @@
  * This SQL will utilize Presto for the raw line-item data aggregating
  * and store the results into the koku database summary tables.
  */
-
-/*
- * Delete the old block of data (if any) based on the usage range
- * Inserting a record in this log will trigger a delete against the specified table
- * in the same schema as the log table with the specified where_clause
- * start_date and end_date MUST be strings in order for this to work properly.
- */
-INSERT INTO postgres.{{schema | sqlsafe}}.presto_delete_wrapper_log (
-    id,
-    action_ts,
-    table_name,
-    where_clause,
-    result_rows
-)
-VALUES (
-    uuid(),
-    now(),
-    'reporting_ocpusagelineitem_daily_summary',
-    'where usage_start >= '{{start_date}}'::date ' ||
-        'and usage_start <= '{{end_date}}'::date ' ||
-        'and cluster_id = '{{cluster_id}}' ',
-    null
-)
-;
-
-/*
- * ====================================
- *               COMMON
- * ====================================
- */
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
@@ -68,6 +38,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     source_uuid,
     infrastructure_usage_cost
 )
+-- node label line items by day presto sql
 WITH cte_ocp_node_label_line_item_daily AS (
     SELECT date(nli.interval_start) as usage_start,
         nli.node,
@@ -82,6 +53,7 @@ WITH cte_ocp_node_label_line_item_daily AS (
         nli.node,
         nli.node_labels
 ),
+-- namespace label line items by day presto sql
 cte_ocp_namespace_label_line_item_daily AS (
     SELECT date(nli.interval_start) as usage_start,
         nli.namespace,
@@ -96,6 +68,7 @@ cte_ocp_namespace_label_line_item_daily AS (
         nli.namespace,
         nli.namespace_labels
 ),
+-- Daily sum of cluster CPU and memory capacity
 cte_ocp_cluster_capacity AS (
     SELECT date(cc.interval_start) as usage_start,
         sum(cc.max_cluster_capacity_cpu_core_seconds) as cluster_capacity_cpu_core_seconds,
@@ -116,6 +89,7 @@ cte_ocp_cluster_capacity AS (
     ) as cc
     GROUP BY date(cc.interval_start)
 ),
+-- Determine which node a PVC is running on
 cte_volume_nodes AS (
     SELECT date(sli.interval_start) as usage_start,
         sli.persistentvolumeclaim,
@@ -135,11 +109,14 @@ cte_volume_nodes AS (
         AND uli.source = {{source}}
         AND uli.year = {{year}}
         AND uli.month = {{month}}
-        -- AND uli.interval_start >= TIMESTAMP {{start_date}}
-        -- AND uli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
      GROUP BY date(sli.interval_start),
           sli.persistentvolumeclaim
 )
+/*
+ * ====================================
+ *            POD
+ * ====================================
+ */
 SELECT uuid() as uuid,
     {{report_period_id}} as report_period_id,
     {{cluster_id}} as cluster_id,
@@ -205,10 +182,6 @@ FROM (
             AND nsli.usage_start = date(li.interval_start)
     LEFT JOIN cte_ocp_cluster_capacity as cc
         ON cc.usage_start = date(li.interval_start)
-    -- CROSS JOIN (
-    --     SELECT array_agg(distinct key) as enabled_keys
-    --     FROM postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys
-    -- ) as ek
     WHERE li.source = {{source}}
         AND li.year = {{year}}
         AND li.month = {{month}}
@@ -224,21 +197,11 @@ FROM (
 
 UNION
 
-
 /*
  * ====================================
  *            STORAGE
  * ====================================
  */
-
-
-/*
- * This is the target summarization sql for STORAGE usage
- * It combines the prior daily summarization query with the final summarization query
- * by use of MAP_FILTER to filter the combined node line item labels as well as
- * the line-item pod labels against the postgres enabled keys in the same query
- */
-
 SELECT uuid() as uuid,
     {{report_period_id}} as report_period_id,
     {{cluster_id}} as cluster_id,
