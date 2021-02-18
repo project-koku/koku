@@ -2150,3 +2150,23 @@ select * from eek where val1 in {{report_period_ids}} ;
                     self.assertEqual([key_to_keep.key], tag_keys)
                 else:
                     self.assertEqual([], tag_keys)
+
+    def test_delete_line_item_daily_summary_entries_for_date_range(self):
+        """Test that daily summary rows are deleted."""
+        dh = DateHelper()
+
+        end_date = dh.today.date()
+        start_date = dh.n_days_ago(end_date, 1)
+
+        table_query = OCPUsageLineItemDailySummary.objects.filter(
+            source_uuid=self.ocp_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
+        )
+        with schema_context(self.schema):
+            self.assertNotEqual(table_query.count())
+
+        self.accessor.delete_line_item_daily_summary_entries_for_date_range(
+            self.ocp_provider_uuid, start_date, end_date
+        )
+
+        with schema_context(self.schema):
+            self.assertEqual(table_query.count())
