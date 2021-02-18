@@ -47,7 +47,10 @@ class GCPProvider(ProviderInterface):
         """Update data_source."""
         try:
             update_query = Sources.objects.filter(authentication={"credentials": credentials})
-            update_query.update(billing_source={"data_source": data_source})
+            for source in update_query:
+                if source.billing_source.get("data_source", {}).get("dataset") == data_source.get("dataset"):
+                    source_filter = Sources.objects.filter(source_id=source.source_id)
+                    source_filter.update(billing_source={"data_source": data_source})
         except Sources.DoesNotExist:
             LOG.info("Source not found, unable to update data source.")
 
@@ -62,6 +65,8 @@ class GCPProvider(ProviderInterface):
             else:
                 raise SkipStatusPush("Table ID not ready.")
         except NotFound as e:
+            data_source.pop("table_id", None)
+            self.update_source_data_source(credentials, data_source)
             key = "billing_source.dataset"
             LOG.info(error_obj(key, e.message))
             message = (

@@ -126,7 +126,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest = "{}/{}-Manifest.json".format(self._get_report_path(date_time), self.report_name)
 
         try:
-            manifest_file, _, manifest_modified_timestamp = self.download_file(manifest)
+            manifest_file, _, manifest_modified_timestamp, __ = self.download_file(manifest)
         except AWSReportDownloaderNoFileError as err:
             msg = f"Unable to get report manifest. Reason: {str(err)}"
             LOG.info(log_json(self.request_id, msg, self.context))
@@ -245,13 +245,13 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             # Push to S3
 
             s3_csv_path = get_path_prefix(
-                self.account, Provider.PROVIDER_AWS_LOCAL, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
+                self.account, Provider.PROVIDER_AWS, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
             )
             utils.copy_local_report_file_to_s3_bucket(
                 self.request_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context
             )
             utils.remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
-        return full_file_path, s3_etag, file_creation_date
+        return full_file_path, s3_etag, file_creation_date, []
 
     def get_local_file_for_report(self, report):
         """Get full path for local report file."""

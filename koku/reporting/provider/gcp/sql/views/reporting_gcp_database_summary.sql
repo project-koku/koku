@@ -21,7 +21,7 @@ CREATE MATERIALIZED VIEW reporting_gcp_database_summary AS(
         OR service_alias LIKE '%Firebase%'
         OR service_alias LIKE '%Memorystore%'
         OR service_alias LIKE '%MongoDB%'
-        AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+        AND usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
     GROUP BY usage_start, account_id
 )
 WITH DATA
