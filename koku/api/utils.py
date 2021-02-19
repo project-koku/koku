@@ -21,8 +21,11 @@ import logging
 
 import pint
 import pytz
+from dateutil.relativedelta import relativedelta
 from django.utils import timezone
 from pint.errors import UndefinedUnitError
+
+from masu.config import Config
 
 LOG = logging.getLogger(__name__)
 
@@ -267,6 +270,12 @@ class DateHelper:
         date_obj = datetime.datetime.strptime(date_str, "%Y%m")
         gcp_month_start = self.month_start(date_obj)
         return gcp_month_start
+
+
+def materialized_view_month_start(dh=DateHelper()):
+    """Datetime of midnight on the first of the month where materialized summary starts."""
+    summary_month = dh.this_month_start - relativedelta(months=Config.MASU_RETAIN_NUM_MONTHS - 1)
+    return summary_month
 
 
 class UnitConverter:
