@@ -74,6 +74,8 @@ class QueryHandler:
         self.time_scope_units = self.parameters.get_filter("time_scope_units")  # deprecated
         self.time_scope_value = int(self.parameters.get_filter("time_scope_value"))  # deprecated
 
+        # self.start_datetime = parameters["start_date"]
+        # self.end_datetime = parameters["end_date"]
         for param, attr in [("start_date", "start_datetime"), ("end_date", "end_datetime")]:
             p = self.parameters.get(param)
             if p:
