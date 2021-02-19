@@ -403,16 +403,20 @@ class ParamSerializer(BaseSerializer):
     def validate_start_date(self, value):
         """Validate that the start_date is within the expected range."""
         dh = DateHelper()
-        if value >= dh.last_month_start.date() and value <= dh.today.date():
+        if value >= dh.materialized_view_month_start.date() and value <= dh.today.date():
             return value
 
-        error = "Parameter start_date must be from {} to {}".format(dh.last_month_start.date(), dh.today.date())
+        error = "Parameter start_date must be from {} to {}".format(
+            dh.materialized_view_month_start.date(), dh.today.date()
+        )
         raise serializers.ValidationError(error)
 
     def validate_end_date(self, value):
         """Validate that the end_date is within the expected range."""
         dh = DateHelper()
-        if value >= dh.last_month_start.date() and value <= dh.today.date():
+        if value >= dh.materialized_view_month_start.date() and value <= dh.today.date():
             return value
-        error = "Parameter end_date must be from {} to {}".format(dh.last_month_start.date(), dh.today.date())
+        error = "Parameter end_date must be from {} to {}".format(
+            dh.materialized_view_month_start.date(), dh.today.date()
+        )
         raise serializers.ValidationError(error)
