@@ -171,7 +171,7 @@ APP_SETTINGS_SCREEN_MAP = {
 def source_settings_complete(provider):
     """Determine if the source application settings are complete."""
     if provider.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-        if not provider.billing_source.get("data_source").get("table_id"):
+        if not provider.billing_source.get("data_source", {}).get("table_id"):
             screen_fn = APP_SETTINGS_SCREEN_MAP.get(provider.source_type)
             return screen_fn(provider)
     elif provider.koku_uuid:

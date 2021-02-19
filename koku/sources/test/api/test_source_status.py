@@ -240,7 +240,7 @@ class SourcesStatusTest(IamTestCase):
                 "name": "New GCP Mock Test Source",
                 "source_type": Provider.PROVIDER_GCP,
                 "authentication": {"credentials": {"project_id": "test_project_id"}},
-                "billing_source": {"data_source": {"dataset": "test_dataset", "table_id": "test_table"}},
+                "billing_source": {"data_source": {"dataset": "test_dataset"}},
                 "offset": 1,
             },
         ]
@@ -488,3 +488,36 @@ class SourcesStatusTest(IamTestCase):
                 status_obj.status()
                 expected = f"INFO:sources.api.source_status:No provider found for Source ID: {source_id}"
                 self.assertIn(expected, logger.output)
+
+    def test_gcp_bigquery_table_found(self):
+        """Test helper method _gcp_bigquery_table_found."""
+        request = self.request_context.get("request")
+        aws_source_id = 1
+        Sources.objects.create(
+                source_id=aws_source_id,
+                name="AWS Source",
+                source_type=Provider.PROVIDER_AWS,
+                authentication={"credentials": {"role_arn": "fake-iam"}},
+                billing_source={"data_source": {"bucket": "my-bucket"}},
+                koku_uuid=str(uuid4()),
+                offset=1,
+        )
+
+        aws_status_obj = SourceStatus(request, aws_source_id)
+
+        self.assertFalse(aws_status_obj._gcp_bigquery_table_found())
+
+        gcp_source_id = 2
+        Sources.objects.create(
+                source_id=gcp_source_id,
+                name="GCP Source",
+                source_type=Provider.PROVIDER_GCP,
+                authentication={"credentials": {"project_id": "test_project_id"}},
+                billing_source={"data_source": {"dataset": "test_dataset"}},
+                koku_uuid=str(uuid4()),
+                offset=1,
+        )
+
+        aws_status_obj = SourceStatus(request, gcp_source_id)
+
+        self.assertTrue(aws_status_obj._gcp_bigquery_table_found())
