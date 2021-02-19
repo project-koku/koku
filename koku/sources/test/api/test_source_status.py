@@ -494,13 +494,13 @@ class SourcesStatusTest(IamTestCase):
         request = self.request_context.get("request")
         aws_source_id = 1
         Sources.objects.create(
-                source_id=aws_source_id,
-                name="AWS Source",
-                source_type=Provider.PROVIDER_AWS,
-                authentication={"credentials": {"role_arn": "fake-iam"}},
-                billing_source={"data_source": {"bucket": "my-bucket"}},
-                koku_uuid=str(uuid4()),
-                offset=1,
+            source_id=aws_source_id,
+            name="AWS Source",
+            source_type=Provider.PROVIDER_AWS,
+            authentication={"credentials": {"role_arn": "fake-iam"}},
+            billing_source={"data_source": {"bucket": "my-bucket"}},
+            koku_uuid=str(uuid4()),
+            offset=1,
         )
 
         aws_status_obj = SourceStatus(request, aws_source_id)
@@ -509,13 +509,13 @@ class SourcesStatusTest(IamTestCase):
 
         gcp_source_id = 2
         Sources.objects.create(
-                source_id=gcp_source_id,
-                name="GCP Source",
-                source_type=Provider.PROVIDER_GCP,
-                authentication={"credentials": {"project_id": "test_project_id"}},
-                billing_source={"data_source": {"dataset": "test_dataset"}},
-                koku_uuid=str(uuid4()),
-                offset=1,
+            source_id=gcp_source_id,
+            name="GCP Source",
+            source_type=Provider.PROVIDER_GCP,
+            authentication={"credentials": {"project_id": "test_project_id"}},
+            billing_source={"data_source": {"dataset": "test_dataset"}},
+            koku_uuid=str(uuid4()),
+            offset=1,
         )
 
         aws_status_obj = SourceStatus(request, gcp_source_id)
