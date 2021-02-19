@@ -233,7 +233,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         file_names_count = len(manifest_dict["file_names"])
         dh = DateHelper()
         manifest_id = self._process_manifest_db_record(
-            manifest_dict["assembly_id"], manifest_dict["start_date"], file_names_count, dh.today
+            manifest_dict["assembly_id"], manifest_dict["start_date"], file_names_count, dh._now
         )
 
         report_dict["manifest_id"] = manifest_id
