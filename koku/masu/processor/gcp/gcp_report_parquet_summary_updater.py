@@ -1,19 +1,36 @@
+#
+# Copyright 2021 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+"""Summary Updater for GCP Parquet files."""
 import calendar
 import logging
 
 import ciso8601
 from tenant_schemas.utils import schema_context
 
-from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
+from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import determine_if_full_summary_update_needed
 
 LOG = logging.getLogger(__name__)
 
 
-class AzureReportParquetSummaryUpdater:
-    """Class to update Azure report parquet summary data."""
+class GCPReportParquetSummaryUpdater:
+    """Class to update GCP report parquet summary data."""
 
     def __init__(self, schema, provider, manifest):
         """Establish parquet summary processor."""
@@ -24,7 +41,7 @@ class AzureReportParquetSummaryUpdater:
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
-        with AzureReportDBAccessor(self._schema) as accessor:
+        with GCPReportDBAccessor(self._schema) as accessor:
             # This is the normal processing route
             if self._manifest:
                 # Override the bill date to correspond with the manifest
@@ -82,16 +99,21 @@ class AzureReportParquetSummaryUpdater:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
-        with AzureReportDBAccessor(self._schema) as accessor:
+        with GCPReportDBAccessor(self._schema) as accessor:
             # Need these bills on the session to update dates after processing
             with schema_context(self._schema):
                 bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
                 bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
 
+            if current_bill_id is None:
+                msg = f"No bill was found for {start_date}. Skipping summarization"
+                LOG.info(msg)
+                return start_date, end_date
+
             # for start, end in date_range_pair(start_date, end_date):
             LOG.info(
-                "Updating Azure report summary tables via Presto: \n\tSchema: %s"
+                "Updating GCP report summary tables from parquet: \n\tSchema: %s"
                 "\n\tProvider: %s \n\tDates: %s - %s",
                 self._schema,
                 self._provider.uuid,

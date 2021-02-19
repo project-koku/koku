@@ -246,8 +246,11 @@ class OCPReportDownloaderTest(MasuTestCase):
     def test_create_daily_archives(self, mock_divide, mock_s3_copy, mock_os):
         """Test that this method returns a file list."""
         start_date = DateHelper().this_month_start
-        daily_files = [{"filename": "file_one"}, {"filename": "file_two"}]
-        expected_filenames = ["file_one", "file_two"]
+        daily_files = [
+            {"filename": "file_one", "filepath": "path/to/file_one"},
+            {"filename": "file_two", "filepath": "path/to/file_two"},
+        ]
+        expected_filenames = ["path/to/file_one", "path/to/file_two"]
 
         mock_divide.return_value = daily_files
 

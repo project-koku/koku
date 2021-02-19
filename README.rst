@@ -173,6 +173,13 @@ If you see this error, run the following command (assuming you are at the projec
 
     setfacl -m u:26:-wx ./pg_data
 
+If you need to run PostgreSQL using SSL for local development:
+
+1. Ensure that you have ``openssl`` installed.
+2. Ensure that you have the ``KOKU_PATH`` environment set to the koku source root directory.
+3. Execute ``${KOKU_PATH}/scripts/genssc`` and follow the prompts to create local a self-signed certificate for PostgreSQL.
+4. In the ``docker-compose.yml`` file, there are two commented sections labeled "PostgreSQL SSL". Follow the directions in these comments to enable the volume mounts and command options to use SSL.
+
 See  https://access.redhat.com/containers/?tab=overview#/registry.access.redhat.com/rhel8/postgresql-12
 
 
@@ -216,6 +223,51 @@ Information about PostgreSQL statistics can be found here: https://www.postgresq
 
 Information about Grafana dashboards can be found here: https://grafana.com/docs/grafana/latest/features/dashboard/dashboards/
 
+
+Using Trino and MinIO
+^^^^^^^^^^^^^^^^^^^^^
+
+We have a special docker-compose file specifically for running Trino (formerly Presto) with MinIO for object storage. With the proper environment variables set the app will run circumventing our conventional Postgres processing in favor of using Trino.
+
+Set the following environment variables ::
+
+    ENABLE_PARQUET_PROCESSING=True
+    S3_BUCKET_NAME=koku-bucket
+    S3_ENDPOINT=http://kokuminio:9000
+    S3_ACCESS_KEY=kokuminioaccess
+    S3_SECRET=kokuminiosecret
+
+To spin up the minimum targets for Trino use ::
+
+    make docker-up-min-presto
+
+To skip building the koku image base ::
+
+    make docker-up-min-presto-no-build
+
+To tear down containers ::
+
+    make docker-presto-down-all
+
+With all containers running any source added will be processed by saving CSV files in MinIO and storing Parquet files in MinIO. The source's data will be summarized via Trino. Summarized data will land in the appropriate daily_summary table for the source type for consumption by the API.
+
+To add test sources and data ::
+
+    make create-test-customer
+    make load-test-customer-data (optional)start={start_date} (optional)end={end_date}
+
+The MinIO UI will be available at http://127.0.0.1:9000/minio/. Use the S3_ACCESS_KEY and S3_SECRET set in your env as login credentials.
+
+The Trinio UI will be available at http://127.0.0.1:8080/ui/. Login as `admin`. Details can be found there on queries. This is particularly useful for troubleshooting failures.
+
+For command line interactions with Trino install the CLI from https://trino.io/docs/current/installation/cli.html and follow instructions there. Use the following to login ::
+
+    trino --server localhost:8080 --catalog hive --schema acct10001 --user admin --debug
+
+Example usage ::
+
+    SHOW tables;
+    SELECT * from aws_line_items WHERE source='{source}' AND year='2021' AND month='02' LIMIT 100;
 
 Developing with OpenShift
 -------------------------

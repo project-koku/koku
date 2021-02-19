@@ -347,27 +347,23 @@ class QueryHandler:
         returns:
             None
         """
-        if isinstance(filt, list):
-            for _filt in filt:
-                _filt["operation"] = "in"
-                q_filter = QueryFilter(parameter=access, **_filt)
-                filters.add(q_filter)
-        else:
-            filt["operation"] = "in"
+        for _filt in filt if isinstance(filt, list) else [filt]:
+            check_field_type = None
             try:
-                check_field_type = None
                 if hasattr(self, "query_table"):
                     # Reports APIs
-                    check_field_type = self.query_table._meta.get_field(filt.get("field", "")).get_internal_type()
+                    check_field_type = self.query_table._meta.get_field(_filt.get("field", "")).get_internal_type()
                 elif hasattr(self, "data_sources"):
                     # Tags APIs
                     check_field_type = (
-                        self.data_sources[0].get("db_table")._meta.get_field(filt.get("field", "")).get_internal_type()
+                        self.data_sources[0]
+                        .get("db_table")
+                        ._meta.get_field(_filt.get("field", ""))
+                        .get_internal_type()
                     )
-                if check_field_type == "ArrayField":
-                    filt["operation"] = "contains"
             except FieldDoesNotExist:
                 pass
 
-            q_filter = QueryFilter(parameter=access, **filt)
+            _filt["operation"] = "contains" if check_field_type == "ArrayField" else "in"
+            q_filter = QueryFilter(parameter=access, **_filt)
             filters.add(q_filter)

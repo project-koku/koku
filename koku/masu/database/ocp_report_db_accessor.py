@@ -77,6 +77,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self.jinja_sql = JinjaSql()
         self.date_helper = DateHelper()
 
+    @property
+    def line_item_daily_summary_table(self):
+        return OCPUsageLineItemDailySummary
+
     def get_current_usage_report(self):
         """Get the most recent usage report object."""
         table_name = OCP_REPORT_TABLE_MAP["report"]

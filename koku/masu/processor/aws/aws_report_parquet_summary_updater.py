@@ -1,3 +1,20 @@
+#
+# Copyright 2020 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+"""Summary Updater for AWS Parquet files."""
 import calendar
 import logging
 
@@ -98,6 +115,7 @@ class AWSReportParquetSummaryUpdater:
                 start_date,
                 end_date,
             )
+            accessor.delete_line_item_daily_summary_entries_for_date_range(self._provider.uuid, start_date, end_date)
             accessor.populate_line_item_daily_summary_table_presto(
                 start_date, end_date, self._provider.uuid, current_bill_id, markup_value
             )
