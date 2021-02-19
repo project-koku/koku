@@ -101,7 +101,7 @@ class SourceStatus:
         """Push status_msg to platform sources."""
         try:
             status_obj = self.status()
-            # self.sources_client.set_source_status(status_obj)
+            self.sources_client.set_source_status(status_obj)
             self.update_source_name()
             LOG.info(f"Source status for Source ID: {str(self.source_id)}: Status: {str(status_obj)}")
         except SkipStatusPush as error:
