@@ -128,12 +128,6 @@ class DateHelper:
         return last_month.replace(day=1)
 
     @property
-    def materialized_view_month_start(self):
-        """Datetime of midnight on the first of the month where materialized summary starts."""
-        summary_month = self.this_month_start - relativedelta(months=Config.MASU_RETAIN_NUM_MONTHS - 1)
-        return summary_month
-
-    @property
     def next_month_start(self):
         """Datetime of midnight on the 1st of next month."""
         return self.this_month_end + self.one_day
@@ -276,6 +270,12 @@ class DateHelper:
         date_obj = datetime.datetime.strptime(date_str, "%Y%m")
         gcp_month_start = self.month_start(date_obj)
         return gcp_month_start
+
+
+def materialized_view_month_start(dh=DateHelper()):
+    """Datetime of midnight on the first of the month where materialized summary starts."""
+    summary_month = dh.this_month_start - relativedelta(months=Config.MASU_RETAIN_NUM_MONTHS - 1)
+    return summary_month
 
 
 class UnitConverter:

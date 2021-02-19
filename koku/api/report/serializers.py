@@ -21,6 +21,7 @@ from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
 from api.utils import DateHelper
+from api.utils import materialized_view_month_start
 
 
 def handle_invalid_fields(this, data):
@@ -403,20 +404,20 @@ class ParamSerializer(BaseSerializer):
     def validate_start_date(self, value):
         """Validate that the start_date is within the expected range."""
         dh = DateHelper()
-        if value >= dh.materialized_view_month_start.date() and value <= dh.today.date():
+        if value >= materialized_view_month_start(dh).date() and value <= dh.today.date():
             return value
 
         error = "Parameter start_date must be from {} to {}".format(
-            dh.materialized_view_month_start.date(), dh.today.date()
+            materialized_view_month_start(dh).date(), dh.today.date()
         )
         raise serializers.ValidationError(error)
 
     def validate_end_date(self, value):
         """Validate that the end_date is within the expected range."""
         dh = DateHelper()
-        if value >= dh.materialized_view_month_start.date() and value <= dh.today.date():
+        if value >= materialized_view_month_start(dh).date() and value <= dh.today.date():
             return value
         error = "Parameter end_date must be from {} to {}".format(
-            dh.materialized_view_month_start.date(), dh.today.date()
+            materialized_view_month_start(dh).date(), dh.today.date()
         )
         raise serializers.ValidationError(error)

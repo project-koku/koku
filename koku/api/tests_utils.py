@@ -27,6 +27,7 @@ from django.utils import timezone
 from pint.errors import UndefinedUnitError
 
 from api.utils import DateHelper
+from api.utils import materialized_view_month_start
 from api.utils import merge_dicts
 from api.utils import UnitConverter
 from masu.config import Config
@@ -59,6 +60,18 @@ class MergeDictsTest(unittest.TestCase):
         merge3 = merge_dicts(dikt1, dikt2, dikt3)
         for k, v in expected_2.items():
             self.assertEqual(sorted(merge3[k]), sorted(v))
+
+
+class MaterializsedViewStartTest(unittest.TestCase):
+    """Test the materialized_view_month_start util."""
+
+    def test_materialized_view_month_start(self):
+        """Test materialized_view_month_start property."""
+        with patch.object(Config, "MASU_RETAIN_NUM_MONTHS", 5):
+            today = timezone.now().replace(microsecond=0, second=0, minute=0, hour=0)
+            retain_months_ago = today - relativedelta(months=Config.MASU_RETAIN_NUM_MONTHS - 1)
+            expected = retain_months_ago.replace(day=1)
+            self.assertEqual(materialized_view_month_start(), expected)
 
 
 class DateHelperTest(TestCase):
@@ -125,14 +138,6 @@ class DateHelperTest(TestCase):
         """Test last_month_start property."""
         expected = datetime.datetime(1969, 12, 1, 0, 0, 0, 0)
         self.assertEqual(self.date_helper.last_month_start, expected)
-
-    def test_materialized_view_month_start(self):
-        """Test materialized_view_month_start property."""
-        with patch.object(Config, "MASU_RETAIN_NUM_MONTHS", 5):
-            today = timezone.now().replace(microsecond=0, second=0, minute=0, hour=0)
-            retain_months_ago = today - relativedelta(months=Config.MASU_RETAIN_NUM_MONTHS - 1)
-            expected = retain_months_ago.replace(day=1)
-            self.assertEqual(DateHelper().materialized_view_month_start, expected)
 
     def test_last_month_end(self):
         """Test last_month_end property."""
