@@ -121,17 +121,20 @@ INSERT INTO {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily (
     FROM reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}}
 ;
 
-INSERT INTO {{schema | sqlsafe}}.reporting_awsenabledtagkeys (
-    key
-)
-    SELECT DISTINCT(key)
-    FROM reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}} as li, jsonb_each_text(li.tags) labels
-    WHERE NOT EXISTS(
-        SELECT key
-        FROM {{schema | sqlsafe}}.reporting_awsenabledtagkeys
-        WHERE key = labels.key)
-        AND NOT key = ANY(SELECT DISTINCT(key) FROM {{schema | sqlsafe}}.reporting_awstags_summary)
+INSERT INTO {{schema | sqlsafe}}.reporting_awsenabledtagkeys (key)
+SELECT DISTINCT(key)
+  FROM reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}} as li,
+       jsonb_each_text(li.tags) labels
+ WHERE NOT EXISTS (
+         SELECT key
+           FROM {{schema | sqlsafe}}.reporting_awsenabledtagkeys
+          WHERE key = labels.key
+       )
+   AND NOT key = ANY(
+         SELECT DISTINCT(key)
+           FROM {{schema | sqlsafe}}.reporting_awstags_summary
+       )
+    ON CONFLICT (key) DO NOTHING;
 
-;
 TRUNCATE TABLE reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}};
 DROP TABLE reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}};
