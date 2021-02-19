@@ -115,6 +115,9 @@ help:
 	@echo "                                         password: admin12"
 	@echo "  docker-up-min                        run database, koku/masu servers and worker"
 	@echo "  docker-down                          shut down all containers"
+	@echo "  docker-up-min-presto                 start minimum targets for Presto usage"
+	@echo "  docker-up-min-presto-no-build        start minimum targets for Presto usage without building koku base"
+	@echo "  docker-presto-down-all               Tear down Presto and Koku containers"
 	@echo "  docker-rabbit                        run RabbitMQ container"
 	@echo "  docker-reinitdb                      drop and recreate the database"
 	@echo "  docker-reinitdb-with-sources         drop and recreate the database with fake sources"
@@ -399,6 +402,8 @@ docker-presto-ps:
 docker-presto-down:
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down -v
 	make docker-presto-cleanup
+
+docker-presto-down-all: docker-presto-down docker-down
 
 ### Source targets ###
 ocp-source-from-yaml:
