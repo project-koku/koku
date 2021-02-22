@@ -28,7 +28,7 @@ import pytz
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
-from django.db import transaction
+from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
 from masu.config import Config
@@ -36,13 +36,13 @@ from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util import common as utils
-from masu.util.gcp.common import GCP_SERVICE_LINE_ITEM_TYPE_MAP
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItem
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
 
+# from django.db import transaction
 
 LOG = logging.getLogger(__name__)
 
@@ -71,6 +71,7 @@ class ProcessedGCPReport:
         self.line_items = []
         self.projects = {}
         self.products = {}
+        self.bills = {}
 
 
 class GCPReportProcessor(ReportProcessorBase):
@@ -119,20 +120,6 @@ class GCPReportProcessor(ReportProcessorBase):
         LOG.info("Initialized report processor for file: %s and schema: %s", report_path, self._schema)
 
         self.line_item_columns = None
-
-    def _get_line_item_type(self, row):
-        """Given a row find the line item type."""
-        item_type = "other"
-        service_alias = row.get("service.description", "")
-        key_list = list(GCP_SERVICE_LINE_ITEM_TYPE_MAP.keys())
-        if service_alias in key_list:
-            return GCP_SERVICE_LINE_ITEM_TYPE_MAP[service_alias]
-        service_alias = service_alias.replace(" ", "").lower()
-        for key in key_list:
-            if service_alias == key.replace(" ", "").lower():
-                item_type = GCP_SERVICE_LINE_ITEM_TYPE_MAP[key]
-                break
-        return item_type
 
     def _delete_line_items_in_range(self, bill_id):
         """Delete stale data between date range."""
@@ -240,6 +227,9 @@ class GCPReportProcessor(ReportProcessorBase):
         if key in self.processed_report.bills:
             return self.processed_report.bills[key]
 
+        if key in self.existing_bill_map:
+            return self.existing_bill_map[key]
+
         bill_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name, data, conflict_columns=["billing_period_start", "provider_id"]
         )
@@ -265,6 +255,9 @@ class GCPReportProcessor(ReportProcessorBase):
         if key in self.processed_report.projects:
             return self.processed_report.projects[key]
 
+        if key in self.existing_projects_map:
+            return self.existing_projects_map[key]
+
         project_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name, data, conflict_columns=["project_id"]
         )
@@ -287,6 +280,9 @@ class GCPReportProcessor(ReportProcessorBase):
         data = report_db_accessor.clean_data(data, table_name._meta.db_table)
 
         key = (data["service_id"], data["sku_id"])
+        if key in self.processed_report.products:
+            return self.processed_report.products[key]
+
         if key in self.existing_product_map:
             return self.existing_product_map[key]
 
@@ -312,7 +308,6 @@ class GCPReportProcessor(ReportProcessorBase):
         data["cost_entry_bill_id"] = bill_id
         data["project_id"] = project_id
         data["cost_entry_product_id"] = service_product_id
-        data["line_item_type"] = self._get_line_item_type(row)
         data["tags"] = self._process_tags(row)
         data["usage_type"] = self._get_usage_type(row)
 
@@ -335,11 +330,11 @@ class GCPReportProcessor(ReportProcessorBase):
 
     def _update_mappings(self):
         """Update cache of database objects for reference."""
+        self.existing_bill_map.update(self.processed_report.bills)
         self.existing_product_map.update(self.processed_report.products)
         self.existing_projects_map.update(self.processed_report.projects)
         self.processed_report.remove_processed_rows()
 
-    @transaction.atomic
     def process(self):
         """Process GCP billing file."""
         row_count = 0
@@ -383,16 +378,17 @@ class GCPReportProcessor(ReportProcessorBase):
                         )
 
             if self.processed_report.line_items:
-                LOG.info(
-                    "Saving report rows %d to %d for %s",
-                    row_count,
-                    row_count + len(self.processed_report.line_items),
-                    self._report_name,
-                )
-                temp_table = report_db.create_temp_table(self.line_item_table_name, drop_column="id")
-                self._save_to_db(temp_table, report_db)
-                row_count += len(self.processed_report.line_items)
-                report_db.merge_temp_table(self.line_item_table_name, temp_table, self.line_item_columns)
+                with schema_context(self._schema):
+                    LOG.info(
+                        "Saving report rows %d to %d for %s",
+                        row_count,
+                        row_count + len(self.processed_report.line_items),
+                        self._report_name,
+                    )
+                    temp_table = report_db.create_temp_table(self.line_item_table_name, drop_column="id")
+                    self._save_to_db(temp_table, report_db)
+                    row_count += len(self.processed_report.line_items)
+                    report_db.merge_temp_table(self.line_item_table_name, temp_table, self.line_item_columns)
 
             self._update_mappings()
 
