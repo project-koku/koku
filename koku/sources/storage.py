@@ -172,7 +172,7 @@ def source_settings_complete(provider):
     """Determine if the source application settings are complete."""
     # Short term exception to allow for GCP availability status to push when we first
     # discover the BigQuery Table ID.
-    if provider.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL) and not provider.koku_uuid:
+    if provider.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
         if not provider.billing_source.get("data_source", {}).get("table_id"):
             screen_fn = APP_SETTINGS_SCREEN_MAP.get(provider.source_type)
             return screen_fn(provider)
