@@ -260,6 +260,31 @@ class SourcesStatusTest(IamTestCase):
                     self.assertEquals("available", actual_source_status.get("availability_status"))
                     self.assertTrue(Provider.objects.get(uuid=provider.uuid).active)
 
+    @override_settings(
+        DEMO_ACCOUNTS={"123": {"arn:aws:iam::999:role/DEMO": {"report_prefix": "cur", "report_name": "awscost"}}}
+    )
+    @patch("sources.api.source_status.SourcesHTTPClient.get_source_details")
+    def test_available_demo_accounts(self, mock_cost_usage_ready):
+        """Test avaiability status for demo accounts."""
+        test_source_id = 3
+        source_json = {
+            "name": "New AWS Mock Test Source",
+            "source_type": Provider.PROVIDER_AWS,
+            "source_id": test_source_id,
+            "account_id": 123,
+            "authentication": {"credentials": {"role_arn": "fake-iam"}},
+            "billing_source": {"data_source": {"bucket": "my-bucket"}},
+            "offset": 1,
+        }
+
+        source_json["koku_uuid"] = faker.uuid4()
+        url = reverse("source-status")
+        client = APIClient()
+        # Insert a source with ID 1
+        Sources.objects.create(**source_json)
+        _ = client.get(url + f"?source_id={test_source_id}", **self.headers)
+        mock_cost_usage_ready.assert_not_called()
+
     def test_not_ready_for_status(self):
         """Test that availability status when source is not ready for status check."""
         request = self.request_context.get("request")

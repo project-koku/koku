@@ -17,6 +17,7 @@
 import logging
 import threading
 
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.views.decorators.cache import never_cache
@@ -73,7 +74,8 @@ class SourceStatus:
         interface = ProviderAccessor(provider_type)
         error_obj = None
         try:
-            interface.cost_usage_source_ready(source_authentication, source_billing_source)
+            if self.source.account_id not in settings.DEMO_ACCOUNTS:
+                interface.cost_usage_source_ready(source_authentication, source_billing_source)
             self._set_provider_active_status(True)
         except ValidationError as validation_error:
             self._set_provider_active_status(False)
