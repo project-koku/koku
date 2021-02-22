@@ -21,6 +21,8 @@ from api.report.serializers import add_operator_specified_fields
 from api.report.serializers import handle_invalid_fields
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
+from api.utils import DateHelper
+from api.utils import materialized_view_month_start
 
 AWS_FILTER_OP_FIELDS = ["org_unit_id"]
 
@@ -33,8 +35,8 @@ class FilterSerializer(serializers.Serializer):
     TIME_UNIT_CHOICES = (("day", "day"), ("month", "month"))
 
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
-    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
-    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
+    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)  # deprecated
+    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)  # deprecated
     limit = serializers.IntegerField(required=False, min_value=1)
     offset = serializers.IntegerField(required=False, min_value=0)
 
@@ -95,6 +97,10 @@ class OrgQueryParamSerializer(serializers.Serializer):
     limit = serializers.IntegerField(required=False, min_value=1)
     offset = serializers.IntegerField(required=False, min_value=0)
 
+    # DateField defaults: format='iso-8601', input_formats=['iso-8601']
+    start_date = serializers.DateField(required=False)
+    end_date = serializers.DateField(required=False)
+
     def validate(self, data):
         """Validate incoming data.
 
@@ -106,8 +112,49 @@ class OrgQueryParamSerializer(serializers.Serializer):
             (ValidationError): if field inputs are invalid
 
         """
+        super().validate(data)
         handle_invalid_fields(self, data)
+
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+        time_scope_value = data.get("filter", {}).get("time_scope_value")
+        time_scope_units = data.get("filter", {}).get("time_scope_units")
+
+        if (start_date or end_date) and (time_scope_value or time_scope_units):
+            error = {
+                "error": (
+                    "The parameters [start_date, end_date] may not be ",
+                    "used with the filters [time_scope_value, time_scope_units]",
+                )
+            }
+            raise serializers.ValidationError(error)
+
+        if (start_date and not end_date) or (end_date and not start_date):
+            error = {"error": "The parameters [start_date, end_date] must both be defined."}
+            raise serializers.ValidationError(error)
+
+        if start_date and end_date and (start_date > end_date):
+            error = {"error": "start_date must be a date that is before end_date."}
+            raise serializers.ValidationError(error)
+
         return data
+
+    def validate_start_date(self, value):
+        """Validate that the start_date is within the expected range."""
+        dh = DateHelper()
+        if value >= materialized_view_month_start(dh).date() and value <= dh.today.date():
+            return value
+
+        error = "Parameter start_date must be from {} to {}".format(dh.last_month_start.date(), dh.today.date())
+        raise serializers.ValidationError(error)
+
+    def validate_end_date(self, value):
+        """Validate that the end_date is within the expected range."""
+        dh = DateHelper()
+        if value >= materialized_view_month_start(dh).date() and value <= dh.today.date():
+            return value
+        error = "Parameter end_date must be from {} to {}".format(dh.last_month_start.date(), dh.today.date())
+        raise serializers.ValidationError(error)
 
 
 class AWSOrgQueryParamSerializer(OrgQueryParamSerializer):
