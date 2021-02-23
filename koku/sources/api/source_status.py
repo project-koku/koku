@@ -109,7 +109,10 @@ class SourceStatus:
             status_obj = self.status()
             if self._gcp_bigquery_table_found():
                 builder = SourcesProviderCoordinator(self.source.source_id, self.source.auth_header)
-                builder.create_account(self.source)
+                if source.koku_uuid:
+                    builder.update_account(self.source)
+                else:
+                    builder.create_account(self.source)
                 self.sources_client.set_source_status(status_obj)
             self.update_source_name()
             LOG.info(f"Source status for Source ID: {str(self.source_id)}: Status: {str(status_obj)}")
