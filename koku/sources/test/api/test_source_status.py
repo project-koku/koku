@@ -34,6 +34,7 @@ from providers.provider_errors import ProviderErrors
 from sources.api.source_status import SourceStatus
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
+from sources.sources_provider_coordinator import SourcesProviderCoordinator
 
 faker = Faker()
 
@@ -149,11 +150,12 @@ class SourcesStatusTest(IamTestCase):
                 offset=1,
             )
             request = self.request_context.get("request")
-            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-                with patch.object(SourceStatus, "update_source_name", returns=True):
-                    status_obj = SourceStatus(request, test_source_id)
-                    status_obj.push_status()
-                    mock_set_source_status.assert_called()
+            with patch.object(SourcesProviderCoordinator, "create_account", returns=True):
+                with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                    with patch.object(SourceStatus, "update_source_name", returns=True):
+                        status_obj = SourceStatus(request, test_source_id)
+                        status_obj.push_status()
+                        mock_set_source_status.assert_called()
 
     @patch("sources.api.source_status.SourcesHTTPClient.set_source_status")
     def test_push_status_second_gcp_table_discovery(self, mock_set_source_status):
