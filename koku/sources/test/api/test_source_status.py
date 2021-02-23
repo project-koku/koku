@@ -34,7 +34,6 @@ from providers.provider_errors import ProviderErrors
 from sources.api.source_status import SourceStatus
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
-from sources.sources_provider_coordinator import SourcesProviderCoordinator
 
 faker = Faker()
 
@@ -133,8 +132,12 @@ class SourcesStatusTest(IamTestCase):
                 response = client.post(url, data=json_data, **self.headers)
             self.assertEquals(response.status_code, 204)
 
+    @patch("sources.api.source_status.SourcesProviderCoordinator.create_account")
+    @patch("sources.api.source_status.SourcesProviderCoordinator.update_account")
     @patch("sources.api.source_status.SourcesHTTPClient.set_source_status")
-    def test_push_status_first_gcp_table_discovery(self, mock_set_source_status):
+    def test_push_status_first_gcp_table_discovery(
+        self, mock_set_source_status, mock_update_account, mock_create_account
+    ):
         """Test that push_status for initial discovery of GCP BigQuery table id."""
         mock_status = {"availability_status": "available", "availability_status_error": ""}
         with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
@@ -150,12 +153,43 @@ class SourcesStatusTest(IamTestCase):
                 offset=1,
             )
             request = self.request_context.get("request")
-            with patch.object(SourcesProviderCoordinator, "create_account", returns=True):
-                with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-                    with patch.object(SourceStatus, "update_source_name", returns=True):
-                        status_obj = SourceStatus(request, test_source_id)
-                        status_obj.push_status()
-                        mock_set_source_status.assert_called()
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                with patch.object(SourceStatus, "update_source_name", returns=True):
+                    status_obj = SourceStatus(request, test_source_id)
+                    status_obj.push_status()
+                    mock_set_source_status.assert_called()
+                    mock_create_account.assert_called()
+                    mock_update_account.assert_not_called()
+
+    @patch("sources.api.source_status.SourcesProviderCoordinator.create_account")
+    @patch("sources.api.source_status.SourcesProviderCoordinator.update_account")
+    @patch("sources.api.source_status.SourcesHTTPClient.set_source_status")
+    def test_push_status_first_gcp_table_discovery_update(
+        self, mock_set_source_status, mock_update_account, mock_create_account
+    ):
+        """Test that push_status for initial discovery of GCP BigQuery table id after dataset was updated."""
+        mock_status = {"availability_status": "available", "availability_status_error": ""}
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
+            test_source_id = 1
+            # Insert a source with ID 1
+            Sources.objects.create(
+                source_id=test_source_id,
+                name="New GCP Mock Test Source",
+                source_type=Provider.PROVIDER_GCP,
+                koku_uuid=faker.uuid4(),
+                authentication={"credentials": {"project_id": "test_project_id"}},
+                billing_source={"data_source": {"dataset": "test_dataset"}},
+                status={},
+                offset=1,
+            )
+            request = self.request_context.get("request")
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                with patch.object(SourceStatus, "update_source_name", returns=True):
+                    status_obj = SourceStatus(request, test_source_id)
+                    status_obj.push_status()
+                    mock_set_source_status.assert_called()
+                    mock_create_account.assert_not_called()
+                    mock_update_account.assert_called()
 
     @patch("sources.api.source_status.SourcesHTTPClient.set_source_status")
     def test_push_status_second_gcp_table_discovery(self, mock_set_source_status):
