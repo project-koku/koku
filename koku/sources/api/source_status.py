@@ -109,7 +109,7 @@ class SourceStatus:
             status_obj = self.status()
             if self._gcp_bigquery_table_found():
                 builder = SourcesProviderCoordinator(self.source.source_id, self.source.auth_header)
-                if source.koku_uuid:
+                if self.source.koku_uuid:
                     builder.update_account(self.source)
                 else:
                     builder.create_account(self.source)
