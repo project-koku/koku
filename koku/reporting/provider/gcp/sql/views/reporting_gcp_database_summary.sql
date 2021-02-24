@@ -6,12 +6,14 @@ CREATE MATERIALIZED VIEW reporting_gcp_database_summary AS(
         usage_start,
         usage_start as usage_end,
         account_id,
-        sum(usage_amount) as usage_amount,
+        SUM(case when usage_amount = 'NaN' then 0.0::numeric(24,9) else usage_amount end::numeric(24,9)) AS usage_amount,
         max(unit) as unit,
         sum(unblended_cost) as unblended_cost,
         sum(markup_cost) as markup_cost,
         max(currency) as currency,
-        max(source_uuid::text)::uuid as source_uuid
+        max(source_uuid::text)::uuid as source_uuid,
+        service_id,
+        service_alias
     FROM reporting_gcpcostentrylineitem_daily_summary
     -- Get data for this month or last month
     WHERE service_alias LIKE '%SQL%'
@@ -22,11 +24,11 @@ CREATE MATERIALIZED VIEW reporting_gcp_database_summary AS(
         OR service_alias LIKE '%Memorystore%'
         OR service_alias LIKE '%MongoDB%'
         AND usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
-    GROUP BY usage_start, account_id
+    GROUP BY usage_start, account_id, account_id, service_id, service_alias
 )
 WITH DATA
 ;
 
 CREATE UNIQUE INDEX gcp_database_summary
-ON reporting_gcp_database_summary (usage_start, account_id)
+ON reporting_gcp_database_summary (usage_start, account_id, service_id, service_alias)
 ;
