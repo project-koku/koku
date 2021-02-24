@@ -29,6 +29,7 @@ from dateutil import parser
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.db import transaction
+from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
 from masu.config import Config
@@ -383,16 +384,17 @@ class GCPReportProcessor(ReportProcessorBase):
                         )
 
             if self.processed_report.line_items:
-                LOG.info(
-                    "Saving report rows %d to %d for %s",
-                    row_count,
-                    row_count + len(self.processed_report.line_items),
-                    self._report_name,
-                )
-                temp_table = report_db.create_temp_table(self.line_item_table_name, drop_column="id")
-                self._save_to_db(temp_table, report_db)
-                row_count += len(self.processed_report.line_items)
-                report_db.merge_temp_table(self.line_item_table_name, temp_table, self.line_item_columns)
+                with schema_context(self._schema):
+                    LOG.info(
+                        "Saving report rows %d to %d for %s",
+                        row_count,
+                        row_count + len(self.processed_report.line_items),
+                        self._report_name,
+                    )
+                    temp_table = report_db.create_temp_table(self.line_item_table_name, drop_column="id")
+                    self._save_to_db(temp_table, report_db)
+                    row_count += len(self.processed_report.line_items)
+                    report_db.merge_temp_table(self.line_item_table_name, temp_table, self.line_item_columns)
 
             self._update_mappings()
 
