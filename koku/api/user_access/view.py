@@ -47,7 +47,7 @@ class UIFeatureAccess:
                              this API returns True
     """
 
-    def __init__(self, access):
+    def __init__(self, access={}):
         """Class Constructor.
 
         Args:
