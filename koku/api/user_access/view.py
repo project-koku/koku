@@ -54,10 +54,11 @@ class UIFeatureAccess:
             access (dict) - an RBAC dict; see: koku.koku.middleware.IdentityHeaderMiddleware
 
         """
-        self.access_dict = access
+        self.access_dict = access if access else {}
 
-    def _get_access_value(self, key1, key2, default={}):
+    def _get_access_value(self, key1, key2, default=None):
         """Return the access value from the inner dict."""
+        LOG.info(f"ACCESS DICT: {str(self.access_dict)}")
         return self.access_dict.get(key1, {}).get(key2, default)
 
     @property
