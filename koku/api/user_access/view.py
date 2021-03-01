@@ -47,7 +47,7 @@ class UIFeatureAccess:
                              this API returns True
     """
 
-    def __init__(self, access={}):
+    def __init__(self, access):
         """Class Constructor.
 
         Args:
@@ -56,7 +56,7 @@ class UIFeatureAccess:
         """
         self.access_dict = access
 
-    def _get_access_value(self, key1, key2, default=None):
+    def _get_access_value(self, key1, key2, default={}):
         """Return the access value from the inner dict."""
         return self.access_dict.get(key1, {}).get(key2, default)
 
