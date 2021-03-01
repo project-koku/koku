@@ -170,6 +170,10 @@ APP_SETTINGS_SCREEN_MAP = {
 
 def source_settings_complete(provider):
     """Determine if the source application settings are complete."""
+    if provider.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+        if not provider.billing_source.get("data_source", {}).get("table_id"):
+            screen_fn = APP_SETTINGS_SCREEN_MAP.get(provider.source_type)
+            return screen_fn(provider)
     if provider.koku_uuid:
         screen_fn = APP_SETTINGS_SCREEN_MAP.get(provider.source_type)
         return screen_fn(provider)
@@ -471,8 +475,8 @@ def add_provider_koku_uuid(source_id, koku_uuid):
     source = get_source(source_id, f"Source ID {source_id} does not exist.", LOG.error)
     if source and source.koku_uuid != koku_uuid:
         LOG.info(f"Adding provider uuid {str(koku_uuid)} to Source ID: {str(source_id)}")
-        source.koku_uuid = koku_uuid
-        source.save()
+        source_query = Sources.objects.filter(source_id=source.source_id)
+        source_query.update(koku_uuid=koku_uuid)
 
 
 def save_status(source_id, status):
