@@ -143,7 +143,8 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
                     return HttpResponseUnauthorizedRequest()
                 if not request.user.admin and request.user.access is None:
                     LOG.warning("User %s is does not have permissions for Cost Management.", username)
-                    raise PermissionDenied()
+                    if request.path != '/api/cost-management/v1/user-access/':
+                        raise PermissionDenied()
             else:
                 return HttpResponseUnauthorizedRequest()
         try:
