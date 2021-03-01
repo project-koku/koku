@@ -81,6 +81,35 @@ class KokuTenantMiddlewareTest(IamTestCase):
         result = middleware.process_request(mock_request)
         self.assertIsInstance(result, HttpResponseUnauthorizedRequest)
 
+    @patch("koku.rbac.RbacService.get_access_for_user")
+    def test_process_request_user_access_denied(self, get_access_mock):
+        """Test PermissionDenied is raised for non-user-access calls"""
+        mock_access = {}
+        username = "mockuser"
+        get_access_mock.return_value = mock_access
+
+        user_data = self._create_user_data()
+        customer = self._create_customer_data()
+        request_context = self._create_request_context(
+            customer, user_data, create_customer=True, create_tenant=True, is_admin=False
+        )
+        mock_request = request_context["request"]
+        mock_request.path = "/api/v1/v1/tags/aws/"
+        mock_request.META["QUERY_STRING"] = ""
+        mock_user = Mock(username=username, admin=False, access=None)
+        mock_request = Mock(path="/api/v1/v1/tags/aws/", user=mock_user)
+        IdentityHeaderMiddleware.create_user(
+            username=username,
+            email=self.user_data["email"],
+            customer=Customer.objects.get(account_id=customer.get("account_id")),
+            request=mock_request,
+        )
+
+        middleware = KokuTenantMiddleware()
+
+        with self.assertRaises(PermissionDenied):
+            _ = middleware.process_request(mock_request)
+
     @patch("koku.middleware.KokuTenantMiddleware.tenant_cache", TTLCache(5, 3))
     def test_tenant_caching(self):
         """Test that the tenant cache is successfully storing and expiring."""
