@@ -178,7 +178,7 @@ class TagsQueryParamSerializerTest(TestCase):
         dh = DateHelper()
         scenarios = [
             {"start_date": dh.yesterday.date(), "end_date": dh.today.date()},
-            {"start_date": dh.this_month_start.date(), "end_date": dh.yesterday.date()},
+            {"start_date": dh.this_month_start.date(), "end_date": dh.today.date()},
             {
                 "start_date": dh.last_month_end.date(),
                 "end_date": dh.this_month_start.date(),
