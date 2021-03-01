@@ -280,3 +280,28 @@ class GCPReportDownloaderTest(MasuTestCase):
             os.remove(daily_file)
 
         os.remove(file_path)
+
+    def test_get_dataset_name(self):
+        """Test _get_dataset_name helper."""
+        project_id = FAKE.slug()
+        dataset_name = FAKE.slug()
+
+        datasets = [f"{project_id}:{dataset_name}", dataset_name]
+
+        for dataset in datasets:
+            billing_source = {"table_id": FAKE.slug(), "dataset": dataset}
+            credentials = {"project_id": project_id}
+
+            with patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider"), patch(
+                "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._generate_etag",
+                return_value=self.etag,
+            ):
+                with patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider"):
+                    downloader = GCPReportDownloader(
+                        customer_name=FAKE.name(),
+                        data_source=billing_source,
+                        provider_uuid=uuid4(),
+                        credentials=credentials,
+                    )
+
+            self.assertEqual(downloader._get_dataset_name(), dataset_name)
