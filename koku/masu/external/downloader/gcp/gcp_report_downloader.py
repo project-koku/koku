@@ -168,7 +168,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             "cost_type",
         ]
         self.table_name = ".".join(
-            [self.credentials.get("project_id"), self.data_source.get("dataset"), self.data_source.get("table_id")]
+            [self.credentials.get("project_id"), self._get_dataset_name(), self.data_source.get("table_id")]
         )
         self.scan_start, self.scan_end = self._generate_default_scan_range()
         try:
@@ -178,6 +178,12 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             msg = f"GCP source ({self._provider_uuid}) for {customer_name} is not reachable. Error: {str(ex)}"
             LOG.error(log_json(self.request_id, msg, self.context))
             raise GCPReportDownloaderError(str(ex))
+
+    def _get_dataset_name(self):
+        """Helper to get dataset ID when format is project:datasetName."""
+        if ":" in self.data_source.get("dataset"):
+            return self.data_source.get("dataset").split(":")[1]
+        return self.data_source.get("dataset")
 
     def _generate_default_scan_range(self, range_length=3):
         """
