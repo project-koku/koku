@@ -132,6 +132,113 @@ class SourcesStatusTest(IamTestCase):
                 response = client.post(url, data=json_data, **self.headers)
             self.assertEquals(response.status_code, 204)
 
+    @patch("sources.api.source_status.SourcesProviderCoordinator.create_account")
+    @patch("sources.api.source_status.SourcesProviderCoordinator.update_account")
+    @patch("sources.api.source_status.SourcesHTTPClient.set_source_status")
+    def test_push_status_first_gcp_table_discovery(
+        self, mock_set_source_status, mock_update_account, mock_create_account
+    ):
+        """Test that push_status for initial discovery of GCP BigQuery table id."""
+        mock_status = {"availability_status": "available", "availability_status_error": ""}
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
+            test_source_id = 1
+            # Insert a source with ID 1
+            Sources.objects.create(
+                source_id=test_source_id,
+                name="New GCP Mock Test Source",
+                source_type=Provider.PROVIDER_GCP,
+                authentication={"credentials": {"project_id": "test_project_id"}},
+                billing_source={"data_source": {"dataset": "test_dataset"}},
+                status={},
+                offset=1,
+            )
+            request = self.request_context.get("request")
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                with patch.object(SourceStatus, "update_source_name", returns=True):
+                    status_obj = SourceStatus(request, test_source_id)
+                    status_obj.push_status()
+                    mock_set_source_status.assert_called()
+                    mock_create_account.assert_called()
+                    mock_update_account.assert_not_called()
+
+    @patch("sources.api.source_status.SourcesProviderCoordinator.create_account")
+    @patch("sources.api.source_status.SourcesProviderCoordinator.update_account")
+    @patch("sources.api.source_status.SourcesHTTPClient.set_source_status")
+    def test_push_status_first_gcp_table_discovery_update(
+        self, mock_set_source_status, mock_update_account, mock_create_account
+    ):
+        """Test that push_status for initial discovery of GCP BigQuery table id after dataset was updated."""
+        mock_status = {"availability_status": "available", "availability_status_error": ""}
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
+            test_source_id = 1
+            # Insert a source with ID 1
+            Sources.objects.create(
+                source_id=test_source_id,
+                name="New GCP Mock Test Source",
+                source_type=Provider.PROVIDER_GCP,
+                koku_uuid=faker.uuid4(),
+                authentication={"credentials": {"project_id": "test_project_id"}},
+                billing_source={"data_source": {"dataset": "test_dataset"}},
+                status={},
+                offset=1,
+            )
+            request = self.request_context.get("request")
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                with patch.object(SourceStatus, "update_source_name", returns=True):
+                    status_obj = SourceStatus(request, test_source_id)
+                    status_obj.push_status()
+                    mock_set_source_status.assert_called()
+                    mock_create_account.assert_not_called()
+                    mock_update_account.assert_called()
+
+    @patch("sources.api.source_status.SourcesHTTPClient.set_source_status")
+    def test_push_status_second_gcp_table_discovery(self, mock_set_source_status):
+        """Test that push_status for when GCP BigQuery table id is already known."""
+        mock_status = {"availability_status": "available", "availability_status_error": ""}
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
+            test_source_id = 1
+            # Insert a source with ID 1
+            Sources.objects.create(
+                source_id=test_source_id,
+                name="New GCP Mock Test Source",
+                source_type=Provider.PROVIDER_GCP,
+                authentication={"credentials": {"project_id": "test_project_id"}},
+                billing_source={"data_source": {"dataset": "test_dataset"}},
+                status={"availability_status": "available", "availability_status_error": ""},
+                offset=1,
+            )
+            request = self.request_context.get("request")
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                with patch.object(SourceStatus, "update_source_name", returns=True):
+                    status_obj = SourceStatus(request, test_source_id)
+                    status_obj.push_status()
+                    mock_set_source_status.assert_not_called()
+
+    @patch("sources.api.source_status.SourcesHTTPClient.set_source_status")
+    def test_push_status_gcp_table_discovery_completed(self, mock_set_source_status):
+        """Test that push_status for when GCP BigQuery table id is already known."""
+        mock_status = {"availability_status": "available", "availability_status_error": ""}
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
+            test_source_id = 1
+            # Insert a source with ID 1
+            Sources.objects.create(
+                source_id=test_source_id,
+                name="New GCP Mock Test Source",
+                source_type=Provider.PROVIDER_GCP,
+                koku_uuid=faker.uuid4(),
+                authentication={"credentials": {"project_id": "test_project_id"}},
+                billing_source={"data_source": {"dataset": "test_dataset", "table_id": "billtable"}},
+                status={"availability_status": "available", "availability_status_error": ""},
+                offset=1,
+            )
+
+            request = self.request_context.get("request")
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                with patch.object(SourceStatus, "update_source_name", returns=True):
+                    status_obj = SourceStatus(request, test_source_id)
+                    status_obj.push_status()
+                    mock_set_source_status.assert_not_called()
+
     @patch("sources.api.source_status.SourcesProviderCoordinator.update_account")
     @patch("sources.api.source_status.SourcesHTTPClient.get_source_details")
     def test_update_source_name(self, mock_get_source_details, mock_update_account):
@@ -240,7 +347,7 @@ class SourcesStatusTest(IamTestCase):
                 "name": "New GCP Mock Test Source",
                 "source_type": Provider.PROVIDER_GCP,
                 "authentication": {"credentials": {"project_id": "test_project_id"}},
-                "billing_source": {"data_source": {"dataset": "test_dataset", "table_id": "test_table"}},
+                "billing_source": {"data_source": {"dataset": "test_dataset"}},
                 "offset": 1,
             },
         ]
@@ -513,3 +620,36 @@ class SourcesStatusTest(IamTestCase):
                 status_obj.status()
                 expected = f"INFO:sources.api.source_status:No provider found for Source ID: {source_id}"
                 self.assertIn(expected, logger.output)
+
+    def test_gcp_bigquery_table_found(self):
+        """Test helper method _gcp_bigquery_table_found."""
+        request = self.request_context.get("request")
+        aws_source_id = 1
+        Sources.objects.create(
+            source_id=aws_source_id,
+            name="AWS Source",
+            source_type=Provider.PROVIDER_AWS,
+            authentication={"credentials": {"role_arn": "fake-iam"}},
+            billing_source={"data_source": {"bucket": "my-bucket"}},
+            koku_uuid=str(uuid4()),
+            offset=1,
+        )
+
+        aws_status_obj = SourceStatus(request, aws_source_id)
+
+        self.assertFalse(aws_status_obj._gcp_bigquery_table_found())
+
+        gcp_source_id = 2
+        Sources.objects.create(
+            source_id=gcp_source_id,
+            name="GCP Source",
+            source_type=Provider.PROVIDER_GCP,
+            authentication={"credentials": {"project_id": "test_project_id"}},
+            billing_source={"data_source": {"dataset": "test_dataset"}},
+            koku_uuid=str(uuid4()),
+            offset=1,
+        )
+
+        aws_status_obj = SourceStatus(request, gcp_source_id)
+
+        self.assertTrue(aws_status_obj._gcp_bigquery_table_found())
