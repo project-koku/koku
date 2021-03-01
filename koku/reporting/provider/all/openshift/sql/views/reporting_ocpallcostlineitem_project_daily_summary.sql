@@ -35,7 +35,7 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary AS (
             max(currency_code) as currency_code,
             max(source_uuid::text)::uuid as source_uuid
         FROM reporting_ocpawscostlineitem_project_daily_summary
-        WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+        WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
         GROUP BY source_type,
             usage_start,
             usage_end,
@@ -79,7 +79,7 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary AS (
             max(currency) as currency_code,
             max(source_uuid::text)::uuid as source_uuid
         FROM reporting_ocpazurecostlineitem_project_daily_summary
-        WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+        WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
         GROUP BY source_type,
             usage_start,
             usage_end,

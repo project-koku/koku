@@ -16,7 +16,7 @@ CREATE MATERIALIZED VIEW reporting_gcp_compute_summary_by_service AS (
         service_alias,
         max(source_uuid::text)::uuid as source_uuid
     FROM reporting_gcpcostentrylineitem_daily_summary
-    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+    WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
         AND instance_type IS NOT NULL
     GROUP BY usage_start, instance_type, account_id, service_id, service_alias
 )

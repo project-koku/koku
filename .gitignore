@@ -134,3 +134,6 @@ testing/
 # Local OpenShift folders
 openshift.local.clusterup/
 scripts/openshift.local.clusterup/
+
+# Localdev Certs
+certs/

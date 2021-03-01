@@ -16,8 +16,10 @@
 #
 """Accessor for Customer information from koku database."""
 import logging
+import os
 
 from django.db import transaction
+from django.db.models import Subquery
 from tenant_schemas.utils import schema_context
 
 
@@ -93,7 +95,7 @@ class KokuDBAccess:
 
         """
         with schema_context(self.schema):
-            new_entry = self._table.objects.create(**kwargs)
+            new_entry, _ = self._table.objects.get_or_create(**kwargs)
             new_entry.save()
             return new_entry
 
@@ -113,3 +115,54 @@ class KokuDBAccess:
             deleteme = self._obj
         with schema_context(self.schema):
             deleteme.delete()
+
+
+def mtd_check_remainder(base_select_query):
+    return base_select_query.count()
+
+
+def mini_transaction_delete(base_select_query):
+    """
+    Uses a select query to make a mini transactinal delete loop.
+    Schema should be set before calling this function.
+    Args:
+        base_select_query (QuerySet) : Single-table django select query
+    Returns:
+        tuple : (deleted_record_total, records_remaining)
+    """
+    del_record_limit = int(os.getenv("DELETE_CYCLE_RECORD_LIMIT", 5000))
+    max_iterations = int(os.getenv("DELETE_CYCLE_MAX_RETRY", 3))
+
+    # Change the base query into a SELECT ... FOR UPDATE SKIP LOCKED query
+    delete_subquery = base_select_query.select_for_update(skip_locked=True).values_list("pk")
+    # Remove any ordering
+    base_select_query.query.clear_ordering(True)
+    delete_subquery.query.clear_ordering(True)
+    # Use the line_item_query as a subquery with a LIMIT clause
+    delete_query = delete_subquery.model.objects.filter(pk__in=Subquery(delete_subquery[:del_record_limit]))
+    # Remove any ordering
+    delete_query.query.clear_ordering(True)
+
+    iterations = 0
+    del_total = 0
+    remainder = 0
+    while iterations < max_iterations:
+        del_count = -1
+        while del_count != 0:
+            # The use of FOR UPDATE demands a transaction!
+            with transaction.atomic():
+                del_count = delete_query.delete()[0]
+            del_total += del_count
+
+        remainder = mtd_check_remainder(base_select_query)
+        if remainder > 0:
+            iterations += 1
+        else:
+            break
+
+    LOG.debug(f"Removed {del_total} records")
+
+    if (iterations >= max_iterations) and (remainder > 0):
+        LOG.error(f"Due to possible lock contention, there are {remainder} records remaining.")
+
+    return (del_total, remainder)

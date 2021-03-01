@@ -34,6 +34,7 @@ from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
+from reporting.provider.gcp.models import PRESTO_LINE_ITEM_TABLE
 from reporting_common.models import CostUsageReportStatus
 
 LOG = logging.getLogger(__name__)
@@ -51,6 +52,10 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         super().__init__(schema)
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
+
+    @property
+    def line_item_daily_summary_table(self):
+        return GCPCostEntryLineItemDailySummary
 
     def get_cost_entry_bills(self):
         """Get all cost entry bill objects."""
@@ -187,6 +192,37 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
 
+    def populate_line_item_daily_summary_table_presto(self, start_date, end_date, source_uuid, bill_id, markup_value):
+        """Populate the daily aggregated summary of line items table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_gcpcostentrylineitem_daily_summary.sql")
+        summary_sql = summary_sql.decode("utf-8")
+        uuid_str = str(uuid.uuid4()).replace("-", "_")
+        summary_sql_params = {
+            "uuid": uuid_str,
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "table": PRESTO_LINE_ITEM_TABLE,
+            "source_uuid": source_uuid,
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
+            "markup": markup_value if markup_value else 0,
+            "bill_id": bill_id,
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+
+        LOG.info(f"Summary SQL: {str(summary_sql)}")
+        self._execute_presto_raw_sql_query(self.schema, summary_sql)
+
     def populate_tags_summary_table(self, bill_ids):
         """Populate the line item aggregated totals data table."""
         table_name = GCP_REPORT_TABLE_MAP["tags_summary"]
@@ -232,3 +268,55 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         except ValueError:
             pass
         return scan_range
+
+    def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
+        """Populate the enabled tag key table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+            bill_ids (list) A list of bill IDs.
+
+        Returns
+            (None)
+        """
+        table_name = GCP_REPORT_TABLE_MAP["enabled_tag_keys"]
+        summary_sql = pkgutil.get_data("masu.database", "sql/reporting_gcpenabledtagkeys.sql")
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "bill_ids": bill_ids,
+            "schema": self.schema,
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        self._execute_raw_sql_query(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+        )
+
+    def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, bill_ids):
+        """Populate the enabled tag key table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+            bill_ids (list) A list of bill IDs.
+
+        Returns
+            (None)
+        """
+        table_name = GCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        summary_sql = pkgutil.get_data(
+            "masu.database", "sql/reporting_gcpcostentryline_item_daily_summary_update_enabled_tags.sql"
+        )
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "bill_ids": bill_ids,
+            "schema": self.schema,
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        self._execute_raw_sql_query(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+        )

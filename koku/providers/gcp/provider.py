@@ -3,6 +3,7 @@ import logging
 
 import google.auth
 from google.cloud import bigquery
+from google.cloud.exceptions import BadRequest
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.exceptions import NotFound
 from googleapiclient import discovery
@@ -47,13 +48,24 @@ class GCPProvider(ProviderInterface):
         """Update data_source."""
         try:
             update_query = Sources.objects.filter(authentication={"credentials": credentials})
-            update_query.update(billing_source={"data_source": data_source})
+            for source in update_query:
+                if source.billing_source.get("data_source", {}).get("dataset") == data_source.get("dataset"):
+                    source_filter = Sources.objects.filter(source_id=source.source_id)
+                    source_filter.update(billing_source={"data_source": data_source})
         except Sources.DoesNotExist:
             LOG.info("Source not found, unable to update data source.")
 
+    def _format_dataset_id(self, data_source, credentials):
+        """Format dataset ID based on input format."""
+        if f"{credentials.get('project_id')}:" in data_source.get("dataset"):
+            proj_table = data_source.get("dataset").replace(":", ".")
+        else:
+            proj_table = f"{credentials.get('project_id')}.{data_source.get('dataset')}"
+        return proj_table
+
     def _detect_billing_export_table(self, data_source, credentials):
         """Verify that dataset and billing export table exists."""
-        proj_table = f"{credentials.get('project_id')}.{data_source.get('dataset')}"
+        proj_table = self._format_dataset_id(data_source, credentials)
         try:
             bigquery_table_id = self.get_table_id(proj_table)
             if bigquery_table_id:
@@ -62,11 +74,18 @@ class GCPProvider(ProviderInterface):
             else:
                 raise SkipStatusPush("Table ID not ready.")
         except NotFound as e:
+            data_source.pop("table_id", None)
+            self.update_source_data_source(credentials, data_source)
             key = "billing_source.dataset"
             LOG.info(error_obj(key, e.message))
             message = (
                 f"Unable to find dataset: {data_source.get('dataset')} in project: {credentials.get('project_id')}"
             )
+            raise serializers.ValidationError(error_obj(key, message))
+        except BadRequest as e:
+            LOG.warning(str(e))
+            key = "billing_source"
+            message = f"Invalid Dataset ID: {str(data_source.get('dataset'))}"
             raise serializers.ValidationError(error_obj(key, message))
 
     def cost_usage_source_is_reachable(self, credentials, data_source):
