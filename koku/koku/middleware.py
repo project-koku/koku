@@ -32,6 +32,7 @@ from django.db.utils import InterfaceError
 from django.db.utils import OperationalError
 from django.http import HttpResponse
 from django.http import JsonResponse
+from django.urls import reverse
 from django.utils.deprecation import MiddlewareMixin
 from django_prometheus.middleware import Metrics
 from django_prometheus.middleware import PrometheusAfterMiddleware
@@ -143,7 +144,10 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
                     return HttpResponseUnauthorizedRequest()
                 if not request.user.admin and request.user.access is None:
                     LOG.warning("User %s is does not have permissions for Cost Management.", username)
-                    raise PermissionDenied()
+                    # For /user-access we do not want to raise the exception since the API will
+                    # return a false boolean response that the platfrom frontend code is expecting.
+                    if request.path != reverse("user-access"):
+                        raise PermissionDenied()
             else:
                 return HttpResponseUnauthorizedRequest()
         try:
