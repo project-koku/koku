@@ -6,7 +6,7 @@ CREATE MATERIALIZED VIEW reporting_gcp_network_summary AS(
         usage_start,
         usage_start as usage_end,
         account_id,
-        SUM(case when usage_amount = 'NaN' then 0.0::numeric(24,9) else usage_amount end::numeric(24,9)) AS usage_amount,
+        sum(usage_amount) as usage_amount,
         max(unit) as unit,
         sum(unblended_cost) as unblended_cost,
         sum(markup_cost) as markup_cost,
