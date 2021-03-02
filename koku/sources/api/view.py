@@ -230,12 +230,14 @@ class SourcesViewSet(*MIXIN_LIST):
                 source["provider_linked"] = False
                 source["active"] = False
                 source["current_month_data"] = False
+                source["has_data"] = False
                 source["infrastructure"] = "Unknown"
                 source["cost_models"] = []
             else:
                 source["provider_linked"] = True
                 source["active"] = manager.get_active_status()
                 source["current_month_data"] = manager.get_current_month_data_exists()
+                source["has_data"] = manager.get_any_data_exists()
                 source["infrastructure"] = manager.get_infrastructure_name()
                 source["cost_models"] = [
                     {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
@@ -255,12 +257,15 @@ class SourcesViewSet(*MIXIN_LIST):
             response.data["provider_linked"] = False
             response.data["active"] = False
             response.data["current_month_data"] = False
+            response.data["has_data"] = False
             response.data["infrastructure"] = "Unknown"
             response.data["cost_models"] = []
         else:
             response.data["provider_linked"] = True
             response.data["active"] = manager.get_active_status()
             response.data["current_month_data"] = manager.get_current_month_data_exists()
+            response.data["has_data"] = manager.get_any_data_exists()
+
             response.data["infrastructure"] = manager.get_infrastructure_name()
             response.data["cost_models"] = [
                 {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)

@@ -119,8 +119,8 @@ class ProviderManagerTest(IamTestCase):
         manager = ProviderManager(provider_uuid)
         self.assertTrue(manager.get_active_status())
 
-    def test_get_current_month_data_exists(self):
-        """Test the current month status flag."""
+    def test_data_flagss(self):
+        """Test the current month and any data status flag."""
         # Get Provider UUID
 
         provider_name = "sample_provider"
@@ -138,9 +138,10 @@ class ProviderManagerTest(IamTestCase):
         # Get Provider Manager
         manager = ProviderManager(provider_uuid)
         self.assertTrue(manager.get_current_month_data_exists())
+        self.assertTrue(manager.get_any_data_exists())
 
-    def test_get_current_month_data_exists_manifest_not_complete(self):
-        """Test the current month status flag when manifest is not complete."""
+    def test_data_flags_manifest_not_complete(self):
+        """Test the current month and any data status flags when manifest is not complete."""
         # Get Provider UUID
 
         provider_name = "sample_provider"
@@ -155,9 +156,10 @@ class ProviderManagerTest(IamTestCase):
         # Get Provider Manager
         manager = ProviderManager(provider_uuid)
         self.assertFalse(manager.get_current_month_data_exists())
+        self.assertFalse(manager.get_any_data_exists())
 
-    def test_get_current_month_data_exists_manifest_last_month(self):
-        """Test the current month status flag when manifest with only last month data."""
+    def test_data_flags_manifest_last_month(self):
+        """Test the current month status and any data flag when manifest with only last month data."""
         # Get Provider UUID
 
         provider_name = "sample_provider"
@@ -175,6 +177,7 @@ class ProviderManagerTest(IamTestCase):
         # Get Provider Manager
         manager = ProviderManager(provider_uuid)
         self.assertFalse(manager.get_current_month_data_exists())
+        self.assertTrue(manager.get_any_data_exists())
 
     def test_get_providers_queryset_for_customer(self):
         """Verify all providers returned by a customer."""
