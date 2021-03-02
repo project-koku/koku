@@ -28,6 +28,7 @@ import pytz
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django.db import transaction
 
 from api.utils import DateHelper
 from masu.config import Config
@@ -40,8 +41,6 @@ from reporting.provider.gcp.models import GCPCostEntryLineItem
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
-
-# from django.db import transaction
 
 LOG = logging.getLogger(__name__)
 
@@ -229,10 +228,11 @@ class GCPReportProcessor(ReportProcessorBase):
         if key in self.existing_bill_map:
             return self.existing_bill_map[key]
 
-        bill_id = report_db_accessor.insert_on_conflict_do_nothing(
-            table_name, data, conflict_columns=["billing_period_start", "provider_id"]
-        )
-        self.processed_report.bills[key] = bill_id
+        with transaction.atomic():
+            bill_id = report_db_accessor.insert_on_conflict_do_nothing(
+                table_name, data, conflict_columns=["billing_period_start", "provider_id"]
+            )
+            self.processed_report.bills[key] = bill_id
 
         return bill_id
 
@@ -257,9 +257,10 @@ class GCPReportProcessor(ReportProcessorBase):
         if key in self.existing_projects_map:
             return self.existing_projects_map[key]
 
-        project_id = report_db_accessor.insert_on_conflict_do_nothing(
-            table_name, data, conflict_columns=["project_id"]
-        )
+        with transaction.atomic():
+            project_id = report_db_accessor.insert_on_conflict_do_nothing(
+                table_name, data, conflict_columns=["project_id"]
+            )
 
         self.processed_report.projects[key] = project_id
         return project_id
@@ -285,9 +286,10 @@ class GCPReportProcessor(ReportProcessorBase):
         if key in self.existing_product_map:
             return self.existing_product_map[key]
 
-        service_product_id = report_db_accessor.insert_on_conflict_do_nothing(
-            table_name, data, conflict_columns=["service_id", "service_alias", "sku_id", "sku_alias"]
-        )
+        with transaction.atomic():
+            service_product_id = report_db_accessor.insert_on_conflict_do_nothing(
+                table_name, data, conflict_columns=["service_id", "service_alias", "sku_id", "sku_alias"]
+            )
 
         self.processed_report.products[key] = service_product_id
         return service_product_id
