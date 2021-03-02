@@ -351,7 +351,7 @@ class GCPReportProcessor(ReportProcessorBase):
 
         bills_purged = []
         with GCPReportDBAccessor(self._schema) as report_db:
-
+            temp_table = report_db.create_temp_table(self.line_item_table_name, drop_column="id")
             for chunk in report_csv:
 
                 # Group the information in the csv by the start time and the project id
@@ -383,7 +383,6 @@ class GCPReportProcessor(ReportProcessorBase):
                     row_count + len(self.processed_report.line_items),
                     self._report_name,
                 )
-                temp_table = report_db.create_temp_table(self.line_item_table_name, drop_column="id")
                 self._save_to_db(temp_table, report_db)
                 row_count += len(self.processed_report.line_items)
                 report_db.merge_temp_table(self.line_item_table_name, temp_table, self.line_item_columns)
