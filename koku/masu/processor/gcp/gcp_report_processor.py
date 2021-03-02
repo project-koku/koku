@@ -377,20 +377,20 @@ class GCPReportProcessor(ReportProcessorBase):
                             processed_row, bill_id, project_id, report_db, service_product_id
                         )
 
-            if self.processed_report.line_items:
-                with schema_context(self._schema):
-                    LOG.info(
-                        "Saving report rows %d to %d for %s",
-                        row_count,
-                        row_count + len(self.processed_report.line_items),
-                        self._report_name,
-                    )
-                    temp_table = report_db.create_temp_table(self.line_item_table_name, drop_column="id")
-                    self._save_to_db(temp_table, report_db)
-                    row_count += len(self.processed_report.line_items)
-                    report_db.merge_temp_table(self.line_item_table_name, temp_table, self.line_item_columns)
+                if self.processed_report.line_items:
+                    with schema_context(self._schema):
+                        LOG.info(
+                            "Saving report rows %d to %d for %s",
+                            row_count,
+                            row_count + len(self.processed_report.line_items),
+                            self._report_name,
+                        )
+                        temp_table = report_db.create_temp_table(self.line_item_table_name, drop_column="id")
+                        self._save_to_db(temp_table, report_db)
+                        row_count += len(self.processed_report.line_items)
+                        report_db.merge_temp_table(self.line_item_table_name, temp_table, self.line_item_columns)
 
-            self._update_mappings()
+                self._update_mappings()
 
             LOG.info("Completed report processing for file: %s and schema: %s", self._report_name, self._schema)
 
