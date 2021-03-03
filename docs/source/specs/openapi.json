@@ -5033,6 +5033,16 @@
                                 "description": "Flag to indicate if provider has report data for the current month.",
                                 "default": false
                             },
+                            "previous_month_data": {
+                                "type": "boolean",
+                                "description": "Flag to indicate if provider has report data for the previous month.",
+                                "default": false
+                            },
+                            "has_data": {
+                                "type": "boolean",
+                                "description": "Flag to indicate if provider has report data for any month.",
+                                "default": false
+                            },
                             "infrastructure": {
                                 "type": "string",
                                 "description": "OpenShift foundational infrastructure type.",
