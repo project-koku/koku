@@ -10,7 +10,7 @@ LOG = logging.getLogger(__name__)
 
 def create_hive_db(apps, schema_editor):
     rolname = os.environ.get("HIVE_DATABASE_USER", "hive")
-    datname = os.environ.get("HIVE_DATABASE_NAME", "hivedb")
+    datname = os.environ.get("HIVE_DATABASE_NAME", "hive")
     kokudb = os.environ.get("DATABASE_NAME", "postgres")
     kokudbuser = os.environ.get("DATABASE_USER", "postgres")
     role_check_sql = f"""
