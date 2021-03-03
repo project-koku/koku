@@ -30,6 +30,7 @@ DECLARE
     latest_migrations jsonb;
     required_tables int := 0;
     do_migrations boolean := false;
+    objects_exist boolean := false;
 BEGIN
     /*
      * Verify that the necessary tables are present
@@ -68,6 +69,27 @@ BEGIN
                     else schema_name
                END::text
     LOOP
+        /* Check for race condition if someone deletes a source, etc during processing */
+        SELECT EXISTS (
+                        SELECT c.oid
+                          FROM pg_class c
+                          JOIN pg_namespace n
+                            ON n.oid = c.relnamespace
+                         WHERE c.relname = 'django_migrations'
+                           AND n.nspname = schema_rec.schema_name
+                      )::boolean
+          INTO objects_exist;
+
+        IF NOT objects_exist
+        THEN
+            RAISE WARNING 'Object %.% does not exist. Skipping schema %',
+                          schema_rec.schema_name,
+                          'django_migrations',
+                          schema_rec.schema_name;
+        END IF;
+
+        CONTINUE WHEN NOT objects_exist;
+
         /* Get the latest recorded migrations by app for this tenant schema */
         IF _verbose
         THEN

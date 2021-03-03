@@ -17,6 +17,7 @@
 import logging
 import threading
 
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.views.decorators.cache import never_cache
@@ -73,7 +74,8 @@ class SourceStatus:
         interface = ProviderAccessor(provider_type)
         error_obj = None
         try:
-            interface.cost_usage_source_ready(source_authentication, source_billing_source)
+            if self.source.account_id not in settings.DEMO_ACCOUNTS:
+                interface.cost_usage_source_ready(source_authentication, source_billing_source)
             self._set_provider_active_status(True)
         except ValidationError as validation_error:
             self._set_provider_active_status(False)
@@ -97,11 +99,23 @@ class SourceStatus:
             builder = SourcesProviderCoordinator(self.source_id, self.source.auth_header)
             builder.update_account(self.source)
 
+    def _gcp_bigquery_table_found(self):
+        """Helper to determine if this is the first time a GCP BigQuery table was found."""
+        if self.source.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL) and not self.source.status:
+            return True
+        return False
+
     def push_status(self):
         """Push status_msg to platform sources."""
         try:
             status_obj = self.status()
-            # self.sources_client.set_source_status(status_obj)
+            if self._gcp_bigquery_table_found():
+                builder = SourcesProviderCoordinator(self.source.source_id, self.source.auth_header)
+                if self.source.koku_uuid:
+                    builder.update_account(self.source)
+                else:
+                    builder.create_account(self.source)
+                self.sources_client.set_source_status(status_obj)
             self.update_source_name()
             LOG.info(f"Source status for Source ID: {str(self.source_id)}: Status: {str(status_obj)}")
         except SkipStatusPush as error:

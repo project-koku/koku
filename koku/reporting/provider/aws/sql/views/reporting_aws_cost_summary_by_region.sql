@@ -16,7 +16,7 @@ CREATE MATERIALIZED VIEW reporting_aws_cost_summary_by_region AS(
         max(source_uuid::text)::uuid as source_uuid
     FROM reporting_awscostentrylineitem_daily_summary
     -- Get data for this month or last month
-    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+    WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
     GROUP BY usage_start, usage_account_id, region, availability_zone
 )
 WITH DATA

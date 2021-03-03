@@ -21,6 +21,7 @@ from datetime import datetime
 from tenant_schemas.utils import schema_context
 
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
+from masu.database.koku_database_access import mini_transaction_delete
 
 LOG = logging.getLogger(__name__)
 
@@ -71,7 +72,8 @@ class GCPReportDBCleaner:
                     removed_billing_period_start = bill.billing_period_start
 
                     if not simulate:
-                        del_count = accessor.get_lineitem_query_for_billid(bill_id).delete()
+                        lineitem_query = accessor.get_lineitem_query_for_billid(bill_id)
+                        del_count, remainder = mini_transaction_delete(lineitem_query)
                         LOG.info("Removing %s cost entry line items for bill id %s", del_count, bill_id)
 
                     LOG.info(

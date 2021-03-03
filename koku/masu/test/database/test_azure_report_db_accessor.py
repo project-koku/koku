@@ -384,3 +384,24 @@ class AzureReportDBAccessorTest(MasuTestCase):
                     self.assertEqual([key_to_keep.key], tag_keys)
                 else:
                     self.assertEqual([], tag_keys)
+
+    def test_delete_line_item_daily_summary_entries_for_date_range(self):
+        """Test that daily summary rows are deleted."""
+        with schema_context(self.schema):
+            start_date = AzureCostEntryLineItemDailySummary.objects.aggregate(Max("usage_start")).get(
+                "usage_start__max"
+            )
+            end_date = start_date
+
+        table_query = AzureCostEntryLineItemDailySummary.objects.filter(
+            source_uuid=self.azure_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
+        )
+        with schema_context(self.schema):
+            self.assertNotEqual(table_query.count(), 0)
+
+        self.accessor.delete_line_item_daily_summary_entries_for_date_range(
+            self.azure_provider_uuid, start_date, end_date
+        )
+
+        with schema_context(self.schema):
+            self.assertEqual(table_query.count(), 0)
