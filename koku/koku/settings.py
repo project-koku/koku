@@ -179,6 +179,8 @@ TEMPLATES = [
 WSGI_APPLICATION = "koku.wsgi.application"
 
 WORKER_CACHE_KEY = "worker"
+CACHE_MIDDLEWARE_SECONDS = ENVIRONMENT.get_value("CACHE_TIMEOUT", default=3600)
+
 HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
 
 REDIS_HOST = ENVIRONMENT.get_value("REDIS_HOST", default="redis")
