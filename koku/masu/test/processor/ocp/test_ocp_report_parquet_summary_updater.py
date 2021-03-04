@@ -71,6 +71,9 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.updater = OCPReportParquetSummaryUpdater(self.schema, self.provider, self.manifest)
 
     @patch(
+        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range"  # noqa: E501
+    )
+    @patch(
         "masu.processor.ocp.ocp_report_parquet_summary_updater."
         "OCPReportDBAccessor.populate_volume_label_summary_table"
     )
@@ -81,7 +84,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_report_parquet_summary_updater."
         "OCPReportDBAccessor.populate_line_item_daily_summary_table_presto"
     )
-    def test_update_summary_tables(self, mock_sum, mock_tag_sum, mock_vol_tag_sum):
+    def test_update_summary_tables(self, mock_sum, mock_tag_sum, mock_vol_tag_sum, mock_delete):
         """Test that summary tables are run for a full month when no report period is found."""
         start_date = self.dh.today
         end_date = start_date
@@ -90,6 +93,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         end_date_str = end_date.strftime("%Y-%m-%d")
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
+        mock_delete.assert_called_with(self.ocp_provider.uuid, start_date.date(), end_date.date())
         mock_sum.assert_called()
         mock_tag_sum.assert_called()
         mock_vol_tag_sum.assert_called()

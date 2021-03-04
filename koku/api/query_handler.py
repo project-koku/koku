@@ -18,10 +18,12 @@
 import datetime
 import logging
 
+from dateutil import parser
 from dateutil import relativedelta
 from django.core.exceptions import FieldDoesNotExist
 from django.db.models.functions import TruncDay
 from django.db.models.functions import TruncMonth
+from pytz import UTC
 
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -64,19 +66,38 @@ class QueryHandler:
         parameters = self.filter_to_order_by(parameters)
         self.tenant = parameters.tenant
         self.access = parameters.access
-
-        self.default_ordering = self._mapper._report_type_map.get("default_ordering")
-
         self.parameters = parameters
-        self.resolution = self.parameters.get_filter("resolution")
+        self.default_ordering = self._mapper._report_type_map.get("default_ordering")
         self.time_interval = []
-        self.time_scope_units = self.parameters.get_filter("time_scope_units")
-        self.time_scope_value = int(self.parameters.get_filter("time_scope_value"))
-        self.start_datetime = None
-        self.end_datetime = None
         self._max_rank = 0
 
-        self._get_timeframe()
+        self.time_scope_units = self.parameters.get_filter("time_scope_units")  # deprecated
+        self.time_scope_value = int(self.parameters.get_filter("time_scope_value"))  # deprecated
+
+        # self.start_datetime = parameters["start_date"]
+        # self.end_datetime = parameters["end_date"]
+        for param, attr in [("start_date", "start_datetime"), ("end_date", "end_datetime")]:
+            p = self.parameters.get(param)
+            if p:
+                setattr(self, attr, datetime.datetime.combine(parser.parse(p).date(), self.dh.midnight, tzinfo=UTC))
+            else:
+                setattr(self, attr, None)
+
+        if self.resolution == "monthly":
+            self.date_to_string = lambda dt: dt.strftime("%Y-%m")
+            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, "%Y-%m").date()
+            self.date_trunc = TruncMonthString
+            self.gen_time_interval = DateHelper().list_months
+        else:
+            self.date_to_string = lambda dt: dt.strftime("%Y-%m-%d")
+            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, "%Y-%m-%d").date()
+            self.date_trunc = TruncDayString
+            self.gen_time_interval = DateHelper().list_days
+
+        if not (self.start_datetime or self.end_datetime):
+            self._get_timeframe()
+
+        self._create_time_interval()
 
     # FIXME: move this to a standalone utility function.
     @staticmethod
@@ -140,28 +161,15 @@ class QueryHandler:
         """Max rank setter."""
         self._max_rank = max_rank
 
-    def get_resolution(self):
+    @property
+    def resolution(self):
         """Extract resolution or provide default.
 
         Returns:
             (String): The value of how data will be sliced.
 
         """
-
-        self.resolution = self.parameters.get_filter("resolution", default="daily")
-
-        if self.resolution == "monthly":
-            self.date_to_string = lambda dt: dt.strftime("%Y-%m")
-            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, "%Y-%m").date()
-            self.date_trunc = TruncMonthString
-            self.gen_time_interval = DateHelper().list_months
-        else:
-            self.date_to_string = lambda dt: dt.strftime("%Y-%m-%d")
-            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, "%Y-%m-%d").date()
-            self.date_trunc = TruncDayString
-            self.gen_time_interval = DateHelper().list_days
-
-        return self.resolution
+        return self.parameters.get_filter("resolution", default="daily")
 
     def check_query_params(self, key, in_key):
         """Test if query parameters has a given key and key within it.
@@ -176,6 +184,7 @@ class QueryHandler:
         """
         return self.parameters and key in self.parameters and in_key in self.parameters.get(key)  # noqa: W504
 
+    # deprecated
     def get_time_scope_units(self):
         """Extract time scope units or provide default.
 
@@ -190,6 +199,7 @@ class QueryHandler:
         self.time_scope_units = time_scope_units
         return self.time_scope_units
 
+    # deprecated
     def get_time_scope_value(self):
         """Extract time scope value or provide default.
 
@@ -204,6 +214,7 @@ class QueryHandler:
         self.time_scope_value = int(time_scope_value)
         return self.time_scope_value
 
+    # deprecated
     def _get_timeframe(self):
         """Obtain timeframe start and end dates.
 
@@ -212,7 +223,6 @@ class QueryHandler:
             (DateTime): end datetime for query filter
 
         """
-        self.get_resolution()
         time_scope_value = self.get_time_scope_value()
         time_scope_units = self.get_time_scope_units()
         start = None
@@ -238,7 +248,6 @@ class QueryHandler:
 
         self.start_datetime = start
         self.end_datetime = end
-        self._create_time_interval()
         return (self.start_datetime, self.end_datetime, self.time_interval)
 
     def _create_time_interval(self):
@@ -338,27 +347,23 @@ class QueryHandler:
         returns:
             None
         """
-        if isinstance(filt, list):
-            for _filt in filt:
-                _filt["operation"] = "in"
-                q_filter = QueryFilter(parameter=access, **_filt)
-                filters.add(q_filter)
-        else:
-            filt["operation"] = "in"
+        for _filt in filt if isinstance(filt, list) else [filt]:
+            check_field_type = None
             try:
-                check_field_type = None
                 if hasattr(self, "query_table"):
                     # Reports APIs
-                    check_field_type = self.query_table._meta.get_field(filt.get("field", "")).get_internal_type()
+                    check_field_type = self.query_table._meta.get_field(_filt.get("field", "")).get_internal_type()
                 elif hasattr(self, "data_sources"):
                     # Tags APIs
                     check_field_type = (
-                        self.data_sources[0].get("db_table")._meta.get_field(filt.get("field", "")).get_internal_type()
+                        self.data_sources[0]
+                        .get("db_table")
+                        ._meta.get_field(_filt.get("field", ""))
+                        .get_internal_type()
                     )
-                if check_field_type == "ArrayField":
-                    filt["operation"] = "contains"
             except FieldDoesNotExist:
                 pass
 
-            q_filter = QueryFilter(parameter=access, **filt)
+            _filt["operation"] = "contains" if check_field_type == "ArrayField" else "in"
+            q_filter = QueryFilter(parameter=access, **_filt)
             filters.add(q_filter)

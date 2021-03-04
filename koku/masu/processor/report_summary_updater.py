@@ -29,6 +29,7 @@ from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParqu
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
 from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
 from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
+from masu.processor.gcp.gcp_report_parquet_summary_updater import GCPReportParquetSummaryUpdater
 from masu.processor.gcp.gcp_report_summary_updater import GCPReportSummaryUpdater
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
@@ -104,7 +105,9 @@ class ReportSummaryUpdater:
                 OCPReportParquetSummaryUpdater if settings.ENABLE_PARQUET_PROCESSING else OCPReportSummaryUpdater
             )
         elif self._provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-            report_summary_updater = GCPReportSummaryUpdater
+            report_summary_updater = (
+                GCPReportParquetSummaryUpdater if settings.ENABLE_PARQUET_PROCESSING else GCPReportSummaryUpdater
+            )
         else:
             return (None, None)
 

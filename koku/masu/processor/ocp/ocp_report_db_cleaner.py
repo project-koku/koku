@@ -20,6 +20,7 @@ from datetime import datetime
 
 from tenant_schemas.utils import schema_context
 
+from masu.database.koku_database_access import mini_transaction_delete
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 
 LOG = logging.getLogger(__name__)
@@ -70,7 +71,8 @@ class OCPReportDBCleaner:
                     removed_usage_start_period = usage_period.report_period_start
 
                     if not simulate:
-                        qty = accessor.get_item_query_report_period_id(report_period_id).delete()
+                        item_query = accessor.get_item_query_report_period_id(report_period_id)
+                        qty, remainder = mini_transaction_delete(item_query)
                         LOG.info("Removing %s usage period line items for usage period id %s", qty, report_period_id)
 
                     LOG.info(

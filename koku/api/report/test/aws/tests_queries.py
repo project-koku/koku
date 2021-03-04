@@ -97,7 +97,9 @@ class AWSReportQueryTest(IamTestCase):
             self.services = [entry.get("product_code") for entry in self.services]
 
             self.availability_zone = (
-                AWSCostEntryLineItemDailySummary.objects.filter(availability_zone__isnull=False)
+                AWSCostEntryLineItemDailySummary.objects.filter(
+                    availability_zone__isnull=False, usage_start__gte=self.dh.this_month_start
+                )
                 .values("availability_zone")
                 .distinct()
                 .first()
@@ -234,7 +236,7 @@ class AWSReportQueryTest(IamTestCase):
         url = "?filter[time_scope_value]=-10"
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
-        self.assertEqual(handler.get_resolution(), "daily")
+        self.assertEqual(handler.resolution, "daily")
 
     def test_get_time_scope_units_empty_default(self):
         """Test get_time_scope_units returns default when query params are empty."""

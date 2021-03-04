@@ -33,7 +33,17 @@ VIEWS = (
     "reporting_gcp_compute_summary_by_region",
     "reporting_gcp_compute_summary_by_service",
     "reporting_gcp_compute_summary_by_account",
+    "reporting_gcp_storage_summary",
+    "reporting_gcp_storage_summary_by_project",
+    "reporting_gcp_storage_summary_by_region",
+    "reporting_gcp_storage_summary_by_service",
+    "reporting_gcp_storage_summary_by_account",
+    "reporting_gcp_network_summary",
+    "reporting_gcp_database_summary",
 )
+
+
+PRESTO_LINE_ITEM_TABLE = "gcp_line_items"
 
 
 class GCPCostEntryBill(models.Model):
@@ -103,8 +113,6 @@ class GCPCostEntryLineItem(models.Model):
     cost = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
     currency = models.CharField(max_length=256, null=True, blank=True)
     conversion_rate = models.CharField(max_length=256, null=True, blank=True)
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    usage_unit = models.CharField(max_length=256, null=True, blank=True)
     usage_to_pricing_units = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     usage_pricing_unit = models.CharField(max_length=256, null=True, blank=True)
     credits = models.CharField(max_length=256, null=True, blank=True)
@@ -143,8 +151,6 @@ class GCPCostEntryLineItemDaily(models.Model):
     cost = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
     currency = models.CharField(max_length=256, null=True, blank=True)
     conversion_rate = models.CharField(max_length=256, null=True, blank=True)
-    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    usage_unit = models.CharField(max_length=256, null=True, blank=True)
     usage_in_pricing_units = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     usage_pricing_unit = models.CharField(max_length=256, null=True, blank=True)
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
@@ -598,3 +604,253 @@ class GCPComputeSummaryByRegion(models.Model):
     account_id = models.CharField(max_length=50, null=False)
 
     region = models.CharField(max_length=50, null=True)
+
+
+class GCPStorageSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of storage usage.
+
+    """
+
+    class Meta:
+        """Meta for GCPStorageSummary."""
+
+        db_table = "reporting_gcp_storage_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+
+class GCPStorageSummaryByProject(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by account.
+
+    """
+
+    class Meta:
+        """Meta for GCPStorageSummaryByProject."""
+
+        db_table = "reporting_gcp_storage_summary_by_project"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+    project_id = models.CharField(unique=True, max_length=256)
+
+    project_name = models.CharField(max_length=256)
+
+    account_id = models.CharField(max_length=50, null=False)
+
+
+class GCPStorageSummaryByService(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage by service and instance type.
+
+    """
+
+    class Meta:
+        """Meta for GCPStorageSummaryByService."""
+
+        db_table = "reporting_gcp_storage_summary_by_service"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+    service_id = models.CharField(max_length=256, null=True)
+
+    service_alias = models.CharField(max_length=256, null=True, blank=True)
+
+    account_id = models.CharField(max_length=50, null=False)
+
+
+class GCPStorageSummaryByAccount(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by service and instance type.
+
+    """
+
+    class Meta:
+        """Meta for GCPStorageSummaryByAccount."""
+
+        db_table = "reporting_gcp_storage_summary_by_account"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+    account_id = models.CharField(max_length=50, null=False)
+
+
+class GCPStorageSummaryByRegion(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by service and instance type.
+
+    """
+
+    class Meta:
+        """Meta for GCPStorageSummaryByRegion."""
+
+        db_table = "reporting_gcp_storage_summary_by_region"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+    account_id = models.CharField(max_length=50, null=False)
+
+    region = models.CharField(max_length=50, null=True)
+
+
+class GCPNetworkSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of network usage.
+
+    """
+
+    class Meta:
+        """Meta for GCPNetworkSummary."""
+
+        db_table = "reporting_gcp_network_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    account_id = models.CharField(max_length=50, null=False)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+
+class GCPDatabaseSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of database usage.
+
+    """
+
+    class Meta:
+        """Meta for GCPDatabaseSummary."""
+
+        db_table = "reporting_gcp_database_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    account_id = models.CharField(max_length=50, null=False)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)

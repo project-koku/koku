@@ -67,6 +67,7 @@ GCP_REPORT_TABLE_MAP = {
     "line_item_daily": "reporting_gcpcostentrylineitem_daily",
     "line_item_daily_summary": "reporting_gcpcostentrylineitem_daily_summary",
     "tags_summary": "reporting_gcptags_summary",
+    "enabled_tag_keys": "reporting_gcpenabledtagkeys",
     "bill": "reporting_gcpcostentrybill",
     "product": "reporting_gcpcostentryproductservice",
     "project": "reporting_gcpproject",

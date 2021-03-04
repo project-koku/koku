@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the UserAccess view."""
+from django.test.utils import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -25,6 +26,8 @@ from api.iam.test.iam_test_case import RbacPermissions
 
 class UserAccessViewTest(IamTestCase):
     """Tests the resource types views."""
+
+    NUM_ACCESS_CLASSES = 6
 
     def setUp(self):
         """Set up the UserAccess view tests."""
@@ -49,7 +52,8 @@ class UserAccessViewTest(IamTestCase):
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
@@ -74,7 +78,8 @@ class UserAccessViewTest(IamTestCase):
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
@@ -99,7 +104,8 @@ class UserAccessViewTest(IamTestCase):
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
@@ -124,7 +130,8 @@ class UserAccessViewTest(IamTestCase):
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
@@ -149,7 +156,8 @@ class UserAccessViewTest(IamTestCase):
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
@@ -174,7 +182,8 @@ class UserAccessViewTest(IamTestCase):
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
@@ -200,7 +209,8 @@ class UserAccessViewTest(IamTestCase):
 
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
@@ -226,7 +236,8 @@ class UserAccessViewTest(IamTestCase):
 
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
@@ -252,7 +263,8 @@ class UserAccessViewTest(IamTestCase):
 
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
@@ -277,7 +289,8 @@ class UserAccessViewTest(IamTestCase):
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
@@ -302,7 +315,8 @@ class UserAccessViewTest(IamTestCase):
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
@@ -328,7 +342,8 @@ class UserAccessViewTest(IamTestCase):
 
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
@@ -354,7 +369,8 @@ class UserAccessViewTest(IamTestCase):
 
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
@@ -379,7 +395,8 @@ class UserAccessViewTest(IamTestCase):
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
@@ -404,11 +421,26 @@ class UserAccessViewTest(IamTestCase):
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
+
+    @RbacPermissions({})
+    def test_view_no_access(self):
+        """Test user-access view as an org admin."""
+        url = reverse("user-access")
+        response = self.client.get(url, **self.headers)
+
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
     def test_view_as_org_admin(self):
@@ -416,7 +448,8 @@ class UserAccessViewTest(IamTestCase):
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
 
-        self.assertEqual(len(response.data.get("data")), 5)
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
@@ -522,3 +555,91 @@ class UserAccessViewTest(IamTestCase):
         response = self.client.get(query_url, **self.headers)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @override_settings(ENABLE_PRERELEASE_FEATURES=True)
+    @RbacPermissions({"aws.account": {"read": ["*"]}})
+    def test_view_beta_flag_true(self):
+        """Test user-access view query using beta flag.
+
+        Scenarios:
+            pre-release features: allowed
+            user access: allowed
+            beta flag: true or false
+
+        Expected:
+            beta true result: true
+            beta false result: true
+        """
+        url = reverse("user-access")
+
+        for flag, expected in [(True, True), (False, True)]:
+            with self.subTest(flag=flag, expected=expected):
+                query_url = f"{url}?type=aws&beta={flag}"
+                response = self.client.get(query_url, **self.headers)
+                self.assertEqual(response.data.get("data"), expected)
+
+    @override_settings(ENABLE_PRERELEASE_FEATURES=False)
+    @RbacPermissions({"aws.account": {"read": ["*"]}})
+    def test_view_beta_flag_false(self):
+        """Test user-access view query using beta flag.
+
+        Scenarios:
+            pre-release features: disallowed
+            user access: allowed
+            beta flag: true or false
+
+        Expected:
+            beta true result: false
+            beta false result: true
+        """
+        url = reverse("user-access")
+
+        for flag, expected in [(True, False), (False, True)]:
+            with self.subTest(flag=flag, expected=expected):
+                query_url = f"{url}?type=aws&beta={flag}"
+                response = self.client.get(query_url, **self.headers)
+                self.assertEqual(response.data.get("data"), expected)
+
+    @override_settings(ENABLE_PRERELEASE_FEATURES=True)
+    @RbacPermissions({"something.else": {"read": ["*"]}})
+    def test_view_beta_flag_true_unauth(self):
+        """Test user-access view query using beta flag.
+
+        Scenarios:
+            pre-release features: allowed
+            user access: disallowed
+            beta flag: true or false
+
+        Expected:
+            beta true result: false
+            beta false result: false
+        """
+        url = reverse("user-access")
+
+        for flag, expected in [(True, False), (False, False)]:
+            with self.subTest(flag=flag, expected=expected):
+                query_url = f"{url}?type=aws&beta={flag}"
+                response = self.client.get(query_url, **self.headers)
+                self.assertEqual(response.data.get("data"), expected)
+
+    @override_settings(ENABLE_PRERELEASE_FEATURES=False)
+    @RbacPermissions({"something.else": {"read": ["*"]}})
+    def test_view_beta_flag_false_unauth(self):
+        """Test user-access view query using beta flag.
+
+        Scenarios:
+            pre-release features: disallowed
+            user access: disallowed
+            beta flag: true or false
+
+        Expected:
+            beta true result: false
+            beta false result: false
+        """
+        url = reverse("user-access")
+
+        for flag, expected in [(True, False), (False, False)]:
+            with self.subTest(flag=flag, expected=expected):
+                query_url = f"{url}?type=aws&beta={flag}"
+                response = self.client.get(query_url, **self.headers)
+                self.assertEqual(response.data.get("data"), expected)

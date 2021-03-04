@@ -103,6 +103,13 @@ from reporting.provider.gcp.models import GCPCostSummaryByAccount
 from reporting.provider.gcp.models import GCPCostSummaryByProject
 from reporting.provider.gcp.models import GCPCostSummaryByRegion
 from reporting.provider.gcp.models import GCPCostSummaryByService
+from reporting.provider.gcp.models import GCPDatabaseSummary
+from reporting.provider.gcp.models import GCPNetworkSummary
+from reporting.provider.gcp.models import GCPStorageSummary
+from reporting.provider.gcp.models import GCPStorageSummaryByAccount
+from reporting.provider.gcp.models import GCPStorageSummaryByProject
+from reporting.provider.gcp.models import GCPStorageSummaryByRegion
+from reporting.provider.gcp.models import GCPStorageSummaryByService
 from reporting.provider.gcp.models import GCPTagsSummary
 from reporting.provider.ocp.costs.models import CostSummary
 from reporting.provider.ocp.models import OCPCostSummary
@@ -124,7 +131,6 @@ from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import OCPVolumeSummary
 from reporting.provider.ocp.models import OCPVolumeSummaryByProject
-
 
 AWS_MATERIALIZED_VIEWS = (
     AWSComputeSummary,
@@ -213,4 +219,11 @@ GCP_MATERIALIZED_VIEWS = (
     GCPComputeSummaryByAccount,
     GCPComputeSummaryByService,
     GCPComputeSummaryByRegion,
+    GCPStorageSummary,
+    GCPStorageSummaryByProject,
+    GCPStorageSummaryByService,
+    GCPStorageSummaryByAccount,
+    GCPStorageSummaryByRegion,
+    GCPNetworkSummary,
+    GCPDatabaseSummary,
 )

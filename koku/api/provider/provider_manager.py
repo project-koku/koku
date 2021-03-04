@@ -86,6 +86,20 @@ class ProviderManager:
             manifest_completed_datetime__isnull=False,
         ).exists()
 
+    def get_previous_month_data_exists(self):
+        """Get current month data avaiability status."""
+        return CostUsageReportManifest.objects.filter(
+            provider=self._uuid,
+            billing_period_start_datetime=DateHelper().last_month_start,
+            manifest_completed_datetime__isnull=False,
+        ).exists()
+
+    def get_any_data_exists(self):
+        """Get  data avaiability status."""
+        return CostUsageReportManifest.objects.filter(
+            provider=self._uuid, manifest_completed_datetime__isnull=False
+        ).exists()
+
     def get_infrastructure_name(self):
         """Get the name of the infrastructure that the provider is running on."""
         if self.model.infrastructure and self.model.infrastructure.infrastructure_type:

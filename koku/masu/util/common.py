@@ -40,6 +40,8 @@ from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
 from masu.util.azure.common import azure_date_converter
 from masu.util.azure.common import azure_json_converter
+from masu.util.gcp.common import process_gcp_credits
+from masu.util.gcp.common import process_gcp_labels
 from masu.util.ocp.common import process_openshift_datetime
 from masu.util.ocp.common import process_openshift_labels_to_json
 
@@ -204,6 +206,20 @@ def get_column_converters(provider_type, **kwargs):
             "PayGPrice": safe_float,
             "Tags": azure_json_converter,
             "AdditionalInfo": azure_json_converter,
+        }
+    elif provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+        converters = {
+            "usage_start_time": ciso8601.parse_datetime,
+            "usage_end_time": ciso8601.parse_datetime,
+            "project.labels": process_gcp_labels,
+            "labels": process_gcp_labels,
+            "system_labels": process_gcp_labels,
+            "export_time": ciso8601.parse_datetime,
+            "cost": safe_float,
+            "currency_conversion_rate": safe_float,
+            "usage.amount": safe_float,
+            "usage.amount_in_pricing_units": safe_float,
+            "credits": process_gcp_credits,
         }
     elif provider_type == Provider.PROVIDER_OCP:
         converters = {
