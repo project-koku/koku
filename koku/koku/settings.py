@@ -439,6 +439,7 @@ CELERY_WORKER_LOG_FORMAT = "[%(asctime)s: %(levelname)s/%(processName)s] %(messa
 CELERY_WORKER_TASK_LOG_FORMAT = (
     "[%(asctime)s: %(levelname)s/%(processName)s] [%(task_name)s(%(task_id)s via %(task_root_id)s)] %(message)s"
 )
+CELERY_RESULT_EXPIRES = 28800  # 8 hours (3600 seconds / hour * 8 hours)
 
 
 # AWS S3 Bucket Settings
