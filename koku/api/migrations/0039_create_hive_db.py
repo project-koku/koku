@@ -99,6 +99,6 @@ select has_database_privilege(%s, %s, 'connect');
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0037_auto_20210223_2136")]
+    dependencies = [("api", "0038_drop_app_needs_migrations_func")]
 
     operations = [migrations.RunPython(create_hive_db)]
