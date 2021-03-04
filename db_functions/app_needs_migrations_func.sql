@@ -99,24 +99,15 @@ BEGIN
                         ')::boolean as "schema_exists" '
           INTO exists_rec;
 
-        IF _verbose
+        IF exists_rec.tenant_exists AND NOT exists_rec.schema_exists
         THEN
-            IF exists_rec.tenant_exists AND NOT exists_rec.schema_exists
-            THEN
-                RAISE WARNING '    Tenant % exists, but there is no database schema. Skipping tenant %.',
-                            schema_rec.schema_name,
+            RAISE EXCEPTION 'MIGRATION CHECK :: Tenant "%" exists, but there is no database schema.',
                             schema_rec.schema_name;
-                RAISE LOG 'MIGRATION CHECK :: Tenant % exists, but there is no database schema.',
+        END IF;
+        IF NOT exists_rec.tenant_exists AND exists_rec.schema_exists
+        THEN
+            RAISE EXCEPTION 'MIGRATION CHECK :: Schema "%" exists, but there is no tenant record.',
                             schema_rec.schema_name;
-            END IF;
-            IF NOT exists_rec.tenant_exists AND exists_rec.schema_exists
-            THEN
-                RAISE WARNING '    Schema % exists, but there is no tenant record. Skipping schema %.',
-                            schema_rec.schema_name,
-                            schema_rec.schema_name;
-                RAISE LOG 'MIGRATION CHECK :: Schema % exists, but there is no tenant record.',
-                            schema_rec.schema_name;
-            END IF;
         END IF;
 
         CONTINUE WHEN (NOT exists_rec.tenant_exists) OR (NOT exists_rec.schema_exists);
