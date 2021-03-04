@@ -179,6 +179,8 @@ TEMPLATES = [
 WSGI_APPLICATION = "koku.wsgi.application"
 
 WORKER_CACHE_KEY = "worker"
+CACHE_MIDDLEWARE_SECONDS = ENVIRONMENT.get_value("CACHE_TIMEOUT", default=3600)
+
 HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
 
 REDIS_HOST = ENVIRONMENT.get_value("REDIS_HOST", default="redis")
@@ -443,6 +445,7 @@ S3_ACCESS_KEY = ENVIRONMENT.get_value("S3_ACCESS_KEY", default=None)
 S3_SECRET = ENVIRONMENT.get_value("S3_SECRET", default=None)
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 ENABLE_PARQUET_PROCESSING = ENVIRONMENT.bool("ENABLE_PARQUET_PROCESSING", default=False)
+PARQUET_FILE_
 
 # Presto Settings
 PRESTO_HOST = ENVIRONMENT.get_value("PRESTO_HOST", default=None)
