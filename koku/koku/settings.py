@@ -421,9 +421,9 @@ RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
 RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", "5672")
 
 REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
-# Set Broker 
+# Set Broker
 USE_RABBIT = ENVIRONMENT.bool("USE_RABBIT", default=False)
-if USE_RABBIT: 
+if USE_RABBIT:
     CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
 else:
     CELERY_BROKER_URL = REDIS_URL
