@@ -24,7 +24,7 @@ from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
 from django.db import OperationalError
 from django.db import transaction
-from django.db.migrations.executor import MigrationExecutor
+from django.db.migrations.loader import MigrationLoader
 from django.db.models import DecimalField
 from django.db.models.aggregates import Func
 from django.db.models.fields.json import KeyTextTransform
@@ -108,22 +108,22 @@ def install_migrations_dbfunc(connection):
 
 
 def verify_migrations_dbfunc(connection):
-    func_sig = "public.app_needs_migrations(leaf_migrations jsonb, _verbose boolean DEFAULT false)"
-    if not dbfunc_exists(connection, "public", "app_needs_migrations", func_sig):
+    func_sig = "public.migrations_complete(leaf_migrations jsonb, _verbose boolean DEFAULT false)"
+    if not dbfunc_exists(connection, "public", "migrations_complete", func_sig):
         install_migrations_dbfunc(connection)
 
 
-def check_migrattions_dbfunc(connection, targets):
+def check_migrations_dbfunc(connection, targets):
     """
-    Check the state of the migrations using the app_needs_migrations
+    Check the state of the migrations using the migrations_complete
     database function.
     The database function returns true if the migrations NEED to be run else false.
     """
     LOG.info("Checking app migrations via database function")
     with connection.cursor() as cur:
-        cur.execute("SELECT public.app_needs_migrations(%s::jsonb);", (json.dumps(dict(targets)),))
+        cur.execute("SELECT public.migrations_complete(%s::jsonb);", (json.dumps(dict(targets)),))
         res = cur.fetchone()
-        ret = not (bool(res) and res[0])
+        ret = bool(res) and res[0]
 
     LOG.info(f"Migrations should {'not ' if ret else ''}be run.")
     return ret
@@ -141,11 +141,10 @@ def check_migrations():
     try:
         connection = connections[DEFAULT_DB_ALIAS]
         connection.prepare_database()
-        executor = MigrationExecutor(connection)
-        targets = executor.loader.graph.leaf_nodes()
+        targets = MigrationLoader(None).graph.leaf_nodes()
         with transaction.atomic():
             verify_migrations_dbfunc(connection)
-            res = check_migrattions_dbfunc(connection, targets)
+            res = check_migrations_dbfunc(connection, targets)
 
         return res
     except OperationalError:
