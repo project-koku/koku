@@ -26,40 +26,52 @@ DECLARE
 BEGIN
     IF ( TG_OP = 'DELETE' )
     THEN
-        alter_stmt = 'ALTER TABLE ' ||
-                     quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
-                     ' DETACH PARTITION ' ||
-                     quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name) ||
-                     ' ;';
+        IF ( OLD.active )
+        THEN
+            alter_stmt = 'ALTER TABLE ' ||
+                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
+                        ' DETACH PARTITION ' ||
+                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name) ||
+                        ' ;';
+        END IF;
         action_stmt = 'DROP TABLE IF EXISTS ' || quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name) || ' ;';
         table_name = quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name);
         alter_msg = 'DROP PARTITION ' || quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name);
     ELSIF ( TG_OP = 'UPDATE' )
     THEN
-        alter_stmt = 'ALTER TABLE ' ||
-                    quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
-                    ' DETACH PARTITION ' ||
-                    quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name)
-                    || ' ;';
-        action_stmt = 'ALTER TABLE ' ||
-                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
-                        ' ATTACH PARTITION ' ||
-                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name) || ' ';
-        IF ( (NEW.partition_parameters->>'default')::boolean )
+        /* If the partition was active, then detach it */
+        if ( OLD.active )
         THEN
-            alter_stmt = alter_stmt || 'DEFAULT ;';
-            action_msg = 'DEFAULT';
-        ELSE
-            alter_stmt = alter_stmt || 'FOR VALUES FROM ( ' ||
-                         quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
-                         quote_literal(NEW.partition_parameters->>'to') || '::date ) ;';
-            action_msg = 'FOR VALUES FROM ( ' ||
-                         quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
-                         quote_literal(NEW.partition_parameters->>'to') || '::date )';
+            alter_stmt = 'ALTER TABLE ' ||
+                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
+                        ' DETACH PARTITION ' ||
+                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name)
+                        || ' ;';
+        END IF;
+
+        /* If we are going to active or are still active, then attach the partition */
+        if ( NEW.active )
+        THEN
+            action_stmt = 'ALTER TABLE ' ||
+                            quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
+                            ' ATTACH PARTITION ' ||
+                            quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name) || ' ';
+            IF ( (NEW.partition_parameters->>'default') = 'true' )
+            THEN
+                action_stmt = action_stmt || 'DEFAULT ;';
+                action_msg = 'DEFAULT';
+            ELSE
+                action_stmt = action_stmt || 'FOR VALUES FROM ( ' ||
+                            quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
+                            quote_literal(NEW.partition_parameters->>'to') || '::date ) ;';
+                action_msg = 'FOR VALUES FROM ( ' ||
+                            quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
+                            quote_literal(NEW.partition_parameters->>'to') || '::date )';
+            END IF;
         END IF;
 
         table_name = quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name);
-        action_msg = 'UPDATE PARTITION ' || quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.table_name) ||
+        action_msg = 'ALTER PARTITION ' || quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.table_name) ||
                      ' ' || action_msg;
     ELSIF ( TG_OP = 'INSERT' )
     THEN

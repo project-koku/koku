@@ -37,8 +37,24 @@ class GCPReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for GCP."""
 
     provider = Provider.PROVIDER_GCP
-    network_services = {}  # FIXME: When we start working on networking apis
-    database_services = {}  # FIXME: When we start working on database apis
+
+    network_services = {
+        "Network",
+        "VPC"
+        "Firewall"
+        "Route"
+        "IP"
+        "DNS"
+        "CDN"
+        "NAT"
+        "Traffic Director"
+        "Service Discovery"
+        "Cloud Domains"
+        "Private Service Connect"
+        "Cloud Armor",
+    }
+
+    database_services = {"SQL", "Spanner", "Bigtable", "Firestore", "Firebase", "Memorystore", "MongoDB"}
 
     def __init__(self, parameters):
         """Establish GCP report query handler.
@@ -74,10 +90,9 @@ class GCPReportQueryHandler(ReportQueryHandler):
             "date": self.date_trunc("usage_start"),
             "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback)),
         }
-        # TODO: Not needed until we start other report types
-        # if self._mapper.usage_units_key:
-        #     units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
-        #     annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
+        if self._mapper.usage_units_key:
+            units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
+            annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
         fields = self._mapper.provider_map.get("annotations")
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(""))
@@ -110,35 +125,26 @@ class GCPReportQueryHandler(ReportQueryHandler):
         query_sum = self.initialize_totals()
 
         cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
-        # TODO: Not needed until we start other report types
-        # usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
-        # count_units_fallback = self._mapper.report_type_map.get("count_units_fallback")
+        usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
 
         if query.exists():
             sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
-            # TODO: Not needed until we start other report types
-            # if self._mapper.usage_units_key:
-            #     units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
-            #     sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
+            if self._mapper.usage_units_key:
+                units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
+                sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
             sum_query = query.annotate(**sum_annotations)
 
             units_value = sum_query.values("cost_units").first().get("cost_units", cost_units_fallback)
             sum_units = {"cost_units": units_value}
-            # TODO: Not needed until we start other report types
-            # if self._mapper.usage_units_key:
-            #     units_value = sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
-            #     sum_units["usage_units"] = units_value
-            # if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
-            #     sum_units["count_units"] = count_units_fallback
+            if self._mapper.usage_units_key:
+                units_value = sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
+                sum_units["usage_units"] = units_value
 
             query_sum = self.calculate_total(**sum_units)
         else:
             sum_units["cost_units"] = cost_units_fallback
-            # TODO: Not needed until we start other report types
-            # if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
-            #     sum_units["count_units"] = count_units_fallback
-            # if self._mapper.report_type_map.get("annotations", {}).get("usage_units"):
-            #     sum_units["usage_units"] = usage_units_fallback
+            if self._mapper.report_type_map.get("annotations", {}).get("usage_units"):
+                sum_units["usage_units"] = usage_units_fallback
             query_sum.update(sum_units)
             self._pack_data_object(query_sum, **self._mapper.PACK_DEFINITIONS)
         return query_sum

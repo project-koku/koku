@@ -44,12 +44,10 @@ def strip_tag_prefix(tag):
     return tag.replace("tag:", "").replace("and:", "").replace("or:", "")
 
 
-def is_grouped_or_filtered_by_project(parameters):
+def is_grouped_by_project(parameters):
     """Determine if grouped or filtered by project."""
     group_by = list(parameters.parameters.get("group_by", {}).keys())
-    filters = list(parameters.parameters.get("filter", {}).keys())
-    effects = group_by + filters
-    return [key for key in effects if "project" in key]
+    return [key for key in group_by if "project" in key]
 
 
 def check_view_filter_and_group_by_criteria(filter_set, group_by_set):

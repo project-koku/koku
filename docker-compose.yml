@@ -37,12 +37,13 @@ services:
         - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
         - RBAC_CACHE_TTL
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
-        - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
+        - DEMO_ACCOUNTS
         - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
         - RUN_GUNICORN=${RUN_GUNICORN}
       privileged: true
@@ -88,11 +89,14 @@ services:
         - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
         - RBAC_CACHE_TTL
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
         - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
+        - MASU_DATE_OVERRIDE
+        - MASU_DEBUG
       privileged: true
       ports:
           - 5000:8000
@@ -123,6 +127,9 @@ services:
     volumes:
       - ./pg_data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
       - ./pg_init:/docker-entrypoint-initdb.d
+      # PostgreSQL SSL: Un-comment the next two lines after running ./scripts/genssc to use sslmode in Postgres
+      # - ./certs/koku.crt:/etc/certs/koku.crt
+      # - ./certs/private/koku.key:/etc/certs/private/koku.key
     command:
       # This command give more precise control over the parameter settings
       # Included are loading the pg_stat_statements lib
@@ -130,6 +137,14 @@ services:
       # use of the autovacuum processes
       # The pg_init mount is still needed to enable the necesary extensions.
       - postgres
+      # PostgreSQL SSL: Run ./scripts/genssc to create self-signed cert and key files to support ssl
+      #                 Un-comment the three options below to utilize ssl mode and use the certificate and key
+      # - -c
+      # - ssl=on
+      # - -c
+      # - ssl_cert_file=/etc/certs/koku.crt
+      # - -c
+      # - ssl_key_file=/etc/certs/private/koku.key
       - -c
       - max_connections=1710
       - -c
@@ -228,6 +243,7 @@ services:
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
@@ -246,7 +262,7 @@ services:
         - KOKU_CELERY_ENABLE_SENTRY
         - KOKU_CELERY_SENTRY_DSN
         - KOKU_SENTRY_ENVIRONMENT
-        - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
+        - DEMO_ACCOUNTS
         - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
         - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
@@ -254,6 +270,8 @@ services:
         - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
         - PRESTO_HOST=${PRESTO_HOST-presto}
         - PRESTO_PORT=${PRESTO_PORT-8080}
+        - DATE_OVERRIDE
+        - MASU_DEBUG
 
       privileged: true
       volumes:
@@ -294,6 +312,7 @@ services:
         - DATABASE_PORT=5432
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
         - MASU_SECRET_KEY=abc
@@ -353,6 +372,8 @@ services:
         - SOURCES_KAFKA_HOST=${SOURCES_KAFKA_HOST-kafka}
         - SOURCES_KAFKA_PORT=${SOURCES_KAFKA_PORT-29092}
         - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
+        - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+        - DEMO_ACCOUNTS
         - prometheus_multiproc_dir=/tmp
       privileged: true
       ports:
@@ -384,6 +405,7 @@ services:
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
         - MASU_SECRET_KEY=abc

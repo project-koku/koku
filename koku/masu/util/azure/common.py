@@ -145,5 +145,5 @@ def azure_post_processor(data_frame):
     columns = list(data_frame)
     if "MeterSubcategory" in columns:
         data_frame["MeterSubCategory"] = data_frame["MeterSubcategory"]
-        data_frame.drop(columns=["MeterSubcategory"])
+        data_frame = data_frame.drop(columns=["MeterSubcategory"])
     return data_frame.reindex(columns=PRESTO_COLUMNS)

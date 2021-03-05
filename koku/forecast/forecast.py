@@ -87,7 +87,7 @@ class Forecast:
                 self.cost_summary_table = materialized_view
             else:
                 # We have access constraints, but no view to accomodate, default to daily summary table
-                self.cost_summary_table = self.provider_map.report_type_map.get("tables", {}).get("query")
+                self.cost_summary_table = self.provider_map.query_table
 
         self.forecast_days_required = (self.dh.this_month_end - self.dh.yesterday).days
 
@@ -396,7 +396,7 @@ class LinearForecastResult:
 
         Args:
             regression_result (RegressionResult) the results of a statsmodels regression
-            exog (array-like) exogenous variables for points to predict
+            exog (array-like) future exogenous variables; points to predict
         """
         self._exog = exog
         self._regression_result = regression_result

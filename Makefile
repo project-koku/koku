@@ -37,9 +37,9 @@ OC_TEMPLATES = $(wildcard $(OC_TEMPLATE_DIR))
 
 # Docker compose specific file
 ifdef compose_file
-    DOCKER_COMPOSE = docker-compose -f $(compose_file)
+    DOCKER_COMPOSE = $(DOCKER)-compose -f $(compose_file)
 else
-	DOCKER_COMPOSE = docker-compose
+	DOCKER_COMPOSE = $(DOCKER)-compose
 endif
 
 # Platform differences
@@ -101,6 +101,7 @@ help:
 	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
 	@echo "  superuser                             create a Django super user"
 	@echo "  unittest                              run unittests"
+	@echo "  local-upload-data                     upload data to Ingress if it is up and running locally"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
 	@echo "  docker-up                            run docker-compose up --build -d"
@@ -114,6 +115,9 @@ help:
 	@echo "                                         password: admin12"
 	@echo "  docker-up-min                        run database, koku/masu servers and worker"
 	@echo "  docker-down                          shut down all containers"
+	@echo "  docker-up-min-presto                 start minimum targets for Presto usage"
+	@echo "  docker-up-min-presto-no-build        start minimum targets for Presto usage without building koku base"
+	@echo "  docker-presto-down-all               Tear down Presto and Koku containers"
 	@echo "  docker-rabbit                        run RabbitMQ container"
 	@echo "  docker-reinitdb                      drop and recreate the database"
 	@echo "  docker-reinitdb-with-sources         drop and recreate the database with fake sources"
@@ -167,7 +171,7 @@ create-test-customer-no-sources: run-migrations docker-up-koku
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-sources --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
 
 load-test-customer-data:
-	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
+	$(TOPDIR)/scripts/load_test_customer_data.sh $(start) $(end)
 	make load-aws-org-unit-tree
 
 load-aws-org-unit-tree:
@@ -399,6 +403,8 @@ docker-presto-down:
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down -v
 	make docker-presto-cleanup
 
+docker-presto-down-all: docker-presto-down docker-down
+
 ### Source targets ###
 ocp-source-from-yaml:
 #parameter validation
@@ -538,6 +544,12 @@ backup-local-db-dir:
 	@$(PREFIX) cp -rp ./pg_data ./pg_data.bak
 	@cd - >/dev/null
 	$(DOCKER_COMPOSE) start db
+
+local-upload-data:
+	curl -vvvv -F "upload=@$(file);type=application/vnd.redhat.hccm.$(basename $(basename $(notdir $(file))))+tgz" \
+		-H "x-rh-identity: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAiaW50ZXJuYWwiOiB7Im9yZ19pZCI6ICI1NDMyMSJ9fX0=" \
+		-H "x-rh-request_id: testtesttest" \
+		localhost:8080/api/ingress/v1/upload
 
 
 restore-local-db-dir:

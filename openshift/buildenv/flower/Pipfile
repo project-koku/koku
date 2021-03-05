@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-flower = "==0.9.2"
+flower = "==0.9.7"
 
 [requires]
 python_version = "3.6"

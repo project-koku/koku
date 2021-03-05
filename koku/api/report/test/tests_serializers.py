@@ -18,12 +18,15 @@
 from unittest import TestCase
 from unittest.mock import Mock
 
+from dateutil.relativedelta import relativedelta
 from rest_framework import serializers
 
 from api.report.aws.serializers import FilterSerializer
 from api.report.aws.serializers import GroupBySerializer
 from api.report.aws.serializers import OrderBySerializer
 from api.report.aws.serializers import QueryParamSerializer
+from api.utils import DateHelper
+from api.utils import materialized_view_month_start
 
 
 class FilterSerializerTest(TestCase):
@@ -545,3 +548,64 @@ class QueryParamSerializerTest(TestCase):
         serializer = QueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
+
+    def test_parse_filter_dates_valid(self):
+        """Test parse of a filter date-based param should succeed."""
+        dh = DateHelper()
+        scenarios = [
+            {"start_date": dh.yesterday.date(), "end_date": dh.today.date()},
+            {
+                "start_date": dh.last_month_end.date(),
+                "end_date": dh.this_month_start.date(),
+                "filter": {"resolution": "monthly"},
+            },
+            {
+                "start_date": materialized_view_month_start().date(),
+                "end_date": dh.today.date(),
+                "filter": {"resolution": "monthly"},
+            },
+        ]
+
+        for params in scenarios:
+            with self.subTest(params=params):
+                serializer = QueryParamSerializer(data=params)
+                self.assertTrue(serializer.is_valid(raise_exception=True))
+
+    def test_parse_filter_dates_invalid(self):
+        """Test parse of invalid data for filter date-based param should not succeed."""
+        dh = DateHelper()
+        scenarios = [
+            {"start_date": dh.today.date()},
+            {"end_date": dh.today.date()},
+            {"start_date": dh.yesterday.date(), "end_date": dh.tomorrow.date()},
+            {"start_date": dh.n_days_ago(materialized_view_month_start(), 1), "end_date": dh.today.date()},
+            {"start_date": dh.today.date(), "end_date": dh.yesterday.date()},
+            {"start_date": "llamas", "end_date": dh.yesterday.date()},
+            {"start_date": dh.yesterday.date(), "end_date": "alpacas"},
+            {"start_date": "llamas", "end_date": "alpacas"},
+            {
+                "start_date": materialized_view_month_start().date(),
+                "end_date": dh.last_month_end.date(),
+                "filter": {"time_scope_units": "day"},
+            },
+            {
+                "start_date": materialized_view_month_start().date(),
+                "end_date": dh.last_month_end.date(),
+                "filter": {"time_scope_value": "-1"},
+            },
+            {
+                "start_date": materialized_view_month_start().date(),
+                "end_date": dh.last_month_end.date(),
+                "filter": {"time_scope_units": "day", "time_scope_value": "-1"},
+            },
+            {
+                "start_date": materialized_view_month_start().date() - relativedelta(months=1),
+                "end_date": dh.last_month_end.date(),
+                "filter": {"time_scope_units": "day", "time_scope_value": "-1"},
+            },
+        ]
+
+        for params in scenarios:
+            with self.subTest(params=params):
+                serializer = QueryParamSerializer(data=params)
+                self.assertFalse(serializer.is_valid())

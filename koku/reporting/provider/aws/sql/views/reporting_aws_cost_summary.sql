@@ -11,7 +11,7 @@ CREATE MATERIALIZED VIEW reporting_aws_cost_summary AS(
         source_uuid
     FROM reporting_awscostentrylineitem_daily_summary
     -- Get data for this month or last month
-    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+    WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
     GROUP BY usage_start, source_uuid
 )
 WITH DATA

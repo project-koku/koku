@@ -60,10 +60,10 @@ LOG = logging.getLogger(__name__)
 PROCESS_QUEUE = queue.PriorityQueue()
 COUNT = itertools.count()  # next(COUNT) returns next sequential number
 KAFKA_APPLICATION_CREATE = "Application.create"
+KAFKA_APPLICATION_UPDATE = "Application.update"
 KAFKA_APPLICATION_DESTROY = "Application.destroy"
 KAFKA_AUTHENTICATION_CREATE = "Authentication.create"
 KAFKA_AUTHENTICATION_UPDATE = "Authentication.update"
-KAFKA_SOURCE_UPDATE = "Source.update"
 KAFKA_SOURCE_DESTROY = "Source.destroy"
 KAFKA_HDR_RH_IDENTITY = "x-rh-identity"
 KAFKA_HDR_EVENT_TYPE = "event_type"
@@ -106,6 +106,7 @@ class SourceDetails:
         self.source_uuid = details.get("uid")
         self.source_type_name = sources_network.get_source_type_name(self.source_type_id)
         self.source_type = SOURCE_PROVIDER_MAP.get(self.source_type_name)
+        self.app_settings = sources_network.get_application_settings(self.source_type)
 
 
 def _extract_from_header(headers, header_type):
@@ -214,7 +215,7 @@ def get_sources_msg_data(msg, app_type_id):
             LOG.debug(f"msg value: {str(value)}")
             event_type = _extract_from_header(msg.headers(), KAFKA_HDR_EVENT_TYPE)
             LOG.debug(f"event_type: {str(event_type)}")
-            if event_type in (KAFKA_APPLICATION_CREATE, KAFKA_APPLICATION_DESTROY):
+            if event_type in (KAFKA_APPLICATION_CREATE, KAFKA_APPLICATION_UPDATE, KAFKA_APPLICATION_DESTROY):
                 if int(value.get("application_type_id")) == app_type_id:
                     LOG.debug("Application Message: %s", str(msg))
                     msg_data["event_type"] = event_type
@@ -228,7 +229,7 @@ def get_sources_msg_data(msg, app_type_id):
                     )
             elif event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
                 LOG.debug("Authentication Message: %s", str(msg))
-                if value.get("resource_type") in ("Endpoint", "Application"):
+                if value.get("resource_type") in ("Application",):
                     msg_data["event_type"] = event_type
                     msg_data["offset"] = msg.offset()
                     msg_data["partition"] = msg.partition()
@@ -239,7 +240,7 @@ def get_sources_msg_data(msg, app_type_id):
                         f"Authentication Create/Update Message headers for Source ID: "
                         f"{value.get('resource_id')}: {str(msg.headers())}"
                     )
-            elif event_type in (KAFKA_SOURCE_DESTROY, KAFKA_SOURCE_UPDATE):
+            elif event_type in (KAFKA_SOURCE_DESTROY,):
                 msg_data["event_type"] = event_type
                 msg_data["offset"] = msg.offset()
                 msg_data["partition"] = msg.partition()
@@ -315,8 +316,7 @@ def save_auth_info(auth_header, source_id):
     try:
         authentication = get_authentication(source_type, sources_network)
     except SourcesHTTPClientError as error:
-        LOG.info(f"Authentication info not available for Source ID: {source_id}")
-        sources_network.set_source_status(error)
+        LOG.info(f"Authentication info not available for Source ID: {source_id}. Error: {str(error)}")
     else:
         if not authentication:
             return
@@ -352,6 +352,13 @@ def sources_network_info(source_id, auth_header):
 
     storage.add_provider_sources_network_info(src_details, source_id)
     save_auth_info(auth_header, source_id)
+    app_settings = src_details.app_settings
+    if app_settings:
+        try:
+            storage.update_application_settings(source_id, app_settings)
+        except storage.SourcesStorageError as error:
+            LOG.error(f"Unable to apply application settings. error: {str(error)}")
+            return
 
 
 def cost_mgmt_msg_filter(msg_data):
@@ -367,12 +374,10 @@ def cost_mgmt_msg_filter(msg_data):
 
         if msg_data.get("resource_type") == "Application":
             source_id = sources_network.get_source_id_from_applications_id(msg_data.get("resource_id"))
-        msg_data["source_id"] = source_id
-        if not sources_network.get_application_type_is_cost_management(source_id):
-            LOG.info(f"Resource id {msg_data.get('resource_id')} not associated with cost-management.")
-            return None
-    else:
-        source_id = msg_data.get("source_id")
+            msg_data["source_id"] = source_id
+            if not sources_network.get_application_type_is_cost_management(source_id):
+                LOG.info(f"Resource id {msg_data.get('resource_id')} not associated with cost-management.")
+                return None
 
     return msg_data
 
@@ -396,7 +401,7 @@ def process_message(app_type_id, msg):  # noqa: C901
         None
 
     """
-    LOG.info(f"Processing Event: {msg}")
+    LOG.debug(f"Processing Event: {msg}")
     msg_data = None
     try:
         msg_data = cost_mgmt_msg_filter(msg)
@@ -421,7 +426,7 @@ def process_message(app_type_id, msg):  # noqa: C901
 
         save_auth_info(msg_data.get("auth_header"), msg_data.get("source_id"))
 
-    elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE,):
+    elif msg_data.get("event_type") in (KAFKA_APPLICATION_UPDATE,):
         if storage.is_known_source(msg_data.get("source_id")) is False:
             LOG.info("Update event for unknown source id, skipping...")
             return
@@ -433,7 +438,8 @@ def process_message(app_type_id, msg):  # noqa: C901
     elif msg_data.get("event_type") in (KAFKA_SOURCE_DESTROY,):
         storage.enqueue_source_delete(msg_data.get("source_id"), msg_data.get("offset"))
 
-    if msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
+    if msg_data.get("event_type") in (KAFKA_AUTHENTICATION_UPDATE,):
+        sources_network_info(msg_data.get("source_id"), msg_data.get("auth_header"))
         storage.enqueue_source_update(msg_data.get("source_id"))
 
 
@@ -460,6 +466,7 @@ def listen_for_messages_loop(application_source_id):  # pragma: no cover
         if len(msg_list) == 1:
             msg = msg_list.pop()
         else:
+            consumer.commit()
             continue
 
         listen_for_messages(msg, consumer, application_source_id)
@@ -531,6 +538,8 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
             except SourceNotFoundError:
                 LOG.warning(f"Source not found in platform sources. Skipping msg: {msg}")
                 consumer.commit()
+        else:
+            consumer.commit()
 
     except KafkaError as error:
         LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
@@ -570,13 +579,14 @@ def execute_koku_provider_op(msg):
         if operation == "create":
             LOG.info(f"Creating Koku Provider for Source ID: {str(provider.source_id)}")
             instance = account_coordinator.create_account(provider)
-            LOG.info(f"Creating provider {instance.uuid} for Source ID: {provider.source_id}")
+            LOG.info(f"Created provider {instance.uuid} for Source ID: {provider.source_id}")
         elif operation == "update":
             instance = account_coordinator.update_account(provider)
-            LOG.info(f"Updating provider {instance.uuid} for Source ID: {provider.source_id}")
+            LOG.info(f"Updated provider {instance.uuid} for Source ID: {provider.source_id}")
+
         elif operation == "destroy":
             account_coordinator.destroy_account(provider)
-            LOG.info(f"Destroying provider {provider.koku_uuid} for Source ID: {provider.source_id}")
+            LOG.info(f"Destroyed provider {provider.koku_uuid} for Source ID: {provider.source_id}")
         else:
             LOG.error(f"unknown operation: {operation}")
         sources_client.set_source_status(None)

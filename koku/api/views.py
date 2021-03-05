@@ -44,6 +44,8 @@ from api.report.azure.view import AzureCostView
 from api.report.azure.view import AzureInstanceTypeView
 from api.report.azure.view import AzureStorageView
 from api.report.gcp.view import GCPCostView
+from api.report.gcp.view import GCPInstanceTypeView
+from api.report.gcp.view import GCPStorageView
 from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
@@ -67,3 +69,4 @@ from api.tags.azure.openshift.view import OCPAzureTagView
 from api.tags.azure.view import AzureTagView
 from api.tags.gcp.view import GCPTagView
 from api.tags.ocp.view import OCPTagView
+from api.user_access.view import UserAccessView

@@ -179,6 +179,8 @@ TEMPLATES = [
 WSGI_APPLICATION = "koku.wsgi.application"
 
 WORKER_CACHE_KEY = "worker"
+CACHE_MIDDLEWARE_SECONDS = ENVIRONMENT.get_value("CACHE_TIMEOUT", default=3600)
+
 HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
 
 REDIS_HOST = ENVIRONMENT.get_value("REDIS_HOST", default="redis")
@@ -190,7 +192,12 @@ TEST_CACHE_LOCATION = "unique-snowflake"
 if "test" in sys.argv:
     TEST_RUNNER = "koku.koku_test_runner.KokuTestRunner"
     CACHES = {
-        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": TEST_CACHE_LOCATION,
+            "KEY_FUNCTION": "tenant_schemas.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+        },
         "rbac": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
         "worker": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
     }
@@ -413,8 +420,17 @@ MASU_API_REPORT_DATA = f"{API_PATH_PREFIX}/v1/report_data/"
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
 RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", "5672")
 
-CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
-CELERY_RESULTS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+# Set Broker
+USE_RABBIT = ENVIRONMENT.bool("USE_RABBIT", default=False)
+if USE_RABBIT:
+    print("USING RABBIT!")
+    CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
+else:
+    print("USING REDIS!")
+    CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULTS_URL = REDIS_URL
+
 CELERY_IMPORTS = ("masu.processor.tasks", "masu.celery.tasks", "koku.metrics")
 CELERY_BROKER_POOL_LIMIT = None
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
@@ -423,6 +439,7 @@ CELERY_WORKER_LOG_FORMAT = "[%(asctime)s: %(levelname)s/%(processName)s] %(messa
 CELERY_WORKER_TASK_LOG_FORMAT = (
     "[%(asctime)s: %(levelname)s/%(processName)s] [%(task_name)s(%(task_id)s via %(task_root_id)s)] %(message)s"
 )
+CELERY_RESULT_EXPIRES = 28800  # 8 hours (3600 seconds / hour * 8 hours)
 
 
 # AWS S3 Bucket Settings
@@ -464,3 +481,7 @@ except JSONDecodeError:
     pass
 
 OPENSHIFT_DOC_VERSION = ENVIRONMENT.get_value("OPENSHIFT_DOC_VERSION", default="4.5")
+
+# Aids the UI in showing pre-release features in allowed environments.
+# see: koku.api.user_access.view
+ENABLE_PRERELEASE_FEATURES = ENVIRONMENT.bool("ENABLE_PRERELEASE_FEATURES", default=False)

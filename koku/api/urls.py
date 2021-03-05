@@ -40,7 +40,9 @@ from api.views import DataExportRequestViewSet
 from api.views import GCPAccountView
 from api.views import GCPCostView
 from api.views import GCPForecastCostView
+from api.views import GCPInstanceTypeView
 from api.views import GCPProjectsView
+from api.views import GCPStorageView
 from api.views import GCPTagView
 from api.views import metrics
 from api.views import OCPAllCostForecastView
@@ -71,6 +73,7 @@ from api.views import openapi
 from api.views import ResourceTypeView
 from api.views import SettingsView
 from api.views import StatusView
+from api.views import UserAccessView
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
 from koku.cache import GCP_CACHE_PREFIX
@@ -300,6 +303,7 @@ urlpatterns = [
     path("settings", RedirectView.as_view(pattern_name="settings"), name="settings-redirect"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
+    path("user-access/", UserAccessView.as_view(), name="user-access"),
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
     path("resource-types/gcp-accounts/", GCPAccountView.as_view(), name="gcp-accounts"),
     path("resource-types/gcp-projects/", GCPProjectsView.as_view(), name="gcp-projects"),
@@ -340,6 +344,18 @@ urlpatterns = [
         "reports/gcp/costs/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPCostView.as_view()),
         name="reports-gcp-costs",
+    ),
+    path(
+        "reports/gcp/instance-types/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(
+            GCPInstanceTypeView.as_view()
+        ),
+        name="reports-gcp-instance-type",
+    ),
+    path(
+        "reports/gcp/storage/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPStorageView.as_view()),
+        name="reports-gcp-storage",
     ),
 ]
 urlpatterns += ROUTER.urls

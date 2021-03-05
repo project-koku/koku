@@ -16,6 +16,7 @@
 #
 """Database accessors for Sources database table."""
 import binascii
+import copy
 import logging
 from base64 import b64decode
 from json import loads as json_loads
@@ -31,10 +32,26 @@ from api.provider.models import Sources
 LOG = logging.getLogger(__name__)
 REQUIRED_AZURE_AUTH_KEYS = {"client_id", "tenant_id", "client_secret", "subscription_id"}
 REQUIRED_AZURE_BILLING_KEYS = {"resource_group", "storage_account"}
+ALLOWED_BILLING_SOURCE_PROVIDERS = (
+    Provider.PROVIDER_AWS,
+    Provider.PROVIDER_AWS_LOCAL,
+    Provider.PROVIDER_AZURE,
+    Provider.PROVIDER_AZURE_LOCAL,
+    Provider.PROVIDER_GCP,
+    Provider.PROVIDER_GCP_LOCAL,
+)
+ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
 
 
 class SourcesStorageError(Exception):
     """Sources Storage error."""
+
+
+def aws_settings_ready(provider):
+    """Verify that the Application Settings are complete."""
+    if provider.billing_source and provider.authentication:
+        return True
+    return False
 
 
 def _aws_provider_ready_for_create(provider):
@@ -43,10 +60,17 @@ def _aws_provider_ready_for_create(provider):
         provider.source_id
         and provider.name
         and provider.auth_header
-        and provider.billing_source
-        and provider.authentication
+        and aws_settings_ready(provider)
+        and not provider.status
         and not provider.koku_uuid
     ):
+        return True
+    return False
+
+
+def ocp_settings_ready(provider):
+    """Verify that the Application Settings are complete."""
+    if provider.authentication:
         return True
     return False
 
@@ -56,11 +80,25 @@ def _ocp_provider_ready_for_create(provider):
     if (
         provider.source_id
         and provider.name
-        and provider.authentication
+        and ocp_settings_ready(provider)
         and provider.auth_header
+        and not provider.status
         and not provider.koku_uuid
     ):
         return True
+    return False
+
+
+def azure_settings_ready(provider):
+    """Verify that the Application Settings are complete."""
+    billing_source = provider.billing_source.get("data_source", {})
+    authentication = provider.authentication.get("credentials", {})
+    if billing_source and authentication:
+        if (
+            set(authentication.keys()) == REQUIRED_AZURE_AUTH_KEYS
+            and set(billing_source.keys()) == REQUIRED_AZURE_BILLING_KEYS
+        ):
+            return True
     return False
 
 
@@ -70,17 +108,18 @@ def _azure_provider_ready_for_create(provider):
         provider.source_id
         and provider.name
         and provider.auth_header
-        and provider.billing_source
+        and azure_settings_ready(provider)
+        and not provider.status
         and not provider.koku_uuid
     ):
-        billing_source = provider.billing_source.get("data_source", {})
-        authentication = provider.authentication.get("credentials", {})
-        if billing_source and authentication:
-            if (
-                set(authentication.keys()) == REQUIRED_AZURE_AUTH_KEYS
-                and set(billing_source.keys()) == REQUIRED_AZURE_BILLING_KEYS
-            ):
-                return True
+        return True
+    return False
+
+
+def gcp_settings_ready(provider):
+    """Verify that the Application Settings are complete."""
+    if provider.billing_source.get("data_source") and provider.authentication.get("credentials"):
+        return True
     return False
 
 
@@ -90,8 +129,8 @@ def _gcp_provider_ready_for_create(provider):
         provider.source_id
         and provider.name
         and provider.auth_header
-        and provider.billing_source
-        and provider.authentication
+        and gcp_settings_ready(provider)
+        and not provider.status
         and not provider.koku_uuid
     ):
         return True
@@ -116,6 +155,29 @@ def screen_and_build_provider_sync_create_event(provider):
     if screen_fn and screen_fn(provider) and not provider.pending_delete:
         provider_event = {"operation": "create", "provider": provider, "offset": provider.offset}
     return provider_event
+
+
+APP_SETTINGS_SCREEN_MAP = {
+    Provider.PROVIDER_AWS: aws_settings_ready,
+    Provider.PROVIDER_AWS_LOCAL: aws_settings_ready,
+    Provider.PROVIDER_OCP: ocp_settings_ready,
+    Provider.PROVIDER_AZURE: azure_settings_ready,
+    Provider.PROVIDER_AZURE_LOCAL: azure_settings_ready,
+    Provider.PROVIDER_GCP: gcp_settings_ready,
+    Provider.PROVIDER_GCP_LOCAL: gcp_settings_ready,
+}
+
+
+def source_settings_complete(provider):
+    """Determine if the source application settings are complete."""
+    if provider.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+        if not provider.billing_source.get("data_source", {}).get("table_id"):
+            screen_fn = APP_SETTINGS_SCREEN_MAP.get(provider.source_type)
+            return screen_fn(provider)
+    if provider.koku_uuid:
+        screen_fn = APP_SETTINGS_SCREEN_MAP.get(provider.source_type)
+        return screen_fn(provider)
+    return False
 
 
 def load_providers_to_create():
@@ -409,10 +471,32 @@ def add_provider_koku_uuid(source_id, koku_uuid):
         None
 
     """
+    LOG.info(f"Attempting to add provider uuid {str(koku_uuid)} to Source ID: {str(source_id)}")
     source = get_source(source_id, f"Source ID {source_id} does not exist.", LOG.error)
     if source and source.koku_uuid != koku_uuid:
-        source.koku_uuid = koku_uuid
+        LOG.info(f"Adding provider uuid {str(koku_uuid)} to Source ID: {str(source_id)}")
+        source_query = Sources.objects.filter(source_id=source.source_id)
+        source_query.update(koku_uuid=koku_uuid)
+
+
+def save_status(source_id, status):
+    """
+    Save source status.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier
+
+    Returns:
+        status (dict) - source status json
+
+    """
+    source = get_source(source_id, f"Source ID {source_id} does not exist.", LOG.warning)
+    if source and source.status != status:
+        source.status = status
         source.save()
+        return True
+
+    return False
 
 
 def is_known_source(source_id):
@@ -435,3 +519,105 @@ def is_known_source(source_id):
         LOG.error(f"Accessing Sources resulting in {type(error).__name__}: {error}")
         raise error
     return source_exists
+
+
+def _validate_billing_source(provider_type, billing_source):  # noqa: C901
+    """Validate billing source parameters."""
+    if provider_type == Provider.PROVIDER_AWS:
+        # TODO: Remove `and not billing_source.get("bucket")` if UI is updated to send "data_source" field
+        if not billing_source.get("data_source", {}).get("bucket") and not billing_source.get("bucket"):
+            raise SourcesStorageError("Missing AWS bucket.")
+    elif provider_type == Provider.PROVIDER_AZURE:
+        data_source = billing_source.get("data_source")
+        if not data_source:
+            raise SourcesStorageError("Missing AZURE data_source.")
+        if not data_source.get("resource_group"):
+            raise SourcesStorageError("Missing AZURE resource_group")
+        if not data_source.get("storage_account"):
+            raise SourcesStorageError("Missing AZURE storage_account")
+    elif provider_type == Provider.PROVIDER_GCP:
+        data_source = billing_source.get("data_source")
+        if not data_source:
+            raise SourcesStorageError("Missing GCP data_source.")
+        if not data_source.get("dataset"):
+            raise SourcesStorageError("Missing GCP dataset")
+
+
+def _update_billing_source(instance, billing_source):
+    if instance.source_type not in ALLOWED_BILLING_SOURCE_PROVIDERS:
+        raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
+    if instance.billing_source.get("data_source"):
+        billing_copy = copy.deepcopy(instance.billing_source.get("data_source"))
+        data_source = billing_source.get("data_source", {})
+        if data_source.get("resource_group") or data_source.get("storage_account"):
+            billing_copy.update(billing_source.get("data_source"))
+            billing_source["data_source"] = billing_copy
+        if billing_copy.get("table_id"):
+            billing_copy.update(billing_source.get("data_source"))
+            billing_source["data_source"]["table_id"] = billing_copy.get("table_id")
+    _validate_billing_source(instance.source_type, billing_source)
+    # This if statement can also be removed if UI is updated to send "data_source" field
+    if instance.source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL) and not billing_source.get(
+        "data_source"
+    ):
+        billing_source = {"data_source": billing_source}
+    return billing_source
+
+
+def _update_authentication(instance, authentication):
+    if instance.source_type not in ALLOWED_AUTHENTICATION_PROVIDERS:
+        raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
+    auth_copy = copy.deepcopy(instance.authentication)
+    if not auth_copy.get("credentials"):
+        auth_copy["credentials"] = {"subscription_id": None}
+    subscription_id = authentication.get("credentials", {}).get("subscription_id")
+    auth_copy["credentials"]["subscription_id"] = subscription_id
+    return auth_copy
+
+
+def _update_billing_source_app_settings(source_id, billing_source):
+    """Helper method to update source billing source app settings."""
+    updated_billing_source = None
+    instance = get_source(source_id, "Unable to add billing source", LOG.error)
+    if instance.billing_source:
+        updated_billing_source = _update_billing_source(instance, billing_source)
+    if instance.billing_source != updated_billing_source:
+        if instance.billing_source:
+            # Queue pending provider update if the billing source was previously
+            # populated and now has changed.
+            instance.pending_update = True
+            instance.status = {}
+        instance.billing_source = billing_source
+        if updated_billing_source:
+            instance.billing_source = updated_billing_source
+        instance.save()
+
+
+def _update_authentication_app_settings(source_id, authentication):
+    """Helper method to update source billing source app settings."""
+    updated_authentication = None
+    instance = get_source(source_id, "Unable to add authentication", LOG.error)
+    if instance.authentication:
+        updated_authentication = _update_authentication(instance, authentication)
+    if instance.authentication != updated_authentication:
+        if instance.authentication:
+            # Queue pending provider update if the authentication was previously
+            # populated and now has changed.
+            instance.pending_update = True
+            instance.status = {}
+        instance.authentication = authentication
+        if updated_authentication:
+            instance.authentication = updated_authentication
+        instance.save()
+
+
+def update_application_settings(source_id, settings):
+    """Store billing source update."""
+    LOG.info(f"Found settings: {str(settings)}")
+    billing_source = settings.get("billing_source")
+    authentication = settings.get("authentication")
+    if billing_source:
+        _update_billing_source_app_settings(source_id, billing_source)
+
+    if authentication:
+        _update_authentication_app_settings(source_id, authentication)

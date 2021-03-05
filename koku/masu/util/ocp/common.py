@@ -127,7 +127,9 @@ def get_report_details(report_directory):
              payload_date: DateTime,
              manifest_path: String,
              uuid: String,
-             manifest_path: String"
+             manifest_path: String",
+             start: DateTime,
+             end: DateTime
 
     """
     manifest_path = "{}/{}".format(report_directory, "manifest.json")
@@ -138,6 +140,10 @@ def get_report_details(report_directory):
             payload_dict = json.load(file)
             payload_dict["date"] = parser.parse(payload_dict["date"])
             payload_dict["manifest_path"] = manifest_path
+            # parse start and end dates if in manifest
+            for field in ["start", "end"]:
+                if payload_dict.get(field):
+                    payload_dict[field] = parser.parse(payload_dict[field])
     except (OSError, IOError, KeyError) as exc:
         LOG.error("Unable to extract manifest data: %s", exc)
 
@@ -246,9 +252,11 @@ def get_provider_uuid_from_cluster_id(cluster_id):
     credentials = {"cluster_id": cluster_id}
     with ProviderAuthDBAccessor(credentials=credentials) as auth_accessor:
         auth_id = auth_accessor.get_auth_id()
+        LOG.info(f"Found Authentication ID {str(auth_id)} for Cluster ID: {str(cluster_id)}")
         if auth_id:
             with ProviderDBAccessor(auth_id=auth_id) as provider_accessor:
                 provider_uuid = provider_accessor.get_uuid()
+                LOG.info(f"Found provider: {str(provider_uuid)} for Cluster ID: {str(cluster_id)}")
     return provider_uuid
 
 

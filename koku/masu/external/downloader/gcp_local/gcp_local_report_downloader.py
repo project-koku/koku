@@ -24,6 +24,7 @@ from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
+from masu.external.downloader.gcp.gcp_report_downloader import create_daily_archives
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 
 DATA_DIR = Config.TMP_DIR
@@ -114,7 +115,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         file_names_count = len(manifest_dict["file_names"])
         dh = DateHelper()
         manifest_id = self._process_manifest_db_record(
-            manifest_dict["assembly_id"], manifest_dict["start_date"], file_names_count, dh.today
+            manifest_dict["assembly_id"], manifest_dict["start_date"], file_names_count, dh._now
         )
 
         report_dict["manifest_id"] = manifest_id
@@ -155,7 +156,8 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             break
         if not etag:
             return {}
-        start_date = self.file_mapping[invoice_month][etag]["start"]
+        dh = DateHelper()
+        start_date = dh.gcp_invoice_month_start(str(invoice_month))
         end_date = self.file_mapping[invoice_month][etag]["end"]
         file_names = [self.file_mapping[invoice_month][etag]["filename"]]
         manifest_data = {
@@ -200,7 +202,19 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         msg = f"Returning full_file_path: {full_local_path}"
         LOG.info(log_json(self.request_id, msg, self.context))
         dh = DateHelper()
-        return full_local_path, etag, dh.today
+
+        file_names = create_daily_archives(
+            self.request_id,
+            self.account,
+            self._provider_uuid,
+            key,
+            full_local_path,
+            manifest_id,
+            start_date,
+            self.context,
+        )
+
+        return full_local_path, etag, dh.today, file_names
 
     def _get_local_file_path(self, key, etag):
         """
