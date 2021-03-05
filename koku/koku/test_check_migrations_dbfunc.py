@@ -45,7 +45,7 @@ select app,
     def test_migration_check_do_not_run(self):
         kdb.verify_migrations_dbfunc(conn)
         latest_migrations = self.get_public_latest_migrations()
-        res = kdb.check_migrattions_dbfunc(conn, latest_migrations)
+        res = kdb.check_migrations_dbfunc(conn, latest_migrations)
         self.assertEqual(res, True)
 
     def test_migration_check_do_run(self):
@@ -55,14 +55,14 @@ select app,
         # Test that migrations should be run when the leaf migrations contain an app
         # that is not recorded in the database migrations tables
         latest_migrations.append(("__eek", "0999_eek_1"))
-        res = kdb.check_migrattions_dbfunc(conn, latest_migrations)
+        res = kdb.check_migrations_dbfunc(conn, latest_migrations)
         self.assertEqual(res, False)
 
         # Test that migrations should be run when the leaf migrations are greater than
         # the latest migrations recorded in the database
         latest_migrations.pop()  # remove "__eek" app from list
         latest_migrations[0] = (latest_migrations[0][0], "0999_eek")
-        res = kdb.check_migrattions_dbfunc(conn, latest_migrations)
+        res = kdb.check_migrations_dbfunc(conn, latest_migrations)
         self.assertEqual(res, False)
 
     def test_function_not_exists(self):
