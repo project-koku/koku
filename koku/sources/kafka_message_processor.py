@@ -203,8 +203,9 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
                 if storage.get_source_type(self.source_id) == Provider.PROVIDER_OCP:  # of course, OCP is the oddball
                     self.save_credentials()
             if self.event_type in (KAFKA_APPLICATION_UPDATE,):
-                updated = self.sources_network_info()
-                updated = self.save_billing_source() or updated
+                # Because azure auth is split in Sources backend, we need to check both
+                # auth and billing when we recieve either auth update or app update
+                updated = any(self.save_billing_source(), self.save_credentials())
                 if updated:
                     LOG.info(f"Source ID {self.source_id} updated")
                     storage.enqueue_source_update(self.source_id)
@@ -228,7 +229,9 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
             if self.event_type in (KAFKA_AUTHENTICATION_CREATE):
                 self.save_credentials()
             if self.event_type in (KAFKA_AUTHENTICATION_UPDATE):
-                updated = self.save_credentials()
+                # Because azure auth is split in Sources backend, we need to check both
+                # auth and billing when we recieve either auth update or app update
+                updated = any(self.save_billing_source(), self.save_credentials())
                 if updated:
                     LOG.info(f"Source ID {self.source_id} updated")
                     storage.enqueue_source_update(self.source_id)
