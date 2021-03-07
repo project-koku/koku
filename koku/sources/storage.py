@@ -385,7 +385,7 @@ def add_provider_sources_billing_info(source_id, billing_source):
         return True
 
 
-def add_provider_sources_network_info(details, source_id):
+def add_provider_sources_details(details, source_id):
     """Add additional Sources information to a Source database object."""
     save_needed = False
     source = get_source(source_id, f"Unable to add network details.  Source ID: {source_id} does not exist", LOG.error)
@@ -436,105 +436,3 @@ def is_known_source(source_id):
         LOG.error(f"Accessing Sources resulting in {type(error).__name__}: {error}")
         raise error
     return source_exists
-
-
-# def _validate_billing_source(provider_type, billing_source):  # noqa: C901
-#     """Validate billing source parameters."""
-#     if provider_type == Provider.PROVIDER_AWS:
-#         # TODO: Remove `and not billing_source.get("bucket")` if UI is updated to send "data_source" field
-#         if not billing_source.get("data_source", {}).get("bucket") and not billing_source.get("bucket"):
-#             raise SourcesStorageError("Missing AWS bucket.")
-#     elif provider_type == Provider.PROVIDER_AZURE:
-#         data_source = billing_source.get("data_source")
-#         if not data_source:
-#             raise SourcesStorageError("Missing AZURE data_source.")
-#         if not data_source.get("resource_group"):
-#             raise SourcesStorageError("Missing AZURE resource_group")
-#         if not data_source.get("storage_account"):
-#             raise SourcesStorageError("Missing AZURE storage_account")
-#     elif provider_type == Provider.PROVIDER_GCP:
-#         data_source = billing_source.get("data_source")
-#         if not data_source:
-#             raise SourcesStorageError("Missing GCP data_source.")
-#         if not data_source.get("dataset"):
-#             raise SourcesStorageError("Missing GCP dataset")
-
-
-# def _update_billing_source(instance, billing_source):
-#     if instance.source_type not in ALLOWED_BILLING_SOURCE_PROVIDERS:
-#         raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
-#     if instance.billing_source.get("data_source"):
-#         billing_copy = copy.deepcopy(instance.billing_source.get("data_source"))
-#         data_source = billing_source.get("data_source", {})
-#         if data_source.get("resource_group") or data_source.get("storage_account"):
-#             billing_copy.update(billing_source.get("data_source"))
-#             billing_source["data_source"] = billing_copy
-#         if billing_copy.get("table_id"):
-#             billing_copy.update(billing_source.get("data_source"))
-#             billing_source["data_source"]["table_id"] = billing_copy.get("table_id")
-#     _validate_billing_source(instance.source_type, billing_source)
-#     # This if statement can also be removed if UI is updated to send "data_source" field
-#     if instance.source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL) and not billing_source.get(
-#         "data_source"
-#     ):
-#         billing_source = {"data_source": billing_source}
-#     return billing_source
-
-
-# def _update_authentication(instance, authentication):
-#     if instance.source_type not in ALLOWED_AUTHENTICATION_PROVIDERS:
-#         raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
-#     auth_copy = copy.deepcopy(instance.authentication)
-#     if not auth_copy.get("credentials"):
-#         auth_copy["credentials"] = {"subscription_id": None}
-#     subscription_id = authentication.get("credentials", {}).get("subscription_id")
-#     auth_copy["credentials"]["subscription_id"] = subscription_id
-#     return auth_copy
-
-
-# def _update_billing_source_app_settings(source_id, billing_source):
-#     """Helper method to update source billing source app settings."""
-#     updated_billing_source = None
-#     instance = get_source(source_id, "Unable to add billing source", LOG.error)
-#     if instance.billing_source:
-#         updated_billing_source = _update_billing_source(instance, billing_source)
-#     if instance.billing_source != updated_billing_source:
-#         if instance.billing_source:
-#             # Queue pending provider update if the billing source was previously
-#             # populated and now has changed.
-#             instance.pending_update = True
-#             instance.status = {}
-#         instance.billing_source = billing_source
-#         if updated_billing_source:
-#             instance.billing_source = updated_billing_source
-#         instance.save()
-
-
-# def _update_authentication_app_settings(source_id, authentication):
-#     """Helper method to update source billing source app settings."""
-#     updated_authentication = None
-#     instance = get_source(source_id, "Unable to add authentication", LOG.error)
-#     if instance.authentication:
-#         updated_authentication = _update_authentication(instance, authentication)
-#     if instance.authentication != updated_authentication:
-#         if instance.authentication:
-#             # Queue pending provider update if the authentication was previously
-#             # populated and now has changed.
-#             instance.pending_update = True
-#             instance.status = {}
-#         instance.authentication = authentication
-#         if updated_authentication:
-#             instance.authentication = updated_authentication
-#         instance.save()
-
-
-# def update_application_settings(source_id, settings):
-#     """Store billing source update."""
-#     LOG.info(f"Found settings: {str(settings)}")
-#     billing_source = settings.get("billing_source")
-#     authentication = settings.get("authentication")
-#     if billing_source:
-#         _update_billing_source_app_settings(source_id, billing_source)
-
-#     if authentication:
-#         _update_authentication_app_settings(source_id, authentication)

@@ -180,7 +180,7 @@ class SourcesStorageTest(TestCase):
         endpoint_id = 1
         source_uuid = faker.uuid4()
         mock_details = MockDetails(test_name, source_uuid, source_type, endpoint_id)
-        storage.add_provider_sources_network_info(mock_details, self.test_source_id)
+        storage.add_provider_sources_details(mock_details, self.test_source_id)
 
         test_source = Sources.objects.get(source_id=self.test_source_id)
         self.assertEqual(test_source.name, test_name)
@@ -193,7 +193,7 @@ class SourcesStorageTest(TestCase):
             test_name = "My Source Name"
             source_type = Provider.PROVIDER_AWS
             mock_details = MockDetails(test_name, faker.uuid4(), source_type, 1)
-            storage.add_provider_sources_network_info(mock_details, self.test_source_id + 1)
+            storage.add_provider_sources_details(mock_details, self.test_source_id + 1)
         except Exception as error:
             self.fail(str(error))
 

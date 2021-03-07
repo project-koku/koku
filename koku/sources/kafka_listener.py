@@ -47,9 +47,9 @@ from sources import storage
 from sources.api.status import check_kafka_connection
 from sources.config import Config
 from sources.kafka_message_processor import create_msg_processor
-from sources.sources_http_client_refrsh import SourceNotFoundError
-from sources.sources_http_client_refrsh import SourcesHTTPClient
-from sources.sources_http_client_refrsh import SourcesHTTPClientError
+from sources.sources_http_client import SourceNotFoundError
+from sources.sources_http_client import SourcesHTTPClient
+from sources.sources_http_client import SourcesHTTPClientError
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.sources_provider_coordinator import SourcesProviderCoordinatorError
 

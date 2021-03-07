@@ -53,7 +53,7 @@ services:
         - '.:/koku/'
       links:
         - db
-        - koku-rabbit
+        - redis
         - masu-server
         - sources-client
       depends_on:
@@ -104,7 +104,7 @@ services:
         - '.:/koku/'
       links:
         - db
-        - koku-rabbit
+        - redis
       depends_on:
         - koku-base
         - db
@@ -292,10 +292,10 @@ services:
         - './testing/local_providers/gcp_local_2/:/tmp/gcp_local_bucket_2'
         - './testing/local_providers/gcp_local_3/:/tmp/gcp_local_bucket_3'
       links:
-          - koku-rabbit
+          - redis
       depends_on:
           - koku-base
-          - koku-rabbit
+          - redis
 
   koku-listener:
       container_name: koku_listener
@@ -370,7 +370,7 @@ services:
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
         - SOURCES_KAFKA_HOST=${SOURCES_KAFKA_HOST-kafka}
-        - SOURCES_KAFKA_PORT=${SOURCES_KAFKA_PORT-29092}
+        - SOURCES_KAFKA_PORT=${SOURCES_KAFKA_PORT-9092}
         - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
         - DEMO_ACCOUNTS

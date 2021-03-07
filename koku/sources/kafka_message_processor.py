@@ -22,8 +22,8 @@ from rest_framework.exceptions import ValidationError
 from api.provider.models import Provider
 from sources import storage
 from sources.config import Config
-from sources.sources_http_client_refrsh import SourcesHTTPClient
-from sources.sources_http_client_refrsh import SourcesHTTPClientError
+from sources.sources_http_client import SourcesHTTPClient
+from sources.sources_http_client import SourcesHTTPClientError
 
 
 LOG = logging.getLogger(__name__)
@@ -108,7 +108,7 @@ class KafkaMessageProcessor:
     def get_source_details(self):
         return SourceDetails(self.auth_header, self.source_id)
 
-    def sources_network_info(self):
+    def sources_details(self):
         """
         Get additional sources context from Sources REST API.
         Additional details retrieved from the network includes:
@@ -117,12 +117,12 @@ class KafkaMessageProcessor:
             - Source UID
         Details are stored in the Sources database table.
         """
-        details_obj = self.get_source_details()
-        details_obj.source_type = SOURCE_PROVIDER_MAP.get(details_obj.source_type_name)
-        if not details_obj.source_type:
-            LOG.warning(f"Unexpected source type ID: {details_obj.source_type_id}")
+        details = self.get_source_details()
+        details.source_type = SOURCE_PROVIDER_MAP.get(details.source_type_name)
+        if not details.source_type:
+            LOG.warning(f"Unexpected source type ID: {details.source_type_id}")
             return
-        return storage.add_provider_sources_network_info(details_obj, self.source_id)
+        return storage.add_provider_sources_details(details, self.source_id)
 
     def save_credentials(self):
         """
@@ -198,7 +198,7 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
 
         if storage.is_known_source(self.source_id):
             if self.event_type in (KAFKA_APPLICATION_CREATE,):
-                self.sources_network_info()
+                self.sources_details()
                 self.save_billing_source()
                 if storage.get_source_type(self.source_id) == Provider.PROVIDER_OCP:  # of course, OCP is the oddball
                     self.save_credentials()
@@ -249,7 +249,7 @@ class SourceMsgProcessor(KafkaMessageProcessor):
             if not storage.is_known_source(self.source_id):
                 LOG.info("Update event for unknown source id, skipping...")
                 return
-            updated = self.sources_network_info()
+            updated = self.sources_details()
             if updated:
                 LOG.info(f"Source ID {self.source_id} updated")
                 storage.enqueue_source_update(self.source_id)
