@@ -18,7 +18,6 @@
 import binascii
 import json
 import logging
-import time
 from base64 import b64decode
 from base64 import b64encode
 from json import dumps as json_dumps
@@ -108,26 +107,26 @@ class SourcesHTTPClient:
         endpoint_url = f"{self._base_url}/application_types/{cost_mgmt_id}/sources?&filter[id][]={self._source_id}"
         endpoint_response = self._get_network_response(endpoint_url, "Unable to cost management application type")
 
-        cost_mgmt_type = False
+        is_cost_mgmt_type = False
         if endpoint_response.get("data"):
-            cost_mgmt_type = len(endpoint_response.get("data")) > 0
+            is_cost_mgmt_type = len(endpoint_response.get("data")) > 0
 
-        return cost_mgmt_type
+        return is_cost_mgmt_type
 
     def get_cost_management_application_type_id(self):
         """Get the cost management application type id."""
-        application_type_url = f"{self._base_url}/application_types?filter[name]=/insights/platform/cost-management"
-        endpoint_response = self._get_network_response(
-            application_type_url, "Unable to get cost management application ID Type"
+        application_types_url = f"{self._base_url}/application_types?filter[name]=/insights/platform/cost-management"
+        app_types_response = self._get_network_response(
+            application_types_url, "Unable to get cost management application ID Type"
         )
-        application_type_id = endpoint_response.get("data")[0].get("id")
+        application_type_id = app_types_response.get("data")[0].get("id")
         return int(application_type_id)
 
     def get_source_type_name(self, type_id):
         """Get the source name for a give type id."""
-        application_type_url = f"{self._base_url}/source_types?filter[id]={type_id}"
-        endpoint_response = self._get_network_response(application_type_url, "Unable to get source name")
-        return endpoint_response.get("data")[0].get("name")
+        source_types_url = f"{self._base_url}/source_types?filter[id]={type_id}"
+        source_types_response = self._get_network_response(source_types_url, "Unable to get source name")
+        return source_types_response.get("data")[0].get("name")
 
     def get_data_source(self, source_type):
         """Get the data_source settings from Sources."""
@@ -151,8 +150,6 @@ class SourcesHTTPClient:
 
     def _get_ocp_credentials(self):
         """Get the OCP cluster_id from the source."""
-        LOG.warning("SLEEPING SDIFHSDKFJHSDKJFHSKDFHKJSDHF")
-        time.sleep(30)
         source_details = self.get_source_details()
         if source_details.get("source_ref"):
             return {"cluster_id": source_details.get("source_ref")}
@@ -162,24 +159,21 @@ class SourcesHTTPClient:
     def _get_aws_credentials(self):
         """Get the roleARN from Sources Authentication service."""
         authentications_url = f"{self._base_url}/authentications?source_id={self._source_id}"
-        authentications_response = self._get_network_response(authentications_url, "Unable to get AWS RoleARN")
-        if not authentications_response.get("data"):
+        auth_response = self._get_network_response(authentications_url, "Unable to get AWS RoleARN")
+        auth_data = (auth_response.get("data") or [None])[0]
+        if not auth_data:
             raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
 
         # Platform sources is moving the ARN from the password to the username field.
         # We are supporting both until the this change has made it to all environments.
-        username = authentications_response.get("data")[0].get("username")
+        username = auth_data.get("username")
         if username:
             return {"role_arn": username}
 
-        authentications_id = authentications_response.get("data")[0].get("id")
-        authentications_internal_url = "{}/authentications/{}?expose_encrypted_attribute[]=password".format(
-            self._internal_url, str(authentications_id)
-        )
-        authentications_internal_response = self._get_network_response(
-            authentications_internal_url, "Unable to get AWS RoleARN"
-        )
-        password = authentications_internal_response.get("password")
+        auth_id = auth_data.get("id")
+        auth_internal_url = f"{self._internal_url}/authentications/{auth_id}?expose_encrypted_attribute[]=password"
+        auth_internal_response = self._get_network_response(auth_internal_url, "Unable to get AWS RoleARN")
+        password = auth_internal_response.get("password")
         if password:
             return {"role_arn": password}
 
@@ -188,10 +182,11 @@ class SourcesHTTPClient:
     def _get_gcp_credentials(self):
         """Get the GCP credentials from Sources Authentication service."""
         authentications_url = f"{self._base_url}/authentications?source_id={self._source_id}"
-        authentications_response = self._get_network_response(authentications_url, "Unable to get GCP credentials")
-        if not authentications_response.get("data"):
+        auth_response = self._get_network_response(authentications_url, "Unable to get GCP credentials")
+        auth_data = (auth_response.get("data") or [None])[0]
+        if not auth_data:
             raise SourcesHTTPClientError(f"Unable to get GCP credentials for Source: {self._source_id}")
-        project_id = authentications_response.get("data")[0].get("username")
+        project_id = auth_data.get("username")
         if project_id:
             return {"project_id": project_id}
 
@@ -202,35 +197,31 @@ class SourcesHTTPClient:
 
         # get subscription_id from applications extra
         url = f"{self._base_url}/applications?source_id={self._source_id}"
-        endpoint_response = self._get_network_response(url, "Unable to get Azure credentials")
-        if not endpoint_response.get("data"):
+        app_response = self._get_network_response(url, "Unable to get Azure credentials")
+        app_data = (app_response.get("data") or [None])[0]
+        if not app_data:
             raise SourcesHTTPClientError(f"Unable to get Azure credentials for Source: {self._source_id}")
-        subscription_id = endpoint_response.get("data")[0].get("extra", {}).get("subscription_id")
+        subscription_id = app_data.get("extra", {}).get("subscription_id")
 
         # get client and tenant ids
         authentications_url = f"{self._base_url}/authentications?source_id={self._source_id}"
-        authentications_response = self._get_network_response(authentications_url, "Unable to get Azure credentials")
-        if not authentications_response.get("data"):
+        auth_response = self._get_network_response(authentications_url, "Unable to get Azure credentials")
+        auth_data = (auth_response.get("data") or [None])[0]
+        if not auth_data:
             raise SourcesHTTPClientError(f"Unable to get Azure credentials for Source: {self._source_id}")
-        data_dict = authentications_response.get("data")[0]
-        authentications_id = data_dict.get("id")
-
+        auth_id = auth_data.get("id")
         # get client secret
-        authentications_internal_url = (
-            f"{self._internal_url}/authentications/{str(authentications_id)}?expose_encrypted_attribute[]=password"
-        )
-        authentications_internal_response = self._get_network_response(
-            authentications_internal_url, "Unable to get Azure credentials"
-        )
-        password = authentications_internal_response.get("password")
+        auth_internal_url = f"{self._internal_url}/authentications/{auth_id}?expose_encrypted_attribute[]=password"
+        auth_internal_response = self._get_network_response(auth_internal_url, "Unable to get Azure credentials")
+        password = auth_internal_response.get("password")
 
         # put everything together if we have all the required stuff
-        if password and data_dict.get("username") and data_dict.get("extra") and subscription_id:
+        if password and auth_data.get("username") and auth_data.get("extra") and subscription_id:
             return {
-                "client_id": data_dict.get("username"),
+                "client_id": auth_data.get("username"),
                 "client_secret": password,
                 "subscription_id": subscription_id,
-                "tenant_id": data_dict.get("extra").get("azure", {}).get("tenant_id"),
+                "tenant_id": auth_data.get("extra").get("azure", {}).get("tenant_id"),
             }
 
         raise SourcesHTTPClientError(f"Unable to get Azure credentials for Source: {self._source_id}")
