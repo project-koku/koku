@@ -267,7 +267,7 @@ class SourcesViewSet(*MIXIN_LIST):
             response.data["provider_linked"] = True
             response.data["active"] = manager.get_active_status()
             response.data["current_month_data"] = manager.get_current_month_data_exists()
-            response.data["prevous_month_data"] = manager.get_previous_month_data_exists()
+            response.data["previous_month_data"] = manager.get_previous_month_data_exists()
             response.data["has_data"] = manager.get_any_data_exists()
 
             response.data["infrastructure"] = manager.get_infrastructure_name()

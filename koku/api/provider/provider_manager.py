@@ -265,6 +265,6 @@ def provider_post_delete_callback(*args, **kwargs):
         delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
         transaction.on_commit(delete_func)
 
-    refresh_materialized_views.s(
+    refresh_materialized_views(
         provider.customer.schema_name, provider.type, provider_uuid=provider.uuid, synchronous=True
-    ).apply()
+    )
