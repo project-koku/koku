@@ -24,7 +24,7 @@ class Config:
     """Configuration for service."""
 
     SOURCES_KAFKA_HOST = os.getenv("SOURCES_KAFKA_HOST", "localhost")
-    SOURCES_KAFKA_PORT = os.getenv("SOURCES_KAFKA_PORT", "29092")
+    SOURCES_KAFKA_PORT = os.getenv("SOURCES_KAFKA_PORT", "9092")
     SOURCES_KAFKA_ADDRESS = f"{SOURCES_KAFKA_HOST}:{SOURCES_KAFKA_PORT}"
     SOURCES_TOPIC = os.getenv("SOURCES_KAFKA_TOPIC", "platform.sources.event-stream")
 
