@@ -369,8 +369,17 @@ def aws_post_processor(data_frame):
     columns = set(list(data_frame))
     columns = set(PRESTO_REQUIRED_COLUMNS).union(columns)
     columns = sorted(list(columns))
+    data_frame = data_frame.reindex(columns=columns)
 
-    return data_frame.reindex(columns=columns)
+    columns = list(data_frame)
+    for column in columns:
+        if "-" in column:
+            new_col_name = column.replace("-", "_")
+            data_frame[new_col_name] = data_frame[column]
+            data_frame = data_frame.drop(columns=[column])
+        elif "resourceTags/" in column:
+            data_frame = data_frame.drop(columns=[column])
+
     return data_frame
 
 

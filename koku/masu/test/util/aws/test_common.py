@@ -372,11 +372,13 @@ class TestAWSUtils(MasuTestCase):
                 upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
                 self.assertEqual(upload, None)
 
-    def test_aws_post_processor_missing_required_columns(self):
+    def test_aws_post_processor(self):
         """Test that missing columns in a report end up in the data frame."""
         column_one = "column_one"
         column_two = "column_two"
-        data = {column_one: [1, 2], column_two: [3, 4]}
+        column_three = "column-three"
+        column_four = "resourceTags/User:key"
+        data = {column_one: [1, 2], column_two: [3, 4], column_three: [5, 6], column_four: ["value_1", "value_2"]}
         data_frame = pd.DataFrame.from_dict(data)
 
         processed_data_frame = utils.aws_post_processor(data_frame)
@@ -385,6 +387,9 @@ class TestAWSUtils(MasuTestCase):
 
         self.assertIn(column_one, columns)
         self.assertIn(column_two, columns)
+        self.assertIn(column_three.replace("-", "_"), columns)
+        self.assertNotIn(column_four, columns)
+        self.assertIn("resourceTags", columns)
         for column in PRESTO_REQUIRED_COLUMNS:
             self.assertIn(column, columns)
 
