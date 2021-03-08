@@ -6,7 +6,7 @@ customer:
   sources:
     - ibm_source:
       source_name: Test IBM Source
-      source_type: 'IBM'
+      source_type: 'IBM-local'
       authentication:
         credentials:
           iam_token: '11111111-1111-1111-1111-11111111'

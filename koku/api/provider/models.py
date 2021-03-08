@@ -72,6 +72,7 @@ class Provider(models.Model):
     PROVIDER_AWS_LOCAL = "AWS-local"
     PROVIDER_AZURE_LOCAL = "Azure-local"
     PROVIDER_GCP_LOCAL = "GCP-local"
+    PROVIDER_IBM_LOCAL = "IBM-local"
     # The following constants are not provider types
     OCP_ALL = "OCP_All"
     OCP_AWS = "OCP_AWS"
@@ -86,6 +87,7 @@ class Provider(models.Model):
         "aws-local": PROVIDER_AWS_LOCAL,
         "azure-local": PROVIDER_AZURE_LOCAL,
         "gcp-local": PROVIDER_GCP_LOCAL,
+        "ibm-local": PROVIDER_IBM_LOCAL,
         "ocp-aws": OCP_AWS,
         "ocp-azure": OCP_AZURE,
     }
