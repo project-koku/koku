@@ -16,6 +16,6 @@ def add_gcp_views(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0169_auto_20210216_1448")]
+    dependencies = [("reporting", "0170_auto_20210305_1659")]
 
     operations = [migrations.RunPython(add_gcp_views)]
