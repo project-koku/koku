@@ -280,7 +280,7 @@ def create_msg_processor(msg, cost_mgmt_id):
             return ApplicationMsgProcessor(msg, event_type, cost_mgmt_id)
         elif event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
             return AuthenticationMsgProcessor(msg, event_type, cost_mgmt_id)
-        elif event_type in (KAFKA_SOURCE_UPDATE, KAFKA_SOURCE_DESTROY):
+        elif event_type in (KAFKA_SOURCE_DESTROY):
             return SourceMsgProcessor(msg, event_type, cost_mgmt_id)
         else:
             LOG.debug("Other Message: %s", str(msg))
