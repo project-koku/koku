@@ -20,7 +20,7 @@ WITH cte_tag_value(key, value, report_period_id, namespace) AS (
 ),
 cte_values_agg AS (
     SELECT key,
-        array_agg(DISTINCT value) as values,
+        array_agg(DISTINCT value) as "values",
         report_period_id,
         namespace,
         node
@@ -29,13 +29,13 @@ cte_values_agg AS (
 ),
 cte_distinct_values_agg AS (
     SELECT v.key,
-        array_agg(DISTINCT v.values) as values,
+        array_agg(DISTINCT v."values") as "values",
         v.report_period_id,
         v.namespace,
         v.node
     FROM (
         SELECT va.key,
-            unnest(va.values || ls.values) as values,
+            unnest(va."values" || coalesce(ls."values", '{}'::text[])) as "values",
             va.report_period_id,
             va.namespace,
             va.node
@@ -55,9 +55,9 @@ ins1 AS (
         report_period_id,
         namespace,
         node,
-        values
+        "values"
     FROM cte_distinct_values_agg
-    ON CONFLICT (key, report_period_id, namespace, node) DO UPDATE SET values=EXCLUDED.values
+    ON CONFLICT (key, report_period_id, namespace, node) DO UPDATE SET values=EXCLUDED."values"
     )
 INSERT INTO {{schema | sqlsafe}}.reporting_ocptags_values (uuid, key, value, cluster_ids, cluster_aliases, namespaces, nodes)
 SELECT uuid_generate_v4() as uuid,
