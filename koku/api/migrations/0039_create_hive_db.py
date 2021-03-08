@@ -16,7 +16,7 @@ def create_hive_db(apps, schema_editor):
     role_check_sql = f"""
 select exists (
            select 1
-             from pg_authid
+             from pg_roles
             where rolname = '{rolname}'
        )::boolean as "role_found";
 """
