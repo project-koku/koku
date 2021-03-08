@@ -283,7 +283,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             if end_date < self.scan_end:
                 self.scan_end = end_date
 
-        invoice_month = start_date.strftime("%Y%m")
+        invoice_month = self.scan_start.strftime("%Y%m")
         file_names = self._get_relevant_file_names(invoice_month)
         fake_assembly_id = self._generate_assembly_id(invoice_month)
 
