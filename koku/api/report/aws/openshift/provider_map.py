@@ -266,7 +266,10 @@ class OCPAWSProviderMap(ProviderMap):
                         },
                         "count": None,
                         "delta_key": {"usage": Sum("usage_amount")},
-                        "filter": [{"field": "product_family", "operation": "icontains", "parameter": "Storage"}],
+                        "filter": [
+                            {"field": "product_family", "operation": "icontains", "parameter": "Storage"},
+                            {"field": "unit", "operation": "exact", "parameter": "GB-Mo"},
+                        ],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
