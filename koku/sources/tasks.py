@@ -19,6 +19,7 @@ import logging
 
 from koku import celery_app
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
+from sources.storage import load_providers_to_delete
 
 LOG = logging.getLogger(__name__)
 
@@ -29,3 +30,11 @@ def delete_source(source_id, auth_header, koku_uuid):
     LOG.info(f"Deleting Provider {koku_uuid} for Source ID: {source_id}")
     coordinator = SourcesProviderCoordinator(source_id, auth_header)
     coordinator.destroy_account(koku_uuid)
+
+
+@celery_app.task(name="sources.tasks.delete_source_beat", queue="remove_expired")
+def delete_source_beat():
+    providers = load_providers_to_delete()
+    for p in providers:
+        provider = p.get("provider")
+        delete_source.delay(provider.source_id, provider.auth_header, provider.koku_uuid)

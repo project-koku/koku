@@ -119,6 +119,11 @@ app.conf.beat_schedule["autovacuum-tune-schemas"] = {
     "args": [],
 }
 
+# task to clean up sources with `pending_delete=t`
+app.conf.beat_schedule["delete_source_beat"] = {
+    "task": "sources.tasks.delete_source_beat",
+    "schedule": crontab(hour="4"),
+}
 
 # Collect prometheus metrics.
 app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(minute="*/15")}
