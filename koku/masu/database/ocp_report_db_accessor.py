@@ -722,23 +722,33 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         cost_summary_query = base_query.filter(cluster_id=cluster_identifier)
         return cost_summary_query
 
-    def populate_pod_label_summary_table(self, report_period_ids):
+    def populate_pod_label_summary_table(self, report_period_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
         table_name = OCP_REPORT_TABLE_MAP["pod_label_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagepodlabel_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "report_period_ids": report_period_ids}
+        agg_sql_params = {
+            "schema": self.schema,
+            "report_period_ids": report_period_ids,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def populate_volume_label_summary_table(self, report_period_ids):
+    def populate_volume_label_summary_table(self, report_period_ids, start_date, end_date):
         """Populate the OCP volume label summary table."""
         table_name = OCP_REPORT_TABLE_MAP["volume_label_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "report_period_ids": report_period_ids}
+        agg_sql_params = {
+            "schema": self.schema,
+            "report_period_ids": report_period_ids,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
