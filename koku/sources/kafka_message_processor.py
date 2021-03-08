@@ -246,7 +246,7 @@ class SourceMsgProcessor(KafkaMessageProcessor):
 
     def process(self):
         if self.event_type in (KAFKA_SOURCE_UPDATE,):
-            if not storage.is_known_source(self.source_id):
+            if self.source_id not in storage.KNOWN_SOURCES:
                 LOG.info("Update event for unknown source id, skipping...")
                 return
             updated = self.sources_details()

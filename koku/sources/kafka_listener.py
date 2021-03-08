@@ -112,6 +112,7 @@ def _collect_pending_items():
     create_events = storage.load_providers_to_create()
     update_events = storage.load_providers_to_update()
     destroy_events = storage.load_providers_to_delete()
+    print(f"KNOWN SOURCES: {storage.KNOWN_SOURCES}")
     return create_events + update_events + destroy_events
 
 
