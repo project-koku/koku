@@ -209,7 +209,7 @@ then
     fi
     export POSTGRESQL_SSL_CERT=$(${_B64ENC} ${HOME}/.koku-db-certs/koku.crt)
     export POSTGRESQL_SSL_KEY=$(${_B64ENC} ${HOME}/.koku-db-certs/private/koku.key)
-end if
+fi
 ${OC} process -f ${KOKU_SECRETS} | ${OC} apply -n ${SECRETS_PROJECT} -f -
 
 ### set policy to allow pulling images from buildfactory
