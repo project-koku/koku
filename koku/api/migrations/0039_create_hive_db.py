@@ -2,6 +2,7 @@
 import logging
 import os
 
+from django.conf import settings
 from django.db import migrations
 
 
@@ -9,10 +10,12 @@ LOG = logging.getLogger(__name__)
 
 
 def create_hive_db(apps, schema_editor):
-    rolname = os.environ.get("HIVE_DATABASE_USER", "hive")
-    datname = os.environ.get("HIVE_DATABASE_NAME", "hive")
-    kokudb = os.environ.get("DATABASE_NAME", "postgres")
-    kokudbuser = os.environ.get("DATABASE_USER", "postgres")
+    rolname = settings.HIVE_DATABASE_USER
+    datname = settings.HIVE_DATABASE_NAME
+    kokudb = settings.DATABASES.get("default").get("NAME")
+    kokudbuser = settings.DATABASES.get("default").get("USER")
+    db_password = settings.DATABASES.get("default").get("PASSWORD")
+    hive_db_password = settings.HIVE_DATABASE_PASSWORD
     role_check_sql = f"""
 select exists (
            select 1
@@ -48,7 +51,7 @@ select has_database_privilege(%s, %s, 'connect');
 
     with schema_editor.connection.connection.__class__(
         "postgresql://{user}:{password}@{host}:{port}/{dbname}".format(
-            password=os.environ["DATABASE_PASSWORD"], **schema_editor.connection.connection.get_dsn_parameters()
+            password=db_password, **schema_editor.connection.connection.get_dsn_parameters()
         )
     ) as conn:
         conn.autocommit = True
@@ -62,7 +65,7 @@ select has_database_privilege(%s, %s, 'connect');
 
             if not role_exists:
                 LOG.info(f"Creating role {rolname}.")
-                cur.execute(role_create_sql.format(hivepw=os.environ["HIVE_DATABASE_PASSWORD"]))
+                cur.execute(role_create_sql.format(hivepw=hive_db_password))
             else:
                 LOG.info(f"Role {rolname} exists.")
 
