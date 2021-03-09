@@ -369,6 +369,8 @@ services:
         - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - SOURCES_KAFKA_HOST=${SOURCES_KAFKA_HOST-kafka}
         - SOURCES_KAFKA_PORT=${SOURCES_KAFKA_PORT-29092}
         - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
@@ -383,6 +385,7 @@ services:
         - '.:/koku'
       links:
         - db
+        - redis
       depends_on:
         - koku-base
 
