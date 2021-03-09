@@ -237,6 +237,11 @@ DATABASES = {"default": database.config()}
 
 DATABASE_ROUTERS = ("tenant_schemas.routers.TenantSyncRouter",)
 
+# Hive DB variables
+HIVE_DATABASE_USER = ENVIRONMENT.get_value("HIVE_DATABASE_USER", default="hive")
+HIVE_DATABASE_NAME = ENVIRONMENT.get_value("HIVE_DATABASE_NAME", default="hive")
+HIVE_DATABASE_PASSWORD = ENVIRONMENT.get_value("HIVE_DATABASE_PASSWORD", default="hive")
+
 #
 TENANT_MODEL = "api.Tenant"
 

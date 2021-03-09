@@ -4,10 +4,15 @@ CREATE TEMPORARY TABLE volume_nodes_{{uuid | sqlsafe}} AS (
     FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem as li
     JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
         ON li.report_period_id = rp.id
+    JOIN {{schema | sqlsafe}}.reporting_ocpusagereport AS ur
+        ON li.report_id = ur.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as uli
         ON li.pod = uli.pod
             AND li.namespace = uli.namespace
             AND rp.cluster_id = uli.cluster_id
+    WHERE date(ur.interval_start) >= {{start_date}}
+        AND date(ur.interval_start) <= {{end_date}}
+        AND rp.cluster_id = {{cluster_id}}
     GROUP BY li.id, uli.node
 )
 ;

@@ -28,6 +28,8 @@ from providers.azure.provider import AzureProvider
 from providers.azure_local.provider import AzureLocalProvider
 from providers.gcp.provider import GCPProvider
 from providers.gcp_local.provider import GCPLocalProvider
+from providers.ibm.provider import IBMProvider
+from providers.ibm_local.provider import IBMLocalProvider
 from providers.ocp.provider import OCPProvider
 
 
@@ -61,6 +63,8 @@ class ProviderAccessor:
             Provider.PROVIDER_AZURE: AzureProvider,
             Provider.PROVIDER_GCP: GCPProvider,
             Provider.PROVIDER_GCP_LOCAL: GCPLocalProvider,
+            Provider.PROVIDER_IBM: IBMProvider,
+            Provider.PROVIDER_IBM_LOCAL: IBMLocalProvider,
         }
 
         self.service = None
