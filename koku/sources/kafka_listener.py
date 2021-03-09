@@ -575,7 +575,6 @@ def execute_koku_provider_op(msg):
 
         elif operation == "destroy":
             delete_source.delay(provider.source_id, provider.auth_header, provider.koku_uuid)
-            # account_coordinator.destroy_account(provider)
             LOG.info(
                 f"Destroy provider task queued for provider {provider.koku_uuid} for Source ID: {provider.source_id}"
             )

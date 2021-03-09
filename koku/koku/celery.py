@@ -122,7 +122,7 @@ app.conf.beat_schedule["autovacuum-tune-schemas"] = {
 # task to clean up sources with `pending_delete=t`
 app.conf.beat_schedule["delete_source_beat"] = {
     "task": "sources.tasks.delete_source_beat",
-    "schedule": crontab(hour="4"),
+    "schedule": crontab(minute="0", hour="4"),
 }
 
 # Collect prometheus metrics.
