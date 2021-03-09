@@ -89,13 +89,6 @@ IQE_CONTAINER="$SCRIPT_DIR/../testing/run_test.sh"
 KOKU_SECRETS="$SCRIPT_DIR/e2e-secrets.yml"
 UDT_SRR="$SCRIPT_DIR/update_e2e_srr.py"
 
-if [[ "${OSTYPE}" == "darwin" ]]
-then
-    _B64ENC="base64 -b 0"
-else
-    _B64ENC="base64 -w 0"
-fi
-
 ### validation
 function check_var() {
     if [ -z ${!1:+x} ]; then
@@ -199,17 +192,6 @@ if [ -f $QUAY_IO_SECRETS ]; then
 fi
 
 ### create secrets
-echo "Applying secrets."
-if [[ ( -n "${POSTGRESQL_SSL_CERT}" ) || ( -n "${POSTGRESQL_SSL_KEY}" ) ]]
-then
-    if [[ ( ! -s ${HOME}/.koku-db-certs/koku.crt ) || ( ! -s ${HOME}/.koku-db-certs/private/koku.key} ) ]]
-    then
-        echo "Generating database ssl certs. Please follow the prompts."
-        ${SCRIPT_DIR}/genssc
-    fi
-    export POSTGRESQL_SSL_CERT=$(${_B64ENC} ${HOME}/.koku-db-certs/koku.crt)
-    export POSTGRESQL_SSL_KEY=$(${_B64ENC} ${HOME}/.koku-db-certs/private/koku.key)
-fi
 ${OC} process -f ${KOKU_SECRETS} | ${OC} apply -n ${SECRETS_PROJECT} -f -
 
 ### set policy to allow pulling images from buildfactory
