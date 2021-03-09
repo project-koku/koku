@@ -27,6 +27,7 @@ from django.db import InterfaceError
 from django.db import OperationalError
 from django.db.models.signals import post_save
 from django.test import TestCase
+from django.test.utils import override_settings
 from faker import Faker
 from kafka.errors import KafkaError
 from requests.exceptions import RequestException
@@ -235,6 +236,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertFalse(Sources.objects.get(source_id=source_id).pending_update)
         self.assertEqual(Sources.objects.get(source_id=source_id).koku_uuid, str(provider.source_uuid))
 
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     def test_execute_koku_provider_op_destroy(self):
         """Test to execute Koku Operations to sync with Sources for destruction."""
         source_id = self.aws_source.get("source_id")
@@ -246,6 +248,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             source_integration.execute_koku_provider_op(msg)
         self.assertEqual(Sources.objects.filter(source_id=source_id).exists(), False)
 
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     def test_execute_koku_provider_op_destroy_provider_not_found(self):
         """Test to execute Koku Operations to sync with Sources for destruction with provider missing.
 
