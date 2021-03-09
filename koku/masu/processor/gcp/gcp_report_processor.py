@@ -93,13 +93,11 @@ class GCPReportProcessor(ReportProcessorBase):
             manifest_id=manifest_id,
             processed_report=ProcessedGCPReport(),
         )
-
-        self.line_item_table = GCPCostEntryLineItem()
-        self.line_item_table_name = self.line_item_table._meta.db_table
         self._report_name = path.basename(report_path)
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
         self._manifest_id = manifest_id
         self._provider_uuid = provider_uuid
+        self.table_name = GCPCostEntryLineItem()
 
         self._schema = schema_name
 
@@ -303,8 +301,9 @@ class GCPReportProcessor(ReportProcessorBase):
             project_id (string): A GCP Project
 
         """
-        data = self._get_data_for_table(row, self.line_item_table_name)
-        data = report_db_accessor.clean_data(data, self.line_item_table_name)
+        table_name = GCPCostEntryLineItem
+        data = self._get_data_for_table(row, table_name._meta.db_table)
+        data = report_db_accessor.clean_data(data, table_name._meta.db_table)
 
         data["cost_entry_bill_id"] = bill_id
         data["project_id"] = project_id
@@ -353,7 +352,7 @@ class GCPReportProcessor(ReportProcessorBase):
 
         bills_purged = []
         with GCPReportDBAccessor(self._schema) as report_db:
-            temp_table = report_db.create_temp_table(self.line_item_table_name, drop_column="id")
+            temp_table = report_db.create_temp_table(self.table_name._meta.db_table, drop_column="id")
             for chunk in report_csv:
 
                 # Group the information in the csv by the start time and the project id
@@ -387,9 +386,9 @@ class GCPReportProcessor(ReportProcessorBase):
                     )
                     self._save_to_db(temp_table, report_db)
                     row_count += len(self.processed_report.line_items)
-                    report_db.merge_temp_table(self.line_item_table_name, temp_table, self.line_item_columns)
+                    self._update_mappings()
 
-                self._update_mappings()
+            report_db.merge_temp_table(self.table_name._meta.db_table, temp_table, self.line_item_columns)
 
             LOG.info("Completed report processing for file: %s and schema: %s", self._report_name, self._schema)
 
