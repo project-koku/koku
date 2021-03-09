@@ -284,13 +284,14 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 self.scan_end = end_of_month
 
         invoice_month = self.scan_start.strftime("%Y%m")
+        bill_date = self.scan_start.replace(day=1)
         file_names = self._get_relevant_file_names(invoice_month)
         fake_assembly_id = self._generate_assembly_id(invoice_month)
 
         manifest_data = {
             "assembly_id": fake_assembly_id,
             "compression": UNCOMPRESSED,
-            "start_date": self.scan_start,
+            "start_date": bill_date,
             "end_date": self.scan_end,  # inclusive end date
             "file_names": list(file_names),
         }
