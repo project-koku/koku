@@ -524,12 +524,6 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_filter_region(self):
         """Test execute_query for current month on monthly filtered by region."""
-        # with tenant_context(self.tenant):
-        #     region = (
-        #         GCPCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
-        #         .values("region")[0]
-        #         .get("region")
-        #     )
         url = (
             "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]=*"
         )  # noqa: E501
@@ -556,12 +550,6 @@ class GCPReportQueryHandlerTest(IamTestCase):
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
     def test_execute_query_current_month_filter_region_csv(self, mock_accept):
         """Test execute_query on monthly filtered by region for csv."""
-        # with tenant_context(self.tenant):
-        #     region = (
-        #         GCPCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
-        #         .values("region")[0]
-        #         .get("region")
-        #     )
         mock_accept.return_value = "text/csv"
         url = (
             "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]=*"
