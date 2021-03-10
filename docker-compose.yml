@@ -128,8 +128,8 @@ services:
       - ./pg_data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
       - ./pg_init:/docker-entrypoint-initdb.d
       # PostgreSQL SSL: Un-comment the next two lines after running ./scripts/genssc to use sslmode in Postgres
-      # - ./certs/koku.crt:/etc/certs/koku.crt
-      # - ./certs/private/koku.key:/etc/certs/private/koku.key
+      # - ${HOME}/.koku-db-certs/koku.crt:/etc/certs/koku.crt
+      # - ${HOME}/.koku-db-certs/private/koku.key:/etc/certs/private/koku.key
     command:
       # This command give more precise control over the parameter settings
       # Included are loading the pg_stat_statements lib
