@@ -97,6 +97,12 @@ class GCPUserAccess(UIFeatureAccess):
     access_keys = ["gcp.account", "gcp.project"]
 
 
+class IBMUserAccess(UIFeatureAccess):
+    """Access to IBM UI Features."""
+
+    access_keys = ["ibm.account"]
+
+
 class CostModelUserAccess(UIFeatureAccess):
     """Access to Cost Model UI Features."""
 
@@ -122,6 +128,7 @@ class UserAccessView(APIView):
         {"type": "azure", "access_class": AzureUserAccess},
         {"type": "cost_model", "access_class": CostModelUserAccess},
         {"type": "gcp", "access_class": GCPUserAccess},
+        {"type": "ibm", "access_class": IBMUserAccess},
         {"type": "ocp", "access_class": OCPUserAccess},
     ]
 
