@@ -101,6 +101,7 @@ class Provider(models.Model):
         (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
         (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
         (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL),
+        (PROVIDER_IBM_LOCAL, PROVIDER_IBM_LOCAL),
     )
     CLOUD_PROVIDER_CHOICES = (
         (PROVIDER_AWS, PROVIDER_AWS),
@@ -110,6 +111,7 @@ class Provider(models.Model):
         (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
         (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
         (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL),
+        (PROVIDER_IBM_LOCAL, PROVIDER_IBM_LOCAL),
     )
 
     # These lists are intended for use for provider type checking
