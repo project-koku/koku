@@ -6,6 +6,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pandas as pd
+from dateutil.relativedelta import relativedelta
 from django.test.utils import override_settings
 from faker import Faker
 from google.cloud.exceptions import GoogleCloudError
@@ -32,6 +33,7 @@ def create_expected_csv_files(start_date, end_date, invoice_month, etag, keys=Fa
     for start, end in date_range_pair(start_date, end_date):
         if start == end:
             continue
+        end = end + relativedelta(days=1)
         files.append(f"{invoice_month}_{etag}_{start}:{end}.csv")
     if keys:
         return [{"key": f"{f}", "local_file": f"{f}"} for f in files]
@@ -166,7 +168,8 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Assert relevant file name is generated correctly."""
         downloader = self.create_gcp_downloader_with_mocked_values()
         mock_invoice_month = self.today.strftime("%Y%m")
-        expected_file_name = [f"{mock_invoice_month}_{self.etag}_{downloader.scan_start}:{downloader.scan_end}.csv"]
+        end_date = downloader.scan_end + relativedelta(days=1)
+        expected_file_name = [f"{mock_invoice_month}_{self.etag}_{downloader.scan_start}:{end_date}.csv"]
         result_file_names = downloader._get_relevant_file_names(mock_invoice_month)
         self.assertEqual(expected_file_name, result_file_names)
 
