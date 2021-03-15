@@ -128,8 +128,8 @@ services:
       - ./pg_data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
       - ./pg_init:/docker-entrypoint-initdb.d
       # PostgreSQL SSL: Un-comment the next two lines after running ./scripts/genssc to use sslmode in Postgres
-      # - ./certs/koku.crt:/etc/certs/koku.crt
-      # - ./certs/private/koku.key:/etc/certs/private/koku.key
+      # - ${HOME}/.koku-db-certs/koku.crt:/etc/certs/koku.crt
+      # - ${HOME}/.koku-db-certs/private/koku.key:/etc/certs/private/koku.key
     command:
       # This command give more precise control over the parameter settings
       # Included are loading the pg_stat_statements lib
@@ -369,6 +369,8 @@ services:
         - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - SOURCES_KAFKA_HOST=${SOURCES_KAFKA_HOST-kafka}
         - SOURCES_KAFKA_PORT=${SOURCES_KAFKA_PORT-29092}
         - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
@@ -383,6 +385,7 @@ services:
         - '.:/koku'
       links:
         - db
+        - redis
       depends_on:
         - koku-base
 
