@@ -420,12 +420,15 @@ class ReportQueryHandlerTest(IamTestCase):
         pd = rqh._percent_delta(10, 1)
         self.assertEqual(pd, 900)
 
-    def test_percent_delta_round_to_zero(self):
-        """Test the percent delta method with a b value that should round to zero."""
+    def test_percent_delta_rounding(self):
+        """Test the percent delta method with a b value that should round."""
         params = self.mocked_query_params("", self.mock_view)
-        rqh = create_test_handler(params)
-        pd = rqh._percent_delta(10, 0.0000323)
-        self.assertEqual(pd, None)
+        test_values = {0.0049: None, 0.0049999999999: None, 0.005: 100}
+        for k, v in test_values.items():
+            with self.subTest():
+                rqh = create_test_handler(params)
+                pd = rqh._percent_delta(0.2, k)
+                self.assertEqual(pd, v)
 
     def test_percent_delta_zero_division(self):
         """Test the percent delta method with a b value of zero"""
