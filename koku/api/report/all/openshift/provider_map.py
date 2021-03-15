@@ -272,7 +272,7 @@ class OCPAllProviderMap(ProviderMap):
                         },
                         "count": None,
                         "delta_key": {"usage": Sum("usage_amount")},
-                        "filter": [{}],
+                        "filter": [{"field": "unit", "operation": "exact", "parameter": "GB-Mo"}],
                         "or_filter": [
                             {"field": "product_family", "operation": "icontains", "parameter": "Storage"},
                             {"field": "product_code", "operation": "icontains", "parameter": "Storage"},
