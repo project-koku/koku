@@ -192,7 +192,6 @@ if [ -f $QUAY_IO_SECRETS ]; then
 fi
 
 ### create secrets
-echo "Applying secrets."
 ${OC} process -f ${KOKU_SECRETS} | ${OC} apply -n ${SECRETS_PROJECT} -f -
 
 ### set policy to allow pulling images from buildfactory

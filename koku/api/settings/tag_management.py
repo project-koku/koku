@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Data Driven Component Generation for Tag Management Settings."""
+from django.conf import settings
 from django.test import RequestFactory
 from rest_framework.serializers import ValidationError
 from tenant_schemas.utils import schema_context
@@ -32,11 +33,14 @@ from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
+from api.tags.gcp.queries import GCPTagQueryHandler
+from api.tags.gcp.view import GCPTagView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from reporting.models import AWSEnabledTagKeys
 from reporting.models import AzureEnabledTagKeys
+from reporting.models import GCPEnabledTagKeys
 from reporting.models import OCPEnabledTagKeys
 
 
@@ -69,6 +73,20 @@ obtainTagKeysProvidersParams = {
         "enabled_tag_keys": AzureEnabledTagKeys,
     },
 }
+if settings.DEVELOPMENT:
+    obtainTagKeysProvidersParams.update(
+        {
+            "gcp": {
+                "provider": Provider.PROVIDER_GCP,
+                "title": "Google Cloud Plaform tags",
+                "leftLabel": "Available tags",
+                "rightLabel": "Tags for reporting",
+                "tag_view": GCPTagView,
+                "query_handler": GCPTagQueryHandler,
+                "enabled_tag_keys": GCPEnabledTagKeys,
+            }
+        }
+    )
 
 
 class TagManagementSettings:
