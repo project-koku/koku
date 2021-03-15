@@ -336,6 +336,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             # When the days are the same nothing is downloaded.
             if start == end:
                 continue
+            end = end + relativedelta(days=1)
             relevant_file_names.append(f"{invoice_month}_{self.etag}_{start}:{end}.csv")
         return relevant_file_names
 
