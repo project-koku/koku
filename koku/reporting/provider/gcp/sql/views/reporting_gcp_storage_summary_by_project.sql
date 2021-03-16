@@ -16,7 +16,7 @@ CREATE MATERIALIZED VIEW reporting_gcp_storage_summary_by_project AS (
         max(source_uuid::text)::uuid as source_uuid
     FROM reporting_gcpcostentrylineitem_daily_summary
     WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
-        AND line_item_type = 'storage'
+        AND service_alias IN ('Filestore', 'Storage', 'Cloud Storage', 'Data Transfer')
     GROUP BY usage_start, project_id, project_name, account_id
 )
 WITH DATA
