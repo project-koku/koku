@@ -4,6 +4,7 @@ import os
 
 from django.conf import settings
 from django.db import migrations
+from django.db.utils import ProgrammingError
 
 
 LOG = logging.getLogger(__name__)
@@ -16,44 +17,30 @@ def create_hive_db(apps, schema_editor):
     kokudbuser = settings.DATABASES.get("default").get("USER")
     db_password = settings.DATABASES.get("default").get("PASSWORD")
     hive_db_password = settings.HIVE_DATABASE_PASSWORD
-    role_check_sql = f"""
-select exists (
-           select 1
-             from pg_roles
-            where rolname = '{rolname}'
-       )::boolean as "role_found";
-"""
+
     role_create_sql = f"""
-create role "{rolname}" with login encrypted password '{{hivepw}}';
-"""
+        create role "{rolname}" with login encrypted password '{{hivepw}}';
+    """
+
     role_public_revoke_sql = """
-revoke connect on database "{}" from "public";
-"""
+        revoke connect on database "{}" from "public";
+    """
+
     role_revoke_sql = f"""
-revoke connect on database "{kokudb}" from "{rolname}";
-"""
+        revoke connect on database "{kokudb}" from "{rolname}";
+    """
+
     role_grant_sql = f"""
-grant connect on database "{datname}" to "{kokudbuser}";
-"""
-    db_check_sql = f"""
-select exists (
-           select 1
-             from pg_database
-            where datname = '{datname}'
-       )::boolean as "db_found";
-"""
+        grant connect on database "{datname}" to "{kokudbuser}";
+    """
+
     db_create_sql = f"""
-create database "{datname}" owner "{rolname}";
-"""
+        create database "{datname}" owner "{rolname}";
+    """
+
     db_access_check_sql = """
-select has_database_privilege(%s, %s, 'connect');
-"""
-    role_member_check_sql = f"""
-select count(*) as "_count"
-  from pg_auth_members
- where roleid = '{rolname}'::regrole
-   and member = '{kokudbuser}'::regrole;
-"""
+        select has_database_privilege(%s, %s, 'connect');
+    """
 
     with schema_editor.connection.connection.__class__(
         "postgresql://{user}:{password}@{host}:{port}/{dbname}".format(
@@ -62,32 +49,21 @@ select count(*) as "_count"
     ) as conn:
         conn.autocommit = True
         with conn.cursor() as cur:
-            cur.execute(role_check_sql)
-            role_exists = cur.fetchone()
-            role_exists = bool(role_exists) and role_exists[0]
-            cur.execute(db_check_sql)
-            db_exists = cur.fetchone()
-            db_exists = bool(db_exists) and db_exists[0]
-
-            if not role_exists:
-                LOG.info(f"Creating role {rolname}.")
+            LOG.info(f"Creating role {rolname}.")
+            try:
                 cur.execute(role_create_sql.format(hivepw=hive_db_password))
-            else:
+            except ProgrammingError as e:
+                LOG.info(e)
                 LOG.info(f"Role {rolname} exists.")
 
-            cur.execute(role_member_check_sql)
-            is_hive_member = cur.fetchone()
-            is_hive_member = bool(is_hive_member) and bool(is_hive_member[0])
-            if not is_hive_member:
-                LOG.info(f"""Granting role "{rolname}" membership to "{kokudbuser}".""")
-                cur.execute(f"""grant "{rolname}" to "{kokudbuser}"; """)
-            else:
-                LOG.info(f"Role {kokudbuser} is a memeber of role {rolname}.")
+            LOG.info(f"""Granting role "{rolname}" membership to "{kokudbuser}".""")
+            cur.execute(f"""grant "{rolname}" to "{kokudbuser}"; """)
 
-            if not db_exists:
+            try:
                 LOG.info(f"Creating database {rolname}.")
                 cur.execute(db_create_sql)
-            else:
+            except ProgrammingError as e:
+                LOG.info(e)
                 LOG.info(f"Database {rolname} exists.")
 
             # Revoke access to koku db from public
