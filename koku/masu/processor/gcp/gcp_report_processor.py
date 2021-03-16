@@ -376,7 +376,6 @@ class GCPReportProcessor(ReportProcessorBase):
                         self._create_cost_entry_line_item(
                             processed_row, bill_id, project_id, report_db, service_product_id
                         )
-
                 if self.processed_report.line_items:
                     LOG.info(
                         "Saving report rows %d to %d for %s",
