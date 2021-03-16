@@ -38,6 +38,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
+from masu.util.common import date_range_pair
 from masu.util.common import get_path_prefix
 from providers.gcp.provider import GCPProvider
 
@@ -266,8 +267,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             Manifest-like dict with list of relevant found files.
 
         """
-        # end date is effectively the inclusive "end of the month" from the start.
-        end_date = start_date + relativedelta(months=1)
+        end_of_month = start_date + relativedelta(months=1)
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
@@ -278,19 +278,20 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             # downloading this month, so we need to update our
             # scan range to include the full month.
             self.scan_start = start_date
-            if isinstance(end_date, datetime.datetime):
-                end_date = end_date.date()
-            if end_date < self.scan_end:
-                self.scan_end = end_date
+            if isinstance(end_of_month, datetime.datetime):
+                end_of_month = end_of_month.date()
+            if end_of_month < self.scan_end:
+                self.scan_end = end_of_month
 
         invoice_month = self.scan_start.strftime("%Y%m")
+        bill_date = self.scan_start.replace(day=1)
         file_names = self._get_relevant_file_names(invoice_month)
         fake_assembly_id = self._generate_assembly_id(invoice_month)
 
         manifest_data = {
             "assembly_id": fake_assembly_id,
             "compression": UNCOMPRESSED,
-            "start_date": self.scan_start,
+            "start_date": bill_date,
             "end_date": self.scan_end,  # inclusive end date
             "file_names": list(file_names),
         }
@@ -331,7 +332,12 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         relevant_file_names = list()
-        relevant_file_names.append(f"{invoice_month}_{self.etag}_{self.scan_start}:{self.scan_end}.csv")
+        for start, end in date_range_pair(self.scan_start, self.scan_end):
+            # When the days are the same nothing is downloaded.
+            if start == end:
+                continue
+            end = end + relativedelta(days=1)
+            relevant_file_names.append(f"{invoice_month}_{self.etag}_{start}:{end}.csv")
         return relevant_file_names
 
     def get_local_file_for_report(self, report):
