@@ -11,7 +11,9 @@ CREATE MATERIALIZED VIEW reporting_gcp_network_summary AS(
         sum(unblended_cost) as unblended_cost,
         sum(markup_cost) as markup_cost,
         max(currency) as currency,
-        max(source_uuid::text)::uuid as source_uuid
+        max(source_uuid::text)::uuid as source_uuid,
+        service_id,
+        service_alias
     FROM reporting_gcpcostentrylineitem_daily_summary
     -- Get data for this month or last month
     WHERE service_alias LIKE '%Network%'
@@ -28,11 +30,11 @@ CREATE MATERIALIZED VIEW reporting_gcp_network_summary AS(
         OR service_alias LIKE '%Private Service Connect%'
         OR service_alias LIKE '%Cloud Armor%'
         AND usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
-    GROUP BY usage_start, account_id
+    GROUP BY usage_start, account_id, service_id, service_alias
 )
 WITH DATA
 ;
 
 CREATE UNIQUE INDEX gcp_network_summary
-ON reporting_gcp_network_summary (usage_start, account_id)
+ON reporting_gcp_network_summary (usage_start, account_id, service_id, service_alias)
 ;

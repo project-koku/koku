@@ -5,7 +5,7 @@ CREATE MATERIALIZED VIEW reporting_gcp_storage_summary_by_project AS (
     SELECT ROW_NUMBER() OVER(ORDER BY usage_start, project_id, project_name, account_id) AS id,
         usage_start,
         usage_start as usage_end,
-        SUM(case when usage_amount = 'NaN' then 0.0::numeric(24,9) else usage_amount end::numeric(24,9)) AS usage_amount,
+        sum(usage_amount) as usage_amount,
         MAX(unit) AS unit,
         SUM(unblended_cost) AS unblended_cost,
         SUM(markup_cost) AS markup_cost,
