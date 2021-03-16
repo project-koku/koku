@@ -5,6 +5,7 @@ import os
 from django.conf import settings
 from django.db import migrations
 from django.db.utils import ProgrammingError
+from psycopg2.errors import InsufficientPrivilege
 
 
 LOG = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ def create_hive_db(apps, schema_editor):
             LOG.info(f"Creating role {rolname}.")
             try:
                 cur.execute(role_create_sql.format(hivepw=hive_db_password))
-            except ProgrammingError as e:
+            except (ProgrammingError, InsufficientPrivilege) as e:
                 LOG.info(e)
                 LOG.info(f"Role {rolname} exists.")
 
@@ -62,7 +63,7 @@ def create_hive_db(apps, schema_editor):
             try:
                 LOG.info(f"Creating database {rolname}.")
                 cur.execute(db_create_sql)
-            except ProgrammingError as e:
+            except (ProgrammingError, InsufficientPrivilege) as e:
                 LOG.info(e)
                 LOG.info(f"Database {rolname} exists.")
 
