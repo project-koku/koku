@@ -248,26 +248,42 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
                     )
 
     def get_gcp_scan_range_from_report_name(self, manifest_id=None, report_name=""):
-        """Given a manifest_id return the scan range for the
-
-        """
+        """Return the scan range given the manifest_id or the report_name."""
         scan_range = {}
+        # Return range of report
+        if report_name:
+            try:
+                report_name = path.splitext(report_name)[0]
+                date_range = report_name.split("_")[-1]
+                scan_start, scan_end = date_range.split(":")
+                scan_range["start"] = scan_start
+                scan_range["end"] = scan_end
+                return scan_range
+            except ValueError:
+                LOG.warning(f"Could not find range of report name: {report_name}.")
+                return scan_range
+        # Grab complete range given manifest_id
         if manifest_id:
-            record = CostUsageReportStatus.objects.filter(manifest_id=manifest_id).first()
-            if record:
+            start_dates = []
+            end_dates = []
+            records = CostUsageReportStatus.objects.filter(manifest_id=manifest_id)
+            if not records:
+                return scan_range
+            for record in records:
                 report_path = record.report_name
                 report_name = path.basename(report_path)
-            else:
-                return scan_range
-        report_name = path.splitext(report_name)[0]
-        try:
-            date_range = report_name.split("_")[-1]
-            scan_start, scan_end = date_range.split(":")
-            scan_range["start"] = scan_start
-            scan_range["end"] = scan_end
-        except ValueError:
-            pass
-        return scan_range
+                try:
+                    report_name = path.splitext(report_name)[0]
+                    date_range = report_name.split("_")[-1]
+                    scan_start, scan_end = date_range.split(":")
+                    start_dates.append(scan_start)
+                    end_dates.append(scan_end)
+                except ValueError:
+                    LOG.warning(f"Could not find range of record {report_name} for manifest {manifest_id}.")
+                    return scan_range
+            scan_range["start"] = min(start_dates)
+            scan_range["end"] = max(end_dates)
+            return scan_range
 
     def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
         """Populate the enabled tag key table.
