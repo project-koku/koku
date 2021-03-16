@@ -40,17 +40,17 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
     network_services = {
         "Network",
-        "VPC"
-        "Firewall"
-        "Route"
-        "IP"
-        "DNS"
-        "CDN"
-        "NAT"
-        "Traffic Director"
-        "Service Discovery"
-        "Cloud Domains"
-        "Private Service Connect"
+        "VPC",
+        "Firewall",
+        "Route",
+        "IP",
+        "DNS",
+        "CDN",
+        "NAT",
+        "Traffic Director",
+        "Service Discovery",
+        "Cloud Domains",
+        "Private Service Connect",
         "Cloud Armor",
     }
 

@@ -40,7 +40,7 @@ CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_summary_{{uuid | sql
         li.usage_end,
         li.line_item_type,
         li.usage_type as instance_type,
-        sum(li.usage_in_pricing_units) as usage_amount,
+        SUM(case when li.usage_in_pricing_units = 'NaN' then 0.0::numeric(24,9) else li.usage_in_pricing_units end::numeric(24,9)) AS usage_amount,
         fvl.gcp_tags as tags,
         case when li.region = 'nan' then NULL else li.region end as region,
         sum(li.cost) as unblended_cost,
