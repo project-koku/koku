@@ -524,13 +524,9 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_filter_region(self):
         """Test execute_query for current month on monthly filtered by region."""
-        with tenant_context(self.tenant):
-            region = (
-                GCPCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
-                .values("region")[0]
-                .get("region")
-            )
-        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]={region}"  # noqa: E501
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]=*"
+        )  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -539,7 +535,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filters = {**self.this_month_filter, "region": region}
+        filters = {**self.this_month_filter}
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
@@ -554,14 +550,10 @@ class GCPReportQueryHandlerTest(IamTestCase):
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
     def test_execute_query_current_month_filter_region_csv(self, mock_accept):
         """Test execute_query on monthly filtered by region for csv."""
-        with tenant_context(self.tenant):
-            region = (
-                GCPCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
-                .values("region")[0]
-                .get("region")
-            )
         mock_accept.return_value = "text/csv"
-        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]={region}"  # noqa: E501
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]=*"
+        )  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -570,7 +562,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filters = {**self.this_month_filter, "region": region}
+        filters = {**self.this_month_filter}
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])

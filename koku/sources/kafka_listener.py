@@ -52,6 +52,7 @@ from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.sources_provider_coordinator import SourcesProviderCoordinatorError
+from sources.tasks import delete_source
 
 LOG = logging.getLogger(__name__)
 
@@ -302,8 +303,10 @@ def execute_koku_provider_op(msg):
             LOG.info(f"Updated provider {instance.uuid} for Source ID: {provider.source_id}")
         elif operation == "destroy":
             LOG.info(f"Destroying Koku Provider for Source ID: {provider.source_id}")
-            account_coordinator.destroy_account(provider)
-            LOG.info(f"Destroyed provider {provider.koku_uuid} for Source ID: {provider.source_id}")
+            delete_source.delay(provider.source_id, provider.auth_header, provider.koku_uuid)
+            LOG.info(
+                f"Destroy provider task queued for provider {provider.koku_uuid} for Source ID: {provider.source_id}"
+            )
         else:
             LOG.error(f"unknown operation: {operation}")
         sources_client.set_source_status(None)

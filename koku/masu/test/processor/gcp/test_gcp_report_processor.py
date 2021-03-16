@@ -233,27 +233,6 @@ class GCPReportProcessorTest(MasuTestCase):
             self.assertEquals(expected_bill_count, len(GCPCostEntryBill.objects.all()))
         self.assertFalse(os.path.exists(self.test_report))
 
-    def test_get_line_item_type(self):
-        """Test that the get line item type returns correct type."""
-        processor = GCPReportProcessor(
-            schema_name=self.schema,
-            report_path=self.test_report,
-            compression=UNCOMPRESSED,
-            provider_uuid=self.gcp_provider.uuid,
-        )
-        expected_mapping = {
-            "usage": ["Compute Engine", "COMPUTE engine", "Kubernetes Engine"],
-            "storage": ["Filestore", "Storage", "Data Transfer", "DATA    TRanSFer"],
-            "network": ["VPC network", "Network services"],
-            "database": ["Bigtable", "Spanner"],
-            "other": ["unknown"],
-        }
-        for expected_item_type, alias_list in expected_mapping.items():
-            for alias in alias_list:
-                row = {"service.description": alias}
-                result_type = processor._get_line_item_type(row)
-                self.assertEqual(result_type, expected_item_type)
-
     def test_create_cost_entry_line_item_bad_time(self):
         """Test time parse errors are caught correctly."""
         processor = GCPReportProcessor(
