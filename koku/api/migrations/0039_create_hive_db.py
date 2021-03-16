@@ -57,8 +57,11 @@ def create_hive_db(apps, schema_editor):
                 LOG.info(e)
                 LOG.info(f"Role {rolname} exists.")
 
-            LOG.info(f"""Granting role "{rolname}" membership to "{kokudbuser}".""")
-            cur.execute(f"""grant "{rolname}" to "{kokudbuser}"; """)
+            try:
+                LOG.info(f"""Granting role "{rolname}" membership to "{kokudbuser}".""")
+                cur.execute(f"""grant "{rolname}" to "{kokudbuser}"; """)
+            except (ProgrammingError, InsufficientPrivilege) as e:
+                LOG.info(e)
 
             try:
                 LOG.info(f"Creating database {rolname}.")
@@ -68,31 +71,46 @@ def create_hive_db(apps, schema_editor):
                 LOG.info(f"Database {rolname} exists.")
 
             # Revoke access to koku db from public
-            cur.execute(db_access_check_sql, ("public", kokudb))
-            if cur.fetchone()[0]:
-                LOG.info(f"Revoking public access to {kokudb}.")
-                cur.execute(role_public_revoke_sql.format(kokudb))
+            try:
+                cur.execute(db_access_check_sql, ("public", kokudb))
+                if cur.fetchone()[0]:
+                    LOG.info(f"Revoking public access to {kokudb}.")
+                    cur.execute(role_public_revoke_sql.format(kokudb))
+            except (ProgrammingError, InsufficientPrivilege) as e:
+                LOG.info(e)
 
             # Revoke access to hive db from public
-            cur.execute(db_access_check_sql, ("public", datname))
-            if cur.fetchone()[0]:
-                LOG.info(f"Revoking public access to {datname}.")
-                cur.execute(role_public_revoke_sql.format(datname))
+            try:
+                cur.execute(db_access_check_sql, ("public", datname))
+                if cur.fetchone()[0]:
+                    LOG.info(f"Revoking public access to {datname}.")
+                    cur.execute(role_public_revoke_sql.format(datname))
+            except (ProgrammingError, InsufficientPrivilege) as e:
+                LOG.info(e)
 
             # Revoke access to koku db from hive user
-            cur.execute(db_access_check_sql, (rolname, kokudb))
-            if cur.fetchone()[0]:
-                LOG.info(f"Revoking {rolname} access to {kokudb}.")
-                cur.execute(role_revoke_sql)
+            try:
+                cur.execute(db_access_check_sql, (rolname, kokudb))
+                if cur.fetchone()[0]:
+                    LOG.info(f"Revoking {rolname} access to {kokudb}.")
+                    cur.execute(role_revoke_sql)
+            except (ProgrammingError, InsufficientPrivilege) as e:
+                LOG.info(e)
 
             # Grant access to hive db from koku user
-            cur.execute(db_access_check_sql, (kokudbuser, datname))
-            if not cur.fetchone()[0]:
-                LOG.info(f"Granting {kokudbuser} access to {datname}.")
-                cur.execute(role_grant_sql)
+            try:
+                cur.execute(db_access_check_sql, (kokudbuser, datname))
+                if not cur.fetchone()[0]:
+                    LOG.info(f"Granting {kokudbuser} access to {datname}.")
+                    cur.execute(role_grant_sql)
+            except (ProgrammingError, InsufficientPrivilege) as e:
+                LOG.info(e)
 
-            LOG.info(f"""Revoking role "{rolname}" membership from "{kokudbuser}".""")
-            cur.execute(f"""revoke "{rolname}" from "{kokudbuser}"; """)
+            try:
+                LOG.info(f"""Revoking role "{rolname}" membership from "{kokudbuser}".""")
+                cur.execute(f"""revoke "{rolname}" from "{kokudbuser}"; """)
+            except (ProgrammingError, InsufficientPrivilege) as e:
+                LOG.info(e)
 
 
 class Migration(migrations.Migration):
