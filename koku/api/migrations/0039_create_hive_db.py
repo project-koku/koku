@@ -48,6 +48,12 @@ create database "{datname}" owner "{rolname}";
     db_access_check_sql = """
 select has_database_privilege(%s, %s, 'connect');
 """
+    role_member_check_sql = f"""
+select count(*) as "_count"
+  from pg_auth_members
+ where roleid = '{rolname}'::regrole
+   and member = '{kokudbuser}'::regrole;
+"""
 
     with schema_editor.connection.connection.__class__(
         "postgresql://{user}:{password}@{host}:{port}/{dbname}".format(
@@ -68,6 +74,15 @@ select has_database_privilege(%s, %s, 'connect');
                 cur.execute(role_create_sql.format(hivepw=hive_db_password))
             else:
                 LOG.info(f"Role {rolname} exists.")
+
+            cur.execute(role_member_check_sql)
+            is_hive_member = cur.fetchone()
+            is_hive_member = bool(is_hive_member) and bool(is_hive_member[0])
+            if not is_hive_member:
+                LOG.info(f"""Granting role "{rolname}" membership to "{kokudbuser}".""")
+                cur.execute(f"""grant "{rolname}" to "{kokudbuser}"; """)
+            else:
+                LOG.info(f"Role {kokudbuser} is a memeber of role {rolname}.")
 
             if not db_exists:
                 LOG.info(f"Creating database {rolname}.")
@@ -98,6 +113,9 @@ select has_database_privilege(%s, %s, 'connect');
             if not cur.fetchone()[0]:
                 LOG.info(f"Granting {kokudbuser} access to {datname}.")
                 cur.execute(role_grant_sql)
+
+            LOG.info(f"""Revoking role "{rolname}" membership from "{kokudbuser}".""")
+            cur.execute(f"""revoke "{rolname}" from "{kokudbuser}"; """)
 
 
 class Migration(migrations.Migration):

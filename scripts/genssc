@@ -30,8 +30,8 @@ then
     exit -1
 fi
 
-CERT_DIR="${KOKU_PATH}"/certs
-KEY_DIR="${KOKU_PATH}"/certs/private
+CERT_DIR="${HOME}"/.koku-db-certs
+KEY_DIR="${CERT_DIR}"/private
 CERT_FILE="${CERT_DIR}"/koku.crt
 KEY_FILE="${KEY_DIR}"/koku.key
 CSR_FILE="${KEY_DIR}"/koku.csr
