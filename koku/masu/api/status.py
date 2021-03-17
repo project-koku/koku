@@ -57,6 +57,10 @@ def get_status(request):
         return Response({"alive": True})
 
     app_status = ApplicationStatus()
+    celery_param = request.query_params.get("celery", "false").lower()
+    if celery_param == "true":
+        return Response(app_status.celery_task_status)
+
     response = {
         "api_version": app_status.api_version,
         "celery_status": app_status.celery_status,
@@ -103,6 +107,11 @@ class ApplicationStatus:
             conn.release()
         return stats
 
+    @property
+    def celery_task_status(self):
+        """Return information on queued, reserved, and active tasks."""
+        return self._get_celery_queue_data()
+
     def _check_celery_status(self):
         """Check for celery status."""
         try:
@@ -118,6 +127,44 @@ class ApplicationStatus:
             if conn:
                 conn.release()
         return stats
+
+    def _get_celery_queue_data(self):
+        """Fetch scheduled, reserved, and running tasks."""
+        tasks = {}
+        try:
+            conn = celery_app.connection()
+            inspector = celery_app.control.inspect(connection=conn, timeout=1)
+
+            scheduled = inspector.scheduled()
+            scheduled_count = 0
+            for task_list in scheduled.values():
+                scheduled_count += len(task_list)
+            tasks["scheduled"] = scheduled
+            tasks["scheduled_count"] = scheduled_count
+
+            reserved = inspector.reserved()
+            reserved_count = 0
+            for task_list in reserved.values():
+                reserved_count += len(task_list)
+            tasks["reserved"] = inspector.reserved()
+            tasks["reserved_count"] = reserved_count
+
+            active = inspector.active()
+            active_count = 0
+            for task_list in active.values():
+                active_count += len(task_list)
+            tasks["active"] = inspector.active()
+            tasks["active_count"] = active_count
+
+            if not tasks:
+                tasks = {"Error": CELERY_WORKER_NOT_FOUND}
+        except (ConnectionResetError, TimeoutError) as err:
+            CELERY_ERRORS_COUNTER.inc()
+            tasks = {"Error": str(err)}
+        finally:
+            if conn:
+                conn.release()
+        return tasks
 
     @property
     def commit(self):
