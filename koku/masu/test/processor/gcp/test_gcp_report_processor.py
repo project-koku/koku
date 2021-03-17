@@ -251,3 +251,15 @@ class GCPReportProcessorTest(MasuTestCase):
         del row_one["usage_start_time"]
         processor._create_cost_entry_line_item(row_one, fake_id, fake_id, self.accessor, fake_id)
         self.assertFalse(processor.processed_report.requested_partitions)
+
+    def test_gcp_process_empty_file(self):
+        """Test the processing of an GCP file again, results in the same amount of objects."""
+        f = open(self.test_report, "w")
+        f.truncate()
+        f.close()
+        result = self.processor.process()
+        self.assertTrue(result)
+        with schema_context(self.schema):
+            self.assertEquals(0, len(GCPCostEntryLineItem.objects.all()))
+            self.assertEquals(0, len(GCPProject.objects.all()))
+            self.assertEquals(0, len(GCPCostEntryBill.objects.all()))
