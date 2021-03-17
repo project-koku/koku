@@ -215,10 +215,6 @@ class OCPAWSProviderMap(ProviderMap):
                     },
                     "storage": {
                         "aggregates": {
-                            "infra_cost": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
-                            ),
                             "infra_raw": Sum(F("unblended_cost")),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
@@ -239,10 +235,6 @@ class OCPAWSProviderMap(ProviderMap):
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                         },
                         "annotations": {
-                            "infra_cost": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
-                            ),
                             "infra_raw": Sum(F("unblended_cost")),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
