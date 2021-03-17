@@ -254,6 +254,10 @@ class GCPReportProcessorTest(MasuTestCase):
 
     def test_gcp_process_empty_file(self):
         """Test the processing of an GCP file again, results in the same amount of objects."""
+        with schema_context(self.schema):
+            num_line_items = len(GCPCostEntryLineItem.objects.all())
+            num_projects = len(GCPProject.objects.all())
+            num_bills = len(GCPCostEntryBill.objects.all())
         f = open(self.test_report, "w")
         f.truncate()
         f.write("invoice.month,project.id")
@@ -261,6 +265,6 @@ class GCPReportProcessorTest(MasuTestCase):
         result = self.processor.process()
         self.assertTrue(result)
         with schema_context(self.schema):
-            self.assertEquals(0, len(GCPCostEntryLineItem.objects.all()))
-            self.assertEquals(0, len(GCPProject.objects.all()))
-            self.assertEquals(0, len(GCPCostEntryBill.objects.all()))
+            self.assertEquals(num_line_items, len(GCPCostEntryLineItem.objects.all()))
+            self.assertEquals(num_projects, len(GCPProject.objects.all()))
+            self.assertEquals(num_bills, len(GCPCostEntryBill.objects.all()))
