@@ -740,21 +740,44 @@ class ReportQueryHandler(QueryHandler):
             List(Dict): List of data points meeting the rank criteria
 
         """
-        rank_limited_data = OrderedDict()
-        date_grouped_data = self.date_group_data(data_list)
-
         if ranks:
             self.max_rank = len(ranks)
         elif data_list:
             self.max_rank = max(entry.get("rank", 0) for entry in data_list)
 
-        is_offset = "offset" in self.parameters.get("filter", {})
+        date_grouped_data = self.date_group_data(data_list)
+        if ranks:
+            padded_data = OrderedDict()
+            for date in date_grouped_data:
+                padded_data[date] = self._zerofill_ranks(date_grouped_data[date], ranks)
+        else:
+            padded_data = date_grouped_data
 
-        for date in date_grouped_data:
-            ranked_list = self._perform_rank_summation(date_grouped_data[date], is_offset, ranks)
+        rank_limited_data = OrderedDict()
+        is_offset = "offset" in self.parameters.get("filter", {})
+        for date in padded_data:
+            ranked_list = self._perform_rank_summation(padded_data[date], is_offset, ranks)
             rank_limited_data[date] = ranked_list
 
         return self.unpack_date_grouped_data(rank_limited_data)
+
+    def _zerofill_ranks(self, data, ranks):
+        """Ensure the data set has at least one entry from every ranked category."""
+        rank_field = self._get_group_by()[0]
+
+        data_ranks = [item[rank_field] for item in data]
+        missing = list(set(ranks) - set(data_ranks))
+
+        row_defaults = {"str": "", "int": 0, "float": 0.0, "dict": {}, "list": [], "Decimal": Decimal(0)}
+        empty_row = {key: row_defaults[str(type(val).__name__)] for key, val in data[0].items()}
+
+        for missed in missing:
+            ranked_empty_row = empty_row
+            ranked_empty_row[rank_field] = missed
+            ranked_empty_row["date"] = data[0]["date"]
+            data.append(ranked_empty_row)
+
+        return data
 
     def _perform_rank_summation(self, entry, is_offset=False, ranks=[]):  # noqa: C901
         """Do the rank limiting for _ranked_list().
@@ -768,18 +791,22 @@ class ReportQueryHandler(QueryHandler):
         ranked_list = []
         others_list = []
         other_sums = {column: 0 for column in self._mapper.sum_columns}
+
+        seen = []
         for data in entry:
             if other is None:
                 other = copy.deepcopy(data)
 
+            ranked_value = str(data.get(self._get_group_by()[0]))
             if ranks:
-                rank = ranks.index(str(data.get(self._get_group_by()[0])))
-                data["rank"] = rank + 1  # avoid empty/zero ranks
+                rank = ranks.index(ranked_value)
+                data["rank"] = rank
             else:
                 rank = data.get("rank", 0)
 
             if rank > self._offset and rank <= self._limit + self._offset:
                 ranked_list.append(data)
+                seen.append(ranked_value)
             else:
                 others_list.append(data)
                 for column in self._mapper.sum_columns:
