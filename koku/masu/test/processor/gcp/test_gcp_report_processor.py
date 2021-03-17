@@ -256,7 +256,7 @@ class GCPReportProcessorTest(MasuTestCase):
         """Test the processing of an GCP file again, results in the same amount of objects."""
         f = open(self.test_report, "w")
         f.truncate()
-        f.write("fake,columns,to,make,pandas,happy")
+        f.write("invoice.month,project.id")
         f.close()
         result = self.processor.process()
         self.assertTrue(result)
