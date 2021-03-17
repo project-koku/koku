@@ -774,7 +774,7 @@ class ReportQueryHandler(QueryHandler):
 
             if ranks:
                 rank = ranks.index(str(data.get(self._get_group_by()[0])))
-                data["rank"] = rank
+                data["rank"] = rank + 1  # avoid empty/zero ranks
             else:
                 rank = data.get("rank", 0)
 
