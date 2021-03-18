@@ -36,7 +36,7 @@ cte_values_agg AS (
         project_name,
         values
     FROM cte_values_agg
-    ON CONFLICT (key, cost_entry_bill_id, account_id, project_id, project_name) DO UPDATE SET values=EXCLUDED.values
+    ON CONFLICT (key, cost_entry_bill_id, account_id, project_id) DO UPDATE SET values=EXCLUDED.values. project_name=EXCLUDED.project_name
 )
 INSERT INTO {{schema | sqlsafe}}.reporting_gcptags_values (uuid, key, value, account_ids, project_ids, project_names)
 SELECT uuid_generate_v4() as uuid,
