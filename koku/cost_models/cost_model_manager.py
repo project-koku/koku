@@ -25,6 +25,7 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
 from masu.processor.tasks import update_cost_model_costs
@@ -97,7 +98,7 @@ class CostModelManager:
             except Provider.DoesNotExist:
                 LOG.info(f"Provider {provider_uuid} does not exist. Skipping cost-model update.")
             else:
-                queue = "ocp" if provider.type == Provider.PROVIDER_OCP else None
+                queue = OCP_QUEUE if provider.type == Provider.PROVIDER_OCP else None
                 schema_name = provider.customer.schema_name
                 chain(
                     update_cost_model_costs.s(schema_name, provider.uuid, start_date, end_date).set(

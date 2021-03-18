@@ -28,6 +28,7 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_summary_tables
@@ -69,7 +70,7 @@ def report_data(request):
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         if not all_providers:
-            queue_name = "ocp" if provider and provider.lower() == "ocp" else None
+            queue_name = OCP_QUEUE if provider and provider.lower() == "ocp" else None
             if schema_name is None:
                 errmsg = "schema is a required parameter."
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
