@@ -421,7 +421,10 @@ def update_all_summary_tables(start_date, end_date=None):
             schema_name = account.get("schema_name")
             provider = account.get("provider_type")
             provider_uuid = account.get("provider_uuid")
-            update_summary_tables.delay(schema_name, provider, provider_uuid, str(start_date), end_date)
+            queue_name = "ocp" if provider.lower() == "ocp" else None
+            update_summary_tables.s(
+                schema_name, provider, provider_uuid, str(start_date), end_date, queue_name
+            ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
     except AccountsAccessorError as error:
         LOG.error("Unable to get accounts. Error: %s", str(error))
 

@@ -31,6 +31,7 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_summary_tables
+from masu.processor.tasks import UPDATE_SUMMARY_TABLES_QUEUE
 
 LOG = logging.getLogger(__name__)
 REPORT_DATA_KEY = "Report Data Task ID"
@@ -68,6 +69,7 @@ def report_data(request):
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         if not all_providers:
+            queue_name = "ocp" if provider.lower() == "ocp" else None
             if schema_name is None:
                 errmsg = "schema is a required parameter."
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
@@ -80,7 +82,9 @@ def report_data(request):
                 errmsg = "provider_uuid and provider_type have mismatched provider types."
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-            async_result = update_summary_tables.delay(schema_name, provider, provider_uuid, start_date, end_date)
+            async_result = update_summary_tables.s(
+                schema_name, provider, provider_uuid, start_date, end_date, queue_name
+            ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
         else:
             async_result = update_all_summary_tables.delay(start_date, end_date)
         return Response({REPORT_DATA_KEY: str(async_result)})
