@@ -484,7 +484,7 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
 
     @patch.object(ExpiredDataRemover, "remove")
-    @patch("masu.processor.tasks.refresh_materialized_views.delay")
+    @patch("masu.processor.tasks.refresh_materialized_views.s")
     def test_remove_expired_data(self, fake_view, fake_remover):
         """Test task."""
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
@@ -499,7 +499,7 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
             self.assertIn(expected.format(str(expected_results)), logger.output)
 
     @patch.object(ExpiredDataRemover, "remove")
-    @patch("masu.processor.tasks.refresh_materialized_views.delay")
+    @patch("masu.processor.tasks.refresh_materialized_views.s")
     def test_remove_expired_line_items_only(self, fake_view, fake_remover):
         """Test task."""
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
@@ -760,7 +760,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             | refresh_materialized_views.si(
                 self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id
             )
-            | remove_expired_data.si(self.schema, provider, False, provider_aws_uuid, True)
+            | remove_expired_data.si(self.schema, provider, False, provider_aws_uuid, True, None)
         )
 
     @patch("masu.processor.tasks.update_summary_tables")
