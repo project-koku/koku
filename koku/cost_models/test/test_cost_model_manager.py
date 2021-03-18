@@ -287,6 +287,6 @@ class CostModelManagerTest(IamTestCase):
             # simulates deleting a cost_model
             manager.update_provider_uuids(provider_uuids=[])
             mock_chain.assert_called_once_with(
-                mock_update.s(self.schema_name, provider_uuid, start_date, end_date),
-                mock_refresh.si(self.schema_name, provider.type, provider_uuid=provider_uuid),
+                mock_update.s(self.schema_name, provider_uuid, start_date, end_date).set(),
+                mock_refresh.si(self.schema_name, provider.type, provider_uuid=provider_uuid).set(),
             )
