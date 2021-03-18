@@ -361,7 +361,7 @@ class ProcessReportFileTests(MasuTestCase):
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list(self, mock_update_summary):
         """Test that the summarize_reports task is called when a processing list is provided."""
-        mock_update_summary.delay = Mock()
+        mock_update_summary.s = Mock()
 
         report_meta = {}
         report_meta["start_date"] = str(DateHelper().today)
@@ -383,12 +383,12 @@ class ProcessReportFileTests(MasuTestCase):
         reports_to_summarize = [report_meta, report2_meta]
 
         summarize_reports(reports_to_summarize)
-        mock_update_summary.delay.assert_called()
+        mock_update_summary.s.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_with_none(self, mock_update_summary):
         """Test that the summarize_reports task is called when a processing list when a None provided."""
-        mock_update_summary.delay = Mock()
+        mock_update_summary.s = Mock()
 
         report_meta = {}
         report_meta["start_date"] = str(DateHelper().today)
@@ -399,16 +399,16 @@ class ProcessReportFileTests(MasuTestCase):
         reports_to_summarize = [report_meta, None]
 
         summarize_reports(reports_to_summarize)
-        mock_update_summary.delay.assert_called()
+        mock_update_summary.s.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_only_none(self, mock_update_summary):
         """Test that the summarize_reports task is called when a processing list with None provided."""
-        mock_update_summary.delay = Mock()
+        mock_update_summary.s = Mock()
         reports_to_summarize = [None, None]
 
         summarize_reports(reports_to_summarize)
-        mock_update_summary.delay.assert_not_called()
+        mock_update_summary.s.assert_not_called()
 
 
 class TestProcessorTasks(MasuTestCase):
