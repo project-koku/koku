@@ -60,11 +60,14 @@ from masu.processor.tasks import normalize_table_options
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
+from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
 from masu.processor.tasks import remove_expired_data
+from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.processor.tasks import remove_stale_tenants
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
+from masu.processor.tasks import UPDATE_COST_MODEL_COSTS_QUEUE
 from masu.processor.tasks import update_summary_tables
 from masu.processor.tasks import vacuum_schema
 from masu.processor.worker_cache import create_single_task_cache_key
@@ -361,7 +364,7 @@ class ProcessReportFileTests(MasuTestCase):
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list(self, mock_update_summary):
         """Test that the summarize_reports task is called when a processing list is provided."""
-        mock_update_summary.delay = Mock()
+        mock_update_summary.s = Mock()
 
         report_meta = {}
         report_meta["start_date"] = str(DateHelper().today)
@@ -383,12 +386,12 @@ class ProcessReportFileTests(MasuTestCase):
         reports_to_summarize = [report_meta, report2_meta]
 
         summarize_reports(reports_to_summarize)
-        mock_update_summary.delay.assert_called()
+        mock_update_summary.s.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_with_none(self, mock_update_summary):
         """Test that the summarize_reports task is called when a processing list when a None provided."""
-        mock_update_summary.delay = Mock()
+        mock_update_summary.s = Mock()
 
         report_meta = {}
         report_meta["start_date"] = str(DateHelper().today)
@@ -399,16 +402,16 @@ class ProcessReportFileTests(MasuTestCase):
         reports_to_summarize = [report_meta, None]
 
         summarize_reports(reports_to_summarize)
-        mock_update_summary.delay.assert_called()
+        mock_update_summary.s.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_only_none(self, mock_update_summary):
         """Test that the summarize_reports task is called when a processing list with None provided."""
-        mock_update_summary.delay = Mock()
+        mock_update_summary.s = Mock()
         reports_to_summarize = [None, None]
 
         summarize_reports(reports_to_summarize)
-        mock_update_summary.delay.assert_not_called()
+        mock_update_summary.s.assert_not_called()
 
 
 class TestProcessorTasks(MasuTestCase):
@@ -484,7 +487,7 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
 
     @patch.object(ExpiredDataRemover, "remove")
-    @patch("masu.processor.tasks.refresh_materialized_views.delay")
+    @patch("masu.processor.tasks.refresh_materialized_views.s")
     def test_remove_expired_data(self, fake_view, fake_remover):
         """Test task."""
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
@@ -499,7 +502,7 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
             self.assertIn(expected.format(str(expected_results)), logger.output)
 
     @patch.object(ExpiredDataRemover, "remove")
-    @patch("masu.processor.tasks.refresh_materialized_views.delay")
+    @patch("masu.processor.tasks.refresh_materialized_views.s")
     def test_remove_expired_line_items_only(self, fake_view, fake_remover):
         """Test task."""
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
@@ -756,11 +759,15 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, end_date, manifest_id)
         mock_chain.assert_called_once_with(
-            update_cost_model_costs.s(self.schema, provider_aws_uuid, expected_start_date, expected_end_date)
+            update_cost_model_costs.s(self.schema, provider_aws_uuid, expected_start_date, expected_end_date).set(
+                queue=UPDATE_COST_MODEL_COSTS_QUEUE
+            )
             | refresh_materialized_views.si(
                 self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id
+            ).set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE)
+            | remove_expired_data.si(self.schema, provider, False, provider_aws_uuid, True, None).set(
+                queue=REMOVE_EXPIRED_DATA_QUEUE
             )
-            | remove_expired_data.si(self.schema, provider, False, provider_aws_uuid, True)
         )
 
     @patch("masu.processor.tasks.update_summary_tables")
@@ -769,7 +776,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         start_date = date.today()
         update_all_summary_tables(start_date)
 
-        mock_update.delay.assert_called_with(ANY, ANY, ANY, str(start_date), ANY)
+        mock_update.s.assert_called_with(ANY, ANY, ANY, str(start_date), ANY, ANY)
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_refresh_materialized_views_aws(self, mock_cache):
