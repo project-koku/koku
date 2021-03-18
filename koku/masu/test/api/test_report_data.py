@@ -52,7 +52,12 @@ class ReportDataTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
         mock_update.s.assert_called_with(
-            params["schema"], Provider.PROVIDER_AWS, params["provider_uuid"], str(params["start_date"]), None, None
+            params["schema"],
+            Provider.PROVIDER_AWS,
+            params["provider_uuid"],
+            str(params["start_date"]),
+            None,
+            queue_name=None,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -81,7 +86,7 @@ class ReportDataTests(TestCase):
             params["provider_uuid"],
             str(params["start_date"]),
             None,
-            OCP_QUEUE,
+            queue_name=OCP_QUEUE,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -203,7 +208,7 @@ class ReportDataTests(TestCase):
             params["provider_uuid"],
             str(params["start_date"]),
             str(params["end_date"]),
-            None,
+            queue_name=None,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -226,7 +231,12 @@ class ReportDataTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
         mock_update.s.assert_called_with(
-            params["schema"], params["provider_type"], None, str(params["start_date"]), str(params["end_date"]), None
+            params["schema"],
+            params["provider_type"],
+            None,
+            str(params["start_date"]),
+            str(params["end_date"]),
+            queue_name=None,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
