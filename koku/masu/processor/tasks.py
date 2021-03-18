@@ -66,6 +66,7 @@ LOG = get_task_logger(__name__)
 
 GET_REPORT_FILES_QUEUE = "download"
 REFRESH_MATERIALIZED_VIEWS_QUEUE = "reporting"
+REMOVE_EXPIRED_DATA_QUEUE = "remove_expired"
 SUMMARIZE_REPORTS_QUEUE = "process"
 UPDATE_COST_MODEL_COSTS_QUEUE = "reporting"
 UPDATE_SUMMARY_TABLES_QUEUE = "reporting"
@@ -224,8 +225,8 @@ def get_report_files(
         WorkerCache().remove_task_from_cache(cache_key)
 
 
-@app.task(name="masu.processor.tasks.remove_expired_data", queue_name="remove_expired")
-def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, line_items_only=False):
+@app.task(name="masu.processor.tasks.remove_expired_data", queue_name=REMOVE_EXPIRED_DATA_QUEUE)
+def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, line_items_only=False, queue_name=None):
     """
     Remove expired report data.
 
@@ -249,7 +250,9 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_items_only)
     if not line_items_only:
-        refresh_materialized_views.delay(schema_name, provider, provider_uuid=provider_uuid)
+        refresh_materialized_views.s(schema_name, provider, provider_uuid=provider_uuid).apply_async(
+            queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE
+        )
 
 
 @app.task(name="masu.processor.tasks.summarize_reports", queue_name=SUMMARIZE_REPORTS_QUEUE)
@@ -384,9 +387,9 @@ def update_summary_tables(
         simulate = False
         line_items_only = True
 
-        linked_tasks |= remove_expired_data.si(schema_name, provider, simulate, provider_uuid, line_items_only).set(
-            queue=queue_name
-        )
+        linked_tasks |= remove_expired_data.si(
+            schema_name, provider, simulate, provider_uuid, line_items_only, queue_name
+        ).set(queue=queue_name or REMOVE_EXPIRED_DATA_QUEUE)
 
     chain(linked_tasks).apply_async()
 
