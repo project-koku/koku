@@ -799,10 +799,10 @@ class ReportQueryHandler(QueryHandler):
 
             ranked_value = str(data.get(self._get_group_by()[0]))
             if ranks:
-                rank = ranks.index(ranked_value)
+                rank = ranks.index(ranked_value) + 1
                 data["rank"] = rank
             else:
-                rank = data.get("rank", 0)
+                rank = data.get("rank", 1)
 
             if rank > self._offset and rank <= self._limit + self._offset:
                 ranked_list.append(data)

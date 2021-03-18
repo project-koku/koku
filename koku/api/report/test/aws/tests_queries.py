@@ -1083,81 +1083,129 @@ class AWSReportQueryTest(IamTestCase):
         ]
         expected = [
             {
-                "date": "2000-01-01",
-                "service": "AmazonEC2",
-                "infra_total": 0.02,
-                "sup_total": 0.03,
-                "cost_total": 0.05,
-                "rank": 2,
-            },
-            {
-                "date": "2000-01-01",
-                "service": "AmazonRoute53",
-                "infra_total": 0.04,
-                "sup_total": 0.05,
-                "cost_total": 0.09,
-                "rank": 1,
-            },
-            {
-                "date": "2000-01-01",
-                "service": "2 Others",
-                "infra_total": 0.04,
-                "sup_total": 0.06,
-                "cost_total": 0.1,
-                "rank": 3,
-            },
-            {
-                "date": "2000-01-02",
-                "service": "AmazonEC2",
-                "infra_total": 0.02,
-                "sup_total": 0.03,
-                "cost_total": 0.05,
-                "rank": 2,
-            },
-            {
-                "date": "2000-01-02",
-                "service": "AmazonRoute53",
-                "infra_total": 0.0,
-                "sup_total": 0.0,
-                "cost_total": 0.0,
-                "rank": 1,
-            },
-            {
-                "date": "2000-01-02",
-                "service": "2 Others",
-                "infra_total": 0.04,
-                "sup_total": 0.06,
-                "cost_total": 0.1,
-                "rank": 3,
-            },
-            {
-                "date": "2000-01-03",
-                "service": "AmazonEC2",
-                "infra_total": 0.02,
-                "sup_total": 0.03,
-                "cost_total": 0.05,
-                "rank": 2,
-            },
-            {
-                "date": "2000-01-03",
-                "service": "AmazonRoute53",
-                "infra_total": 0.04,
-                "sup_total": 0.05,
-                "cost_total": 0.09,
-                "rank": 1,
-            },
-            {
-                "date": "2000-01-03",
-                "service": "2 Others",
-                "infra_total": 0.03,
-                "sup_total": 0.04,
                 "cost_total": 0.07,
+                "date": "2000-01-01",
+                "infra_total": 0.03,
+                "rank": 1,
+                "service": "AmazonRDS",
+                "sup_total": 0.04,
+            },
+            {
+                "cost_total": 0.09,
+                "date": "2000-01-01",
+                "infra_total": 0.04,
+                "rank": 2,
+                "service": "AmazonRoute53",
+                "sup_total": 0.05,
+            },
+            {
+                "cost_total": 0.08,
+                "date": "2000-01-01",
+                "infra_total": 0.03,
                 "rank": 3,
+                "service": "2 Others",
+                "sup_total": 0.05,
+            },
+            {
+                "cost_total": 0.07,
+                "date": "2000-01-02",
+                "infra_total": 0.03,
+                "rank": 1,
+                "service": "AmazonRDS",
+                "sup_total": 0.04,
+            },
+            {
+                "cost_total": 0.0,
+                "date": "2000-01-02",
+                "infra_total": 0.0,
+                "rank": 2,
+                "service": "AmazonRoute53",
+                "sup_total": 0.0,
+            },
+            {
+                "cost_total": 0.08,
+                "date": "2000-01-02",
+                "infra_total": 0.03,
+                "rank": 3,
+                "service": "2 Others",
+                "sup_total": 0.05,
+            },
+            {
+                "cost_total": 0.07,
+                "date": "2000-01-03",
+                "infra_total": 0.03,
+                "rank": 1,
+                "service": "AmazonRDS",
+                "sup_total": 0.04,
+            },
+            {
+                "cost_total": 0.09,
+                "date": "2000-01-03",
+                "infra_total": 0.04,
+                "rank": 2,
+                "service": "AmazonRoute53",
+                "sup_total": 0.05,
+            },
+            {
+                "cost_total": 0.05,
+                "date": "2000-01-03",
+                "infra_total": 0.02,
+                "rank": 3,
+                "service": "2 Others",
+                "sup_total": 0.03,
             },
         ]
         ranked_list = handler._ranked_list(
             data_list, ranks=["AmazonRDS", "AmazonRoute53", "AmazonEC2", "AmazonDynamoDB"]
         )
+        self.assertEqual(ranked_list, expected)
+
+    def test_rank_list_big_limit(self):
+        """Test rank list limit with account alias, ensuring we return results with limited data."""
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&filter[limit]=3"
+        )  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSInstanceTypeView)
+        handler = AWSReportQueryHandler(query_params)
+        data_list = [
+            {
+                "date": "2000-01-01",
+                "service": "AmazonEC2",
+                "instance_type": "m1.large",
+                "infra_total": 0.01,
+                "sup_total": 0.02,
+                "cost_total": 0.03,
+            },
+            {
+                "date": "2000-01-01",
+                "service": "AmazonEC2",
+                "instance_type": "m2.large",
+                "infra_total": 0.02,
+                "sup_total": 0.03,
+                "cost_total": 0.05,
+            },
+        ]
+        expected = [
+            {
+                "date": "2000-01-01",
+                "service": "AmazonEC2",
+                "instance_type": "m1.large",
+                "infra_total": 0.01,
+                "sup_total": 0.02,
+                "cost_total": 0.03,
+                "rank": 2,
+            },
+            {
+                "date": "2000-01-01",
+                "service": "AmazonEC2",
+                "instance_type": "m2.large",
+                "infra_total": 0.02,
+                "sup_total": 0.03,
+                "cost_total": 0.05,
+                "rank": 1,
+            },
+        ]
+        ranked_list = handler._ranked_list(data_list, ranks=["m2.large", "m1.large"])
         self.assertEqual(ranked_list, expected)
 
     def test_query_costs_with_totals(self):
