@@ -26,6 +26,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
 from sources.config import Config
+from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 
 
@@ -100,11 +101,12 @@ class SourceCleanupTests(IamTestCase):
             expected_missing_list.append(f"Source ID: {source.source_id})")
 
         self._create_source_for_providers()
-        response = self.client.get(reverse("cleanup"), params)
-        body = response.json()
-        self.assertEqual(body.get("providers_without_sources"), [])
-        self.assertEqual(body.get("out_of_order_deletes"), [])
-        self.assertEqual(body.get("missing_sources"), expected_missing_list)
+        with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
+            response = self.client.get(reverse("cleanup"), params)
+            body = response.json()
+            self.assertEqual(body.get("providers_without_sources"), [])
+            self.assertEqual(body.get("out_of_order_deletes"), [])
+            self.assertEqual(body.get("missing_sources"), expected_missing_list)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_cleanup_providers_without_sources(self, _):
@@ -155,7 +157,8 @@ class SourceCleanupTests(IamTestCase):
 
         self._create_source_for_providers()
         with patch("masu.api.source_cleanup.refresh_materialized_views"):
-            response = self.client.delete(f"{reverse('cleanup')}?missing_sources", params)
+            with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
+                response = self.client.delete(f"{reverse('cleanup')}?missing_sources", params)
 
         body = response.json()
 
@@ -172,12 +175,13 @@ class SourceCleanupTests(IamTestCase):
             expected_provider_missing_list.append(f"{provider.name} ({provider.uuid})")
 
         with patch("masu.api.source_cleanup.refresh_materialized_views"):
-            response = self.client.delete(f"{reverse('cleanup')}?providers_without_sources", params)
-            body = response.json()
-            self.assertEqual(body.get("providers_without_sources"), expected_provider_missing_list)
-            self.assertEqual(body.get("out_of_order_deletes"), [])
-            self.assertEqual(body.get("missing_sources"), [])
-            self.assertEqual(len(Provider.objects.all()), 0)
+            with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
+                response = self.client.delete(f"{reverse('cleanup')}?providers_without_sources", params)
+                body = response.json()
+                self.assertEqual(body.get("providers_without_sources"), expected_provider_missing_list)
+                self.assertEqual(body.get("out_of_order_deletes"), [])
+                self.assertEqual(body.get("missing_sources"), [])
+                self.assertEqual(len(Provider.objects.all()), 0)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_delete_out_of_order_delete_sources(self, _):
