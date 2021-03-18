@@ -60,11 +60,14 @@ from masu.processor.tasks import normalize_table_options
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
+from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
 from masu.processor.tasks import remove_expired_data
+from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.processor.tasks import remove_stale_tenants
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
+from masu.processor.tasks import UPDATE_COST_MODEL_COSTS_QUEUE
 from masu.processor.tasks import update_summary_tables
 from masu.processor.tasks import vacuum_schema
 from masu.processor.worker_cache import create_single_task_cache_key
@@ -756,11 +759,15 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, end_date, manifest_id)
         mock_chain.assert_called_once_with(
-            update_cost_model_costs.s(self.schema, provider_aws_uuid, expected_start_date, expected_end_date)
+            update_cost_model_costs.s(self.schema, provider_aws_uuid, expected_start_date, expected_end_date).set(
+                queue=UPDATE_COST_MODEL_COSTS_QUEUE
+            )
             | refresh_materialized_views.si(
                 self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id
+            ).set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE)
+            | remove_expired_data.si(self.schema, provider, False, provider_aws_uuid, True, None).set(
+                queue=REMOVE_EXPIRED_DATA_QUEUE
             )
-            | remove_expired_data.si(self.schema, provider, False, provider_aws_uuid, True, None)
         )
 
     @patch("masu.processor.tasks.update_summary_tables")
