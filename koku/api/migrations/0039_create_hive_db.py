@@ -5,6 +5,7 @@ import os
 from django.conf import settings
 from django.db import migrations
 from django.db.utils import ProgrammingError
+from psycopg2.errors import DuplicateDatabase
 from psycopg2.errors import DuplicateObject
 from psycopg2.errors import InsufficientPrivilege
 
@@ -67,7 +68,7 @@ def create_hive_db(apps, schema_editor):
             try:
                 LOG.info(f"Creating database {rolname}.")
                 cur.execute(db_create_sql)
-            except (ProgrammingError, InsufficientPrivilege) as e:
+            except (ProgrammingError, InsufficientPrivilege, DuplicateDatabase) as e:
                 LOG.info(e)
                 LOG.info(f"Database {rolname} exists.")
 
