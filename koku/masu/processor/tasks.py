@@ -69,8 +69,9 @@ OCP_QUEUE = "ocp"
 REFRESH_MATERIALIZED_VIEWS_QUEUE = "reporting"
 REMOVE_EXPIRED_DATA_QUEUE = "remove_expired"
 SUMMARIZE_REPORTS_QUEUE = "process"
-UPDATE_COST_MODEL_COSTS_QUEUE = "reporting"
+UPDATE_COST_MODEL_COSTS_QUEUE = "priority_update"
 UPDATE_SUMMARY_TABLES_QUEUE = "reporting"
+DELETE_SOURCE_QUEUE = "priority_delete"
 
 
 def record_all_manifest_files(manifest_id, report_files):
