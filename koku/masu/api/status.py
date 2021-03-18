@@ -137,24 +137,27 @@ class ApplicationStatus:
 
             scheduled = inspector.scheduled()
             scheduled_count = 0
-            for task_list in scheduled.values():
-                scheduled_count += len(task_list)
-            tasks["scheduled"] = scheduled
-            tasks["scheduled_count"] = scheduled_count
+            if scheduled:
+                for task_list in scheduled.values():
+                    scheduled_count += len(task_list)
+                tasks["scheduled"] = scheduled
+                tasks["scheduled_count"] = scheduled_count
 
             reserved = inspector.reserved()
             reserved_count = 0
-            for task_list in reserved.values():
-                reserved_count += len(task_list)
-            tasks["reserved"] = inspector.reserved()
-            tasks["reserved_count"] = reserved_count
+            if reserved:
+                for task_list in reserved.values():
+                    reserved_count += len(task_list)
+                tasks["reserved"] = inspector.reserved()
+                tasks["reserved_count"] = reserved_count
 
             active = inspector.active()
             active_count = 0
-            for task_list in active.values():
-                active_count += len(task_list)
-            tasks["active"] = inspector.active()
-            tasks["active_count"] = active_count
+            if active:
+                for task_list in active.values():
+                    active_count += len(task_list)
+                tasks["active"] = inspector.active()
+                tasks["active_count"] = active_count
 
             if not tasks:
                 tasks = {"Error": CELERY_WORKER_NOT_FOUND}
