@@ -274,7 +274,7 @@ docker-down-db:
 	$(DOCKER_COMPOSE) rm -s -v -f db
 
 docker-logs:
-	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server
+	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server sources-client
 
 docker-presto-logs:
 	$(DOCKER_COMPOSE) -f ./testing/compose_files/docker-compose-presto.yml logs -f
@@ -331,7 +331,7 @@ docker-up-min:
 	$(DOCKER_COMPOSE) up --build -d db redis koku-server masu-server koku-worker
 
 docker-up-min-no-build:
-	$(DOCKER_COMPOSE) up -d db redis koku-server masu-server koku-worker
+	$(DOCKER_COMPOSE) up -d db redis koku-server masu-server koku-worker koku-listener
 
 docker-up-min-presto: docker-up-min docker-presto-up
 

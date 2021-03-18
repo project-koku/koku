@@ -507,9 +507,12 @@ def summarize_manifest(report_meta):
                 "manifest_id": manifest_id,
             }
             if start_date and end_date:
+                LOG.info(
+                    f"Summarizing OCP reports from {str(start_date)}-{str(end_date)} for provider: {provider_uuid}"
+                )
                 report_meta["start"] = start_date
                 report_meta["end"] = end_date
-            async_id = summarize_reports.delay([report_meta])
+            async_id = summarize_reports.s([report_meta], "ocp").apply_async(queue="ocp")
     return async_id
 
 
