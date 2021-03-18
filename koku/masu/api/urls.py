@@ -16,6 +16,7 @@
 """Describes the urls and patterns for the API application."""
 from django.urls import path
 
+from masu.api.views import cleanup
 from masu.api.views import crawl_account_hierarchy
 from masu.api.views import download_report
 from masu.api.views import enabled_tags
@@ -32,6 +33,7 @@ urlpatterns = [
     path("enabled_tags/", enabled_tags, name="enabled_tags"),
     path("expired_data/", expired_data, name="expired_data"),
     path("report_data/", report_data, name="report_data"),
+    path("source_cleanup/", cleanup, name="cleanup"),
     path("update_cost_model_costs/", update_cost_model_costs, name="update_cost_model_costs"),
     path("upload_normalized_data/", upload_normalized_data, name="upload_normalized_data"),
     path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
