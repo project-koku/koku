@@ -274,7 +274,7 @@ docker-down-db:
 	$(DOCKER_COMPOSE) rm -s -v -f db
 
 docker-logs:
-	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server sources-client
+	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server
 
 docker-presto-logs:
 	$(DOCKER_COMPOSE) -f ./testing/compose_files/docker-compose-presto.yml logs -f
