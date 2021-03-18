@@ -65,6 +65,7 @@ from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 LOG = get_task_logger(__name__)
 
 GET_REPORT_FILES_QUEUE = "download"
+OCP_QUEUE = "ocp"
 REFRESH_MATERIALIZED_VIEWS_QUEUE = "reporting"
 REMOVE_EXPIRED_DATA_QUEUE = "remove_expired"
 SUMMARIZE_REPORTS_QUEUE = "process"
@@ -421,7 +422,7 @@ def update_all_summary_tables(start_date, end_date=None):
             schema_name = account.get("schema_name")
             provider = account.get("provider_type")
             provider_uuid = account.get("provider_uuid")
-            queue_name = "ocp" if provider and provider.lower() == "ocp" else None
+            queue_name = OCP_QUEUE if provider and provider.lower() == "ocp" else None
             update_summary_tables.s(
                 schema_name, provider, provider_uuid, str(start_date), end_date, queue_name
             ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)

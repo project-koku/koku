@@ -24,6 +24,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 
 from api.models import Provider
+from masu.processor.tasks import OCP_QUEUE
 
 
 @override_settings(ROOT_URLCONF="masu.urls")
@@ -75,7 +76,12 @@ class ReportDataTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
         mock_update.s.assert_called_with(
-            params["schema"], Provider.PROVIDER_OCP, params["provider_uuid"], str(params["start_date"]), None, "ocp"
+            params["schema"],
+            Provider.PROVIDER_OCP,
+            params["provider_uuid"],
+            str(params["start_date"]),
+            None,
+            OCP_QUEUE,
         )
 
     @patch("koku.middleware.MASU", return_value=True)

@@ -38,6 +38,7 @@ from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
 from masu.processor.report_processor import ReportProcessorError
+from masu.processor.tasks import OCP_QUEUE
 from masu.prometheus_stats import WORKER_REGISTRY
 from masu.test import MasuTestCase
 
@@ -480,7 +481,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
                 msg_handler.summarize_manifest(report_meta)
-                mock_summarize_reports.assert_called_with([expected_meta], "ocp")
+                mock_summarize_reports.assert_called_with([expected_meta], OCP_QUEUE)
 
         # Check when manifest is not done
         mock_manifest_accessor = FakeManifest(num_processed_files=1, num_total_files=2)
