@@ -156,6 +156,7 @@ class GCPFilterSerializer(FilterSerializer):
 
     account = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
+    enabled = serializers.BooleanField(default=True, required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the GCPFilterSerializer."""
