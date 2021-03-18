@@ -83,7 +83,7 @@ def report_data(request):
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
             async_result = update_summary_tables.s(
-                schema_name, provider, provider_uuid, start_date, end_date, queue_name
+                schema_name, provider, provider_uuid, start_date, end_date, queue_name=queue_name
             ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
         else:
             async_result = update_all_summary_tables.delay(start_date, end_date)
