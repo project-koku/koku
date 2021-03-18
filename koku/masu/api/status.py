@@ -140,7 +140,7 @@ class ApplicationStatus:
             if scheduled:
                 for task_list in scheduled.values():
                     scheduled_count += len(task_list)
-                tasks["scheduled"] = scheduled
+                # tasks["scheduled"] = scheduled
                 tasks["scheduled_count"] = scheduled_count
 
             reserved = inspector.reserved()
@@ -148,7 +148,7 @@ class ApplicationStatus:
             if reserved:
                 for task_list in reserved.values():
                     reserved_count += len(task_list)
-                tasks["reserved"] = inspector.reserved()
+                # tasks["reserved"] = reserved
                 tasks["reserved_count"] = reserved_count
 
             active = inspector.active()
@@ -156,7 +156,7 @@ class ApplicationStatus:
             if active:
                 for task_list in active.values():
                     active_count += len(task_list)
-                tasks["active"] = inspector.active()
+                # tasks["active"] = active
                 tasks["active_count"] = active_count
 
             if not tasks:
