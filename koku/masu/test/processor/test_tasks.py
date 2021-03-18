@@ -776,7 +776,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         start_date = date.today()
         update_all_summary_tables(start_date)
 
-        mock_update.delay.assert_called_with(ANY, ANY, ANY, str(start_date), ANY)
+        mock_update.s.assert_called_with(ANY, ANY, ANY, str(start_date), ANY, ANY)
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_refresh_materialized_views_aws(self, mock_cache):

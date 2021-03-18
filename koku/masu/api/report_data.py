@@ -69,7 +69,7 @@ def report_data(request):
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         if not all_providers:
-            queue_name = "ocp" if provider.lower() == "ocp" else None
+            queue_name = "ocp" if provider and provider.lower() == "ocp" else None
             if schema_name is None:
                 errmsg = "schema is a required parameter."
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
