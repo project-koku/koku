@@ -197,11 +197,11 @@ class ParquetReportProcessor:
             LOG.warn(log_json(request_id, msg, context))
             return
 
-    def get_file_keys_from_s3_with_manifest_id(self, request_id, s3_path, manifest_id, provider_uuid, context={}):
+    def get_file_keys_from_s3_with_manifest_id(self, request_id, s3_path, manifest_id, context={}):
         """
         Get all files in a given prefix that match the given manifest_id.
         """
-        if not enable_trino_processing(provider_uuid):
+        if not enable_trino_processing(context.get("provider_uuid")):
             return []
 
         keys = []
