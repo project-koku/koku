@@ -311,7 +311,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
 
 
 def copy_local_report_file_to_s3_bucket(
-    request_id, s3_path, full_file_path, local_filename, manifest_id, start_date, provider_uuid, context={}
+    request_id, s3_path, full_file_path, local_filename, manifest_id, start_date, context={}
 ):
     """
     Copies local report file to s3 bucket
@@ -320,7 +320,7 @@ def copy_local_report_file_to_s3_bucket(
         LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         with open(full_file_path, "rb") as fin:
             data = BytesIO(fin.read())
-            copy_data_to_s3_bucket(request_id, s3_path, local_filename, data, provider_uuid, manifest_id, context)
+            copy_data_to_s3_bucket(request_id, s3_path, local_filename, data, manifest_id, context)
 
 
 def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context={}):
