@@ -106,7 +106,6 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
                 daily_file.get("filename"),
                 manifest_id,
                 start_date,
-                provider_uuid,
                 context,
             )
             daily_file_names.append(daily_file.get("filepath"))

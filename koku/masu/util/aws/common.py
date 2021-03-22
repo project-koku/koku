@@ -287,11 +287,11 @@ def get_s3_resource():  # pragma: no cover
     return s3_resource
 
 
-def copy_data_to_s3_bucket(request_id, path, filename, data, provider_uuid, manifest_id=None, context={}):
+def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, context={}):
     """
     Copies data to s3 bucket file
     """
-    if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid)):
+    if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(context.get("provider_uuid"))):
         return None
 
     upload = None
@@ -316,7 +316,7 @@ def copy_local_report_file_to_s3_bucket(
     """
     Copies local report file to s3 bucket
     """
-    if s3_path and (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid)):
+    if s3_path and (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(context.get("provider_uuid"))):
         LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         with open(full_file_path, "rb") as fin:
             data = BytesIO(fin.read())

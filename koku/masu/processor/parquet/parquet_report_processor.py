@@ -316,13 +316,7 @@ class ParquetReportProcessor:
             with open(parquet_file, "rb") as fin:
                 data = BytesIO(fin.read())
                 copy_data_to_s3_bucket(
-                    request_id,
-                    s3_parquet_path,
-                    parquet_filename,
-                    data,
-                    context.get("provider_uuid"),
-                    manifest_id=manifest_id,
-                    context=context,
+                    request_id, s3_parquet_path, parquet_filename, data, manifest_id=manifest_id, context=context
                 )
         except Exception as err:
             shutil.rmtree(local_path, ignore_errors=True)
