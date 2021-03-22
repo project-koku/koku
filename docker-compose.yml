@@ -46,6 +46,7 @@ services:
         - DEMO_ACCOUNTS
         - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
         - RUN_GUNICORN=${RUN_GUNICORN}
+        - ENABLE_TRINO_SOURCES
       privileged: true
       ports:
           - 8000:8000
@@ -99,6 +100,8 @@ services:
         - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
         - MASU_DATE_OVERRIDE
         - MASU_DEBUG
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       ports:
           - 5000:8000
@@ -274,6 +277,7 @@ services:
         - PRESTO_PORT=${PRESTO_PORT-8080}
         - DATE_OVERRIDE
         - MASU_DEBUG
+        - ENABLE_TRINO_SOURCES
 
       privileged: true
       volumes:
@@ -336,6 +340,8 @@ services:
         - S3_SECRET
         - PRESTO_HOST=${PRESTO_HOST-presto}
         - PRESTO_PORT=${PRESTO_PORT-8080}
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       ports:
           - "9988:9999"

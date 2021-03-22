@@ -31,6 +31,7 @@ from api.common import log_json
 from api.provider.models import Provider
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.processor import enable_trino_processing
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
@@ -95,7 +96,7 @@ class ParquetReportProcessor:
         if not context:
             context = {"account": account, "provider_uuid": provider_uuid}
 
-        if not settings.ENABLE_PARQUET_PROCESSING:
+        if not enable_trino_processing(provider_uuid):
             msg = "Skipping convert_to_parquet. Parquet processing is disabled."
             LOG.info(log_json(request_id, msg, context))
             return
@@ -196,11 +197,11 @@ class ParquetReportProcessor:
             LOG.warn(log_json(request_id, msg, context))
             return
 
-    def get_file_keys_from_s3_with_manifest_id(self, request_id, s3_path, manifest_id, context={}):
+    def get_file_keys_from_s3_with_manifest_id(self, request_id, s3_path, manifest_id, provider_uuid, context={}):
         """
         Get all files in a given prefix that match the given manifest_id.
         """
-        if not settings.ENABLE_PARQUET_PROCESSING:
+        if not enable_trino_processing(provider_uuid):
             return []
 
         keys = []
@@ -315,7 +316,13 @@ class ParquetReportProcessor:
             with open(parquet_file, "rb") as fin:
                 data = BytesIO(fin.read())
                 copy_data_to_s3_bucket(
-                    request_id, s3_parquet_path, parquet_filename, data, manifest_id=manifest_id, context=context
+                    request_id,
+                    s3_parquet_path,
+                    parquet_filename,
+                    data,
+                    context.get("provider_uuid"),
+                    manifest_id=manifest_id,
+                    context=context,
                 )
         except Exception as err:
             shutil.rmtree(local_path, ignore_errors=True)

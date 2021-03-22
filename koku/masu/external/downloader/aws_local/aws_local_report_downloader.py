@@ -248,7 +248,14 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 self.account, Provider.PROVIDER_AWS, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
             )
             utils.copy_local_report_file_to_s3_bucket(
-                self.request_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context
+                self.request_id,
+                s3_csv_path,
+                full_file_path,
+                local_s3_filename,
+                manifest_id,
+                start_date,
+                self._provider_uuid,
+                self.context,
             )
             utils.remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
         return full_file_path, s3_etag, file_creation_date, []

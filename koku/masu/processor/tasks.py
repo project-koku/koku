@@ -26,7 +26,6 @@ import ciso8601
 from celery import chain
 from celery.utils.log import get_task_logger
 from dateutil import parser
-from django.conf import settings
 from django.db import connection
 from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
@@ -46,6 +45,7 @@ from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
+from masu.processor import enable_trino_processing
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
@@ -341,7 +341,7 @@ def update_summary_tables(
         ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
         return
 
-    if settings.ENABLE_PARQUET_PROCESSING and provider in (
+    if enable_trino_processing(provider_uuid) and provider in (
         Provider.PROVIDER_AWS,
         Provider.PROVIDER_AWS_LOCAL,
         Provider.PROVIDER_AZURE,
