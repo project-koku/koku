@@ -271,8 +271,9 @@ class TestParquetReportProcessor(MasuTestCase):
             with patch("masu.processor.parquet.parquet_report_processor.get_s3_resource"):
                 with patch("masu.processor.parquet.parquet_report_processor.shutil.rmtree"):
                     with patch("masu.processor.parquet.parquet_report_processor.Path"):
-                        with patch("masu.processor.parquet.parquet_report_processor.pd"):
+                        with patch("masu.processor.parquet.parquet_report_processor.pd") as mock_pd:
                             with patch("masu.processor.parquet.parquet_report_processor.open") as mock_open:
+                                mock_pd.read_csv.return_value.__enter__.return_value = [1, 2, 3]
                                 mock_open.side_effect = ValueError()
                                 result = self.report_processor.convert_csv_to_parquet(
                                     "request_id",
