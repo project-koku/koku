@@ -757,7 +757,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         expected_end_date = end_date.strftime("%Y-%m-%d")
         manifest_id = 1
 
-        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, end_date, manifest_id)
+        update_summary_tables(
+            self.schema, provider, provider_aws_uuid, start_date, end_date, manifest_id, synchronous=True
+        )
         mock_chain.assert_called_once_with(
             update_cost_model_costs.s(self.schema, provider_aws_uuid, expected_start_date, expected_end_date).set(
                 queue=UPDATE_COST_MODEL_COSTS_QUEUE
