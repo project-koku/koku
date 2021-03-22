@@ -566,7 +566,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(initial_daily_count, 0)
         self.assertEqual(initial_summary_count, 0)
 
-        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date)
+        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, syncronous=True)
 
         with schema_context(self.schema):
             self.assertNotEqual(daily_query.count(), initial_daily_count)
@@ -606,7 +606,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         expected_end_date = min(end_date, ce_end_date)
         expected_end_date = expected_end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, end_date)
+        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, end_date, syncronous=True)
 
         with schema_context(self.schema):
             daily_entry = daily_table.objects.all().aggregate(Min("usage_start"), Max("usage_end"))
@@ -661,7 +661,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             initial_daily_count = daily_query.count()
 
         self.assertEqual(initial_daily_count, 0)
-        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date)
+        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, syncronous=True)
 
         with schema_context(self.schema):
             self.assertNotEqual(daily_query.count(), initial_daily_count)
@@ -737,7 +737,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         expected_start_date = max(start_date, ce_start_date)
         expected_end_date = min(end_date, ce_end_date)
 
-        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date)
+        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, syncronous=True)
         with schema_context(self.schema):
             daily_entry = daily_table.objects.all().aggregate(Min("usage_start"), Max("usage_end"))
             result_start_date = daily_entry["usage_start__min"]
