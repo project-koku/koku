@@ -340,11 +340,10 @@
         },
         "flake8": {
             "hashes": [
-                "sha256:749dbbd6bfd0cf1318af27bf97a14e28e5ff548ef8e5b1566ccfb25a11e7c839",
-                "sha256:aadae8761ec651813c24be05c6f7b4680857ef6afaae4651a4eccaef97ce6c3b"
+                "sha256:12d05ab02614b6aee8df7c36b97d1a3b2372761222b19b58621355e82acddcff",
+                "sha256:78873e372b12b093da7b5e5ed302e8ad9e988b38b063b61ad937f26ca58fc5f0"
             ],
-            "index": "pypi",
-            "version": "==3.8.4"
+            "version": "==3.9.0"
         },
         "google-api-core": {
             "extras": [
@@ -1470,11 +1469,10 @@
         },
         "flake8": {
             "hashes": [
-                "sha256:749dbbd6bfd0cf1318af27bf97a14e28e5ff548ef8e5b1566ccfb25a11e7c839",
-                "sha256:aadae8761ec651813c24be05c6f7b4680857ef6afaae4651a4eccaef97ce6c3b"
+                "sha256:12d05ab02614b6aee8df7c36b97d1a3b2372761222b19b58621355e82acddcff",
+                "sha256:78873e372b12b093da7b5e5ed302e8ad9e988b38b063b61ad937f26ca58fc5f0"
             ],
-            "index": "pypi",
-            "version": "==3.8.4"
+            "version": "==3.9.0"
         },
         "flake8-docstrings": {
             "hashes": [
