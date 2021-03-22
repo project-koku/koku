@@ -507,10 +507,9 @@
         },
         "ibm-cloud-sdk-core": {
             "hashes": [
-                "sha256:86d0a9a07d2f7f539e42ccb259426807deac6be4f977de1dad12fab804be8c57"
+                "sha256:f5f5e73cdbddff3ee2d90fe0dc43e866c908a7d165e73a5991d733788f88e133"
             ],
-            "index": "pypi",
-            "version": "==3.5.2"
+            "version": "==3.8.0"
         },
         "ibm-platform-services": {
             "hashes": [
