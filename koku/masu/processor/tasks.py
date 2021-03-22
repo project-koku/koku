@@ -302,7 +302,14 @@ def summarize_reports(reports_to_summarize, queue_name=None):
 
 @app.task(name="masu.processor.tasks.update_summary_tables", queue_name="reporting")
 def update_summary_tables(
-    schema_name, provider, provider_uuid, start_date, end_date=None, manifest_id=None, queue_name=None
+    schema_name,
+    provider,
+    provider_uuid,
+    start_date,
+    end_date=None,
+    manifest_id=None,
+    queue_name=None,
+    synchronous=False,
 ):
     """Populate the summary tables for reporting.
 
@@ -322,15 +329,16 @@ def update_summary_tables(
     task_name = "masu.processor.tasks.update_summary_tables"
     cache_args = [schema_name]
 
-    worker_cache = WorkerCache()
-    if worker_cache.single_task_is_running(task_name, cache_args):
-        msg = f"Task {task_name} already running for {cache_args}. Requeuing."
-        LOG.info(msg)
-        update_summary_tables.delay(
-            schema_name, provider, provider_uuid, start_date, end_date=end_date, manifest_id=manifest_id
-        )
-        return
-    worker_cache.lock_single_task(task_name, cache_args, timeout=3600)
+    if not synchronous:
+        worker_cache = WorkerCache()
+        if worker_cache.single_task_is_running(task_name, cache_args):
+            msg = f"Task {task_name} already running for {cache_args}. Requeuing."
+            LOG.info(msg)
+            update_summary_tables.delay(
+                schema_name, provider, provider_uuid, start_date, end_date=end_date, manifest_id=manifest_id
+            )
+            return
+        worker_cache.lock_single_task(task_name, cache_args, timeout=3600)
 
     stmt = (
         f"update_summary_tables called with args:\n"
@@ -404,7 +412,8 @@ def update_summary_tables(
         ).set(queue=queue_name or REMOVE_EXPIRED_DATA_QUEUE)
 
     chain(linked_tasks).apply_async()
-    worker_cache.release_single_task(task_name, cache_args)
+    if not synchronous:
+        worker_cache.release_single_task(task_name, cache_args)
 
 
 @app.task(name="masu.processor.tasks.update_all_summary_tables", queue_name="reporting")
