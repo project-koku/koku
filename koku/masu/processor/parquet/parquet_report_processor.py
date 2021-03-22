@@ -50,6 +50,7 @@ from masu.util.ocp.common import REPORT_TYPES
 LOG = logging.getLogger(__name__)
 CSV_GZIP_EXT = ".csv.gz"
 CSV_EXT = ".csv"
+PARQUET_EXT = ".parquet"
 
 
 class ParquetReportProcessor:
@@ -281,13 +282,12 @@ class ParquetReportProcessor:
 
         kwargs = {}
         parquet_file = None
-        parquet_file_type = ".parquet"
         if csv_name.lower().endswith(CSV_EXT):
             ext = -len(CSV_EXT)
-            parquet_filename = f"{csv_name[:ext]}"
+            parquet_base_filename = f"{csv_name[:ext]}"
         elif csv_name.lower().endswith(CSV_GZIP_EXT):
             ext = -len(CSV_GZIP_EXT)
-            parquet_filename = f"{csv_name[:ext]}"
+            parquet_base_filename = f"{csv_name[:ext]}"
             kwargs = {"compression": "gzip"}
         else:
             msg = f"File {csv_name} is not valid CSV. Conversion to parquet skipped."
@@ -299,33 +299,42 @@ class ParquetReportProcessor:
         try:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
             converters.update({col: str for col in col_names if col not in converters})
-            data_frame = pd.read_csv(csv_filename, converters=converters, **kwargs)
+            data_frame = pd.read_csv(
+                csv_filename, converters=converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
+            )
             with pd.read_csv(
                 csv_filename, converters=converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
             ) as reader:
                 for i, data_frame in enumerate(reader):
-                    parquet_file = f"{local_path}/{parquet_filename}_{i}.{parquet_file_type}"
+                    parquet_filename = f"{parquet_base_filename}_{i}{PARQUET_EXT}"
+                    parquet_file = f"{local_path}/{parquet_filename}"
                     if post_processor:
                         data_frame = post_processor(data_frame)
                     data_frame.to_parquet(parquet_file, allow_truncated_timestamps=True, coerce_timestamps="ms")
+                    try:
+                        with open(parquet_file, "rb") as fin:
+                            data = BytesIO(fin.read())
+                            copy_data_to_s3_bucket(
+                                request_id,
+                                s3_parquet_path,
+                                parquet_filename,
+                                data,
+                                manifest_id=manifest_id,
+                                context=context,
+                            )
+                            msg = f"{parquet_file} sent to S3."
+                            LOG.info(msg)
+                    except Exception as err:
+                        shutil.rmtree(local_path, ignore_errors=True)
+                        s3_key = f"{s3_parquet_path}/{parquet_file}"
+                        msg = f"File {csv_filename} could not be written as parquet to S3 {s3_key}. Reason: {str(err)}"
+                        LOG.warn(log_json(request_id, msg, context))
+                        return False
         except Exception as err:
             shutil.rmtree(local_path, ignore_errors=True)
             msg = (
                 f"File {csv_filename} could not be written as parquet to temp file {parquet_file}. Reason: {str(err)}"
             )
-            LOG.warn(log_json(request_id, msg, context))
-            return False
-
-        try:
-            with open(parquet_file, "rb") as fin:
-                data = BytesIO(fin.read())
-                copy_data_to_s3_bucket(
-                    request_id, s3_parquet_path, parquet_filename, data, manifest_id=manifest_id, context=context
-                )
-        except Exception as err:
-            shutil.rmtree(local_path, ignore_errors=True)
-            s3_key = f"{s3_parquet_path}/{parquet_file}"
-            msg = f"File {csv_filename} could not be written as parquet to S3 {s3_key}. Reason: {str(err)}"
             LOG.warn(log_json(request_id, msg, context))
             return False
 
