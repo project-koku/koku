@@ -18,14 +18,14 @@
 import logging
 
 from koku import celery_app
-from masu.processor.tasks import DELETE_SOURCE_QUEUE
+from masu.processor.tasks import PRIORITY_QUEUE
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.storage import load_providers_to_delete
 
 LOG = logging.getLogger(__name__)
 
 
-@celery_app.task(name="sources.tasks.delete_source", queue=DELETE_SOURCE_QUEUE)
+@celery_app.task(name="sources.tasks.delete_source", queue=PRIORITY_QUEUE)
 def delete_source(source_id, auth_header, koku_uuid):
     """Delete Provider and Source."""
     LOG.info(f"Deleting Provider {koku_uuid} for Source ID: {source_id}")
