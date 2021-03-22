@@ -71,6 +71,7 @@ REMOVE_EXPIRED_DATA_QUEUE = "remove_expired"
 SUMMARIZE_REPORTS_QUEUE = "process"
 UPDATE_COST_MODEL_COSTS_QUEUE = "reporting"
 UPDATE_SUMMARY_TABLES_QUEUE = "reporting"
+PRIORITY_QUEUE = "priority"
 
 
 def record_all_manifest_files(manifest_id, report_files):
