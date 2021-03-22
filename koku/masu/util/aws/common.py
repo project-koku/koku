@@ -356,30 +356,29 @@ def aws_post_processor(data_frame):
     """
     Consume the AWS data and add a column creating a dictionary for the aws tags
     """
-    resource_tags_dict = data_frame.apply(
-        lambda row: {
-            column.replace("resourceTags/user:", ""): value
-            for column, value in row.items()
-            if "resourceTags/user:" in column and value
-        },
-        axis=1,
-    )
-    data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
-
     columns = set(list(data_frame))
     columns = set(PRESTO_REQUIRED_COLUMNS).union(columns)
     columns = sorted(list(columns))
+
+    resource_tag_columns = [column for column in columns if "resourceTags/user:" in column]
+    tag_df = data_frame[resource_tag_columns]
+    resource_tags_dict = tag_df.apply(
+        lambda row: {column.replace("resourceTags/user:", ""): value for column, value in row.items()}, axis=1
+    )
+    data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
+    # Make sure we have entries for our required columns
     data_frame = data_frame.reindex(columns=columns)
 
     columns = list(data_frame)
+    column_name_map = {}
+    drop_columns = []
     for column in columns:
-        if "-" in column:
-            new_col_name = column.replace("-", "_")
-            data_frame[new_col_name] = data_frame[column]
-            data_frame = data_frame.drop(columns=[column])
-        elif "resourceTags/" in column:
-            data_frame = data_frame.drop(columns=[column])
-
+        new_col_name = column.replace("-", "_").replace("/", "_").replace(":", "_").lower()
+        column_name_map[column] = new_col_name
+        if "resourceTags/" in column:
+            drop_columns.append(column)
+    data_frame = data_frame.drop(columns=drop_columns)
+    data_frame = data_frame.rename(columns=column_name_map)
     return data_frame
 
 
