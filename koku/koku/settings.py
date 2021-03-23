@@ -465,7 +465,7 @@ ENABLE_TRINO_SOURCES = ENVIRONMENT.list("ENABLE_TRINO_SOURCES", default=[])
 # Presto Settings
 PRESTO_HOST = ENVIRONMENT.get_value("PRESTO_HOST", default=None)
 PRESTO_PORT = ENVIRONMENT.get_value("PRESTO_PORT", default=None)
-TRINO_DATE_STEP = ENVIRONMENT.get_value("TRINO_DATE_STEP", default=10)
+TRINO_DATE_STEP = ENVIRONMENT.get_value("TRINO_DATE_STEP", default=5)
 
 # Time to wait between cold storage retrieval for data export. Default is 3 hours
 COLD_STORAGE_RETRIVAL_WAIT_TIME = int(os.getenv("COLD_STORAGE_RETRIVAL_WAIT_TIME", default="10800"))
