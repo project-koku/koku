@@ -436,6 +436,26 @@ class AWSForecastTest(IamTestCase):
         instance = AWSForecast(params)
         self.assertEqual(instance.cost_summary_table, AWSCostEntryLineItemDailySummary)
 
+    @patch("forecast.forecast.Forecast.format_result", return_value="FAKE RESULTS")
+    @patch("forecast.forecast.Forecast._run_forecast")
+    @patch("forecast.forecast.Forecast._enumerate_dates", return_value=[0, 1, 2, 3, 4])
+    def test_negative_values(self, mock_enumerate_dates, mock_run_forecast, mock_format_result):
+        """COST-1110: ensure that the forecast response does not include negative numbers."""
+        mock_run_forecast.return_value = Mock(
+            prediction=[1, 0, -1, -2, -3], confidence_lower=[2, 1, 0, -1, -2], confidence_upper=[3, 2, 1, 0, -1]
+        )
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        instance = AWSForecast(params)
+        instance.predict()
+
+        self.assertIsInstance(mock_format_result.call_args[0][0], dict)
+        for key, val_dict in mock_format_result.call_args[0][0].items():
+            for inner_key, inner_val in val_dict.items():
+                if "cost" in inner_key:
+                    self.assertGreaterEqual(inner_val[0]["total_cost"], 0)
+                    self.assertGreaterEqual(inner_val[0]["confidence_min"], 0)
+                    self.assertGreaterEqual(inner_val[0]["confidence_max"], 0)
+
 
 class AzureForecastTest(IamTestCase):
     """Tests the AzureForecast class."""
