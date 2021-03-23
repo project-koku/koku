@@ -155,9 +155,6 @@ class ApplicationStatus:
                 for task_list in active.values():
                     active_count += len(task_list)
             tasks["active_count"] = active_count
-
-            if not tasks:
-                tasks = {"Error": CELERY_WORKER_NOT_FOUND}
         except (ConnectionResetError, TimeoutError) as err:
             CELERY_ERRORS_COUNTER.inc()
             tasks = {"Error": str(err)}
