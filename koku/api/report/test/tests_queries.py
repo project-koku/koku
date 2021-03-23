@@ -423,7 +423,7 @@ class ReportQueryHandlerTest(IamTestCase):
     def test_percent_delta_rounding(self):
         """Test the percent delta method with a b value that should round."""
         params = self.mocked_query_params("", self.mock_view)
-        test_values = {0.0049: None, 0.0049999999999: None, 0.005: 100}
+        test_values = {0.0049: None, 0.0049999999999: None, 0.005: 3900}
         for k, v in test_values.items():
             with self.subTest():
                 rqh = create_test_handler(params)
