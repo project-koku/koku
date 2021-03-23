@@ -778,7 +778,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         start_date = date.today()
         update_all_summary_tables(start_date)
 
-        mock_update.s.assert_called_with(ANY, ANY, ANY, str(start_date), ANY, ANY)
+        mock_update.s.assert_called_with(ANY, ANY, ANY, str(start_date), ANY, queue_name=ANY)
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_refresh_materialized_views_aws(self, mock_cache):
@@ -1126,7 +1126,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         cache_str = create_single_task_cache_key(task_name, task_args)
         cache.add(cache_str, "true", 3)
 
-    @patch("masu.processor.tasks.update_summary_tables.delay")
+    @patch("masu.processor.tasks.update_summary_tables.s")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
     @patch("masu.processor.tasks.chain")
@@ -1165,7 +1165,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
-    @patch("masu.processor.tasks.update_cost_model_costs.delay")
+    @patch("masu.processor.tasks.update_cost_model_costs.s")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
@@ -1200,7 +1200,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
-    @patch("masu.processor.tasks.refresh_materialized_views.delay")
+    @patch("masu.processor.tasks.refresh_materialized_views.s")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
