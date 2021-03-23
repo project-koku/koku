@@ -459,6 +459,7 @@ S3_ACCESS_KEY = ENVIRONMENT.get_value("S3_ACCESS_KEY", default=None)
 S3_SECRET = ENVIRONMENT.get_value("S3_SECRET", default=None)
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 ENABLE_PARQUET_PROCESSING = ENVIRONMENT.bool("ENABLE_PARQUET_PROCESSING", default=False)
+ENABLE_TRINO_SOURCES = ENVIRONMENT.list("ENABLE_TRINO_SOURCES", default=[])
 
 # Presto Settings
 PRESTO_HOST = ENVIRONMENT.get_value("PRESTO_HOST", default=None)
@@ -484,8 +485,6 @@ try:
     DEMO_ACCOUNTS = ENVIRONMENT.json("DEMO_ACCOUNTS", default={})
 except JSONDecodeError:
     pass
-
-OPENSHIFT_DOC_VERSION = ENVIRONMENT.get_value("OPENSHIFT_DOC_VERSION", default="4.5")
 
 # Aids the UI in showing pre-release features in allowed environments.
 # see: koku.api.user_access.view

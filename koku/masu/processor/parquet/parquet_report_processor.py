@@ -31,6 +31,7 @@ from api.common import log_json
 from api.provider.models import Provider
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.processor import enable_trino_processing
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
@@ -95,7 +96,7 @@ class ParquetReportProcessor:
         if not context:
             context = {"account": account, "provider_uuid": provider_uuid}
 
-        if not settings.ENABLE_PARQUET_PROCESSING:
+        if not enable_trino_processing(provider_uuid):
             msg = "Skipping convert_to_parquet. Parquet processing is disabled."
             LOG.info(log_json(request_id, msg, context))
             return
@@ -200,7 +201,7 @@ class ParquetReportProcessor:
         """
         Get all files in a given prefix that match the given manifest_id.
         """
-        if not settings.ENABLE_PARQUET_PROCESSING:
+        if not enable_trino_processing(context.get("provider_uuid")):
             return []
 
         keys = []

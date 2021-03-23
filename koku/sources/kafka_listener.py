@@ -184,7 +184,8 @@ def get_consumer():
             "group.id": "hccm-sources",
             "queued.max.messages.kbytes": 1024,
             "enable.auto.commit": False,
-        }
+        },
+        logger=LOG,
     )
     consumer.subscribe([Config.SOURCES_TOPIC])
     return consumer

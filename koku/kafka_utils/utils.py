@@ -53,7 +53,7 @@ def is_kafka_connected(host, port):
         if result:
             LOG.info("Test connection to Kafka was successful.")
         else:
-            LOG.error(f"Unable to connect to Kafka server [{host}:{port}].")
+            LOG.error(f"Unable to connect to Kafka server: {host}:{port}")
             KAFKA_CONNECTION_ERRORS_COUNTER.inc()
             backoff(count)
             count += 1
