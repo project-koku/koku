@@ -768,7 +768,15 @@ class ReportQueryHandler(QueryHandler):
         data_ranks = [item[rank_field] for item in data]
         missing = list(set(ranks) - set(data_ranks))
 
-        row_defaults = {"str": "", "int": 0, "float": 0.0, "dict": {}, "list": [], "Decimal": Decimal(0)}
+        row_defaults = {
+            "str": "",
+            "int": 0,
+            "float": 0.0,
+            "dict": {},
+            "list": [],
+            "Decimal": Decimal(0),
+            "NoneType": False,
+        }
         empty_row = {key: row_defaults[str(type(val).__name__)] for key, val in data[0].items()}
 
         for missed in missing:
