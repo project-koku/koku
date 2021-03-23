@@ -389,9 +389,9 @@ class TestAWSUtils(MasuTestCase):
         self.assertIn(column_two, columns)
         self.assertIn(column_three.replace("-", "_"), columns)
         self.assertNotIn(column_four, columns)
-        self.assertIn("resourceTags", columns)
+        self.assertIn("resourcetags", columns)
         for column in PRESTO_REQUIRED_COLUMNS:
-            self.assertIn(column, columns)
+            self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), columns)
 
 
 class AwsArnTest(TestCase):

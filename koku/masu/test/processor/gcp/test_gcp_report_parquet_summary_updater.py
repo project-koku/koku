@@ -18,6 +18,7 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.conf import settings
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
@@ -26,6 +27,7 @@ from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.gcp.gcp_report_parquet_summary_updater import GCPReportParquetSummaryUpdater
 from masu.test import MasuTestCase
+from masu.util.common import date_range_pair
 
 
 class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
@@ -101,6 +103,9 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         end_str = self.dh.this_month_end.isoformat()
         start, end = self.updater._get_sql_inputs(start_str, end_str)
 
+        for s, e in date_range_pair(start, end, step=settings.TRINO_DATE_STEP):
+            expected_start, expected_end = s, e
+
         with GCPReportDBAccessor(self.schema) as accessor:
             with schema_context(self.schema):
                 bills = accessor.bills_for_provider_uuid(self.gcp_provider.uuid, start)
@@ -112,8 +117,10 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
 
         start_return, end_return = self.updater.update_summary_tables(start, end)
-        mock_delete.assert_called_with(self.gcp_provider.uuid, start, end)
-        mock_presto.assert_called_with(start, end, self.gcp_provider.uuid, current_bill_id, markup_value)
+        mock_delete.assert_called_with(self.gcp_provider.uuid, expected_start, expected_end)
+        mock_presto.assert_called_with(
+            expected_start, expected_end, self.gcp_provider.uuid, current_bill_id, markup_value
+        )
         mock_tag_update.assert_called_with(bill_ids)
         mock_summary_update.assert_called_with(start, end, bill_ids)
 

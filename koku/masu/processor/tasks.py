@@ -18,7 +18,6 @@
 import datetime
 import json
 import os
-import time
 from decimal import Decimal
 from decimal import InvalidOperation
 
@@ -26,7 +25,6 @@ import ciso8601
 from celery import chain
 from celery.utils.log import get_task_logger
 from dateutil import parser
-from django.conf import settings
 from django.db import connection
 from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
@@ -46,6 +44,7 @@ from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
+from masu.processor import enable_trino_processing
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
@@ -63,6 +62,15 @@ from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 
 LOG = get_task_logger(__name__)
+
+GET_REPORT_FILES_QUEUE = "download"
+OCP_QUEUE = "ocp"
+REFRESH_MATERIALIZED_VIEWS_QUEUE = "reporting"
+REMOVE_EXPIRED_DATA_QUEUE = "remove_expired"
+SUMMARIZE_REPORTS_QUEUE = "process"
+UPDATE_COST_MODEL_COSTS_QUEUE = "reporting"
+UPDATE_SUMMARY_TABLES_QUEUE = "reporting"
+PRIORITY_QUEUE = "priority"
 
 
 def record_all_manifest_files(manifest_id, report_files):
@@ -104,15 +112,14 @@ def record_report_status(manifest_id, file_name, request_id, context={}):
         already_processed = db_accessor.get_last_completed_datetime()
         if already_processed:
             msg = f"Report {file_name} has already been processed."
-            LOG.info(log_json(request_id, msg, context))
         else:
             msg = f"Recording stats entry for {file_name}"
-            LOG.info(log_json(request_id, msg, context))
+        LOG.info(log_json(request_id, msg, context))
     return already_processed
 
 
 # pylint: disable=too-many-locals
-@app.task(name="masu.processor.tasks.get_report_files", queue_name="download", bind=True)
+@app.task(name="masu.processor.tasks.get_report_files", queue_name=GET_REPORT_FILES_QUEUE, bind=True)
 def get_report_files(
     self,
     customer_name,
@@ -219,8 +226,8 @@ def get_report_files(
         WorkerCache().remove_task_from_cache(cache_key)
 
 
-@app.task(name="masu.processor.tasks.remove_expired_data", queue_name="remove_expired")
-def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, line_items_only=False):
+@app.task(name="masu.processor.tasks.remove_expired_data", queue_name=REMOVE_EXPIRED_DATA_QUEUE)
+def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, line_items_only=False, queue_name=None):
     """
     Remove expired report data.
 
@@ -244,11 +251,13 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_items_only)
     if not line_items_only:
-        refresh_materialized_views.delay(schema_name, provider, provider_uuid=provider_uuid)
+        refresh_materialized_views.s(schema_name, provider, provider_uuid=provider_uuid).apply_async(
+            queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE
+        )
 
 
-@app.task(name="masu.processor.tasks.summarize_reports", queue_name="process")
-def summarize_reports(reports_to_summarize):
+@app.task(name="masu.processor.tasks.summarize_reports", queue_name=SUMMARIZE_REPORTS_QUEUE)
+def summarize_reports(reports_to_summarize, queue_name=None):
     """
     Summarize reports returned from line summary task.
 
@@ -281,18 +290,28 @@ def summarize_reports(reports_to_summarize):
                     start_date = start_date.strftime("%Y-%m-%d")
                     end_date = DateAccessor().today().strftime("%Y-%m-%d")
                 LOG.info("report to summarize: %s", str(report))
-                update_summary_tables.delay(
+                update_summary_tables.s(
                     report.get("schema_name"),
                     report.get("provider_type"),
                     report.get("provider_uuid"),
                     start_date=start_date,
                     end_date=end_date,
                     manifest_id=report.get("manifest_id"),
-                )
+                    queue_name=queue_name,
+                ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
 
 
 @app.task(name="masu.processor.tasks.update_summary_tables", queue_name="reporting")
-def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_date=None, manifest_id=None):
+def update_summary_tables(
+    schema_name,
+    provider,
+    provider_uuid,
+    start_date,
+    end_date=None,
+    manifest_id=None,
+    queue_name=None,
+    synchronous=False,
+):
     """Populate the summary tables for reporting.
 
     Args:
@@ -308,6 +327,19 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
 
     """
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
+    task_name = "masu.processor.tasks.update_summary_tables"
+    cache_args = [schema_name]
+
+    if not synchronous:
+        worker_cache = WorkerCache()
+        if worker_cache.single_task_is_running(task_name, cache_args):
+            msg = f"Task {task_name} already running for {cache_args}. Requeuing."
+            LOG.info(msg)
+            update_summary_tables.delay(
+                schema_name, provider, provider_uuid, start_date, end_date=end_date, manifest_id=manifest_id
+            )
+            return
+        worker_cache.lock_single_task(task_name, cache_args, timeout=3600)
 
     stmt = (
         f"update_summary_tables called with args:\n"
@@ -324,10 +356,12 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
     updater.update_summary_tables(start_date, end_date)
 
     if not provider_uuid:
-        refresh_materialized_views.delay(schema_name, provider, manifest_id=manifest_id)
+        refresh_materialized_views.s(
+            schema_name, provider, manifest_id=manifest_id, queue_name=queue_name
+        ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
         return
 
-    if settings.ENABLE_PARQUET_PROCESSING and provider in (
+    if enable_trino_processing(provider_uuid) and provider in (
         Provider.PROVIDER_AWS,
         Provider.PROVIDER_AWS_LOCAL,
         Provider.PROVIDER_AZURE,
@@ -345,9 +379,13 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
             cost_model = cost_model_accessor.cost_model
 
     if cost_model is not None:
-        linked_tasks = update_cost_model_costs.s(
-            schema_name, provider_uuid, start_date, end_date
-        ) | refresh_materialized_views.si(schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id)
+        linked_tasks = update_cost_model_costs.s(schema_name, provider_uuid, start_date, end_date).set(
+            queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE
+        ) | refresh_materialized_views.si(
+            schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id
+        ).set(
+            queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE
+        )
     else:
         stmt = (
             f"\n update_cost_model_costs skipped.\n"
@@ -357,7 +395,7 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
         LOG.info(stmt)
         linked_tasks = refresh_materialized_views.s(
             schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id
-        )
+        ).set(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
 
     dh = DateHelper(utc=True)
     prev_month_start_day = dh.last_month_start.replace(tzinfo=None).date()
@@ -370,9 +408,13 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
         simulate = False
         line_items_only = True
 
-        linked_tasks |= remove_expired_data.si(schema_name, provider, simulate, provider_uuid, line_items_only)
+        linked_tasks |= remove_expired_data.si(
+            schema_name, provider, simulate, provider_uuid, line_items_only, queue_name
+        ).set(queue=queue_name or REMOVE_EXPIRED_DATA_QUEUE)
 
     chain(linked_tasks).apply_async()
+    if not synchronous:
+        worker_cache.release_single_task(task_name, cache_args)
 
 
 @app.task(name="masu.processor.tasks.update_all_summary_tables", queue_name="reporting")
@@ -402,12 +444,15 @@ def update_all_summary_tables(start_date, end_date=None):
             schema_name = account.get("schema_name")
             provider = account.get("provider_type")
             provider_uuid = account.get("provider_uuid")
-            update_summary_tables.delay(schema_name, provider, provider_uuid, str(start_date), end_date)
+            queue_name = OCP_QUEUE if provider and provider.lower() == "ocp" else None
+            update_summary_tables.s(
+                schema_name, provider, provider_uuid, str(start_date), end_date, queue_name
+            ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
     except AccountsAccessorError as error:
         LOG.error("Unable to get accounts. Error: %s", str(error))
 
 
-@app.task(name="masu.processor.tasks.update_cost_model_costs", queue_name="reporting")
+@app.task(name="masu.processor.tasks.update_cost_model_costs", queue_name=UPDATE_COST_MODEL_COSTS_QUEUE)
 def update_cost_model_costs(
     schema_name, provider_uuid, start_date=None, end_date=None, provider_type=None, synchronous=False
 ):
@@ -427,9 +472,19 @@ def update_cost_model_costs(
     cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:
         worker_cache = WorkerCache()
-        while worker_cache.single_task_is_running(task_name, cache_args):
-            time.sleep(5)
-        worker_cache.lock_single_task(task_name, cache_args, timeout=300)
+        if worker_cache.single_task_is_running(task_name, cache_args):
+            msg = f"Task {task_name} already running for {cache_args}. Requeuing."
+            LOG.info(msg)
+            update_cost_model_costs.delay(
+                schema_name,
+                provider_uuid,
+                start_date=start_date,
+                end_date=end_date,
+                provider_type=provider_uuid,
+                synchronous=synchronous,
+            )
+            return
+        worker_cache.lock_single_task(task_name, cache_args, timeout=600)
 
     worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
@@ -449,7 +504,7 @@ def update_cost_model_costs(
 
 
 # fmt: off
-@app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name="reporting")
+@app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name=REFRESH_MATERIALIZED_VIEWS_QUEUE)
 def refresh_materialized_views(schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False):  # noqa: C901, E501
     """Refresh the database's materialized views for reporting."""
     # fmt: on
@@ -457,10 +512,18 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None, pro
     cache_args = [schema_name]
     if not synchronous:
         worker_cache = WorkerCache()
-        while worker_cache.single_task_is_running(task_name, cache_args):
-            time.sleep(5)
-
-        worker_cache.lock_single_task(task_name, cache_args)
+        if worker_cache.single_task_is_running(task_name, cache_args):
+            msg = f"Task {task_name} already running for {cache_args}. Requeuing."
+            LOG.info(msg)
+            refresh_materialized_views.delay(
+                schema_name,
+                provider_type,
+                manifest_id=manifest_id,
+                provider_uuid=provider_uuid,
+                synchronous=synchronous
+            )
+            return
+        worker_cache.lock_single_task(task_name, cache_args, timeout=600)
     materialized_views = ()
     if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
         materialized_views = (
