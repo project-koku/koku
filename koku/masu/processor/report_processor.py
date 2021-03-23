@@ -17,12 +17,12 @@
 """Report processor external interface."""
 import logging
 
-from django.conf import settings
 from django.db import InterfaceError as DjangoInterfaceError
 from django.db import OperationalError
 from psycopg2 import InterfaceError
 
 from api.models import Provider
+from masu.processor import enable_trino_processing
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
 from masu.processor.gcp.gcp_report_processor import GCPReportProcessor
@@ -75,7 +75,7 @@ class ReportProcessor:
             (Object) : Provider-specific report processor
 
         """
-        if settings.ENABLE_PARQUET_PROCESSING:
+        if enable_trino_processing(self.provider_uuid):
             return ParquetReportProcessor(
                 schema_name=self.schema_name,
                 report_path=self.report_path,
