@@ -176,6 +176,13 @@ class ParquetReportProcessor:
                     msg = f"Could not establish report type for {csv_filename}."
                     LOG.warn(log_json(request_id, msg, context))
                     continue
+            elif provider_type in (
+                Provider.PROVIDER_AWS,
+                Provider.PROVIDER_AZURE,
+                Provider.PROVIDER_GCP,
+                Provider.PROVIDER_IBM,
+            ):
+                parquet_report_type = provider_type
             converters = get_column_converters(provider_type, **kwargs)
             result = self.convert_csv_to_parquet(
                 request_id,
@@ -267,7 +274,6 @@ class ParquetReportProcessor:
         """
         Convert CSV files to parquet on S3.
         """
-
         csv_path, csv_name = os.path.split(csv_filename)
         if s3_csv_path is None or s3_parquet_path is None or local_path is None:
             msg = (
