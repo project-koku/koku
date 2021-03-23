@@ -142,8 +142,21 @@ def azure_json_converter(tag_str):
 
 def azure_post_processor(data_frame):
     """Guarantee column order for Azure parquet files"""
-    columns = list(data_frame)
+    columns = set(list(data_frame))
+    columns = set(PRESTO_COLUMNS).union(columns)
+    columns = sorted(list(columns))
+
     if "MeterSubcategory" in columns:
         data_frame["MeterSubCategory"] = data_frame["MeterSubcategory"]
         data_frame = data_frame.drop(columns=["MeterSubcategory"])
-    return data_frame.reindex(columns=PRESTO_COLUMNS)
+
+    data_frame = data_frame.reindex(columns=columns)
+
+    column_name_map = {}
+    for column in columns:
+        new_col_name = column.replace("-", "_").replace("/", "_").replace(":", "_").lower()
+        column_name_map[column] = new_col_name
+
+    data_frame = data_frame.rename(columns=column_name_map)
+
+    return data_frame
