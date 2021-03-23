@@ -32,6 +32,7 @@ from api.common import log_json
 from api.models import Provider
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.processor import enable_trino_processing
 from masu.util import common as utils
 from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
 
@@ -290,7 +291,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
     """
     Copies data to s3 bucket file
     """
-    if not (settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING):
+    if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(context.get("provider_uuid"))):
         return None
 
     upload = None
@@ -315,7 +316,7 @@ def copy_local_report_file_to_s3_bucket(
     """
     Copies local report file to s3 bucket
     """
-    if s3_path and (settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING):
+    if s3_path and (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(context.get("provider_uuid"))):
         LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         with open(full_file_path, "rb") as fin:
             data = BytesIO(fin.read())

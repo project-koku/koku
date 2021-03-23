@@ -37,6 +37,7 @@ from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
 from masu.external.date_accessor import DateAccessor
+from masu.processor import enable_trino_processing
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import vacuum_schema
@@ -130,7 +131,7 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
             messages.append(message)
         raise TypeError("delete_archived_data() %s", ", ".join(messages))
 
-    if not (settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING):
+    if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid)):
         LOG.info("Skipping delete_archived_data. Upload feature is disabled.")
         return
     else:

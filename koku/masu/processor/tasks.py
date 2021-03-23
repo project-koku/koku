@@ -18,7 +18,6 @@
 import datetime
 import json
 import os
-import time
 from decimal import Decimal
 from decimal import InvalidOperation
 
@@ -26,7 +25,6 @@ import ciso8601
 from celery import chain
 from celery.utils.log import get_task_logger
 from dateutil import parser
-from django.conf import settings
 from django.db import connection
 from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
@@ -46,6 +44,7 @@ from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
+from masu.processor import enable_trino_processing
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
@@ -304,7 +303,14 @@ def summarize_reports(reports_to_summarize, queue_name=None):
 
 @app.task(name="masu.processor.tasks.update_summary_tables", queue_name="reporting")
 def update_summary_tables(
-    schema_name, provider, provider_uuid, start_date, end_date=None, manifest_id=None, queue_name=None
+    schema_name,
+    provider,
+    provider_uuid,
+    start_date,
+    end_date=None,
+    manifest_id=None,
+    queue_name=None,
+    synchronous=False,
 ):
     """Populate the summary tables for reporting.
 
@@ -321,6 +327,19 @@ def update_summary_tables(
 
     """
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
+    task_name = "masu.processor.tasks.update_summary_tables"
+    cache_args = [schema_name]
+
+    if not synchronous:
+        worker_cache = WorkerCache()
+        if worker_cache.single_task_is_running(task_name, cache_args):
+            msg = f"Task {task_name} already running for {cache_args}. Requeuing."
+            LOG.info(msg)
+            update_summary_tables.delay(
+                schema_name, provider, provider_uuid, start_date, end_date=end_date, manifest_id=manifest_id
+            )
+            return
+        worker_cache.lock_single_task(task_name, cache_args, timeout=3600)
 
     stmt = (
         f"update_summary_tables called with args:\n"
@@ -342,7 +361,7 @@ def update_summary_tables(
         ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
         return
 
-    if settings.ENABLE_PARQUET_PROCESSING and provider in (
+    if enable_trino_processing(provider_uuid) and provider in (
         Provider.PROVIDER_AWS,
         Provider.PROVIDER_AWS_LOCAL,
         Provider.PROVIDER_AZURE,
@@ -394,6 +413,8 @@ def update_summary_tables(
         ).set(queue=queue_name or REMOVE_EXPIRED_DATA_QUEUE)
 
     chain(linked_tasks).apply_async()
+    if not synchronous:
+        worker_cache.release_single_task(task_name, cache_args)
 
 
 @app.task(name="masu.processor.tasks.update_all_summary_tables", queue_name="reporting")
@@ -451,9 +472,19 @@ def update_cost_model_costs(
     cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:
         worker_cache = WorkerCache()
-        while worker_cache.single_task_is_running(task_name, cache_args):
-            time.sleep(5)
-        worker_cache.lock_single_task(task_name, cache_args, timeout=300)
+        if worker_cache.single_task_is_running(task_name, cache_args):
+            msg = f"Task {task_name} already running for {cache_args}. Requeuing."
+            LOG.info(msg)
+            update_cost_model_costs.delay(
+                schema_name,
+                provider_uuid,
+                start_date=start_date,
+                end_date=end_date,
+                provider_type=provider_uuid,
+                synchronous=synchronous,
+            )
+            return
+        worker_cache.lock_single_task(task_name, cache_args, timeout=600)
 
     worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
@@ -481,10 +512,18 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None, pro
     cache_args = [schema_name]
     if not synchronous:
         worker_cache = WorkerCache()
-        while worker_cache.single_task_is_running(task_name, cache_args):
-            time.sleep(5)
-
-        worker_cache.lock_single_task(task_name, cache_args)
+        if worker_cache.single_task_is_running(task_name, cache_args):
+            msg = f"Task {task_name} already running for {cache_args}. Requeuing."
+            LOG.info(msg)
+            refresh_materialized_views.delay(
+                schema_name,
+                provider_type,
+                manifest_id=manifest_id,
+                provider_uuid=provider_uuid,
+                synchronous=synchronous
+            )
+            return
+        worker_cache.lock_single_task(task_name, cache_args, timeout=600)
     materialized_views = ()
     if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
         materialized_views = (

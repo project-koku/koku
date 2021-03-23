@@ -86,7 +86,7 @@ class TestParquetReportProcessor(MasuTestCase):
             "missing required argument: provider_uuid",
         ]
         with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
-            with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
                 self.report_processor.convert_to_parquet(None, None, None, None, "start_date", "manifest_id", [])
                 for expected in expected_logs:
                     self.assertIn(expected, " ".join(logger.output))
@@ -99,7 +99,7 @@ class TestParquetReportProcessor(MasuTestCase):
             self.assertIn(expected, " ".join(logger.output))
 
         expected = "Parquet processing is enabled, but no start_date was given for processing."
-        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+        with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
             with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
                 self.report_processor.convert_to_parquet(
                     "request_id", "account", "provider_uuid", "provider_type", None, "manifest_id", "csv_file"
@@ -107,7 +107,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 self.assertIn(expected, " ".join(logger.output))
 
         expected = "Parquet processing is enabled, but the start_date was not a valid date string ISO 8601 format."
-        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+        with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
             with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
                 self.report_processor.convert_to_parquet(
                     "request_id", "account", "provider_uuid", "provider_type", "bad_date", "manifest_id", "csv_file"
@@ -115,14 +115,14 @@ class TestParquetReportProcessor(MasuTestCase):
                 self.assertIn(expected, " ".join(logger.output))
 
         expected = "Could not establish report type"
-        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+        with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
             with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
                 self.report_processor.convert_to_parquet(
                     "request_id", "account", "provider_uuid", "OCP", "2020-01-01T12:00:00", "manifest_id", "csv_file"
                 )
                 self.assertIn(expected, " ".join(logger.output))
 
-        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+        with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
             with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
                 with patch(
                     (
@@ -149,7 +149,7 @@ class TestParquetReportProcessor(MasuTestCase):
                             )
 
         expected = "Failed to convert the following files to parquet"
-        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+        with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
             with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
                 with patch(
                     (
@@ -176,7 +176,7 @@ class TestParquetReportProcessor(MasuTestCase):
                             )
                             self.assertIn(expected, " ".join(logger.output))
 
-        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+        with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
             with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
                 with patch(
                     (
@@ -198,7 +198,7 @@ class TestParquetReportProcessor(MasuTestCase):
                             "csv_file",
                         )
 
-        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+        with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
             with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
                 with patch(
                     (
