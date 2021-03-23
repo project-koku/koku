@@ -28,31 +28,6 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 
 LOG = logging.getLogger(__name__)
 
-GCP_SERVICE_LINE_ITEM_TYPE_MAP = {
-    "Compute Engine": "usage",
-    "Kubernetes Engine": "usage",
-    "Cloud Functions": "usage",
-    "Clould Run": "usage",
-    "VMware Engine": "usage",
-    "Filestore": "storage",
-    "Storage": "storage",
-    "Cloud Storage": "storage",
-    "Data Transfer": "storage",
-    "VPC network": "network",
-    "Network services": "network",
-    "Hybrid Connectivity": "network",
-    "Network Service Tiers": "network",
-    "Network Security": "network",
-    "Network Intelligence": "network",
-    "Bigtable": "database",
-    "Datastore": "database",
-    "Database Migrations": "database",
-    "Firestore": "database",
-    "MemoryStore": "database",
-    "Spanner": "database",
-    "SQL": "database",
-}
-
 
 def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=None):
     """
@@ -136,9 +111,9 @@ def process_gcp_credits(credit_string):
 def gcp_post_processor(data_frame):
     """Guarantee column order for Azure parquet files"""
     columns = list(data_frame)
+    column_name_map = {}
     for column in columns:
-        if "." in column:
-            new_col_name = column.replace(".", "_")
-            data_frame[new_col_name] = data_frame[column]
-            data_frame = data_frame.drop(columns=[column])
+        new_col_name = column.replace("-", "_").replace("/", "_").replace(":", "_").replace(".", "_").lower()
+        column_name_map[column] = new_col_name
+    data_frame = data_frame.rename(columns=column_name_map)
     return data_frame
