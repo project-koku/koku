@@ -305,3 +305,14 @@ class StatusAPITest(TestCase):
         self.assertEqual(result["scheduled_count"], len(scheduled_tasks))
         self.assertEqual(result["reserved_count"], len(reserved_tasks))
         self.assertEqual(result["active_count"], len(active_tasks))
+
+    @patch("masu.api.status.celery_app")
+    def test_get_celery_queue_data_error(self, mock_celery):
+        """Test that queue results are returned."""
+        mock_inspect = mock_celery.control.inspect.return_value
+        mock_inspect.scheduled.side_effect = ConnectionResetError
+
+        stat = ApplicationStatus()
+        result = stat.celery_task_status
+
+        self.assertIn("Error", result)
