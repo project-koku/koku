@@ -51,6 +51,11 @@ main() {
                            -v $SCRIPTPATH/local_providers/aws_local_4:/tmp/local_bucket_4${FLAGS} \
                            -v $SCRIPTPATH/local_providers/aws_local_5:/tmp/local_bucket_5${FLAGS} \
                            -v $SCRIPTPATH/local_providers/azure_local:/tmp/local_container${FLAGS} \
+                           -v $SCRIPTPATH/local_providers/gcp_local:/tmp/gcp_local_bucket${FLAGS} \
+                           -v $SCRIPTPATH/local_providers/gcp_local_0:/tmp/gcp_local_bucket_0${FLAGS} \
+                           -v $SCRIPTPATH/local_providers/gcp_local_1:/tmp/gcp_local_bucket_1${FLAGS} \
+                           -v $SCRIPTPATH/local_providers/gcp_local_2:/tmp/gcp_local_bucket_2${FLAGS} \
+                           -v $SCRIPTPATH/local_providers/gcp_local_3:/tmp/gcp_local_bucket_3${FLAGS} \
                            -v $SCRIPTPATH/pvc_dir/insights_local:/var/tmp/masu/insights_local${FLAGS} \
                            $E2E_MOUNT \
                            $IMAGE \
