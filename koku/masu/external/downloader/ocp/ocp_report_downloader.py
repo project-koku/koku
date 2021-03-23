@@ -30,6 +30,7 @@ from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.processor import enable_trino_processing
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
@@ -86,7 +87,7 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
         context (Dict): Logging context dictionary
     """
     daily_file_names = []
-    if settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING:
+    if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid):
         daily_files = divide_csv_daily(filepath, filename)
         for daily_file in daily_files:
             # Push to S3

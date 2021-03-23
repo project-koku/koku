@@ -144,7 +144,13 @@ class NiseDataLoader:
                 self.process_report(report, "PLAIN", provider_type, provider, manifest)
             with patch("masu.processor.tasks.chain"):
                 update_summary_tables(
-                    self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
+                    self.schema,
+                    provider_type,
+                    provider.uuid,
+                    start_date,
+                    end_date,
+                    manifest_id=manifest.id,
+                    synchronous=True,
                 )
         update_cost_model_costs.s(
             self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
@@ -213,7 +219,13 @@ class NiseDataLoader:
                         self.process_report(report, "GZIP", provider_type, provider, manifest)
             with patch("masu.processor.tasks.chain"), patch.object(settings, "AUTO_DATA_INGEST", False):
                 update_summary_tables(
-                    self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
+                    self.schema,
+                    provider_type,
+                    provider.uuid,
+                    start_date,
+                    end_date,
+                    manifest_id=manifest.id,
+                    synchronous=True,
                 )
         update_cost_model_costs.s(
             self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
@@ -274,7 +286,13 @@ class NiseDataLoader:
                 self.process_report(report, "PLAIN", provider_type, provider, manifest)
             with patch("masu.processor.tasks.chain"), patch.object(settings, "AUTO_DATA_INGEST", False):
                 update_summary_tables(
-                    self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
+                    self.schema,
+                    provider_type,
+                    provider.uuid,
+                    start_date,
+                    end_date,
+                    manifest_id=manifest.id,
+                    synchronous=True,
                 )
         update_cost_model_costs.s(
             self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
@@ -319,7 +337,13 @@ class NiseDataLoader:
                 self.process_report(report, "PLAIN", provider_type, provider, manifest)
             with patch("masu.processor.tasks.chain"), patch.object(settings, "AUTO_DATA_INGEST", False):
                 update_summary_tables(
-                    self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
+                    self.schema,
+                    provider_type,
+                    provider.uuid,
+                    start_date,
+                    end_date,
+                    manifest_id=manifest.id,
+                    synchronous=True,
                 )
         update_cost_model_costs.s(
             self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
