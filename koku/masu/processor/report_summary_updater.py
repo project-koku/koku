@@ -18,13 +18,12 @@
 import datetime
 import logging
 
-from django.conf import settings
-
 from api.models import Provider
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.processor import enable_trino_processing
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
 from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
@@ -94,25 +93,35 @@ class ReportSummaryUpdater:
         """
         if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             report_summary_updater = (
-                AWSReportParquetSummaryUpdater if settings.ENABLE_PARQUET_PROCESSING else AWSReportSummaryUpdater
+                AWSReportParquetSummaryUpdater
+                if enable_trino_processing(self._provider_uuid)
+                else AWSReportSummaryUpdater
             )
         elif self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             report_summary_updater = (
-                AzureReportParquetSummaryUpdater if settings.ENABLE_PARQUET_PROCESSING else AzureReportSummaryUpdater
+                AzureReportParquetSummaryUpdater
+                if enable_trino_processing(self._provider_uuid)
+                else AzureReportSummaryUpdater
             )
         elif self._provider.type in (Provider.PROVIDER_OCP,):
             report_summary_updater = (
-                OCPReportParquetSummaryUpdater if settings.ENABLE_PARQUET_PROCESSING else OCPReportSummaryUpdater
+                OCPReportParquetSummaryUpdater
+                if enable_trino_processing(self._provider_uuid)
+                else OCPReportSummaryUpdater
             )
         elif self._provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             report_summary_updater = (
-                GCPReportParquetSummaryUpdater if settings.ENABLE_PARQUET_PROCESSING else GCPReportSummaryUpdater
+                GCPReportParquetSummaryUpdater
+                if enable_trino_processing(self._provider_uuid)
+                else GCPReportSummaryUpdater
             )
         else:
             return (None, None)
 
         ocp_cloud_updater = (
-            OCPCloudParquetReportSummaryUpdater if settings.ENABLE_PARQUET_PROCESSING else OCPCloudReportSummaryUpdater
+            OCPCloudParquetReportSummaryUpdater
+            if enable_trino_processing(self._provider_uuid)
+            else OCPCloudReportSummaryUpdater
         )
 
         LOG.info(f"Set report_summary_updater = {report_summary_updater.__name__}")
