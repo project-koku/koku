@@ -301,7 +301,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                 ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
 
 
-@app.task(name="masu.processor.tasks.update_summary_tables", queue_name="reporting")
+@app.task(name="masu.processor.tasks.update_summary_tables", queue_name=UPDATE_SUMMARY_TABLES_QUEUE)
 def update_summary_tables(  # noqa: C901
     schema_name,
     provider,
@@ -335,9 +335,15 @@ def update_summary_tables(  # noqa: C901
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             LOG.info(msg)
-            update_summary_tables.delay(
-                schema_name, provider, provider_uuid, start_date, end_date=end_date, manifest_id=manifest_id
-            )
+            update_summary_tables.s(
+                schema_name,
+                provider,
+                provider_uuid,
+                start_date,
+                end_date=end_date,
+                manifest_id=manifest_id,
+                queue_name=queue_name,
+            ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=3600)
 
@@ -451,7 +457,7 @@ def update_all_summary_tables(start_date, end_date=None):
             provider_uuid = account.get("provider_uuid")
             queue_name = OCP_QUEUE if provider and provider.lower() == "ocp" else None
             update_summary_tables.s(
-                schema_name, provider, provider_uuid, str(start_date), end_date, queue_name
+                schema_name, provider, provider_uuid, str(start_date), end_date, queue_name=queue_name
             ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
     except AccountsAccessorError as error:
         LOG.error("Unable to get accounts. Error: %s", str(error))
@@ -459,7 +465,7 @@ def update_all_summary_tables(start_date, end_date=None):
 
 @app.task(name="masu.processor.tasks.update_cost_model_costs", queue_name=UPDATE_COST_MODEL_COSTS_QUEUE)
 def update_cost_model_costs(
-    schema_name, provider_uuid, start_date=None, end_date=None, provider_type=None, synchronous=False
+    schema_name, provider_uuid, start_date=None, end_date=None, queue_name=None, synchronous=False
 ):
     """Update usage charge information.
 
@@ -480,14 +486,14 @@ def update_cost_model_costs(
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             LOG.info(msg)
-            update_cost_model_costs.delay(
+            update_cost_model_costs.s(
                 schema_name,
                 provider_uuid,
                 start_date=start_date,
                 end_date=end_date,
-                provider_type=provider_uuid,
+                queue_name=queue_name,
                 synchronous=synchronous,
-            )
+            ).apply_async(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=600)
 
@@ -513,11 +519,11 @@ def update_cost_model_costs(
         worker_cache.release_single_task(task_name, cache_args)
 
 
-# fmt: off
 @app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name=REFRESH_MATERIALIZED_VIEWS_QUEUE)
-def refresh_materialized_views(schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False):  # noqa: C901, E501
+def refresh_materialized_views(  # noqa: C901
+    schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False, queue_name=None
+):
     """Refresh the database's materialized views for reporting."""
-    # fmt: on
     task_name = "masu.processor.tasks.refresh_materialized_views"
     cache_args = [schema_name]
     if not synchronous:
@@ -525,13 +531,14 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None, pro
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             LOG.info(msg)
-            refresh_materialized_views.delay(
+            refresh_materialized_views.s(
                 schema_name,
                 provider_type,
                 manifest_id=manifest_id,
                 provider_uuid=provider_uuid,
-                synchronous=synchronous
-            )
+                synchronous=synchronous,
+                queue_name=queue_name,
+            ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=600)
     materialized_views = ()
