@@ -147,7 +147,7 @@ def _missing_sources():
             _ = sources_client.get_source_details()
         except SourceNotFoundError:
             LOG.info(
-                f"Source {source.name} ID: {source.source_id} UUID: {source.source_uuid} not found in plaform sources"
+                f"Source {source.name} ID: {source.source_id} UUID: {source.source_uuid} not found in platform sources"
             )
             missing_sources.append(source)
         except SourcesHTTPClientError:
