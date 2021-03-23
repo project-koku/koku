@@ -76,6 +76,31 @@ class StatusAPITest(TestCase):
         self.assertIsNotNone(body["platform_info"])
         self.assertIsNotNone(body["python_version"])
 
+    @patch("masu.api.status.celery_app")
+    def test_status_celery_param(self, mock_celery):
+        """Test that celery counts are returned."""
+        scheduled_tasks = [1, 2, 3]
+        reserved_tasks = [3]
+        active_tasks = []
+        scheduled = {"task": scheduled_tasks}
+        reserved = {"task": reserved_tasks}
+        active = {"task": active_tasks}
+        mock_inspect = mock_celery.control.inspect.return_value
+        mock_inspect.scheduled.return_value = scheduled
+        mock_inspect.reserved.return_value = reserved
+        mock_inspect.active.return_value = active
+
+        params = "?celery=true"
+        url = reverse("server-status") + params
+        response = self.client.get(url)
+        body = response.data
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertIn("scheduled_count", body)
+        self.assertIn("reserved_count", body)
+        self.assertIn("active_count", body)
+
     @patch.dict(os.environ, {"OPENSHIFT_BUILD_COMMIT": "fake_commit_hash"})
     def test_commit_with_env(self):
         """Test the commit method via environment."""
@@ -255,3 +280,28 @@ class StatusAPITest(TestCase):
             with self.assertLogs("masu.api.status", level="INFO") as logger:
                 ApplicationStatus().startup()
                 self.assertIn(expected, logger.output)
+
+    @patch("masu.api.status.celery_app")
+    def test_get_celery_queue_data(self, mock_celery):
+        """Test that queue results are returned."""
+        scheduled_tasks = [1, 2, 3]
+        reserved_tasks = [3]
+        active_tasks = []
+        scheduled = {"task": scheduled_tasks}
+        reserved = {"task": reserved_tasks}
+        active = {"task": active_tasks}
+        mock_inspect = mock_celery.control.inspect.return_value
+        mock_inspect.scheduled.return_value = scheduled
+        mock_inspect.reserved.return_value = reserved
+        mock_inspect.active.return_value = active
+
+        stat = ApplicationStatus()
+        result = stat.celery_task_status
+
+        self.assertIn("scheduled_count", result)
+        self.assertIn("reserved_count", result)
+        self.assertIn("active_count", result)
+
+        self.assertEqual(result["scheduled_count"], len(scheduled_tasks))
+        self.assertEqual(result["reserved_count"], len(reserved_tasks))
+        self.assertEqual(result["active_count"], len(active_tasks))
