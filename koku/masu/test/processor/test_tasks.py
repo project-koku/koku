@@ -1165,7 +1165,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
-    @patch("masu.processor.tasks.update_cost_model_costs.s")
     @patch("masu.processor.tasks.update_summary_tables.s")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
@@ -1235,7 +1234,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
-    @patch("masu.processor.tasks.refresh_materialized_views.s")
     @patch("masu.processor.tasks.CostModelCostUpdater")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
