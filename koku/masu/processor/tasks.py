@@ -301,7 +301,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                 ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
 
 
-@app.task(name="masu.processor.tasks.update_summary_tables", queue_name="reporting")
+@app.task(name="masu.processor.tasks.update_summary_tables", queue_name=UPDATE_SUMMARY_TABLES_QUEUE)
 def update_summary_tables(  # noqa: C901
     schema_name,
     provider,
@@ -343,7 +343,7 @@ def update_summary_tables(  # noqa: C901
                 end_date=end_date,
                 manifest_id=manifest_id,
                 queue_name=queue_name,
-            ).apply_async
+            ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=3600)
 
