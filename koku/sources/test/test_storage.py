@@ -24,7 +24,10 @@ from django.db import InterfaceError
 from django.test import TestCase
 from faker import Faker
 
+from api.iam.models import Customer
 from api.provider.models import Provider
+from api.provider.models import ProviderAuthentication
+from api.provider.models import ProviderBillingSource
 from api.provider.models import Sources
 from sources import storage
 from sources.config import Config
@@ -387,19 +390,38 @@ class SourcesStorageTest(TestCase):
         """Test for enqueuing source delete."""
         test_source_id = 3
         test_offset = 3
-        aws_obj = Sources(
+
+        account_name = "Test Provider"
+        provider_uuid = faker.uuid4()
+        ocp_provider = Provider.objects.create(
+            uuid=provider_uuid,
+            name=account_name,
+            type=Provider.PROVIDER_OCP,
+            authentication=ProviderAuthentication.objects.create(credentials={"cluster_id": "my-cluster'"}).save(),
+            billing_source=ProviderBillingSource.objects.create(data_source={}),
+            customer=Customer.objects.create(account_id="123", schema_name="myschema").save(),
+            setup_complete=False,
+        )
+        ocp_provider.save()
+
+        ocp_obj = Sources(
             source_id=test_source_id,
             auth_header=self.test_header,
             offset=test_offset,
-            source_type=Provider.PROVIDER_AWS,
-            name="Test AWS Source",
-            billing_source={"bucket": "test-bucket"},
+            source_type=Provider.PROVIDER_OCP,
+            name=account_name,
+            koku_uuid=ocp_provider.uuid,
         )
-        aws_obj.save()
+        ocp_obj.save()
 
         storage.enqueue_source_delete(test_source_id, test_offset)
-        response = Sources.objects.get(source_id=test_source_id)
-        self.assertTrue(response.pending_delete)
+        source_response = Sources.objects.get(source_id=test_source_id)
+        self.assertTrue(source_response.pending_delete)
+
+        provider_response = Provider.objects.get(uuid=provider_uuid)
+        self.assertFalse(provider_response.active)
+        self.assertIsNone(provider_response.billing_source)
+        self.assertIsNone(provider_response.authentication)
 
     def test_enqueue_source_delete_db_down(self):
         """Tests enqueues source_delete with database error."""
