@@ -18,6 +18,7 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.conf import settings
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
@@ -26,6 +27,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
 from masu.test import MasuTestCase
+from masu.util.common import date_range_pair
 
 
 class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
@@ -100,6 +102,9 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
         end_str = self.dh.this_month_end.isoformat()
         start, end = self.updater._get_sql_inputs(start_str, end_str)
 
+        for s, e in date_range_pair(start, end, step=settings.TRINO_DATE_STEP):
+            expected_start, expected_end = s, e
+
         with AzureReportDBAccessor(self.schema) as accessor:
             with schema_context(self.schema):
                 bills = accessor.bills_for_provider_uuid(self.azure_provider.uuid, start)
@@ -111,8 +116,10 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
 
         start_return, end_return = self.updater.update_summary_tables(start, end)
-        mock_delete.assert_called_with(self.azure_provider.uuid, start, end)
-        mock_presto.assert_called_with(start, end, self.azure_provider.uuid, current_bill_id, markup_value)
+        mock_delete.assert_called_with(self.azure_provider.uuid, expected_start, expected_end)
+        mock_presto.assert_called_with(
+            expected_start, expected_end, self.azure_provider.uuid, current_bill_id, markup_value
+        )
         mock_tag_update.assert_called_with(bill_ids)
 
         self.assertEqual(start_return, start)

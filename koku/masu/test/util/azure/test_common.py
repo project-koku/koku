@@ -64,4 +64,8 @@ class TestAzureUtils(MasuTestCase):
 
         columns = list(result)
 
-        self.assertEqual(columns, PRESTO_COLUMNS)
+        expected_columns = sorted(
+            [col.replace("-", "_").replace("/", "_").replace(":", "_").lower() for col in PRESTO_COLUMNS]
+        )
+
+        self.assertEqual(columns, expected_columns)

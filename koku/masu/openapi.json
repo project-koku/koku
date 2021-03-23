@@ -353,7 +353,18 @@
         "get": {
           "operationId": "status_list",
           "description": "Packages response for class-based view.",
-          "parameters": [],
+          "parameters": [
+            {
+              "name": "celery",
+              "in": "query",
+              "description": "Whether to return celery queue/task data",
+              "required": false,
+              "schema": {
+                "type": "boolean",
+                "example": true
+              }
+            }
+          ],
           "responses": {
             "200": {
               "description": "",
