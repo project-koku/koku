@@ -302,7 +302,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
 
 
 @app.task(name="masu.processor.tasks.update_summary_tables", queue_name="reporting")
-def update_summary_tables(
+def update_summary_tables(  # noqa: C901
     schema_name,
     provider,
     provider_uuid,
@@ -357,9 +357,14 @@ def update_summary_tables(
     )
     LOG.info(stmt)
 
-    updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
-    start_date, end_date = updater.update_daily_tables(start_date, end_date)
-    updater.update_summary_tables(start_date, end_date)
+    try:
+        updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
+        start_date, end_date = updater.update_daily_tables(start_date, end_date)
+        updater.update_summary_tables(start_date, end_date)
+    except Exception as ex:
+        if not synchronous:
+            worker_cache.release_single_task(task_name, cache_args)
+        raise ex
 
     if not provider_uuid:
         refresh_materialized_views.s(
@@ -501,9 +506,14 @@ def update_cost_model_costs(
     )
     LOG.info(stmt)
 
-    updater = CostModelCostUpdater(schema_name, provider_uuid)
-    if updater:
-        updater.update_cost_model_costs(start_date, end_date)
+    try:
+        updater = CostModelCostUpdater(schema_name, provider_uuid)
+        if updater:
+            updater.update_cost_model_costs(start_date, end_date)
+    except Exception as ex:
+        if not synchronous:
+            worker_cache.release_single_task(task_name, cache_args)
+        raise ex
 
     if not synchronous:
         worker_cache.release_single_task(task_name, cache_args)
