@@ -17,6 +17,8 @@
 """View for Source cleanup."""
 import logging
 
+from koku import celery_app
+from masu.processor.tasks import PRIORITY_QUEUE
 from django.views.decorators.cache import never_cache
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
@@ -65,6 +67,7 @@ def cleanup(request):
 
     if request.method == "DELETE":
         if "providers_without_sources" in params.keys():
+            LOG.info("DELETING PROVIDERS")
             cleanup_provider_without_source(cleaning_list)
         if "out_of_order_deletes" in params.keys():
             cleanup_out_of_order_deletes(cleaning_list)
@@ -74,24 +77,27 @@ def cleanup(request):
     return Response(response)
 
 
+@celery_app.task(name="masu.api.delete_provider_async", queue=PRIORITY_QUEUE)
+def delete_provider_async(name, provider_uuid, schema_name, provider_type):
+    materialized_views_to_update = []
+    with schema_context(schema_name):
+        LOG.info(f"Removing Provider without Source: {str(name)} ({str(provider_uuid)}")
+        Provider.objects.get(uuid=provider_uuid).delete()
+        mat_view_dict = {"schema": schema_name, "type": provider_type}
+        if mat_view_dict not in materialized_views_to_update:
+            materialized_views_to_update.append(mat_view_dict)
+
+    for mat_view in materialized_views_to_update:
+        LOG.info(f"Refreshing Materialized Views: {str(mat_view)}")
+        refresh_materialized_views(mat_view.get("schema"), mat_view.get("type"))
+
 def cleanup_provider_without_source(cleaning_list):
     provider_without_source = cleaning_list.get("providers_without_sources")
-
+    LOG.info(f"Deleting List: {str(provider_without_source)}")
     if provider_without_source:
-        materialized_views_to_update = []
         for provider in provider_without_source:
-            schema_name = provider.customer.schema_name
-            provider_type = provider.type
-            with schema_context(schema_name):
-                LOG.info(f"Removing Provider without Source: {str(provider.name)} ({str(provider.uuid)}")
-                Provider.objects.get(uuid=provider.uuid).delete()
-                mat_view_dict = {"schema": schema_name, "type": provider_type}
-                if mat_view_dict not in materialized_views_to_update:
-                    materialized_views_to_update.append(mat_view_dict)
-
-        for mat_view in materialized_views_to_update:
-            LOG.info(f"Refreshing Materialized Views: {str(mat_view)}")
-            refresh_materialized_views(mat_view.get("schema"), mat_view.get("type"))
+            LOG.info("ENQUING DELETE")
+            delete_provider_async.delay(provider.name, provider.uuid, provider.customer.schema_name, provider.type)
 
 
 def cleanup_out_of_order_deletes(cleaning_list):
