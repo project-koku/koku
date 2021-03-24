@@ -230,7 +230,7 @@ class GCPTagsSummary(models.Model):
         """Meta for GCPTagSummary."""
 
         db_table = "reporting_gcptags_summary"
-        unique_together = ("key", "cost_entry_bill", "account_id", "project_id")
+        unique_together = ("key", "cost_entry_bill", "account_id", "project_id", "project_name")
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
@@ -821,6 +821,10 @@ class GCPNetworkSummary(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
+    service_id = models.CharField(max_length=256, null=True)
+
+    service_alias = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPDatabaseSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -854,3 +858,7 @@ class GCPDatabaseSummary(models.Model):
     currency = models.CharField(max_length=10)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    service_id = models.CharField(max_length=256, null=True)
+
+    service_alias = models.CharField(max_length=256, null=True, blank=True)

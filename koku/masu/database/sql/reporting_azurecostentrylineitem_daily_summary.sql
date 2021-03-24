@@ -1,24 +1,26 @@
-INSERT INTO {{schema | sqlsafe}}.reporting_azureenabledtagkeys (
-    key
-)
-    SELECT DISTINCT(key)
-    FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as li, jsonb_each_text(li.tags) labels
-    WHERE NOT EXISTS(
-        SELECT key
-        FROM {{schema | sqlsafe}}.reporting_azureenabledtagkeys
-        WHERE key = labels.key)
-        AND NOT key = ANY(SELECT DISTINCT(key) FROM {{schema | sqlsafe}}.reporting_azuretags_summary)
-        AND li.usage_date >= {{start_date}}::date
-        AND li.usage_date <= {{end_date}}::date
-        --azure_where_clause
-        {% if bill_ids %}
-        AND li.cost_entry_bill_id IN (
-            {%- for bill_id in bill_ids -%}
-            {{bill_id}}{% if not loop.last %},{% endif %}
-            {%- endfor -%}
-        )
-        {% endif %}
-;
+INSERT INTO {{schema | sqlsafe}}.reporting_azureenabledtagkeys (key)
+SELECT DISTINCT(key)
+  FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as li, jsonb_each_text(li.tags) labels
+ WHERE li.usage_date >= {{start_date}}::date
+   AND li.usage_date <= {{end_date}}::date
+   AND NOT EXISTS(
+         SELECT key
+           FROM {{schema | sqlsafe}}.reporting_azureenabledtagkeys
+          WHERE key = labels.key
+       )
+   AND NOT key = ANY(
+         SELECT DISTINCT(key)
+           FROM {{schema | sqlsafe}}.reporting_azuretags_summary
+       )
+    --azure_where_clause
+   {% if bill_ids %}
+   AND li.cost_entry_bill_id IN (
+        {%- for bill_id in bill_ids -%}
+        {{bill_id}}{% if not loop.last %},{% endif %}
+        {%- endfor -%}
+       )
+   {% endif %}
+    ON CONFLICT (key) DO NOTHING;
 
 -- Place our query in a temporary table
 CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | sqlsafe}} AS (

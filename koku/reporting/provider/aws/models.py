@@ -62,6 +62,7 @@ PRESTO_REQUIRED_COLUMNS = (
     "pricing/publicOnDemandCost",
     "pricing/publicOnDemandRate",
     "lineItem/ResourceId",
+    "resourceTags",
 )
 
 

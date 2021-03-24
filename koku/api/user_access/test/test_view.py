@@ -27,7 +27,7 @@ from api.iam.test.iam_test_case import RbacPermissions
 class UserAccessViewTest(IamTestCase):
     """Tests the resource types views."""
 
-    NUM_ACCESS_CLASSES = 6
+    NUM_ACCESS_CLASSES = 7
 
     def setUp(self):
         """Set up the UserAccess view tests."""
@@ -40,6 +40,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": []},
             "openshift.node": {"read": []},
@@ -57,6 +58,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -66,6 +68,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": []},
             "openshift.node": {"read": []},
@@ -83,6 +86,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -92,6 +96,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": []},
             "openshift.node": {"read": []},
@@ -109,6 +114,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -118,6 +124,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": ["*"]},
             "openshift.node": {"read": ["mynode"]},
@@ -135,6 +142,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -144,6 +152,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": ["mycluster"]},
             "openshift.node": {"read": ["mynode"]},
@@ -161,6 +170,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -170,6 +180,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": ["mycluster"]},
             "openshift.node": {"read": ["*"]},
@@ -187,6 +198,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -196,6 +208,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": ["*"]},
             "openshift.node": {"read": []},
@@ -214,6 +227,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -223,6 +237,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": [""]},
             "openshift.node": {"read": []},
@@ -241,6 +256,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -250,6 +266,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": []},
             "openshift.node": {"read": ["*"]},
@@ -268,6 +285,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -277,6 +295,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": ["*"]},
             "gcp.project": {"read": ["myproject"]},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": []},
             "openshift.node": {"read": []},
@@ -294,6 +313,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -303,6 +323,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": ["myaccount"]},
             "gcp.project": {"read": ["*"]},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": []},
             "openshift.node": {"read": []},
@@ -320,6 +341,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -329,6 +351,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": ["*"]},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": []},
             "openshift.node": {"read": []},
@@ -347,6 +370,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -356,6 +380,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": ["*"]},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": []},
             "openshift.node": {"read": []},
@@ -374,6 +399,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -383,6 +409,35 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": ["*"]},
+            "azure.subscription_guid": {"read": []},
+            "openshift.cluster": {"read": []},
+            "openshift.node": {"read": []},
+            "openshift.project": {"read": []},
+            "cost_model": {"read": [], "write": []},
+        }
+    )
+    def test_ibm_view_account_wildcard(self):
+        """Test user-access view with ibm account read wildcard permission."""
+        url = reverse("user-access")
+        response = self.client.get(url, **self.headers)
+
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
+
+    @RbacPermissions(
+        {
+            "aws.account": {"read": []},
+            "aws.organizational_unit": {"read": []},
+            "gcp.account": {"read": []},
+            "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": ["*"]},
             "openshift.cluster": {"read": []},
             "openshift.node": {"read": []},
@@ -400,6 +455,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -409,6 +465,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": ["*"]},
             "openshift.cluster": {"read": []},
             "openshift.node": {"read": []},
@@ -426,6 +483,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -453,6 +511,7 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": True} in response.data.get("data"))
 
@@ -470,6 +529,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": []},
             "openshift.node": {"read": []},
@@ -491,6 +551,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": ["*"]},
             "openshift.node": {"read": []},
@@ -512,6 +573,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": ["*"]},
             "openshift.node": {"read": []},
@@ -533,6 +595,7 @@ class UserAccessViewTest(IamTestCase):
             "aws.organizational_unit": {"read": []},
             "gcp.account": {"read": []},
             "gcp.project": {"read": []},
+            "ibm.account": {"read": []},
             "azure.subscription_guid": {"read": []},
             "openshift.cluster": {"read": ["*"]},
             "openshift.node": {"read": []},

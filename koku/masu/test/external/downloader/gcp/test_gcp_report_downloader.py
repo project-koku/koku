@@ -1,10 +1,12 @@
 """Test the GCPReportDownloader class."""
+import logging
 import os
 import shutil
 from unittest.mock import patch
 from uuid import uuid4
 
 import pandas as pd
+from dateutil.relativedelta import relativedelta
 from django.test.utils import override_settings
 from faker import Faker
 from google.cloud.exceptions import GoogleCloudError
@@ -18,8 +20,24 @@ from masu.external.downloader.gcp.gcp_report_downloader import divide_csv_daily
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
 from masu.test import MasuTestCase
+from masu.util.common import date_range_pair
+
+LOG = logging.getLogger(__name__)
 
 FAKE = Faker()
+
+
+def create_expected_csv_files(start_date, end_date, invoice_month, etag, keys=False):
+    """Create the list of expected csv."""
+    files = list()
+    for start, end in date_range_pair(start_date, end_date):
+        if start == end:
+            continue
+        end = end + relativedelta(days=1)
+        files.append(f"{invoice_month}_{etag}_{start}:{end}.csv")
+    if keys:
+        return [{"key": f"{f}", "local_file": f"{f}"} for f in files]
+    return files
 
 
 class GCPReportDownloaderTest(MasuTestCase):
@@ -126,12 +144,15 @@ class GCPReportDownloaderTest(MasuTestCase):
         downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=provider_uuid)
         downloader.scan_end = dh.this_month_end.date()
         result_manifest = downloader._generate_monthly_pseudo_manifest(start_date.date())
+        expected_files = create_expected_csv_files(
+            dh.this_month_start.date(), dh.this_month_end.date(), invoice_month, self.etag
+        )
         expected_manifest_data = {
             "assembly_id": expected_assembly_id,
             "compression": UNCOMPRESSED,
             "start_date": start_date.date(),
             "end_date": expected_end_date,  # inclusive end date
-            "file_names": [f"{invoice_month}_{self.etag}_{downloader.scan_start}:{downloader.scan_end}.csv"],
+            "file_names": expected_files,
         }
         self.assertEqual(result_manifest, expected_manifest_data)
 
@@ -147,7 +168,8 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Assert relevant file name is generated correctly."""
         downloader = self.create_gcp_downloader_with_mocked_values()
         mock_invoice_month = self.today.strftime("%Y%m")
-        expected_file_name = [f"{mock_invoice_month}_{self.etag}_{downloader.scan_start}:{downloader.scan_end}.csv"]
+        end_date = downloader.scan_end + relativedelta(days=1)
+        expected_file_name = [f"{mock_invoice_month}_{self.etag}_{downloader.scan_start}:{end_date}.csv"]
         result_file_names = downloader._get_relevant_file_names(mock_invoice_month)
         self.assertEqual(expected_file_name, result_file_names)
 
@@ -196,14 +218,16 @@ class GCPReportDownloaderTest(MasuTestCase):
 
     def test_get_manifest_context_for_date(self):
         """Test successful return of get manifest context for date."""
+        self.maxDiff = None
         dh = DateHelper()
         start_date = dh.this_month_start
         invoice_month = start_date.strftime("%Y%m")
         p_uuid = uuid4()
         expected_assembly_id = f"{p_uuid}:{self.etag}:{invoice_month}"
         downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=p_uuid)
-        csv_file = f"{invoice_month}_{self.etag}_{dh.this_month_start.date()}:{downloader.scan_end}.csv"
-        expected_files = [{"key": csv_file, "local_file": csv_file}]
+        expected_files = create_expected_csv_files(
+            dh.this_month_start.date(), downloader.scan_end, invoice_month, self.etag, True
+        )
         with patch(
             "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._process_manifest_db_record",
             return_value=2,
@@ -280,3 +304,28 @@ class GCPReportDownloaderTest(MasuTestCase):
             os.remove(daily_file)
 
         os.remove(file_path)
+
+    def test_get_dataset_name(self):
+        """Test _get_dataset_name helper."""
+        project_id = FAKE.slug()
+        dataset_name = FAKE.slug()
+
+        datasets = [f"{project_id}:{dataset_name}", dataset_name]
+
+        for dataset in datasets:
+            billing_source = {"table_id": FAKE.slug(), "dataset": dataset}
+            credentials = {"project_id": project_id}
+
+            with patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider"), patch(
+                "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._generate_etag",
+                return_value=self.etag,
+            ):
+                with patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider"):
+                    downloader = GCPReportDownloader(
+                        customer_name=FAKE.name(),
+                        data_source=billing_source,
+                        provider_uuid=uuid4(),
+                        credentials=credentials,
+                    )
+
+            self.assertEqual(downloader._get_dataset_name(), dataset_name)

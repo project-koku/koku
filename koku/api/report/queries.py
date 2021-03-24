@@ -674,9 +674,11 @@ class ReportQueryHandler(QueryHandler):
         Returns:
             (Decimal) (a - b) / b * 100
 
-            Returns Decimal(0) if b is zero.
+            Returns Decimal(0) if b is zero or rounds to 0.00.
 
         """
+        if round(b, 2) == 0:
+            return None
         try:
             return Decimal((a - b) / b * 100)
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):

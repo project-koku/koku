@@ -170,6 +170,10 @@ APP_SETTINGS_SCREEN_MAP = {
 
 def source_settings_complete(provider):
     """Determine if the source application settings are complete."""
+    if provider.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+        if not provider.billing_source.get("data_source", {}).get("table_id"):
+            screen_fn = APP_SETTINGS_SCREEN_MAP.get(provider.source_type)
+            return screen_fn(provider)
     if provider.koku_uuid:
         screen_fn = APP_SETTINGS_SCREEN_MAP.get(provider.source_type)
         return screen_fn(provider)
@@ -256,6 +260,18 @@ def get_source(source_id, err_msg, logger):
         raise error
 
 
+def mark_provider_as_inactive(provider_uuid):
+    """Mark provider as inactive so we do not continue to ingest data while the source is being deleted."""
+    try:
+        provider = Provider.objects.get(uuid=provider_uuid)
+        provider.active = False
+        provider.billing_source = None
+        provider.authentication = None
+        provider.save()
+    except Provider.DoesNotExist:
+        LOG.info(f"Provider {provider_uuid} does not exist.  Unable to mark as inactive")
+
+
 def enqueue_source_delete(source_id, offset, allow_out_of_order=False):
     """
     Queues a source destroy event to be processed by the synchronize_sources method.
@@ -274,6 +290,7 @@ def enqueue_source_delete(source_id, offset, allow_out_of_order=False):
         if not source.pending_delete and not source.out_of_order_delete:
             source.pending_delete = True
             source.save()
+            mark_provider_as_inactive(source.koku_uuid)
     except Sources.DoesNotExist:
         if allow_out_of_order:
             LOG.info(f"Source ID: {source_id} not known.  Marking as out of order delete.")
@@ -471,8 +488,8 @@ def add_provider_koku_uuid(source_id, koku_uuid):
     source = get_source(source_id, f"Source ID {source_id} does not exist.", LOG.error)
     if source and source.koku_uuid != koku_uuid:
         LOG.info(f"Adding provider uuid {str(koku_uuid)} to Source ID: {str(source_id)}")
-        source.koku_uuid = koku_uuid
-        source.save()
+        source_query = Sources.objects.filter(source_id=source.source_id)
+        source_query.update(koku_uuid=koku_uuid)
 
 
 def save_status(source_id, status):

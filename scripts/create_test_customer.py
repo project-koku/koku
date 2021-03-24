@@ -58,8 +58,8 @@ from yaml import safe_load
 
 BASEDIR = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_CONFIG = BASEDIR + "/test_customer.yaml"
-SUPPORTED_SOURCES_DB = ["AWS", "Azure", "OCP", "GCP"]
-SUPPORTED_SOURCES_API = SUPPORTED_SOURCES_DB + ["AWS-local", "Azure-local", "GCP-local"]
+SUPPORTED_SOURCES_REAL = ["AWS", "Azure", "OCP", "GCP", "IBM"]
+SUPPORTED_SOURCES = SUPPORTED_SOURCES_REAL + ["AWS-local", "Azure-local", "GCP-local", "IBM-local"]
 
 SLEEP = 60
 
@@ -119,15 +119,15 @@ class KokuCustomerOnboarder:
     def create_source_api(self):
         """Create a Koku Source using the Koku API."""
         for source in self.customer.get("sources", []):
-            source_type = source.get("source_type")
-            if source_type not in SUPPORTED_SOURCES_API:
+            source_type = source.get("source_type", "unknown")
+            if source_type not in SUPPORTED_SOURCES:
                 print(f"{source_type} is not a valid source type. Skipping.")
                 continue
 
             print(f"\nAdding {source}...")
             data = {
-                "name": source.get("source_name"),
-                "source_type": source.get("source_type"),
+                "name": source.get("source_name", "unknown"),
+                "source_type": source.get("source_type", "unknown"),
                 "authentication": source.get("authentication", {}),
                 "billing_source": source.get("billing_source", {}),
             }
@@ -139,7 +139,7 @@ class KokuCustomerOnboarder:
             if response.status_code not in [200, 201]:
                 time.sleep(SLEEP)
 
-    def create_provider_source(self, source_type):
+    def create_provider_source(self, source):
         """Create a single provider, auth, and billing source in the DB."""
         dbinfo = {
             "database": os.getenv("DATABASE_NAME"),
@@ -151,71 +151,70 @@ class KokuCustomerOnboarder:
         with psycopg2.connect(**dbinfo) as conn:
             cursor = conn.cursor()
 
-            if source_type in SUPPORTED_SOURCES_DB:
-                source = "%s_source" % source_type.lower()
+            source_type = source.get("source_type", "unknown")
+            credentials = source.get("authentication", {}).get("credentials", {})
+            data_source = source.get("billing_source", {}).get("data_source", {})
+            source_name = source.get("source_name", "%s_source" % source_type.lower())
 
-            for source_dict in self.customer.get("sources"):
-                if source not in source_dict:
-                    continue
-                credentials = source_dict.get("authentication").get("credentials", {})
-                data_source = source_dict.get("billing_source").get("data_source", {})
-                source_name = source_dict.get("source_name", source)
-
-                billing_sql = """
+            billing_sql = """
 SELECT id FROM api_providerbillingsource
 WHERE data_source = %s
 ;
 """
-                values = [json_dumps(data_source)]
-                try:
-                    cursor.execute(billing_sql, values)
-                except psycopg2.ProgrammingError:
-                    conn.rollback()
-                    billing_id = None
-                else:
-                    billing_id = cursor.fetchone() or None
-                    if billing_id:
-                        billing_id = billing_id[0]
+            values = [json_dumps(data_source)]
+            try:
+                cursor.execute(billing_sql, values)
+            except psycopg2.ProgrammingError:
+                conn.rollback()
+                billing_id = None
+            else:
+                billing_id = cursor.fetchone() or None
+                if billing_id:
+                    billing_id = billing_id[0]
 
-                if billing_id is None:
-                    billing_sql = """
+            if billing_id is None:
+                billing_sql = """
 INSERT INTO api_providerbillingsource (uuid, data_source)
 VALUES (%s, %s)
 RETURNING id
 ;
 """
-                    values = [str(uuid4()), json_dumps(data_source)]
-                    cursor.execute(billing_sql, values)
-                    billing_id = cursor.fetchone()[0]
+                values = [str(uuid4()), json_dumps(data_source)]
+                cursor.execute(billing_sql, values)
+                billing_id = cursor.fetchone()[0]
 
-                auth_sql = """
+            auth_sql = """
 INSERT INTO api_providerauthentication (uuid, credentials)
 VALUES (%s, %s)
 RETURNING id
 ;
 """
-                values = [str(uuid4()), json_dumps(credentials)]
-                cursor.execute(auth_sql, values)
-                auth_id = cursor.fetchone()[0]
+            values = [str(uuid4()), json_dumps(credentials)]
+            cursor.execute(auth_sql, values)
+            auth_id = cursor.fetchone()[0]
 
-                provider_sql = """
+            provider_sql = """
 INSERT INTO api_provider (uuid, name, type, authentication_id, billing_source_id,
-                        created_by_id, customer_id, setup_complete, active)
+                    created_by_id, customer_id, setup_complete, active)
 VALUES(%s, %s, %s, %s, %s, 1, 1, False, True)
 /* RETURNING uuid */
 ;
 """
-                values = [str(uuid4()), source_name, source_type, auth_id, billing_id]
-                cursor.execute(provider_sql, values)
+            values = [str(uuid4()), source_name, source_type, auth_id, billing_id]
+            cursor.execute(provider_sql, values)
 
-                conn.commit()
+            conn.commit()
 
     def create_sources_db(self, skip_sources):
         """Create a Koku source by inserting into the Koku DB."""
         if not skip_sources:
-            for source_type in SUPPORTED_SOURCES_DB:
+            for source in self.customer.get("sources", []):
+                source_type = source.get("source_type", "unknown")
+                if source_type not in SUPPORTED_SOURCES:
+                    print(f"{source_type} is not a valid source type. Skipping.")
+                    continue
                 print("Creating %s source..." % source_type)
-                wallclock(self.create_provider_source, source_type)
+                wallclock(self.create_provider_source, source)
 
     def onboard(self):
         """Execute Koku onboarding steps."""

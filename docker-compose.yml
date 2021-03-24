@@ -37,14 +37,16 @@ services:
         - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
         - RBAC_CACHE_TTL
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
-        - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
+        - DEMO_ACCOUNTS
         - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
         - RUN_GUNICORN=${RUN_GUNICORN}
+        - ENABLE_TRINO_SOURCES
       privileged: true
       ports:
           - 8000:8000
@@ -88,13 +90,18 @@ services:
         - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
         - RBAC_CACHE_TTL
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
         - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
+        - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+        - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
         - MASU_DATE_OVERRIDE
         - MASU_DEBUG
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       ports:
           - 5000:8000
@@ -125,6 +132,9 @@ services:
     volumes:
       - ./pg_data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
       - ./pg_init:/docker-entrypoint-initdb.d
+      # PostgreSQL SSL: Un-comment the next two lines after running ./scripts/genssc to use sslmode in Postgres
+      # - ${HOME}/.koku-db-certs/koku.crt:/etc/certs/koku.crt
+      # - ${HOME}/.koku-db-certs/private/koku.key:/etc/certs/private/koku.key
     command:
       # This command give more precise control over the parameter settings
       # Included are loading the pg_stat_statements lib
@@ -132,6 +142,14 @@ services:
       # use of the autovacuum processes
       # The pg_init mount is still needed to enable the necesary extensions.
       - postgres
+      # PostgreSQL SSL: Run ./scripts/genssc to create self-signed cert and key files to support ssl
+      #                 Un-comment the three options below to utilize ssl mode and use the certificate and key
+      # - -c
+      # - ssl=on
+      # - -c
+      # - ssl_cert_file=/etc/certs/koku.crt
+      # - -c
+      # - ssl_key_file=/etc/certs/private/koku.key
       - -c
       - max_connections=1710
       - -c
@@ -213,11 +231,11 @@ services:
           - "${RABBITMQ_PORT-5674}:5672"
 
   koku-worker:
-      container_name: koku_worker
+      container_name: koku-worker
       hostname: koku-worker-1
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,ocp,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload,priority']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
@@ -230,6 +248,7 @@ services:
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
@@ -248,7 +267,7 @@ services:
         - KOKU_CELERY_ENABLE_SENTRY
         - KOKU_CELERY_SENTRY_DSN
         - KOKU_SENTRY_ENVIRONMENT
-        - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
+        - DEMO_ACCOUNTS
         - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
         - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
@@ -258,6 +277,7 @@ services:
         - PRESTO_PORT=${PRESTO_PORT-8080}
         - DATE_OVERRIDE
         - MASU_DEBUG
+        - ENABLE_TRINO_SOURCES
 
       privileged: true
       volumes:
@@ -298,6 +318,7 @@ services:
         - DATABASE_PORT=5432
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
         - MASU_SECRET_KEY=abc
@@ -319,6 +340,8 @@ services:
         - S3_SECRET
         - PRESTO_HOST=${PRESTO_HOST-presto}
         - PRESTO_PORT=${PRESTO_PORT-8080}
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       ports:
           - "9988:9999"
@@ -354,10 +377,13 @@ services:
         - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - SOURCES_KAFKA_HOST=${SOURCES_KAFKA_HOST-kafka}
         - SOURCES_KAFKA_PORT=${SOURCES_KAFKA_PORT-29092}
         - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+        - DEMO_ACCOUNTS
         - prometheus_multiproc_dir=/tmp
       privileged: true
       ports:
@@ -367,6 +393,7 @@ services:
         - '.:/koku'
       links:
         - db
+        - redis
       depends_on:
         - koku-base
 
@@ -389,6 +416,7 @@ services:
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
         - MASU_SECRET_KEY=abc

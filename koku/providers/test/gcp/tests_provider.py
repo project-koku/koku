@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from faker import Faker
+from google.cloud.exceptions import BadRequest
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.exceptions import NotFound
 from rest_framework.serializers import ValidationError
@@ -160,6 +161,23 @@ class GCPProviderTestCase(TestCase):
         with self.assertRaises(ValidationError):
             provider.cost_usage_source_is_reachable(credentials_param, billing_source_param)
 
+    @patch("providers.gcp.provider.bigquery")
+    @patch("providers.gcp.provider.discovery")
+    @patch("providers.gcp.provider.google.auth.default")
+    def test_cost_usage_source_is_reachable_dataset_bad_format(self, mock_auth, mock_discovery, mock_bigquery):
+        """Test that cost_usage_source_is_reachable throws appropriate error when dataset not correct."""
+        mock_bigquery.Client.side_effect = BadRequest(message="Incorrect dataset format")
+        gcp_creds = MagicMock()
+        mock_auth.return_value = (gcp_creds, MagicMock())
+        mock_discovery.build.return_value.projects.return_value.testIamPermissions.return_value.execute.return_value.get.return_value = (  # noqa: E501
+            REQUIRED_IAM_PERMISSIONS
+        )
+        billing_source_param = {"dataset": FAKE.word()}
+        credentials_param = {"project_id": FAKE.word()}
+        provider = GCPProvider()
+        with self.assertRaises(ValidationError):
+            provider.cost_usage_source_is_reachable(credentials_param, billing_source_param)
+
     def test_update_data_source(self):
         """Test that the GCP datasource is updated for given dataset."""
         source_id = 13
@@ -218,3 +236,16 @@ class GCPProviderTestCase(TestCase):
             Sources.objects.get(source_id=source_id).billing_source, {"data_source": updated_data_source}
         )
         self.assertEquals(db_obj_2.billing_source, {"data_source": updated_data_source_2})
+
+    def test_format_dataset_id(self):
+        """Test helper method _format_dataset_id."""
+        test_matrix = [
+            {"dataset": "testdataset", "project_id": "testproject", "expected": "testproject.testdataset"},
+            {"dataset": "testproject:testdataset", "project_id": "testproject", "expected": "testproject.testdataset"},
+        ]
+
+        for test in test_matrix:
+            data_source = {"dataset": test.get("dataset")}
+            credentials = {"project_id": test.get("project_id")}
+            formatted_data_set = GCPProvider()._format_dataset_id(data_source, credentials)
+            self.assertEqual(formatted_data_set, test.get("expected"))

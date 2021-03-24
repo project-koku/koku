@@ -54,6 +54,7 @@ from sources.sources_http_client import SourcesHTTPClientError
 from sources.sources_patch_handler import SourcesPatchHandler
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.sources_provider_coordinator import SourcesProviderCoordinatorError
+from sources.tasks import delete_source
 
 LOG = logging.getLogger(__name__)
 
@@ -451,7 +452,8 @@ def get_consumer():
             "group.id": "hccm-sources",
             "queued.max.messages.kbytes": 1024,
             "enable.auto.commit": False,
-        }
+        },
+        logger=LOG,
     )
     consumer.subscribe([Config.SOURCES_TOPIC])
     return consumer
@@ -573,8 +575,10 @@ def execute_koku_provider_op(msg):
             LOG.info(f"Updated provider {instance.uuid} for Source ID: {provider.source_id}")
 
         elif operation == "destroy":
-            account_coordinator.destroy_account(provider)
-            LOG.info(f"Destroyed provider {provider.koku_uuid} for Source ID: {provider.source_id}")
+            delete_source.delay(provider.source_id, provider.auth_header, provider.koku_uuid)
+            LOG.info(
+                f"Destroy provider task queued for provider {provider.koku_uuid} for Source ID: {provider.source_id}"
+            )
         else:
             LOG.error(f"unknown operation: {operation}")
         sources_client.set_source_status(None)
@@ -681,7 +685,7 @@ def is_kafka_connected():  # pragma: no cover
         if result:
             LOG.info("Test connection to Kafka was successful.")
         else:
-            LOG.error("Unable to connect to Kafka server.")
+            LOG.error(f"Unable to connect to Kafka server. {Config.SOURCES_KAFKA_HOST}:{Config.SOURCES_KAFKA_PORT}")
             KAFKA_CONNECTION_ERRORS_COUNTER.inc()
             backoff(count)
             count += 1
