@@ -25,7 +25,6 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
-from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import update_cost_model_costs
@@ -90,22 +89,22 @@ class CostModelManager:
 
         start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
         end_date = DateHelper().today.strftime("%Y-%m-%d")
-        for provider_uuid in providers_to_delete | providers_to_create:
-            # Update cost-model costs for each provider
+        for provider_uuid in provider_uuids:
+            # Update cost-model costs for each provider, on every update/PUT
             try:
                 provider = Provider.objects.get(uuid=provider_uuid)
             except Provider.DoesNotExist:
                 LOG.info(f"Provider {provider_uuid} does not exist. Skipping cost-model update.")
             else:
-                queue_choice = OCP_QUEUE if provider.type == Provider.PROVIDER_OCP else PRIORITY_QUEUE
                 schema_name = provider.customer.schema_name
+                # Because this is triggered from the UI, we use the priority queue
                 chain(
                     update_cost_model_costs.s(
-                        schema_name, provider.uuid, start_date, end_date, queue_name=queue_choice
-                    ).set(queue=queue_choice),
+                        schema_name, provider.uuid, start_date, end_date, queue_name=PRIORITY_QUEUE
+                    ).set(queue=PRIORITY_QUEUE),
                     refresh_materialized_views.si(
-                        schema_name, provider.type, provider_uuid=provider.uuid, queue_name=queue_choice
-                    ).set(queue=queue_choice),
+                        schema_name, provider.type, provider_uuid=provider.uuid, queue_name=PRIORITY_QUEUE
+                    ).set(queue=PRIORITY_QUEUE),
                 ).apply_async()
 
     def update(self, **data):
