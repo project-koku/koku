@@ -73,6 +73,7 @@ class CostModelManager:
 
         providers_to_delete = set(current_providers_for_instance).difference(provider_uuids)
         providers_to_create = set(provider_uuids).difference(current_providers_for_instance)
+        all_providers = set(current_providers_for_instance).union(provider_uuids)
 
         for provider_uuid in providers_to_delete:
             CostModelMap.objects.filter(provider_uuid=provider_uuid, cost_model=self._model).delete()
@@ -89,8 +90,8 @@ class CostModelManager:
 
         start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
         end_date = DateHelper().today.strftime("%Y-%m-%d")
-        for provider_uuid in provider_uuids:
-            # Update cost-model costs for each provider, on every update/PUT
+        for provider_uuid in all_providers:
+            # Update cost-model costs for each provider, on every PUT/DELETE
             try:
                 provider = Provider.objects.get(uuid=provider_uuid)
             except Provider.DoesNotExist:
