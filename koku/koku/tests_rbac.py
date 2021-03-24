@@ -96,6 +96,13 @@ def mocked_requests_get_200_no_next(*args, **kwargs):
     return MockResponse(json_response, status.HTTP_200_OK)
 
 
+def mocked_requests_get_200_no_next_ibm(*args, **kwargs):
+    """Mock valid status response that has no next."""
+    IBM = {"permission": "cost-management:ibm.account:*", "resourceDefinitions": []}
+    json_response = {"links": {"next": None}, "data": [IBM]}
+    return MockResponse(json_response, status.HTTP_200_OK)
+
+
 def mocked_requests_get_200_next(*args, **kwargs):
     """Mock valid status response that has no next."""
     json_response = {"links": {"next": "/v1/access/?limit=10&offset=200"}, "data": [LIMITED_AWS_ACCESS]}
@@ -306,6 +313,7 @@ class RbacServiceTest(TestCase):
             "openshift.cluster": read_access,
             "openshift.node": read_access,
             "openshift.project": read_access,
+            "ibm.account": read_access,
         }
         self.assertEqual(res_access, expected)
         mock_get_operation.assert_called()
@@ -325,6 +333,7 @@ class RbacServiceTest(TestCase):
             "openshift.cluster": read_access,
             "openshift.node": read_access,
             "openshift.project": read_access,
+            "ibm.account": read_access,
         }
         self.assertEqual(res_access, expected)
 
@@ -344,6 +353,7 @@ class RbacServiceTest(TestCase):
             "openshift.cluster": read_access,
             "openshift.node": read_access,
             "openshift.project": read_access,
+            "ibm.account": read_access,
         }
         self.assertEqual(res_access, expected)
 
@@ -365,6 +375,7 @@ class RbacServiceTest(TestCase):
             "openshift.cluster": read_access,
             "openshift.node": read_access,
             "openshift.project": read_access,
+            "ibm.account": read_access,
         }
         self.assertEqual(res_access, expected)
 
@@ -386,6 +397,7 @@ class RbacServiceTest(TestCase):
             "openshift.cluster": no_access,
             "openshift.node": no_access,
             "openshift.project": no_access,
+            "ibm.account": no_access,
         }
         self.assertEqual(res_access, expected)
 
@@ -405,6 +417,7 @@ class RbacServiceTest(TestCase):
             "openshift.cluster": no_access,
             "openshift.node": no_access,
             "openshift.project": no_access,
+            "ibm.account": no_access,
         }
         self.assertEqual(res_access, expected)
 
@@ -428,6 +441,7 @@ class RbacServiceTest(TestCase):
             "openshift.cluster": no_access,
             "openshift.node": no_access,
             "openshift.project": no_access,
+            "ibm.account": no_access,
         }
         self.assertEqual(res_access, expected)
 
@@ -458,6 +472,29 @@ class RbacServiceTest(TestCase):
             "openshift.cluster": {"read": []},
             "openshift.node": {"read": []},
             "openshift.project": {"read": []},
+            "ibm.account": {"read": []},
+        }
+        self.assertEqual(access, expected)
+        mock_get.assert_called()
+
+    @patch("koku.rbac.requests.get", side_effect=mocked_requests_get_200_no_next_ibm)
+    def test_get_access_for_user_data_limited_ibm(self, mock_get):
+        """Test handling of user request where access returns data with IBM access."""
+        rbac = RbacService()
+        mock_user = Mock()
+        mock_user.identity_header = {"encoded": "dGVzdCBoZWFkZXIgZGF0YQ=="}
+        access = rbac.get_access_for_user(mock_user)
+        expected = {
+            "cost_model": {"write": [], "read": []},
+            "aws.account": {"read": []},
+            "aws.organizational_unit": {"read": []},
+            "azure.subscription_guid": {"read": []},
+            "gcp.account": {"read": []},
+            "gcp.project": {"read": []},
+            "openshift.cluster": {"read": []},
+            "openshift.node": {"read": []},
+            "openshift.project": {"read": []},
+            "ibm.account": {"read": ["*"]},
         }
         self.assertEqual(access, expected)
         mock_get.assert_called()
