@@ -148,7 +148,7 @@ class ReportDataTests(TestCase):
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.report_data.update_summary_tables")
     def test_get_report_data_invalid_queue(self, mock_update, _):
-        """Test GET report_data endpoint returns a 400 for invalid provider_uuid."""
+        """Test GET report_data endpoint returns a 400 for invalid queue."""
         start_date = datetime.date.today()
         params = {
             "start_date": start_date,
