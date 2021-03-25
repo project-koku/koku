@@ -10,20 +10,20 @@ generators:
       tags:
         resourceTags/user:version: prod
       instance_type:
-        inst_type: m5.large
-        vcpu: 2
-        memory: '8 GiB'
+        inst_type: m5.xlarge
+        vcpu: 4
+        memory: '16 GiB'
         storage: 'EBS Only'
         family: 'General Purpose'
-        cost: 0.096
-        rate: 0.096
+        cost: 0.702
+        rate: 0.702
   - EC2Generator:
       start_date: {{ start_date }}
       end_date: {{ end_date }}
       processor_arch: 64-bit
       resource_id: 55555556
       product_sku: VEAJHRNKTJAA
-      region: us-east-1a
+      region: us-east-1b
       tags:
         resourceTags/user:environment: dev
         resourceTags/user:version: beta
@@ -41,7 +41,7 @@ generators:
       processor_arch: 64-bit
       resource_id: 55555557
       product_sku: VEAJHRNKTJAB
-      region: us-east-1a
+      region: us-west-1c
       tags:
         resourceTags/user:environment: dev
         resourceTags/user:version: gamma
@@ -59,17 +59,17 @@ generators:
       processor_arch: 64-bit
       resource_id: 55555558
       product_sku: VEAJHRNKTJAC
-      region: us-east-1a
+      region: us-east-1d
       tags:
         resourceTags/user:version: master
       instance_type:
-        inst_type: m5.large
-        vcpu: 2
-        memory: '8 GiB'
+        inst_type: t4g.xlarge
+        vcpu: 4
+        memory: '16 GiB'
         storage: 'EBS Only'
         family: 'General Purpose'
-        cost: 0.096
-        rate: 0.096
+        cost: 0.1344
+        rate: 0.1344
   - S3Generator:
       start_date: {{ start_date }}
       end_date: {{ end_date }}
