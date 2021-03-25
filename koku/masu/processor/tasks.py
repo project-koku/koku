@@ -571,23 +571,27 @@ def refresh_materialized_views(  # noqa: C901
         )
     elif provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
         materialized_views = GCP_MATERIALIZED_VIEWS
+    try:
+        with schema_context(schema_name):
+            for view in materialized_views:
+                table_name = view._meta.db_table
+                with connection.cursor() as cursor:
+                    cursor.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}")
+                    LOG.info(f"Refreshed {table_name}.")
 
-    with schema_context(schema_name):
-        for view in materialized_views:
-            table_name = view._meta.db_table
-            with connection.cursor() as cursor:
-                cursor.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}")
-                LOG.info(f"Refreshed {table_name}.")
+        invalidate_view_cache_for_tenant_and_source_type(schema_name, provider_type)
 
-    invalidate_view_cache_for_tenant_and_source_type(schema_name, provider_type)
-
-    if provider_uuid:
-        ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
-    if manifest_id:
-        # Processing for this monifest should be complete after this step
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-            manifest_accessor.mark_manifest_as_completed(manifest)
+        if provider_uuid:
+            ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
+        if manifest_id:
+            # Processing for this monifest should be complete after this step
+            with ReportManifestDBAccessor() as manifest_accessor:
+                manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+                manifest_accessor.mark_manifest_as_completed(manifest)
+    except Exception as ex:
+        if not synchronous:
+            worker_cache.release_single_task(task_name, cache_args)
+        raise ex
 
     if not synchronous:
         worker_cache.release_single_task(task_name, cache_args)
