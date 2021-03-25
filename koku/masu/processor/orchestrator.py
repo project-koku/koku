@@ -28,6 +28,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.tasks import get_report_files
+from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
@@ -184,7 +185,7 @@ class Orchestrator:
                     provider_uuid,
                     report_month,
                     report_context,
-                )
+                ).set(queue=GET_REPORT_FILES_QUEUE)
             )
             LOG.info("Download queued - schema_name: %s.", schema_name)
 

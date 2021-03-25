@@ -219,7 +219,7 @@ services:
       hostname: koku-worker-1-fsfsgr
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
@@ -282,7 +282,7 @@ services:
       hostname: koku-worker-2-nvnvn
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
@@ -345,7 +345,7 @@ services:
       hostname: koku-worker-3-qqeet
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
@@ -408,7 +408,7 @@ services:
       hostname: koku-worker-4-hjsdfo
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
@@ -471,7 +471,7 @@ services:
       hostname: koku-worker-5-jlhlgjl
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
@@ -534,7 +534,7 @@ services:
       hostname: koku-worker-6-jlhlgjl
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
@@ -597,7 +597,7 @@ services:
       hostname: koku-worker-7-jlhlgjl
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
@@ -657,7 +657,7 @@ services:
       hostname: koku-worker-8-jlhlgjl
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
@@ -717,7 +717,7 @@ services:
       hostname: koku-worker-9-jlhlgjl
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
@@ -777,7 +777,7 @@ services:
       hostname: koku-worker-10-jlhlgjl
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
@@ -922,6 +922,248 @@ services:
       image: koku_base
       working_dir: /koku/koku
       entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'priority']
+      environment:
+        - AWS_ACCESS_KEY_ID
+        - AWS_SECRET_ACCESS_KEY
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+        - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
+        - DEVELOPMENT=${DEVELOPMENT-True}
+        - LOG_LEVEL=INFO
+        - DJANGO_SETTINGS_MODULE=koku.settings
+        - MASU_SECRET_KEY=abc
+        - prometheus_multiproc_dir=/tmp
+        - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
+        - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+        - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING-False}
+        - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+        - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+        - S3_ENDPOINT
+        - S3_ACCESS_KEY
+        - S3_SECRET
+        - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+        - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+        - KOKU_CELERY_ENABLE_SENTRY
+        - KOKU_CELERY_SENTRY_DSN
+        - KOKU_SENTRY_ENVIRONMENT
+        - DEMO_ACCOUNTS
+        - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+        - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+        - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+        - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
+        - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - PRESTO_HOST=${PRESTO_HOST-presto}
+        - PRESTO_PORT=${PRESTO_PORT-8080}
+        - DATE_OVERRIDE
+        - MASU_DEBUG
+
+      volumes:
+        - './../..:/koku/'
+
+      privileged: true
+      links:
+        - redis
+      depends_on:
+        - koku-base
+        - redis
+
+  download-worker:
+      container_name: download-worker
+      hostname: download-worker
+      image: koku_base
+      working_dir: /koku/koku
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'download']
+      environment:
+        - AWS_ACCESS_KEY_ID
+        - AWS_SECRET_ACCESS_KEY
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+        - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
+        - DEVELOPMENT=${DEVELOPMENT-True}
+        - LOG_LEVEL=INFO
+        - DJANGO_SETTINGS_MODULE=koku.settings
+        - MASU_SECRET_KEY=abc
+        - prometheus_multiproc_dir=/tmp
+        - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
+        - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+        - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING-False}
+        - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+        - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+        - S3_ENDPOINT
+        - S3_ACCESS_KEY
+        - S3_SECRET
+        - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+        - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+        - KOKU_CELERY_ENABLE_SENTRY
+        - KOKU_CELERY_SENTRY_DSN
+        - KOKU_SENTRY_ENVIRONMENT
+        - DEMO_ACCOUNTS
+        - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+        - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+        - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+        - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
+        - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - PRESTO_HOST=${PRESTO_HOST-presto}
+        - PRESTO_PORT=${PRESTO_PORT-8080}
+        - DATE_OVERRIDE
+        - MASU_DEBUG
+
+      volumes:
+        - './../..:/koku/'
+        - './../../testing:/testing'
+        - './../../testing/local_providers/azure_local:/tmp/local_container'
+        - './../../testing/local_providers/aws_local:/tmp/local_bucket'
+        - './../../testing/local_providers/aws_local_0:/tmp/local_bucket_0'
+        - './../../testing/local_providers/aws_local_1:/tmp/local_bucket_1'
+        - './../../testing/local_providers/aws_local_2:/tmp/local_bucket_2'
+        - './../../testing/local_providers/aws_local_3:/tmp/local_bucket_3'
+        - './../../testing/local_providers/aws_local_4:/tmp/local_bucket_4'
+        - './../../testing/local_providers/aws_local_5:/tmp/local_bucket_5'
+        - './../../testing/local_providers/insights_local:/var/tmp/masu/insights_local'
+
+      privileged: true
+      links:
+        - redis
+      depends_on:
+        - koku-base
+        - redis
+
+  summary-worker:
+      container_name: summary-worker
+      hostname: summary-worker
+      image: koku_base
+      working_dir: /koku/koku
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'summary']
+      environment:
+        - AWS_ACCESS_KEY_ID
+        - AWS_SECRET_ACCESS_KEY
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+        - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
+        - DEVELOPMENT=${DEVELOPMENT-True}
+        - LOG_LEVEL=INFO
+        - DJANGO_SETTINGS_MODULE=koku.settings
+        - MASU_SECRET_KEY=abc
+        - prometheus_multiproc_dir=/tmp
+        - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
+        - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+        - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING-False}
+        - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+        - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+        - S3_ENDPOINT
+        - S3_ACCESS_KEY
+        - S3_SECRET
+        - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+        - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+        - KOKU_CELERY_ENABLE_SENTRY
+        - KOKU_CELERY_SENTRY_DSN
+        - KOKU_SENTRY_ENVIRONMENT
+        - DEMO_ACCOUNTS
+        - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+        - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+        - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+        - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
+        - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - PRESTO_HOST=${PRESTO_HOST-presto}
+        - PRESTO_PORT=${PRESTO_PORT-8080}
+        - DATE_OVERRIDE
+        - MASU_DEBUG
+
+      volumes:
+        - './../..:/koku/'
+
+      privileged: true
+      links:
+        - redis
+      depends_on:
+        - koku-base
+        - redis
+
+  cost-model-worker:
+      container_name: cost-model-worker
+      hostname: cost-model-worker
+      image: koku_base
+      working_dir: /koku/koku
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'cost_model']
+      environment:
+        - AWS_ACCESS_KEY_ID
+        - AWS_SECRET_ACCESS_KEY
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+        - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
+        - DEVELOPMENT=${DEVELOPMENT-True}
+        - LOG_LEVEL=INFO
+        - DJANGO_SETTINGS_MODULE=koku.settings
+        - MASU_SECRET_KEY=abc
+        - prometheus_multiproc_dir=/tmp
+        - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
+        - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+        - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING-False}
+        - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+        - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+        - S3_ENDPOINT
+        - S3_ACCESS_KEY
+        - S3_SECRET
+        - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+        - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+        - KOKU_CELERY_ENABLE_SENTRY
+        - KOKU_CELERY_SENTRY_DSN
+        - KOKU_SENTRY_ENVIRONMENT
+        - DEMO_ACCOUNTS
+        - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+        - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+        - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+        - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
+        - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - PRESTO_HOST=${PRESTO_HOST-presto}
+        - PRESTO_PORT=${PRESTO_PORT-8080}
+        - DATE_OVERRIDE
+        - MASU_DEBUG
+
+      volumes:
+        - './../..:/koku/'
+
+      privileged: true
+      links:
+        - redis
+      depends_on:
+        - koku-base
+        - redis
+
+  refresh-worker:
+      container_name: refresh-worker
+      hostname: refresh-worker
+      image: koku_base
+      working_dir: /koku/koku
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'refresh']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY

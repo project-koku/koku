@@ -65,11 +65,11 @@ LOG = get_task_logger(__name__)
 
 GET_REPORT_FILES_QUEUE = "download"
 OCP_QUEUE = "ocp"
-REFRESH_MATERIALIZED_VIEWS_QUEUE = "reporting"
+REFRESH_MATERIALIZED_VIEWS_QUEUE = "refresh"
 REMOVE_EXPIRED_DATA_QUEUE = "remove_expired"
-SUMMARIZE_REPORTS_QUEUE = "process"
-UPDATE_COST_MODEL_COSTS_QUEUE = "reporting"
-UPDATE_SUMMARY_TABLES_QUEUE = "reporting"
+SUMMARIZE_REPORTS_QUEUE = "summary"
+UPDATE_COST_MODEL_COSTS_QUEUE = "cost_model"
+UPDATE_SUMMARY_TABLES_QUEUE = "summary"
 PRIORITY_QUEUE = "priority"
 
 
@@ -520,7 +520,7 @@ def update_cost_model_costs(
 
 
 @app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name=REFRESH_MATERIALIZED_VIEWS_QUEUE)
-def refresh_materialized_views(  # noqa: C901
+def refresh_materialized_views(  # noqa: C901,
     schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False, queue_name=None
 ):
     """Refresh the database's materialized views for reporting."""
