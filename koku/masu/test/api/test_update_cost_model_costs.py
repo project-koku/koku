@@ -78,11 +78,17 @@ class UpdateCostModelCostTest(TestCase):
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
 
+    @patch("masu.api.update_cost_model_costs.Provider")
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.update_cost_model_costs.cost_task")
-    def test_get_update_cost_model_costs_invalid_queue(self, mock_update, _):
+    def test_get_update_cost_model_costs_invalid_queue(self, mock_update, _, __):
         """Test GET report_data endpoint returns a 400 for invalid queue."""
-        params = {"provider_uuid": "3c6e687e-1a09-4a05-970c-2ccf44b0952e"}
+        params = {
+            "schema": "acct10001",
+            "provider_uuid": "3c6e687e-1a09-4a05-970c-2ccf44b0952e",
+            "start_date": "01-03-2010",
+            "queue": "This-aint-a-real-queue",
+        }
         expected_key = "Error"
         expected_message = f"'queue' must be one of {QUEUE_LIST}."
 
