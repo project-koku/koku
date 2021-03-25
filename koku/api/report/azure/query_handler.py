@@ -18,12 +18,9 @@
 import copy
 import logging
 
-from django.db.models import F
 from django.db.models import Value
-from django.db.models import Window
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
-from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
@@ -155,18 +152,17 @@ class AzureReportQueryHandler(ReportQueryHandler):
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
-            query_order_by.extend([self.order])
+            query_order_by.extend([self.order])  # add implicit ordering
 
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query_data.values(*query_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
 
-            if self._limit:
-                rank_order = getattr(F(self.order_field), self.order_direction)()
-                rank_by_total = Window(expression=RowNumber(), partition_by=F("date"), order_by=rank_order)
-                query_data = query_data.annotate(rank=rank_by_total)
-                query_order_by.insert(1, "rank")
-                query_data = self._ranked_list(query_data)
+            if self._limit and query_data:
+                query_data = self._group_by_ranks(query, query_data)
+                if not self.parameters.get("order_by"):
+                    # override implicit ordering when using ranked ordering.
+                    query_order_by[-1] = "rank"
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
