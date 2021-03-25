@@ -53,7 +53,7 @@ def report_data(request):
         schema_name = params.get("schema")
         start_date = params.get("start_date")
         end_date = params.get("end_date")
-        queue_name = params.get("queue", default=PRIORITY_QUEUE)
+        queue_name = params.get("queue") or PRIORITY_QUEUE
         if provider_uuid is None and provider_type is None:
             errmsg = "provider_uuid or provider_type must be supplied as a parameter."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)

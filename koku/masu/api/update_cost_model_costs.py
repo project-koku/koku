@@ -51,7 +51,7 @@ def update_cost_model_costs(request):
     default_end_date = DateHelper().today.strftime("%Y-%m-%d")
     start_date = params.get("start_date", default=default_start_date)
     end_date = params.get("end_date", default=default_end_date)
-    queue_name = params.get("queue", default=PRIORITY_QUEUE)
+    queue_name = params.get("queue") or PRIORITY_QUEUE
 
     if provider_uuid is None or schema_name is None:
         errmsg = "provider_uuid and schema_name are required parameters."
