@@ -459,10 +459,13 @@ S3_ACCESS_KEY = ENVIRONMENT.get_value("S3_ACCESS_KEY", default=None)
 S3_SECRET = ENVIRONMENT.get_value("S3_SECRET", default=None)
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 ENABLE_PARQUET_PROCESSING = ENVIRONMENT.bool("ENABLE_PARQUET_PROCESSING", default=False)
+PARQUET_PROCESSING_BATCH_SIZE = ENVIRONMENT.get_value("PARQUET_PROCESSING_BATCH_SIZE", default=200000)
+ENABLE_TRINO_SOURCES = ENVIRONMENT.list("ENABLE_TRINO_SOURCES", default=[])
 
 # Presto Settings
 PRESTO_HOST = ENVIRONMENT.get_value("PRESTO_HOST", default=None)
 PRESTO_PORT = ENVIRONMENT.get_value("PRESTO_PORT", default=None)
+TRINO_DATE_STEP = ENVIRONMENT.get_value("TRINO_DATE_STEP", default=5)
 
 # Time to wait between cold storage retrieval for data export. Default is 3 hours
 COLD_STORAGE_RETRIVAL_WAIT_TIME = int(os.getenv("COLD_STORAGE_RETRIVAL_WAIT_TIME", default="10800"))
@@ -484,8 +487,6 @@ try:
     DEMO_ACCOUNTS = ENVIRONMENT.json("DEMO_ACCOUNTS", default={})
 except JSONDecodeError:
     pass
-
-OPENSHIFT_DOC_VERSION = ENVIRONMENT.get_value("OPENSHIFT_DOC_VERSION", default="4.5")
 
 # Aids the UI in showing pre-release features in allowed environments.
 # see: koku.api.user_access.view

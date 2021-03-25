@@ -387,7 +387,8 @@ class GCPReportProcessor(ReportProcessorBase):
                     row_count += len(self.processed_report.line_items)
                     self._update_mappings()
 
-            report_db.merge_temp_table(self.table_name._meta.db_table, temp_table, self.line_item_columns)
+            if self.line_item_columns:
+                report_db.merge_temp_table(self.table_name._meta.db_table, temp_table, self.line_item_columns)
 
             LOG.info("Completed report processing for file: %s and schema: %s", self._report_name, self._schema)
 

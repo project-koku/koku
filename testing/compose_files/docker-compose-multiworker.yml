@@ -35,8 +35,6 @@ services:
         - REDIS_PORT=${REDIS_PORT-6379}
         - MASU_SERVICE_HOST=${MASU_SERVICE_HOST-masu-server}
         - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
         - RBAC_CACHE_TTL
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
@@ -44,6 +42,8 @@ services:
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
         - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
         - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       ports:
           - 8000:8000
@@ -51,7 +51,7 @@ services:
         - './../..:/koku/'
       links:
         - db
-        - koku-rabbit
+        - redis
         - masu-server
         - sources-client
       depends_on:
@@ -85,13 +85,13 @@ services:
         - REDIS_PORT=${REDIS_PORT-6379}
         - MASU_SERVICE_HOST=${MASU_SERVICE_HOST-masu-server}
         - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
         - RBAC_CACHE_TTL
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
         - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       ports:
           - 5000:8000
@@ -99,7 +99,7 @@ services:
         - './../..:/koku/'
       links:
         - db
-        - koku-rabbit
+        - redis
       depends_on:
         - koku-base
         - db
@@ -156,15 +156,63 @@ services:
       - -c
       - track_functions=pl
 
-  koku-rabbit:
-      container_name: koku_rabbit
-      hostname: rabbit
-      image: rabbitmq:latest
+
+  koku-worker-ocp:
+      container_name: koku-worker-ocp
+      hostname: koku-worker-ocp
+      image: koku_base
+      working_dir: /koku/koku
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'ocp']
       environment:
-          - RABBITMQ_DEFAULT_USER=guest
-          - RABBITMQ_DEFAULT_PASS=guest
-      ports:
-          - "${RABBITMQ_PORT-5674}:5672"
+        - AWS_ACCESS_KEY_ID
+        - AWS_SECRET_ACCESS_KEY
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - DEVELOPMENT=${DEVELOPMENT-True}
+        - LOG_LEVEL=INFO
+        - DJANGO_SETTINGS_MODULE=koku.settings
+        - MASU_SECRET_KEY=abc
+        - prometheus_multiproc_dir=/tmp
+        - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
+        - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+        - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING-False}
+        - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+        - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+        - S3_ENDPOINT
+        - S3_ACCESS_KEY
+        - S3_SECRET
+        - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+        - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+        - KOKU_CELERY_ENABLE_SENTRY
+        - KOKU_CELERY_SENTRY_DSN
+        - KOKU_SENTRY_ENVIRONMENT
+        - DEMO_ACCOUNTS
+        - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+        - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+        - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+        - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
+        - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - PRESTO_HOST=${PRESTO_HOST-presto}
+        - PRESTO_PORT=${PRESTO_PORT-8080}
+        - DATE_OVERRIDE
+        - MASU_DEBUG
+        - ENABLE_TRINO_SOURCES
+
+
+      privileged: true
+      volumes:
+        - './../..:/koku/'
+      links:
+          - redis
+      depends_on:
+          - koku-base
+          - redis
+
 
   koku-worker-1:
       container_name: koku_worker_1
@@ -182,8 +230,8 @@ services:
         - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
@@ -208,6 +256,8 @@ services:
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
         - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
         - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       volumes:
         - './../..:/koku'
@@ -222,10 +272,10 @@ services:
         - './../../testing/local_providers/aws_local_5:/tmp/local_bucket_5'
         - './../../testing/local_providers/insights_local:/var/tmp/masu/insights_local'
       links:
-          - koku-rabbit
+          - redis
       depends_on:
+          - redis
           - koku-base
-          - koku-rabbit
 
   koku-worker-2:
       container_name: koku_worker_2
@@ -243,8 +293,8 @@ services:
         - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
@@ -269,6 +319,8 @@ services:
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
         - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
         - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       volumes:
         - './../..:/koku'
@@ -283,10 +335,10 @@ services:
         - './../../testing/local_providers/aws_local_5:/tmp/local_bucket_5'
         - './../../testing/local_providers/insights_local:/var/tmp/masu/insights_local'
       links:
-          - koku-rabbit
+          - redis
       depends_on:
+          - redis
           - koku-base
-          - koku-rabbit
 
   koku-worker-3:
       container_name: koku_worker_3
@@ -304,8 +356,8 @@ services:
         - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
@@ -330,6 +382,8 @@ services:
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
         - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
         - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       volumes:
         - './../..:/koku'
@@ -344,10 +398,10 @@ services:
         - './../../testing/local_providers/aws_local_5:/tmp/local_bucket_5'
         - './../../testing/local_providers/insights_local:/var/tmp/masu/insights_local'
       links:
-          - koku-rabbit
+          - redis
       depends_on:
+          - redis
           - koku-base
-          - koku-rabbit
 
   koku-worker-4:
       container_name: koku_worker_4
@@ -365,8 +419,8 @@ services:
         - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
@@ -391,6 +445,8 @@ services:
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
         - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
         - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       volumes:
         - './../..:/koku'
@@ -405,10 +461,10 @@ services:
         - './../../testing/local_providers/aws_local_5:/tmp/local_bucket_5'
         - './../../testing/local_providers/insights_local:/var/tmp/masu/insights_local'
       links:
-          - koku-rabbit
+          - redis
       depends_on:
+          - redis
           - koku-base
-          - koku-rabbit
 
   koku-worker-5:
       container_name: koku_worker_5
@@ -426,8 +482,8 @@ services:
         - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
@@ -452,6 +508,8 @@ services:
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
         - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
         - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       volumes:
         - './../..:/koku'
@@ -466,10 +524,10 @@ services:
         - './../../testing/local_providers/aws_local_5:/tmp/local_bucket_5'
         - './../../testing/local_providers/insights_local:/var/tmp/masu/insights_local'
       links:
-          - koku-rabbit
+          - redis
       depends_on:
+          - redis
           - koku-base
-          - koku-rabbit
 
   koku-worker-6:
       container_name: koku_worker_6
@@ -487,8 +545,8 @@ services:
         - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
@@ -513,6 +571,8 @@ services:
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
         - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
         - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       volumes:
         - './../..:/koku'
@@ -527,10 +587,10 @@ services:
         - './../../testing/local_providers/aws_local_5:/tmp/local_bucket_5'
         - './../../testing/local_providers/insights_local:/var/tmp/masu/insights_local'
       links:
-          - koku-rabbit
+          - redis
       depends_on:
+          - redis
           - koku-base
-          - koku-rabbit
 
   koku-worker-7:
       container_name: koku_worker_7
@@ -548,8 +608,6 @@ services:
         - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
@@ -574,6 +632,8 @@ services:
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
         - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
         - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       volumes:
         - './../..:/koku'
@@ -588,10 +648,9 @@ services:
         - './../../testing/local_providers/aws_local_5:/tmp/local_bucket_5'
         - './../../testing/local_providers/insights_local:/var/tmp/masu/insights_local'
       links:
-          - koku-rabbit
+          - redis
       depends_on:
           - koku-base
-          - koku-rabbit
 
   koku-worker-8:
       container_name: koku_worker_8
@@ -609,8 +668,6 @@ services:
         - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
@@ -635,6 +692,8 @@ services:
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
         - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
         - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       volumes:
         - './../..:/koku'
@@ -649,10 +708,9 @@ services:
         - './../../testing/local_providers/aws_local_5:/tmp/local_bucket_5'
         - './../../testing/local_providers/insights_local:/var/tmp/masu/insights_local'
       links:
-          - koku-rabbit
+          - redis
       depends_on:
           - koku-base
-          - koku-rabbit
 
   koku-worker-9:
       container_name: koku_worker_9
@@ -670,8 +728,6 @@ services:
         - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
@@ -696,6 +752,8 @@ services:
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
         - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
         - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       volumes:
         - './../..:/koku'
@@ -710,10 +768,9 @@ services:
         - './../../testing/local_providers/aws_local_5:/tmp/local_bucket_5'
         - './../../testing/local_providers/insights_local:/var/tmp/masu/insights_local'
       links:
-          - koku-rabbit
+          - redis
       depends_on:
           - koku-base
-          - koku-rabbit
 
   koku-worker-10:
       container_name: koku_worker_10
@@ -731,8 +788,6 @@ services:
         - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
@@ -757,6 +812,8 @@ services:
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
         - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
         - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       volumes:
         - './../..:/koku'
@@ -771,10 +828,9 @@ services:
         - './../../testing/local_providers/aws_local_5:/tmp/local_bucket_5'
         - './../../testing/local_providers/insights_local:/var/tmp/masu/insights_local'
       links:
-          - koku-rabbit
+          - redis
       depends_on:
           - koku-base
-          - koku-rabbit
 
   koku-listener:
       container_name: koku_listener
@@ -789,8 +845,6 @@ services:
         - DATABASE_NAME=${DATABASE_NAME-postgres}
         - DATABASE_HOST=db
         - DATABASE_PORT=5432
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
         - MASU_SECRET_KEY=abc
@@ -810,6 +864,8 @@ services:
         - S3_ENDPOINT
         - S3_ACCESS_KEY
         - S3_SECRET
+        - ENABLE_TRINO_SOURCES
+
       privileged: true
       ports:
           - "9988:9999"
@@ -817,11 +873,10 @@ services:
         - './../..:/koku'
       links:
         - db
-        - koku-rabbit
+        - redis
       depends_on:
         - koku-base
         - db
-        - koku-rabbit
 
   sources-client:
       container_name: sources_client
@@ -843,8 +898,8 @@ services:
         - KOKU_API_PATH_PREFIX=${KOKU_API_PATH_PREFIX-/api/cost-management/v1}
         - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
         - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - SOURCES_KAFKA_HOST=${SOURCES_KAFKA_HOST-kafka}
         - SOURCES_KAFKA_PORT=${SOURCES_KAFKA_PORT-29092}
         - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
@@ -857,8 +912,67 @@ services:
         - './../..:/koku'
       links:
         - db
+        - redis
       depends_on:
         - koku-base
+
+  priority-worker:
+      container_name: priority-worker
+      hostname: priority-worker
+      image: koku_base
+      working_dir: /koku/koku
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'priority']
+      environment:
+        - AWS_ACCESS_KEY_ID
+        - AWS_SECRET_ACCESS_KEY
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+        - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
+        - DEVELOPMENT=${DEVELOPMENT-True}
+        - LOG_LEVEL=INFO
+        - DJANGO_SETTINGS_MODULE=koku.settings
+        - MASU_SECRET_KEY=abc
+        - prometheus_multiproc_dir=/tmp
+        - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
+        - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+        - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING-False}
+        - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+        - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+        - S3_ENDPOINT
+        - S3_ACCESS_KEY
+        - S3_SECRET
+        - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+        - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+        - KOKU_CELERY_ENABLE_SENTRY
+        - KOKU_CELERY_SENTRY_DSN
+        - KOKU_SENTRY_ENVIRONMENT
+        - DEMO_ACCOUNTS
+        - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+        - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+        - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+        - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
+        - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+        - PRESTO_HOST=${PRESTO_HOST-presto}
+        - PRESTO_PORT=${PRESTO_PORT-8080}
+        - DATE_OVERRIDE
+        - MASU_DEBUG
+
+      volumes:
+        - './../..:/koku/'
+
+      privileged: true
+      links:
+        - redis
+      depends_on:
+        - koku-base
+        - redis
 
 networks:
  default:

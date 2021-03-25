@@ -50,6 +50,7 @@ from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownload
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
+from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
@@ -507,9 +508,12 @@ def summarize_manifest(report_meta):
                 "manifest_id": manifest_id,
             }
             if start_date and end_date:
+                LOG.info(
+                    f"Summarizing OCP reports from {str(start_date)}-{str(end_date)} for provider: {provider_uuid}"
+                )
                 report_meta["start"] = start_date
                 report_meta["end"] = end_date
-            async_id = summarize_reports.delay([report_meta])
+            async_id = summarize_reports.s([report_meta], OCP_QUEUE).apply_async(queue=OCP_QUEUE)
     return async_id
 
 
@@ -642,7 +646,8 @@ def get_consumer():  # pragma: no cover
             "queued.max.messages.kbytes": 1024,
             "enable.auto.commit": False,
             "max.poll.interval.ms": 1080000,  # 18 minutes
-        }
+        },
+        logger=LOG,
     )
     consumer.subscribe([HCCM_TOPIC])
     return consumer

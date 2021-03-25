@@ -17,9 +17,18 @@
 """Masu Processor."""
 import logging
 
+from django.conf import settings
+
 from masu.external import GZIP_COMPRESSED
 from masu.external import UNCOMPRESSED
 
 LOG = logging.getLogger(__name__)
 
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
+
+
+def enable_trino_processing(source_uuid):
+    """Helper to determine if source is enabled for Trino."""
+    if settings.ENABLE_PARQUET_PROCESSING or source_uuid in settings.ENABLE_TRINO_SOURCES:
+        return True
+    return False
