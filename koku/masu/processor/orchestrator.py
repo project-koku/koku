@@ -208,7 +208,6 @@ class Orchestrator:
             (celery.result.AsyncResult) Async result for download request.
 
         """
-        async_result = None
         for account in self._polling_accounts:
             provider_uuid = account.get("provider_uuid")
             report_months = self.get_reports(provider_uuid)
@@ -239,8 +238,7 @@ class Orchestrator:
                 account_number, label = labeler.get_label_details()
                 if account_number:
                     LOG.info("Account: %s Label: %s updated.", account_number, label)
-
-        return async_result
+        return
 
     def remove_expired_report_data(self, simulate=False, line_items_only=False):
         """
