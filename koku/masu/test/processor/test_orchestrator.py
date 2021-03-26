@@ -127,15 +127,17 @@ class OrchestratorTest(MasuTestCase):
                 else:
                     self.fail("Unexpected provider")
 
+    @patch("masu.processor.orchestrator.AccountLabel")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.external.report_downloader.ReportDownloader._set_downloader", return_value=FakeDownloader)
     @patch("masu.external.accounts_accessor.AccountsAccessor.get_accounts", return_value=[])
-    def test_prepare_no_accounts(self, mock_downloader, mock_accounts_accessor, mock_inspect):
+    def test_prepare_no_accounts(self, mock_downloader, mock_accounts_accessor, mock_inspect, mock_account_labler):
         """Test downloading cost usage reports."""
         orchestrator = Orchestrator()
         reports = orchestrator.prepare()
 
         self.assertIsNone(reports)
+        mock_account_labler.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch.object(AccountsAccessor, "get_accounts")
@@ -236,12 +238,14 @@ class OrchestratorTest(MasuTestCase):
         mock_labeler.assert_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.orchestrator.AccountLabel", spec=True)
     @patch("masu.processor.orchestrator.get_report_files.apply_async", return_value=True)
-    def test_prepare_w_no_manifest_found(self, mock_task, mock_inspect):
+    def test_prepare_w_no_manifest_found(self, mock_task, mock_labeler, mock_inspect):
         """Test that Orchestrator.prepare() is skipped when no manifest is found."""
         orchestrator = Orchestrator()
         orchestrator.prepare()
         mock_task.assert_not_called()
+        mock_labeler.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.record_report_status", return_value=True)
