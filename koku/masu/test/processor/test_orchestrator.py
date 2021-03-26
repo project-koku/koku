@@ -228,7 +228,7 @@ class OrchestratorTest(MasuTestCase):
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.AccountLabel", spec=True)
-    @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=True)
+    @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=([], True))
     def test_prepare_w_manifest_processing_successful(self, mock_task, mock_labeler, mock_inspect):
         """Test that Orchestrator.prepare() works when manifest processing is successful."""
         mock_labeler().get_label_details.return_value = (True, True)
