@@ -16,6 +16,7 @@
 #
 """View for Rates."""
 import logging
+import uuid
 from functools import reduce
 from operator import and_
 
@@ -33,6 +34,7 @@ from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.filters import OrderingFilter
+from rest_framework.response import Response
 
 from api.common.filters import CharListFilter
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
@@ -170,9 +172,14 @@ class CostModelViewSet(viewsets.ModelViewSet):
     @method_decorator(never_cache)
     def destroy(self, request, *args, **kwargs):
         """Delete a rate."""
-        uuid = kwargs.get("uuid")
+        uuidParam = kwargs.get("uuid")
         try:
-            manager = CostModelManager(cost_model_uuid=uuid)
+            convertedUUID = uuid.UUID(uuidParam)
+        except ValueError as err:
+            errmsg = f"invalid uuid: {err}: `{uuidParam}`"
+            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            manager = CostModelManager(cost_model_uuid=convertedUUID)
         except CostModel.DoesNotExist:
             LOG.info("CostModel does not exist.")
         else:
