@@ -16,7 +16,6 @@
 #
 """View for Rates."""
 import logging
-import uuid
 from functools import reduce
 from operator import and_
 
@@ -34,7 +33,6 @@ from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.filters import OrderingFilter
-from rest_framework.response import Response
 
 from api.common.filters import CharListFilter
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
@@ -174,14 +172,11 @@ class CostModelViewSet(viewsets.ModelViewSet):
         """Delete a rate."""
         uuidParam = kwargs.get("uuid")
         try:
-            convertedUUID = uuid.UUID(uuidParam)
-        except ValueError as err:
-            errmsg = f"invalid uuid: {err}: `{uuidParam}`"
-            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            manager = CostModelManager(cost_model_uuid=convertedUUID)
+            manager = CostModelManager(cost_model_uuid=uuidParam)
         except CostModel.DoesNotExist:
             LOG.info("CostModel does not exist.")
+        except ValidationError as err:
+            raise CostModelQueryException(err)
         else:
             manager.update_provider_uuids([])
         return super().destroy(request=request, args=args, kwargs=kwargs)
