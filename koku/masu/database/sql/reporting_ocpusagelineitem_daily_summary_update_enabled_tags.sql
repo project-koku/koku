@@ -1,10 +1,11 @@
 -- update ocp tags leaving only enabled keys
 with cte_enabled_keys as (
-    select coalesce(array_agg(key), '{}'::text[])  as keys
+    select coalesce(array_agg(key), '{}'::text[])::text[] as keys
       from {{schema | sqlsafe}}.reporting_ocpenabledtagkeys
 )
 update {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
-   set tags = tags - array_subtract(array(select jsonb_object_keys(tags))::text[], keys::text[])
+   set pod_labels = pod_labels - array_subtract(array(select jsonb_object_keys(pod_labels))::text[], keys::text[]),
+       volume_labels = volume_labels - array_subtract(array(select jsonb_object_keys(volume_labels))::text[], keys::text[])
   from cte_enabled_keys as ek
  where ek.keys != '{}'::text[]
    and lids.usage_start >= date({{start_date}})

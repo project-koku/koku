@@ -1,6 +1,6 @@
 -- update azure tags leaving only enabled keys
 with cte_enabled_keys as (
-    select coalesce(array_agg(key), '{}'::text[])  as keys
+    select coalesce(array_agg(key), '{}'::text[])::text[] as keys
       from {{schema | sqlsafe}}.reporting_azureenabledtagkeys
 )
 update {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary as lids
