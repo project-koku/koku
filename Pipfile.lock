@@ -726,11 +726,10 @@
         },
         "pint": {
             "hashes": [
-                "sha256:63ccb7153754923fd95477be69dcf8d7d0764ec2ebb3f6945f920c31fdf13392",
-                "sha256:d43a2e9ae003164978b60fdf8cd920d8581e1a5991df8dded29b00f4850ec83a"
+                "sha256:6593c5dfaf2f701c54f17453191dff05e90ec9ebc3d1901468a59cfcb3289a4c",
+                "sha256:f4d0caa713239e6847a7c6eefe2427358566451fe56497d533f21fb590a3f313"
             ],
-            "index": "pypi",
-            "version": "==0.16.1"
+            "version": "==0.17"
         },
         "presto-python-client": {
             "hashes": [
