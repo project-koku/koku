@@ -340,6 +340,8 @@ class OrchestratorTest(MasuTestCase):
             orchestrator = Orchestrator()
             months = orchestrator.get_reports(self.aws_provider_uuid)
             self.assertEqual(test.get("expected_month_length"), len(months))
+            for i in range(1, len(months)):
+                self.assertLess(months[i], months[i - 1])
 
         Config.INGEST_OVERRIDE = False
         Config.INITIAL_INGEST_NUM_MONTHS = initial_month_qty
