@@ -672,7 +672,7 @@ class SourcesHTTPClientTest(TestCase):
         test_source_id = 1
         application_type_id = 2
         application_id = 3
-        status = "unavailable"
+
         error_msg = "my error"
         source = Sources.objects.create(source_id=test_source_id, offset=42, source_type="AWS")
         source.save()
