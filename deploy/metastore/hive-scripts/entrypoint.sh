@@ -90,35 +90,14 @@ export HIVE_METASTORE_HADOOP_OPTS=" -Dhive.log.level=${HIVE_LOGLEVEL} "
 export HIVE_OPTS="${HIVE_OPTS} --hiveconf hive.root.logger=${HIVE_LOGLEVEL},console "
 
 set +e
-trap catch ERR
-function catch() {
-  echo "Error $1 occurred on $2"
-}
-
-function check_schema() {
-    echo "Checking Hive schema."
-    RESULT=$(schematool -dbType postgres -info -verbose)
-    SUCCESS="schemaTool completed"
-    VALID='false'
-    if [[ "$RESULT" == *"$SUCCESS"* ]]; then
-        VALID='true'
-    fi
-}
-
-function init_schema() {
-    echo "Attempting Hive schema init."
-    RESULT=$(schematool -dbType postgres -initSchema --verbose)
-    SUCCESS='schemaTool completed'
-    if [[ "$RESULT" == *"$SUCCESS"* ]]; then
-        echo "Hive metastore schema successfully set."
-    fi
-
-}
-check_schema
-if [[ "$VALID" == 'true' ]]; then
-    echo "Hive metastore schema is valid."
+if schematool -dbType postgres -info -verbose; then
+    echo "Hive metastore schema verified."
 else
-    init_schema
+    if schematool -dbType postgres -initSchema -verbose; then
+        echo "Hive metastore schema created."
+    else
+        echo "Error creating hive metastore: $?"
+    fi
 fi
 set -e
 exec $@
