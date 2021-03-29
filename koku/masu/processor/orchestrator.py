@@ -31,6 +31,7 @@ from masu.processor.tasks import get_report_files
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
+from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
 from masu.processor.worker_cache import WorkerCache
@@ -175,6 +176,7 @@ class Orchestrator:
             report_context["local_file"] = local_file
             report_context["key"] = report_file
 
+            # This defaults to the celery queue
             report_tasks.append(
                 get_report_files.s(
                     customer_name,
@@ -190,7 +192,7 @@ class Orchestrator:
             LOG.info("Download queued - schema_name: %s.", schema_name)
 
         if report_tasks:
-            async_id = chord(report_tasks, summarize_reports.s())()
+            async_id = chord(report_tasks, summarize_reports.s().set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE))()
             LOG.info(f"Manifest Processing Async ID: {async_id}")
         return manifest
 

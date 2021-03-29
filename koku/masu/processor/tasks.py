@@ -66,11 +66,12 @@ LOG = get_task_logger(__name__)
 GET_REPORT_FILES_QUEUE = "download"
 OCP_QUEUE = "ocp"
 REFRESH_MATERIALIZED_VIEWS_QUEUE = "refresh"
-REMOVE_EXPIRED_DATA_QUEUE = "remove_expired"
+REMOVE_EXPIRED_DATA_QUEUE = "summary"
 SUMMARIZE_REPORTS_QUEUE = "summary"
 UPDATE_COST_MODEL_COSTS_QUEUE = "cost_model"
 UPDATE_SUMMARY_TABLES_QUEUE = "summary"
 PRIORITY_QUEUE = "priority"
+VACUUM_SCHEMA = "summary"
 
 
 def record_all_manifest_files(manifest_id, report_files):
@@ -421,14 +422,14 @@ def update_summary_tables(  # noqa: C901
 
         linked_tasks |= remove_expired_data.si(
             schema_name, provider, simulate, provider_uuid, line_items_only, queue_name
-        ).set(queue=queue_name or REMOVE_EXPIRED_DATA_QUEUE)
+        ).set(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
 
     chain(linked_tasks).apply_async()
     if not synchronous:
         worker_cache.release_single_task(task_name, cache_args)
 
 
-@app.task(name="masu.processor.tasks.update_all_summary_tables", queue_name="reporting")
+@app.task(name="masu.processor.tasks.update_all_summary_tables", queue_name=UPDATE_SUMMARY_TABLES_QUEUE)
 def update_all_summary_tables(start_date, end_date=None):
     """Populate all the summary tables for reporting.
 
@@ -585,7 +586,7 @@ def refresh_materialized_views(  # noqa: C901,
         worker_cache.release_single_task(task_name, cache_args)
 
 
-@app.task(name="masu.processor.tasks.vacuum_schema", queue_name="reporting")
+@app.task(name="masu.processor.tasks.vacuum_schema", queue_name=VACUUM_SCHEMA)
 def vacuum_schema(schema_name):
     """Vacuum the reporting tables in the specified schema."""
     table_sql = """
@@ -627,7 +628,7 @@ def normalize_table_options(table_options):
 # At this time, no table parameter will be lowered past the known production engine
 # setting of 0.2 by default. However this function's settings can be overridden via the
 # AUTOVACUUM_TUNING environment variable. See below.
-@app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name="reporting")
+@app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name=VACUUM_SCHEMA)
 def autovacuum_tune_schema(schema_name):  # noqa: C901
     """Set the autovacuum table settings based on table size for the specified schema."""
     table_sql = """
@@ -724,7 +725,7 @@ SELECT s.relname as "table_name",
     LOG.info(f"Altered autovacuum_vacuum_scale_factor on {alter_count} tables")
 
 
-@app.task(name="masu.processor.tasks.remove_stale_tenants", queue_name="remove_stale_tenants")
+@app.task(name="masu.processor.tasks.remove_stale_tenants", queue_name=VACUUM_SCHEMA)
 def remove_stale_tenants():
     """ Remove stale tenants from the tenant api """
     table_sql = """
