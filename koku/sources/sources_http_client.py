@@ -399,7 +399,7 @@ class SourcesHTTPClient:
                 if application_response.status_code != 204:
                     if application_response.status_code != 404:
                         raise SourcesHTTPClientError(error_message)
-                else:
-                    LOG.info(error_message)
+                    else:
+                        LOG.info(error_message)
                 return True
         return False
