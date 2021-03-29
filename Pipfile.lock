@@ -374,11 +374,10 @@
         },
         "google-cloud-bigquery": {
             "hashes": [
-                "sha256:a5597453a5b7ba379190c6c6f45782ea81f5fd81ee4676eafd8e7ac09a2cee5b",
-                "sha256:fac9adb1394d948e259fba1df4e86a6c34cfccaf19af7bdbdf9640cf6e313a71"
+                "sha256:915f93c61c03d1d6024d5b19355bb96af25da9f924d0b5bab5cde851e1bd48f4",
+                "sha256:e0cc41fd5d53d59abf6b87e6d7d9863746c2ee6f136def670938dfb4ee5a4ba3"
             ],
-            "index": "pypi",
-            "version": "==2.10.0"
+            "version": "==2.13.1"
         },
         "google-cloud-core": {
             "hashes": [
@@ -1492,11 +1491,10 @@
         },
         "google-cloud-bigquery": {
             "hashes": [
-                "sha256:a5597453a5b7ba379190c6c6f45782ea81f5fd81ee4676eafd8e7ac09a2cee5b",
-                "sha256:fac9adb1394d948e259fba1df4e86a6c34cfccaf19af7bdbdf9640cf6e313a71"
+                "sha256:915f93c61c03d1d6024d5b19355bb96af25da9f924d0b5bab5cde851e1bd48f4",
+                "sha256:e0cc41fd5d53d59abf6b87e6d7d9863746c2ee6f136def670938dfb4ee5a4ba3"
             ],
-            "index": "pypi",
-            "version": "==2.10.0"
+            "version": "==2.13.1"
         },
         "google-cloud-core": {
             "hashes": [
