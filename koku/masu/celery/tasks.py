@@ -40,6 +40,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor import enable_trino_processing
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
+from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import vacuum_schema
 from masu.util.aws.common import get_s3_resource
 
@@ -47,7 +48,7 @@ LOG = get_task_logger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
 
 
-@app.task(name="masu.celery.tasks.check_report_updates")
+@app.task(name="masu.celery.tasks.check_report_updates", queue_name=GET_REPORT_FILES_QUEUE)
 def check_report_updates(*args, **kwargs):
     """Scheduled task to initiate scanning process on a regular interval."""
     orchestrator = Orchestrator(*args, **kwargs)
