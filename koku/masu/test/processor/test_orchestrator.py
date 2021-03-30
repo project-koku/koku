@@ -22,6 +22,7 @@ from unittest.mock import patch
 import faker
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
@@ -349,3 +350,9 @@ class OrchestratorTest(MasuTestCase):
 
         Config.INGEST_OVERRIDE = False
         Config.INITIAL_INGEST_NUM_MONTHS = initial_month_qty
+
+        dh = DateHelper()
+        expected = [dh.this_month_start.date()]
+        orchestrator = Orchestrator(bill_date=dh.today)
+        result = orchestrator.get_reports(self.aws_provider_uuid)
+        self.assertEqual(result, expected)

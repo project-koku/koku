@@ -47,7 +47,7 @@ class Orchestrator:
 
     """
 
-    def __init__(self, billing_source=None, provider_uuid=None):
+    def __init__(self, billing_source=None, provider_uuid=None, bill_date=None):
         """
         Orchestrator for processing.
 
@@ -57,6 +57,7 @@ class Orchestrator:
         """
         self._accounts, self._polling_accounts = self.get_accounts(billing_source, provider_uuid)
         self.worker_cache = WorkerCache()
+        self.bill_date = bill_date
 
     @staticmethod
     def get_accounts(billing_source=None, provider_uuid=None):
@@ -93,8 +94,7 @@ class Orchestrator:
 
         return all_accounts, polling_accounts
 
-    @staticmethod
-    def get_reports(provider_uuid):
+    def get_reports(self, provider_uuid):
         """
         Get months for provider to process.
 
@@ -107,6 +107,9 @@ class Orchestrator:
         """
         with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
             reports_processed = provider_accessor.get_setup_complete()
+
+        if self.bill_date:
+            return [DateAccessor().get_billing_month_start(self.bill_date)]
 
         if Config.INGEST_OVERRIDE or not reports_processed:
             number_of_months = Config.INITIAL_INGEST_NUM_MONTHS
