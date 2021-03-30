@@ -231,13 +231,15 @@ class CostModelViewTests(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_update_cost_model_success(self):
+    @patch("cost_models.cost_model_manager.chain")
+    def test_update_cost_model_success(self, _):
         """Test that we can update an existing rate."""
         new_value = round(Decimal(random.random()), 6)
         self.fake_data["rates"][0]["tiered_rates"][0]["value"] = new_value
 
-        cost_model = CostModel.objects.first()
-        url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
+        with tenant_context(self.tenant):
+            cost_model = CostModel.objects.first()
+            url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
         client = APIClient()
         response = client.put(url, self.fake_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)

@@ -65,12 +65,24 @@ LOG = get_task_logger(__name__)
 
 GET_REPORT_FILES_QUEUE = "download"
 OCP_QUEUE = "ocp"
+PRIORITY_QUEUE = "priority"
 REFRESH_MATERIALIZED_VIEWS_QUEUE = "reporting"
 REMOVE_EXPIRED_DATA_QUEUE = "remove_expired"
 SUMMARIZE_REPORTS_QUEUE = "process"
 UPDATE_COST_MODEL_COSTS_QUEUE = "reporting"
 UPDATE_SUMMARY_TABLES_QUEUE = "reporting"
-PRIORITY_QUEUE = "priority"
+
+# any additional queues should be added to this list
+QUEUE_LIST = [
+    GET_REPORT_FILES_QUEUE,
+    OCP_QUEUE,
+    PRIORITY_QUEUE,
+    REFRESH_MATERIALIZED_VIEWS_QUEUE,
+    REMOVE_EXPIRED_DATA_QUEUE,
+    SUMMARIZE_REPORTS_QUEUE,
+    UPDATE_COST_MODEL_COSTS_QUEUE,
+    UPDATE_SUMMARY_TABLES_QUEUE,
+]
 
 
 def record_all_manifest_files(manifest_id, report_files):
@@ -559,23 +571,27 @@ def refresh_materialized_views(  # noqa: C901
         )
     elif provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
         materialized_views = GCP_MATERIALIZED_VIEWS
+    try:
+        with schema_context(schema_name):
+            for view in materialized_views:
+                table_name = view._meta.db_table
+                with connection.cursor() as cursor:
+                    cursor.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}")
+                    LOG.info(f"Refreshed {table_name}.")
 
-    with schema_context(schema_name):
-        for view in materialized_views:
-            table_name = view._meta.db_table
-            with connection.cursor() as cursor:
-                cursor.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}")
-                LOG.info(f"Refreshed {table_name}.")
+        invalidate_view_cache_for_tenant_and_source_type(schema_name, provider_type)
 
-    invalidate_view_cache_for_tenant_and_source_type(schema_name, provider_type)
-
-    if provider_uuid:
-        ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
-    if manifest_id:
-        # Processing for this monifest should be complete after this step
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-            manifest_accessor.mark_manifest_as_completed(manifest)
+        if provider_uuid:
+            ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
+        if manifest_id:
+            # Processing for this monifest should be complete after this step
+            with ReportManifestDBAccessor() as manifest_accessor:
+                manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+                manifest_accessor.mark_manifest_as_completed(manifest)
+    except Exception as ex:
+        if not synchronous:
+            worker_cache.release_single_task(task_name, cache_args)
+        raise ex
 
     if not synchronous:
         worker_cache.release_single_task(task_name, cache_args)

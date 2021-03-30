@@ -21,6 +21,8 @@ from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 
+from masu.processor.tasks import QUEUE_LIST
+
 
 @override_settings(ROOT_URLCONF="masu.urls")
 class UpdateCostModelCostTest(TestCase):
@@ -68,6 +70,27 @@ class UpdateCostModelCostTest(TestCase):
         params = {"provider_uuid": "3c6e687e-1a09-4a05-970c-2ccf44b0952e"}
         expected_key = "Error"
         expected_message = "provider_uuid and schema_name are required parameters."
+
+        response = self.client.get(reverse("update_cost_model_costs"), params)
+        body = response.json()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(expected_key, body)
+        self.assertEqual(body[expected_key], expected_message)
+
+    @patch("masu.api.update_cost_model_costs.Provider")
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.update_cost_model_costs.cost_task")
+    def test_get_update_cost_model_costs_invalid_queue(self, mock_update, _, __):
+        """Test GET report_data endpoint returns a 400 for invalid queue."""
+        params = {
+            "schema": "acct10001",
+            "provider_uuid": "3c6e687e-1a09-4a05-970c-2ccf44b0952e",
+            "start_date": "01-03-2010",
+            "queue": "This-aint-a-real-queue",
+        }
+        expected_key = "Error"
+        expected_message = f"'queue' must be one of {QUEUE_LIST}."
 
         response = self.client.get(reverse("update_cost_model_costs"), params)
         body = response.json()

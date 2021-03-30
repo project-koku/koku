@@ -324,7 +324,7 @@ _koku-wait:
 docker-up:
 	$(DOCKER_COMPOSE) up --build -d
 
-docker-up-no-build:
+docker-up-no-build: docker-up-db
 	$(DOCKER_COMPOSE) up -d
 
 docker-up-min:

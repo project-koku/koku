@@ -24,8 +24,6 @@ from decimal import DivisionByZero
 from decimal import InvalidOperation
 
 from django.db.models import F
-from django.db.models import Window
-from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
@@ -84,11 +82,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return annotations
 
-    @property
-    def report_annotations(self):
-        """Return annotations with the correct capacity field."""
-        return self._mapper.report_type_map.get("annotations")
-
     def _format_query_response(self):
         """Format the query response with data.
 
@@ -124,15 +117,15 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
-            query_order_by.extend([self.order])
+            query_order_by.extend([self.order])  # add implicit ordering
 
             query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
 
-            if self._limit and group_by_value:
-                rank_by_total = self.get_rank_window_function(group_by_value)
-                query_data = query_data.annotate(rank=rank_by_total)
-                query_order_by.insert(1, "rank")
-                query_data = self._ranked_list(query_data)
+            if self._limit and query_data:
+                query_data = self._group_by_ranks(query, query_data)
+                if not self.parameters.get("order_by"):
+                    # override implicit ordering when using ranked ordering.
+                    query_order_by[-1] = "rank"
 
             # Populate the 'total' section of the API response
             if query.exists():
@@ -176,25 +169,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.query_sum = ordered_total
         self.query_data = data
         return self._format_query_response()
-
-    def get_rank_window_function(self, group_by_value):
-        """Generate a limit ranking window function."""
-        tag_column = self._mapper.tag_column
-        rank_orders = []
-        rank_field = group_by_value.pop()
-        default_ordering = self._mapper.report_type_map.get("default_ordering")
-
-        if self.order_field == "delta" and "__" in self._delta:
-            delta_field_one, delta_field_two = self._delta.split("__")
-            rank_orders.append(getattr(F(delta_field_one) / F(delta_field_two), self.order_direction)())
-        elif self.parameters.get("order_by", default_ordering):
-            rank_orders.append(getattr(F(self.order_field), self.order_direction)())
-        if tag_column in rank_field:
-            rank_orders.append(self.get_tag_order_by(rank_field))
-        else:
-            rank_orders.append(getattr(F(rank_field), self.order_direction)())
-
-        return Window(expression=RowNumber(), partition_by=F("date"), order_by=rank_orders)
 
     def get_cluster_capacity(self, query_data):  # noqa: C901
         """Calculate cluster capacity for all nodes over the date range."""
