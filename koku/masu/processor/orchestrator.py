@@ -244,7 +244,7 @@ class Orchestrator:
                     if account_number:
                         LOG.info("Account: %s Label: %s updated.", account_number, label)
 
-        return async_result
+        return
 
     def remove_expired_report_data(self, simulate=False, line_items_only=False):
         """
