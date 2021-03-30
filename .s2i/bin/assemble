@@ -9,13 +9,9 @@ function should_collectstatic() {
 }
 
 function virtualenv_bin() {
-  if head "/etc/redhat-release" | grep -q "^CentOS Linux release 7" || \
-     head "/etc/redhat-release" | grep -q "^Red Hat Enterprise Linux\( Server\)\? release 7" || \
-     head "/etc/redhat-release" | grep -q "^Fedora release"; then
-    virtualenv $1
-  else
-    virtualenv-${PYTHON_VERSION} $1
-  fi
+    # New versions of Python (>3.6) should use venv module
+    # from stdlib instead of virtualenv package
+    python3.8 -m venv $1
 }
 
 # Install pipenv or micropipenv to the separate virtualenv to isolate it
@@ -27,16 +23,15 @@ function install_tool() {
   echo "---> Installing $1 packaging tool ..."
   VENV_DIR=$HOME/.local/venvs/$1
   virtualenv_bin "$VENV_DIR"
-  $VENV_DIR/bin/pip --isolated install -U $1$2  # Combines package name with [extras] if [extras] is defined as $2
-  mkdir -p $HOME/.local/bin
-  ln -s $VENV_DIR/bin/$1 $HOME/.local/bin/$1
-}
-
-function install_pipenv() {
-  echo "---> Installing $1 tool ..."
-  VENV_DIR=$HOME/.local/venvs/$1
-  virtualenv_bin "$VENV_DIR"
-  $VENV_DIR/bin/pip --isolated install "pipenv==$VERSION_PIPENV" --ignore-installed
+  # First, try to install the tool without --isolated which means that if you
+  # have your own PyPI mirror, it will take it from there. If this try fails, try it
+  # again with --isolated which ignores external pip settings (env vars, config file)
+  # and installs the tool from PyPI (needs internet connetion).
+  # $1$2 combines package name with [extras] or version specifier if is defined as $2```
+  if ! $VENV_DIR/bin/pip install -U $1$2; then
+    echo "WARNING: Installation of $1 failed, trying again from official PyPI with pip --isolated install"
+    $VENV_DIR/bin/pip install --isolated -U $1$2  # Combines package name with [extras] or version specifier if is defined as $2```
+  fi
   mkdir -p $HOME/.local/bin
   ln -s $VENV_DIR/bin/$1 $HOME/.local/bin/$1
 }
@@ -63,16 +58,25 @@ fix-permissions /opt/app-root -P
 # * pip < 19.3 does not support manylinux2014 wheels. Only manylinux2014 wheels
 #   support platforms like ppc64le, aarch64 or armv7
 echo "---> Upgrading pip to version 19.3.1 ..."
-pip install -U "pip==19.3.1"
+if ! pip install -U "pip==19.3.1"; then
+  echo "WARNING: Installation of 'pip==19.3.1' failed, trying again from official PyPI with pip --isolated install"
+  pip install --isolated -U "pip==19.3.1"
+fi
 
 if [[ ! -z "$UPGRADE_PIP_TO_LATEST" ]]; then
   echo "---> Upgrading pip to latest version ..."
-  pip install -U pip setuptools wheel virtualenv virtualenv_bin
+  if ! pip install -U pip setuptools wheel; then
+    echo "WARNING: Installation of the latest pip,setuptools and wheel failed, trying again from official PyPI with pip --isolated install"
+    pip install --isolated -U pip setuptools wheel
+  fi
 fi
 
 if [[ ! -z "$ENABLE_PIPENV" ]]; then
-  install_pipenv "pipenv"
-  echo "---> $(pipenv --version)"
+  if [[ ! -z "$PIN_PIPENV_VERSION" ]]; then
+    # Add == as a prefix to pipenv version, if defined
+    PIN_PIPENV_VERSION="==$PIN_PIPENV_VERSION"
+  fi
+  install_tool "pipenv" "$PIN_PIPENV_VERSION"
   echo "---> Installing dependencies via pipenv ..."
   if [[ -f Pipfile ]]; then
     pipenv install --deploy
@@ -80,11 +84,6 @@ if [[ ! -z "$ENABLE_PIPENV" ]]; then
     pipenv install -r requirements.txt
   fi
   # pipenv check
-elif [[ ! -z "$ENABLE_MICROPIPENV" ]]; then
-  install_tool "micropipenv" "[toml]"
-  echo "---> Installing dependencies via micropipenv ..."
-  # micropipenv detects Pipfile.lock and requirements.txt in this order
-  micropipenv install --deploy
 elif [[ -f requirements.txt ]]; then
   echo "---> Installing dependencies ..."
   pip install -r requirements.txt

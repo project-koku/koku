@@ -36,7 +36,7 @@ services:
         - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
-        - USE_RABBIT=${USE_RABBIT}
+        - USE_RABBIT=${USE_RABBIT-False}
         - RBAC_CACHE_TTL
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
@@ -56,7 +56,7 @@ services:
         - '.:/koku/'
       links:
         - db
-        - koku-rabbit
+        - redis
         - masu-server
         - sources-client
       depends_on:
@@ -113,7 +113,7 @@ services:
         - '.:/koku/'
       links:
         - db
-        - koku-rabbit
+        - redis
       depends_on:
         - koku-base
         - db
@@ -244,6 +244,8 @@ services:
         - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
         - USE_RABBIT=${USE_RABBIT}
@@ -300,10 +302,10 @@ services:
         - './testing/local_providers/gcp_local_2/:/tmp/gcp_local_bucket_2'
         - './testing/local_providers/gcp_local_3/:/tmp/gcp_local_bucket_3'
       links:
-          - koku-rabbit
+          - redis
       depends_on:
           - koku-base
-          - koku-rabbit
+          - redis
 
   koku-listener:
       container_name: koku_listener
@@ -323,6 +325,8 @@ services:
         - USE_RABBIT=${USE_RABBIT}
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - MASU_SECRET_KEY=abc
         - INSIGHTS_KAFKA_HOST=kafka
         - INSIGHTS_KAFKA_PORT=29092
@@ -352,11 +356,11 @@ services:
         - '.:/koku'
       links:
         - db
-        - koku-rabbit
+        - redis
       depends_on:
         - koku-base
         - db
-        - koku-rabbit
+        - redis
 
   sources-client:
       container_name: sources_client
@@ -419,6 +423,8 @@ services:
         - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
         - USE_RABBIT=${USE_RABBIT}
@@ -434,10 +440,10 @@ services:
       volumes:
         - '.:/koku'
       links:
-          - koku-rabbit
+          - redis
       depends_on:
           - koku-base
-          - koku-rabbit
+          - redis
 
   pushgateway:
     container_name: koku-pushgateway

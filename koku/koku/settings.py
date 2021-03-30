@@ -392,10 +392,6 @@ LOGGING = {
     },
 }
 
-if "watchtower" in LOGGING_HANDLERS:
-    LOGGING["handlers"]["watchtower"] = WATCHTOWER_HANDLER
-    print("CloudWatch configured.")
-
 KOKU_DEFAULT_CURRENCY = ENVIRONMENT.get_value("KOKU_DEFAULT_CURRENCY", default="USD")
 KOKU_DEFAULT_TIMEZONE = ENVIRONMENT.get_value("KOKU_DEFAULT_TIMEZONE", default="UTC")
 KOKU_DEFAULT_LOCALE = ENVIRONMENT.get_value("KOKU_DEFAULT_LOCALE", default="en_US.UTF-8")
