@@ -135,7 +135,9 @@ class Orchestrator:
                 assembly_id - (String): UUID identifying report file
                 compression - (String): Report compression format
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
+            (Boolaen) - Whether we are processing this manifest
         """
+        reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,
             credentials=credentials,
@@ -189,9 +191,10 @@ class Orchestrator:
             LOG.info("Download queued - schema_name: %s.", schema_name)
 
         if report_tasks:
+            reports_tasks_queued = True
             async_id = chord(report_tasks, summarize_reports.s())()
             LOG.info(f"Manifest Processing Async ID: {async_id}")
-        return manifest
+        return manifest, reports_tasks_queued
 
     def prepare(self):
         """
@@ -209,6 +212,7 @@ class Orchestrator:
 
         """
         for account in self._polling_accounts:
+            accounts_labeled = False
             provider_uuid = account.get("provider_uuid")
             report_months = self.get_reports(provider_uuid)
             for month in report_months:
@@ -217,7 +221,7 @@ class Orchestrator:
                 )
                 account["report_month"] = month
                 try:
-                    self.start_manifest_processing(**account)
+                    _, reports_tasks_queued = self.start_manifest_processing(**account)
                 except ReportDownloaderError as err:
                     LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
                     continue
@@ -230,14 +234,18 @@ class Orchestrator:
                     continue
 
                 # update labels
-                labeler = AccountLabel(
-                    auth=account.get("credentials"),
-                    schema=account.get("schema_name"),
-                    provider_type=account.get("provider_type"),
-                )
-                account_number, label = labeler.get_label_details()
-                if account_number:
-                    LOG.info("Account: %s Label: %s updated.", account_number, label)
+                if reports_tasks_queued and not accounts_labeled:
+                    LOG.info("Running AccountLabel to get account aliases.")
+                    labeler = AccountLabel(
+                        auth=account.get("credentials"),
+                        schema=account.get("schema_name"),
+                        provider_type=account.get("provider_type"),
+                    )
+                    account_number, label = labeler.get_label_details()
+                    accounts_labeled = True
+                    if account_number:
+                        LOG.info("Account: %s Label: %s updated.", account_number, label)
+
         return
 
     def remove_expired_report_data(self, simulate=False, line_items_only=False):
