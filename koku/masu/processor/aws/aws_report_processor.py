@@ -262,7 +262,7 @@ class AWSReportProcessor(ReportProcessorBase):
 
         return {column_map[key]: value for key, value in row.items() if key in column_map}
 
-    def _process_tags(self, row, tag_prefix="resourceTags"):
+    def _process_tags(self, row, tag_prefix="resourceTags/user"):
         """Return a JSON string of AWS resource tags.
 
         Args:
