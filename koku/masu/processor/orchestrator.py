@@ -47,7 +47,7 @@ class Orchestrator:
 
     """
 
-    def __init__(self, billing_source=None, provider_uuid=None):
+    def __init__(self, billing_source=None, provider_uuid=None, bill_date=None):
         """
         Orchestrator for processing.
 
@@ -57,6 +57,7 @@ class Orchestrator:
         """
         self._accounts, self._polling_accounts = self.get_accounts(billing_source, provider_uuid)
         self.worker_cache = WorkerCache()
+        self.bill_date = bill_date
 
     @staticmethod
     def get_accounts(billing_source=None, provider_uuid=None):
@@ -93,8 +94,7 @@ class Orchestrator:
 
         return all_accounts, polling_accounts
 
-    @staticmethod
-    def get_reports(provider_uuid):
+    def get_reports(self, provider_uuid):
         """
         Get months for provider to process.
 
@@ -107,6 +107,9 @@ class Orchestrator:
         """
         with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
             reports_processed = provider_accessor.get_setup_complete()
+
+        if self.bill_date:
+            return [DateAccessor().get_billing_month_start(self.bill_date)]
 
         if Config.INGEST_OVERRIDE or not reports_processed:
             number_of_months = Config.INITIAL_INGEST_NUM_MONTHS
@@ -135,7 +138,9 @@ class Orchestrator:
                 assembly_id - (String): UUID identifying report file
                 compression - (String): Report compression format
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
+            (Boolaen) - Whether we are processing this manifest
         """
+        reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,
             credentials=credentials,
@@ -189,9 +194,10 @@ class Orchestrator:
             LOG.info("Download queued - schema_name: %s.", schema_name)
 
         if report_tasks:
+            reports_tasks_queued = True
             async_id = chord(report_tasks, summarize_reports.s())()
             LOG.info(f"Manifest Processing Async ID: {async_id}")
-        return manifest
+        return manifest, reports_tasks_queued
 
     def prepare(self):
         """
@@ -208,8 +214,8 @@ class Orchestrator:
             (celery.result.AsyncResult) Async result for download request.
 
         """
-        async_result = None
         for account in self._polling_accounts:
+            accounts_labeled = False
             provider_uuid = account.get("provider_uuid")
             report_months = self.get_reports(provider_uuid)
             for month in report_months:
@@ -218,7 +224,7 @@ class Orchestrator:
                 )
                 account["report_month"] = month
                 try:
-                    self.start_manifest_processing(**account)
+                    _, reports_tasks_queued = self.start_manifest_processing(**account)
                 except ReportDownloaderError as err:
                     LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
                     continue
@@ -231,16 +237,19 @@ class Orchestrator:
                     continue
 
                 # update labels
-                labeler = AccountLabel(
-                    auth=account.get("credentials"),
-                    schema=account.get("schema_name"),
-                    provider_type=account.get("provider_type"),
-                )
-                account_number, label = labeler.get_label_details()
-                if account_number:
-                    LOG.info("Account: %s Label: %s updated.", account_number, label)
+                if reports_tasks_queued and not accounts_labeled:
+                    LOG.info("Running AccountLabel to get account aliases.")
+                    labeler = AccountLabel(
+                        auth=account.get("credentials"),
+                        schema=account.get("schema_name"),
+                        provider_type=account.get("provider_type"),
+                    )
+                    account_number, label = labeler.get_label_details()
+                    accounts_labeled = True
+                    if account_number:
+                        LOG.info("Account: %s Label: %s updated.", account_number, label)
 
-        return async_result
+        return
 
     def remove_expired_report_data(self, simulate=False, line_items_only=False):
         """
