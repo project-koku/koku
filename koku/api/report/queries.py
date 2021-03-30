@@ -775,7 +775,7 @@ class ReportQueryHandler(QueryHandler):
             "dict": {},
             "list": [],
             "Decimal": Decimal(0),
-            "NoneType": False,
+            "NoneType": None,
         }
         empty_row = {key: row_defaults[str(type(val).__name__)] for key, val in data[0].items()}
 
@@ -800,7 +800,6 @@ class ReportQueryHandler(QueryHandler):
         others_list = []
         other_sums = {column: 0 for column in self._mapper.sum_columns}
 
-        seen = []
         for data in entry:
             if other is None:
                 other = copy.deepcopy(data)
@@ -814,7 +813,6 @@ class ReportQueryHandler(QueryHandler):
 
             if rank > self._offset and rank <= self._limit + self._offset:
                 ranked_list.append(data)
-                seen.append(ranked_value)
             else:
                 others_list.append(data)
                 for column in self._mapper.sum_columns:
