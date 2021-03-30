@@ -47,3 +47,10 @@ class DownloadAPIViewTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("Download Request Task ID", body)
+
+        url_w_params = url + "?provider_uuid=1&bill_date=2021-04-01"
+        response = self.client.get(url_w_params)
+        body = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Download Request Task ID", body)
