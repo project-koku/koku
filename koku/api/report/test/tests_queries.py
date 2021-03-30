@@ -413,6 +413,30 @@ class ReportQueryHandlerTest(IamTestCase):
         self.assertIsInstance(filters, QueryFilterCollection)
         assertSameQ(filters.compose(), expected.compose())
 
+    def test_percent_delta(self):
+        """Test the percent delta method"""
+        params = self.mocked_query_params("", self.mock_view)
+        rqh = create_test_handler(params)
+        pd = rqh._percent_delta(10, 1)
+        self.assertEqual(pd, 900)
+
+    def test_percent_delta_rounding(self):
+        """Test the percent delta method with a b value that should round."""
+        params = self.mocked_query_params("", self.mock_view)
+        test_values = {0.0049: None, 0.0049999999999: None, 0.005: 3900}
+        for k, v in test_values.items():
+            with self.subTest():
+                rqh = create_test_handler(params)
+                pd = rqh._percent_delta(0.2, k)
+                self.assertEqual(pd, v)
+
+    def test_percent_delta_zero_division(self):
+        """Test the percent delta method with a b value of zero"""
+        params = self.mocked_query_params("", self.mock_view)
+        rqh = create_test_handler(params)
+        pd = rqh._percent_delta(10, 0)
+        self.assertEqual(pd, None)
+
     # FIXME: need test for _apply_group_by
     # FIXME: need test for _apply_group_null_label
     # FIXME: need test for _build_custom_filter_list  }
