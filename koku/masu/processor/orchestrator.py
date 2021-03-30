@@ -212,6 +212,7 @@ class Orchestrator:
 
         """
         for account in self._polling_accounts:
+            accounts_labeled = False
             provider_uuid = account.get("provider_uuid")
             report_months = self.get_reports(provider_uuid)
             for month in report_months:
@@ -233,7 +234,7 @@ class Orchestrator:
                     continue
 
                 # update labels
-                if reports_tasks_queued:
+                if reports_tasks_queued and not accounts_labeled:
                     LOG.info("Running AccountLabel to get account aliases.")
                     labeler = AccountLabel(
                         auth=account.get("credentials"),
@@ -241,6 +242,7 @@ class Orchestrator:
                         provider_type=account.get("provider_type"),
                     )
                     account_number, label = labeler.get_label_details()
+                    accounts_labeled = True
                     if account_number:
                         LOG.info("Account: %s Label: %s updated.", account_number, label)
 
