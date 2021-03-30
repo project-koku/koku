@@ -89,4 +89,15 @@ export HADOOP_OPTS="${HADOOP_OPTS} ${VM_OPTIONS} ${GC_SETTINGS} ${JMX_OPTIONS}"
 export HIVE_METASTORE_HADOOP_OPTS=" -Dhive.log.level=${HIVE_LOGLEVEL} "
 export HIVE_OPTS="${HIVE_OPTS} --hiveconf hive.root.logger=${HIVE_LOGLEVEL},console "
 
+set +e
+if schematool -dbType postgres -info -verbose; then
+    echo "Hive metastore schema verified."
+else
+    if schematool -dbType postgres -initSchema -verbose; then
+        echo "Hive metastore schema created."
+    else
+        echo "Error creating hive metastore: $?"
+    fi
+fi
+set -e
 exec $@
