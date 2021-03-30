@@ -24,6 +24,8 @@ from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
+from api.tags.gcp.queries import GCPTagQueryHandler
+from api.tags.gcp.view import GCPTagView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
@@ -60,7 +62,7 @@ class SettingsViewTest(IamTestCase):
         primary_object = data[0]
         tg_mngmnt_subform_fields = primary_object.get("fields")
         self.assertIsNotNone(tg_mngmnt_subform_fields)
-        fields_len = 7
+        fields_len = 9
         self.assertEqual(len(tg_mngmnt_subform_fields), fields_len)
         for element in tg_mngmnt_subform_fields:
             if element.get("name") == f"api.settings.tag-management.{source_name}.enabled":
@@ -72,6 +74,7 @@ class SettingsViewTest(IamTestCase):
             {"handler": OCPTagQueryHandler, "view": OCPTagView, "name": "openshift"},
             {"handler": AWSTagQueryHandler, "view": AWSTagView, "name": "aws"},
             {"handler": AzureTagQueryHandler, "view": AzureTagView, "name": "azure"},
+            {"handler": GCPTagQueryHandler, "view": GCPTagView, "name": "gcp"},
         ]
         for test in test_matrix:
             response = self.get_settings()
