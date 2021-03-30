@@ -103,7 +103,7 @@
 </property>
 <property>
     <name>javax.jdo.option.ConnectionURL</name>
-    <value>jdbc:postgresql://database_host:database_port/database_name</value>
+    <value>jdbc:postgresql://database_host:database_port/database_name?sslmode=database_sslmode</value>
     <description>
     JDBC connect string for a JDBC metastore.
     To use SSL to encrypt/authenticate the connection, provide database-specific SSL flag in the connection URL.

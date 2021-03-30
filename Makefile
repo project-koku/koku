@@ -382,7 +382,7 @@ docker-metastore-setup:
 	@$(SED_IN_PLACE) -e 's/database_password/$(shell echo $(or $(HIVE_DATABASE_PASSWORD),hive))/g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's/database_port/$(shell echo $(or $(DATABASE_PORT),5432))/g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's/database_host/$(shell echo $(or $(DATABASE_HOST),db))/g' testing/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/database_sslmode/$(shell echo $(or $(DATABASE_SSLMODE),false))/g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/database_sslmode/$(shell echo $(or $(DATABASE_SSLMODE),require))/g' testing/metastore/hive-config/hive-site.xml
 
 
 docker-presto-setup:
