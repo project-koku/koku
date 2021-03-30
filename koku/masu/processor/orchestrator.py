@@ -211,7 +211,6 @@ class Orchestrator:
             (celery.result.AsyncResult) Async result for download request.
 
         """
-        async_result = None
         for account in self._polling_accounts:
             provider_uuid = account.get("provider_uuid")
             report_months = self.get_reports(provider_uuid)
