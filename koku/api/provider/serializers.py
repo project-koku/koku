@@ -16,6 +16,7 @@
 #
 """Provider Model Serializers."""
 import logging
+from collections import defaultdict
 
 from django.conf import settings
 from django.db import transaction
@@ -278,6 +279,20 @@ class ProviderSerializer(serializers.ModelSerializer):
             self.fields["authentication"] = ProviderAuthenticationSerializer()
             self.fields["billing_source"] = ProviderBillingSourceSerializer()
 
+    @property
+    def demo_credentials(self):
+        """Build formatted credentials for our nise-populator demo accounts."""
+        creds_by_source_type = defaultdict(list)
+        for account, cred_dict in settings.DEMO_ACCOUNTS.items():
+            for cred, info in cred_dict.items():
+                if info.get("source_type") == Provider.PROVIDER_AWS:
+                    creds_by_source_type[Provider.PROVIDER_AWS].append({"role_arn": cred})
+                elif info.get("source_type") == Provider.PROVIDER_AZURE:
+                    creds_by_source_type[Provider.PROVIDER_AZURE].append({"client_id": cred})
+                elif info.get("source_type") == Provider.PROVIDER_GCP:
+                    creds_by_source_type[Provider.PROVIDER_GCP].append({"project_id": cred})
+        return creds_by_source_type
+
     def get_request_info(self):
         """Obtain request information like user and customer context."""
         user = self.context.get("user")
@@ -313,7 +328,9 @@ class ProviderSerializer(serializers.ModelSerializer):
         billing_source = validated_data.pop("billing_source")
         data_source = billing_source.get("data_source")
 
-        if customer.account_id not in settings.DEMO_ACCOUNTS:
+        if self._is_demo_account(provider_type, credentials):
+            LOG.info("Customer account is a DEMO account. Skipping cost_usage_source_ready check.")
+        else:
             interface.cost_usage_source_ready(credentials, data_source)
 
         bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
@@ -359,7 +376,7 @@ class ProviderSerializer(serializers.ModelSerializer):
         data_source = billing_source.get("data_source")
 
         try:
-            if customer.account_id in settings.DEMO_ACCOUNTS:
+            if self._is_demo_account(provider_type, credentials):
                 LOG.info("Customer account is a DEMO account. Skipping cost_usage_source_ready check.")
             else:
                 interface.cost_usage_source_ready(credentials, data_source)
@@ -397,6 +414,21 @@ class ProviderSerializer(serializers.ModelSerializer):
             customer.save()
 
             return instance
+
+    def _is_demo_account(self, provider_type, credentials):
+        """Test whether this source is a demo account."""
+        key_types = {
+            Provider.PROVIDER_AWS: "role_arn",
+            Provider.PROVIDER_AZURE: "client_id",
+            Provider.PROVIDER_GCP: "project_id",
+        }
+
+        key_to_check = key_types.get(provider_type, "")
+        creds_to_check = self.demo_credentials.get(provider_type, [])
+        for cred in creds_to_check:
+            if credentials.get(key_to_check, True) == cred.get(key_to_check, False):
+                return True
+        return False
 
 
 class AdminProviderSerializer(ProviderSerializer):
