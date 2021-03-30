@@ -65,13 +65,26 @@ LOG = get_task_logger(__name__)
 
 GET_REPORT_FILES_QUEUE = "download"
 OCP_QUEUE = "ocp"
+PRIORITY_QUEUE = "priority"
 REFRESH_MATERIALIZED_VIEWS_QUEUE = "refresh"
 REMOVE_EXPIRED_DATA_QUEUE = "summary"
 SUMMARIZE_REPORTS_QUEUE = "summary"
 UPDATE_COST_MODEL_COSTS_QUEUE = "cost_model"
 UPDATE_SUMMARY_TABLES_QUEUE = "summary"
-PRIORITY_QUEUE = "priority"
 VACUUM_SCHEMA = "summary"
+
+# any additional queues should be added to this list
+QUEUE_LIST = [
+    GET_REPORT_FILES_QUEUE,
+    OCP_QUEUE,
+    PRIORITY_QUEUE,
+    REFRESH_MATERIALIZED_VIEWS_QUEUE,
+    REMOVE_EXPIRED_DATA_QUEUE,
+    SUMMARIZE_REPORTS_QUEUE,
+    UPDATE_COST_MODEL_COSTS_QUEUE,
+    UPDATE_SUMMARY_TABLES_QUEUE,
+    VACUUM_SCHEMA,
+]
 
 
 def record_all_manifest_files(manifest_id, report_files):

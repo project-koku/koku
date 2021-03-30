@@ -115,7 +115,7 @@ class Orchestrator:
         else:
             number_of_months = 2
 
-        return DateAccessor().get_billing_months(number_of_months)
+        return sorted(DateAccessor().get_billing_months(number_of_months), reverse=True)
 
     def start_manifest_processing(
         self, customer_name, credentials, data_source, provider_type, schema_name, provider_uuid, report_month
@@ -211,7 +211,6 @@ class Orchestrator:
             (celery.result.AsyncResult) Async result for download request.
 
         """
-        async_result = None
         for account in self._polling_accounts:
             provider_uuid = account.get("provider_uuid")
             report_months = self.get_reports(provider_uuid)
@@ -242,8 +241,7 @@ class Orchestrator:
                 account_number, label = labeler.get_label_details()
                 if account_number:
                     LOG.info("Account: %s Label: %s updated.", account_number, label)
-
-        return async_result
+        return
 
     def remove_expired_report_data(self, simulate=False, line_items_only=False):
         """

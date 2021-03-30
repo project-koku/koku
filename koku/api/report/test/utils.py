@@ -70,6 +70,8 @@ class NiseDataLoader:
         if days_of_data < num_days:
             extra_days = num_days - days_of_data
             prev_month_end = prev_month_end + relativedelta(days=extra_days)
+            if prev_month_end > self.dh.last_month_end:
+                prev_month_end = self.dh.last_month_end
 
         return [
             (prev_month_start, prev_month_end, self.dh.last_month_start),
