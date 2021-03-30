@@ -227,7 +227,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
             )
 
             for tag in tags:
-                tag_dict = tag[0]
+                tag_dict = tag[0] if tag[0] is not None else {}  # account for null tags value
                 tag_keys = list(tag_dict.keys())
                 if tag_keys:
                     self.assertEqual([key_to_keep.key], tag_keys)
