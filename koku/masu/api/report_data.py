@@ -124,6 +124,10 @@ def report_data(request):
 
         LOG.info("Calling remove_expired_data async task.")
 
-        async_result = remove_expired_data.delay(schema_name, provider, simulate, provider_uuid)
+        async_result = (
+            remove_expired_data.s(schema_name, provider, simulate, provider_uuid)
+            .set(queue=PRIORITY_QUEUE)
+            .apply_async()
+        )
 
         return Response({"Report Data Task ID": str(async_result)})

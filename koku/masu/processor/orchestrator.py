@@ -136,7 +136,7 @@ class Orchestrator:
                 manifest_id - (String): Manifest ID for ReportManifestDBAccessor
                 assembly_id - (String): UUID identifying report file
                 compression - (String): Report compression format
-                files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
+                files       - ([{key: "full_file_path", "local_file": local file name}]): List of report files.
         """
         downloader = ReportDownloader(
             customer_name=customer_name,
