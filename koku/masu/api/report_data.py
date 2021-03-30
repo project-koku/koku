@@ -90,7 +90,7 @@ def report_data(request):
                 schema_name, provider, provider_uuid, start_date, end_date, queue_name=queue_name
             ).apply_async(queue=queue_name or PRIORITY_QUEUE)
         else:
-            async_result = update_all_summary_tables.delay(start_date, end_date)
+            async_result = update_all_summary_tables.s(start_date, end_date).apply_async(queue=PRIORITY_QUEUE)
         return Response({REPORT_DATA_KEY: str(async_result)})
 
     if request.method == "DELETE":
