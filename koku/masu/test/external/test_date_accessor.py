@@ -21,6 +21,7 @@ import dateutil
 import pytz
 from faker import Faker
 
+from api.utils import DateHelper
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
 from masu.external.date_accessor import DateAccessorError
@@ -161,3 +162,16 @@ class DateAccessorTest(MasuTestCase):
 
         with self.assertRaises(DateAccessorError):
             accessor.today_with_timezone(string_tz)
+
+    def test_get_billing_month_start(self):
+        """Test that a proper datetime is returend for bill month."""
+        dh = DateHelper()
+        accessor = DateAccessor()
+        expected = dh.this_month_start.date()
+        today = dh.today
+        str_input = str(today)
+        datetime_input = today
+        date_input = today.date()
+        self.assertEqual(accessor.get_billing_month_start(str_input), expected)
+        self.assertEqual(accessor.get_billing_month_start(datetime_input), expected)
+        self.assertEqual(accessor.get_billing_month_start(date_input), expected)

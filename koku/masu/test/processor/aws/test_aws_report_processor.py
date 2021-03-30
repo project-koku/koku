@@ -613,7 +613,7 @@ class AWSReportProcessorTest(MasuTestCase):
             "resourceTags/System": "value",
             "resourceTags/system:system_key": "system_value",
         }
-        expected = {"environment": "prod", "system_key": "system_value"}
+        expected = {"environment": "prod"}
         actual = json.loads(self.processor._process_tags(row))
 
         self.assertNotIn(row["notATag"], actual)
