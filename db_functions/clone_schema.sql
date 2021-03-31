@@ -25,19 +25,24 @@ CREATE OR REPLACE FUNCTION public.clone_schema(
 DECLARE
     object_rec record;
     object2_rec record;
+    src_schema text;
+    dst_schema text;
     source_obj text;
     dest_obj text;
     ix_stmt text;
     seqval bigint;
     tenant_ident text[];
 BEGIN
+    dst_schema = quote_ident(dest_schema);
+    src_schema = quote_ident(source_schema);
+
     /* Check if source schema exists */
     PERFORM oid
        FROM pg_namespace
       WHERE nspname = source_schema;
     IF NOT FOUND
     THEN
-        RAISE WARNING 'Source schema "%" does not exist.', source_schema;
+        RAISE WARNING 'Source schema % does not exist.', src_schema;
         RETURN false;
     END IF;
 
@@ -47,7 +52,7 @@ BEGIN
       WHERE nspname = dest_schema;
     IF FOUND
     THEN
-        RAISE INFO 'Destination schema "%" already exists.', dest_schema;
+        RAISE INFO 'Destination schema % already exists.', dst_schema;
         RETURN false;
     END IF;
 
@@ -58,17 +63,17 @@ BEGIN
      */
     IF _verbose
     THEN
-        RAISE INFO 'Creating schema "%"', quote_ident(dest_schema);
+        RAISE INFO 'Creating schema %', dst_schema;
     END IF;
 
-    EXECUTE 'CREATE SCHEMA ' || quote_ident(dest_schema) || ' ;';
+    EXECUTE 'CREATE SCHEMA ' || dst_schema || ' ;';
 
     /*
      * Create sequences
      */
     IF _verbose
     THEN
-        RAISE INFO 'Creating sequences for "%"', dest_schema;
+        RAISE INFO 'Creating sequences for %', dst_schema;
     END IF;
     FOR object_rec IN
         SELECT c.relname as "sequence_name",
@@ -86,10 +91,10 @@ BEGIN
     LOOP
         IF _verbose
         THEN
-            RAISE INFO '    "%"."%"', quote_ident(dest_schema), quote_ident(object_rec.sequence_name);
+            RAISE INFO '    %.%', dst_schema, quote_ident(object_rec.sequence_name);
         END IF;
         EXECUTE 'CREATE SEQUENCE IF NOT EXISTS ' ||
-                quote_ident(dest_schema) || '.' || quote_ident(object_rec.sequence_name) ||
+                dst_schema || '.' || quote_ident(object_rec.sequence_name) ||
                 ' AS ' || object_rec.sequence_type ||
                 ' START WITH ' || object_rec.sequence_start ||
                 ' INCREMENT BY ' || object_rec.sequence_inc ||
@@ -102,9 +107,9 @@ BEGIN
            (object_rec.sequence_name ~ 'partitioned_tables') OR
            (object_rec.sequence_name ~ 'django_migrations')
         THEN
-            EXECUTE 'SELECT setval(''' || dest_schema || '.' || object_rec.sequence_name || '''::regclass, ' ||
+            EXECUTE 'SELECT setval(''' || dst_schema || '.' || quote_ident(object_rec.sequence_name) || '''::regclass, ' ||
                      '(SELECT last_value + 1 FROM ' ||
-                     quote_ident(source_schema) || '.' || quote_ident(object_rec.sequence_name) || ') );';
+                     src_schema || '.' || quote_ident(object_rec.sequence_name) || ') );';
         END IF;
     END LOOP;
 
@@ -113,7 +118,7 @@ BEGIN
      */
     IF _verbose
     THEN
-        RAISE INFO 'Creating tables for "%"', dest_schema;
+        RAISE INFO 'Creating tables for %', dst_schema;
     END IF;
     FOR object_rec IN
         SELECT t.oid as "obj_id",
@@ -154,14 +159,14 @@ BEGIN
                END::int,
                t.relispartition
     LOOP
-        dest_obj = quote_ident(dest_schema) || '.' || quote_ident(object_rec.table_name);
-        source_obj = quote_ident(source_schema) || '.' || quote_ident(object_rec.table_name);
+        dest_obj = dst_schema || '.' || quote_ident(object_rec.table_name);
+        source_obj = src_schema || '.' || quote_ident(object_rec.table_name);
 
         IF object_rec.table_kind = 'p'
         THEN
             IF _verbose
             THEN
-                RAISE INFO '    "%" (partitioned table)', dest_obj;
+                RAISE INFO '    % (partitioned table)', dest_obj;
             END IF;
             EXECUTE 'CREATE TABLE IF NOT EXISTS ' || dest_obj || ' (LIKE ' || source_obj || ' INCLUDING ALL) ' ||
                     'PARTITION BY ' || object_rec.partition_type ||
@@ -170,15 +175,15 @@ BEGIN
         THEN
             IF _verbose
             THEN
-                RAISE INFO '    "%" (table partition)', dest_obj;
+                RAISE INFO '    % (table partition)', dest_obj;
             END IF;
             EXECUTE 'CREATE TABLE IF NOT EXISTS ' || dest_obj || ' PARTITION OF ' ||
-                    quote_ident(dest_schema) || '.' || quote_ident(object_rec.partitioned_table) || ' ' ||
+                    dst_schema || '.' || quote_ident(object_rec.partitioned_table) || ' ' ||
                     object_rec.partition_expr || ' ;';
         ELSE
             IF _verbose
             THEN
-                RAISE INFO '    "%" (table)', dest_obj;
+                RAISE INFO '    % (table)', dest_obj;
             END IF;
             EXECUTE 'CREATE TABLE IF NOT EXISTS ' || dest_obj || ' (LIKE ' || source_obj || ' INCLUDING ALL) ;';
         END IF;
@@ -224,13 +229,13 @@ BEGIN
                     RAISE INFO '        Update primary key default';
                 END IF;
                 EXECUTE 'ALTER TABLE ' || dest_obj || ' ALTER COLUMN ' || quote_ident(object2_rec.owner_column) ||
-                        ' SET DEFAULT nextval(''' || dest_schema || '.' || object2_rec.sequence_name || '''::regclass);';
+                        ' SET DEFAULT nextval(''' || dst_schema || '.' || quote_ident(object2_rec.sequence_name) || '''::regclass);';
 
                 IF _verbose
                 THEN
                     RAISE INFO '        Update sequence owned-by table column';
                 END IF;
-                EXECUTE 'ALTER SEQUENCE ' || quote_ident(dest_schema) || '.' || quote_ident(object2_rec.sequence_name) ||
+                EXECUTE 'ALTER SEQUENCE ' || dst_schema || '.' || quote_ident(object2_rec.sequence_name) ||
                         ' OWNED BY ' || dest_obj || '.' || quote_ident(object2_rec.owner_column) || ' ;';
             END LOOP;
         END IF;
@@ -241,14 +246,14 @@ BEGIN
      */
     IF _verbose
     THEN
-        RAISE INFO 'Create foriegn key constraints for tables in "%"', dest_schema;
+        RAISE INFO 'Create foriegn key constraints for tables in "%"', dst_schema;
     END IF;
     FOR object_rec IN
         SELECT rn.relname as "table_name",
                ct.conname as "constraint_name",
-               'ALTER TABLE ' || quote_ident(dest_schema) || '.' || quote_ident(rn.relname) ||
+               'ALTER TABLE ' || dst_schema || '.' || quote_ident(rn.relname) ||
                             ' ADD CONSTRAINT ' || quote_ident(ct.conname) || ' ' ||
-                            replace(pg_get_constraintdef(ct.oid), source_schema || '.', dest_schema || '.') ||
+                            replace(pg_get_constraintdef(ct.oid), source_schema || '.', dst_schema || '.') ||
                             ' ;' as "alter_stmt"
           FROM pg_constraint ct
           JOIN pg_class rn
@@ -270,7 +275,7 @@ BEGIN
      */
     IF _verbose
     THEN
-        RAISE INFO 'Creating views for "%"', dest_schema;
+        RAISE INFO 'Creating views for %', dst_schema;
     END IF;
     FOR object_rec IN
         WITH RECURSIVE view_deps as (
@@ -312,7 +317,7 @@ BEGIN
         ),
         base_view_def as (
         SELECT *,
-               replace(pg_get_viewdef(view_oid), source_schema || '.', dest_schema || '.') as "view_def"
+               replace(pg_get_viewdef(view_oid), source_schema || '.', dst_schema || '.') as "view_def"
           FROM view_deps
         )
         SELECT bvd.view_name,
@@ -326,7 +331,7 @@ BEGIN
                END::text as "view_def",
                COALESCE((SELECT array_agg(replace(pg_get_indexdef(i.indexrelid),
                                                                   source_schema || '.',
-                                                                  dest_schema || '.'))::text[]
+                                                                  dst_schema || '.'))::text[]
                            FROM pg_index i
                           WHERE i.indrelid = bvd.view_oid),
                         '{}'::text[]) as "view_indexes"
@@ -336,10 +341,10 @@ BEGIN
     LOOP
         IF _verbose
         THEN
-            RAISE INFO '    "%" "%"', object_rec.view_kind, object_rec.view_name;
+            RAISE INFO '    %: "%"', object_rec.view_kind, object_rec.view_name;
         END IF;
         EXECUTE 'CREATE ' || object_rec.view_kind || ' ' ||
-                quote_ident(dest_schema) || '.' || quote_ident(object_rec.view_name) || ' AS ' ||
+                dst_schema || '.' || quote_ident(object_rec.view_name) || ' AS ' ||
                 object_rec.view_def;
 
         IF cardinality(object_rec.view_indexes) > 0
@@ -360,7 +365,7 @@ BEGIN
      */
     IF _verbose
     THEN
-        RAISE INFO 'Create functions, procedures for "%"', dest_schema;
+        RAISE INFO 'Create functions, procedures for "%"', dst_schema;
     END IF;
     FOR object_rec IN
         SELECT proname as "func_name",
@@ -371,7 +376,7 @@ BEGIN
                     WHEN 'w' THEN 'WINDOW'
                     ELSE 'UNKNOWN'
                END::text as "func_type",
-               replace(pg_get_functiondef(oid), source_schema || '.', dest_schema || '.') as "func_stmt"
+               replace(pg_get_functiondef(oid), source_schema || '.', dst_schema || '.') as "func_stmt"
           FROM pg_proc
          WHERE pronamespace = source_schema::regnamespace
     LOOP
@@ -387,13 +392,13 @@ BEGIN
      */
     IF _verbose
     THEN
-        RAISE INFO 'Create triggers on objects in "%"', dest_schema;
+        RAISE INFO 'Create triggers on objects in "%"', dst_schema;
     END IF;
     FOR object_rec IN
         SELECT t.oid as "trigger_id",
                t.tgname::text as "trigger_name",
                c.relname::text as "table_name",
-               replace(pg_get_triggerdef(t.oid), source_schema || '.', dest_schema || '.') as "trigger_def"
+               replace(pg_get_triggerdef(t.oid), source_schema || '.', dst_schema || '.') as "trigger_def"
           FROM pg_trigger t
           JOIN pg_class c
             ON c.oid = t.tgrelid
@@ -413,12 +418,12 @@ BEGIN
      */
     IF _verbose
     THEN
-        RAISE INFO 'Creating rules on objects in "%"', dest_schema;
+        RAISE INFO 'Creating rules on objects in %', dst_schema;
     END IF;
     FOR object_rec IN
         SELECT tablename,
                rulename,
-               replace(definition, source_schema || '.', dest_schema || '.') as "rule_def"
+               replace(definition, source_schema || '.', dst_schema || '.') as "rule_def"
           FROM pg_rules
          WHERE schemaname = source_schema
     LOOP
@@ -434,7 +439,7 @@ BEGIN
      */
     IF _verbose
     THEN
-        RAISE INFO 'Creating comments on objects in "%"', dest_schema;
+        RAISE INFO 'Creating comments on objects in %', dst_schema;
     END IF;
     FOR object_rec IN
         select t.oid,
@@ -467,7 +472,7 @@ BEGIN
             RAISE INFO '    % %', object_rec.comment_type, object_rec.table_name || object_rec.column_name;
         END IF;
         EXECUTE 'COMMENT ON ' || object_rec.comment_type || ' ' ||
-                         quote_ident(dest_schema) || '.' || quote_ident(object_rec.table_name) || object_rec.column_name || ' ' ||
+                         dst_schema || '.' || quote_ident(object_rec.table_name) || object_rec.column_name || ' ' ||
                          'IS ' || quote_literal(object_rec.description) || ' ;';
     END LOOP;
 
