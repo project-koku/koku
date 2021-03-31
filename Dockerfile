@@ -7,6 +7,7 @@ ENV LC_ALL=en_US.UTF-8 \
     LANG=en_US.UTF-8 \
     PIP_NO_CACHE_DIR=off \
     ENABLE_PIPENV=true \
+    PIN_PIPENV_VERSION="2018.11.26" \
     APP_HOME="/opt/app-root/src/koku" \
     APP_MODULE="koku.wsgi" \
     APP_CONFIG="gunicorn.py"
@@ -40,8 +41,7 @@ COPY .git /tmp/src/.git
 
 
 RUN /usr/bin/fix-permissions /tmp/src && \
-curl -L -o /usr/bin/haberdasher && \
-https://github.com/RedHatInsights/haberdasher/releases/latest/download/haberdasher_linux_amd64 && \
+curl -L -o /usr/bin/haberdasher https://github.com/RedHatInsights/haberdasher/releases/latest/download/haberdasher_linux_amd64 && \
 chmod 755 /usr/bin/haberdasher $STI_SCRIPTS_PATH/assemble $STI_SCRIPTS_PATH/run
 
 USER 1001
