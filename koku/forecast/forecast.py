@@ -89,7 +89,7 @@ class Forecast:
                 # We have access constraints, but no view to accomodate, default to daily summary table
                 self.cost_summary_table = self.provider_map.query_table
 
-        self.forecast_days_required = (self.dh.this_month_end - self.dh.yesterday).days
+        self.forecast_days_required = max((self.dh.this_month_end - self.dh.yesterday).days, 2)
 
         # forecasts use a rolling window
         self.query_range = (self.dh.n_days_ago(self.dh.yesterday, 30), self.dh.yesterday)
