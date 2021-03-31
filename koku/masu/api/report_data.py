@@ -28,11 +28,11 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.processor.tasks import OCP_QUEUE
+from masu.processor.tasks import PRIORITY_QUEUE
+from masu.processor.tasks import QUEUE_LIST
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_summary_tables
-from masu.processor.tasks import UPDATE_SUMMARY_TABLES_QUEUE
 
 LOG = logging.getLogger(__name__)
 REPORT_DATA_KEY = "Report Data Task ID"
@@ -53,9 +53,13 @@ def report_data(request):
         schema_name = params.get("schema")
         start_date = params.get("start_date")
         end_date = params.get("end_date")
+        queue_name = params.get("queue") or PRIORITY_QUEUE
         if provider_uuid is None and provider_type is None:
             errmsg = "provider_uuid or provider_type must be supplied as a parameter."
-            return Response({"Error": errmsg}, status=400)
+            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+        if queue_name not in QUEUE_LIST:
+            errmsg = f"'queue' must be one of {QUEUE_LIST}."
+            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         if provider_uuid == "*":
             all_providers = True
@@ -70,7 +74,6 @@ def report_data(request):
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         if not all_providers:
-            queue_name = OCP_QUEUE if provider and provider.lower() == "ocp" else None
             if schema_name is None:
                 errmsg = "schema is a required parameter."
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
@@ -85,7 +88,7 @@ def report_data(request):
 
             async_result = update_summary_tables.s(
                 schema_name, provider, provider_uuid, start_date, end_date, queue_name=queue_name
-            ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
+            ).apply_async(queue=queue_name or PRIORITY_QUEUE)
         else:
             async_result = update_all_summary_tables.delay(start_date, end_date)
         return Response({REPORT_DATA_KEY: str(async_result)})
