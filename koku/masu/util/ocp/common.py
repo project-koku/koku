@@ -248,15 +248,12 @@ def get_provider_uuid_from_cluster_id(cluster_id):
 
     """
     provider_uuid = None
-    auth_id = None
     credentials = {"cluster_id": cluster_id}
-    with ProviderAuthDBAccessor(credentials=credentials) as auth_accessor:
-        auth_id = auth_accessor.get_auth_id()
-        LOG.info(f"Found Authentication ID {str(auth_id)} for Cluster ID: {str(cluster_id)}")
-        if auth_id:
-            with ProviderDBAccessor(auth_id=auth_id) as provider_accessor:
-                provider_uuid = provider_accessor.get_uuid()
-                LOG.info(f"Found provider: {str(provider_uuid)} for Cluster ID: {str(cluster_id)}")
+    provider = Provider.objects.filter(authentication__credentials=credentials).first()
+    if provider:
+        provider_uuid = str(provider.uuid)
+        LOG.info(f"Found provider: {str(provider_uuid)} for Cluster ID: {str(cluster_id)}")
+
     return provider_uuid
 
 

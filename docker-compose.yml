@@ -132,9 +132,6 @@ services:
     volumes:
       - ./pg_data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
       - ./pg_init:/docker-entrypoint-initdb.d
-      # PostgreSQL SSL: Un-comment the next two lines after running ./scripts/genssc to use sslmode in Postgres
-      # - ${HOME}/.koku-db-certs/koku.crt:/etc/certs/koku.crt
-      # - ${HOME}/.koku-db-certs/private/koku.key:/etc/certs/private/koku.key
     command:
       # This command give more precise control over the parameter settings
       # Included are loading the pg_stat_statements lib
@@ -142,14 +139,12 @@ services:
       # use of the autovacuum processes
       # The pg_init mount is still needed to enable the necesary extensions.
       - postgres
-      # PostgreSQL SSL: Run ./scripts/genssc to create self-signed cert and key files to support ssl
-      #                 Un-comment the three options below to utilize ssl mode and use the certificate and key
-      # - -c
-      # - ssl=on
-      # - -c
-      # - ssl_cert_file=/etc/certs/koku.crt
-      # - -c
-      # - ssl_key_file=/etc/certs/private/koku.key
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+      - -c
+      - ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
       - -c
       - max_connections=1710
       - -c

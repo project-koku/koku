@@ -3,114 +3,6 @@
  * This SQL will utilize Presto for the raw line-item data aggregating
  * and store the results into the koku database summary tables.
  */
-
--- Using the convention of a double-underscore prefix to denote a temp table.
-
-/*
- * ====================================
- *               COMMON
- * ====================================
- */
-
--- node label line items by day presto sql
--- still using a temp table here because there is no guarantee how big this might get
-DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{uuid | sqlsafe}};
-CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{uuid | sqlsafe}} AS (
-    SELECT date(nli.interval_start) as usage_start,
-        nli.node,
-        nli.node_labels
-    FROM hive.{{schema | sqlsafe}}.openshift_node_labels_line_items AS nli
-    WHERE nli.source = {{source}}
-       AND nli.year = {{year}}
-       AND nli.month = {{month}}
-       AND nli.interval_start >= TIMESTAMP {{start_date}}
-       AND nli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
-    GROUP BY date(nli.interval_start),
-        nli.node,
-        nli.node_labels
-)
-;
-
--- namespace label line items by day presto sql
--- still using a temp table here because there is no guarantee how big this might get
-DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__ocp_namespace_label_line_item_daily_{{uuid | sqlsafe}};
-CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_namespace_label_line_item_daily_{{uuid | sqlsafe}} AS (
-    SELECT date(nli.interval_start) as usage_start,
-        nli.namespace,
-        nli.namespace_labels
-    FROM hive.{{schema | sqlsafe}}.openshift_namespace_labels_line_items AS nli
-    WHERE nli.source = {{source}}
-       AND nli.year = {{year}}
-       AND nli.month = {{month}}
-       AND nli.interval_start >= TIMESTAMP {{start_date}}
-       AND nli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
-    GROUP BY date(nli.interval_start),
-        nli.namespace,
-        nli.namespace_labels
-)
-;
-
--- Daily sum of cluster CPU and memory capacity
-DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}};
-CREATE TABLE hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}} as (
-    SELECT date(cc.interval_start) as usage_start,
-        sum(cc.max_cluster_capacity_cpu_core_seconds) as cluster_capacity_cpu_core_seconds,
-        sum(cc.max_cluster_capacity_memory_byte_seconds) as cluster_capacity_memory_byte_seconds
-    FROM (
-        SELECT li.interval_start,
-            li.node,
-            max(li.node_capacity_cpu_core_seconds) as max_cluster_capacity_cpu_core_seconds,
-            max(li.node_capacity_memory_byte_seconds) as max_cluster_capacity_memory_byte_seconds
-        FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items AS li
-        WHERE li.source = {{source}}
-            AND li.year = {{year}}
-            AND li.month = {{month}}
-            AND li.interval_start >= TIMESTAMP {{start_date}}
-            AND li.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
-        GROUP BY li.interval_start,
-            li.node
-    ) as cc
-    GROUP BY date(cc.interval_start)
-)
-;
-
-/*
- * ====================================
- *                POD
- * ====================================
- */
-
-/*
- * Delete the old block of data (if any) based on the usage range
- * Inserting a record in this log will trigger a delete against the specified table
- * in the same schema as the log table with the specified where_clause
- * start_date and end_date MUST be strings in order for this to work properly.
- */
-INSERT INTO postgres.{{schema | sqlsafe}}.presto_delete_wrapper_log (
-    id,
-    action_ts,
-    table_name,
-    where_clause,
-    result_rows
-)
-VALUES (
-    uuid(),
-    now(),
-    'reporting_ocpusagelineitem_daily_summary',
-    'where usage_start >= '{{start_date}}'::date ' ||
-        'and usage_start <= '{{end_date}}'::date ' ||
-        'and cluster_id = '{{cluster_id}}' ' ||
-        'and data_source = ''Pod''',
-    null
-)
-;
-
-/*
- * This is the target summarization sql for POD usage
- * It combines the prior daily summarization query with the final summarization query
- * by use of MAP_FILTER to filter the combined node line item labels as well as
- * the line-item pod labels against the postgres enabled keys in the same query
- */
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
@@ -135,9 +27,96 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     node_capacity_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    volume_labels,
+    persistentvolumeclaim_capacity_gigabyte,
+    persistentvolumeclaim_capacity_gigabyte_months,
+    volume_request_storage_gigabyte_months,
+    persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
     infrastructure_usage_cost
 )
+-- node label line items by day presto sql
+WITH cte_ocp_node_label_line_item_daily AS (
+    SELECT date(nli.interval_start) as usage_start,
+        nli.node,
+        nli.node_labels
+    FROM hive.{{schema | sqlsafe}}.openshift_node_labels_line_items AS nli
+    WHERE nli.source = {{source}}
+       AND nli.year = {{year}}
+       AND nli.month = {{month}}
+       AND nli.interval_start >= TIMESTAMP {{start_date}}
+       AND nli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
+    GROUP BY date(nli.interval_start),
+        nli.node,
+        nli.node_labels
+),
+-- namespace label line items by day presto sql
+cte_ocp_namespace_label_line_item_daily AS (
+    SELECT date(nli.interval_start) as usage_start,
+        nli.namespace,
+        nli.namespace_labels
+    FROM hive.{{schema | sqlsafe}}.openshift_namespace_labels_line_items AS nli
+    WHERE nli.source = {{source}}
+       AND nli.year = {{year}}
+       AND nli.month = {{month}}
+       AND nli.interval_start >= TIMESTAMP {{start_date}}
+       AND nli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
+    GROUP BY date(nli.interval_start),
+        nli.namespace,
+        nli.namespace_labels
+),
+-- Daily sum of cluster CPU and memory capacity
+cte_ocp_cluster_capacity AS (
+    SELECT date(cc.interval_start) as usage_start,
+        sum(cc.max_cluster_capacity_cpu_core_seconds) as cluster_capacity_cpu_core_seconds,
+        sum(cc.max_cluster_capacity_memory_byte_seconds) as cluster_capacity_memory_byte_seconds
+    FROM (
+        SELECT li.interval_start,
+            li.node,
+            max(li.node_capacity_cpu_core_seconds) as max_cluster_capacity_cpu_core_seconds,
+            max(li.node_capacity_memory_byte_seconds) as max_cluster_capacity_memory_byte_seconds
+        FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items AS li
+        WHERE li.source = {{source}}
+            AND li.year = {{year}}
+            AND li.month = {{month}}
+            AND li.interval_start >= TIMESTAMP {{start_date}}
+            AND li.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
+        GROUP BY li.interval_start,
+            li.node
+    ) as cc
+    GROUP BY date(cc.interval_start)
+),
+-- Determine which node a PVC is running on
+cte_volume_nodes AS (
+    SELECT date(sli.interval_start) as usage_start,
+        sli.persistentvolumeclaim,
+        max(uli.node) as node,
+        max(uli.resource_id) as resource_id
+    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items as sli
+    JOIN hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items as uli
+        ON uli.source = sli.source
+            AND uli.namespace = sli.namespace
+            AND uli.pod = sli.pod
+            AND date(uli.interval_start) = date(sli.interval_start)
+     WHERE sli.source = {{source}}
+        AND sli.year = {{year}}
+        AND sli.month = {{month}}
+        AND sli.interval_start >= TIMESTAMP {{start_date}}
+        AND sli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
+        AND uli.source = {{source}}
+        AND uli.year = {{year}}
+        AND uli.month = {{month}}
+     GROUP BY date(sli.interval_start),
+          sli.persistentvolumeclaim
+)
+/*
+ * ====================================
+ *            POD
+ * ====================================
+ */
 SELECT uuid() as uuid,
     {{report_period_id}} as report_period_id,
     {{cluster_id}} as cluster_id,
@@ -161,6 +140,14 @@ SELECT uuid() as uuid,
     pua.node_capacity_memory_gigabyte_hours,
     pua.cluster_capacity_cpu_core_hours,
     pua.cluster_capacity_memory_gigabyte_hours,
+    NULL as persistentvolumeclaim,
+    NULL as persistentvolume,
+    NULL as storageclass,
+    NULL as volume_labels,
+    NULL as persistentvolumeclaim_capacity_gigabyte,
+    NULL as persistentvolumeclaim_capacity_gigabyte_months,
+    NULL as volume_request_storage_gigabyte_months,
+    NULL as persistentvolumeclaim_usage_gigabyte_months,
     cast(pua.source_uuid as UUID) as source_uuid,
     JSON '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost
 FROM (
@@ -187,18 +174,14 @@ FROM (
         max(cc.cluster_capacity_cpu_core_seconds) / 3600.0 as cluster_capacity_cpu_core_hours,
         max(cc.cluster_capacity_memory_byte_seconds) / 3600.0 * power(2, -30) as cluster_capacity_memory_gigabyte_hours
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items as li
-    LEFT JOIN hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{uuid | sqlsafe}} as nli
+    LEFT JOIN cte_ocp_node_label_line_item_daily as nli
         ON nli.node = li.node
             AND nli.usage_start = date(li.interval_start)
-    LEFT JOIN hive.{{schema | sqlsafe}}.__ocp_namespace_label_line_item_daily_{{uuid | sqlsafe}} as nsli
+    LEFT JOIN cte_ocp_namespace_label_line_item_daily as nsli
         ON nsli.namespace = li.namespace
             AND nsli.usage_start = date(li.interval_start)
-    LEFT JOIN hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}} as cc
+    LEFT JOIN cte_ocp_cluster_capacity as cc
         ON cc.usage_start = date(li.interval_start)
-    -- CROSS JOIN (
-    --     SELECT array_agg(distinct key) as enabled_keys
-    --     FROM postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys
-    -- ) as ek
     WHERE li.source = {{source}}
         AND li.year = {{year}}
         AND li.month = {{month}}
@@ -211,110 +194,43 @@ FROM (
         5  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE map_filter EXPRESSION */
             /* The map_filter expression was too complex for presto to use */
 ) as pua
-;
 
+UNION
 
 /*
  * ====================================
  *            STORAGE
  * ====================================
  */
-
-
--- Determine which node a PVC is running on
-DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__volume_nodes_{{uuid | sqlsafe}};
-CREATE TABLE hive.{{schema | sqlsafe}}.__volume_nodes_{{uuid | sqlsafe}} as (
-    SELECT date(sli.interval_start) as usage_start,
-        sli.persistentvolumeclaim,
-        max(uli.node) as node
-    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items as sli
-    JOIN hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items as uli
-        ON uli.source = sli.source
-            AND uli.namespace = sli.namespace
-            AND uli.pod = sli.pod
-            AND date(uli.interval_start) = date(sli.interval_start)
-     WHERE sli.source = {{source}}
-        AND sli.year = {{year}}
-        AND sli.month = {{month}}
-        AND sli.interval_start >= TIMESTAMP {{start_date}}
-        AND sli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
-        AND uli.source = {{source}}
-        AND uli.year = {{year}}
-        AND uli.month = {{month}}
-        -- AND uli.interval_start >= TIMESTAMP {{start_date}}
-        -- AND uli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
-     GROUP BY date(sli.interval_start),
-          sli.persistentvolumeclaim
-)
-;
-
-/*
- * Delete the old block of data (if any) based on the usage range
- * Inserting a record in this log will trigger a delete against the specified table
- * in the same schema as the log table with the specified where_clause
- * start_date and end_date MUST be strings in order for this to work properly.
- */
-INSERT INTO postgres.{{schema | sqlsafe}}.presto_delete_wrapper_log (
-    id,
-    action_ts,
-    table_name,
-    where_clause,
-    result_rows
-)
-VALUES (
-    uuid(),
-    now(),
-    'reporting_ocpusagelineitem_daily_summary',
-    'where usage_start >= '{{start_date}}'::date ' ||
-        'and usage_start <= '{{end_date}}'::date ' ||
-        'and cluster_id = '{{cluster_id}}' ' ||
-        'and data_source = ''Storage''',
-    null
-)
-;
-
-/*
- * This is the target summarization sql for STORAGE usage
- * It combines the prior daily summarization query with the final summarization query
- * by use of MAP_FILTER to filter the combined node line item labels as well as
- * the line-item pod labels against the postgres enabled keys in the same query
- */
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
-    uuid,
-    report_period_id,
-    cluster_id,
-    cluster_alias,
-    data_source,
-    namespace,
-    node,
-    persistentvolumeclaim,
-    persistentvolume,
-    storageclass,
-    usage_start,
-    usage_end,
-    volume_labels,
-    source_uuid,
-    persistentvolumeclaim_capacity_gigabyte,
-    persistentvolumeclaim_capacity_gigabyte_months,
-    volume_request_storage_gigabyte_months,
-    persistentvolumeclaim_usage_gigabyte_months
-)
 SELECT uuid() as uuid,
     {{report_period_id}} as report_period_id,
     {{cluster_id}} as cluster_id,
     {{cluster_alias}} as cluster_alias,
     'Storage' as data_source,
+    sua.usage_start,
+    sua.usage_start as usage_end,
     sua.namespace,
     sua.node,
+    sua.resource_id,
+    NULL as pod_labels,
+    NULL as pod_usage_cpu_core_hours,
+    NULL as pod_request_cpu_core_hours,
+    NULL as pod_limit_cpu_core_hours,
+    NULL as pod_usage_memory_gigabyte_hours,
+    NULL as pod_request_memory_gigabyte_hours,
+    NULL as pod_limit_memory_gigabyte_hours,
+    NULL as node_capacity_cpu_cores,
+    NULL as node_capacity_cpu_core_hours,
+    NULL as node_capacity_memory_gigabytes,
+    NULL as node_capacity_memory_gigabyte_hours,
+    NULL as cluster_capacity_cpu_core_hours,
+    NULL as cluster_capacity_memory_gigabyte_hours,
     sua.persistentvolumeclaim,
     sua.persistentvolume,
     sua.storageclass,
-    sua.usage_start,
-    sua.usage_start as usage_end,
     cast(sua.volume_labels as json) as volume_labels,
-    cast(sua.source_uuid as UUID) as source_uuid,
     (sua.persistentvolumeclaim_capacity_bytes *
-          power(2, -30)) as persistentvolumeclaim_capacity_gigibytes,
+          power(2, -30)) as persistentvolumeclaim_capacity_gigabyte,
     (sua.persistentvolumeclaim_capacity_byte_seconds /
           86400 *
           cast(extract(day from last_day_of_month(date(sua.usage_start))) as integer) *
@@ -326,10 +242,13 @@ SELECT uuid() as uuid,
     (sua.persistentvolumeclaim_usage_byte_seconds /
           86400 *
           cast(extract(day from last_day_of_month(date(sua.usage_start))) as integer) *
-          power(2, -30)) as persistentvolumeclaim_usage_byte_months
+          power(2, -30)) as persistentvolumeclaim_usage_gigabyte_months,
+    cast(sua.source_uuid as UUID) as source_uuid,
+    JSON '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost
 FROM (
     SELECT sli.namespace,
         vn.node,
+        vn.resource_id,
         sli.persistentvolumeclaim,
         sli.persistentvolume,
         sli.storageclass,
@@ -346,13 +265,13 @@ FROM (
         sum(sli.volume_request_storage_byte_seconds) as volume_request_storage_byte_seconds,
         sum(sli.persistentvolumeclaim_usage_byte_seconds) as persistentvolumeclaim_usage_byte_seconds
       FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items sli
-      LEFT JOIN hive.{{schema | sqlsafe}}.__volume_nodes_{{uuid | sqlsafe}} as vn
+      LEFT JOIN cte_volume_nodes as vn
           ON vn.usage_start = date(sli.interval_start)
               AND vn.persistentvolumeclaim = sli.persistentvolumeclaim
-      LEFT JOIN hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{uuid | sqlsafe}} as nli
+      LEFT JOIN cte_ocp_node_label_line_item_daily as nli
           ON nli.node = vn.node
             AND nli.usage_start = vn.usage_start
-      LEFT JOIN hive.{{schema | sqlsafe}}.__ocp_namespace_label_line_item_daily_{{uuid | sqlsafe}} as nsli
+      LEFT JOIN cte_ocp_namespace_label_line_item_daily as nsli
           ON nsli.namespace = sli.namespace
               AND nsli.usage_start = date(sli.interval_start)
     WHERE sli.source = {{source}}
@@ -362,26 +281,13 @@ FROM (
         AND sli.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
     GROUP BY sli.namespace,
         vn.node,
+        vn.resource_id,
         sli.persistentvolumeclaim,
         sli.persistentvolume,
         sli.storageclass,
         date(sli.interval_start),
-        7,  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE map_filter EXPRESSION */
+        8,  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE map_filter EXPRESSION */
             /* The map_filter expression was too complex for presto to use */
         sli.source
 ) as sua
 ;
-
-
-/*
- * ====================================
- *               CLEANUP
- * ====================================
- */
-
-DELETE FROM hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{uuid | sqlsafe}};
-DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__ocp_node_label_line_item_daily_{{uuid | sqlsafe}};
-DELETE FROM hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}};
-DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__ocp_cluster_capacity_{{uuid | sqlsafe}};
-DELETE FROM hive.{{schema | sqlsafe}}.__volume_nodes_{{uuid | sqlsafe}};
-DROP TABLE IF EXISTS hive.{{schema | sqlsafe}}.__volume_nodes_{{uuid | sqlsafe}};

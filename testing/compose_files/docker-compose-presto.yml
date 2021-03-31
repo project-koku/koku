@@ -32,7 +32,7 @@ services:
 
   hive-metastore:
     container_name: hive-metastore
-    image: quay.io/cloudservices/ubi-hive:2.3.3-001
+    image: quay.io/cloudservices/ubi-hive:2.3.3-002
     entrypoint:  ["/hive-scripts/entrypoint.sh", "/opt/hive/bin/hive", "--service", "metastore"]
     ports:
       - "9083:9083"
