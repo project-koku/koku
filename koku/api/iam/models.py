@@ -186,7 +186,7 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
                 self._clone_schema()
             except DBError as dbe:
                 db_exc = dbe
-                LOG.info(
+                LOG.error(
                     f"""Exception {dbe.__class__.__name__} cloning"""
                     + f""" "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}": {str(dbe)}"""
                 )
