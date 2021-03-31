@@ -392,10 +392,14 @@ class SourcesHTTPClient:
             if storage.save_status(self._source_id, json_data):
                 LOG.info(f"Setting Source Status for Source ID: {str(self._source_id)}: {str(json_data)}")
                 application_response = requests.patch(application_url, json=json_data, headers=status_header)
+                error_message = (
+                    f"Unable to set status for Source {self._source_id}. Reason: Status code: "
+                    f"{application_response.status_code}. Response: {application_response.text}."
+                )
                 if application_response.status_code != 204:
-                    raise SourcesHTTPClientError(
-                        f"Unable to set status for Source {self._source_id}. Reason: "
-                        f"Status code: {application_response.status_code}. Response: {application_response.text}."
-                    )
+                    if application_response.status_code != 404:
+                        raise SourcesHTTPClientError(error_message)
+                    else:
+                        LOG.info(error_message)
                 return True
         return False
