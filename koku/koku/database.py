@@ -147,8 +147,7 @@ def check_migrations():
             verify_migrations_dbfunc(connection)
             res = check_migrations_dbfunc(connection, targets)
         return res
-    except OperationalError as err:
-        LOG.info(f"what's going on here: {err}")
+    except OperationalError:
         return False
 
 
