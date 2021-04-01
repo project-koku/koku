@@ -224,6 +224,7 @@ def vacuum_schemas():
 
     for schema_name in schema_names:
         LOG.info("Scheduling VACUUM task for %s", schema_name)
+        # called in celery.py
         vacuum_schema.delay(schema_name)
 
 
@@ -240,6 +241,7 @@ def autovacuum_tune_schemas():
 
     for schema_name in schema_names:
         LOG.info("Scheduling autovacuum tune task for %s", schema_name)
+        # called in celery.py
         autovacuum_tune_schema.delay(schema_name)
 
 

@@ -25,7 +25,6 @@ from masu.api.views import get_status
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
 from masu.api.views import update_cost_model_costs
-from masu.api.views import upload_normalized_data
 
 urlpatterns = [
     path("status/", get_status, name="server-status"),
@@ -35,7 +34,6 @@ urlpatterns = [
     path("report_data/", report_data, name="report_data"),
     path("source_cleanup/", cleanup, name="cleanup"),
     path("update_cost_model_costs/", update_cost_model_costs, name="update_cost_model_costs"),
-    path("upload_normalized_data/", upload_normalized_data, name="upload_normalized_data"),
     path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
     path("running_celery_tasks/", running_celery_tasks, name="running_celery_tasks"),
 ]

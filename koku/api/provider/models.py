@@ -28,6 +28,7 @@ from api.model_utils import RunTextFieldValidators
 
 # getting an error trying to import the var.
 # from masu.processor.tasks import GET_REPORT_FILES_QUEUE
+GET_REPORT_FILES_QUEUE = "download"
 
 LOG = logging.getLogger(__name__)
 
@@ -175,7 +176,7 @@ class Provider(models.Model):
             # Start check_report_updates task after Provider has been committed.
             # This is being called on the koku worer because it defaults to celery
             transaction.on_commit(
-                lambda: check_report_updates.s(provider_uuid=self.uuid).set(queue="download").apply_async()
+                lambda: check_report_updates.s(provider_uuid=self.uuid).set(queue=GET_REPORT_FILES_QUEUE).apply_async()
             )
 
 
