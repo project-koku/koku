@@ -15,8 +15,20 @@ from kombu.exceptions import OperationalError
 from koku import sentry  # noqa: F401
 from koku.env import ENVIRONMENT
 
+# Errors when I try to import
+# django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet
+# from masu.processor.tasks import GET_REPORT_FILES_QUEUE
+# from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
+# from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
+# from masu.processor.tasks import VACUUM_SCHEMA_QUEUE
+
 
 LOGGER = logging.getLogger(__name__)
+
+GET_REPORT_FILES_QUEUE = "download"
+REMOVE_EXPIRED_DATA_QUEUE = "summary"
+SUMMARIZE_REPORTS_QUEUE = "summary"
+VACUUM_SCHEMA_QUEUE = "summary"
 
 
 class LogErrorsTask(Task):  # pragma: no cover
@@ -65,6 +77,7 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
         "task": "masu.celery.tasks.check_report_updates",
         "schedule": REPORT_CHECK_INTERVAL.seconds,
         "args": [],
+        "options": {"queue": GET_REPORT_FILES_QUEUE},
     }
     app.conf.beat_schedule["check-report-updates"] = CHECK_REPORT_UPDATES_DEF
 
@@ -84,6 +97,7 @@ if REMOVE_EXPIRED_REPORT_DATA_ON_DAY != 0:
         "task": "masu.celery.tasks.remove_expired_data",
         "schedule": crontab(hour=int(HOUR), minute=int(MINUTE), day_of_month=CLEANING_DAY),
         "args": [],
+        "options": {"queue": REMOVE_EXPIRED_DATA_QUEUE},
     }
     app.conf.beat_schedule["remove-expired-data"] = REMOVE_EXPIRED_DATA_DEF
 
@@ -109,6 +123,7 @@ app.conf.beat_schedule["vacuum-schemas"] = {
     "task": "masu.celery.tasks.vacuum_schemas",
     "schedule": schedule,
     "args": [],
+    "options": {"queue": VACUUM_SCHEMA_QUEUE},
 }
 
 # This will automatically tune the tables (if needed) based on the number of live tuples
@@ -117,17 +132,23 @@ app.conf.beat_schedule["autovacuum-tune-schemas"] = {
     "task": "masu.celery.tasks.autovacuum_tune_schemas",
     "schedule": autovacuum_schedule,
     "args": [],
+    "options": {"queue": VACUUM_SCHEMA_QUEUE},
 }
 
 # task to clean up sources with `pending_delete=t`
 app.conf.beat_schedule["delete_source_beat"] = {
     "task": "sources.tasks.delete_source_beat",
     "schedule": crontab(minute="0", hour="4"),
+    "options": {"queue": REMOVE_EXPIRED_DATA_QUEUE},
 }
 
-# Collect prometheus metrics.
-app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(minute="*/15")}
 
+# Collect prometheus metrics.
+app.conf.beat_schedule["db_metrics"] = {
+    "task": "koku.metrics.collect_metrics",
+    "schedule": crontab(minute="*/15"),
+    "options": {"queue": SUMMARIZE_REPORTS_QUEUE},
+}
 
 # optionally specify the weekday and time you would like the clean volume task to run
 CLEAN_VOLUME_DAY_OF_WEEK = ENVIRONMENT.get_value("CLEAN_VOLUME_DAY_OF_WEEK", default="sunday")
@@ -138,6 +159,7 @@ if not settings.DEVELOPMENT:
     app.conf.beat_schedule["clean_volume"] = {
         "task": "masu.celery.tasks.clean_volume",
         "schedule": crontab(day_of_week=CLEAN_VOLUME_DAY_OF_WEEK, hour=int(CLEAN_HOUR), minute=int(CLEAN_MINUTE)),
+        "options": {"queue": VACUUM_SCHEMA_QUEUE},
     }
 
 
@@ -145,12 +167,14 @@ if not settings.DEVELOPMENT:
 app.conf.beat_schedule["crawl_account_hierarchy"] = {
     "task": "masu.celery.tasks.crawl_account_hierarchy",
     "schedule": crontab(hour=0, minute=0),
+    "options": {"queue": GET_REPORT_FILES_QUEUE},
 }
 
 # Beat used to remove stale tenant data
 app.conf.beat_schedule["remove_stale_tenants"] = {
     "task": "masu.processor.tasks.remove_stale_tenants",
     "schedule": crontab(hour=0, minute=0),
+    "options": {"queue": VACUUM_SCHEMA_QUEUE},
 }
 
 # Celery timeout if broker is unavaiable to avoid blocking indefintely
