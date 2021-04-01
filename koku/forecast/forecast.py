@@ -89,7 +89,7 @@ class Forecast:
                 # We have access constraints, but no view to accomodate, default to daily summary table
                 self.cost_summary_table = self.provider_map.query_table
 
-        self.forecast_days_required = (self.dh.this_month_end - self.dh.yesterday).days
+        self.forecast_days_required = max((self.dh.this_month_end - self.dh.yesterday).days, 2)
 
         # forecasts use a rolling window
         self.query_range = (self.dh.n_days_ago(self.dh.yesterday, 30), self.dh.yesterday)
@@ -183,6 +183,8 @@ class Forecast:
 
         result_dict = {}
         for i, value in enumerate(results.prediction):
+            # extrapolate confidence intervals to align with prediction.
+            # this reduces the confidence interval below 95th percentile, but is a better UX.
             if i < len(results.confidence_lower):
                 lower = results.confidence_lower[i]
             else:
@@ -193,10 +195,11 @@ class Forecast:
             else:
                 upper = results.confidence_upper[-1] + results.slope * (i - len(results.confidence_upper))
 
+            # ensure that there are no negative numbers.
             result_dict[self.dh.today.date() + timedelta(days=i)] = {
-                "total_cost": value,
-                "confidence_min": lower,
-                "confidence_max": upper,
+                "total_cost": max((value, 0)),
+                "confidence_min": max((lower, 0)),
+                "confidence_max": max((upper, 0)),
             }
 
         return (result_dict, results.rsquared, results.pvalues)
@@ -209,7 +212,6 @@ class Forecast:
         appropriately.
 
         Example:
-
             If _remove_outliers() returns {"2000-01-01": 1.0, "2000-01-03": 1.5}
             then _enumerate_dates() returns [0, 2]
         """

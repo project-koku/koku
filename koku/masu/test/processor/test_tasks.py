@@ -778,7 +778,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         start_date = date.today()
         update_all_summary_tables(start_date)
 
-        mock_update.s.assert_called_with(ANY, ANY, ANY, str(start_date), ANY, ANY)
+        mock_update.s.assert_called_with(ANY, ANY, ANY, str(start_date), ANY, queue_name=ANY)
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_refresh_materialized_views_aws(self, mock_cache):
@@ -1126,7 +1126,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         cache_str = create_single_task_cache_key(task_name, task_args)
         cache.add(cache_str, "true", 3)
 
-    @patch("masu.processor.tasks.update_summary_tables.delay")
+    @patch("masu.processor.tasks.update_summary_tables.s")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
     @patch("masu.processor.tasks.chain")
@@ -1165,7 +1165,41 @@ class TestWorkerCacheThrottling(MasuTestCase):
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
-    @patch("masu.processor.tasks.update_cost_model_costs.delay")
+    @patch("masu.processor.tasks.update_summary_tables.s")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.tasks.refresh_materialized_views")
+    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_summary_tables_worker_error(
+        self,
+        mock_inspect,
+        mock_lock,
+        mock_release,
+        mock_update_cost,
+        mock_refresh,
+        mock_chain,
+        mock_daily,
+        mock_summary,
+        mock_delay,
+    ):
+        """Test that the worker cache is used."""
+        task_name = "masu.processor.tasks.update_summary_tables"
+        cache_args = [self.schema]
+
+        start_date = DateHelper().this_month_start
+        end_date = DateHelper().this_month_end
+        mock_daily.return_value = start_date, end_date
+        mock_summary.side_effect = ReportProcessorError
+        with self.assertRaises(ReportProcessorError):
+            update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
+            mock_delay.assert_not_called()
+            self.assertFalse(self.single_task_is_running(task_name, cache_args))
+
+    @patch("masu.processor.tasks.update_cost_model_costs.s")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
@@ -1200,7 +1234,25 @@ class TestWorkerCacheThrottling(MasuTestCase):
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
-    @patch("masu.processor.tasks.refresh_materialized_views.delay")
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_cost_model_costs_error(self, mock_inspect, mock_lock, mock_release, mock_updater):
+        """Test that refresh materialized views runs with cache lock."""
+        start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
+        end_date = DateHelper().today
+        expected_start_date = start_date.strftime("%Y-%m-%d")
+        expected_end_date = end_date.strftime("%Y-%m-%d")
+        task_name = "masu.processor.tasks.update_cost_model_costs"
+        cache_args = [self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date]
+
+        mock_updater.side_effect = ReportProcessorError
+        with self.assertRaises(ReportProcessorError):
+            update_cost_model_costs(self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date)
+            self.assertFalse(self.single_task_is_running(task_name, cache_args))
+
+    @patch("masu.processor.tasks.refresh_materialized_views.s")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")

@@ -247,6 +247,18 @@ def get_source(source_id, err_msg, logger):
         raise error
 
 
+def mark_provider_as_inactive(provider_uuid):
+    """Mark provider as inactive so we do not continue to ingest data while the source is being deleted."""
+    try:
+        provider = Provider.objects.get(uuid=provider_uuid)
+        provider.active = False
+        provider.billing_source = None
+        provider.authentication = None
+        provider.save()
+    except Provider.DoesNotExist:
+        LOG.info(f"Provider {provider_uuid} does not exist.  Unable to mark as inactive")
+
+
 def enqueue_source_delete(source_id, offset, allow_out_of_order=False):
     """
     Queues a source destroy event to be processed by the synchronize_sources method.
@@ -265,6 +277,7 @@ def enqueue_source_delete(source_id, offset, allow_out_of_order=False):
         if not source.pending_delete and not source.out_of_order_delete:
             source.pending_delete = True
             source.save()
+            mark_provider_as_inactive(source.koku_uuid)
     except Sources.DoesNotExist:
         if allow_out_of_order:
             LOG.info(f"Source ID: {source_id} not known.  Marking as out of order delete.")
