@@ -372,39 +372,49 @@
         },
         "parameters": []
       },
-      "/status/": {
-        "get": {
-          "operationId": "status_list",
-          "description": "Packages response for class-based view.",
-          "parameters": [
-            {
-              "name": "celery",
-              "in": "query",
-              "description": "Whether to return celery queue/task data",
-              "required": false,
-              "schema": {
-                "type": "boolean",
-                "example": true
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/StatusResponse"
-                  }
+    "/status/": {
+      "get": {
+        "operationId": "getStatus",
+        "description": "Packages response for class-based view.",
+        "responses": {
+          "200": {
+            "description": "A JSON object containing pet information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
                 }
               }
             }
-          },
-          "tags": [
-            "Status"
-          ]
+          }
         },
-        "parameters": []
+        "tags": [
+          "Status"
+        ]
+      },
+      "parameters": []
+    },
+    "/celery-status/": {
+      "get": {
+        "operationId": "getStatusCelery",
+        "description": "Packages response for class-based view.",
+        "responses": {
+          "200": {
+            "description": "A JSON object containing pet information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CeleryResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Celery Status"
+        ]
+      },
+      "parameters": []
       },
       "/update_cost_model_costs/": {
         "get": {
@@ -763,9 +773,8 @@
           "type": "object",
           "properties": {
             "api_version": {
-              "type": "integer",
-              "format": "int64",
-              "example": 1
+              "type": "string",
+              "example": "1"
             },
             "celery_status": {
               "type": "object",
@@ -847,10 +856,29 @@
           "type": "object",
           "properties": {
             "database": {
-              "type": "string"
+              "type": "string",
+              "nullable": "true"
             },
             "database_connections": {
-              "type": "string"
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        },
+        "CeleryResponse": {
+          "type": "object",
+          "properties": {
+            "scheduled_count": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "reserved_count": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "active_count": {
+              "type": "integer",
+              "format": "int64"
             }
           }
         },
