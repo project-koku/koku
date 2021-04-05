@@ -46,10 +46,10 @@
         },
         "azure-core": {
             "hashes": [
-                "sha256:2d0ff1c446cc572f3e32a9a59809880d0d857754a06afe682bce8a6ea2201607",
-                "sha256:adf2b1c6ef150a92295b4b405f982a9d2c55c4846728cb14760ca592acbb09ec"
+                "sha256:3c886a5c6e0698360826c08b2685965d8c23e1292c32be9028ce2fa691005849",
+                "sha256:624b46db407dbed9e03134ab65214efab5b5315949a1fbd6cd592c46fb272588"
             ],
-            "version": "==1.12.0"
+            "version": "==1.13.0"
         },
         "azure-mgmt-core": {
             "hashes": [
@@ -1217,10 +1217,10 @@
         },
         "azure-core": {
             "hashes": [
-                "sha256:2d0ff1c446cc572f3e32a9a59809880d0d857754a06afe682bce8a6ea2201607",
-                "sha256:adf2b1c6ef150a92295b4b405f982a9d2c55c4846728cb14760ca592acbb09ec"
+                "sha256:3c886a5c6e0698360826c08b2685965d8c23e1292c32be9028ce2fa691005849",
+                "sha256:624b46db407dbed9e03134ab65214efab5b5315949a1fbd6cd592c46fb272588"
             ],
-            "version": "==1.12.0"
+            "version": "==1.13.0"
         },
         "azure-mgmt-core": {
             "hashes": [
