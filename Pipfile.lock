@@ -519,11 +519,10 @@
         },
         "importlib-metadata": {
             "hashes": [
-                "sha256:24499ffde1b80be08284100393955842be4a59c7c16bbf2738aad0e464a8e0aa",
-                "sha256:c6af5dbf1126cd959c4a8d8efd61d4d3c83bddb0459a17e554284a077574b614"
+                "sha256:c9db46394197244adf2f0b08ec5bc3cf16757e9590b02af1fca085c16c0d600a",
+                "sha256:d2d46ef77ffc85cbf7dac7e81dd663fde71c45326131bea8033b9bad42268ebe"
             ],
-            "index": "pypi",
-            "version": "==3.7.0"
+            "version": "==3.10.0"
         },
         "isodate": {
             "hashes": [
