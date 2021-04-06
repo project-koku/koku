@@ -80,6 +80,10 @@ services:
       - hive-metastore
     depends_on:
       - hive-metastore
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 4096
 
 networks:
  default:
