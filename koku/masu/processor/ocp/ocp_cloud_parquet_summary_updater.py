@@ -19,6 +19,7 @@ import logging
 from decimal import Decimal
 
 from dateutil import parser
+from django.conf import settings
 from tenant_schemas.utils import schema_context
 
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -55,7 +56,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
 
         # OpenShift on AWS
         with AWSReportDBAccessor(self._schema) as accessor:
-            for start, end in date_range_pair(start_date, end_date):
+            for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
                     "Updating OpenShift on AWS summary table for "
                     "\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s"
@@ -101,7 +102,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
 
         # OpenShift on Azure
         with AzureReportDBAccessor(self._schema) as accessor:
-            for start, end in date_range_pair(start_date, end_date):
+            for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
                     "Updating OpenShift on Azure summary table for "
                     "\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s"
