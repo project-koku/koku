@@ -96,7 +96,7 @@ class AWSForecastTest(IamTestCase):
                 "today": dh.today,
                 "yesterday": dh.yesterday,
                 "this_month_end": dh.this_month_end,
-                "expected": (dh.this_month_end - dh.yesterday).days,
+                "expected": max((dh.this_month_end - dh.yesterday).days, 2),
             },
             {
                 "today": datetime(2000, 1, 1, 0, 0, 0, 0),
@@ -108,7 +108,7 @@ class AWSForecastTest(IamTestCase):
                 "today": datetime(2000, 1, 31, 0, 0, 0, 0),
                 "yesterday": datetime(2000, 1, 30, 0, 0, 0, 0),
                 "this_month_end": datetime(2000, 1, 31, 0, 0, 0, 0),
-                "expected": 1,
+                "expected": 2,
             },
         ]
 
@@ -365,6 +365,16 @@ class AWSForecastTest(IamTestCase):
                                 self.assertGreaterEqual(float(pval), 0)
                     # test that the results always stop at the end of the month.
                     self.assertEqual(results[-1].get("date"), dh.this_month_end.date())
+
+    def test_predict_end_of_month(self):
+        """COST-1091: Test that predict() returns empty list on the last day of a month."""
+        scenario = [(date(2000, 1, 31), 1.5)]
+
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        instance = AWSForecast(params)
+
+        out = instance._predict(scenario)
+        self.assertEqual(out, [])
 
     def test_set_access_filter_with_list(self):
         """

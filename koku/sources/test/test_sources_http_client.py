@@ -667,6 +667,31 @@ class SourcesHTTPClientTest(TestCase):
                 client.set_source_status(error_msg, application_type_id)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_set_source_status_patch_missing_application(self):
+        """Test to set source status where the patch encounters an application 404."""
+        test_source_id = 1
+        application_type_id = 2
+        application_id = 3
+
+        error_msg = "my error"
+        source = Sources.objects.create(source_id=test_source_id, offset=42, source_type="AWS")
+        source.save()
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=test_source_id)
+        with requests_mock.mock() as m:
+            m.get(
+                (
+                    f"http://www.sources.com/api/v1.0/applications?"
+                    f"filter[application_type_id]={application_type_id}&filter[source_id]={test_source_id}"
+                ),
+                status_code=200,
+                json={"data": [{"id": application_id}]},
+            )
+            m.patch(f"http://www.sources.com/api/v1.0/applications/{application_id}", status_code=404)
+            with self.assertLogs("sources.sources_http_client", "INFO") as captured_logs:
+                client.set_source_status(error_msg, application_type_id)
+            self.assertIn("Unable to set status for Source", captured_logs.output[-1])
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_set_source_status_unexpected_header(self):
         """Test to set source status with missing account in header."""
         test_source_id = 1
