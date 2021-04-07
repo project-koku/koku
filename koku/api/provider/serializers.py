@@ -331,6 +331,7 @@ class ProviderSerializer(serializers.ModelSerializer):
         if self._is_demo_account(provider_type, credentials):
             LOG.info("Customer account is a DEMO account. Skipping cost_usage_source_ready check.")
         else:
+            LOG.info("CALLING COST USAGE SOURCE READY FROM PROVIDER SERIALIZER CREATE")
             interface.cost_usage_source_ready(credentials, data_source)
 
         bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
@@ -379,6 +380,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             if self._is_demo_account(provider_type, credentials):
                 LOG.info("Customer account is a DEMO account. Skipping cost_usage_source_ready check.")
             else:
+                LOG.info("CALLING COST USAGE SOURCE READY FROM PROVIDER SERIALIZER UPDATE")
                 interface.cost_usage_source_ready(credentials, data_source)
         except serializers.ValidationError as validation_error:
             instance.active = False

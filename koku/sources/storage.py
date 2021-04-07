@@ -504,11 +504,10 @@ def save_status(source_id, status):
 
     """
     source = get_source(source_id, f"Source ID {source_id} does not exist.", LOG.warning)
-    source_query = Sources.objects.filter(source_id=source_id)
-    for source in source_query:
-        if source.status != status:
-            source_query.update(status=status)
-            return True
+    if source and source.status != status:
+        source.status = status
+        source.save()
+        return True
 
     return False
 

@@ -51,6 +51,7 @@ class SourceStatus:
         self.user = request.user
         self.source_id = source_id
         self.source = Sources.objects.get(source_id=source_id)
+        LOG.info(f"Getting source info from source-status: {str(self.source)}")
         if not source_settings_complete(self.source) or self.source.pending_delete:
             raise ObjectDoesNotExist(f"Source ID: {self.source_id} not ready for status")
         self.sources_client = SourcesHTTPClient(self.source.auth_header, source_id=source_id)
@@ -75,6 +76,7 @@ class SourceStatus:
         error_obj = None
         try:
             if self.source.account_id not in settings.DEMO_ACCOUNTS:
+                LOG.info("CALLING COST USAGE SOURCE READY FROM SOURCE-STATUS")
                 interface.cost_usage_source_ready(source_authentication, source_billing_source)
             self._set_provider_active_status(True)
         except ValidationError as validation_error:
@@ -97,6 +99,7 @@ class SourceStatus:
             self.source.name = source_details.get("name")
             self.source.save()
             builder = SourcesProviderCoordinator(self.source_id, self.source.auth_header)
+            LOG.info("Updating account from source-status - name")
             builder.update_account(self.source)
 
     def push_status(self):
@@ -106,6 +109,7 @@ class SourceStatus:
             if self.source.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
                 builder = SourcesProviderCoordinator(self.source.source_id, self.source.auth_header)
                 if self.source.koku_uuid:
+                    LOG.info("Updating account from source-status")
                     builder.update_account(self.source)
                 else:
                     builder.create_account(self.source)
