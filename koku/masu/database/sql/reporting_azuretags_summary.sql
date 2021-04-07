@@ -29,12 +29,12 @@ cte_distinct_values_agg AS (
     SELECT v.key,
         array_agg(DISTINCT v."values") as "values",
         v.cost_entry_bill_id,
-        v.subscription_guid,
+        v.subscription_guid
     FROM (
         SELECT va.key,
             unnest(va."values" || coalesce(ls."values", '{}'::text[])) as "values",
             va.cost_entry_bill_id,
-            va.subscription_guid,
+            va.subscription_guid
         FROM cte_values_agg AS va
         LEFT JOIN {{schema | sqlsafe}}.reporting_azuretags_summary AS ls
             ON va.key = ls.key
