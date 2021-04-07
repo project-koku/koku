@@ -76,7 +76,7 @@ def generate_doc_link(path):
     Args:
         (String) path - path to the documentation.
     """
-    return f"https://access.redhat.com/documentation/en-us/cost_management_service/2021/{path}"
+    return f"https://access.redhat.com/documentation/en-us/cost_management_service/2021/html/{path}"
 
 
 def create_dual_list_select(name, left_options=[], right_options=[], **kwargs):
