@@ -50,14 +50,14 @@ LOG = get_task_logger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
 
 
-@app.task(name="masu.celery.tasks.check_report_updates", queue_name=GET_REPORT_FILES_QUEUE)
+@app.task(name="masu.celery.tasks.check_report_updates", queue=GET_REPORT_FILES_QUEUE)
 def check_report_updates(*args, **kwargs):
     """Scheduled task to initiate scanning process on a regular interval."""
     orchestrator = Orchestrator(*args, **kwargs)
     orchestrator.prepare()
 
 
-@app.task(name="masu.celery.tasks.remove_expired_data", queue_name=REMOVE_EXPIRED_DATA_QUEUE)
+@app.task(name="masu.celery.tasks.remove_expired_data", queue=REMOVE_EXPIRED_DATA_QUEUE)
 def remove_expired_data(simulate=False, line_items_only=False):
     """Scheduled task to initiate a job to remove expired report data."""
     today = DateAccessor().today()
@@ -93,7 +93,7 @@ def deleted_archived_with_prefix(s3_bucket_name, prefix):
 
 @app.task(
     name="masu.celery.tasks.delete_archived_data",
-    queue_name=REMOVE_EXPIRED_DATA_QUEUE,
+    queue=REMOVE_EXPIRED_DATA_QUEUE,
     autoretry_for=(ClientError,),
     max_retries=10,
     retry_backoff=10,
@@ -159,7 +159,7 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
 
 @app.task(
     name="masu.celery.tasks.sync_data_to_customer",
-    queue_name=GET_REPORT_FILES_QUEUE,
+    queue=GET_REPORT_FILES_QUEUE,
     retry_kwargs={"max_retries": 5, "countdown": settings.COLD_STORAGE_RETRIVAL_WAIT_TIME},
 )
 def sync_data_to_customer(dump_request_uuid):
@@ -212,7 +212,7 @@ def sync_data_to_customer(dump_request_uuid):
     dump_request.save()
 
 
-@app.task(name="masu.celery.tasks.vacuum_schemas", queue_name=VACUUM_SCHEMA_QUEUE)
+@app.task(name="masu.celery.tasks.vacuum_schemas", queue=VACUUM_SCHEMA_QUEUE)
 def vacuum_schemas():
     """Vacuum all schemas."""
     tenants = Tenant.objects.values("schema_name")
@@ -229,7 +229,7 @@ def vacuum_schemas():
 
 
 # This task will process the autovacuum tuning as a background process
-@app.task(name="masu.celery.tasks.autovacuum_tune_schemas", queue_name=VACUUM_SCHEMA_QUEUE)
+@app.task(name="masu.celery.tasks.autovacuum_tune_schemas", queue=VACUUM_SCHEMA_QUEUE)
 def autovacuum_tune_schemas():
     """Set the autovacuum table settings based on table size for all schemata."""
     tenants = Tenant.objects.values("schema_name")
@@ -245,7 +245,7 @@ def autovacuum_tune_schemas():
         autovacuum_tune_schema.delay(schema_name)
 
 
-@app.task(name="masu.celery.tasks.clean_volume", queue_name=VACUUM_SCHEMA_QUEUE)
+@app.task(name="masu.celery.tasks.clean_volume", queue=VACUUM_SCHEMA_QUEUE)
 def clean_volume():
     """Clean up the volume in the worker pod."""
     LOG.info("Cleaning up the volume at %s " % Config.PVC_DIR)
@@ -288,7 +288,7 @@ def clean_volume():
     LOG.info("The following files were deleted: %s", deleted_files)
 
 
-@app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue_name=GET_REPORT_FILES_QUEUE)
+@app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue=GET_REPORT_FILES_QUEUE)
 def crawl_account_hierarchy(provider_uuid=None):
     """Crawl top level accounts to discover hierarchy."""
     if provider_uuid:

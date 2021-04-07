@@ -133,7 +133,7 @@ def record_report_status(manifest_id, file_name, request_id, context={}):
 
 
 # pylint: disable=too-many-locals
-@app.task(name="masu.processor.tasks.get_report_files", queue_name=GET_REPORT_FILES_QUEUE, bind=True)
+@app.task(name="masu.processor.tasks.get_report_files", queue=GET_REPORT_FILES_QUEUE, bind=True)
 def get_report_files(
     self,
     customer_name,
@@ -240,7 +240,7 @@ def get_report_files(
         WorkerCache().remove_task_from_cache(cache_key)
 
 
-@app.task(name="masu.processor.tasks.remove_expired_data", queue_name=REMOVE_EXPIRED_DATA_QUEUE)
+@app.task(name="masu.processor.tasks.remove_expired_data", queue=REMOVE_EXPIRED_DATA_QUEUE)
 def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, line_items_only=False, queue_name=None):
     """
     Remove expired report data.
@@ -270,7 +270,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
         )
 
 
-@app.task(name="masu.processor.tasks.summarize_reports", queue_name=SUMMARIZE_REPORTS_QUEUE)
+@app.task(name="masu.processor.tasks.summarize_reports", queue=SUMMARIZE_REPORTS_QUEUE)
 def summarize_reports(reports_to_summarize, queue_name=None):
     """
     Summarize reports returned from line summary task.
@@ -315,7 +315,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                 ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
 
 
-@app.task(name="masu.processor.tasks.update_summary_tables", queue_name=UPDATE_SUMMARY_TABLES_QUEUE)
+@app.task(name="masu.processor.tasks.update_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)
 def update_summary_tables(  # noqa: C901
     schema_name,
     provider,
@@ -442,7 +442,7 @@ def update_summary_tables(  # noqa: C901
         worker_cache.release_single_task(task_name, cache_args)
 
 
-@app.task(name="masu.processor.tasks.update_all_summary_tables", queue_name=UPDATE_SUMMARY_TABLES_QUEUE)
+@app.task(name="masu.processor.tasks.update_all_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)
 def update_all_summary_tables(start_date, end_date=None):
     """Populate all the summary tables for reporting.
 
@@ -477,7 +477,7 @@ def update_all_summary_tables(start_date, end_date=None):
         LOG.error("Unable to get accounts. Error: %s", str(error))
 
 
-@app.task(name="masu.processor.tasks.update_cost_model_costs", queue_name=UPDATE_COST_MODEL_COSTS_QUEUE)
+@app.task(name="masu.processor.tasks.update_cost_model_costs", queue=UPDATE_COST_MODEL_COSTS_QUEUE)
 def update_cost_model_costs(
     schema_name, provider_uuid, start_date=None, end_date=None, queue_name=None, synchronous=False
 ):
@@ -533,7 +533,7 @@ def update_cost_model_costs(
         worker_cache.release_single_task(task_name, cache_args)
 
 
-@app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name=REFRESH_MATERIALIZED_VIEWS_QUEUE)
+@app.task(name="masu.processor.tasks.refresh_materialized_views", queue=REFRESH_MATERIALIZED_VIEWS_QUEUE)
 def refresh_materialized_views(  # noqa: C901
     schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False, queue_name=None
 ):
@@ -599,7 +599,7 @@ def refresh_materialized_views(  # noqa: C901
         worker_cache.release_single_task(task_name, cache_args)
 
 
-@app.task(name="masu.processor.tasks.vacuum_schema", queue_name=VACUUM_SCHEMA_QUEUE)
+@app.task(name="masu.processor.tasks.vacuum_schema", queue=VACUUM_SCHEMA_QUEUE)
 def vacuum_schema(schema_name):
     """Vacuum the reporting tables in the specified schema."""
     table_sql = """
@@ -738,7 +738,7 @@ SELECT s.relname as "table_name",
     LOG.info(f"Altered autovacuum_vacuum_scale_factor on {alter_count} tables")
 
 
-@app.task(name="masu.processor.tasks.remove_stale_tenants", queue_name=VACUUM_SCHEMA_QUEUE)
+@app.task(name="masu.processor.tasks.remove_stale_tenants", queue=VACUUM_SCHEMA_QUEUE)
 def remove_stale_tenants():
     """ Remove stale tenants from the tenant api """
     table_sql = """
