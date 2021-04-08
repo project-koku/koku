@@ -35,9 +35,7 @@ from api.utils import DateHelper
 from masu.config import Config
 from masu.processor.report_processor import ReportProcessor
 from masu.processor.tasks import refresh_materialized_views
-from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
 from masu.processor.tasks import update_cost_model_costs
-from masu.processor.tasks import UPDATE_COST_MODEL_COSTS_QUEUE
 from masu.processor.tasks import update_summary_tables
 from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
 
@@ -158,10 +156,8 @@ class NiseDataLoader:
                 )
         update_cost_model_costs.s(
             self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
-        ).set(queue=UPDATE_COST_MODEL_COSTS_QUEUE).apply()
-        refresh_materialized_views.s(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True).set(
-            queue=REFRESH_MATERIALIZED_VIEWS_QUEUE
         ).apply()
+        refresh_materialized_views.s(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True).apply()
         shutil.rmtree(report_path, ignore_errors=True)
 
     def load_aws_data(self, customer, static_data_file, account_id=None, role_arn=None, day_list=None):
@@ -235,10 +231,8 @@ class NiseDataLoader:
                 )
         update_cost_model_costs.s(
             self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
-        ).set(queue=UPDATE_COST_MODEL_COSTS_QUEUE).apply()
-        refresh_materialized_views.s(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True).set(
-            queue=REFRESH_MATERIALIZED_VIEWS_QUEUE
         ).apply()
+        refresh_materialized_views.s(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True).apply()
         shutil.rmtree(base_path, ignore_errors=True)
 
     def load_azure_data(self, customer, static_data_file, credentials=None, data_source=None):
@@ -304,10 +298,8 @@ class NiseDataLoader:
                 )
         update_cost_model_costs.s(
             self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
-        ).set(queue=UPDATE_COST_MODEL_COSTS_QUEUE).apply()
-        refresh_materialized_views.s(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True).set(
-            queue=REFRESH_MATERIALIZED_VIEWS_QUEUE
         ).apply()
+        refresh_materialized_views.s(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True).apply()
         shutil.rmtree(base_path, ignore_errors=True)
 
     def load_gcp_data(self, customer, static_data_file):
@@ -357,8 +349,6 @@ class NiseDataLoader:
                 )
         update_cost_model_costs.s(
             self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
-        ).set(queue=UPDATE_COST_MODEL_COSTS_QUEUE).apply()
-        refresh_materialized_views.s(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True).set(
-            queue=REFRESH_MATERIALIZED_VIEWS_QUEUE
         ).apply()
+        refresh_materialized_views.s(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True).apply()
         shutil.rmtree(base_path, ignore_errors=True)
