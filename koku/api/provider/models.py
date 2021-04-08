@@ -232,7 +232,7 @@ class Sources(RunTextFieldValidators, models.Model):
     out_of_order_delete = models.BooleanField(default=False)
 
     # Push status update
-    push_status_update = models.BooleanField(default=False)
+    # push_status_update = models.BooleanField(default=False)
 
     # Availability status
     status = JSONField(null=True, default=dict)
