@@ -431,7 +431,6 @@ def process_message(app_type_id, msg):  # noqa: C901
         if storage.is_known_source(msg_data.get("source_id")) is False:
             LOG.info("Update event for unknown source id, skipping...")
             return
-        storage.set_in_progress_flag(msg_data.get("source_id"))
         sources_network_info(msg_data.get("source_id"), msg_data.get("auth_header"))
 
     elif msg_data.get("event_type") in (KAFKA_APPLICATION_DESTROY,):
@@ -582,7 +581,6 @@ def execute_koku_provider_op(msg):
         else:
             LOG.error(f"unknown operation: {operation}")
         sources_client.set_source_status(None)
-        storage.clear_in_progress_flag(provider.source_id)
 
     except SourcesProviderCoordinatorError as account_error:
         raise SourcesIntegrationError("Koku provider error: ", str(account_error))
@@ -592,7 +590,6 @@ def execute_koku_provider_op(msg):
         )
         LOG.warning(err_msg)
         sources_client.set_source_status(account_error)
-        storage.clear_in_progress_flag(provider.source_id)
     except SkipStatusPush as error:
         LOG.info(f"Platform sources status push skipped. Reason: {str(error)}")
 
