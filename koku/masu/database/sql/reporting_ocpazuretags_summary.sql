@@ -48,7 +48,7 @@ cte_distinct_values_agg AS (
             va.namespace,
             va.node
         FROM cte_values_agg AS va
-        LEFT JOIN {{schema | sqlsafe}}.reporting_ocpawstags_summary AS ls
+        LEFT JOIN {{schema | sqlsafe}}.reporting_ocpazuretags_summary AS ls
             ON va.key = ls.key
                 AND va.cost_entry_bill_id = ls.cost_entry_bill_id
                 AND va.report_period_id = ls.report_period_id
