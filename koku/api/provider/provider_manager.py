@@ -263,14 +263,7 @@ def provider_post_delete_callback(*args, **kwargs):
         # Local import of task function to avoid potential import cycle.
         from masu.celery.tasks import delete_archived_data
 
-        # TODO: Make sure this isn't being defaulted to celery
         delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
-        # delete_func = partial(
-        #     delete_archived_data.s().set(queue=REMOVE_EXPIRED_DATA_QUEUE).apply_async(),
-        #     provider.customer.schema_name,
-        #     provider.type,
-        #     provider.uuid,
-        # )
         transaction.on_commit(delete_func)
 
     refresh_materialized_views(

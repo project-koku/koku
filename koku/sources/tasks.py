@@ -39,7 +39,4 @@ def delete_source_beat():
     providers = load_providers_to_delete()
     for p in providers:
         provider = p.get("provider")
-        # queue set in the celery.py
-        # however, when called in test it may be defaulting to the celery
-        # TODO: Figure out how its being called in testing.
         delete_source.delay(provider.source_id, provider.auth_header, provider.koku_uuid)

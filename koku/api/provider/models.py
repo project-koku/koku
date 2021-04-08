@@ -26,10 +26,6 @@ from django.db.models import JSONField
 
 from api.model_utils import RunTextFieldValidators
 
-# getting an error trying to import the var.
-# from masu.processor.tasks import GET_REPORT_FILES_QUEUE
-GET_REPORT_FILES_QUEUE = "download"
-
 LOG = logging.getLogger(__name__)
 
 
@@ -174,7 +170,6 @@ class Provider(models.Model):
 
             LOG.info(f"Starting data ingest task for Provider {self.uuid}")
             # Start check_report_updates task after Provider has been committed.
-            # Check to make sure this isn't being defaulted to celery
             transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid))
 
 

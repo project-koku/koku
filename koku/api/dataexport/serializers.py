@@ -28,6 +28,5 @@ class DataExportRequestSerializer(serializers.ModelSerializer):
             end_date=validated_data["end_date"],
             bucket_name=validated_data["bucket_name"],
         )
-        # TODO: Check this.
         transaction.on_commit(lambda: sync_data_to_customer.delay(dump_request.uuid))
         return dump_request
