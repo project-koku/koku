@@ -50,7 +50,7 @@ cte_distinct_values_agg AS (
                 AND va.project_id = ls.project_id
                 AND va.project_name = ls.project_name
     ) as v
-    GROUP BY key, cost_entry_bill_id, subscription_guid
+    GROUP BY key, cost_entry_bill_id, account_id, project_id, project_name
 ),
 ins1 AS (
     INSERT INTO {{schema | sqlsafe}}.reporting_gcptags_summary (uuid, key, cost_entry_bill_id, account_id, project_id, project_name, values)
