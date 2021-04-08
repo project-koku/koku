@@ -39,5 +39,5 @@ def download_report(request):
     params = request.query_params
     provider_uuid = params.get("provider_uuid")
     bill_date = params.get("bill_date")
-    async_download_result = check_report_updates.delay(provider_uuid, bill_date)
+    async_download_result = check_report_updates.delay(provider_uuid=provider_uuid, bill_date=bill_date)
     return Response({"Download Request Task ID": str(async_download_result)})
