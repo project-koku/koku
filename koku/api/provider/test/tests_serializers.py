@@ -558,15 +558,32 @@ class ProviderSerializerTest(IamTestCase):
     def test_create_provider_for_demo_account(self):
         """Test creating a provider for a demo account."""
         provider = {
-            "name": "test_provider",
+            "name": "test_provider_one",
             "type": Provider.PROVIDER_AWS.lower(),
-            "authentication": {"credentials": {"role_arn": "four"}},
-            "billing_source": {"data_source": {"bucket": "bar"}},
+            "authentication": {"credentials": {"role_arn": "three"}},
+            "billing_source": {"data_source": {"bucket": "foo"}},
         }
         instance = None
 
         account_id = self.customer_data.get("account_id")
         with self.settings(DEMO_ACCOUNTS={account_id: {}}):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready") as mock_method:
+                serializer = ProviderSerializer(data=provider, context=self.request_context)
+                if serializer.is_valid(raise_exception=True):
+                    instance = serializer.save()
+                    mock_method.assert_called()
+
+        aws_cred = "four"
+        provider = {
+            "name": "test_provider_two",
+            "type": Provider.PROVIDER_AWS.lower(),
+            "authentication": {"credentials": {"role_arn": aws_cred}},
+            "billing_source": {"data_source": {"bucket": "bar"}},
+        }
+
+        demo_accounts = {aws_cred: {"report_prefix": "cur", "report_name": "awscost", "source_type": "AWS"}}
+
+        with self.settings(DEMO_ACCOUNTS={account_id: demo_accounts}):
             with patch.object(ProviderAccessor, "cost_usage_source_ready") as mock_method:
                 serializer = ProviderSerializer(data=provider, context=self.request_context)
                 if serializer.is_valid(raise_exception=True):
@@ -578,6 +595,90 @@ class ProviderSerializerTest(IamTestCase):
         self.assertTrue(instance.active)
         self.assertIsNone(schema_name)
         self.assertFalse("schema_name" in serializer.data["customer"])
+
+    def test_demo_credentials(self):
+        """Test the demo credentials property is created as expected."""
+        provider = {
+            "name": "test_provider",
+            "type": Provider.PROVIDER_AWS.lower(),
+            "authentication": {"credentials": {"role_arn": "four"}},
+            "billing_source": {"data_source": {"bucket": "bar"}},
+        }
+
+        aws_cred = "arn:aws:iam::999:role/DEMO"
+        azure_cred = "123"
+        gcp_cred = "my-gcp-project"
+
+        demo_accounts = {
+            self.schema_name: {
+                aws_cred: {"report_prefix": "cur", "report_name": "awscost", "source_type": "AWS"},
+                azure_cred: {
+                    "report_name": "report",
+                    "report_prefix": "prefix",
+                    "container_name": "container",
+                    "source_type": "Azure",
+                },
+                gcp_cred: {"dataset": "dataset", "table_id": "table_id", "source_type": "GCP"},
+            }
+        }
+        with self.settings(DEMO_ACCOUNTS=demo_accounts):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready"):
+                serializer = ProviderSerializer(data=provider, context=self.request_context)
+                demo_credentials = serializer.demo_credentials
+                self.assertIn(Provider.PROVIDER_AWS, demo_credentials)
+                self.assertIn(Provider.PROVIDER_AZURE, demo_credentials)
+                self.assertIn(Provider.PROVIDER_GCP, demo_credentials)
+                self.assertEqual(demo_credentials.get(Provider.PROVIDER_AWS), [{"role_arn": aws_cred}])
+                self.assertEqual(demo_credentials.get(Provider.PROVIDER_AZURE), [{"client_id": azure_cred}])
+                self.assertEqual(demo_credentials.get(Provider.PROVIDER_GCP), [{"project_id": gcp_cred}])
+
+    def test_is_demo_account(self):
+        """Test that we correctly identify demo accounts."""
+        aws_cred = "arn:aws:iam::999:role/DEMO"
+        azure_cred = "123"
+        gcp_cred = "my-gcp-project"
+        provider = {
+            "name": "test_provider_one",
+            "type": Provider.PROVIDER_AWS.lower(),
+            "authentication": {"credentials": {"role_arn": "four"}},
+            "billing_source": {"data_source": {"bucket": "bar"}},
+        }
+
+        demo_accounts = {
+            self.schema_name: {
+                aws_cred: {"report_prefix": "cur", "report_name": "awscost", "source_type": "AWS"},
+                azure_cred: {
+                    "report_name": "report",
+                    "report_prefix": "prefix",
+                    "container_name": "container",
+                    "source_type": "Azure",
+                },
+                gcp_cred: {"dataset": "dataset", "table_id": "table_id", "source_type": "GCP"},
+            }
+        }
+        with self.settings(DEMO_ACCOUNTS=demo_accounts):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready"):
+                serializer = ProviderSerializer(data=provider, context=self.request_context)
+                self.assertFalse(
+                    serializer._is_demo_account(
+                        Provider.PROVIDER_AWS, provider.get("authentication", {}).get("credentials")
+                    )
+                )
+
+        provider = {
+            "name": "test_provider_two",
+            "type": Provider.PROVIDER_AWS.lower(),
+            "authentication": {"credentials": {"role_arn": aws_cred}},
+            "billing_source": {"data_source": {"bucket": "bar"}},
+        }
+        with self.settings(DEMO_ACCOUNTS=demo_accounts):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready"):
+                serializer = ProviderSerializer(data=provider, context=self.request_context)
+                self.assertTrue(
+                    serializer._is_demo_account(
+                        Provider.PROVIDER_AWS, provider.get("authentication", {}).get("credentials")
+                    )
+                )
 
 
 class AdminProviderSerializerTest(IamTestCase):
