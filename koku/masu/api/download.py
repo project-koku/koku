@@ -26,7 +26,6 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from masu.celery.tasks import check_report_updates
-from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +39,5 @@ def download_report(request):
     params = request.query_params
     provider_uuid = params.get("provider_uuid")
     bill_date = params.get("bill_date")
-    async_download_result = check_report_updates.s(provider_uuid=provider_uuid, bill_date=bill_date).apply_async(
-        queue=GET_REPORT_FILES_QUEUE
-    )
+    async_download_result = check_report_updates.delay(provider_uuid, bill_date)
     return Response({"Download Request Task ID": str(async_download_result)})

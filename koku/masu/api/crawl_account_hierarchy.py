@@ -28,7 +28,6 @@ from rest_framework.settings import api_settings
 
 from masu.celery.tasks import crawl_account_hierarchy as crawl_hierarchy
 from masu.database.provider_collector import ProviderCollector
-from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
 
 LOG = logging.getLogger(__name__)
@@ -58,9 +57,7 @@ def crawl_account_hierarchy(request):
                 errmsg = f"The provider_uuid {provider_uuid} does not exist."
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        async_crawl_hierarchy = (
-            crawl_hierarchy.s(provider_uuid=provider_uuid).set(queue=GET_REPORT_FILES_QUEUE).apply_async()
-        )
+        async_crawl_hierarchy = crawl_hierarchy.delay(provider_uuid)
         return Response({"Crawl Account Hierarchy Task ID": str(async_crawl_hierarchy)})
 
     if request.method == "POST":
