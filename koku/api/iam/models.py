@@ -20,7 +20,9 @@ import os
 from uuid import uuid4
 
 from django.db import connection as conn
+from django.db import DatabaseError as DBError
 from django.db import models
+from django.db import transaction
 from tenant_schemas.models import TenantMixin
 from tenant_schemas.postgresql_backend.base import _check_schema_name
 from tenant_schemas.utils import schema_exists
@@ -144,8 +146,6 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
             cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
             result = cur.fetchone()
 
-        conn.set_schema_to_public()
-
         return result[0] if result else False
 
     def create_schema(self, check_if_exists=True, sync_schema=True, verbosity=1):
@@ -157,30 +157,48 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
             LOG.info(f'Using superclass for "{self.schema_name}" schema creation')
             return super().create_schema(check_if_exists=True, sync_schema=sync_schema, verbosity=verbosity)
 
-        # Verify name structure
-        _check_schema_name(self.schema_name)
+        db_exc = None
+        with transaction.atomic():
+            # Verify name structure
+            _check_schema_name(self.schema_name)
 
-        # Make sure all of our special pieces are in play
-        ret = self._check_clone_func()
-        if not ret:
-            errmsg = "Missing clone_schema function even after re-applying the function SQL file."
-            LOG.critical(errmsg)
-            raise CloneSchemaFuncMissing(errmsg)
+            # Make sure all of our special pieces are in play
+            ret = self._check_clone_func()
+            if not ret:
+                errmsg = "Missing clone_schema function even after re-applying the function SQL file."
+                LOG.critical(errmsg)
+                raise CloneSchemaFuncMissing(errmsg)
 
-        ret = self._verify_template(verbosity=verbosity)
-        if not ret:
-            errmsg = f'Template schema "{self._TEMPLATE_SCHEMA}" does not exist'
-            LOG.critical(errmsg)
-            raise CloneSchemaTemplateMissing(errmsg)
+            ret = self._verify_template(verbosity=verbosity)
+            if not ret:
+                errmsg = f'Template schema "{self._TEMPLATE_SCHEMA}" does not exist'
+                LOG.critical(errmsg)
+                raise CloneSchemaTemplateMissing(errmsg)
 
-        # Always check to see if the schema exists!
-        if schema_exists(self.schema_name):
-            LOG.warning(f'Schema "{self.schema_name}" already exists.')
-            return False
+            # Always check to see if the schema exists!
+            if schema_exists(self.schema_name):
+                LOG.warning(f'Schema "{self.schema_name}" already exists.')
+                return False
 
-        # Clone the schema. The database function will check
-        # that the source schema exists and the destination schema does not.
-        self._clone_schema()
-        LOG.info(f'Successful clone of "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
+            # Clone the schema. The database function will check
+            # that the source schema exists and the destination schema does not.
+            try:
+                self._clone_schema()
+            except DBError as dbe:
+                db_exc = dbe
+                LOG.error(
+                    f"""Exception {dbe.__class__.__name__} cloning"""
+                    + f""" "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}": {str(dbe)}"""
+                )
+                transaction.set_rollback(True)  # Set this transaction context to issue a rollback on exit
+            else:
+                LOG.info(f'Successful clone of "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
+
+        # Set schema to public (even if there was an exception)
+        with transaction.atomic():
+            conn.set_schema_to_public()
+
+        if db_exc:
+            raise db_exc
 
         return True
