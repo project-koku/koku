@@ -128,6 +128,7 @@ app.conf.beat_schedule["delete_source_beat"] = {
 # Collect prometheus metrics.
 app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(minute="*/15")}
 
+
 # optionally specify the weekday and time you would like the clean volume task to run
 CLEAN_VOLUME_DAY_OF_WEEK = ENVIRONMENT.get_value("CLEAN_VOLUME_DAY_OF_WEEK", default="sunday")
 CLEAN_VOLUME_UTC_TIME = ENVIRONMENT.get_value("CLEAN_VOLUME_UTC_TIME", default="00:00")

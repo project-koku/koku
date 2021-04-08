@@ -435,7 +435,7 @@ def update_summary_tables(  # noqa: C901
 
         linked_tasks |= remove_expired_data.si(
             schema_name, provider, simulate, provider_uuid, line_items_only, queue_name
-        ).set(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
+        ).set(queue=queue_name or REMOVE_EXPIRED_DATA_QUEUE)
 
     chain(linked_tasks).apply_async()
     if not synchronous:
