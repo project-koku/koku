@@ -34,14 +34,14 @@ cte_distinct_values_agg AS (
         v.cost_entry_bill_id,
         v.account_id,
         v.project_id,
-        v.project_name,
+        v.project_name
     FROM (
         SELECT va.key,
             unnest(va."values" || coalesce(ls."values", '{}'::text[])) as "values",
             va.cost_entry_bill_id,
             va.account_id,
             va.project_id,
-            va.project_name,
+            va.project_name
         FROM cte_values_agg AS va
         LEFT JOIN {{schema | sqlsafe}}.reporting_gcptags_summary AS ls
             ON va.key = ls.key
