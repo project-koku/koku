@@ -19,9 +19,12 @@ import logging
 from uuid import uuid4
 
 from django.conf import settings
+from django.core.validators import MaxLengthValidator
 from django.db import models
 from django.db import transaction
 from django.db.models import JSONField
+
+from api.model_utils import RunTextFieldValidators
 
 LOG = logging.getLogger(__name__)
 
@@ -64,10 +67,12 @@ class Provider(models.Model):
     PROVIDER_OCP = "OCP"
     PROVIDER_AZURE = "Azure"
     PROVIDER_GCP = "GCP"
+    PROVIDER_IBM = "IBM"
     # Local Providers are for local development and testing
     PROVIDER_AWS_LOCAL = "AWS-local"
     PROVIDER_AZURE_LOCAL = "Azure-local"
     PROVIDER_GCP_LOCAL = "GCP-local"
+    PROVIDER_IBM_LOCAL = "IBM-local"
     # The following constants are not provider types
     OCP_ALL = "OCP_All"
     OCP_AWS = "OCP_AWS"
@@ -78,9 +83,11 @@ class Provider(models.Model):
         "ocp": PROVIDER_OCP,
         "azure": PROVIDER_AZURE,
         "gcp": PROVIDER_GCP,
+        "ibm": PROVIDER_IBM,
         "aws-local": PROVIDER_AWS_LOCAL,
         "azure-local": PROVIDER_AZURE_LOCAL,
         "gcp-local": PROVIDER_GCP_LOCAL,
+        "ibm-local": PROVIDER_IBM_LOCAL,
         "ocp-aws": OCP_AWS,
         "ocp-azure": OCP_AZURE,
     }
@@ -90,17 +97,21 @@ class Provider(models.Model):
         (PROVIDER_OCP, PROVIDER_OCP),
         (PROVIDER_AZURE, PROVIDER_AZURE),
         (PROVIDER_GCP, PROVIDER_GCP),
+        (PROVIDER_IBM, PROVIDER_IBM),
         (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
         (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
         (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL),
+        (PROVIDER_IBM_LOCAL, PROVIDER_IBM_LOCAL),
     )
     CLOUD_PROVIDER_CHOICES = (
         (PROVIDER_AWS, PROVIDER_AWS),
         (PROVIDER_AZURE, PROVIDER_AZURE),
         (PROVIDER_GCP, PROVIDER_GCP),
+        (PROVIDER_IBM, PROVIDER_IBM),
         (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
         (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
         (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL),
+        (PROVIDER_IBM_LOCAL, PROVIDER_IBM_LOCAL),
     )
 
     # These lists are intended for use for provider type checking
@@ -162,7 +173,7 @@ class Provider(models.Model):
             transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid))
 
 
-class Sources(models.Model):
+class Sources(RunTextFieldValidators, models.Model):
     """Platform-Sources table.
 
     Used for managing Platform-Sources.
@@ -182,16 +193,13 @@ class Sources(models.Model):
     source_uuid = models.UUIDField(unique=True, null=True)
 
     # Source name.
-    name = models.TextField(null=True)
+    name = models.TextField(max_length=256, null=True, validators=[MaxLengthValidator(256)])
 
     # Red Hat identity header.  Passed along to Koku API for entitlement and rbac reasons.
     auth_header = models.TextField(null=True)
 
     # Kafka message offset for Platform-Sources kafka stream
     offset = models.IntegerField(null=False)
-
-    # Endpoint ID.  Identifier to connect source to authentication.
-    endpoint_id = models.IntegerField(null=True)
 
     # Koku Specific data.
     # Customer Account ID

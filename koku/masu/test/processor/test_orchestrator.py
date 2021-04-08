@@ -22,6 +22,7 @@ from unittest.mock import patch
 import faker
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
@@ -107,7 +108,7 @@ class OrchestratorTest(MasuTestCase):
                 else:
                     self.fail("Unexpected provider")
 
-        if len(orchestrator._polling_accounts) != 2:
+        if len(orchestrator._polling_accounts) != 3:
             self.fail("Unexpected number of listener test accounts")
 
         for account in orchestrator._polling_accounts:
@@ -120,18 +121,24 @@ class OrchestratorTest(MasuTestCase):
                     self.assertEqual(account.get("credentials"), self.azure_credentials)
                     self.assertEqual(account.get("data_source"), self.azure_data_source)
                     self.assertEqual(account.get("customer_name"), self.schema)
+                elif account.get("provider_type") in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+                    self.assertEqual(account.get("credentials"), self.gcp_credentials)
+                    self.assertEqual(account.get("data_source"), self.gcp_data_source)
+                    self.assertEqual(account.get("customer_name"), self.schema)
                 else:
                     self.fail("Unexpected provider")
 
+    @patch("masu.processor.orchestrator.AccountLabel")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.external.report_downloader.ReportDownloader._set_downloader", return_value=FakeDownloader)
     @patch("masu.external.accounts_accessor.AccountsAccessor.get_accounts", return_value=[])
-    def test_prepare_no_accounts(self, mock_downloader, mock_accounts_accessor, mock_inspect):
+    def test_prepare_no_accounts(self, mock_downloader, mock_accounts_accessor, mock_inspect, mock_account_labler):
         """Test downloading cost usage reports."""
         orchestrator = Orchestrator()
         reports = orchestrator.prepare()
 
         self.assertIsNone(reports)
+        mock_account_labler.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch.object(AccountsAccessor, "get_accounts")
@@ -222,7 +229,7 @@ class OrchestratorTest(MasuTestCase):
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.AccountLabel", spec=True)
-    @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=True)
+    @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=([], True))
     def test_prepare_w_manifest_processing_successful(self, mock_task, mock_labeler, mock_inspect):
         """Test that Orchestrator.prepare() works when manifest processing is successful."""
         mock_labeler().get_label_details.return_value = (True, True)
@@ -232,12 +239,14 @@ class OrchestratorTest(MasuTestCase):
         mock_labeler.assert_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.orchestrator.AccountLabel", spec=True)
     @patch("masu.processor.orchestrator.get_report_files.apply_async", return_value=True)
-    def test_prepare_w_no_manifest_found(self, mock_task, mock_inspect):
+    def test_prepare_w_no_manifest_found(self, mock_task, mock_labeler, mock_inspect):
         """Test that Orchestrator.prepare() is skipped when no manifest is found."""
         orchestrator = Orchestrator()
         orchestrator.prepare()
         mock_task.assert_not_called()
+        mock_labeler.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.record_report_status", return_value=True)
@@ -336,6 +345,14 @@ class OrchestratorTest(MasuTestCase):
             orchestrator = Orchestrator()
             months = orchestrator.get_reports(self.aws_provider_uuid)
             self.assertEqual(test.get("expected_month_length"), len(months))
+            for i in range(1, len(months)):
+                self.assertLess(months[i], months[i - 1])
 
         Config.INGEST_OVERRIDE = False
         Config.INITIAL_INGEST_NUM_MONTHS = initial_month_qty
+
+        dh = DateHelper()
+        expected = [dh.this_month_start.date()]
+        orchestrator = Orchestrator(bill_date=dh.today)
+        result = orchestrator.get_reports(self.aws_provider_uuid)
+        self.assertEqual(result, expected)

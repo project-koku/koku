@@ -30,6 +30,7 @@ from masu.external.downloader.azure.azure_report_downloader import AzureReportDo
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
+from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from reporting_common.models import CostUsageReportStatus
 
@@ -149,6 +150,16 @@ class ReportDownloader:
                 request_id=self.request_id,
                 account=self.account,
             )
+        if self.provider_type == Provider.PROVIDER_GCP_LOCAL:
+            return GCPLocalReportDownloader(
+                customer_name=self.customer_name,
+                credentials=self.credentials,
+                data_source=self.data_source,
+                report_name=self.report_name,
+                provider_uuid=self.provider_uuid,
+                request_id=self.request_id,
+                account=self.account,
+            )
         return None
 
     def get_reports(self, number_of_months=2):
@@ -219,7 +230,7 @@ class ReportDownloader:
         with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
             stored_etag = stats_recorder.get_etag()
             try:
-                file_name, etag, _ = self._downloader.download_file(
+                file_name, etag, _, split_files = self._downloader.download_file(
                     report, stored_etag, manifest_id=manifest_id, start_date=date_time
                 )
                 stats_recorder.update(etag=etag)
@@ -229,6 +240,7 @@ class ReportDownloader:
 
         return {
             "file": file_name,
+            "split_files": split_files,
             "compression": report_context.get("compression"),
             "start_date": date_time,
             "assembly_id": report_context.get("assembly_id"),

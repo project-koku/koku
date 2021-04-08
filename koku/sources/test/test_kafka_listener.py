@@ -27,6 +27,7 @@ from django.db import InterfaceError
 from django.db import OperationalError
 from django.db.models.signals import post_save
 from django.test import TestCase
+from django.test.utils import override_settings
 from faker import Faker
 from kafka.errors import KafkaError
 from requests.exceptions import RequestException
@@ -235,6 +236,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertFalse(Sources.objects.get(source_id=source_id).pending_update)
         self.assertEqual(Sources.objects.get(source_id=source_id).koku_uuid, str(provider.source_uuid))
 
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     def test_execute_koku_provider_op_destroy(self):
         """Test to execute Koku Operations to sync with Sources for destruction."""
         source_id = self.aws_source.get("source_id")
@@ -246,6 +248,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             source_integration.execute_koku_provider_op(msg)
         self.assertEqual(Sources.objects.filter(source_id=source_id).exists(), False)
 
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     def test_execute_koku_provider_op_destroy_provider_not_found(self):
         """Test to execute Koku Operations to sync with Sources for destruction with provider missing.
 
@@ -377,8 +380,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             self.assertEqual(response.get("source_id"), 1)
             self.assertEqual(response.get("auth_header"), test_auth_header)
 
-    def test_get_sources_msg_authentication(self):
-        """Test to get sources details from msg for Authentication.create event."""
+    def test_get_sources_msg_authentication_unsuported_auth_endpoint(self):
+        """Test to ensure Authentication event for Endpoint is filtered."""
         test_topic = "platform.sources.event-stream"
         authentication_events = ["Authentication.create", "Authentication.update"]
         test_offset = 5
@@ -394,34 +397,19 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 auth_header=test_auth_header,
                 value=bytes(test_value, encoding="utf-8"),
             )
-
             response = source_integration.get_sources_msg_data(msg, cost_management_app_type)
-            self.assertEqual(response.get("event_type"), event)
-            self.assertEqual(response.get("resource_id"), 1)
-            self.assertEqual(response.get("resource_type"), "Endpoint")
-            self.assertEqual(response.get("auth_header"), test_auth_header)
-            self.assertEqual(response.get("offset"), test_offset)
+            self.assertEqual(response, {})
 
     def test_get_sources_msg_data_other(self):
         """Test to get sources details from other message."""
         test_topic = "platform.sources.event-stream"
         test_offset = 5
-        test_partition = 1
         cost_management_app_type = 2
         test_auth_header = "testheader"
         test_value = '{"id":1,"source_id":1,"application_type_id":2}'
         source_events = [
             {"event": "Source.create", "expected_response": {}},
-            {
-                "event": "Source.update",
-                "expected_response": {
-                    "source_id": 1,
-                    "offset": test_offset,
-                    "partition": test_partition,
-                    "event_type": "Source.update",
-                    "auth_header": test_auth_header,
-                },
-            },
+            {"event": "Source.update", "expected_response": {}},
         ]
         for test in source_events:
             msg = ConsumerRecord(
@@ -573,7 +561,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 json={"data": []},
             )
             m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
                 status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
@@ -612,7 +600,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_type_id = 1
         mock_source_name = "google"
         resource_id = 2
-        authentication_id = 3
         with requests_mock.mock() as m:
             m.get(
                 f"http://www.sources.com/api/v1.0/sources/{test_source_id}",
@@ -625,30 +612,24 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 json={"data": [{"name": mock_source_name}]},
             )
             m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
-                status_code=200,
-                json={"data": [{"id": resource_id}]},
-            )
-            m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
                 status_code=200,
-                json={"data": [{"id": resource_id}]},
+                json={
+                    "data": [
+                        {
+                            "id": resource_id,
+                            "extra": {"billing_source": {"data_source": {"dataset": "billing_datset"}}},
+                        }
+                    ]
+                },
             )
             m.get(
                 (
                     f"http://www.sources.com/api/v1.0/authentications?"
-                    f"[authtype]=project_id&[resource_id]={resource_id}"
+                    f"[authtype]=project_id_service_account_json&[resource_id]={resource_id}"
                 ),
                 status_code=200,
-                json={"data": [{"id": authentication_id}]},
-            )
-            m.get(
-                (
-                    f"http://www.sources.com/internal/v1.0/authentications/{authentication_id}"
-                    f"?expose_encrypted_attribute[]=password"
-                ),
-                status_code=200,
-                json={"password": authentication},
+                json={"data": [{"username": authentication}]},
             )
             source_integration.sources_network_info(test_source_id, test_auth_header)
 
@@ -672,7 +653,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         aws_source.save()
         source_type_id = 1
         mock_source_name = "amazon-local"
-        resource_id = 2
+        resource_id = 1
         authentication_id = 3
         with requests_mock.mock() as m:
             m.get(
@@ -688,17 +669,17 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
                 status_code=200,
-                json={"data": []},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
-                status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
             m.get(
-                (f"http://www.sources.com/api/v1.0/authentications?" f"[authtype]=arn&[resource_id]={resource_id}"),
+                (f"http://www.sources.com/api/v1.0/authentications?[authtype]=arn&[resource_id]={resource_id}"),
                 status_code=200,
                 json={"data": [{"id": authentication_id}]},
+            )
+            m.get(
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
+                status_code=200,
+                json={"data": [{"id": resource_id, "extra": {"foo": "bar"}}]},
             )
             m.get(
                 (
@@ -751,7 +732,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 json={"data": [{"name": mock_source_name}]},
             )
             m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
                 status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
@@ -760,7 +741,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 status_code=200,
                 json={"data": [{"id": authentication_id}]},
             )
-            m.patch(f"http://www.sources.com/api/v1.0/applications/{app_id}", status_code=204)
+            m.patch(f"http://www.sources.com/api/v1.0/applications/{resource_id}", status_code=204)
             source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
@@ -802,11 +783,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             )
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
-                status_code=200,
-                json={"data": []},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
                 status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
@@ -875,11 +851,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
                 status_code=200,
-                json={"data": []},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
-                status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
             m.get(
@@ -930,6 +901,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         application_type = 2
         mock_source_name = "amazon"
         source_type_id = 1
+        resource_id = 3
         source_uid = faker.uuid4()
         test_auth_header = Config.SOURCES_FAKE_HEADER
         ocp_source = Sources(source_id=test_source_id, auth_header=test_auth_header, offset=1)
@@ -947,12 +919,17 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 json={"data": [{"name": mock_source_name}]},
             )
             m.get(
-                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
                 status_code=200,
                 json={"data": []},
             )
             m.get(
                 f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
+                status_code=200,
+                json={"data": [{"id": resource_id, "extra": {}}]},
+            )
+            m.get(
+                f"http://www.sources.com/api/v1.0/authentications?[authtype]=arn&[resource_id]={resource_id}",
                 status_code=200,
                 json={"data": []},
             )
@@ -961,6 +938,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 status_code=200,
                 json={"data": [{"id": application_type}]},
             )
+            m.patch(f"http://www.sources.com/api/v1.0/applications/{resource_id}", status_code=204)
+
             source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
@@ -1025,8 +1004,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with patch.object(
             SourcesHTTPClient, "get_source_details", return_value={"name": "my ansible", "source_type_id": 2}
         ):
-            with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="ansible-tower"):
-                with patch.object(SourcesHTTPClient, "get_endpoint_id", return_value=1):
+            with patch.object(SourcesHTTPClient, "get_application_settings", return_value={}):
+                with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="ansible-tower"):
                     self.assertIsNone(process_message(test_application_id, msg_data))
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
@@ -1053,7 +1032,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 "value": {
                     "id": 1,
                     "source_id": 1,
-                    "resource_type": "Endpoint",
+                    "resource_type": "Application",
                     "resource_id": "1",
                     "application_type_id": test_application_id,
                 },
@@ -1065,7 +1044,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 "value": {
                     "id": 1,
                     "source_id": 1,
-                    "resource_type": "Endpoint",
+                    "resource_type": "Application",
                     "resource_id": "1",
                     "application_type_id": test_application_id,
                 },
@@ -1089,7 +1068,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 "value": {
                     "id": 1,
                     "source_id": 1,
-                    "resource_type": "Endpoint",
+                    "resource_type": "Application",
                     "resource_id": "1",
                     "application_type_id": test_application_id,
                 },
@@ -1101,62 +1080,19 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         for test in test_matrix:
             msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
             with patch.object(
-                SourcesHTTPClient, "get_source_id_from_endpoint_id", return_value=test.get("value").get("source_id")
+                SourcesHTTPClient,
+                "get_application_type_is_cost_management",
+                return_value=test.get("expected_cost_mgmt_match"),
             ):
                 with patch.object(
                     SourcesHTTPClient,
-                    "get_application_type_is_cost_management",
+                    "get_source_id_from_applications_id",
                     return_value=test.get("expected_cost_mgmt_match"),
                 ):
-                    with patch.object(
-                        SourcesHTTPClient,
-                        "get_source_id_from_applications_id",
-                        return_value=test.get("expected_cost_mgmt_match"),
-                    ):
-                        with patch.object(
-                            SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}
-                        ):
-                            with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
-                                process_message(test_application_id, msg_data)
-                                test.get("expected_fn")(msg_data, test, mock_save_auth_info)
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    @patch("sources.kafka_listener.sources_network_info", returns=None)
-    @patch("sources.kafka_listener.save_auth_info", returns=None)
-    def test_process_message_source_update(self, mock_save_auth_info, mock_sources_network_info):
-        """Test the process_message function for source_update."""
-        test_application_id = 2
-
-        def _expected_source_update(msg_data, expected_known_source, sources_network_info_mock):
-            if expected_known_source:
-                sources_network_info_mock.assert_called()
-            else:
-                sources_network_info_mock.assert_not_called()
-
-        test_matrix = [
-            {
-                "event": source_integration.KAFKA_SOURCE_UPDATE,
-                "value": {"id": 1},
-                "expected_known_source": False,
-                "expected_fn": _expected_source_update,
-            },
-            {
-                "event": source_integration.KAFKA_SOURCE_UPDATE,
-                "value": {"id": 1},
-                "expected_known_source": True,
-                "expected_fn": _expected_source_update,
-            },
-        ]
-
-        for test in test_matrix:
-            msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
-            with patch(
-                "sources.kafka_listener.storage.is_known_source", return_value=test.get("expected_known_source")
-            ):
-                with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
-                    with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
-                        process_message(test_application_id, msg_data)
-                        test.get("expected_fn")(msg_data, test.get("expected_known_source"), mock_sources_network_info)
+                    with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
+                        with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
+                            process_message(test_application_id, msg_data)
+                            test.get("expected_fn")(msg_data, test, mock_save_auth_info)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_process_message_destroy(self):
@@ -1207,18 +1143,13 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 "value": {
                     "id": 1,
                     "source_id": 1,
-                    "resource_type": "Endpoint",
+                    "resource_type": "Application",
                     "resource_id": "1",
                     "application_type_id": test_application_id,
                 },
                 "expected_cost_mgmt_match": True,
                 "expected_fn": _expected_update,
-            },
-            {
-                "event": source_integration.KAFKA_SOURCE_UPDATE,
-                "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
-                "expected_fn": _expected_update,
-            },
+            }
         ]
 
         for test in test_matrix:
@@ -1231,15 +1162,13 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             test_source.save()
             msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
             with patch.object(
-                SourcesHTTPClient, "get_source_id_from_endpoint_id", return_value=test.get("value").get("source_id")
+                SourcesHTTPClient,
+                "get_application_type_is_cost_management",
+                return_value=test.get("expected_cost_mgmt_match"),
             ):
-                with patch.object(
-                    SourcesHTTPClient,
-                    "get_application_type_is_cost_management",
-                    return_value=test.get("expected_cost_mgmt_match"),
-                ):
-                    with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
-                        with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
+                with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
+                    with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
+                        with patch.object(SourcesHTTPClient, "get_source_id_from_applications_id", return_value=1):
                             process_message(test_application_id, msg_data)
                             test.get("expected_fn")(test)
                             Sources.objects.all().delete()
@@ -1254,14 +1183,27 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         cost_management_app_type = 2
 
         test_matrix = [
-            {"test_value": '{"id": 1, "source_id": 1, "application_type_id": 2', "expected_process": False},
-            {"test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}), "expected_process": True},
+            {
+                "test_value": '{"id": 1, "source_id": 1, "application_type_id": 2',
+                "operation": "Application.create",
+                "expected_process": False,
+            },
+            {
+                "test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}),
+                "operation": "Source.update",
+                "expected_process": False,
+            },
+            {
+                "test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}),
+                "operation": "Application.create",
+                "expected_process": True,
+            },
         ]
         for test in test_matrix:
             msg = ConsumerRecord(
                 topic="platform.sources.event-stream",
                 offset=5,
-                event_type="Application.create",
+                event_type=test.get("operation"),
                 auth_header="testheader",
                 value=bytes(test.get("test_value"), encoding="utf-8"),
             )

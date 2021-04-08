@@ -24,7 +24,6 @@ from tenant_schemas.utils import tenant_context
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
-from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)
 
@@ -69,8 +68,6 @@ class TagQueryHandler(QueryHandler):
         "value": {"field": "value", "operation": "icontains", "composition_key": "value_filter"},
     }
 
-    dh = DateHelper()
-
     def __init__(self, parameters):
         """Establish tag query handler.
 
@@ -80,7 +77,8 @@ class TagQueryHandler(QueryHandler):
         """
         super().__init__(parameters)
         # _set_start_and_end_dates must be called after super and before _get_filter
-        self._set_start_and_end_dates()
+        if not self.parameters.get("start_date") and not self.parameters.get("end_date"):
+            self._set_start_and_end_dates()
         # super() needs to be called before calling _get_filter()
         self.query_filter = self._get_filter()
         if parameters.kwargs.get("key"):
@@ -98,6 +96,7 @@ class TagQueryHandler(QueryHandler):
         filters.add(QueryFilter(field="key", operation="exact", parameter=self.key))
         return self.query_filter & filters.compose()
 
+    # deprecated
     def _set_start_and_end_dates(self):
         """Set start and end dates.
 
@@ -322,7 +321,6 @@ class TagQueryHandler(QueryHandler):
                     tag_keys_query = tag_keys_query.annotate(**annotations)
                     for annotation_key in annotations.keys():
                         vals.append(annotation_key)
-
                 exclusion = self._get_exclusions("key")
                 tag_keys = list(tag_keys_query.filter(self.query_filter).exclude(exclusion).values_list(*vals).all())
                 converted = self._convert_to_dict(tag_keys, vals)

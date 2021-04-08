@@ -20,10 +20,8 @@ import logging
 
 from django.db.models import F
 from django.db.models import Value
-from django.db.models import Window
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
-from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
@@ -37,8 +35,24 @@ class GCPReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for GCP."""
 
     provider = Provider.PROVIDER_GCP
-    network_services = {}  # FIXME: When we start working on networking apis
-    database_services = {}  # FIXME: When we start working on database apis
+
+    network_services = {
+        "Network",
+        "VPC",
+        "Firewall",
+        "Route",
+        "IP",
+        "DNS",
+        "CDN",
+        "NAT",
+        "Traffic Director",
+        "Service Discovery",
+        "Cloud Domains",
+        "Private Service Connect",
+        "Cloud Armor",
+    }
+
+    database_services = {"SQL", "Spanner", "Bigtable", "Firestore", "Firebase", "Memorystore", "MongoDB"}
 
     def __init__(self, parameters):
         """Establish GCP report query handler.
@@ -74,17 +88,17 @@ class GCPReportQueryHandler(ReportQueryHandler):
             "date": self.date_trunc("usage_start"),
             "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback)),
         }
-        # TODO: Not needed until we start other report types
-        # if self._mapper.usage_units_key:
-        #     units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
-        #     annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
+        if self._mapper.usage_units_key:
+            units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
+            annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
         fields = self._mapper.provider_map.get("annotations")
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(""))
         group_by_fields = self._mapper.provider_map.get("group_by_annotations")
         for group_key in self._get_group_by():
-            for q_param, db_field in group_by_fields[group_key].items():
-                annotations[q_param] = Concat(db_field, Value(""))
+            if group_by_fields.get(group_key):
+                for q_param, db_field in group_by_fields[group_key].items():
+                    annotations[q_param] = Concat(db_field, Value(""))
         return annotations
 
     def _format_query_response(self):
@@ -109,35 +123,26 @@ class GCPReportQueryHandler(ReportQueryHandler):
         query_sum = self.initialize_totals()
 
         cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
-        # TODO: Not needed until we start other report types
-        # usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
-        # count_units_fallback = self._mapper.report_type_map.get("count_units_fallback")
+        usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
 
         if query.exists():
             sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
-            # TODO: Not needed until we start other report types
-            # if self._mapper.usage_units_key:
-            #     units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
-            #     sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
+            if self._mapper.usage_units_key:
+                units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
+                sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
             sum_query = query.annotate(**sum_annotations)
 
             units_value = sum_query.values("cost_units").first().get("cost_units", cost_units_fallback)
             sum_units = {"cost_units": units_value}
-            # TODO: Not needed until we start other report types
-            # if self._mapper.usage_units_key:
-            #     units_value = sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
-            #     sum_units["usage_units"] = units_value
-            # if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
-            #     sum_units["count_units"] = count_units_fallback
+            if self._mapper.usage_units_key:
+                units_value = sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
+                sum_units["usage_units"] = units_value
 
             query_sum = self.calculate_total(**sum_units)
         else:
             sum_units["cost_units"] = cost_units_fallback
-            # TODO: Not needed until we start other report types
-            # if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
-            #     sum_units["count_units"] = count_units_fallback
-            # if self._mapper.report_type_map.get("annotations", {}).get("usage_units"):
-            #     sum_units["usage_units"] = usage_units_fallback
+            if self._mapper.report_type_map.get("annotations", {}).get("usage_units"):
+                sum_units["usage_units"] = usage_units_fallback
             query_sum.update(sum_units)
             self._pack_data_object(query_sum, **self._mapper.PACK_DEFINITIONS)
         return query_sum
@@ -156,7 +161,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
-            query_order_by.extend([self.order])
+            query_order_by.extend([self.order])  # add implicit ordering
 
             annotations = self._mapper.report_type_map.get("annotations")
             for alias_key, alias_value in self.group_by_alias.items():
@@ -166,11 +171,10 @@ class GCPReportQueryHandler(ReportQueryHandler):
             query_sum = self._build_sum(query)
 
             if self._limit:
-                rank_order = getattr(F(self.order_field), self.order_direction)()
-                rank_by_total = Window(expression=RowNumber(), partition_by=F("date"), order_by=rank_order)
-                query_data = query_data.annotate(rank=rank_by_total)
-                query_order_by.insert(1, "rank")
-                query_data = self._ranked_list(query_data)
+                query_data = self._group_by_ranks(query, query_data)
+                if not self.parameters.get("order_by"):
+                    # override implicit ordering when using ranked ordering.
+                    query_order_by[-1] = "rank"
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)

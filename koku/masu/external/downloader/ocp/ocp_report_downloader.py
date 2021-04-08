@@ -30,17 +30,14 @@ from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.processor import enable_trino_processing
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
 
 DATA_DIR = Config.TMP_DIR
 REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
-REPORT_TYPES = {
-    "storage_usage": "persistentvolumeclaim_labels",
-    "pod_usage": "pod_labels",
-    "node_labels": "node_labels",
-}
+
 LOG = logging.getLogger(__name__)
 
 
@@ -51,7 +48,12 @@ def divide_csv_daily(file_path, filename):
     daily_files = []
     directory = os.path.dirname(file_path)
 
-    data_frame = pd.read_csv(file_path)
+    try:
+        data_frame = pd.read_csv(file_path)
+    except Exception as error:
+        LOG.error(f"File {file_path} could not be parsed. Reason: {str(error)}")
+        raise error
+
     report_type, _ = utils.detect_type(file_path)
     unique_times = data_frame.interval_start.unique()
     days = list({cur_dt[:10] for cur_dt in unique_times})
@@ -85,7 +87,7 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
         context (Dict): Logging context dictionary
     """
     daily_file_names = []
-    if settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING:
+    if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid):
         daily_files = divide_csv_daily(filepath, filename)
         for daily_file in daily_files:
             # Push to S3
@@ -101,8 +103,7 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
                 start_date,
                 context,
             )
-            daily_file_names.append(daily_file.get("filename"))
-            os.remove(daily_file.get("filepath"))
+            daily_file_names.append(daily_file.get("filepath"))
     return daily_file_names
 
 
@@ -254,7 +255,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             shutil.move(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
-        create_daily_archives(
+        file_names = create_daily_archives(
             self.request_id,
             self.account,
             self._provider_uuid,
@@ -264,7 +265,8 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             start_date,
             self.context,
         )
-        return full_file_path, ocp_etag, file_creation_date
+
+        return full_file_path, ocp_etag, file_creation_date, file_names
 
     def get_local_file_for_report(self, report):
         """Get full path for local report file."""

@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Utilities for Settings."""
-from koku.settings import OPENSHIFT_DOC_VERSION
-
 SETTINGS_PREFIX = "api.settings"
 OPENSHIFT_SETTINGS_PREFIX = f"{SETTINGS_PREFIX}.openshift"
 OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX = f"{OPENSHIFT_SETTINGS_PREFIX}.tag-management"
@@ -78,8 +76,7 @@ def generate_doc_link(path):
     Args:
         (String) path - path to the documentation.
     """
-    prefix = f"https://access.redhat.com/documentation/en-us/openshift_container_platform/{OPENSHIFT_DOC_VERSION}/html"
-    return f"{prefix}/{path}"
+    return f"https://access.redhat.com/documentation/en-us/cost_management_service/2021/html/{path}"
 
 
 def create_dual_list_select(name, left_options=[], right_options=[], **kwargs):

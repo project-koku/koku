@@ -21,8 +21,11 @@ import logging
 
 import pint
 import pytz
+from dateutil.relativedelta import relativedelta
 from django.utils import timezone
 from pint.errors import UndefinedUnitError
+
+from masu.config import Config
 
 LOG = logging.getLogger(__name__)
 
@@ -30,9 +33,9 @@ LOG = logging.getLogger(__name__)
 def merge_dicts(*list_of_dicts):
     """Merge a list of dictionaries and combine common keys into a list of values.
 
-        args:
-            list_of_dicts: a list of dictionaries. values within the dicts must be lists
-                dict = {key: [values]}
+    args:
+        list_of_dicts: a list of dictionaries. values within the dicts must be lists
+            dict = {key: [values]}
 
     """
     output = {}
@@ -65,6 +68,11 @@ class DateHelper:
     def now_utc(self):
         """Return current time at timezone."""
         return datetime.datetime.now(tz=pytz.UTC)
+
+    @property
+    def midnight(self):
+        """Return a time object set to midnight."""
+        return datetime.time(0, 0, 0, 0)
 
     @property
     def one_day(self):
@@ -203,7 +211,11 @@ class DateHelper:
         end_midnight = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
         start_midnight = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         days = (end_midnight - start_midnight + self.one_day).days
-        return [start_midnight + datetime.timedelta(i) for i in range(days)]
+
+        # built-in range(start, end, step) requires (start < end) == True
+        day_range = range(days, 0) if days < 0 else range(0, days)
+        output = [start_midnight + datetime.timedelta(i) for i in day_range]
+        return output
 
     def list_months(self, start_date, end_date):
         """Return a list of months from the start date til the end date.
@@ -258,6 +270,12 @@ class DateHelper:
         date_obj = datetime.datetime.strptime(date_str, "%Y%m")
         gcp_month_start = self.month_start(date_obj)
         return gcp_month_start
+
+
+def materialized_view_month_start(dh=DateHelper()):
+    """Datetime of midnight on the first of the month where materialized summary starts."""
+    summary_month = dh.this_month_start - relativedelta(months=Config.MASU_RETAIN_NUM_MONTHS - 1)
+    return summary_month
 
 
 class UnitConverter:

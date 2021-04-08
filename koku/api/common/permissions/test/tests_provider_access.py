@@ -21,6 +21,8 @@ from django.test import TestCase
 
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.common.permissions.azure_access import AzureAccessPermission
+from api.common.permissions.gcp_access import GcpAccessPermission
+from api.common.permissions.ibm_access import IbmAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.permissions.openshift_all_access import OpenshiftAllAccessPermission
 from api.iam.models import User
@@ -30,10 +32,14 @@ PERMISSIONS = {
     Provider.PROVIDER_AWS: AwsAccessPermission(),
     Provider.PROVIDER_AZURE: AzureAccessPermission(),
     Provider.PROVIDER_OCP: OpenShiftAccessPermission(),
+    Provider.PROVIDER_GCP: GcpAccessPermission(),
+    Provider.PROVIDER_IBM: IbmAccessPermission(),
     Provider.OCP_ALL: OpenshiftAllAccessPermission(),
 }
 ACCESS_KEYS = {
     Provider.PROVIDER_AWS: {"aws.account": {"read": ["*"]}},
+    Provider.PROVIDER_GCP: {"gcp.account": {"read": ["*"]}},
+    Provider.PROVIDER_IBM: {"ibm.account": {"read": ["*"]}},
     Provider.PROVIDER_AZURE: {"azure.subscription_guid": {"read": ["*"]}},
     Provider.PROVIDER_OCP: {"openshift.cluster": {"read": ["*"]}},
     Provider.OCP_ALL: {

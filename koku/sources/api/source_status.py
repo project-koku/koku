@@ -17,7 +17,9 @@
 import logging
 import threading
 
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -34,6 +36,8 @@ from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
+from sources.sources_provider_coordinator import SourcesProviderCoordinator
+from sources.storage import source_settings_complete
 
 LOG = logging.getLogger(__name__)
 
@@ -47,6 +51,8 @@ class SourceStatus:
         self.user = request.user
         self.source_id = source_id
         self.source = Sources.objects.get(source_id=source_id)
+        if not source_settings_complete(self.source) or self.source.pending_delete:
+            raise ObjectDoesNotExist(f"Source ID: {self.source_id} not ready for status")
         self.sources_client = SourcesHTTPClient(self.source.auth_header, source_id=source_id)
 
     @property
@@ -68,7 +74,8 @@ class SourceStatus:
         interface = ProviderAccessor(provider_type)
         error_obj = None
         try:
-            interface.cost_usage_source_ready(source_authentication, source_billing_source)
+            if self.source.account_id not in settings.DEMO_ACCOUNTS:
+                interface.cost_usage_source_ready(source_authentication, source_billing_source)
             self._set_provider_active_status(True)
         except ValidationError as validation_error:
             self._set_provider_active_status(False)
@@ -82,11 +89,35 @@ class SourceStatus:
         provider_type = self.source.source_type
         return self.determine_status(provider_type, source_authentication, source_billing_source)
 
+    @transaction.atomic
+    def update_source_name(self):
+        """Update source name if it is out of sync with platform."""
+        source_details = self.sources_client.get_source_details()
+        if source_details.get("name") != self.source.name:
+            self.source.name = source_details.get("name")
+            self.source.save()
+            builder = SourcesProviderCoordinator(self.source_id, self.source.auth_header)
+            builder.update_account(self.source)
+
+    def _gcp_bigquery_table_found(self):
+        """Helper to determine if this is the first time a GCP BigQuery table was found."""
+        if self.source.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL) and not self.source.status:
+            return True
+        return False
+
     def push_status(self):
         """Push status_msg to platform sources."""
         try:
             status_obj = self.status()
-            self.sources_client.set_source_status(status_obj)
+            if self._gcp_bigquery_table_found():
+                builder = SourcesProviderCoordinator(self.source.source_id, self.source.auth_header)
+                if self.source.koku_uuid:
+                    builder.update_account(self.source)
+                else:
+                    builder.create_account(self.source)
+                self.sources_client.set_source_status(status_obj)
+            self.update_source_name()
+            LOG.info(f"Source status for Source ID: {str(self.source_id)}: Status: {str(status_obj)}")
         except SkipStatusPush as error:
             LOG.info(f"Platform sources status push skipped. Reason: {str(error)}")
         except SourcesHTTPClientError as error:

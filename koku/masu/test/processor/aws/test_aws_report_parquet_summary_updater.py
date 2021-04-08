@@ -18,6 +18,7 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.conf import settings
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
@@ -26,6 +27,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
 from masu.test import MasuTestCase
+from masu.util.common import date_range_pair
 
 
 class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
@@ -85,15 +87,21 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(start, expected_start)
         self.assertEqual(end, expected_end)
 
+    @patch(
+        "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range"  # noqa: E501
+    )
     @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_tags_summary_table")
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_presto"  # noqa: E501
     )
-    def test_update_daily_summary_tables(self, mock_presto, mock_tag_update):
+    def test_update_daily_summary_tables(self, mock_presto, mock_tag_update, mock_delete):
         """Test that we run Presto summary."""
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
         start, end = self.updater._get_sql_inputs(start_str, end_str)
+
+        for s, e in date_range_pair(start, end, step=settings.TRINO_DATE_STEP):
+            expected_start, expected_end = s, e
 
         with AWSReportDBAccessor(self.schema) as accessor:
             with schema_context(self.schema):
@@ -106,7 +114,11 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
 
         start_return, end_return = self.updater.update_summary_tables(start, end)
-        mock_presto.assert_called_with(start, end, self.aws_provider.uuid, current_bill_id, markup_value)
+
+        mock_delete.assert_called_with(self.aws_provider.uuid, expected_start, expected_end)
+        mock_presto.assert_called_with(
+            expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value
+        )
         mock_tag_update.assert_called_with(bill_ids)
 
         self.assertEqual(start_return, start)

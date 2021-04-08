@@ -19,6 +19,7 @@ import logging
 from decimal import Decimal
 
 from dateutil import parser
+from django.conf import settings
 from tenant_schemas.utils import schema_context
 
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -55,26 +56,27 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
 
         # OpenShift on AWS
         with AWSReportDBAccessor(self._schema) as accessor:
-            LOG.info(
-                "Updating OpenShift on AWS summary table for "
-                "\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s"
-                "\n\tCluster ID: %s, AWS Bill ID: %s",
-                self._schema,
-                self._provider.uuid,
-                start_date,
-                end_date,
-                cluster_id,
-                current_aws_bill_id,
-            )
-            accessor.populate_ocp_on_aws_cost_daily_summary_presto(
-                start_date,
-                end_date,
-                openshift_provider_uuid,
-                aws_provider_uuid,
-                cluster_id,
-                current_aws_bill_id,
-                markup_value,
-            )
+            for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                LOG.info(
+                    "Updating OpenShift on AWS summary table for "
+                    "\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s"
+                    "\n\tCluster ID: %s, AWS Bill ID: %s",
+                    self._schema,
+                    self._provider.uuid,
+                    start,
+                    end,
+                    cluster_id,
+                    current_aws_bill_id,
+                )
+                accessor.populate_ocp_on_aws_cost_daily_summary_presto(
+                    start,
+                    end,
+                    openshift_provider_uuid,
+                    aws_provider_uuid,
+                    cluster_id,
+                    current_aws_bill_id,
+                    markup_value,
+                )
             accessor.populate_ocp_on_aws_tags_summary_table()
 
         with OCPReportDBAccessor(self._schema) as accessor:
@@ -85,15 +87,14 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on Azure."""
         if isinstance(start_date, str):
-            start_date = parser.parse(start_date)
+            start_date = parser.parse(start_date).date()
         if isinstance(end_date, str):
-            end_date = parser.parse(end_date)
+            end_date = parser.parse(end_date).date()
 
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
         azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
-        azure_bill_ids = []
         with schema_context(self._schema):
-            azure_bill_ids = [str(bill.id) for bill in azure_bills]
+            current_azure_bill_id = azure_bills.first().id if azure_bills else None
 
         with CostModelDBAccessor(self._schema, azure_provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
@@ -101,19 +102,27 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
 
         # OpenShift on Azure
         with AzureReportDBAccessor(self._schema) as accessor:
-            for start, end in date_range_pair(start_date, end_date):
+            for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
                     "Updating OpenShift on Azure summary table for "
                     "\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s"
-                    "\n\tCluster ID: %s, Azure Bill IDs: %s",
+                    "\n\tCluster ID: %s, Azure Bill ID: %s",
                     self._schema,
                     self._provider.uuid,
                     start,
                     end,
                     cluster_id,
-                    str(azure_bill_ids),
+                    current_azure_bill_id,
                 )
-                accessor.populate_ocp_on_azure_cost_daily_summary(start, end, cluster_id, azure_bill_ids, markup_value)
+                accessor.populate_ocp_on_azure_cost_daily_summary_presto(
+                    start,
+                    end,
+                    openshift_provider_uuid,
+                    azure_provider_uuid,
+                    cluster_id,
+                    current_azure_bill_id,
+                    markup_value,
+                )
             accessor.populate_ocp_on_azure_tags_summary_table()
 
         with OCPReportDBAccessor(self._schema) as accessor:

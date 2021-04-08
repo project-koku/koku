@@ -30,6 +30,7 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from api.utils import DateHelper
 from cost_models.models import CostModelMap
+from masu.processor import enable_trino_processing
 from masu.processor.tasks import refresh_materialized_views
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
@@ -84,6 +85,20 @@ class ProviderManager:
             provider=self._uuid,
             billing_period_start_datetime=DateHelper().this_month_start,
             manifest_completed_datetime__isnull=False,
+        ).exists()
+
+    def get_previous_month_data_exists(self):
+        """Get current month data avaiability status."""
+        return CostUsageReportManifest.objects.filter(
+            provider=self._uuid,
+            billing_period_start_datetime=DateHelper().last_month_start,
+            manifest_completed_datetime__isnull=False,
+        ).exists()
+
+    def get_any_data_exists(self):
+        """Get  data avaiability status."""
+        return CostUsageReportManifest.objects.filter(
+            provider=self._uuid, manifest_completed_datetime__isnull=False
         ).exists()
 
     def get_infrastructure_name(self):
@@ -244,13 +259,13 @@ def provider_post_delete_callback(*args, **kwargs):
     customer.date_updated = DateHelper().now_utc
     customer.save()
 
-    if settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING:
+    if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider.uuid):
         # Local import of task function to avoid potential import cycle.
         from masu.celery.tasks import delete_archived_data
 
         delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
         transaction.on_commit(delete_func)
 
-    refresh_materialized_views.s(
+    refresh_materialized_views(
         provider.customer.schema_name, provider.type, provider_uuid=provider.uuid, synchronous=True
-    ).apply()
+    )

@@ -60,11 +60,14 @@ from masu.processor.tasks import normalize_table_options
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
+from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
 from masu.processor.tasks import remove_expired_data
+from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.processor.tasks import remove_stale_tenants
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
+from masu.processor.tasks import UPDATE_COST_MODEL_COSTS_QUEUE
 from masu.processor.tasks import update_summary_tables
 from masu.processor.tasks import vacuum_schema
 from masu.processor.worker_cache import create_single_task_cache_key
@@ -361,7 +364,7 @@ class ProcessReportFileTests(MasuTestCase):
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list(self, mock_update_summary):
         """Test that the summarize_reports task is called when a processing list is provided."""
-        mock_update_summary.delay = Mock()
+        mock_update_summary.s = Mock()
 
         report_meta = {}
         report_meta["start_date"] = str(DateHelper().today)
@@ -369,15 +372,26 @@ class ProcessReportFileTests(MasuTestCase):
         report_meta["provider_type"] = Provider.PROVIDER_OCP
         report_meta["provider_uuid"] = self.ocp_test_provider_uuid
         report_meta["manifest_id"] = 1
-        reports_to_summarize = [report_meta]
+
+        # add a report with start/end dates specified
+        report2_meta = {}
+        report2_meta["start_date"] = str(DateHelper().today)
+        report2_meta["schema_name"] = self.schema
+        report2_meta["provider_type"] = Provider.PROVIDER_OCP
+        report2_meta["provider_uuid"] = self.ocp_test_provider_uuid
+        report2_meta["manifest_id"] = 2
+        report2_meta["start"] = str(DateHelper().yesterday)
+        report2_meta["end"] = str(DateHelper().today)
+
+        reports_to_summarize = [report_meta, report2_meta]
 
         summarize_reports(reports_to_summarize)
-        mock_update_summary.delay.assert_called()
+        mock_update_summary.s.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_with_none(self, mock_update_summary):
         """Test that the summarize_reports task is called when a processing list when a None provided."""
-        mock_update_summary.delay = Mock()
+        mock_update_summary.s = Mock()
 
         report_meta = {}
         report_meta["start_date"] = str(DateHelper().today)
@@ -388,16 +402,16 @@ class ProcessReportFileTests(MasuTestCase):
         reports_to_summarize = [report_meta, None]
 
         summarize_reports(reports_to_summarize)
-        mock_update_summary.delay.assert_called()
+        mock_update_summary.s.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_only_none(self, mock_update_summary):
         """Test that the summarize_reports task is called when a processing list with None provided."""
-        mock_update_summary.delay = Mock()
+        mock_update_summary.s = Mock()
         reports_to_summarize = [None, None]
 
         summarize_reports(reports_to_summarize)
-        mock_update_summary.delay.assert_not_called()
+        mock_update_summary.s.assert_not_called()
 
 
 class TestProcessorTasks(MasuTestCase):
@@ -473,7 +487,7 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
 
     @patch.object(ExpiredDataRemover, "remove")
-    @patch("masu.processor.tasks.refresh_materialized_views.delay")
+    @patch("masu.processor.tasks.refresh_materialized_views.s")
     def test_remove_expired_data(self, fake_view, fake_remover):
         """Test task."""
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
@@ -488,7 +502,7 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
             self.assertIn(expected.format(str(expected_results)), logger.output)
 
     @patch.object(ExpiredDataRemover, "remove")
-    @patch("masu.processor.tasks.refresh_materialized_views.delay")
+    @patch("masu.processor.tasks.refresh_materialized_views.s")
     def test_remove_expired_line_items_only(self, fake_view, fake_remover):
         """Test task."""
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
@@ -552,7 +566,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(initial_daily_count, 0)
         self.assertEqual(initial_summary_count, 0)
 
-        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date)
+        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, synchronous=True)
 
         with schema_context(self.schema):
             self.assertNotEqual(daily_query.count(), initial_daily_count)
@@ -592,7 +606,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         expected_end_date = min(end_date, ce_end_date)
         expected_end_date = expected_end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, end_date)
+        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, end_date, synchronous=True)
 
         with schema_context(self.schema):
             daily_entry = daily_table.objects.all().aggregate(Min("usage_start"), Max("usage_end"))
@@ -647,7 +661,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             initial_daily_count = daily_query.count()
 
         self.assertEqual(initial_daily_count, 0)
-        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date)
+        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
 
         with schema_context(self.schema):
             self.assertNotEqual(daily_query.count(), initial_daily_count)
@@ -723,7 +737,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         expected_start_date = max(start_date, ce_start_date)
         expected_end_date = min(end_date, ce_end_date)
 
-        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date)
+        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
         with schema_context(self.schema):
             daily_entry = daily_table.objects.all().aggregate(Min("usage_start"), Max("usage_end"))
             result_start_date = daily_entry["usage_start__min"]
@@ -743,13 +757,19 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         expected_end_date = end_date.strftime("%Y-%m-%d")
         manifest_id = 1
 
-        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, end_date, manifest_id)
+        update_summary_tables(
+            self.schema, provider, provider_aws_uuid, start_date, end_date, manifest_id, synchronous=True
+        )
         mock_chain.assert_called_once_with(
-            update_cost_model_costs.s(self.schema, provider_aws_uuid, expected_start_date, expected_end_date)
+            update_cost_model_costs.s(self.schema, provider_aws_uuid, expected_start_date, expected_end_date).set(
+                queue=UPDATE_COST_MODEL_COSTS_QUEUE
+            )
             | refresh_materialized_views.si(
                 self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id
+            ).set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE)
+            | remove_expired_data.si(self.schema, provider, False, provider_aws_uuid, True, None).set(
+                queue=REMOVE_EXPIRED_DATA_QUEUE
             )
-            | remove_expired_data.si(self.schema, provider, False, provider_aws_uuid, True)
         )
 
     @patch("masu.processor.tasks.update_summary_tables")
@@ -758,7 +778,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         start_date = date.today()
         update_all_summary_tables(start_date)
 
-        mock_update.delay.assert_called_with(ANY, ANY, ANY, str(start_date), ANY)
+        mock_update.s.assert_called_with(ANY, ANY, ANY, str(start_date), ANY, queue_name=ANY)
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_refresh_materialized_views_aws(self, mock_cache):
@@ -883,91 +903,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         with ProviderDBAccessor(self.gcp_provider_uuid) as accessor:
             self.assertIsNotNone(accessor.provider.data_updated_timestamp)
-
-    @patch("masu.processor.tasks.WorkerCache.release_single_task")
-    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    def test_update_cost_model_costs_throttled(self, mock_inspect, mock_lock, mock_release):
-        """Test that refresh materialized views runs with cache lock."""
-
-        def single_task_is_running(self, task_name, task_args=None):
-            """Check for a single task key in the cache."""
-            cache = caches["worker"]
-            cache_str = create_single_task_cache_key(task_name, task_args)
-            return True if cache.get(cache_str) else False
-
-        def lock_single_task(self, task_name, task_args=None, timeout=None):
-            """Add a cache entry for a single task to lock a specific task."""
-            cache = caches["worker"]
-            cache_str = create_single_task_cache_key(task_name, task_args)
-            cache.add(cache_str, "true", 3)
-
-        mock_lock.side_effect = lock_single_task
-
-        start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
-        end_date = DateHelper().today
-        expected_start_date = start_date.strftime("%Y-%m-%d")
-        expected_end_date = end_date.strftime("%Y-%m-%d")
-        task_name = "masu.processor.tasks.update_cost_model_costs"
-        cache_args = [self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date]
-
-        manifest_dict = {
-            "assembly_id": "12345",
-            "billing_period_start_datetime": DateHelper().today,
-            "num_total_files": 2,
-            "provider_uuid": self.aws_provider_uuid,
-        }
-
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.add(**manifest_dict)
-            manifest.save()
-
-        update_cost_model_costs.s(self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date).apply()
-        self.assertTrue(single_task_is_running(task_name, cache_args))
-        # Let the cache entry expire
-        time.sleep(3)
-        self.assertFalse(single_task_is_running(task_name, cache_args))
-
-    @patch("masu.processor.tasks.WorkerCache.release_single_task")
-    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    def test_refresh_materialized_views_throttled(self, mock_inspect, mock_lock, mock_release):
-        """Test that refresh materialized views runs with cache lock."""
-
-        def single_task_is_running(self, task_name, task_args=None):
-            """Check for a single task key in the cache."""
-            cache = caches["worker"]
-            cache_str = create_single_task_cache_key(task_name, task_args)
-            return True if cache.get(cache_str) else False
-
-        def lock_single_task(self, task_name, task_args=None, timeout=None):
-            """Add a cache entry for a single task to lock a specific task."""
-            cache = caches["worker"]
-            cache_str = create_single_task_cache_key(task_name, task_args)
-            cache.add(cache_str, "true", 3)
-
-        # mock_cache.return_value.single_task_is_running.side_effect = single_task_is_running
-        mock_lock.side_effect = lock_single_task
-
-        task_name = "masu.processor.tasks.refresh_materialized_views"
-        cache_args = [self.schema]
-
-        manifest_dict = {
-            "assembly_id": "12345",
-            "billing_period_start_datetime": DateHelper().today,
-            "num_total_files": 2,
-            "provider_uuid": self.aws_provider_uuid,
-        }
-
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.add(**manifest_dict)
-            manifest.save()
-
-        refresh_materialized_views.s(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id).apply()
-        self.assertTrue(single_task_is_running(task_name, cache_args))
-        # Let the cache entry expire
-        time.sleep(3)
-        self.assertFalse(single_task_is_running(task_name, cache_args))
 
     @patch("masu.processor.tasks.connection")
     def test_vacuum_schema(self, mock_conn):
@@ -1174,6 +1109,179 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         for report_file in files_list:
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()
+
+
+class TestWorkerCacheThrottling(MasuTestCase):
+    """Tests for tasks that use the worker cache."""
+
+    def single_task_is_running(self, task_name, task_args=None):
+        """Check for a single task key in the cache."""
+        cache = caches["worker"]
+        cache_str = create_single_task_cache_key(task_name, task_args)
+        return True if cache.get(cache_str) else False
+
+    def lock_single_task(self, task_name, task_args=None, timeout=None):
+        """Add a cache entry for a single task to lock a specific task."""
+        cache = caches["worker"]
+        cache_str = create_single_task_cache_key(task_name, task_args)
+        cache.add(cache_str, "true", 3)
+
+    @patch("masu.processor.tasks.update_summary_tables.s")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.tasks.refresh_materialized_views")
+    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_summary_tables_worker_throttled(
+        self,
+        mock_inspect,
+        mock_lock,
+        mock_release,
+        mock_update_cost,
+        mock_refresh,
+        mock_chain,
+        mock_daily,
+        mock_summary,
+        mock_delay,
+    ):
+        """Test that the worker cache is used."""
+        task_name = "masu.processor.tasks.update_summary_tables"
+        cache_args = [self.schema]
+        mock_lock.side_effect = self.lock_single_task
+
+        start_date = DateHelper().this_month_start
+        end_date = DateHelper().this_month_end
+        mock_daily.return_value = start_date, end_date
+        mock_summary.return_value = start_date, end_date
+        update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
+        mock_delay.assert_not_called()
+        update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
+        mock_delay.assert_called()
+        self.assertTrue(self.single_task_is_running(task_name, cache_args))
+        # Let the cache entry expire
+        time.sleep(3)
+        self.assertFalse(self.single_task_is_running(task_name, cache_args))
+
+    @patch("masu.processor.tasks.update_summary_tables.s")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.tasks.refresh_materialized_views")
+    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_summary_tables_worker_error(
+        self,
+        mock_inspect,
+        mock_lock,
+        mock_release,
+        mock_update_cost,
+        mock_refresh,
+        mock_chain,
+        mock_daily,
+        mock_summary,
+        mock_delay,
+    ):
+        """Test that the worker cache is used."""
+        task_name = "masu.processor.tasks.update_summary_tables"
+        cache_args = [self.schema]
+
+        start_date = DateHelper().this_month_start
+        end_date = DateHelper().this_month_end
+        mock_daily.return_value = start_date, end_date
+        mock_summary.side_effect = ReportProcessorError
+        with self.assertRaises(ReportProcessorError):
+            update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
+            mock_delay.assert_not_called()
+            self.assertFalse(self.single_task_is_running(task_name, cache_args))
+
+    @patch("masu.processor.tasks.update_cost_model_costs.s")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_cost_model_costs_throttled(self, mock_inspect, mock_lock, mock_release, mock_delay):
+        """Test that refresh materialized views runs with cache lock."""
+        mock_lock.side_effect = self.lock_single_task
+
+        start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
+        end_date = DateHelper().today
+        expected_start_date = start_date.strftime("%Y-%m-%d")
+        expected_end_date = end_date.strftime("%Y-%m-%d")
+        task_name = "masu.processor.tasks.update_cost_model_costs"
+        cache_args = [self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date]
+
+        manifest_dict = {
+            "assembly_id": "12345",
+            "billing_period_start_datetime": DateHelper().today,
+            "num_total_files": 2,
+            "provider_uuid": self.aws_provider_uuid,
+        }
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.add(**manifest_dict)
+            manifest.save()
+
+        update_cost_model_costs(self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date)
+        mock_delay.assert_not_called()
+        update_cost_model_costs(self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date)
+        mock_delay.assert_called()
+        self.assertTrue(self.single_task_is_running(task_name, cache_args))
+        # Let the cache entry expire
+        time.sleep(3)
+        self.assertFalse(self.single_task_is_running(task_name, cache_args))
+
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_cost_model_costs_error(self, mock_inspect, mock_lock, mock_release, mock_updater):
+        """Test that refresh materialized views runs with cache lock."""
+        start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
+        end_date = DateHelper().today
+        expected_start_date = start_date.strftime("%Y-%m-%d")
+        expected_end_date = end_date.strftime("%Y-%m-%d")
+        task_name = "masu.processor.tasks.update_cost_model_costs"
+        cache_args = [self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date]
+
+        mock_updater.side_effect = ReportProcessorError
+        with self.assertRaises(ReportProcessorError):
+            update_cost_model_costs(self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date)
+            self.assertFalse(self.single_task_is_running(task_name, cache_args))
+
+    @patch("masu.processor.tasks.refresh_materialized_views.s")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_refresh_materialized_views_throttled(self, mock_inspect, mock_lock, mock_release, mock_delay):
+        """Test that refresh materialized views runs with cache lock."""
+        mock_lock.side_effect = self.lock_single_task
+
+        task_name = "masu.processor.tasks.refresh_materialized_views"
+        cache_args = [self.schema]
+
+        manifest_dict = {
+            "assembly_id": "12345",
+            "billing_period_start_datetime": DateHelper().today,
+            "num_total_files": 2,
+            "provider_uuid": self.aws_provider_uuid,
+        }
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.add(**manifest_dict)
+            manifest.save()
+
+        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
+        mock_delay.assert_not_called()
+        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
+        mock_delay.assert_called()
+        self.assertTrue(self.single_task_is_running(task_name, cache_args))
+        # Let the cache entry expire
+        time.sleep(3)
+        self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
 
 class TestRemoveStaleTenants(MasuTestCase):

@@ -28,6 +28,8 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.processor.tasks import PRIORITY_QUEUE
+from masu.processor.tasks import QUEUE_LIST
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_summary_tables
@@ -51,9 +53,13 @@ def report_data(request):
         schema_name = params.get("schema")
         start_date = params.get("start_date")
         end_date = params.get("end_date")
+        queue_name = params.get("queue") or PRIORITY_QUEUE
         if provider_uuid is None and provider_type is None:
             errmsg = "provider_uuid or provider_type must be supplied as a parameter."
-            return Response({"Error": errmsg}, status=400)
+            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+        if queue_name not in QUEUE_LIST:
+            errmsg = f"'queue' must be one of {QUEUE_LIST}."
+            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         if provider_uuid == "*":
             all_providers = True
@@ -80,7 +86,9 @@ def report_data(request):
                 errmsg = "provider_uuid and provider_type have mismatched provider types."
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-            async_result = update_summary_tables.delay(schema_name, provider, provider_uuid, start_date, end_date)
+            async_result = update_summary_tables.s(
+                schema_name, provider, provider_uuid, start_date, end_date, queue_name=queue_name
+            ).apply_async(queue=queue_name or PRIORITY_QUEUE)
         else:
             async_result = update_all_summary_tables.delay(start_date, end_date)
         return Response({REPORT_DATA_KEY: str(async_result)})

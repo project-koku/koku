@@ -613,7 +613,7 @@ class AWSReportProcessorTest(MasuTestCase):
             "resourceTags/System": "value",
             "resourceTags/system:system_key": "system_value",
         }
-        expected = {"environment": "prod", "system_key": "system_value"}
+        expected = {"environment": "prod"}
         actual = json.loads(self.processor._process_tags(row))
 
         self.assertNotIn(row["notATag"], actual)
@@ -1228,3 +1228,31 @@ class AWSReportProcessorTest(MasuTestCase):
         date_filter = processor.get_date_column_filter()
 
         self.assertIn("usage_start__gte", date_filter)
+
+    def test_process_memory_value(self):
+        """Test that product data has memory properly parsed."""
+
+        data = {"memory": None}
+        result = self.processor._process_memory_value(data)
+        self.assertIsNone(result.get("memory"))
+        self.assertIsNone(result.get("memory_unit"))
+
+        data = {"memory": "NA"}
+        result = self.processor._process_memory_value(data)
+        self.assertIsNone(result.get("memory"))
+        self.assertIsNone(result.get("memory_unit"))
+
+        data = {"memory": "4GiB"}
+        result = self.processor._process_memory_value(data)
+        self.assertEqual(result.get("memory"), 4)
+        self.assertEqual(result.get("memory_unit"), "GiB")
+
+        data = {"memory": "4 GB"}
+        result = self.processor._process_memory_value(data)
+        self.assertEqual(result.get("memory"), 4)
+        self.assertEqual(result.get("memory_unit"), "GB")
+
+        data = {"memory": "4"}
+        result = self.processor._process_memory_value(data)
+        self.assertEqual(result.get("memory"), 4)
+        self.assertIsNone(result.get("memory_unit"))

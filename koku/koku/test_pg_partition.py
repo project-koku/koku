@@ -1,7 +1,12 @@
+import uuid
+
 from django.db import connection as conn
+from tenant_schemas.utils import schema_context
 
 from . import pg_partition as ppart
 from api.iam.test.iam_test_case import IamTestCase
+from reporting.models import AWSCostEntryLineItemDailySummary
+from reporting.models import OCPUsageLineItemDailySummary
 
 
 def _execute(sql, params=None):
@@ -442,3 +447,179 @@ select count(*) from {self.schema_name}.{table} ;
             converter.convert_to_partition()
 
         self._clean_test()
+
+    def test_repartition_crawler_query_all(self):
+        """
+        Test that the schema crawler will return all schemata and all partitioned tables
+        """
+        res = ppart.get_partitioned_tables_with_default()
+        schemata = set()
+        tables = set()
+        for rec in res:
+            schemata.add(rec["schema_name"])
+            tables.add(rec["partitioned_table"])
+
+        self.assertTrue(len(schemata) > 1)
+        self.assertTrue(len(tables) > 1)
+
+    def test_repartition_crawler_query_one_schema(self):
+        """
+        Test that the schema crawler will return all schemata and all partitioned tables
+        """
+        res = ppart.get_partitioned_tables_with_default(schema_name=self.schema_name)
+        schemata = set()
+        tables = set()
+        for rec in res:
+            schemata.add(rec["schema_name"])
+            tables.add(rec["partitioned_table"])
+
+        self.assertEqual(len(schemata), 1)
+        self.assertTrue(len(tables) > 1)
+
+    def test_repartition_crawler_query_one_table(self):
+        """
+        Test that the schema crawler will return all schemata and all partitioned tables
+        """
+        res = ppart.get_partitioned_tables_with_default(
+            partitioned_table_name="reporting_ocpusagelineitem_daily_summary"
+        )
+        schemata = set()
+        tables = set()
+        for rec in res:
+            schemata.add(rec["schema_name"])
+            tables.add(rec["partitioned_table"])
+
+        self.assertEqual(len(tables), 1)
+        self.assertTrue(len(schemata) > 1)
+
+    def test_repartition_table(self):
+        """
+        Repartition one table using class interface
+        """
+        with schema_context(self.schema_name):
+            aws_lids = AWSCostEntryLineItemDailySummary.objects.order_by("-usage_start")[0]
+            aws_lids.usage_start = aws_lids.usage_start.replace(year=(aws_lids.usage_start.year + 10))
+            aws_lids.save()
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"select count(*) as num_recs from {AWSCostEntryLineItemDailySummary._meta.db_table}_default;"
+                )
+                res = cur.fetchone()[0]
+            self.assertEqual(res, 1)
+
+            ppart.PartitionDefaultData(
+                self.schema_name, AWSCostEntryLineItemDailySummary._meta.db_table
+            ).repartition_default_data()
+
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+select count(*) as num_recs
+  from {AWSCostEntryLineItemDailySummary._meta.db_table}_default;
+"""
+                )
+                res = cur.fetchone()[0]
+            self.assertEqual(res, 0)
+
+            newpart = f"""{AWSCostEntryLineItemDailySummary._meta.db_table}_{aws_lids.usage_start.strftime("%Y_%m")}"""
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+select count(*) as num_recs
+  from {newpart};
+"""
+                )
+                res = cur.fetchone()[0]
+            self.assertEqual(res, 1)
+
+    def test_repartition_all_tables(self):
+        """
+        Repartition using driver function
+        """
+        with schema_context(self.schema_name):
+            aws_lids = AWSCostEntryLineItemDailySummary.objects.order_by("-usage_start")[0]
+            aws_lids.usage_start = aws_lids.usage_start.replace(year=(aws_lids.usage_start.year + 11))
+            aws_lids.save()
+            ocp_lids = OCPUsageLineItemDailySummary.objects.order_by("-usage_start")[0]
+            ocp_lids.usage_start = ocp_lids.usage_start.replace(year=(aws_lids.usage_start.year + 11))
+            ocp_lids.save()
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+select (
+    select count(*) as a_num_recs
+      from {AWSCostEntryLineItemDailySummary._meta.db_table}_default
+) as "num_aws_lids_default",
+(
+    select count(*) as o_num_recs
+      from {OCPUsageLineItemDailySummary._meta.db_table}_default
+) as "num_ocp_lids_default";
+"""
+                )
+                res = cur.fetchone()
+            self.assertTrue(res[0] > 0)
+            self.assertTrue(res[1] > 0)
+
+            ppart.repartition_default_data(schema_name=self.schema_name)
+
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+select (
+    select count(*) as a_num_recs
+      from {AWSCostEntryLineItemDailySummary._meta.db_table}_default
+) as "num_aws_lids_default",
+(
+    select count(*) as o_num_recs
+      from {OCPUsageLineItemDailySummary._meta.db_table}_default
+) as "num_ocp_lids_default";
+"""
+                )
+                res = cur.fetchone()
+            self.assertEqual(res, (0, 0))
+
+            a_newpart = f"{AWSCostEntryLineItemDailySummary._meta.db_table}_{aws_lids.usage_start.strftime('%Y_%m')}"
+            o_newpart = f"{OCPUsageLineItemDailySummary._meta.db_table}_{ocp_lids.usage_start.strftime('%Y_%m')}"
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+select (
+    select count(*) as a_num_recs
+      from {a_newpart}
+) as "num_aws_lids_default",
+(
+    select count(*) as o_num_recs
+      from {o_newpart}
+) as "num_ocp_lids_default";
+"""
+                )
+                res = cur.fetchone()
+            self.assertEqual(res, (1, 1))
+
+            # test that insert with new partition bounds will work successfully
+            new_ocp_lids = OCPUsageLineItemDailySummary(uuid=uuid.uuid4())
+            for col in (x for x in new_ocp_lids._meta.fields if x.name != "uuid"):
+                setattr(new_ocp_lids, col.name, getattr(ocp_lids, col.name, None))
+            new_day = (
+                new_ocp_lids.usage_start.day + 1
+                if new_ocp_lids.usage_start.day < 28
+                else new_ocp_lids.usage_start.day - 1
+            )
+            new_ocp_lids.usage_start = ocp_lids.usage_start.replace(day=new_day)
+            new_ocp_lids.save()
+
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+select (
+    select count(*) as a_num_recs
+      from {a_newpart}
+) as "num_aws_lids_default",
+(
+    select count(*) as o_num_recs
+      from {o_newpart}
+) as "num_ocp_lids_default";
+"""
+                )
+                res = cur.fetchone()
+            self.assertEqual(res, (1, 2))

@@ -18,6 +18,9 @@
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.test.iam_test_case import RbacPermissions
+from api.query_filter import QueryFilter
+from api.query_filter import QueryFilterCollection
 from api.report.all.openshift.query_handler import OCPAllReportQueryHandler
 from api.urls import OCPAllCostView
 from api.urls import OCPAllInstanceTypeView
@@ -187,3 +190,33 @@ class OCPAllQueryHandlerTest(IamTestCase):
                 query_params = self.mocked_query_params(url, view)
                 handler = OCPAllReportQueryHandler(query_params)
                 self.assertEqual(handler.query_table, table)
+
+    @RbacPermissions({"openshift.project": {"read": ["analytics"]}})
+    def test_set_access_filters_with_array_field(self):
+        """Test that a filter is correctly set for arrays."""
+
+        query_params = self.mocked_query_params("?filter[project]=analytics", OCPAllCostView)
+        # the mocked query parameters dont include the key from the url so it needs to be added
+        handler = OCPAllReportQueryHandler(query_params)
+        field = "namespace"
+        access = ["analytics"]
+        filt = {"field": field}
+        filters = QueryFilterCollection()
+        handler.set_access_filters(access, filt, filters)
+        expected = [QueryFilter(field=field, operation="contains", parameter=access)]
+        self.assertEqual(filters._filters, expected)
+
+    @RbacPermissions({"openshift.project": {"read": ["analytics"]}})
+    def test_set_access_filters_with_array_field_and_list(self):
+        """Test that a filter is correctly set for arrays."""
+
+        query_params = self.mocked_query_params("?filter[project]=analytics", OCPAllCostView)
+        # the mocked query parameters dont include the key from the url so it needs to be added
+        handler = OCPAllReportQueryHandler(query_params)
+        field = "namespace"
+        access = ["analytics"]
+        filt = [{"field": field}]
+        filters = QueryFilterCollection()
+        handler.set_access_filters(access, filt, filters)
+        expected = [QueryFilter(field=field, operation="contains", parameter=access)]
+        self.assertEqual(filters._filters, expected)

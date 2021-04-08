@@ -18,8 +18,9 @@ CREATE MATERIALIZED VIEW reporting_ocpall_storage_summary AS (
         max(currency_code) as currency_code,
         max(source_uuid::text)::uuid as source_uuid
     FROM reporting_ocpallcostlineitem_daily_summary
-    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+    WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
         AND (product_family LIKE '%Storage%' OR product_code LIKE '%Storage%')
+        AND unit = 'GB-Mo'
     GROUP BY usage_start,
         cluster_id,
         usage_account_id,

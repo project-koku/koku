@@ -28,7 +28,7 @@ CREATE MATERIALIZED VIEW reporting_ocp_volume_summary AS(
         source_uuid
     FROM reporting_ocpusagelineitem_daily_summary
     -- Get data for this month or last month
-    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date AND data_source = 'Storage'
+    WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date AND data_source = 'Storage'
     GROUP BY usage_start, cluster_id, cluster_alias, source_uuid
 )
 WITH DATA

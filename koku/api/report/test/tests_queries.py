@@ -31,6 +31,7 @@ from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.provider_map import ProviderMap
 from api.report.queries import ReportQueryHandler
 from api.report.view import ReportView
+from api.utils import DateHelper
 
 FAKE = Faker()
 
@@ -121,20 +122,20 @@ class ReportQueryUtilsTest(TestCase):
 def create_test_handler(params, mapper=None):
     """Create a TestableReportQueryHandler using the supplied args.
 
-        Args:
+    Args:
 
-        params (QueryParameters) mocked query parameters
-        mapper (dict) mocked ProviderMap dictionary
+    params (QueryParameters) mocked query parameters
+    mapper (dict) mocked ProviderMap dictionary
     """
     if not mapper:
         mapper = {"filter": [{}], "filters": {}}
 
     class TestableReportQueryHandler(ReportQueryHandler):
-        """ A testable minimal implementation of ReportQueryHandler.
+        """A testable minimal implementation of ReportQueryHandler.
 
-             ReportQueryHandler can't be instantiated directly without first setting
-             a few attributes that are required by QueryHandler.__init__().
-         """
+        ReportQueryHandler can't be instantiated directly without first setting
+        a few attributes that are required by QueryHandler.__init__().
+        """
 
         _mapper = Mock(
             spec=ProviderMap,
@@ -149,16 +150,16 @@ def create_test_handler(params, mapper=None):
 def assertSameQ(one, two):
     """Compare two Q-objects and decide if they're equivalent.
 
-        Q objects don't have their own comparison methods defined.
+    Q objects don't have their own comparison methods defined.
 
-        This function is intended to give an approximate comparison suitable
-        for our purposes.
+    This function is intended to give an approximate comparison suitable
+    for our purposes.
 
-        Args:
-            one, two (Q) Django Q Object
+    Args:
+        one, two (Q) Django Q Object
 
-        Returns:
-            (boolean) whether the objects match.
+    Returns:
+        (boolean) whether the objects match.
     """
 
     for item_one in one.children:
@@ -183,9 +184,9 @@ def assertSameQ(one, two):
 def is_child(item, obj):
     """Test whether the given item is in the target Q object's children.
 
-        Args:
-            item (dict | tuple) a dict or tuple
-            obj (Q) a Django Q object
+    Args:
+        item (dict | tuple) a dict or tuple
+        obj (Q) a Django Q object
     """
     test_dict = item
     if isinstance(item, tuple):
@@ -230,6 +231,19 @@ class ReportQueryHandlerTest(IamTestCase):
         params = self.mocked_query_params("", self.mock_view)
         rqh = create_test_handler(params)
         self.assertIsInstance(rqh, ReportQueryHandler)
+
+    def test_init_w_dates(self):
+        """Test that we can instantiate a ReportQueryHandler using start_date and end_date parameters."""
+        dh = DateHelper()
+        params = self.mocked_query_params(f"?start_date={dh.this_month_start}&end_date={dh.today}", self.mock_view)
+        rqh = create_test_handler(params)
+        self.assertIsInstance(rqh, ReportQueryHandler)
+
+        expected_start = dh.this_month_start
+        expected_end = dh.today
+
+        self.assertEqual(rqh.start_datetime, expected_start)
+        self.assertEqual(rqh.end_datetime, expected_end)
 
     def test_set_operator_specified_filters_and(self):
         """Test that AND/OR terms are correctly applied to param filters."""
@@ -398,6 +412,30 @@ class ReportQueryHandlerTest(IamTestCase):
         rqh.set_access_filters(access, filt, filters)
         self.assertIsInstance(filters, QueryFilterCollection)
         assertSameQ(filters.compose(), expected.compose())
+
+    def test_percent_delta(self):
+        """Test the percent delta method"""
+        params = self.mocked_query_params("", self.mock_view)
+        rqh = create_test_handler(params)
+        pd = rqh._percent_delta(10, 1)
+        self.assertEqual(pd, 900)
+
+    def test_percent_delta_rounding(self):
+        """Test the percent delta method with a b value that should round."""
+        params = self.mocked_query_params("", self.mock_view)
+        test_values = {0.0049: None, 0.0049999999999: None, 0.005: 3900}
+        for k, v in test_values.items():
+            with self.subTest():
+                rqh = create_test_handler(params)
+                pd = rqh._percent_delta(0.2, k)
+                self.assertEqual(pd, v)
+
+    def test_percent_delta_zero_division(self):
+        """Test the percent delta method with a b value of zero"""
+        params = self.mocked_query_params("", self.mock_view)
+        rqh = create_test_handler(params)
+        pd = rqh._percent_delta(10, 0)
+        self.assertEqual(pd, None)
 
     # FIXME: need test for _apply_group_by
     # FIXME: need test for _apply_group_null_label

@@ -38,6 +38,7 @@ from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
 from masu.processor.report_processor import ReportProcessorError
+from masu.processor.tasks import OCP_QUEUE
 from masu.prometheus_stats import WORKER_REGISTRY
 from masu.test import MasuTestCase
 
@@ -114,11 +115,15 @@ class KafkaMsgHandlerTest(MasuTestCase):
         super().setUp()
         logging.disable(logging.NOTSET)
         payload_file = open("./koku/masu/test/data/ocp/payload.tar.gz", "rb")
+        payload_file_dates = open("./koku/masu/test/data/ocp/payload2.tar.gz", "rb")
         bad_payload_file = open("./koku/masu/test/data/ocp/bad_payload.tar.gz", "rb")
         no_manifest_file = open("./koku/masu/test/data/ocp/no_manifest.tar.gz", "rb")
 
         self.tarball_file = payload_file.read()
         payload_file.close()
+
+        self.dates_tarball = payload_file_dates.read()
+        payload_file_dates.close()
 
         self.bad_tarball_file = bad_payload_file.read()
         bad_payload_file.close()
@@ -424,7 +429,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
             mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
-            with patch("masu.external.kafka_msg_handler.summarize_reports.delay") as mock_summarize_reports:
+            with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
                 msg_handler.summarize_manifest(report_meta)
                 mock_summarize_reports.assert_called()
 
@@ -433,7 +438,57 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
             mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
-            with patch("masu.external.kafka_msg_handler.summarize_reports.delay") as mock_summarize_reports:
+            with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
+                msg_handler.summarize_manifest(report_meta)
+                mock_summarize_reports.assert_not_called()
+
+    def test_summarize_manifest_dates(self):
+        """Test report summarization."""
+        report_meta = {
+            "schema_name": "test_schema",
+            "manifest_id": "1",
+            "provider_uuid": uuid.uuid4(),
+            "provider_type": "OCP",
+            "compression": "UNCOMPRESSED",
+            "file": "/path/to/file.csv",
+            "start": str(datetime.today()),
+            "end": str(datetime.today()),
+        }
+        expected_meta = {
+            "schema_name": report_meta.get("schema_name"),
+            "provider_type": report_meta.get("provider_type"),
+            "provider_uuid": report_meta.get("provider_uuid"),
+            "manifest_id": report_meta.get("manifest_id"),
+            "start": report_meta.get("start"),
+            "end": report_meta.get("end"),
+        }
+
+        class FakeManifest:
+            def __init__(self, num_processed_files=1, num_total_files=1):
+                self.num_processed_files = num_processed_files
+                self.num_total_files = num_total_files
+
+            def get_manifest_by_id(self, manifest_id):
+                return self
+
+            def manifest_ready_for_summary(self, manifest_id):
+                return self.num_processed_files == self.num_total_files
+
+        # Check when manifest is done
+        mock_manifest_accessor = FakeManifest(num_processed_files=2, num_total_files=2)
+
+        with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
+            mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
+            with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
+                msg_handler.summarize_manifest(report_meta)
+                mock_summarize_reports.assert_called_with([expected_meta], OCP_QUEUE)
+
+        # Check when manifest is not done
+        mock_manifest_accessor = FakeManifest(num_processed_files=1, num_total_files=2)
+
+        with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
+            mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
+            with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
                 msg_handler.summarize_manifest(report_meta)
                 mock_summarize_reports.assert_not_called()
 
@@ -457,6 +512,33 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                 msg_handler.extract_payload(payload_url, "test_request_id")
                                 expected_path = "{}/{}/{}/".format(
                                     Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
+                                )
+                                self.assertTrue(os.path.isdir(expected_path))
+                                shutil.rmtree(fake_dir)
+                                shutil.rmtree(fake_pvc_dir)
+
+    def test_extract_payload_dates(self):
+        """Test to verify extracting payload is successful."""
+
+        fake_account = {"provider_uuid": uuid.uuid4(), "provider_type": "OCP", "schema_name": "testschema"}
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
+        with requests_mock.mock() as m:
+            m.get(payload_url, content=self.dates_tarball)
+
+            fake_dir = tempfile.mkdtemp()
+            fake_pvc_dir = tempfile.mkdtemp()
+            with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
+                with patch.object(Config, "TMP_DIR", fake_dir):
+                    with patch(
+                        "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
+                    ):
+                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
+                            with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
+                                msg_handler.extract_payload(payload_url, "test_request_id")
+                                expected_path = "{}/{}/{}/".format(
+                                    Config.INSIGHTS_LOCAL_REPORT_DIR,
+                                    "5997a261-f23e-45d1-8e01-ee3c765f3aec",
+                                    "20210101-20210201",
                                 )
                                 self.assertTrue(os.path.isdir(expected_path))
                                 shutil.rmtree(fake_dir)

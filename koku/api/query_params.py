@@ -59,6 +59,8 @@ class QueryParameters:
             (Provider.PROVIDER_OCP, "node", "openshift.node", False),
             (Provider.PROVIDER_OCP, "project", "openshift.project", False),
         ],
+        "gcp": [(Provider.PROVIDER_GCP, "account", "gcp.account"), (Provider.PROVIDER_GCP, "project", "gcp.project")],
+        "ibm": [(Provider.PROVIDER_IBM, "account", "ibm.account")],
     }
 
     def __init__(self, request, caller, **kwargs):
@@ -177,6 +179,9 @@ class QueryParameters:
         provider_list = provider.split("_")
         if "all" in provider_list:
             for p, v in self.provider_resource_list.items():
+                # Do not include GCP & IBM for OCP-on-All until OCP on GCP and IBM is implemented.
+                if "GCP" in v[0] or "IBM" in v[0]:
+                    continue
                 access.extend(v)
         else:
             for p in provider_list:

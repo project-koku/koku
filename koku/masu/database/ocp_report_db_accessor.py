@@ -77,6 +77,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self.jinja_sql = JinjaSql()
         self.date_helper = DateHelper()
 
+    @property
+    def line_item_daily_summary_table(self):
+        return OCPUsageLineItemDailySummary
+
     def get_current_usage_report(self):
         """Get the most recent usage report object."""
         table_name = OCP_REPORT_TABLE_MAP["report"]
@@ -343,6 +347,31 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
         self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
+    def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, report_period_ids):
+        """Populate the enabled tag key table.
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+            bill_ids (list) A list of bill IDs.
+        Returns
+            (None)
+        """
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        summary_sql = pkgutil.get_data(
+            "masu.database", "sql/reporting_ocpusagelineitem_daily_summary_update_enabled_tags.sql"
+        )
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_ids": report_period_ids,
+            "schema": self.schema,
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        self._execute_raw_sql_query(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+        )
+
     def get_ocp_infrastructure_map(self, start_date, end_date, **kwargs):
         """Get the OCP on infrastructure map.
 
@@ -552,10 +581,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             start_date = start_date.date()
             end_date = end_date.date()
 
-        tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocp_lineitem_daily_summary.sql")
+        tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagelineitem_daily_summary.sql")
         tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
         summary_sql_params = {
-            "uuid": str(uuid.uuid4()).replace("-", "_"),
+            "uuid": str(source).replace("-", "_"),
             "start_date": start_date,
             "end_date": end_date,
             "report_period_id": report_period_id,
@@ -563,8 +592,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "cluster_alias": cluster_alias,
             "schema": self.schema,
             "source": str(source),
-            "year": str(start_date.year),
-            "month": str(start_date.month),
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
         }
 
         LOG.info("PRESTO OCP: Connect")
@@ -620,8 +649,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "source": str(source),
-            "year": str(start_date.year),
-            "month": str(start_date.month),
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
         }
 
         LOG.info("PRESTO OCP: Connect")
@@ -693,23 +722,33 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         cost_summary_query = base_query.filter(cluster_id=cluster_identifier)
         return cost_summary_query
 
-    def populate_pod_label_summary_table(self, report_period_ids):
+    def populate_pod_label_summary_table(self, report_period_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
         table_name = OCP_REPORT_TABLE_MAP["pod_label_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagepodlabel_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "report_period_ids": report_period_ids}
+        agg_sql_params = {
+            "schema": self.schema,
+            "report_period_ids": report_period_ids,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def populate_volume_label_summary_table(self, report_period_ids):
+    def populate_volume_label_summary_table(self, report_period_ids, start_date, end_date):
         """Populate the OCP volume label summary table."""
         table_name = OCP_REPORT_TABLE_MAP["volume_label_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "report_period_ids": report_period_ids}
+        agg_sql_params = {
+            "schema": self.schema,
+            "report_period_ids": report_period_ids,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
@@ -1633,6 +1672,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
                             tag_rates_sql, tag_rates_sql_params
                         )
+                        msg = f"Running populate_tag_usage_costs SQL with params: {tag_rates_sql_params}"
+                        LOG.info(msg)
                         self._execute_raw_sql_query(
                             table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
                         )
@@ -1718,6 +1759,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
                         tag_rates_sql, tag_rates_sql_params
                     )
+                    msg = f"Running populate_tag_usage_default_costs SQL with params: {tag_rates_sql_params}"
+                    LOG.info(msg)
                     self._execute_raw_sql_query(
                         table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
                     )

@@ -34,12 +34,13 @@ LOG = logging.getLogger(__name__)
 class GCPGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
-    _opfields = ("account", "region", "service", "project")
+    _opfields = ("account", "region", "service", "project", "instance_type")
 
     account = StringOrListField(child=serializers.CharField(), required=False)
     region = StringOrListField(child=serializers.CharField(), required=False)
     service = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
+    instance_type = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class GCPOrderBySerializer(OrderSerializer):
@@ -72,6 +73,7 @@ class GCPQueryParamSerializer(ParamSerializer):
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     units = serializers.CharField(required=False)
+    check_tags = serializers.BooleanField(required=False, default=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the GCP query param serializer."""

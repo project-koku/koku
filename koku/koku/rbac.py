@@ -36,11 +36,14 @@ PATH = "path"
 RESOURCE_TYPES = {
     "aws.account": ["read"],
     "aws.organizational_unit": ["read"],
+    "gcp.account": ["read"],
+    "gcp.project": ["read"],
     "azure.subscription_guid": ["read"],
     "openshift.cluster": ["read"],
     "openshift.node": ["read"],
     "openshift.project": ["read"],
     "cost_model": ["read", "write"],
+    "ibm.account": ["read"],
 }
 
 

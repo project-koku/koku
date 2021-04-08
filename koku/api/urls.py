@@ -37,7 +37,13 @@ from api.views import AzureTagView
 from api.views import cloud_accounts
 from api.views import CostModelResourceTypesView
 from api.views import DataExportRequestViewSet
+from api.views import GCPAccountView
 from api.views import GCPCostView
+from api.views import GCPForecastCostView
+from api.views import GCPInstanceTypeView
+from api.views import GCPProjectsView
+from api.views import GCPStorageView
+from api.views import GCPTagView
 from api.views import metrics
 from api.views import OCPAllCostForecastView
 from api.views import OCPAllCostView
@@ -67,6 +73,7 @@ from api.views import openapi
 from api.views import ResourceTypeView
 from api.views import SettingsView
 from api.views import StatusView
+from api.views import UserAccessView
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
 from koku.cache import GCP_CACHE_PREFIX
@@ -94,6 +101,11 @@ urlpatterns = [
         "tags/azure/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AZURE_CACHE_PREFIX)(AzureTagView.as_view()),
         name="azure-tags",
+    ),
+    path(
+        "tags/gcp/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPTagView.as_view()),
+        name="gcp-tags",
     ),
     path(
         "tags/openshift/",
@@ -135,6 +147,11 @@ urlpatterns = [
         "tags/openshift/<key>/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(OCPTagView.as_view()),
         name="openshift-tags-key",
+    ),
+    path(
+        "tags/gcp/<key>/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPTagView.as_view()),
+        name="gcp-tags-key",
     ),
     path(
         "tags/openshift/infrastructures/all/<key>/",
@@ -286,7 +303,10 @@ urlpatterns = [
     path("settings", RedirectView.as_view(pattern_name="settings"), name="settings-redirect"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
+    path("user-access/", UserAccessView.as_view(), name="user-access"),
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
+    path("resource-types/gcp-accounts/", GCPAccountView.as_view(), name="gcp-accounts"),
+    path("resource-types/gcp-projects/", GCPProjectsView.as_view(), name="gcp-projects"),
     path(
         "resource-types/aws-organizational-units/",
         AWSOrganizationalUnitView.as_view(),
@@ -302,6 +322,7 @@ urlpatterns = [
     path("resource-types/openshift-nodes/", OCPNodesView.as_view(), name="openshift-nodes"),
     path("resource-types/cost-models/", CostModelResourceTypesView.as_view(), name="cost-models"),
     path("forecasts/aws/costs/", AWSCostForecastView.as_view(), name="aws-cost-forecasts"),
+    path("forecasts/gcp/costs/", GCPForecastCostView.as_view(), name="gcp-cost-forecasts"),
     path("forecasts/azure/costs/", AzureCostForecastView.as_view(), name="azure-cost-forecasts"),
     path("forecasts/openshift/costs/", OCPCostForecastView.as_view(), name="openshift-cost-forecasts"),
     path(
@@ -323,6 +344,18 @@ urlpatterns = [
         "reports/gcp/costs/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPCostView.as_view()),
         name="reports-gcp-costs",
+    ),
+    path(
+        "reports/gcp/instance-types/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(
+            GCPInstanceTypeView.as_view()
+        ),
+        name="reports-gcp-instance-type",
+    ),
+    path(
+        "reports/gcp/storage/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPStorageView.as_view()),
+        name="reports-gcp-storage",
     ),
 ]
 urlpatterns += ROUTER.urls

@@ -31,9 +31,10 @@ from api.common import log_json
 from api.provider.models import Provider
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external.downloader.ocp.ocp_report_downloader import REPORT_TYPES
+from masu.processor import enable_trino_processing
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
+from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util.aws.common import aws_post_processor
 from masu.util.aws.common import copy_data_to_s3_bucket
@@ -43,11 +44,14 @@ from masu.util.azure.common import azure_post_processor
 from masu.util.common import get_column_converters
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
+from masu.util.gcp.common import gcp_post_processor
+from masu.util.ocp.common import REPORT_TYPES
 
 
 LOG = logging.getLogger(__name__)
 CSV_GZIP_EXT = ".csv.gz"
 CSV_EXT = ".csv"
+PARQUET_EXT = ".parquet"
 
 
 class ParquetReportProcessor:
@@ -59,12 +63,14 @@ class ParquetReportProcessor:
         """initialize report processor."""
         self._schema_name = schema_name
         self._provider_uuid = provider_uuid
-        self._report_file = os.path.basename(report_path)
-        self._provider_type = provider_type
+        self._report_file = report_path
+        # Remove local from string so we can store local/test and real sources together in S3/Trino
+        self._provider_type = provider_type.replace("-local", "")
         self._manifest_id = manifest_id
         self._request_id = context.get("request_id")
         self._start_date = context.get("start_date")
         self.presto_table_exists = {}
+        self._file_list = context.get("split_files") if context.get("split_files") else [self._report_file]
 
     def convert_to_parquet(  # noqa: C901
         self, request_id, account, provider_uuid, provider_type, start_date, manifest_id, files=[], context={}
@@ -91,7 +97,7 @@ class ParquetReportProcessor:
         if not context:
             context = {"account": account, "provider_uuid": provider_uuid}
 
-        if not settings.ENABLE_PARQUET_PROCESSING:
+        if not enable_trino_processing(provider_uuid):
             msg = "Skipping convert_to_parquet. Parquet processing is disabled."
             LOG.info(log_json(request_id, msg, context))
             return
@@ -138,13 +144,15 @@ class ParquetReportProcessor:
         post_processor = None
         # OCP data is daily chunked report files.
         # AWS and Azure are monthly reports. Previous reports should be removed so data isn't duplicated
-        if provider_type != Provider.PROVIDER_OCP:
+        if provider_type not in (Provider.PROVIDER_OCP, Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             remove_files_not_in_set_from_s3_bucket(request_id, s3_parquet_path, manifest_id, context)
 
         if provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
             post_processor = aws_post_processor
         elif provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
             post_processor = azure_post_processor
+        elif provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+            post_processor = gcp_post_processor
 
         failed_conversion = []
         for csv_filename in files:
@@ -165,6 +173,11 @@ class ParquetReportProcessor:
                         kwargs["report_type"] = report_type
                         parquet_report_type = report_type
                         break
+                if parquet_report_type is None:
+                    msg = f"Could not establish report type for {csv_filename}."
+                    LOG.warn(log_json(request_id, msg, context))
+                    continue
+
             converters = get_column_converters(provider_type, **kwargs)
             result = self.convert_csv_to_parquet(
                 request_id,
@@ -190,7 +203,7 @@ class ParquetReportProcessor:
         """
         Get all files in a given prefix that match the given manifest_id.
         """
-        if not settings.ENABLE_PARQUET_PROCESSING:
+        if not enable_trino_processing(context.get("provider_uuid")):
             return []
 
         keys = []
@@ -230,6 +243,10 @@ class ParquetReportProcessor:
                 processor = AzureReportParquetProcessor(
                     manifest_id, account, s3_parquet_path, provider_uuid, output_file
                 )
+            elif provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+                processor = GCPReportParquetProcessor(
+                    manifest_id, account, s3_parquet_path, provider_uuid, output_file
+                )
             bill_date = self._start_date.replace(day=1).date()
             processor.create_table()
             processor.create_bill(bill_date=bill_date)
@@ -252,6 +269,7 @@ class ParquetReportProcessor:
         """
         Convert CSV files to parquet on S3.
         """
+        csv_path, csv_name = os.path.split(csv_filename)
         if s3_csv_path is None or s3_parquet_path is None or local_path is None:
             msg = (
                 f"Invalid paths provided to convert_csv_to_parquet."
@@ -265,55 +283,59 @@ class ParquetReportProcessor:
 
         kwargs = {}
         parquet_file = None
-        csv_file = f"{s3_csv_path}/{csv_filename}"
-        if csv_filename.lower().endswith(CSV_EXT):
+        if csv_name.lower().endswith(CSV_EXT):
             ext = -len(CSV_EXT)
-            parquet_file = f"{csv_filename[:ext]}.parquet"
-        elif csv_filename.lower().endswith(CSV_GZIP_EXT):
+            parquet_base_filename = f"{csv_name[:ext]}"
+        elif csv_name.lower().endswith(CSV_GZIP_EXT):
             ext = -len(CSV_GZIP_EXT)
-            parquet_file = f"{csv_filename[:ext]}.parquet"
+            parquet_base_filename = f"{csv_name[:ext]}"
             kwargs = {"compression": "gzip"}
         else:
-            msg = f"File {csv_filename} is not valid CSV. Conversion to parquet skipped."
+            msg = f"File {csv_name} is not valid CSV. Conversion to parquet skipped."
             LOG.warn(log_json(request_id, msg, context))
             return False
 
         Path(local_path).mkdir(parents=True, exist_ok=True)
-        tmpfile = f"{local_path}/{csv_filename}"
-        try:
-            s3_resource = get_s3_resource()
-            csv_obj = s3_resource.Object(bucket_name=settings.S3_BUCKET_NAME, key=csv_file)
-            csv_obj.download_file(tmpfile)
-        except Exception as err:
-            shutil.rmtree(local_path, ignore_errors=True)
-            msg = f"File {csv_filename} could not obtained for parquet conversion. Reason: {str(err)}"
-            LOG.warn(log_json(request_id, msg, context))
-            return False
 
-        output_file = f"{local_path}/{parquet_file}"
         try:
-            col_names = pd.read_csv(tmpfile, nrows=0, **kwargs).columns
+            col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
             converters.update({col: str for col in col_names if col not in converters})
-            data_frame = pd.read_csv(tmpfile, converters=converters, **kwargs)
-            if post_processor:
-                data_frame = post_processor(data_frame)
-            data_frame.to_parquet(output_file, allow_truncated_timestamps=True, coerce_timestamps="ms")
+            data_frame = pd.read_csv(
+                csv_filename, converters=converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
+            )
+            with pd.read_csv(
+                csv_filename, converters=converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
+            ) as reader:
+                for i, data_frame in enumerate(reader):
+                    parquet_filename = f"{parquet_base_filename}_{i}{PARQUET_EXT}"
+                    parquet_file = f"{local_path}/{parquet_filename}"
+                    if post_processor:
+                        data_frame = post_processor(data_frame)
+                    data_frame.to_parquet(parquet_file, allow_truncated_timestamps=True, coerce_timestamps="ms")
+                    try:
+                        with open(parquet_file, "rb") as fin:
+                            data = BytesIO(fin.read())
+                            copy_data_to_s3_bucket(
+                                request_id,
+                                s3_parquet_path,
+                                parquet_filename,
+                                data,
+                                manifest_id=manifest_id,
+                                context=context,
+                            )
+                            msg = f"{parquet_file} sent to S3."
+                            LOG.info(msg)
+                    except Exception as err:
+                        shutil.rmtree(local_path, ignore_errors=True)
+                        s3_key = f"{s3_parquet_path}/{parquet_file}"
+                        msg = f"File {csv_filename} could not be written as parquet to S3 {s3_key}. Reason: {str(err)}"
+                        LOG.warn(log_json(request_id, msg, context))
+                        return False
         except Exception as err:
             shutil.rmtree(local_path, ignore_errors=True)
-            msg = f"File {csv_filename} could not be written as parquet to temp file {output_file}. Reason: {str(err)}"
-            LOG.warn(log_json(request_id, msg, context))
-            return False
-
-        try:
-            with open(output_file, "rb") as fin:
-                data = BytesIO(fin.read())
-                copy_data_to_s3_bucket(
-                    request_id, s3_parquet_path, parquet_file, data, manifest_id=manifest_id, context=context
-                )
-        except Exception as err:
-            shutil.rmtree(local_path, ignore_errors=True)
-            s3_key = f"{s3_parquet_path}/{parquet_file}"
-            msg = f"File {csv_filename} could not be written as parquet to S3 {s3_key}. Reason: {str(err)}"
+            msg = (
+                f"File {csv_filename} could not be written as parquet to temp file {parquet_file}. Reason: {str(err)}"
+            )
             LOG.warn(log_json(request_id, msg, context))
             return False
 
@@ -325,19 +347,20 @@ class ParquetReportProcessor:
                 context.get("provider_uuid"),
                 manifest_id,
                 s3_hive_table_path,
-                output_file,
+                parquet_file,
                 report_type,
             )
 
+        # Delete the local parquet files
         shutil.rmtree(local_path, ignore_errors=True)
+        # Now we can delete the local CSV
+        if os.path.exists(csv_filename):
+            os.remove(csv_filename)
         return True
 
-    def process(self, context=None):
+    def process(self):
         """Convert to parquet."""
-        if self._provider_type == "OCP":
-            report_file = []
-        else:
-            report_file = [self._report_file]
+
         LOG.info(f"Parquet conversion: start_date = {str(self._start_date)}. File: {str(self._report_file)}")
         if self._start_date:
             start_date_str = self._start_date.strftime("%Y-%m-%d")
@@ -348,8 +371,12 @@ class ParquetReportProcessor:
                 self._provider_type,
                 start_date_str,
                 self._manifest_id,
-                report_file,
+                self._file_list,
             )
+
+        # Clean up the original downloaded file
+        if os.path.exists(self._report_file):
+            os.remove(self._report_file)
 
     def remove_temp_cur_files(self, report_path):
         """Remove processed files."""

@@ -27,8 +27,9 @@ from api.iam import models as iam_models
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
-from api.provider.test import PROVIDERS
+from api.provider.provider_builder import ProviderBuilder
 from providers.provider_access import ProviderAccessor
+from providers.provider_errors import SkipStatusPush
 from sources.api import get_account_from_header
 from sources.api import HEADER_X_RH_IDENTITY
 from sources.api.serializers import AdminSourcesSerializer
@@ -388,144 +389,24 @@ class SourcesSerializerTests(IamTestCase):
 
         self.assertEqual(instance2.billing_source.get("data_source", {}).get("bucket"), "second-bucket")
 
-    def test_validate_billing_source(self, _):
-        """Test to validate that the billing source dictionary is valid."""
-        test_matrix = [
-            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"bucket": "test-bucket"}, "exception": False},
-            {
-                "provider_type": Provider.PROVIDER_AWS,
-                "billing_source": {"data_source": {"bucket": "test-bucket"}},
-                "exception": False,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"resource_group": "foo", "storage_account": "bar"}},
-                "exception": False,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AWS,
-                "billing_source": {"data_source": {"nobucket": "test-bucket"}},
-                "exception": True,
-            },
-            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"nobucket": "test-bucket"}, "exception": True},
-            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"data_source": {}}, "exception": True},
-            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {}, "exception": True},
-            {"provider_type": Provider.PROVIDER_AZURE, "billing_source": {}, "exception": True},
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"nodata_source": {"resource_group": "foo", "storage_account": "bar"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"noresource_group": "foo", "storage_account": "bar"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"resource_group": "foo", "nostorage_account": "bar"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"resource_group": "foo"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"storage_account": "bar"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_GCP,
-                "billing_source": {"data_source": {"dataset": "test_dataset", "table_id": "test_table_id"}},
-                "exception": False,
-            },
-            {
-                "provider_type": Provider.PROVIDER_GCP,
-                "billing_source": {"data_source": {"dataset": "test_dataset"}},
-                "exception": False,
-            },
-            {
-                "provider_type": Provider.PROVIDER_GCP,
-                "billing_source": {"data_source": {"table_id": "test_table_id"}},
-                "exception": True,
-            },
-            {"provider_type": Provider.PROVIDER_GCP, "billing_source": {}, "exception": True},
-        ]
+    @patch("api.provider.serializers.ProviderSerializer.get_request_info")
+    @patch("sources.api.serializers.get_auth_header", return_value=Config.SOURCES_FAKE_HEADER)
+    def test_gcp_admin_add_table_not_ready(self, mock_header, mock_request_info, _):
+        """Test a GCP Admin Source add where the billing table is not ready."""
+        mock_request_info.return_value = self.User, self.Customer
 
-        for test in test_matrix:
-            with self.subTest(test=test):
-                if test.get("exception"):
-                    with self.assertRaises(SourcesStorageError):
-                        SourcesSerializer()._validate_billing_source(
-                            test.get("provider_type"), test.get("billing_source")
-                        )
-                else:
-                    try:
-                        SourcesSerializer()._validate_billing_source(
-                            test.get("provider_type"), test.get("billing_source")
-                        )
-                    except Exception as error:
-                        self.fail(str(error))
-
-    def test_update_aws_billing_source(self, _):
-        """Test to validate that the billing source dictionary is updated."""
-        aws_instance = self.aws_obj
-        aws_instance.billing_source = PROVIDERS[Provider.PROVIDER_AWS].get("billing_source")
-        aws_instance.save()
-        test_matrix = [
-            {
-                "instance": aws_instance,
-                "billing_source": {"bucket": "test-bucket"},
-                "expected": {"data_source": {"bucket": "test-bucket"}},
-            },
-            {
-                "instance": aws_instance,
-                "billing_source": {"data_source": {"bucket": "test-bucket"}},
-                "expected": {"data_source": {"bucket": "test-bucket"}},
-            },
-        ]
-
-        for test in test_matrix:
-            with self.subTest(test=test):
-                try:
-                    new_billing = SourcesSerializer()._update_billing_source(aws_instance, test.get("billing_source"))
-                    self.assertEqual(new_billing, test.get("expected"))
-                except Exception as error:
-                    self.fail(str(error))
-
-    def test_update_azure_billing_source(self, _):
-        """Test to validate that the billing source dictionary is updated."""
-        azure_instance = self.azure_obj
-        azure_instance.billing_source = {
-            "data_source": {"resource_group": "original-1", "storage_account": "original-2"}
+        serializer = AdminSourcesSerializer(context=self.request_context)
+        source = {
+            "source_id": 10,
+            "name": "ProviderGCP",
+            "source_type": "GCP",
+            "authentication": {"credentials": {"project_id": "test-project"}},
+            "billing_source": {"data_source": {"dataset": "first-dataset"}},
+            "auth_header": Config.SOURCES_FAKE_HEADER,
+            "account_id": "acct10001",
+            "offset": 10,
         }
-        azure_instance.save()
-        test_matrix = [
-            {
-                "instance": azure_instance,
-                "billing_source": {"data_source": {"resource_group": "foo", "storage_account": "bar"}},
-                "expected": {"data_source": {"resource_group": "foo", "storage_account": "bar"}},
-            },
-            {
-                "instance": azure_instance,
-                "billing_source": {"data_source": {"resource_group": "foo"}},
-                "expected": {"data_source": {"resource_group": "foo", "storage_account": "original-2"}},
-            },
-            {
-                "instance": azure_instance,
-                "billing_source": {"data_source": {"storage_account": "bar"}},
-                "expected": {"data_source": {"resource_group": "original-1", "storage_account": "bar"}},
-            },
-        ]
-
-        for test in test_matrix:
-            with self.subTest(test=test):
-                try:
-                    new_billing = SourcesSerializer()._update_billing_source(
-                        azure_instance, test.get("billing_source")
-                    )
-                    self.assertEqual(new_billing, test.get("expected"))
-                except Exception as error:
-                    self.fail(str(error))
+        with self.assertRaises(ValidationError):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                with patch.object(ProviderBuilder, "create_provider_from_source", side_effect=SkipStatusPush):
+                    _ = serializer.create(source)

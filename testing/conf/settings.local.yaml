@@ -4,6 +4,7 @@ local:
     ocp_dir: /var/tmp/masu/insights_local
     aws_dir: /tmp/local_bucket
     azure_dir: /tmp/local_container
+    gcp_dir: /tmp/gcp_local_bucket
     service_objects:
       masu:
         config:

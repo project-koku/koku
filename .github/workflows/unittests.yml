@@ -9,7 +9,7 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       max-parallel: 4
       matrix:
@@ -33,8 +33,10 @@ jobs:
         ports:
           - 5432:5432
     steps:
-      - name: Checkout repsository
+      - name: Checkout repository
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
       - name: Display build environment
         run: printenv
@@ -54,7 +56,7 @@ jobs:
           path: |
             ~/.cache/pipenv
             ~/.local/share/virtualenvs
-          key: os-${{ runner.os }}-env-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}-${{ github.ref }}
+          key: ${{ runner.os }}-env-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}-${{ secrets.ACTIONS_CACHE_KEY_UUID }}
 
       - name: Install dependencies
         if: steps.cache-dependencies.outputs.cache-hit != 'true'
@@ -73,6 +75,7 @@ jobs:
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           ACCOUNT_ENHANCED_METRICS: True
           prometheus_multiproc_dir: /tmp
+          HIVE_DATABASE_PASSWORD: hivedbpw
 
       - name: Convert coverage report to XML
         run: pipenv run coverage xml

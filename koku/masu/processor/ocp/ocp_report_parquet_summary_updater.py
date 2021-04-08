@@ -19,10 +19,12 @@ import calendar
 import logging
 
 import ciso8601
+from django.conf import settings
 from tenant_schemas.utils import schema_context
 
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.util.common import date_range_pair
 from masu.util.common import determine_if_full_summary_update_needed
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
@@ -110,35 +112,32 @@ class OCPReportParquetSummaryUpdater:
                 report_period_ids = [report_period.id for report_period in report_periods]
 
             for report_period in report_periods:
-                LOG.info(
-                    "Updating OpenShift report summary tables for \n\tSchema: %s "
-                    "\n\tProvider: %s \n\tCluster: %s \n\tReport Period ID: %s \n\tDates: %s - %s",
-                    self._schema,
-                    self._provider.uuid,
-                    self._cluster_id,
-                    report_period.id,
-                    report_period.report_period_start.date(),
-                    report_period.report_period_end.date(),
-                )
-                # This will process POD and STORAGE together
-                accessor.populate_line_item_daily_summary_table_presto(
-                    report_period.report_period_start.date(),
-                    report_period.report_period_end.date(),
-                    report_period.id,
-                    self._cluster_id,
-                    self._cluster_alias,
-                    self._provider.uuid,
-                )
+                for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                    LOG.info(
+                        "Updating OpenShift report summary tables for \n\tSchema: %s "
+                        "\n\tProvider: %s \n\tCluster: %s \n\tReport Period ID: %s \n\tDates: %s - %s",
+                        self._schema,
+                        self._provider.uuid,
+                        self._cluster_id,
+                        report_period.id,
+                        start,
+                        end,
+                    )
+                    # This will process POD and STORAGE together
+                    accessor.delete_line_item_daily_summary_entries_for_date_range(self._provider.uuid, start, end)
+                    accessor.populate_line_item_daily_summary_table_presto(
+                        start, end, report_period.id, self._cluster_id, self._cluster_alias, self._provider.uuid
+                    )
 
             # This will process POD and STORAGE together
             LOG.info(
                 "Updating OpenShift label summary tables for \n\tSchema: %s " "\n\tReport Period IDs: %s",
                 self._schema,
-                report_period.id,
+                report_period_ids,
             )
-            accessor.populate_pod_label_summary_table_presto(
-                report_period_ids, start_date, end_date, self._provider.uuid
-            )
+            accessor.populate_pod_label_summary_table(report_period_ids, start_date, end_date)
+            accessor.populate_volume_label_summary_table(report_period_ids, start_date, end_date)
+            accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
 
             LOG.info("Updating OpenShift report periods")
             for period in report_periods:

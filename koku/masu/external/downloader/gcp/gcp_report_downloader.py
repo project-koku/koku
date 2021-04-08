@@ -21,22 +21,95 @@ import hashlib
 import logging
 import os
 
+import pandas as pd
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from google.cloud import bigquery
 from google.cloud.exceptions import GoogleCloudError
 from rest_framework.exceptions import ValidationError
 
 from api.common import log_json
+from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
+from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.processor import enable_trino_processing
+from masu.util.aws.common import copy_local_report_file_to_s3_bucket
+from masu.util.common import date_range_pair
+from masu.util.common import get_path_prefix
 from providers.gcp.provider import GCPProvider
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
+
+
+def divide_csv_daily(file_path):
+    """
+    Split local file into daily content.
+    """
+    daily_files = []
+    directory = os.path.dirname(file_path)
+
+    try:
+        data_frame = pd.read_csv(file_path)
+    except Exception as error:
+        LOG.error(f"File {file_path} could not be parsed. Reason: {str(error)}")
+        raise error
+
+    unique_times = data_frame.usage_start_time.unique()
+    days = list({cur_dt[:10] for cur_dt in unique_times})
+    daily_data_frames = [
+        {"data_frame": data_frame[data_frame.usage_start_time.str.contains(cur_day)], "date": cur_day}
+        for cur_day in days
+    ]
+
+    for daily_data in daily_data_frames:
+        day = daily_data.get("date")
+        df = daily_data.get("data_frame")
+        day_file = f"{day}.csv"
+        day_filepath = f"{directory}/{day_file}"
+        df.to_csv(day_filepath, index=False, header=True)
+        daily_files.append({"filename": day_file, "filepath": day_filepath})
+    return daily_files
+
+
+def create_daily_archives(request_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+    """
+    Create daily CSVs from incoming report and archive to S3.
+
+    Args:
+        request_id (str): The request id
+        account (str): The account number
+        provider_uuid (str): The uuid of a provider
+        filename (str): The OCP file name
+        filepath (str): The full path name of the file
+        manifest_id (int): The manifest identifier
+        start_date (Datetime): The start datetime of incoming report
+        context (Dict): Logging context dictionary
+    """
+    daily_file_names = []
+    if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid):
+        daily_files = divide_csv_daily(filepath)
+        for daily_file in daily_files:
+            # Push to S3
+            s3_csv_path = get_path_prefix(
+                account, Provider.PROVIDER_GCP, provider_uuid, start_date, Config.CSV_DATA_TYPE
+            )
+            copy_local_report_file_to_s3_bucket(
+                request_id,
+                s3_csv_path,
+                daily_file.get("filepath"),
+                daily_file.get("filename"),
+                manifest_id,
+                start_date,
+                context,
+            )
+            daily_file_names.append(daily_file.get("filepath"))
+    return daily_file_names
 
 
 class GCPReportDownloaderError(Exception):
@@ -97,7 +170,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             "cost_type",
         ]
         self.table_name = ".".join(
-            [self.credentials.get("project_id"), self.data_source.get("dataset"), self.data_source.get("table_id")]
+            [self.credentials.get("project_id"), self._get_dataset_name(), self.data_source.get("table_id")]
         )
         self.scan_start, self.scan_end = self._generate_default_scan_range()
         try:
@@ -108,13 +181,19 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.error(log_json(self.request_id, msg, self.context))
             raise GCPReportDownloaderError(str(ex))
 
+    def _get_dataset_name(self):
+        """Helper to get dataset ID when format is project:datasetName."""
+        if ":" in self.data_source.get("dataset"):
+            return self.data_source.get("dataset").split(":")[1]
+        return self.data_source.get("dataset")
+
     def _generate_default_scan_range(self, range_length=3):
         """
             Generates the first date of the date range.
         """
-        today = datetime.datetime.today().date()
+        today = DateAccessor().today().date()
         scan_start = today - datetime.timedelta(days=range_length)
-        scan_end = datetime.datetime.today().date()
+        scan_end = today + relativedelta(days=1)
         return scan_start, scan_end
 
     def _generate_etag(self):
@@ -123,6 +202,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         To generate the etag, we use BigQuery to collect the last modified
         date to the table and md5 hash it.
         """
+
         try:
             client = bigquery.Client()
             billing_table_obj = client.get_table(self.table_name)
@@ -161,7 +241,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         file_names_count = len(manifest_dict["file_names"])
         dh = DateHelper()
         manifest_id = self._process_manifest_db_record(
-            manifest_dict["assembly_id"], manifest_dict["start_date"], file_names_count, dh.today
+            manifest_dict["assembly_id"], manifest_dict["start_date"], file_names_count, dh._now
         )
 
         report_dict["manifest_id"] = manifest_id
@@ -188,8 +268,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             Manifest-like dict with list of relevant found files.
 
         """
-        # end date is effectively the inclusive "end of the month" from the start.
-        end_date = start_date + relativedelta(months=1) - relativedelta(days=1)
+        end_of_month = start_date + relativedelta(months=1)
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
@@ -200,22 +279,24 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             # downloading this month, so we need to update our
             # scan range to include the full month.
             self.scan_start = start_date
-            if isinstance(end_date, datetime.datetime):
-                end_date = end_date.date()
-            if end_date < self.scan_end:
-                self.scan_end = end_date
+            if isinstance(end_of_month, datetime.datetime):
+                end_of_month = end_of_month.date()
+            if end_of_month < self.scan_end:
+                self.scan_end = end_of_month
 
-        invoice_month = start_date.strftime("%Y%m")
+        invoice_month = self.scan_start.strftime("%Y%m")
+        bill_date = self.scan_start.replace(day=1)
         file_names = self._get_relevant_file_names(invoice_month)
         fake_assembly_id = self._generate_assembly_id(invoice_month)
 
         manifest_data = {
             "assembly_id": fake_assembly_id,
             "compression": UNCOMPRESSED,
-            "start_date": start_date,
-            "end_date": end_date,  # inclusive end date
+            "start_date": bill_date,
+            "end_date": self.scan_end,  # inclusive end date
             "file_names": list(file_names),
         }
+        LOG.info(f"Manifest Data: {str(manifest_data)}")
         return manifest_data
 
     def _generate_assembly_id(self, invoice_month):
@@ -252,7 +333,12 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         relevant_file_names = list()
-        relevant_file_names.append(f"{invoice_month}_{self.etag}_{self.scan_start}:{self.scan_end}.csv")
+        for start, end in date_range_pair(self.scan_start, self.scan_end):
+            # When the days are the same nothing is downloaded.
+            if start == end:
+                continue
+            end = end + relativedelta(days=1)
+            relevant_file_names.append(f"{invoice_month}_{self.etag}_{start}:{end}.csv")
         return relevant_file_names
 
     def get_local_file_for_report(self, report):
@@ -291,8 +377,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 query = f"""
                 SELECT {",".join(self.gcp_big_query_columns)}
                 FROM {self.table_name}
-                WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
-                AND DATE(_PARTITIONTIME) <= '{scan_end}'
+                WHERE usage_start_time >= '{scan_start}'
+                AND usage_start_time < '{scan_end}'
                 AND invoice.month = '{invoice_month}'
                 """
                 LOG.info(f"Using querying for invoice_month ({invoice_month})")
@@ -300,8 +386,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 query = f"""
                 SELECT {",".join(self.gcp_big_query_columns)}
                 FROM {self.table_name}
-                WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
-                AND DATE(_PARTITIONTIME) <= '{scan_end}'
+                WHERE usage_start_time >= '{scan_start}'
+                AND usage_start_time < '{scan_end}'
                 """
             client = bigquery.Client()
             query_job = client.query(query)
@@ -340,7 +426,19 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         msg = f"Returning full_file_path: {full_local_path}"
         LOG.info(log_json(self.request_id, msg, self.context))
         dh = DateHelper()
-        return full_local_path, self.etag, dh.today
+
+        file_names = create_daily_archives(
+            self.request_id,
+            self.account,
+            self._provider_uuid,
+            key,
+            full_local_path,
+            manifest_id,
+            start_date,
+            self.context,
+        )
+
+        return full_local_path, self.etag, dh.today, file_names
 
     def _get_local_directory_path(self):
         """

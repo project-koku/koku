@@ -42,6 +42,29 @@ VIEWS = (
 
 PRESTO_LINE_ITEM_TABLE = "aws_line_items"
 
+PRESTO_REQUIRED_COLUMNS = (
+    "lineItem/UsageStartDate",
+    "lineItem/ProductCode",
+    "product/productFamily",
+    "lineItem/UsageAccountId",
+    "lineItem/AvailabilityZone",
+    "product/region",
+    "product/instanceType",
+    "pricing/unit",
+    "lineItem/UsageAmount",
+    "lineItem/NormalizationFactor",
+    "lineItem/NormalizedUsageAmount",
+    "lineItem/CurrencyCode",
+    "lineItem/UnblendedRate",
+    "lineItem/UnblendedCost",
+    "lineItem/BlendedRate",
+    "lineItem/BlendedCost",
+    "pricing/publicOnDemandCost",
+    "pricing/publicOnDemandRate",
+    "lineItem/ResourceId",
+    "resourceTags",
+)
+
 
 class AWSCostEntryBill(models.Model):
     """The billing information for a Cost Usage Report.

@@ -16,6 +16,7 @@
 #
 """Provider Model Serializers."""
 import logging
+from collections import defaultdict
 
 from django.conf import settings
 from django.db import transaction
@@ -103,6 +104,16 @@ class GCPAuthenticationSerializer(ProviderAuthenticationSerializer):
         return validate_field(creds, fields, key)
 
 
+class IBMAuthenticationSerializer(ProviderAuthenticationSerializer):
+    """IBM auth serializer."""
+
+    def validate_credentials(self, creds):
+        """Validate credentials field."""
+        key = "iam_token"
+        fields = ["iam_token"]
+        return validate_field(creds, fields, key)
+
+
 class OCPAuthenticationSerializer(ProviderAuthenticationSerializer):
     """OCP auth serializer."""
 
@@ -164,6 +175,16 @@ class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
         return data
 
 
+class IBMBillingSourceSerializer(ProviderBillingSourceSerializer):
+    """IBM billing source serializer."""
+
+    def validate_data_source(self, data_source):
+        """Validate data_source field."""
+        key = "provider.data_source"
+        fields = ["enterprise_id"]
+        return validate_field(data_source, fields, key)
+
+
 class OCPBillingSourceSerializer(ProviderBillingSourceSerializer):
     """OCP billing source serializer."""
 
@@ -178,6 +199,8 @@ AUTHENTICATION_SERIALIZERS = {
     Provider.PROVIDER_AZURE_LOCAL: AzureAuthenticationSerializer,
     Provider.PROVIDER_GCP: GCPAuthenticationSerializer,
     Provider.PROVIDER_GCP_LOCAL: GCPAuthenticationSerializer,
+    Provider.PROVIDER_IBM: IBMAuthenticationSerializer,
+    Provider.PROVIDER_IBM_LOCAL: IBMAuthenticationSerializer,
     Provider.PROVIDER_OCP: OCPAuthenticationSerializer,
     Provider.OCP_AWS: AWSAuthenticationSerializer,
     Provider.OCP_AZURE: AzureAuthenticationSerializer,
@@ -192,6 +215,8 @@ BILLING_SOURCE_SERIALIZERS = {
     Provider.PROVIDER_AZURE_LOCAL: AzureBillingSourceSerializer,
     Provider.PROVIDER_GCP: GCPBillingSourceSerializer,
     Provider.PROVIDER_GCP_LOCAL: GCPBillingSourceSerializer,
+    Provider.PROVIDER_IBM: IBMBillingSourceSerializer,
+    Provider.PROVIDER_IBM_LOCAL: IBMBillingSourceSerializer,
     Provider.PROVIDER_OCP: OCPBillingSourceSerializer,
     Provider.OCP_AWS: AWSBillingSourceSerializer,
     Provider.OCP_AZURE: AzureBillingSourceSerializer,
@@ -254,6 +279,20 @@ class ProviderSerializer(serializers.ModelSerializer):
             self.fields["authentication"] = ProviderAuthenticationSerializer()
             self.fields["billing_source"] = ProviderBillingSourceSerializer()
 
+    @property
+    def demo_credentials(self):
+        """Build formatted credentials for our nise-populator demo accounts."""
+        creds_by_source_type = defaultdict(list)
+        for account, cred_dict in settings.DEMO_ACCOUNTS.items():
+            for cred, info in cred_dict.items():
+                if info.get("source_type") == Provider.PROVIDER_AWS:
+                    creds_by_source_type[Provider.PROVIDER_AWS].append({"role_arn": cred})
+                elif info.get("source_type") == Provider.PROVIDER_AZURE:
+                    creds_by_source_type[Provider.PROVIDER_AZURE].append({"client_id": cred})
+                elif info.get("source_type") == Provider.PROVIDER_GCP:
+                    creds_by_source_type[Provider.PROVIDER_GCP].append({"project_id": cred})
+        return creds_by_source_type
+
     def get_request_info(self):
         """Obtain request information like user and customer context."""
         user = self.context.get("user")
@@ -289,7 +328,9 @@ class ProviderSerializer(serializers.ModelSerializer):
         billing_source = validated_data.pop("billing_source")
         data_source = billing_source.get("data_source")
 
-        if customer.account_id not in settings.DEMO_ACCOUNTS:
+        if self._is_demo_account(provider_type, credentials):
+            LOG.info("Customer account is a DEMO account. Skipping cost_usage_source_ready check.")
+        else:
             interface.cost_usage_source_ready(credentials, data_source)
 
         bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
@@ -335,7 +376,7 @@ class ProviderSerializer(serializers.ModelSerializer):
         data_source = billing_source.get("data_source")
 
         try:
-            if customer.account_id in settings.DEMO_ACCOUNTS:
+            if self._is_demo_account(provider_type, credentials):
                 LOG.info("Customer account is a DEMO account. Skipping cost_usage_source_ready check.")
             else:
                 interface.cost_usage_source_ready(credentials, data_source)
@@ -373,6 +414,21 @@ class ProviderSerializer(serializers.ModelSerializer):
             customer.save()
 
             return instance
+
+    def _is_demo_account(self, provider_type, credentials):
+        """Test whether this source is a demo account."""
+        key_types = {
+            Provider.PROVIDER_AWS: "role_arn",
+            Provider.PROVIDER_AZURE: "client_id",
+            Provider.PROVIDER_GCP: "project_id",
+        }
+
+        key_to_check = key_types.get(provider_type, "")
+        creds_to_check = self.demo_credentials.get(provider_type, [])
+        for cred in creds_to_check:
+            if credentials.get(key_to_check, True) == cred.get(key_to_check, False):
+                return True
+        return False
 
 
 class AdminProviderSerializer(ProviderSerializer):

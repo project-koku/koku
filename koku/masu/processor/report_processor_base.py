@@ -25,6 +25,7 @@ from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
+from masu.database.koku_database_access import mini_transaction_delete
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
@@ -248,7 +249,8 @@ class ReportProcessorBase:
                         f" on or after {delete_date}."
                     )
                     LOG.info(log_statement)
-                    line_item_query.delete()
+                    del_count, remainder = mini_transaction_delete(line_item_query)
+                    LOG.info(f"Deleted {del_count} records for bill id {bill.id}")
 
         return True
 

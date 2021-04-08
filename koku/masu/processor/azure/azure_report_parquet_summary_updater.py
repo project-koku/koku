@@ -2,11 +2,13 @@ import calendar
 import logging
 
 import ciso8601
+from django.conf import settings
 from tenant_schemas.utils import schema_context
 
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.util.common import date_range_pair
 from masu.util.common import determine_if_full_summary_update_needed
 
 LOG = logging.getLogger(__name__)
@@ -89,19 +91,20 @@ class AzureReportParquetSummaryUpdater:
                 bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
 
-            # for start, end in date_range_pair(start_date, end_date):
-            LOG.info(
-                "Updating Azure report summary tables via Presto: \n\tSchema: %s"
-                "\n\tProvider: %s \n\tDates: %s - %s",
-                self._schema,
-                self._provider.uuid,
-                start_date,
-                end_date,
-            )
-            accessor.populate_line_item_daily_summary_table_presto(
-                start_date, end_date, self._provider.uuid, current_bill_id, markup_value
-            )
-            accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
+            for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                LOG.info(
+                    "Updating Azure report summary tables via Presto: \n\tSchema: %s"
+                    "\n\tProvider: %s \n\tDates: %s - %s",
+                    self._schema,
+                    self._provider.uuid,
+                    start,
+                    end,
+                )
+                accessor.delete_line_item_daily_summary_entries_for_date_range(self._provider.uuid, start, end)
+                accessor.populate_line_item_daily_summary_table_presto(
+                    start, end, self._provider.uuid, current_bill_id, markup_value
+                )
+                accessor.populate_enabled_tag_keys(start, end, bill_ids)
             accessor.populate_tags_summary_table(bill_ids)
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             for bill in bills:

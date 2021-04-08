@@ -22,6 +22,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import boto3
+import pandas as pd
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
 from faker import Faker
@@ -40,6 +41,7 @@ from masu.test.external.downloader.aws.test_aws_report_downloader import FakeSes
 from masu.util.aws import common as utils
 from masu.util.common import get_path_prefix
 from reporting.models import AWSCostEntryBill
+from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
 
 # the cn endpoints aren't supported by moto, so filter them out
 AWS_REGIONS = list(filter(lambda reg: not reg.startswith("cn-"), AWS_REGIONS))
@@ -369,6 +371,27 @@ class TestAWSUtils(MasuTestCase):
                 mock_s3.side_effect = ClientError({}, "Error")
                 upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
                 self.assertEqual(upload, None)
+
+    def test_aws_post_processor(self):
+        """Test that missing columns in a report end up in the data frame."""
+        column_one = "column_one"
+        column_two = "column_two"
+        column_three = "column-three"
+        column_four = "resourceTags/User:key"
+        data = {column_one: [1, 2], column_two: [3, 4], column_three: [5, 6], column_four: ["value_1", "value_2"]}
+        data_frame = pd.DataFrame.from_dict(data)
+
+        processed_data_frame = utils.aws_post_processor(data_frame)
+
+        columns = list(processed_data_frame)
+
+        self.assertIn(column_one, columns)
+        self.assertIn(column_two, columns)
+        self.assertIn(column_three.replace("-", "_"), columns)
+        self.assertNotIn(column_four, columns)
+        self.assertIn("resourcetags", columns)
+        for column in PRESTO_REQUIRED_COLUMNS:
+            self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), columns)
 
 
 class AwsArnTest(TestCase):

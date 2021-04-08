@@ -25,6 +25,7 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import update_cost_model_costs
 
@@ -72,6 +73,7 @@ class CostModelManager:
 
         providers_to_delete = set(current_providers_for_instance).difference(provider_uuids)
         providers_to_create = set(provider_uuids).difference(current_providers_for_instance)
+        all_providers = set(current_providers_for_instance).union(provider_uuids)
 
         for provider_uuid in providers_to_delete:
             CostModelMap.objects.filter(provider_uuid=provider_uuid, cost_model=self._model).delete()
@@ -88,17 +90,22 @@ class CostModelManager:
 
         start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
         end_date = DateHelper().today.strftime("%Y-%m-%d")
-        for provider_uuid in providers_to_delete | providers_to_create:
-            # Update cost-model costs for each provider
+        for provider_uuid in all_providers:
+            # Update cost-model costs for each provider, on every PUT/DELETE
             try:
                 provider = Provider.objects.get(uuid=provider_uuid)
             except Provider.DoesNotExist:
                 LOG.info(f"Provider {provider_uuid} does not exist. Skipping cost-model update.")
             else:
                 schema_name = provider.customer.schema_name
+                # Because this is triggered from the UI, we use the priority queue
                 chain(
-                    update_cost_model_costs.s(schema_name, provider.uuid, start_date, end_date),
-                    refresh_materialized_views.si(schema_name, provider.type, provider_uuid=provider.uuid),
+                    update_cost_model_costs.s(
+                        schema_name, provider.uuid, start_date, end_date, queue_name=PRIORITY_QUEUE
+                    ).set(queue=PRIORITY_QUEUE),
+                    refresh_materialized_views.si(
+                        schema_name, provider.type, provider_uuid=provider.uuid, queue_name=PRIORITY_QUEUE
+                    ).set(queue=PRIORITY_QUEUE),
                 ).apply_async()
 
     def update(self, **data):

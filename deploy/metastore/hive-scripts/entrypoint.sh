@@ -65,9 +65,8 @@ ln -s -f /hive-config/hive-exec-log4j2.properties $HIVE_HOME/conf/hive-exec-log4
 
 export HADOOP_LOG_DIR="${HADOOP_HOME}/logs"
 # Set garbage collection settings
-#export GC_SETTINGS="-XX:+UseG1GC -XX:G1HeapRegionSize=32M -XX:+UseGCOverheadLimit -XX:+ExplicitGCInvokesConcurrent -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${HADOOP_LOG_DIR}/heap_dump.bin -XX:+ExitOnOutOfMemoryError -XX:ErrorFile=${HADOOP_LOG_DIR}/java_error%p.log"
-
-export VM_OPTIONS="$VM_OPTIONS -XX:+UseContainerSupport -XX:ErrorFile=${HADOOP_LOG_DIR}/java_error%p.log"
+export GC_SETTINGS="-XX:+UseG1GC -XX:G1HeapRegionSize=32M -XX:+UseGCOverheadLimit -XX:+ExplicitGCInvokesConcurrent -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${HADOOP_LOG_DIR}/heap_dump.bin -XX:+ExitOnOutOfMemoryError -XX:ErrorFile=${HADOOP_LOG_DIR}/java_error%p.log"
+export VM_OPTIONS="$VM_OPTIONS -XX:+UseContainerSupport"
 
 if [ -n "$JVM_INITIAL_RAM_PERCENTAGE" ]; then
 VM_OPTIONS="$VM_OPTIONS -XX:InitialRAMPercentage=$JVM_INITIAL_RAM_PERCENTAGE"
@@ -83,11 +82,22 @@ fi
 export JMX_OPTIONS="-javaagent:/opt/jmx_exporter/jmx_exporter.jar=8082:/opt/jmx_exporter/config/config.yml -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.port=8081 -Dcom.sun.management.jmxremote.rmi.port=8081 -Djava.rmi.server.hostname=127.0.0.1"
 
 # Set garbage collection logs
-export GC_SETTINGS="${GC_SETTINGS} -verbose:gc -Xlog:gc*:${HADOOP_LOG_DIR}/gc.log"
+export GC_SETTINGS="${GC_SETTINGS} -verbose:gc"
 
 export HIVE_LOGLEVEL="${HIVE_LOGLEVEL:-INFO}"
 export HADOOP_OPTS="${HADOOP_OPTS} ${VM_OPTIONS} ${GC_SETTINGS} ${JMX_OPTIONS}"
 export HIVE_METASTORE_HADOOP_OPTS=" -Dhive.log.level=${HIVE_LOGLEVEL} "
 export HIVE_OPTS="${HIVE_OPTS} --hiveconf hive.root.logger=${HIVE_LOGLEVEL},console "
 
+set +e
+if schematool -dbType postgres -info -verbose; then
+    echo "Hive metastore schema verified."
+else
+    if schematool -dbType postgres -initSchema -verbose; then
+        echo "Hive metastore schema created."
+    else
+        echo "Error creating hive metastore: $?"
+    fi
+fi
+set -e
 exec $@

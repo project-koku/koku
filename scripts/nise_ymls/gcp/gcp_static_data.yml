@@ -1,0 +1,33 @@
+---
+generators:
+  - ComputeEngineGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      cost: 2557
+      currency: USD
+  - ComputeEngineGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      cost: 2557
+      currency: USD
+  - ComputeEngineGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      cost: 2557
+      currency: USD
+  - ComputeEngineGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      cost: 2557
+      currency: USD
+  - CloudStorageGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      currency: USD
+
+projects:
+  -
+    billing_account_id: example_account_id
+    project.name: billion-force-58425800
+    project.id: example-project-id
+    project.labels: step:chair;year:each

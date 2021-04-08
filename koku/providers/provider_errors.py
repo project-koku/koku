@@ -43,6 +43,8 @@ class ProviderErrors:
     AZURE_CREDENTAL_UNREACHABLE = "authentication.credentials.unreachable"
     AZURE_CLIENT_ERROR = "azure.exception"
 
+    GCP_INCORRECT_IAM_PERMISSIONS = "gcp.iam.permissions"
+
     # MESSAGES
     INVALID_SOURCE_TYPE_MESSAGE = "The given source type is not supported."
 

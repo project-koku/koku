@@ -1,0 +1,59 @@
+#! /usr/bin/env sh
+#
+# Copyright 2021 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# This script will generate a self-signed certificate for development use of PostgreSQL SSL connections
+#
+
+if ! which openssl 1>/dev/null
+then
+    echo "ERROR: openssl is required" >&2
+    exit -1
+fi
+
+if [[ -z "${KOKU_PATH}" ]]
+then
+    echo "ERROR: Environment variable KOKU_PATH must be set" >&2
+    exit -1
+fi
+
+CERT_DIR="${HOME}"/.koku-db-certs
+KEY_DIR="${CERT_DIR}"/private
+CERT_FILE="${CERT_DIR}"/koku.crt
+KEY_FILE="${KEY_DIR}"/koku.key
+CSR_FILE="${KEY_DIR}"/koku.csr
+
+[[ ! -d "${KEY_DIR}" ]] && mkdir -p "${KEY_DIR}" || true
+
+sudo rm -rf "${CERT_FILE}" "${KEY_FILE}" "${CSR_FILE}"
+
+openssl genrsa -out "${KEY_FILE}" 2048 && \
+openssl req -new -key "${KEY_FILE}" -out "${CSR_FILE}" -sha512 && \
+openssl x509 -req -days 3650 -in "${CSR_FILE}" -signkey "${KEY_FILE}" -out "${CERT_FILE}" -sha512
+RC=$?
+
+if [[ ${RC} -ne 0 ]]
+then
+    echo "Self-Signed Certificate creation failed!" >&2
+else
+    chmod ug+r "${CERT_FILE}"
+    chmod 0640 "${KEY_FILE}"
+    # Group id 101 is specific to the docker hub postgres image
+    sudo chown root:101 "${KEY_FILE}"
+    echo "Success!"
+fi
+
+exit $RC

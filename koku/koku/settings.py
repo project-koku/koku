@@ -179,6 +179,8 @@ TEMPLATES = [
 WSGI_APPLICATION = "koku.wsgi.application"
 
 WORKER_CACHE_KEY = "worker"
+CACHE_MIDDLEWARE_SECONDS = ENVIRONMENT.get_value("CACHE_TIMEOUT", default=3600)
+
 HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
 
 REDIS_HOST = ENVIRONMENT.get_value("REDIS_HOST", default="redis")
@@ -190,7 +192,12 @@ TEST_CACHE_LOCATION = "unique-snowflake"
 if "test" in sys.argv:
     TEST_RUNNER = "koku.koku_test_runner.KokuTestRunner"
     CACHES = {
-        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": TEST_CACHE_LOCATION,
+            "KEY_FUNCTION": "tenant_schemas.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+        },
         "rbac": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
         "worker": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
     }
@@ -229,6 +236,11 @@ if ENVIRONMENT.get_value("CACHED_VIEWS_DISABLED", default=False):
 DATABASES = {"default": database.config()}
 
 DATABASE_ROUTERS = ("tenant_schemas.routers.TenantSyncRouter",)
+
+# Hive DB variables
+HIVE_DATABASE_USER = ENVIRONMENT.get_value("HIVE_DATABASE_USER", default="hive")
+HIVE_DATABASE_NAME = ENVIRONMENT.get_value("HIVE_DATABASE_NAME", default="hive")
+HIVE_DATABASE_PASSWORD = ENVIRONMENT.get_value("HIVE_DATABASE_PASSWORD", default="hive")
 
 #
 TENANT_MODEL = "api.Tenant"
@@ -413,8 +425,17 @@ MASU_API_REPORT_DATA = f"{API_PATH_PREFIX}/v1/report_data/"
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
 RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", "5672")
 
-CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
-CELERY_RESULTS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+# Set Broker
+USE_RABBIT = ENVIRONMENT.bool("USE_RABBIT", default=False)
+if USE_RABBIT:
+    print("USING RABBIT!")
+    CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
+else:
+    print("USING REDIS!")
+    CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULTS_URL = REDIS_URL
+
 CELERY_IMPORTS = ("masu.processor.tasks", "masu.celery.tasks", "koku.metrics")
 CELERY_BROKER_POOL_LIMIT = None
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
@@ -423,6 +444,7 @@ CELERY_WORKER_LOG_FORMAT = "[%(asctime)s: %(levelname)s/%(processName)s] %(messa
 CELERY_WORKER_TASK_LOG_FORMAT = (
     "[%(asctime)s: %(levelname)s/%(processName)s] [%(task_name)s(%(task_id)s via %(task_root_id)s)] %(message)s"
 )
+CELERY_RESULT_EXPIRES = 28800  # 8 hours (3600 seconds / hour * 8 hours)
 
 
 # AWS S3 Bucket Settings
@@ -437,10 +459,13 @@ S3_ACCESS_KEY = ENVIRONMENT.get_value("S3_ACCESS_KEY", default=None)
 S3_SECRET = ENVIRONMENT.get_value("S3_SECRET", default=None)
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 ENABLE_PARQUET_PROCESSING = ENVIRONMENT.bool("ENABLE_PARQUET_PROCESSING", default=False)
+PARQUET_PROCESSING_BATCH_SIZE = ENVIRONMENT.get_value("PARQUET_PROCESSING_BATCH_SIZE", default=200000)
+ENABLE_TRINO_SOURCES = ENVIRONMENT.list("ENABLE_TRINO_SOURCES", default=[])
 
 # Presto Settings
 PRESTO_HOST = ENVIRONMENT.get_value("PRESTO_HOST", default=None)
 PRESTO_PORT = ENVIRONMENT.get_value("PRESTO_PORT", default=None)
+TRINO_DATE_STEP = ENVIRONMENT.get_value("TRINO_DATE_STEP", default=5)
 
 # Time to wait between cold storage retrieval for data export. Default is 3 hours
 COLD_STORAGE_RETRIVAL_WAIT_TIME = int(os.getenv("COLD_STORAGE_RETRIVAL_WAIT_TIME", default="10800"))
@@ -463,4 +488,6 @@ try:
 except JSONDecodeError:
     pass
 
-OPENSHIFT_DOC_VERSION = ENVIRONMENT.get_value("OPENSHIFT_DOC_VERSION", default="4.5")
+# Aids the UI in showing pre-release features in allowed environments.
+# see: koku.api.user_access.view
+ENABLE_PRERELEASE_FEATURES = ENVIRONMENT.bool("ENABLE_PRERELEASE_FEATURES", default=False)

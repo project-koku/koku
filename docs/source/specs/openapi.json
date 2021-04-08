@@ -22,6 +22,10 @@
             "description": "Operations about OpenShift report interactions"
         },
         {
+            "name": "GCP Reports",
+            "description": "Operations about Azure report interactions"
+        },
+        {
             "name": "Sources",
             "description": "Operations about platform sources interactions"
         },
@@ -392,7 +396,7 @@
                 }]
             }
         },
-        "/forecasts/aws/costs": {
+        "/forecasts/aws/costs/": {
             "summary": "AWS Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -437,7 +441,7 @@
                 }]
             }
         },
-        "/forecasts/azure/costs": {
+        "/forecasts/azure/costs/": {
             "summary": "Azure Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -482,7 +486,52 @@
                 }]
             }
         },
-        "/forecasts/openshift/costs": {
+        "/forecasts/gcp/costs/": {
+            "summary": "GCP Cost Forecasts",
+            "get": {
+                "tags":["Forecasts"],
+                "parameters": [{
+                    "$ref": "#/components/parameters/QueryFilter",
+                    "name":"QueryFilter"
+                }],
+                "responses": {
+                    "200": {
+                        "description": "An object describing the cost forecast.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Forecast"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Request Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/forecasts/openshift/costs/": {
             "summary": "OpenShift Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -527,7 +576,7 @@
                 }]
             }
         },
-        "/forecasts/openshift/infrastructures/aws/costs": {
+        "/forecasts/openshift/infrastructures/aws/costs/": {
             "summary": "OpenShift on AWS Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -572,7 +621,7 @@
                 }]
             }
         },
-        "/forecasts/openshift/infrastructures/all/costs": {
+        "/forecasts/openshift/infrastructures/all/costs/": {
             "summary": "OpenShift on Cloud Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -617,7 +666,7 @@
                 }]
             }
         },
-        "/forecasts/openshift/infrastructures/azure/costs": {
+        "/forecasts/openshift/infrastructures/azure/costs/": {
             "summary": "OpenShift on Azure Cost Forecasts",
             "get": {
                 "tags":["Forecasts"],
@@ -772,6 +821,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -838,6 +893,14 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate",
+                        "name":"QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate",
+                        "name":"QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -904,6 +967,84 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCost"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCost"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/reports/gcp/costs/": {
+            "get": {
+                "tags": [
+                    "GCP Reports"
+                ],
+                "summary": "Query to obtain cost reports",
+                "operationId": "getGCPCostReports",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryDelta"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -973,6 +1114,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/QueryComputeCount"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1039,6 +1186,87 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportInstanceInventory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportInstanceInventory"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/reports/gcp/instance-types/": {
+            "get": {
+                "tags": [
+                    "GCP Reports"
+                ],
+                "summary": "Query to obtain GCP instance type data",
+                "operationId": "getGCPInstanceReports",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryUnits"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryComputeCount"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1105,6 +1333,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1171,6 +1405,84 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportStorageInventory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportStorageInventory"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/reports/gcp/storage/": {
+            "get": {
+                "tags": [
+                    "GCP Reports"
+                ],
+                "summary": "Query to obtain GCP storage data",
+                "operationId": "getGCPStorageReports",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryUnits"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1234,6 +1546,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1297,6 +1615,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1360,6 +1684,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1426,6 +1756,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1492,6 +1828,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1558,6 +1900,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1624,6 +1972,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1690,6 +2044,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1756,6 +2116,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1822,6 +2188,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1888,6 +2260,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -1954,6 +2332,12 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
                     }
                 ],
                 "responses": {
@@ -2037,6 +2421,74 @@
                 ],
                 "summary": "List AWS Accounts For RBAC",
                 "operationId": "listResourcesAwsAccounts",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/gcp-accounts/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List GCP Accounts For RBAC",
+                "operationId": "listResourcesGcpAccounts",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/gcp-projects/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List GCP Projects For RBAC",
+                "operationId": "listResourcesGcpProjects",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryOffset"
                     },
@@ -2261,6 +2713,31 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/user-access/": {
+            "get": {
+                "tags": [
+                    "UserAccess"
+                ],
+                "summary": "Returns user permission status.",
+                "operationId": "listUserAccess",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryType"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserAccessListPagination"
                                 }
                             }
                         }
@@ -2712,6 +3189,133 @@
                 ],
                 "summary": "Query to obtain Azure tags",
                 "operationId": "getAzureTagKeyData",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tags"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameter",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/tags/gcp/": {
+            "get": {
+                "tags": [
+                    "Tags"
+                ],
+                "summary": "Query to obtain GCP tags",
+                "operationId": "getGCPTagData",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryKeyOnly"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tags"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/tags/gcp/{key}": {
+            "get": {
+                "tags": [
+                    "Tags"
+                ],
+                "summary": "Query to obtain GCP tags",
+                "operationId": "getGCPTagKeyData",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryFilter"
                     },
@@ -3463,6 +4067,15 @@
                     "type": "string"
                 }
             },
+            "QueryEndDate": {
+                "name": "end_date",
+                "in": "query",
+                "description": "String to indicate end date of date range.",
+                "schema": {
+                    "type": "string",
+                    "example": "1970-01-01"
+                }
+            },
             "QueryFilter": {
                 "name": "filter",
                 "required": false,
@@ -3555,6 +4168,23 @@
                 "description": "Flag to indicate whether or not only the tag key values will be returned.",
                 "schema": {
                     "type": "boolean"
+                }
+            },
+            "QueryStartDate": {
+                "name": "start_date",
+                "in": "query",
+                "description": "String to indicate start date of date range.",
+                "schema": {
+                    "type": "string",
+                    "example": "1970-01-01"
+                }
+            },
+            "QueryType": {
+                "name": "type",
+                "in": "query",
+                "description": "String to identify user access permission type (i.e. AWS, cost_model).",
+                "schema": {
+                    "type": "string"
                 }
             },
             "QueryValue": {
@@ -4211,6 +4841,26 @@
                     }
                 ]
             },
+            "UserAccessListPagination": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ListPagination"
+                  },
+                  {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/UserAccessTypeOut"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
             "ResourceTypeListPagination": {
                 "allOf": [{
                     "$ref": "#/components/schemas/ListPagination"
@@ -4255,6 +4905,16 @@
                 "properties": {
                     "value": {
                         "type": "string"
+                    }
+                }
+            },
+            "UserAccessTypeOut": {
+                "properties": {
+                    "type": {
+                        "type": "string"
+                    },
+                    "access": {
+                        "type": "boolean"
                     }
                 }
             },
@@ -4371,6 +5031,16 @@
                             "current_month_data": {
                                 "type": "boolean",
                                 "description": "Flag to indicate if provider has report data for the current month.",
+                                "default": false
+                            },
+                            "previous_month_data": {
+                                "type": "boolean",
+                                "description": "Flag to indicate if provider has report data for the previous month.",
+                                "default": false
+                            },
+                            "has_data": {
+                                "type": "boolean",
+                                "description": "Flag to indicate if provider has report data for any month.",
                                 "default": false
                             },
                             "infrastructure": {

@@ -18,7 +18,7 @@ CREATE MATERIALIZED VIEW reporting_aws_database_summary AS(
     FROM reporting_awscostentrylineitem_daily_summary
     -- Get data for this month or last month
     WHERE product_code IN ('AmazonRDS','AmazonDynamoDB','AmazonElastiCache','AmazonNeptune','AmazonRedshift','AmazonDocumentDB')
-        AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+        AND usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
     GROUP BY usage_start, usage_account_id, product_code
 )
 WITH DATA

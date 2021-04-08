@@ -50,6 +50,7 @@ from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownload
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
+from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
@@ -300,7 +301,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     account = get_account_from_cluster_id(cluster_id, request_id, context)
     if not account:
         msg = f"Recieved unexpected OCP report from {cluster_id}"
-        LOG.error(log_json(request_id, msg, context))
+        LOG.warning(log_json(request_id, msg, context))
         shutil.rmtree(temp_dir)
         return None
     schema_name = account.get("schema_name")
@@ -495,6 +496,8 @@ def summarize_manifest(report_meta):
     provider_uuid = report_meta.get("provider_uuid")
     schema_name = report_meta.get("schema_name")
     provider_type = report_meta.get("provider_type")
+    start_date = report_meta.get("start")
+    end_date = report_meta.get("end")
 
     with ReportManifestDBAccessor() as manifest_accesor:
         if manifest_accesor.manifest_ready_for_summary(manifest_id):
@@ -504,7 +507,13 @@ def summarize_manifest(report_meta):
                 "provider_uuid": provider_uuid,
                 "manifest_id": manifest_id,
             }
-            async_id = summarize_reports.delay([report_meta])
+            if start_date and end_date:
+                LOG.info(
+                    f"Summarizing OCP reports from {str(start_date)}-{str(end_date)} for provider: {provider_uuid}"
+                )
+                report_meta["start"] = start_date
+                report_meta["end"] = end_date
+            async_id = summarize_reports.s([report_meta], OCP_QUEUE).apply_async(queue=OCP_QUEUE)
     return async_id
 
 
@@ -637,7 +646,8 @@ def get_consumer():  # pragma: no cover
             "queued.max.messages.kbytes": 1024,
             "enable.auto.commit": False,
             "max.poll.interval.ms": 1080000,  # 18 minutes
-        }
+        },
+        logger=LOG,
     )
     consumer.subscribe([HCCM_TOPIC])
     return consumer

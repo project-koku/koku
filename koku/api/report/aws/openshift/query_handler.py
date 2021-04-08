@@ -19,15 +19,13 @@ import copy
 import logging
 
 from django.db.models import F
-from django.db.models import Window
 from django.db.models.functions import Coalesce
-from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
 from api.report.aws.openshift.provider_map import OCPAWSProviderMap
 from api.report.aws.query_handler import AWSReportQueryHandler
-from api.report.queries import is_grouped_or_filtered_by_project
+from api.report.queries import is_grouped_by_project
 
 LOG = logging.getLogger(__name__)
 
@@ -51,7 +49,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
-            query_order_by.extend([self.order])
+            query_order_by.extend([self.order])  # add implicit ordering
 
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query_data.values(*query_group_by).annotate(**annotations)
@@ -62,15 +60,10 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 )
 
             if self._limit and query_data:
-                rank_orders = []
-                if self.order_field == "delta":
-                    rank_orders.append(getattr(F(self._delta), self.order_direction)())
-                else:
-                    rank_orders.append(getattr(F(self.order_field), self.order_direction)())
-                rank_by_total = Window(expression=RowNumber(), partition_by=F("date"), order_by=rank_orders)
-                query_data = query_data.annotate(rank=rank_by_total)
-                query_order_by.insert(1, "rank")
-                query_data = self._ranked_list(query_data)
+                query_data = self._group_by_ranks(query, query_data)
+                if not self.parameters.get("order_by"):
+                    # override implicit ordering when using ranked ordering.
+                    query_order_by[-1] = "rank"
 
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
@@ -135,7 +128,7 @@ class OCPAWSReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
         """
         self._mapper = OCPAWSProviderMap(provider=self.provider, report_type=parameters.report_type)
         # Update which field is used to calculate cost by group by param.
-        if is_grouped_or_filtered_by_project(parameters):
+        if is_grouped_by_project(parameters):
             self._report_type = parameters.report_type + "_by_project"
             self._mapper = OCPAWSProviderMap(provider=self.provider, report_type=self._report_type)
         self.group_by_options = self._mapper.provider_map.get("group_by_options")

@@ -1,12 +1,31 @@
+#
+# Copyright 2020 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+"""Summary Updater for AWS Parquet files."""
 import calendar
 import logging
 
 import ciso8601
+from django.conf import settings
 from tenant_schemas.utils import schema_context
 
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.util.common import date_range_pair
 from masu.util.common import determine_if_full_summary_update_needed
 
 LOG = logging.getLogger(__name__)
@@ -89,19 +108,20 @@ class AWSReportParquetSummaryUpdater:
                 bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
 
-            # for start, end in date_range_pair(start_date, end_date):
-            LOG.info(
-                "Updating AWS report summary tables from parquet: \n\tSchema: %s"
-                "\n\tProvider: %s \n\tDates: %s - %s",
-                self._schema,
-                self._provider.uuid,
-                start_date,
-                end_date,
-            )
-            accessor.populate_line_item_daily_summary_table_presto(
-                start_date, end_date, self._provider.uuid, current_bill_id, markup_value
-            )
-            accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
+            for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                LOG.info(
+                    "Updating AWS report summary tables from parquet: \n\tSchema: %s"
+                    "\n\tProvider: %s \n\tDates: %s - %s",
+                    self._schema,
+                    self._provider.uuid,
+                    start,
+                    end,
+                )
+                accessor.delete_line_item_daily_summary_entries_for_date_range(self._provider.uuid, start, end)
+                accessor.populate_line_item_daily_summary_table_presto(
+                    start, end, self._provider.uuid, current_bill_id, markup_value
+                )
+                accessor.populate_enabled_tag_keys(start, end, bill_ids)
             accessor.populate_tags_summary_table(bill_ids)
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             for bill in bills:

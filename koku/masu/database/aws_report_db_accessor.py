@@ -55,6 +55,10 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
 
+    @property
+    def line_item_daily_summary_table(self):
+        return AWSCostEntryLineItemDailySummary
+
     def get_cost_entry_bills(self):
         """Get all cost entry bill objects."""
         table_name = AWSCostEntryBill
@@ -334,8 +338,8 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             "uuid": str(openshift_provider_uuid).replace("-", "_"),
             "schema": self.schema,
             "start_date": start_date,
-            "year": start_date.year,
-            "month": start_date.month,
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
             "end_date": end_date,
             "aws_source_uuid": aws_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
