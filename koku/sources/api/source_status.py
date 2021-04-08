@@ -52,7 +52,7 @@ class SourceStatus:
         self.source_id = source_id
         self.source = Sources.objects.get(source_id=source_id)
         LOG.info(f"Getting source info from source-status: {str(self.source)}")
-        if not source_settings_complete(self.source) or self.source.pending_delete or self.source.pending_update:
+        if not source_settings_complete(self.source) or self.source.pending_delete or self.source.in_progress:
             raise ObjectDoesNotExist(f"Source ID: {self.source_id} not ready for status")
         self.sources_client = SourcesHTTPClient(self.source.auth_header, source_id=source_id)
 

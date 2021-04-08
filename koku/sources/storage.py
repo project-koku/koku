@@ -319,12 +319,19 @@ def enqueue_source_update(source_id):
         source.save(update_fields=["pending_update"])
 
 
-def set_update_flag(source_id):
-    """Set pending_update flag without callback."""
+def set_in_progress_flag(source_id):
+    """Set in_progress flag without callback."""
     source_query = Sources.objects.filter(source_id=source_id)
     for source in source_query:
-        source_query.update(pending_update=True)
+        LOG.info(f"Setting in progress flag for {source.source_id}")
+        source_query.update(in_progress=True)
 
+def clear_in_progress_flag(source_id):
+    """Clear in_progress flag."""
+    source_query = Sources.objects.filter(source_id=source_id)
+    for source in source_query:
+        LOG.info(f"Clearing in progress flag for {source.source_id}")
+        source_query.update(in_progress=False)
 
 def clear_update_flag(source_id):
     """
