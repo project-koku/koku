@@ -431,6 +431,8 @@ def process_message(app_type_id, msg):  # noqa: C901
         if storage.is_known_source(msg_data.get("source_id")) is False:
             LOG.info("Update event for unknown source id, skipping...")
             return
+        LOG.info(f"Setting update flag for {(str(msg_data.get('source_id')))}")
+        storage.set_update_flag(msg_data.get("source_id"))
         sources_network_info(msg_data.get("source_id"), msg_data.get("auth_header"))
 
     elif msg_data.get("event_type") in (KAFKA_APPLICATION_DESTROY,):
@@ -573,7 +575,8 @@ def execute_koku_provider_op(msg):
         elif operation == "update":
             instance = account_coordinator.update_account(provider)
             LOG.info(f"Updated provider {instance.uuid} for Source ID: {provider.source_id}")
-
+            LOG.info(f"Clearing pending_update for {provider.source_id}")
+            storage.clear_update_flag(provider.source_id)
         elif operation == "destroy":
             delete_source.delay(provider.source_id, provider.auth_header, provider.koku_uuid)
             LOG.info(

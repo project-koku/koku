@@ -319,6 +319,13 @@ def enqueue_source_update(source_id):
         source.save(update_fields=["pending_update"])
 
 
+def set_update_flag(source_id):
+    """Set pending_update flag without callback."""
+    source_query = Sources.objects.filter(source_id=source_id)
+    for source in source_query:
+        source_query.update(pending_update=True)
+
+
 def clear_update_flag(source_id):
     """
     Clear pending update flag after successfully updating Koku provider.
@@ -504,7 +511,7 @@ def save_status(source_id, status):
 
     """
     source = get_source(source_id, f"Source ID {source_id} does not exist.", LOG.warning)
-    if source:
+    if source and source.status != status:
         source.status = status
         source.save()
         return True
