@@ -268,7 +268,6 @@ class Orchestrator:
         async_results = []
         for account in self._accounts:
             LOG.info("Calling remove_expired_data with account: %s", account)
-            # TODO: Need to test the expired data endpoint
             async_result = remove_expired_data.delay(
                 schema_name=account.get("schema_name"),
                 provider=account.get("provider_type"),

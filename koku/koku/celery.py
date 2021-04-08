@@ -18,11 +18,6 @@ from koku.env import ENVIRONMENT
 
 LOGGER = logging.getLogger(__name__)
 
-GET_REPORT_FILES_QUEUE = "download"
-REMOVE_EXPIRED_DATA_QUEUE = "summary"
-SUMMARIZE_REPORTS_QUEUE = "summary"
-VACUUM_SCHEMA_QUEUE = "summary"
-
 
 class LogErrorsTask(Task):  # pragma: no cover
     """Log Celery task exceptions."""
@@ -129,7 +124,6 @@ app.conf.beat_schedule["delete_source_beat"] = {
     "task": "sources.tasks.delete_source_beat",
     "schedule": crontab(minute="0", hour="4"),
 }
-
 
 # Collect prometheus metrics.
 app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(minute="*/15")}

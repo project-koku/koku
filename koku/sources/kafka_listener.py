@@ -575,7 +575,6 @@ def execute_koku_provider_op(msg):
             LOG.info(f"Updated provider {instance.uuid} for Source ID: {provider.source_id}")
 
         elif operation == "destroy":
-            # TODO: Figure out if this is defaulting to the celery worker or not
             delete_source.delay(provider.source_id, provider.auth_header, provider.koku_uuid)
             LOG.info(
                 f"Destroy provider task queued for provider {provider.koku_uuid} for Source ID: {provider.source_id}"
