@@ -55,6 +55,8 @@ from sources.sources_patch_handler import SourcesPatchHandler
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.sources_provider_coordinator import SourcesProviderCoordinatorError
 from sources.tasks import delete_source
+from sources.api.source_status import SourceStatus
+
 
 LOG = logging.getLogger(__name__)
 
@@ -65,6 +67,7 @@ KAFKA_APPLICATION_UPDATE = "Application.update"
 KAFKA_APPLICATION_DESTROY = "Application.destroy"
 KAFKA_AUTHENTICATION_CREATE = "Authentication.create"
 KAFKA_AUTHENTICATION_UPDATE = "Authentication.update"
+PUSH_AVAILABILITY_STATUS = "push_status"
 KAFKA_SOURCE_DESTROY = "Source.destroy"
 KAFKA_HDR_RH_IDENTITY = "x-rh-identity"
 KAFKA_HDR_EVENT_TYPE = "event_type"
@@ -186,6 +189,12 @@ def storage_callback(sender, instance, **kwargs):
         _log_process_queue_event(PROCESS_QUEUE, delete_event)
         LOG.debug(f"Delete Event Queued for:\n{str(instance)}")
         PROCESS_QUEUE.put_nowait((next(COUNT), delete_event))
+
+    if instance.push_status_update:
+        status_event = {"operation": "status", "provider": instance}
+        _log_process_queue_event(PROCESS_QUEUE, status_event)
+        LOG.debug(f"Delete Event Queued for:\n{str(instance)}")
+        PROCESS_QUEUE.put_nowait((next(COUNT), status_event))
 
     process_event = storage.screen_and_build_provider_sync_create_event(instance)
     if process_event:
@@ -578,9 +587,13 @@ def execute_koku_provider_op(msg):
             LOG.info(
                 f"Destroy provider task queued for provider {provider.koku_uuid} for Source ID: {provider.source_id}"
             )
+        elif operation == "status":
+            source_status_obj = SourceStatus(provider.source_id)
+            source_status_obj.push_status()
         else:
             LOG.error(f"unknown operation: {operation}")
-        sources_client.set_source_status(None)
+        if operation != "status":
+            sources_client.set_source_status(None)
 
     except SourcesProviderCoordinatorError as account_error:
         raise SourcesIntegrationError("Koku provider error: ", str(account_error))
