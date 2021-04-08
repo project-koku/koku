@@ -504,7 +504,7 @@ def save_status(source_id, status):
 
     """
     source = get_source(source_id, f"Source ID {source_id} does not exist.", LOG.warning)
-    if source and source.status != status:
+    if source:
         source.status = status
         source.save()
         return True
