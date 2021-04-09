@@ -19,7 +19,7 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
     lids.usage_start,
     lids.usage_start as usage_end,
     lids.usage_account_id,
-    max(lids.account_alias_id),
+    max(lids.account_alias_id) as account_alias_id,
     lids.product_code,
     lids.product_family,
     lids.instance_type,
@@ -33,7 +33,7 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
     max(lids.currency_code) as currency_code,
     max(lids.shared_projects) as shared_projects,
     lids.project_costs as project_costs,
-    max(lids.source_uuid) as source_uuidx
+    max(lids.source_uuid::text)::uuid as source_uuid
    FROM ( SELECT 'AWS'::text AS source_type,
             reporting_ocpawscostlineitem_daily_summary.cluster_id,
             reporting_ocpawscostlineitem_daily_summary.cluster_alias,
