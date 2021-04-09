@@ -104,7 +104,7 @@ class ReportQueryHandler(QueryHandler):
     @property
     def report_annotations(self):
         """Return annotations with the correct capacity field."""
-        return self._mapper.report_type_map.get("annotations")
+        return self._mapper.report_type_map.get("annotations", {})
 
     @property
     def query_table(self):
@@ -699,6 +699,7 @@ class ReportQueryHandler(QueryHandler):
         tag_column = self._mapper.tag_column
         rank_orders = []
 
+        rank_annotations = {}
         if "delta" in self.order:
             if "__" in self._delta:
                 a, b = self._delta.split("__")
@@ -708,7 +709,8 @@ class ReportQueryHandler(QueryHandler):
                 rank_annotations = {self._delta: self.report_annotations[self._delta]}
                 rank_orders.append(getattr(F(self._delta), self.order_direction)())
         else:
-            rank_annotations = {self.order_field: self.report_annotations[self.order_field]}
+            if self.report_annotations.get(self.order_field):
+                rank_annotations = {self.order_field: self.report_annotations.get(self.order_field)}
             rank_orders.append(getattr(F(self.order_field), self.order_direction)())
 
         if tag_column in gb[0]:
@@ -717,12 +719,15 @@ class ReportQueryHandler(QueryHandler):
         # this is a sub-query, but not really.
         # in the future, this could be accomplished using CTEs.
         rank_by_total = Window(expression=Rank(), order_by=rank_orders)
-        ranks = (
-            query.annotate(**self.annotations)
-            .values(*group_by_value)
-            .annotate(**rank_annotations)
-            .annotate(rank=rank_by_total)
-        )
+        if rank_annotations:
+            ranks = (
+                query.annotate(**self.annotations)
+                .values(*group_by_value)
+                .annotate(**rank_annotations)
+                .annotate(rank=rank_by_total)
+            )
+        else:
+            ranks = query.annotate(**self.annotations).values(*group_by_value).annotate(rank=rank_by_total)
 
         rankings = []
         for rank in ranks:
