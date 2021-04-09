@@ -125,6 +125,12 @@ app.conf.beat_schedule["delete_source_beat"] = {
     "schedule": crontab(minute="0", hour="4"),
 }
 
+# task to push source status`
+app.conf.beat_schedule["source_status_beat"] = {
+    "task": "sources.tasks.source_status_beat",
+    "schedule": crontab(minute="*/5"),
+}
+
 # Collect prometheus metrics.
 app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(minute="*/15")}
 
