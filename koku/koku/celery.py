@@ -125,10 +125,15 @@ app.conf.beat_schedule["delete_source_beat"] = {
     "schedule": crontab(minute="0", hour="4"),
 }
 
+# Specify the frequency for pushing source status.
+SOURCE_STATUS_FREQUENCY_MINUTES = ENVIRONMENT.get_value("SOURCE_STATUS_FREQUENCY_MINUTES", default="45")
+source_status_schedule = crontab(minute=f"*/{SOURCE_STATUS_FREQUENCY_MINUTES}")
+LOGGER.info(f"Source status schedule: {str(source_status_schedule)}")
+
 # task to push source status`
 app.conf.beat_schedule["source_status_beat"] = {
     "task": "sources.tasks.source_status_beat",
-    "schedule": crontab(minute="*/5"),
+    "schedule": source_status_schedule,
 }
 
 # Collect prometheus metrics.

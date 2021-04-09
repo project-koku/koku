@@ -15,7 +15,6 @@
 #
 """View for Source status."""
 import logging
-import threading
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
@@ -133,7 +132,6 @@ def _deliver_status(request, status_obj):
     if request.method == "GET":
         return Response(status_obj.sources_response, status=status.HTTP_200_OK)
     elif request.method == "POST":
-        LOG.info("Delivering source status for Source ID: %s", status_obj.source_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
     else:
         raise status.HTTP_405_METHOD_NOT_ALLOWED

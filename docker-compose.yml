@@ -421,6 +421,8 @@ services:
         - prometheus_multiproc_dir=/tmp
         - SCHEDULE_REPORT_CHECKS=True
         - SCHEDULE_CHECK_INTERVAL=10000000
+        # - SOURCE_STATUS_FREQUENCY_MINUTES=${SOURCE_STATUS_FREQUENCY_MINUTES-1}
+        - SOURCE_STATUS_FREQUENCY_MINUTES
         - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
       privileged: true
       volumes:

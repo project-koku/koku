@@ -153,10 +153,10 @@ class SourcesStatusTest(IamTestCase):
                 status={},
                 offset=1,
             )
-            request = self.request_context.get("request")
+
             with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
                 with patch.object(SourceStatus, "update_source_name", returns=True):
-                    status_obj = SourceStatus(request, test_source_id)
+                    status_obj = SourceStatus(test_source_id)
                     status_obj.push_status()
                     mock_set_source_status.assert_called()
                     mock_create_account.assert_called()
@@ -183,10 +183,10 @@ class SourcesStatusTest(IamTestCase):
                 status={},
                 offset=1,
             )
-            request = self.request_context.get("request")
+
             with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
                 with patch.object(SourceStatus, "update_source_name", returns=True):
-                    status_obj = SourceStatus(request, test_source_id)
+                    status_obj = SourceStatus(test_source_id)
                     status_obj.push_status()
                     mock_set_source_status.assert_called()
                     mock_create_account.assert_not_called()
@@ -208,11 +208,11 @@ class SourcesStatusTest(IamTestCase):
                 status={"availability_status": "available", "availability_status_error": ""},
                 offset=1,
             )
-            request = self.request_context.get("request")
+
             with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
                 with patch.object(SourceStatus, "update_source_name", returns=True):
                     with patch.object(SourcesProviderCoordinator, "create_account", returns=True):
-                        status_obj = SourceStatus(request, test_source_id)
+                        status_obj = SourceStatus(test_source_id)
                         status_obj.push_status()
                         mock_set_source_status.assert_called()
 
@@ -234,11 +234,10 @@ class SourcesStatusTest(IamTestCase):
                 offset=1,
             )
 
-            request = self.request_context.get("request")
             with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
                 with patch.object(SourceStatus, "update_source_name", returns=True):
                     with patch.object(SourcesProviderCoordinator, "update_account", returns=True):
-                        status_obj = SourceStatus(request, test_source_id)
+                        status_obj = SourceStatus(test_source_id)
                         status_obj.push_status()
                         mock_set_source_status.assert_called()
 
@@ -260,8 +259,8 @@ class SourcesStatusTest(IamTestCase):
                 koku_uuid="uuid",
                 offset=1,
             )
-            request = self.request_context.get("request")
-            status_obj = SourceStatus(request, test_source_id)
+
+            status_obj = SourceStatus(test_source_id)
             with patch.object(
                 SourcesHTTPClient, "get_source_details", return_value={"name": "New Name", "source_type_id": "1"}
             ):
@@ -286,8 +285,8 @@ class SourcesStatusTest(IamTestCase):
                 koku_uuid="uuid",
                 offset=1,
             )
-            request = self.request_context.get("request")
-            status_obj = SourceStatus(request, test_source_id)
+
+            status_obj = SourceStatus(test_source_id)
             with patch.object(
                 SourcesHTTPClient, "get_source_details", return_value={"name": source_name, "source_type_id": "1"}
             ):
@@ -572,7 +571,7 @@ class SourcesStatusTest(IamTestCase):
                 koku_uuid=str(provider.uuid),
                 offset=1,
             )
-            status_obj = SourceStatus(request, source_id)
+            status_obj = SourceStatus(source_id)
             status_obj.status()
 
             self.assertTrue(Provider.objects.get(uuid=provider.uuid).active)
@@ -597,14 +596,13 @@ class SourcesStatusTest(IamTestCase):
                 koku_uuid=str(provider.uuid),
                 offset=1,
             )
-            status_obj = SourceStatus(request, source_id)
+            status_obj = SourceStatus(source_id)
             status_obj.status()
 
             self.assertFalse(Provider.objects.get(uuid=provider.uuid).active)
 
     def test_post_status_wrong_provider(self):
         """Test for logs when provider mismatch is detected while setting status."""
-        request = self.request_context.get("request")
         source_id = 1
         source_name = "New AWS Mock Test Source"
 
@@ -618,7 +616,7 @@ class SourcesStatusTest(IamTestCase):
                 koku_uuid=str(uuid4()),
                 offset=1,
             )
-            status_obj = SourceStatus(request, source_id)
+            status_obj = SourceStatus(source_id)
             with self.assertLogs("sources.api.source_status", level="INFO") as logger:
                 status_obj.status()
                 expected = f"INFO:sources.api.source_status:No provider found for Source ID: {source_id}"
