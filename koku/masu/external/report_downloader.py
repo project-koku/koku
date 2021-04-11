@@ -31,6 +31,7 @@ from masu.external.downloader.azure.azure_report_downloader import AzureReportDo
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
+from masu.external.downloader.ibm.ibm_report_downloader import IBMReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from reporting_common.models import CostUsageReportStatus
 
@@ -152,6 +153,16 @@ class ReportDownloader:
             )
         if self.provider_type == Provider.PROVIDER_GCP_LOCAL:
             return GCPLocalReportDownloader(
+                customer_name=self.customer_name,
+                credentials=self.credentials,
+                data_source=self.data_source,
+                report_name=self.report_name,
+                provider_uuid=self.provider_uuid,
+                request_id=self.request_id,
+                account=self.account,
+            )
+        if self.provider_type == Provider.PROVIDER_IBM:
+            return IBMReportDownloader(
                 customer_name=self.customer_name,
                 credentials=self.credentials,
                 data_source=self.data_source,
