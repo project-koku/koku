@@ -1626,10 +1626,10 @@
         },
         "identify": {
             "hashes": [
-                "sha256:43cb1965e84cdd247e875dec6d13332ef5be355ddc16776396d98089b9053d87",
-                "sha256:c7c0f590526008911ccc5ceee6ed7b085cbc92f7b6591d0ee5913a130ad64034"
+                "sha256:398cb92a7599da0b433c65301a1b62b9b1f4bb8248719b84736af6c0b22289d6",
+                "sha256:4537474817e0bbb8cea3e5b7504b7de6d44e3f169a90846cbc6adb0fc8294502"
             ],
-            "version": "==2.2.2"
+            "version": "==2.2.3"
         },
         "idna": {
             "hashes": [
