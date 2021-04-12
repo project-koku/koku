@@ -6,7 +6,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0173_auto_20210325_1354")]
+    dependencies = [("reporting", "0174_update_ocpall_matviews")]
 
     operations = [
         migrations.AlterField(
