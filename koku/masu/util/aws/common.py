@@ -364,7 +364,7 @@ def aws_post_processor(data_frame):
     resource_tag_columns = [column for column in columns if "resourceTags/user:" in column]
     tag_df = data_frame[resource_tag_columns]
     resource_tags_dict = tag_df.apply(
-        lambda row: {column.replace("resourceTags/user:", ""): value for column, value in row.items()}, axis=1
+        lambda row: {column.replace("resourceTags/user:", ""): value for column, value in row.items() if value}, axis=1
     )
     data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
     # Make sure we have entries for our required columns
