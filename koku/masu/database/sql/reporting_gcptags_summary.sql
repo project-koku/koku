@@ -7,8 +7,10 @@ WITH cte_tag_value AS (
         li.project_name
     FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary AS li,
         jsonb_each_text(li.tags) labels
+    WHERE li.usage_start >= {{start_date}}
+        AND li.usage_start <= {{end_date}}
     {% if bill_ids %}
-    WHERE li.cost_entry_bill_id IN (
+        AND li.cost_entry_bill_id IN (
         {%- for bill_id in bill_ids -%}
         {{bill_id}}{% if not loop.last %},{% endif %}
         {%- endfor -%}
@@ -18,15 +20,39 @@ WITH cte_tag_value AS (
 ),
 cte_values_agg AS (
     SELECT key,
-        array_agg(DISTINCT value) as values,
+        array_agg(DISTINCT value) as "values",
         cost_entry_bill_id,
         account_id,
         project_id,
         project_name
     FROM cte_tag_value
     GROUP BY key, cost_entry_bill_id, account_id, project_id, project_name
-)
-, ins1 AS (
+),
+cte_distinct_values_agg AS (
+    SELECT v.key,
+        array_agg(DISTINCT v."values") as "values",
+        v.cost_entry_bill_id,
+        v.account_id,
+        v.project_id,
+        v.project_name
+    FROM (
+        SELECT va.key,
+            unnest(va."values" || coalesce(ls."values", '{}'::text[])) as "values",
+            va.cost_entry_bill_id,
+            va.account_id,
+            va.project_id,
+            va.project_name
+        FROM cte_values_agg AS va
+        LEFT JOIN {{schema | sqlsafe}}.reporting_gcptags_summary AS ls
+            ON va.key = ls.key
+                AND va.cost_entry_bill_id = ls.cost_entry_bill_id
+                AND va.account_id = ls.account_id
+                AND va.project_id = ls.project_id
+                AND va.project_name = ls.project_name
+    ) as v
+    GROUP BY key, cost_entry_bill_id, account_id, project_id, project_name
+),
+ins1 AS (
     INSERT INTO {{schema | sqlsafe}}.reporting_gcptags_summary (uuid, key, cost_entry_bill_id, account_id, project_id, project_name, values)
     SELECT uuid_generate_v4() as uuid,
         key,
@@ -34,9 +60,9 @@ cte_values_agg AS (
         account_id,
         project_id,
         project_name,
-        values
-    FROM cte_values_agg
-    ON CONFLICT (key, cost_entry_bill_id, account_id, project_id, project_name) DO UPDATE SET values=EXCLUDED.values
+        "values"
+    FROM cte_distinct_values_agg
+    ON CONFLICT (key, cost_entry_bill_id, account_id, project_id, project_name) DO UPDATE SET values=EXCLUDED."values"
 )
 INSERT INTO {{schema | sqlsafe}}.reporting_gcptags_values (uuid, key, value, account_ids, project_ids, project_names)
 SELECT uuid_generate_v4() as uuid,

@@ -280,13 +280,13 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
                 bill.finalized_datetime = self.date_accessor.today_with_timezone("UTC")
                 bill.save()
 
-    def populate_tags_summary_table(self, bill_ids):
+    def populate_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
         table_name = AWS_CUR_TABLE_MAP["tags_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_awstags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids}
+        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
@@ -349,13 +349,13 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         }
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 
-    def populate_ocp_on_aws_tags_summary_table(self):
+    def populate_ocp_on_aws_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
         table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_tags_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpawstags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema}
+        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
