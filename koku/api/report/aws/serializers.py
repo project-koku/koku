@@ -112,9 +112,6 @@ class QueryParamSerializer(ParamSerializer):
         if "delta" in data.get("order_by", {}) and "delta" not in data:
             error["order_by"] = _("Cannot order by delta without a delta param")
             raise serializers.ValidationError(error)
-        if data.get("filter", {}).get("resolution") == "monthly" and (data.get("start_date") or data.get("end_date")):
-            error["filter"] = _("Monthly resolution is not supported with start_date and end_date parameters.")
-            raise serializers.ValidationError(error)
         return data
 
     def validate_group_by(self, value):
