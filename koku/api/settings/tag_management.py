@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Data Driven Component Generation for Tag Management Settings."""
+from django.db import transaction
 from django.test import RequestFactory
 from rest_framework.serializers import ValidationError
 from tenant_schemas.utils import schema_context
@@ -116,7 +117,7 @@ class TagManagementSettings:
         all_tags_set = set(avail_data)
         enabled = []
         with schema_context(self.schema):
-            enabled_tags = tag_keys_kls.objects.all()
+            enabled_tags = tag_keys_kls.objects.filter(enabled=True).all()
             enabled = [enabled_tag.key for enabled_tag in enabled_tags]
             all_tags_set.update(enabled)
 
@@ -180,6 +181,58 @@ class TagManagementSettings:
         settings = self._build_tag_key()
         return [settings]
 
+    def _update_enabled_keys(self, keys, enabled_keys_table):
+        if not isinstance(keys, list):
+            keys = list(keys)
+
+        max_val = 500
+        full_iter, rem_val = divmod(len(keys), max_val)
+
+        sql_tmpl = """
+with enabled_keys as (
+    insert
+      into {schema}.{table} (key)
+    values
+    {{values}}
+        on conflict (key)
+        do update
+              set enabled = true
+    returning key
+),
+disable_targets as (
+    select d.key
+      from {schema}.{table} as d
+    except
+    select e.key
+      from enabled_keys as e
+)
+update {schema}.{table} as dk
+   set key = dt.key
+  from disable_targets dt
+ where dk.key = dt.key
+;
+""".format(
+            schema=self.schema, table=enabled_keys_table._meta.db_table
+        )
+        values_tmpl = "(%s)"
+
+        values_sql = ",".join([values_tmpl] * max_val)
+        sql = sql_tmpl.format(values=values_sql)
+
+        with transaction.atomic():
+            with transaction.get_connection().cursor() as cur:
+                for scalar in range(full_iter):
+                    start_ix = scalar * max_val
+                    end_ix = start_ix + max_val
+                    cur.execute(sql, keys[start_ix:end_ix])
+
+                if rem_val > 0:
+                    values_sql = ",".join([values_tmpl] * rem_val)
+                    sql = sql_tmpl.format(values=values_sql)
+                    start_ix = full_iter * max_val
+                    end_ix = start_ix + rem_val
+                    cur.execute(sql, keys[start_ix:end_ix])
+
     def _tag_key_handler(self, settings):
         """
         Handle setting results
@@ -190,13 +243,11 @@ class TagManagementSettings:
         Returns:
             (Bool) - True, if a setting had an effect, False otherwise
         """
-        updated = [False] * len(obtainTagKeysProvidersParams)
-        for ix, providerName in enumerate(obtainTagKeysProvidersParams):
+        for providerName in obtainTagKeysProvidersParams:
             provider_in_settings = settings.get(providerName)
             if provider_in_settings is None:
                 continue
             enabled_tags = provider_in_settings.get("enabled", [])
-            remove_tags = []
             tag_view = obtainTagKeysProvidersParams[providerName]["tag_view"]
             query_handler = obtainTagKeysProvidersParams[providerName]["query_handler"]
             enabled_tag_keys = obtainTagKeysProvidersParams[providerName]["enabled_tag_keys"]
@@ -207,22 +258,10 @@ class TagManagementSettings:
                 key = "settings"
                 message = f"Invalid tag keys provided: {', '.join(invalid_keys)}."
                 raise ValidationError(error_obj(key, message))
-            with schema_context(self.schema):
-                existing_enabled_tags = enabled_tag_keys.objects.all()
-                for existing_tag in existing_enabled_tags:
-                    if existing_tag.key in enabled_tags:
-                        enabled_tags.remove(existing_tag.key)
-                    else:
-                        remove_tags.append(existing_tag)
-                        updated[ix] = True
-                for rm_tag in remove_tags:
-                    rm_tag.delete()
-                for new_tag in enabled_tags:
-                    enabled_tag_keys.objects.create(key=new_tag)
-                    updated[ix] = True
-            if updated[ix]:
-                invalidate_view_cache_for_tenant_and_source_type(self.schema, provider)
-        return any(updated)
+
+            self._update_enabled_keys(enabled_tags, enabled_tag_keys)
+            invalidate_view_cache_for_tenant_and_source_type(self.schema, provider)
+        return True
 
     def handle_settings(self, settings):
         """

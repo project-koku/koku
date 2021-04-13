@@ -390,22 +390,23 @@ class ParquetReportProcessor:
         pass
 
     def update_enabled_keys(self, enabled_keys):
-        max_val = 200
-        full_iter, rem_val = divmod(len(enabled_keys), max_val)
-
         if not isinstance(enabled_keys, list):
             enabled_keys = list(enabled_keys)
 
+        max_val = 500
+        full_iter, rem_val = divmod(len(enabled_keys), max_val)
+
         sql_tmpl = """
-insert into {schema}.{key_table} (key, enabled)
+insert into {schema}.{key_table} (key)
 values
 {{values}}
 on conflict (key) do nothing;
 """.format(
             schema=self._schema_name, key_table=self._enabled_tags_table
         )
+        values_tmpl = "(%s)"
 
-        values_sql = ",".join(["(%s, true)"] * max_val)
+        values_sql = ",".join([values_tmpl] * max_val)
         sql = sql_tmpl.format(values=values_sql)
 
         total_rows_inserted = 0
@@ -421,7 +422,7 @@ on conflict (key) do nothing;
                     total_rows_inserted += cur.rowcount
 
                 if rem_val > 0:
-                    values_sql = ",".join(["(%s, true)"] * rem_val)
+                    values_sql = ",".join([values_tmpl] * rem_val)
                     sql = sql_tmpl.format(values=values_sql)
                     start_ix = full_iter * max_val
                     end_ix = start_ix + rem_val
