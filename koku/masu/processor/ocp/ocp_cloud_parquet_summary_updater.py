@@ -48,6 +48,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
         aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
         with schema_context(self._schema):
+            aws_bill_ids = [str(bill.id) for bill in aws_bills]
             current_aws_bill_id = aws_bills.first().id if aws_bills else None
 
         with CostModelDBAccessor(self._schema, aws_provider_uuid) as cost_model_accessor:
@@ -77,7 +78,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     current_aws_bill_id,
                     markup_value,
                 )
-            accessor.populate_ocp_on_aws_tags_summary_table()
+            accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start_date, end_date)
 
         with OCPReportDBAccessor(self._schema) as accessor:
             # This call just sends the infrastructure cost to the
@@ -94,6 +95,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
         azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
         with schema_context(self._schema):
+            azure_bill_ids = [str(bill.id) for bill in azure_bills]
             current_azure_bill_id = azure_bills.first().id if azure_bills else None
 
         with CostModelDBAccessor(self._schema, azure_provider_uuid) as cost_model_accessor:
@@ -123,7 +125,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     current_azure_bill_id,
                     markup_value,
                 )
-            accessor.populate_ocp_on_azure_tags_summary_table()
+            accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start_date, end_date)
 
         with OCPReportDBAccessor(self._schema) as accessor:
             # This call just sends the infrastructure cost to the
