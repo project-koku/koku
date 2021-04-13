@@ -296,14 +296,14 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
 
     upload = None
     upload_key = f"{path}/{filename}"
+    extra_args = {}
+    if manifest_id:
+        extra_args = {"Metadata": {"ManifestId": str(manifest_id)}}
     try:
         s3_resource = get_s3_resource()
         s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
         upload = s3_resource.Object(**s3_obj)
-        put_value = {"Body": data}
-        if manifest_id:
-            put_value["Metadata"] = {"ManifestId": str(manifest_id)}
-        upload.put(**put_value)
+        upload.upload_fileobj(data, ExtraArgs=extra_args)
     except (EndpointConnectionError, ClientError) as err:
         msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
         LOG.info(log_json(request_id, msg, context))
@@ -327,7 +327,7 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
     """
     Removes all files in a given prefix if they are not within the given set.
     """
-    if not (settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING):
+    if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(context.get("provider_uuid"))):
         return []
 
     removed = []
