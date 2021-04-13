@@ -26,6 +26,7 @@ from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from dateutil import parser
 from django.conf import settings
+from django.db import transaction
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -247,6 +248,7 @@ class ParquetReportProcessor:
                 processor = GCPReportParquetProcessor(
                     manifest_id, account, s3_parquet_path, provider_uuid, output_file
                 )
+            self._enabled_tags_table = processor.postgres_enabled_tag_table._meta.db_table
             bill_date = self._start_date.replace(day=1).date()
             processor.create_table()
             processor.create_bill(bill_date=bill_date)
@@ -295,7 +297,7 @@ class ParquetReportProcessor:
             LOG.warn(log_json(request_id, msg, context))
             return False
 
-        Path(local_path).mkdir(parents=True, exist_ok=True)
+        self._local_path = Path(local_path).mkdir(parents=True, exist_ok=True)
 
         try:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
@@ -381,3 +383,42 @@ class ParquetReportProcessor:
     def remove_temp_cur_files(self, report_path):
         """Remove processed files."""
         pass
+
+    def update_enabled_keys(self, enabled_keys):
+        max_val = 200
+        full_iter, rem_val = divmod(len(enabled_keys), max_val)
+
+        if not isinstance(enabled_keys, list):
+            enabled_keys = list(enabled_keys)
+
+        sql_tmpl = """
+insert into {schema}.{key_table} (key, enabled)
+values
+{{values}}
+on conflict (key) do nothing;
+""".format(
+            schema=self._schema_name, key_table=self._enabled_tags_table
+        )
+
+        values_sql = ",".join(["(%s, true)"] * max_val)
+        sql = sql_tmpl.format(values=values_sql)
+
+        total_rows_inserted = 0
+
+        with transaction.atomic():
+            with transaction.get_connection().cursor() as cur:
+                for scalar in range(full_iter):
+                    start_ix = scalar * max_val
+                    end_ix = start_ix + max_val
+                    cur.execute(sql, enabled_keys[start_ix:end_ix])
+                    total_rows_inserted += cur.rowcount
+
+                if rem_val > 0:
+                    values_sql = ",".join(["(%s, true)"] * rem_val)
+                    sql = sql_tmpl.format(values=values_sql)
+                    start_ix = full_iter * max_val
+                    end_ix = start_ix + rem_val
+                    cur.execute(sql, enabled_keys[start_ix:end_ix])
+                    total_rows_inserted += cur.rowcount
+
+        return total_rows_inserted

@@ -34,6 +34,9 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor import enable_trino_processing
 from masu.util import common as utils
+from masu.utils.common import dict_values
+from masu.utils.common import series_values
+from masu.utils.common import unique_keys
 from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
 
 LOG = logging.getLogger(__name__)
@@ -353,7 +356,11 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
     return removed
 
 
-def aws_post_processor(data_frame):
+def get_unique_tag_keys(frame_data):
+    return unique_keys(dict_values(series_values(frame_data)))
+
+
+def aws_post_processor(data_frame, processor=None):
     """
     Consume the AWS data and add a column creating a dictionary for the aws tags
     """
@@ -366,6 +373,10 @@ def aws_post_processor(data_frame):
     resource_tags_dict = tag_df.apply(
         lambda row: {column.replace("resourceTags/user:", ""): value for column, value in row.items()}, axis=1
     )
+
+    if processor is not None:
+        processor.update_enabled_keys(get_unique_tag_keys(resource_tags_dict))
+
     data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
     # Make sure we have entries for our required columns
     data_frame = data_frame.reindex(columns=columns)

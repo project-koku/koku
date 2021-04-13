@@ -384,3 +384,28 @@ def determine_if_full_summary_update_needed(bill):
 def split_alphanumeric_string(s):
     for k, g in groupby(s, str.isalpha):
         yield "".join(g)
+
+
+def series_values(series_data):
+    res = []
+    for data in (d for d in series_data if d is not None):
+        res.append(data)
+
+    return res
+
+
+def dict_values(list_dict):
+    res = []
+
+    for data in (d for d in list_dict if d is not None):
+        res.extend(vals for vals in data.values() if vals is not None)
+
+    return res
+
+
+def unique_keys(dict_data):
+    res = set()
+    for ekeys in (k for k in dict_data if k is not None):
+        res.update({ek for ek in ekeys if ek is not None and ek != ""})
+
+    return res
