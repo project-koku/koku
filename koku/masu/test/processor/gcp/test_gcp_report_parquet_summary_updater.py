@@ -121,7 +121,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         mock_presto.assert_called_with(
             expected_start, expected_end, self.gcp_provider.uuid, current_bill_id, markup_value
         )
-        mock_tag_update.assert_called_with(bill_ids)
+        mock_tag_update.assert_called_with(bill_ids, start, end)
         mock_summary_update.assert_called_with(start, end, bill_ids)
 
         self.assertEqual(start_return, start)

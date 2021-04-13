@@ -216,7 +216,7 @@ class OCPAzureTagsSummary(models.Model):
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
     key = models.CharField(max_length=253)
-    values = ArrayField(models.CharField(max_length=253))
+    values = ArrayField(models.TextField())
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
     subscription_guid = models.TextField(null=True)
