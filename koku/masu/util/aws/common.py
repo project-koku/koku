@@ -34,9 +34,6 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor import enable_trino_processing
 from masu.util import common as utils
-from masu.utils.common import dict_values
-from masu.utils.common import series_values
-from masu.utils.common import unique_keys
 from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
 
 LOG = logging.getLogger(__name__)
@@ -356,26 +353,24 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
     return removed
 
 
-def get_unique_tag_keys(frame_data):
-    return unique_keys(dict_values(series_values(frame_data)))
-
-
-def aws_post_processor(data_frame, processor=None):
+def aws_post_processor(data_frame):
     """
     Consume the AWS data and add a column creating a dictionary for the aws tags
     """
+
+    def scrub_resource_col_name(res_col_name):
+        return res_col_name.replace("resourceTags/user:", "")
+
     columns = set(list(data_frame))
     columns = set(PRESTO_REQUIRED_COLUMNS).union(columns)
     columns = sorted(list(columns))
 
     resource_tag_columns = [column for column in columns if "resourceTags/user:" in column]
+    unique_keys = {scrub_resource_col_name(column) for column in resource_tag_columns}
     tag_df = data_frame[resource_tag_columns]
     resource_tags_dict = tag_df.apply(
-        lambda row: {column.replace("resourceTags/user:", ""): value for column, value in row.items()}, axis=1
+        lambda row: {scrub_resource_col_name(column): value for column, value in row.items()}, axis=1
     )
-
-    if processor is not None:
-        processor.update_enabled_keys(get_unique_tag_keys(resource_tags_dict))
 
     data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
     # Make sure we have entries for our required columns
@@ -391,7 +386,7 @@ def aws_post_processor(data_frame, processor=None):
             drop_columns.append(column)
     data_frame = data_frame.drop(columns=drop_columns)
     data_frame = data_frame.rename(columns=column_name_map)
-    return data_frame
+    return (data_frame, unique_keys)
 
 
 # pylint: disable=too-few-public-methods

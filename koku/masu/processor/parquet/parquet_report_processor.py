@@ -18,7 +18,6 @@
 import logging
 import os
 import shutil
-from io import BytesIO
 from pathlib import Path
 
 import pandas as pd
@@ -298,6 +297,7 @@ class ParquetReportProcessor:
             return False
 
         self._local_path = Path(local_path).mkdir(parents=True, exist_ok=True)
+        unique_keys = set()
 
         try:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
@@ -313,15 +313,17 @@ class ParquetReportProcessor:
                     parquet_file = f"{local_path}/{parquet_filename}"
                     if post_processor:
                         data_frame = post_processor(data_frame)
+                        if isinstance(data_frame, tuple):
+                            data_frame, data_frame_tag_keys = data_frame
+                            unique_keys.update(data_frame_tag_keys)
                     data_frame.to_parquet(parquet_file, allow_truncated_timestamps=True, coerce_timestamps="ms")
                     try:
                         with open(parquet_file, "rb") as fin:
-                            data = BytesIO(fin.read())
                             copy_data_to_s3_bucket(
                                 request_id,
                                 s3_parquet_path,
                                 parquet_filename,
-                                data,
+                                fin,
                                 manifest_id=manifest_id,
                                 context=context,
                             )
@@ -340,6 +342,9 @@ class ParquetReportProcessor:
             )
             LOG.warn(log_json(request_id, msg, context))
             return False
+
+        if unique_keys:
+            self.update_enabled_keys(unique_keys)
 
         s3_hive_table_path = get_hive_table_path(context.get("account"), self._provider_type, report_type=report_type)
 
@@ -405,6 +410,8 @@ on conflict (key) do nothing;
 
         total_rows_inserted = 0
 
+        LOG.info(f"Updating enabled tag keys from batch of {len(enabled_keys)} key values")
+
         with transaction.atomic():
             with transaction.get_connection().cursor() as cur:
                 for scalar in range(full_iter):
@@ -420,5 +427,7 @@ on conflict (key) do nothing;
                     end_ix = start_ix + rem_val
                     cur.execute(sql, enabled_keys[start_ix:end_ix])
                     total_rows_inserted += cur.rowcount
+
+        LOG.info(f"{total_rows_inserted} keys updated")
 
         return total_rows_inserted
