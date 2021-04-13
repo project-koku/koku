@@ -59,13 +59,12 @@ class Hasher:
             errmsg = f"{hash_function} requires length to be set"
             raise HasherError(errmsg)
 
-        try:
-            self._hash_function = getattr(hashlib, hash_function)
-        except AttributeError:
+        self._hash_function = getattr(hashlib, hash_function, None)
+
+        if not self._hash_function:
+            errmsg = f"{hash_function} is not currently supported."
             if hash_function in hashlib.algorithms_guaranteed:
                 errmsg = f"{hash_function} needs Hasher implementation."
-                raise HasherError(errmsg)
-            errmsg = f"{hash_function} is not currently supported."
             raise HasherError(errmsg)
 
     def hash_string_to_hex(self, string):
