@@ -246,4 +246,5 @@ class ReportDownloader:
             "assembly_id": report_context.get("assembly_id"),
             "manifest_id": manifest_id,
             "provider_uuid": self.provider_uuid,
+            "create_table": report_context.get("create_table", False),
         }
