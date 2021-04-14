@@ -1,4 +1,5 @@
 """Data export syncer."""
+import logging
 from abc import ABC
 from abc import abstractmethod
 from datetime import timedelta
@@ -6,7 +7,6 @@ from itertools import product
 
 import boto3
 from botocore.exceptions import ClientError
-from celery.utils.log import get_task_logger
 from dateutil.rrule import DAILY
 from dateutil.rrule import MONTHLY
 from dateutil.rrule import rrule
@@ -15,7 +15,7 @@ from django.utils.translation import gettext as _
 
 from api.provider.models import Provider
 
-LOG = get_task_logger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 class SyncedFileInColdStorageError(Exception):
