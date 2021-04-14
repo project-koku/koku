@@ -25,7 +25,6 @@ from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from dateutil import parser
 from django.conf import settings
-from django.db import transaction
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -44,8 +43,13 @@ from masu.util.azure.common import azure_post_processor
 from masu.util.common import get_column_converters
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
+from masu.util.common import update_enabled_keys
 from masu.util.gcp.common import gcp_post_processor
 from masu.util.ocp.common import REPORT_TYPES
+from reporting.provider.aws.models import AWSEnabledTagKeys
+from reporting.provider.azure.models import AzureEnabledTagKeys
+from reporting.provider.gcp.models import GCPEnabledTagKeys
+from reporting.provider.ocp.models import OCPEnabledTagKeys
 
 
 LOG = logging.getLogger(__name__)
@@ -71,6 +75,7 @@ class ParquetReportProcessor:
         self._start_date = context.get("start_date")
         self.presto_table_exists = {}
         self._file_list = context.get("split_files") if context.get("split_files") else [self._report_file]
+        self._resolve_enabled_tags_model()
 
     def convert_to_parquet(  # noqa: C901
         self, request_id, account, provider_uuid, provider_type, start_date, manifest_id, files=[], context={}
@@ -224,6 +229,18 @@ class ParquetReportProcessor:
                 LOG.info(log_json(request_id, msg, context))
         return keys
 
+    def _resolve_enabled_tags_model(self):
+        if self._provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+            self._enabled_tags_table = AWSEnabledTagKeys
+        elif self._provider_type in (Provider.PROVIDER_OCP,):
+            self._enabled_tags_table = OCPEnabledTagKeys
+        elif self._provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            self._enabled_tags_table = AzureEnabledTagKeys
+        elif self._provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+            self._enabled_tags_table = GCPEnabledTagKeys
+        else:
+            self._enabled_tags_table = None
+
     def create_parquet_table(self, account, provider_uuid, manifest_id, s3_parquet_path, output_file, report_type):
         """Create parquet table."""
         provider = None
@@ -235,26 +252,19 @@ class ParquetReportProcessor:
                 processor = AWSReportParquetProcessor(
                     manifest_id, account, s3_parquet_path, provider_uuid, output_file
                 )
-                provider_type = Provider.PROVIDER_AWS.lower()
             elif provider.type in (Provider.PROVIDER_OCP,):
                 processor = OCPReportParquetProcessor(
                     manifest_id, account, s3_parquet_path, provider_uuid, output_file, report_type
                 )
-                provider_type = Provider.PROVIDER_OCP.lower()
             elif provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
                 processor = AzureReportParquetProcessor(
                     manifest_id, account, s3_parquet_path, provider_uuid, output_file
                 )
-                provider_type = Provider.PROVIDER_AZURE.lower()
             elif provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
                 processor = GCPReportParquetProcessor(
                     manifest_id, account, s3_parquet_path, provider_uuid, output_file
                 )
-                provider_type = Provider.PROVIDER_GCP.lower()
-            if hasattr(processor, "postgres_enabled_tag_table"):
-                self._enabled_tags_table = processor.postgres_enabled_tag_table._meta.db_table
-            else:
-                self._enabled_tags_table = f"reporting_{provider_type}enabledtagkeys"
+
             bill_date = self._start_date.replace(day=1).date()
             processor.create_table()
             processor.create_bill(bill_date=bill_date)
@@ -351,7 +361,7 @@ class ParquetReportProcessor:
             return False
 
         if unique_keys:
-            self.update_enabled_keys(unique_keys)
+            update_enabled_keys(self._schema_name, self._enabled_tags_table, unique_keys, create=True)
 
         s3_hive_table_path = get_hive_table_path(context.get("account"), self._provider_type, report_type=report_type)
 
@@ -395,47 +405,3 @@ class ParquetReportProcessor:
     def remove_temp_cur_files(self, report_path):
         """Remove processed files."""
         pass
-
-    def update_enabled_keys(self, enabled_keys):
-        if not isinstance(enabled_keys, list):
-            enabled_keys = list(enabled_keys)
-
-        max_val = 500
-        full_iter, rem_val = divmod(len(enabled_keys), max_val)
-
-        sql_tmpl = """
-insert into {schema}.{key_table} (key)
-values
-{{values}}
-on conflict (key) do nothing;
-""".format(
-            schema=self._schema_name, key_table=self._enabled_tags_table
-        )
-        values_tmpl = "(%s)"
-
-        values_sql = ",".join([values_tmpl] * max_val)
-        sql = sql_tmpl.format(values=values_sql)
-
-        total_rows_inserted = 0
-
-        LOG.info(f"Updating enabled tag keys from batch of {len(enabled_keys)} key values")
-
-        with transaction.atomic():
-            with transaction.get_connection().cursor() as cur:
-                for scalar in range(full_iter):
-                    start_ix = scalar * max_val
-                    end_ix = start_ix + max_val
-                    cur.execute(sql, enabled_keys[start_ix:end_ix])
-                    total_rows_inserted += cur.rowcount
-
-                if rem_val > 0:
-                    values_sql = ",".join([values_tmpl] * rem_val)
-                    sql = sql_tmpl.format(values=values_sql)
-                    start_ix = full_iter * max_val
-                    end_ix = start_ix + rem_val
-                    cur.execute(sql, enabled_keys[start_ix:end_ix])
-                    total_rows_inserted += cur.rowcount
-
-        LOG.info(f"{total_rows_inserted} keys updated")
-
-        return total_rows_inserted

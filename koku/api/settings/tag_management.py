@@ -37,6 +37,7 @@ from api.tags.gcp.view import GCPTagView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledTagKeys
 from reporting.models import AzureEnabledTagKeys
 from reporting.models import GCPEnabledTagKeys
@@ -183,34 +184,6 @@ class TagManagementSettings:
         settings = self._build_tag_key()
         return [settings]
 
-    def _update_enabled_keys(self, enabled_keys, enabled_keys_table):
-        changed = False
-        all_keys = {ek.key: ek.enabled for ek in enabled_keys_table.objects.all()}
-        enabled_keys_set = set(enabled_keys)
-        new_keys = [enabled_keys_table(key=ek) for ek in enabled_keys_set - set(all_keys)]
-        update_keys_enabled = []
-        update_keys_disabled = []
-        for key in all_keys:
-            if key in enabled_keys_set:
-                if not all_keys[key]:
-                    update_keys_enabled.append(key)
-            else:
-                update_keys_disabled.append(key)
-
-        if new_keys or update_keys_enabled or update_keys_disabled:
-            changed = True
-            with schema_context(self.schema):
-                if new_keys:
-                    enabled_keys_table.bulk_create(new_keys)
-
-                if update_keys_enabled:
-                    enabled_keys_table.objects.filter(key__in=update_keys_enabled).update(enabled=True)
-
-                if update_keys_disabled:
-                    enabled_keys_table.objects.filter(key__in=update_keys_disabled).update(enabled=False)
-
-        return changed
-
     def _tag_key_handler(self, settings):
         """
         Handle setting results
@@ -238,7 +211,7 @@ class TagManagementSettings:
                 message = f"Invalid tag keys provided: {', '.join(invalid_keys)}."
                 raise ValidationError(error_obj(key, message))
             if "aws" in providerName:
-                updated[ix] = self._update_enabled_keys(enabled_tags, enabled_tag_keys)
+                updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags)
             else:
                 remove_tags = []
                 with schema_context(self.schema):

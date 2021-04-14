@@ -32,6 +32,7 @@ from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
 from pytz import UTC
+from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from api.utils import DateHelper
@@ -385,3 +386,60 @@ def determine_if_full_summary_update_needed(bill):
 def split_alphanumeric_string(s):
     for k, g in groupby(s, str.isalpha):
         yield "".join(g)
+
+
+def batch(iterable, start=0, stop=None, _slice=1):
+    iterable = list(iterable) if not isinstance(iterable, list) else iterable
+    length = len(iterable)
+    if stop is None:
+        stop = length
+    else:
+        stop = int(stop)
+    if stop < 0:
+        stop = length + stop
+    if stop > length:
+        stop = length
+    if start is None:
+        start = 0
+    else:
+        start = int(start)
+    if start < 0:
+        start = length + start
+
+    while start < stop:
+        end = start + _slice
+        res = iterable[start:end]
+        start = end
+        yield res
+
+
+def update_enabled_keys(schema, enabled_keys_model, enabled_keys, create=False):
+    changed = False
+    enabled_keys_set = set(enabled_keys)
+    update_keys_enabled = []
+    update_keys_disabled = []
+
+    with schema_context(schema):
+        all_keys = {ek.key: ek.enabled for ek in enabled_keys_model.objects.all()}
+        new_keys = list(enabled_keys_set - set(all_keys)) if create else []
+        for key in all_keys:
+            if key in enabled_keys_set:
+                if not all_keys[key]:
+                    update_keys_enabled.append(key)
+            else:
+                update_keys_disabled.append(key)
+
+        if (create and new_keys) or update_keys_enabled or update_keys_disabled:
+            changed = True
+            if create and new_keys:
+                for new_batch in batch(new_keys, _slice=500):
+                    for ix in range(len(new_batch)):
+                        new_batch[ix] = enabled_keys_model(key=new_batch[ix])
+                    enabled_keys_model.objects.bulk_create(new_batch)
+            if update_keys_enabled:
+                enabled_keys_model.objects.filter(key__in=update_keys_enabled).update(enabled=True)
+
+            if update_keys_disabled:
+                enabled_keys_model.objects.filter(key__in=update_keys_disabled).update(enabled=False)
+
+    return changed

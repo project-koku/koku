@@ -23,7 +23,6 @@ from masu.processor.report_parquet_processor_base import ReportParquetProcessorB
 from masu.util import common as utils
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
-from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
 
 
@@ -61,10 +60,6 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
     def postgres_summary_table(self):
         """Return the mode for the source specific summary table."""
         return AWSCostEntryLineItemDailySummary
-
-    @property
-    def postgres_enabled_tag_table(self):
-        return AWSEnabledTagKeys
 
     def create_bill(self, bill_date):
         """Create bill postgres entry."""
