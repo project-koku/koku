@@ -77,8 +77,7 @@ class TestParquetReportProcessor(MasuTestCase):
             context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
         )
 
-    @patch("masu.processor.parquet.parquet_report_processor.ReportManifestDBAccessor")
-    def test_convert_to_parquet(self, mock_manifest_accessor):
+    def test_convert_to_parquet(self):
         """Test the convert_to_parquet task."""
         logging.disable(logging.NOTSET)
         expected_logs = [
@@ -88,14 +87,14 @@ class TestParquetReportProcessor(MasuTestCase):
         ]
         with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
             with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-                self.report_processor.convert_to_parquet(None, None, None, None, "start_date", "manifest_id", [])
+                self.report_processor.convert_to_parquet(None, None, None, None, "start_date", 1, [])
                 for expected in expected_logs:
                     self.assertIn(expected, " ".join(logger.output))
 
         expected = "Skipping convert_to_parquet. Parquet processing is disabled."
         with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
             self.report_processor.convert_to_parquet(
-                "request_id", "account", "provider_uuid", "provider_type", "start_date", "manifest_id", "csv_file"
+                "request_id", "account", "provider_uuid", "provider_type", "start_date", 1, "csv_file"
             )
             self.assertIn(expected, " ".join(logger.output))
 
@@ -103,7 +102,7 @@ class TestParquetReportProcessor(MasuTestCase):
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
             with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
                 self.report_processor.convert_to_parquet(
-                    "request_id", "account", "provider_uuid", "provider_type", None, "manifest_id", "csv_file"
+                    "request_id", "account", "provider_uuid", "provider_type", None, 1, "csv_file"
                 )
                 self.assertIn(expected, " ".join(logger.output))
 
@@ -111,7 +110,7 @@ class TestParquetReportProcessor(MasuTestCase):
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
             with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
                 self.report_processor.convert_to_parquet(
-                    "request_id", "account", "provider_uuid", "provider_type", "bad_date", "manifest_id", "csv_file"
+                    "request_id", "account", "provider_uuid", "provider_type", "bad_date", 1, "csv_file"
                 )
                 self.assertIn(expected, " ".join(logger.output))
 
@@ -119,7 +118,7 @@ class TestParquetReportProcessor(MasuTestCase):
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
             with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
                 self.report_processor.convert_to_parquet(
-                    "request_id", "account", "provider_uuid", "OCP", "2020-01-01T12:00:00", "manifest_id", "csv_file"
+                    "request_id", "account", "provider_uuid", "OCP", "2020-01-01T12:00:00", 1, "csv_file"
                 )
                 self.assertIn(expected, " ".join(logger.output))
 
@@ -134,20 +133,32 @@ class TestParquetReportProcessor(MasuTestCase):
                 ):
                     with patch(
                         "masu.processor.parquet.parquet_report_processor.remove_files_not_in_set_from_s3_bucket"
-                    ):
+                    ) as mock_remove:
                         with patch(
                             "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
                             "convert_csv_to_parquet"
                         ):
-                            self.report_processor.convert_to_parquet(
-                                "request_id",
-                                "account",
-                                "provider_uuid",
-                                "AWS",
-                                "2020-01-01T12:00:00",
-                                "manifest_id",
-                                "csv_file",
-                            )
+                            with patch(
+                                "masu.processor.parquet.parquet_report_processor."
+                                "ReportManifestDBAccessor.get_s3_parquet_cleared",
+                                return_value=False,
+                            ) as mock_get_cleared:
+                                with patch(
+                                    "masu.processor.parquet.parquet_report_processor."
+                                    "ReportManifestDBAccessor.mark_s3_parquet_cleared"
+                                ) as mock_mark_cleared:
+                                    self.report_processor.convert_to_parquet(
+                                        "request_id",
+                                        "account",
+                                        "provider_uuid",
+                                        "AWS",
+                                        "2020-01-01T12:00:00",
+                                        1,
+                                        "csv_file",
+                                    )
+                                    mock_get_cleared.assert_called()
+                                    mock_remove.assert_called()
+                                    mock_mark_cleared.assert_called()
 
         expected = "Failed to convert the following files to parquet"
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
@@ -172,7 +183,7 @@ class TestParquetReportProcessor(MasuTestCase):
                                 "provider_uuid",
                                 "provider_type",
                                 "2020-01-01T12:00:00",
-                                "manifest_id",
+                                1,
                                 "csv_file",
                             )
                             self.assertIn(expected, " ".join(logger.output))
@@ -190,13 +201,7 @@ class TestParquetReportProcessor(MasuTestCase):
                         "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet"
                     ):
                         self.report_processor.convert_to_parquet(
-                            "request_id",
-                            "account",
-                            "provider_uuid",
-                            "OCP",
-                            "2020-01-01T12:00:00",
-                            "manifest_id",
-                            "csv_file",
+                            "request_id", "account", "provider_uuid", "OCP", "2020-01-01T12:00:00", 1, "csv_file"
                         )
 
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
@@ -212,7 +217,7 @@ class TestParquetReportProcessor(MasuTestCase):
                         "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet"
                     ):
                         self.report_processor.convert_to_parquet(
-                            "request_id", "account", "provider_uuid", "OCP", "2020-01-01T12:00:00", "manifest_id"
+                            "request_id", "account", "provider_uuid", "OCP", "2020-01-01T12:00:00", 1
                         )
 
     def test_get_file_keys_from_s3_with_manifest_id(self):
@@ -295,6 +300,30 @@ class TestParquetReportProcessor(MasuTestCase):
                                     "csv_filename.csv.gz",
                                 )
                                 self.assertFalse(result)
+
+        with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.parquet.parquet_report_processor.get_s3_resource"):
+                with patch("masu.processor.parquet.parquet_report_processor.Path"):
+                    with patch("masu.processor.parquet.parquet_report_processor.pd") as mock_pd:
+                        with patch("masu.processor.parquet.parquet_report_processor.open", side_effect=Exception):
+                            with patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"):
+                                with patch(
+                                    "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
+                                    "create_parquet_table"
+                                ):
+                                    with patch("masu.processor.parquet.parquet_report_processor.os") as mock_os:
+                                        mock_os.path.split.return_value = ("path", "file.csv.gz")
+                                        mock_pd.read_csv.return_value.__enter__.return_value = [1, 2, 3]
+                                        # mock_copy.side_effect = Exception
+                                        result = self.report_processor.convert_csv_to_parquet(
+                                            "request_id",
+                                            "s3_csv_path",
+                                            "s3_parquet_path",
+                                            "local_path",
+                                            "manifest_id",
+                                            "csv_filename.csv.gz",
+                                        )
+                                        self.assertFalse(result)
 
         with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.processor.parquet.parquet_report_processor.get_s3_resource"):

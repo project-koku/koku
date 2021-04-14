@@ -95,7 +95,6 @@ class ReportParquetProcessorBase:
         schema_check_sql = f"SHOW SCHEMAS LIKE '{self._schema_name}'"
         schema = self._execute_sql(schema_check_sql, "default")
         LOG.info("Checking for schema")
-        LOG.info(schema)
         if schema:
             return True
         return False
@@ -105,7 +104,6 @@ class ReportParquetProcessorBase:
         table_check_sql = f"SHOW TABLES LIKE '{self._table_name}'"
         table = self._execute_sql(table_check_sql, self._schema_name)
         LOG.info("Checking for table")
-        LOG.info(table)
         if table:
             return True
         return False

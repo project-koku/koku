@@ -132,3 +132,30 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
             self.processor.sync_hive_partitions()
             self.assertIn(expected_log, logger.output)
+
+    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
+    def test_schema_exists(self, mock_execute):
+        """Test that hive partitions are synced."""
+        expected_log = "INFO:masu.processor.report_parquet_processor_base:" "Checking for schema"
+        with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
+            self.processor.schema_exists()
+            self.assertIn(expected_log, logger.output)
+
+    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
+    def test_table_exists(self, mock_execute):
+        """Test that hive partitions are synced."""
+        expected_log = "INFO:masu.processor.report_parquet_processor_base:" "Checking for table"
+        with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
+            self.processor.table_exists()
+            self.assertIn(expected_log, logger.output)
+
+    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
+    def test_create_schema(self, mock_execute):
+        """Test that hive partitions are synced."""
+        expected_log = (
+            "INFO:masu.processor.report_parquet_processor_base:"
+            f"Create Trino/Hive schema SQL: CREATE SCHEMA IF NOT EXISTS acct{self.account}"
+        )
+        with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
+            self.processor.create_schema()
+            self.assertIn(expected_log, logger.output)
