@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Data Driven Component Generation for Tag Management Settings."""
-from django.db import transaction
 from django.test import RequestFactory
 from rest_framework.serializers import ValidationError
 from tenant_schemas.utils import schema_context
@@ -117,7 +116,10 @@ class TagManagementSettings:
         all_tags_set = set(avail_data)
         enabled = []
         with schema_context(self.schema):
-            enabled_tags = tag_keys_kls.objects.filter(enabled=True).all()
+            if tag_keys_kls == AWSEnabledTagKeys:
+                enabled_tags = tag_keys_kls.objects.filter(enabled=True).all()
+            else:
+                enabled_tags = tag_keys_kls.objects.all()
             enabled = [enabled_tag.key for enabled_tag in enabled_tags]
             all_tags_set.update(enabled)
 
@@ -181,57 +183,33 @@ class TagManagementSettings:
         settings = self._build_tag_key()
         return [settings]
 
-    def _update_enabled_keys(self, keys, enabled_keys_table):
-        if not isinstance(keys, list):
-            keys = list(keys)
+    def _update_enabled_keys(self, enabled_keys, enabled_keys_table):
+        changed = False
+        all_keys = {ek.key: ek.enabled for ek in enabled_keys_table.objects.all()}
+        enabled_keys_set = set(enabled_keys)
+        new_keys = [enabled_keys_table(key=ek) for ek in enabled_keys_set - set(all_keys)]
+        update_keys_enabled = []
+        update_keys_disabled = []
+        for key in all_keys:
+            if key in enabled_keys_set:
+                if not all_keys[key]:
+                    update_keys_enabled.append(key)
+            else:
+                update_keys_disabled.append(key)
 
-        max_val = 500
-        full_iter, rem_val = divmod(len(keys), max_val)
+        if new_keys or update_keys_enabled or update_keys_disabled:
+            changed = True
+            with schema_context(self.schema):
+                if new_keys:
+                    enabled_keys_table.bulk_create(new_keys)
 
-        sql_tmpl = """
-with enabled_keys as (
-    insert
-      into {schema}.{table} (key)
-    values
-    {{values}}
-        on conflict (key)
-        do update
-              set enabled = true
-    returning key
-),
-disable_targets as (
-    select d.key
-      from {schema}.{table} as d
-    except
-    select e.key
-      from enabled_keys as e
-)
-update {schema}.{table} as dk
-   set key = dt.key
-  from disable_targets dt
- where dk.key = dt.key
-;
-""".format(
-            schema=self.schema, table=enabled_keys_table._meta.db_table
-        )
-        values_tmpl = "(%s)"
+                if update_keys_enabled:
+                    enabled_keys_table.objects.filter(key__in=update_keys_enabled).update(enabled=True)
 
-        values_sql = ",".join([values_tmpl] * max_val)
-        sql = sql_tmpl.format(values=values_sql)
+                if update_keys_disabled:
+                    enabled_keys_table.objects.filter(key__in=update_keys_disabled).update(enabled=False)
 
-        with transaction.atomic():
-            with transaction.get_connection().cursor() as cur:
-                for scalar in range(full_iter):
-                    start_ix = scalar * max_val
-                    end_ix = start_ix + max_val
-                    cur.execute(sql, keys[start_ix:end_ix])
-
-                if rem_val > 0:
-                    values_sql = ",".join([values_tmpl] * rem_val)
-                    sql = sql_tmpl.format(values=values_sql)
-                    start_ix = full_iter * max_val
-                    end_ix = start_ix + rem_val
-                    cur.execute(sql, keys[start_ix:end_ix])
+        return changed
 
     def _tag_key_handler(self, settings):
         """
@@ -243,7 +221,8 @@ update {schema}.{table} as dk
         Returns:
             (Bool) - True, if a setting had an effect, False otherwise
         """
-        for providerName in obtainTagKeysProvidersParams:
+        updated = [False] * len(obtainTagKeysProvidersParams)
+        for ix, providerName in enumerate(obtainTagKeysProvidersParams):
             provider_in_settings = settings.get(providerName)
             if provider_in_settings is None:
                 continue
@@ -258,10 +237,28 @@ update {schema}.{table} as dk
                 key = "settings"
                 message = f"Invalid tag keys provided: {', '.join(invalid_keys)}."
                 raise ValidationError(error_obj(key, message))
+            if "aws" in providerName:
+                updated[ix] = self._update_enabled_keys(enabled_tags, enabled_tag_keys)
+            else:
+                remove_tags = []
+                with schema_context(self.schema):
+                    existing_enabled_tags = enabled_tag_keys.objects.all()
+                    for existing_tag in existing_enabled_tags:
+                        if existing_tag.key in enabled_tags:
+                            enabled_tags.remove(existing_tag.key)
+                        else:
+                            remove_tags.append(existing_tag)
+                            updated[ix] = True
+                    for rm_tag in remove_tags:
+                        rm_tag.delete()
+                    for new_tag in enabled_tags:
+                        enabled_tag_keys.objects.create(key=new_tag)
+                        updated[ix] = True
 
-            self._update_enabled_keys(enabled_tags, enabled_tag_keys)
-            invalidate_view_cache_for_tenant_and_source_type(self.schema, provider)
-        return True
+            if updated[ix]:
+                invalidate_view_cache_for_tenant_and_source_type(self.schema, provider)
+
+        return any(updated)
 
     def handle_settings(self, settings):
         """

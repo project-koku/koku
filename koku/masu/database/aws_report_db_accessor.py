@@ -384,20 +384,19 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         Returns
             (None)
         """
-        pass
-        # table_name = AWS_CUR_TABLE_MAP["enabled_tag_keys"]
-        # summary_sql = pkgutil.get_data("masu.database", "sql/reporting_awsenabledtagkeys.sql")
-        # summary_sql = summary_sql.decode("utf-8")
-        # summary_sql_params = {
-        #     "start_date": start_date,
-        #     "end_date": end_date,
-        #     "bill_ids": bill_ids,
-        #     "schema": self.schema,
-        # }
-        # summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        # self._execute_raw_sql_query(
-        #     table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
-        # )
+        table_name = AWS_CUR_TABLE_MAP["enabled_tag_keys"]
+        summary_sql = pkgutil.get_data("masu.database", "sql/reporting_awsenabledtagkeys.sql")
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "bill_ids": bill_ids,
+            "schema": self.schema,
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        self._execute_raw_sql_query(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+        )
 
     def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, bill_ids):
         """Populate the enabled tag key table.

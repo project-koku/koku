@@ -235,19 +235,26 @@ class ParquetReportProcessor:
                 processor = AWSReportParquetProcessor(
                     manifest_id, account, s3_parquet_path, provider_uuid, output_file
                 )
+                provider_type = Provider.PROVIDER_AWS.lower()
             elif provider.type in (Provider.PROVIDER_OCP,):
                 processor = OCPReportParquetProcessor(
                     manifest_id, account, s3_parquet_path, provider_uuid, output_file, report_type
                 )
+                provider_type = Provider.PROVIDER_OCP.lower()
             elif provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
                 processor = AzureReportParquetProcessor(
                     manifest_id, account, s3_parquet_path, provider_uuid, output_file
                 )
+                provider_type = Provider.PROVIDER_AZURE.lower()
             elif provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
                 processor = GCPReportParquetProcessor(
                     manifest_id, account, s3_parquet_path, provider_uuid, output_file
                 )
-            self._enabled_tags_table = processor.postgres_enabled_tag_table._meta.db_table
+                provider_type = Provider.PROVIDER_GCP.lower()
+            if hasattr(processor, "postgres_enabled_tag_table"):
+                self._enabled_tags_table = processor.postgres_enabled_tag_table._meta.db_table
+            else:
+                self._enabled_tags_table = f"reporting_{provider_type}enabledtagkeys"
             bill_date = self._start_date.replace(day=1).date()
             processor.create_table()
             processor.create_bill(bill_date=bill_date)
