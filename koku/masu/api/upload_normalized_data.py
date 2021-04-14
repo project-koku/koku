@@ -1,6 +1,4 @@
 """View to force the `upload_normalized_data` task to run."""
-import logging
-
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -11,8 +9,6 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from masu.celery import tasks
-
-logger = logging.getLogger(__name__)
 
 
 @never_cache

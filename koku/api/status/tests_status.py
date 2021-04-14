@@ -99,7 +99,7 @@ class StatusModelTest(TestCase):
         result = self.status_info.modules
         self.assertEqual(result, expected)
 
-    @patch("api.status.models.logger.info")
+    @patch("api.status.models.LOG.info")
     def test_startup_with_modules(self, mock_logger):
         """Test the startup method with a module list."""
         self.status_info.startup()
