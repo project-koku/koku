@@ -19,7 +19,6 @@ import datetime
 import json
 import logging
 import re
-from io import BytesIO
 
 import boto3
 from botocore.exceptions import ClientError
@@ -319,8 +318,7 @@ def copy_local_report_file_to_s3_bucket(
     if s3_path and (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(context.get("provider_uuid"))):
         LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         with open(full_file_path, "rb") as fin:
-            data = BytesIO(fin.read())
-            copy_data_to_s3_bucket(request_id, s3_path, local_filename, data, manifest_id, context)
+            copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, manifest_id, context)
 
 
 def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context={}):
