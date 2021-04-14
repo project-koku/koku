@@ -74,7 +74,7 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
             manifest_id=self.manifest_id,
-            context={"request_id": self.request_id, "start_date": DateHelper().today},
+            context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
         )
 
     @patch("masu.processor.parquet.parquet_report_processor.ReportManifestDBAccessor")
