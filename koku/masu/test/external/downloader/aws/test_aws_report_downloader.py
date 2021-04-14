@@ -193,7 +193,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         """Remove test generated data."""
         shutil.rmtree(DATA_DIR, ignore_errors=True)
 
-    @patch("masu.external.downloader.aws.aws_report_downloader.utils.ReportManifestDBAccessor")
+    @patch("masu.external.downloader.aws.aws_report_downloader.ReportManifestDBAccessor")
     @patch("masu.external.downloader.aws.aws_report_downloader.utils.remove_files_not_in_set_from_s3_bucket")
     @patch("masu.external.downloader.aws.aws_report_downloader.utils.copy_local_report_file_to_s3_bucket")
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
