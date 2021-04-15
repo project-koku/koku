@@ -17,13 +17,13 @@
 """Asynchronous tasks."""
 import datetime
 import json
+import logging
 import os
 from decimal import Decimal
 from decimal import InvalidOperation
 
 import ciso8601
 from celery import chain
-from celery.utils.log import get_task_logger
 from dateutil import parser
 from django.db import connection
 from django.db.utils import IntegrityError
@@ -61,7 +61,7 @@ from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 
-LOG = get_task_logger(__name__)
+LOG = logging.getLogger(__name__)
 
 GET_REPORT_FILES_QUEUE = "download"
 OCP_QUEUE = "ocp"

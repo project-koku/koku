@@ -15,10 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Asynchronous tasks."""
+import logging
 from os import path
 
 import psutil
-from celery.utils.log import get_task_logger
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -27,7 +27,7 @@ from masu.processor.report_processor import ReportProcessor
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 
-LOG = get_task_logger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 def _process_report_file(schema_name, provider, report_dict):

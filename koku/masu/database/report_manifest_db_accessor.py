@@ -15,7 +15,8 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report manifest database accessor for cost usage reports."""
-from celery.utils.log import get_task_logger
+import logging
+
 from django.db.models import F
 from django.db.models.expressions import Window
 from django.db.models.functions import RowNumber
@@ -26,7 +27,7 @@ from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
-LOG = get_task_logger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 class ReportManifestDBAccessor(KokuDBAccess):
