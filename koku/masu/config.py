@@ -22,7 +22,7 @@ from koku.env import ENVIRONMENT
 class Config:
     """Configuration for app."""
 
-    DEBUG = ENVIRONMENT.bool("MASU_DEBUG", default=False)
+    DEBUG = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 
     # Set method for retreiving CUR accounts. 'db' or 'network'
     ACCOUNT_ACCESS_TYPE = ENVIRONMENT.get_value("ACCOUNT_ACCESS_TYPE", default="db")
