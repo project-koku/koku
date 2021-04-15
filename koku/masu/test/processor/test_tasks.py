@@ -1220,10 +1220,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_summary,
         mock_delay,
     ):
-        """Test that the worker cache is used."""
-        task_name = "masu.processor.tasks.update_summary_tables"
-        cache_args = [self.schema]
-
+        """Test that the update_summary_table cloud exception is caught."""
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
         mock_daily.return_value = start_date, end_date
