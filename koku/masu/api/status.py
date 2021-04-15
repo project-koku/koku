@@ -35,7 +35,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from koku.celery import app as celery_app
+from koku import celery_app
 from masu.api import API_VERSION
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor

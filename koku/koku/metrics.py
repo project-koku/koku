@@ -27,7 +27,7 @@ from prometheus_client import Counter
 from prometheus_client import Gauge
 from prometheus_client import push_to_gateway
 
-from .celery import app
+from . import celery_app
 
 LOG = logging.getLogger(__name__)
 REGISTRY = CollectorRegistry()
@@ -130,7 +130,7 @@ class DatabaseStatus:
         return self.query(query, "DB storage consumption")
 
 
-@app.task(name="koku.metrics.collect_metrics", bind=True)
+@celery_app.task(name="koku.metrics.collect_metrics", bind=True)
 def collect_metrics(self):
     """Collect DB metrics with scheduled celery task."""
     db_status = DatabaseStatus()
