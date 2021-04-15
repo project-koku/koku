@@ -4,7 +4,6 @@ import logging
 import os
 import time
 
-import django
 from celery import Celery
 from celery import Task
 from celery.schedules import crontab
@@ -44,8 +43,6 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
 
 LOG.info("Starting celery.")
 # Setup the database for use in Celery
-django.setup()
-LOG.info("Database configured.")
 
 # 'app' is the recommended convention from celery docs
 # following this for ease of comparison to reference implementation
@@ -59,7 +56,7 @@ LOG.info("Celery autodiscover tasks.")
 # Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     # The interval to scan for new reports.
-    REPORT_CHECK_INTERVAL = datetime.timedelta(minutes=int(os.getenv("SCHEDULE_CHECK_INTERVAL", "60")))
+    REPORT_CHECK_INTERVAL = datetime.timedelta(minutes=ENVIRONMENT.int("SCHEDULE_CHECK_INTERVAL", default=60))
 
     CHECK_REPORT_UPDATES_DEF = {
         "task": "masu.celery.tasks.check_report_updates",
@@ -70,7 +67,7 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
 
 
 # Specify the day of the month for removal of expired report data.
-REMOVE_EXPIRED_REPORT_DATA_ON_DAY = int(ENVIRONMENT.get_value("REMOVE_EXPIRED_REPORT_DATA_ON_DAY", default="1"))
+REMOVE_EXPIRED_REPORT_DATA_ON_DAY = ENVIRONMENT.int("REMOVE_EXPIRED_REPORT_DATA_ON_DAY", default=1)
 
 # Specify the time of the day for removal of expired report data.
 REMOVE_EXPIRED_REPORT_UTC_TIME = ENVIRONMENT.get_value("REMOVE_EXPIRED_REPORT_UTC_TIME", default="00:00")

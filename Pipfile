@@ -49,6 +49,7 @@ kombu = ">=4.6.10,<5.0"
 importlib-metadata = "*"
 presto-python-client = ">=0.7.0"
 statsmodels = ">=0.12"
+app-common-python = ">=0.1.6"
 ibm-cloud-sdk-core = ">=3.5.2"
 ibm-platform-services = ">=0.17.8"
 
