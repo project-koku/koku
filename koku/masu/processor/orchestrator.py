@@ -19,6 +19,7 @@ import logging
 
 from celery import chord
 
+from api.models import Provider
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.account_label import AccountLabel
@@ -162,7 +163,8 @@ class Orchestrator:
         LOG.info(f"Found Manifests: {str(manifest)}")
         report_files = manifest.get("files", [])
         report_tasks = []
-        for report_file_dict in report_files:
+        last_report_index = len(report_files) - 1
+        for i, report_file_dict in enumerate(report_files):
             local_file = report_file_dict.get("local_file")
             report_file = report_file_dict.get("key")
 
@@ -180,6 +182,11 @@ class Orchestrator:
             report_context["current_file"] = report_file
             report_context["local_file"] = local_file
             report_context["key"] = report_file
+
+            if provider_type == Provider.PROVIDER_OCP or i == last_report_index:
+                # To reduce the number of times we check Trino/Hive tables, we just do this
+                # on the final file of the set.
+                report_context["create_table"] = True
 
             # This defaults to the celery queue
             report_tasks.append(

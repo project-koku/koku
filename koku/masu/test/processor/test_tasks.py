@@ -1149,7 +1149,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
     ):
         """Test that the worker cache is used."""
         task_name = "masu.processor.tasks.update_summary_tables"
-        cache_args = [self.schema]
+        cache_args = [self.schema, Provider.PROVIDER_AWS]
         mock_lock.side_effect = self.lock_single_task
 
         start_date = DateHelper().this_month_start
@@ -1261,7 +1261,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_lock.side_effect = self.lock_single_task
 
         task_name = "masu.processor.tasks.refresh_materialized_views"
-        cache_args = [self.schema]
+        cache_args = [self.schema, Provider.PROVIDER_AWS]
 
         manifest_dict = {
             "assembly_id": "12345",

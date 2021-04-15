@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Asynchronous tasks."""
+import logging
 import math
 import os
 from datetime import datetime
@@ -22,7 +23,6 @@ from datetime import timedelta
 
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
-from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.utils import timezone
 
@@ -46,7 +46,7 @@ from masu.processor.tasks import vacuum_schema
 from masu.processor.tasks import VACUUM_SCHEMA_QUEUE
 from masu.util.aws.common import get_s3_resource
 
-LOG = get_task_logger(__name__)
+LOG = logging.getLogger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
 
 

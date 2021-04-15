@@ -19,7 +19,6 @@ import datetime
 import json
 import logging
 import re
-from io import BytesIO
 
 import boto3
 from botocore.exceptions import ClientError
@@ -296,14 +295,14 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
 
     upload = None
     upload_key = f"{path}/{filename}"
+    extra_args = {}
+    if manifest_id:
+        extra_args = {"Metadata": {"ManifestId": str(manifest_id)}}
     try:
         s3_resource = get_s3_resource()
         s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
         upload = s3_resource.Object(**s3_obj)
-        put_value = {"Body": data}
-        if manifest_id:
-            put_value["Metadata"] = {"ManifestId": str(manifest_id)}
-        upload.put(**put_value)
+        upload.upload_fileobj(data, ExtraArgs=extra_args)
     except (EndpointConnectionError, ClientError) as err:
         msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
         LOG.info(log_json(request_id, msg, context))
@@ -319,15 +318,14 @@ def copy_local_report_file_to_s3_bucket(
     if s3_path and (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(context.get("provider_uuid"))):
         LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         with open(full_file_path, "rb") as fin:
-            data = BytesIO(fin.read())
-            copy_data_to_s3_bucket(request_id, s3_path, local_filename, data, manifest_id, context)
+            copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, manifest_id, context)
 
 
 def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context={}):
     """
     Removes all files in a given prefix if they are not within the given set.
     """
-    if not (settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING):
+    if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(context.get("provider_uuid"))):
         return []
 
     removed = []
@@ -364,7 +362,7 @@ def aws_post_processor(data_frame):
     resource_tag_columns = [column for column in columns if "resourceTags/user:" in column]
     tag_df = data_frame[resource_tag_columns]
     resource_tags_dict = tag_df.apply(
-        lambda row: {column.replace("resourceTags/user:", ""): value for column, value in row.items()}, axis=1
+        lambda row: {column.replace("resourceTags/user:", ""): value for column, value in row.items() if value}, axis=1
     )
     data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
     # Make sure we have entries for our required columns

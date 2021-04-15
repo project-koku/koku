@@ -15,9 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Prometheus metrics."""
+import logging
 import time
 
-from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.db import connection
 from django.db import InterfaceError
@@ -29,7 +29,7 @@ from prometheus_client import push_to_gateway
 
 from .celery import app
 
-LOG = get_task_logger(__name__)
+LOG = logging.getLogger(__name__)
 REGISTRY = CollectorRegistry()
 DB_CONNECTION_ERRORS_COUNTER = Counter("db_connection_errors", "Number of DB connection errors", registry=REGISTRY)
 PGSQL_GAUGE = Gauge("postgresql_schema_size_bytes", "PostgreSQL DB Size (bytes)", ["schema"], registry=REGISTRY)

@@ -17,13 +17,13 @@
 """Asynchronous tasks."""
 import datetime
 import json
+import logging
 import os
 from decimal import Decimal
 from decimal import InvalidOperation
 
 import ciso8601
 from celery import chain
-from celery.utils.log import get_task_logger
 from dateutil import parser
 from django.db import connection
 from django.db.utils import IntegrityError
@@ -61,7 +61,7 @@ from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 
-LOG = get_task_logger(__name__)
+LOG = logging.getLogger(__name__)
 
 GET_REPORT_FILES_QUEUE = "download"
 OCP_QUEUE = "ocp"
@@ -342,7 +342,7 @@ def update_summary_tables(  # noqa: C901
     """
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
     task_name = "masu.processor.tasks.update_summary_tables"
-    cache_args = [schema_name]
+    cache_args = [schema_name, provider]
 
     if not synchronous:
         worker_cache = WorkerCache()
@@ -539,7 +539,7 @@ def refresh_materialized_views(  # noqa: C901
 ):
     """Refresh the database's materialized views for reporting."""
     task_name = "masu.processor.tasks.refresh_materialized_views"
-    cache_args = [schema_name]
+    cache_args = [schema_name, provider_type]
     if not synchronous:
         worker_cache = WorkerCache()
         if worker_cache.single_task_is_running(task_name, cache_args):
