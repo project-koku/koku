@@ -5,7 +5,10 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting_common", "0001_initial")]
+    dependencies = [
+        ("reporting_common", "0001_initial"),
+        ("reporting_common", "0026_costusagereportmanifest_manifest_modified_datetime"),
+    ]
 
     operations = [
         migrations.AddField(
