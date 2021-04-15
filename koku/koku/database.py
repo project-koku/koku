@@ -47,7 +47,7 @@ engines = {
 def _cert_config(db_config, database_cert):
     """Add certificate configuration as needed."""
     if database_cert:
-        cert_file = "/etc/ssl/certs/server.pem"
+        cert_file = CONFIGURATOR.get_database_ca_file()
         db_options = {"OPTIONS": {"sslmode": "verify-full", "sslrootcert": cert_file}}
         db_config.update(db_options)
     return db_config

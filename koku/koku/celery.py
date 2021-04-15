@@ -43,6 +43,8 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
 
 LOG.info("Starting celery.")
 # Setup the database for use in Celery
+# django.setup()
+# LOG.info("Database configured.")
 
 # 'app' is the recommended convention from celery docs
 # following this for ease of comparison to reference implementation
