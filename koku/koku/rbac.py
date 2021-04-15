@@ -27,7 +27,7 @@ from api.query_handler import WILDCARD
 from koku.env import ENVIRONMENT
 
 
-LOGGER = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 RBAC_CONNECTION_ERROR_COUNTER = Counter("rbac_connection_errors", "Number of RBAC ConnectionErros.")
 PROTOCOL = "protocol"
 HOST = "host"
@@ -92,7 +92,7 @@ def _process_acls(acls):
                 access[res_typ] = []
             access[res_typ].append(acl_data)
         except ValueError as exc:
-            LOGGER.error("Skipping invalid ACL: %s", exc)
+            LOG.error("Skipping invalid ACL: %s", exc)
     if access == {}:
         return None
     return access
@@ -106,7 +106,7 @@ def _get_operation(access_item, res_type):
         if operations:
             operation = operations[-1]
         else:
-            LOGGER.error("Wildcard specified for invalid resource type - %s", res_type)
+            LOG.error("Wildcard specified for invalid resource type - %s", res_type)
             raise ValueError(f"Invalid resource type: {res_type}")
     return operation
 
@@ -197,33 +197,33 @@ class RbacService:
         try:
             response = requests.get(url, headers=headers)
         except ConnectionError as err:
-            LOGGER.warning("Error requesting user access: %s", err)
+            LOG.warning("Error requesting user access: %s", err)
             RBAC_CONNECTION_ERROR_COUNTER.inc()
             raise RbacConnectionError(err)
 
         if response.status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR:
             msg = ">=500 Response from RBAC"
-            LOGGER.warning(msg)
+            LOG.warning(msg)
             RBAC_CONNECTION_ERROR_COUNTER.inc()
             raise RbacConnectionError(msg)
 
         if response.status_code != status.HTTP_200_OK:
             try:
                 error = response.json()
-                LOGGER.warning("Error requesting user access: %s", error)
+                LOG.warning("Error requesting user access: %s", error)
             except (JSONDecodeError, ValueError) as res_error:
-                LOGGER.warning("Error processing failed, %s, user access: %s", response.status_code, res_error)
+                LOG.warning("Error processing failed, %s, user access: %s", response.status_code, res_error)
             return access
 
         # check for pagination handling
         try:
             data = response.json()
         except ValueError as res_error:
-            LOGGER.error("Error processing user access: %s", res_error)
+            LOG.error("Error processing user access: %s", res_error)
             return access
 
         if not isinstance(data, dict):
-            LOGGER.error("Error processing user access. Unexpected response object: %s", data)
+            LOG.error("Error processing user access. Unexpected response object: %s", data)
             return access
 
         next_link = data.get("links", {}).get("next")

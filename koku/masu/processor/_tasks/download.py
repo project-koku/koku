@@ -15,8 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Asynchronous tasks."""
+import logging
+
 import psutil
-from celery.utils.log import get_task_logger
 
 import masu.prometheus_stats as worker_stats
 from api.common import log_json
@@ -27,7 +28,7 @@ from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.worker_cache import WorkerCache
 
-LOG = get_task_logger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 # disabled until the program flow stabilizes a bit more

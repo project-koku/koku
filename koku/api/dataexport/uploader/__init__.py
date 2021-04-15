@@ -6,7 +6,7 @@ from abc import abstractmethod
 import boto3
 from django.conf import settings
 
-logger = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 class UploaderInterface(ABC):
@@ -51,11 +51,11 @@ class AwsS3Uploader(UploaderInterface):
 
         """
         if settings.ENABLE_S3_ARCHIVING:
-            logger.info("uploading %s to s3://%s/%s", local_path, self.s3_bucket_name, remote_path)
+            LOG.info("uploading %s to s3://%s/%s", local_path, self.s3_bucket_name, remote_path)
             try:
                 self.s3_client.upload_file(local_path, self.s3_bucket_name, remote_path)
             except Exception as e:
-                logger.exception(
+                LOG.exception(
                     "Failed to upload %s to s3://%s/%s due to %s(%s)",
                     local_path,
                     self.s3_bucket_name,
@@ -64,6 +64,6 @@ class AwsS3Uploader(UploaderInterface):
                     str(e),
                 )
                 raise e
-            logger.info("finished uploading %s to s3://%s/%s", local_path, self.s3_bucket_name, remote_path)
+            LOG.info("finished uploading %s to s3://%s/%s", local_path, self.s3_bucket_name, remote_path)
         else:
-            logger.info("Skipping upload of %s to %s; upload feature is disabled", local_path, self.s3_bucket_name)
+            LOG.info("Skipping upload of %s to %s; upload feature is disabled", local_path, self.s3_bucket_name)

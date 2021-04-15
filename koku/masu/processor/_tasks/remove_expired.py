@@ -15,11 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Remove expired data asynchronous tasks."""
-from celery.utils.log import get_task_logger
+import logging
 
 from masu.processor.expired_data_remover import ExpiredDataRemover
 
-LOG = get_task_logger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 def _remove_expired_data(schema_name, provider, simulate, provider_uuid=None, line_items_only=False):
