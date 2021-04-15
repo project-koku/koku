@@ -177,3 +177,29 @@ class ReportManifestDBAccessor(KokuDBAccess):
             provider_uuid,
             expired_date,
         )
+
+    def get_s3_csv_cleared(self, manifest):
+        """Return whether we have cleared CSV files from S3 for this manifest."""
+        s3_csv_cleared = False
+        if manifest:
+            s3_csv_cleared = manifest.s3_csv_cleared
+        return s3_csv_cleared
+
+    def mark_s3_csv_cleared(self, manifest):
+        """Return whether we have cleared CSV files from S3 for this manifest."""
+        if manifest:
+            manifest.s3_csv_cleared = True
+            manifest.save()
+
+    def get_s3_parquet_cleared(self, manifest):
+        """Return whether we have cleared CSV files from S3 for this manifest."""
+        s3_parquet_cleared = False
+        if manifest:
+            s3_parquet_cleared = manifest.s3_parquet_cleared
+        return s3_parquet_cleared
+
+    def mark_s3_parquet_cleared(self, manifest):
+        """Return whether we have cleared CSV files from S3 for this manifest."""
+        if manifest:
+            manifest.s3_parquet_cleared = True
+            manifest.save()
