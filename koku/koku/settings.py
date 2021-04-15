@@ -300,10 +300,10 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": DEFAULT_EXCEPTION_HANDLER,
 }
 
-CW_AWS_ACCESS_KEY_ID = ENVIRONMENT.get_value("CW_AWS_ACCESS_KEY_ID", default=None)
-CW_AWS_SECRET_ACCESS_KEY = ENVIRONMENT.get_value("CW_AWS_SECRET_ACCESS_KEY", default=None)
-CW_AWS_REGION = ENVIRONMENT.get_value("CW_AWS_REGION", default="us-east-1")
-CW_LOG_GROUP = ENVIRONMENT.get_value("CW_LOG_GROUP", default="platform-dev")
+CW_AWS_ACCESS_KEY_ID = CONFIGURATOR.get_cloudwatch_access_id()
+CW_AWS_SECRET_ACCESS_KEY = CONFIGURATOR.get_cloudwatch_access_key()
+CW_AWS_REGION = CONFIGURATOR.get_cloudwatch_region()
+CW_LOG_GROUP = CONFIGURATOR.get_cloudwatch_log_group()
 
 LOGGING_FORMATTER = ENVIRONMENT.get_value("DJANGO_LOG_FORMATTER", default="simple")
 DJANGO_LOGGING_LEVEL = ENVIRONMENT.get_value("DJANGO_LOG_LEVEL", default="INFO")

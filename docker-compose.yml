@@ -384,6 +384,7 @@ services:
         - DEMO_ACCOUNTS
         - prometheus_multiproc_dir=/tmp
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+        - RUN_GUNICORN=${RUN_GUNICORN-False}
       privileged: true
       ports:
           - 4000:8080
