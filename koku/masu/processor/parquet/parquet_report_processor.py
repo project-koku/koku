@@ -40,10 +40,10 @@ from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import get_s3_resource
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.azure.common import azure_post_processor
+from masu.util.common import create_enabled_keys
 from masu.util.common import get_column_converters
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
-from masu.util.common import update_enabled_keys
 from masu.util.gcp.common import gcp_post_processor
 from masu.util.ocp.common import REPORT_TYPES
 from reporting.provider.aws.models import AWSEnabledTagKeys
@@ -361,7 +361,7 @@ class ParquetReportProcessor:
             return False
 
         if unique_keys:
-            update_enabled_keys(self._schema_name, self._enabled_tags_table, unique_keys, create=True)
+            create_enabled_keys(self._schema_name, self._enabled_tags_table, unique_keys)
 
         s3_hive_table_path = get_hive_table_path(context.get("account"), self._provider_type, report_type=report_type)
 

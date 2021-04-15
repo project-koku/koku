@@ -413,33 +413,50 @@ def batch(iterable, start=0, stop=None, _slice=1):
         yield res
 
 
-def update_enabled_keys(schema, enabled_keys_model, enabled_keys, create=False):
+def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
+    LOG.info(f"Starting create_enabled_keys")
+    changed = False
+    enabled_keys_set = set(enabled_keys)
+
+    with schema_context(schema):
+        new_keys = list(enabled_keys_set - {k.key for k in enabled_keys_model.objects.all()})
+        if new_keys:
+            changed = True
+            # Processing in batches for increased efficiency
+            for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
+                batch_size = len(new_batch)
+                LOG.info(f"Create batch {batch_num + 1}: batch_size {batch_size}")
+                for ix in range(batch_size):
+                    new_batch[ix] = enabled_keys_model(key=new_batch[ix])
+                enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
+
+    return changed
+
+
+def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
+    LOG.info(f"Starting update_enabled_keys")
     changed = False
     enabled_keys_set = set(enabled_keys)
     update_keys_enabled = []
     update_keys_disabled = []
 
     with schema_context(schema):
-        all_keys = {ek.key: ek.enabled for ek in enabled_keys_model.objects.all()}
-        new_keys = list(enabled_keys_set - set(all_keys)) if create else []
-        for key in all_keys:
-            if key in enabled_keys_set:
-                if not all_keys[key]:
-                    update_keys_enabled.append(key)
+        for key in enabled_keys_model.objects.all():
+            if key.key in enabled_keys_set:
+                if not key.enabled:
+                    update_keys_enabled.append(key.key)
             else:
-                update_keys_disabled.append(key)
+                update_keys_disabled.append(key.key)
 
-        if (create and new_keys) or update_keys_enabled or update_keys_disabled:
+        # When we are in create mode, we do not want to change the state of existing keys
+        if update_keys_enabled or update_keys_disabled:
             changed = True
-            if create and new_keys:
-                for new_batch in batch(new_keys, _slice=500):
-                    for ix in range(len(new_batch)):
-                        new_batch[ix] = enabled_keys_model(key=new_batch[ix])
-                    enabled_keys_model.objects.bulk_create(new_batch)
             if update_keys_enabled:
+                LOG.info(f"Updating {len(update_keys_enabled)} keys to ENABLED")
                 enabled_keys_model.objects.filter(key__in=update_keys_enabled).update(enabled=True)
 
             if update_keys_disabled:
+                LOG.info(f"Updating {len(update_keys_disabled)} keys to DISABLED")
                 enabled_keys_model.objects.filter(key__in=update_keys_disabled).update(enabled=False)
 
     return changed
