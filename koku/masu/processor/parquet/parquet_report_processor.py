@@ -17,7 +17,6 @@
 """Processor to convert Cost Usage Reports to parquet."""
 import logging
 import os
-import shutil
 from pathlib import Path
 
 import pandas as pd
@@ -30,6 +29,7 @@ from api.common import log_json
 from api.provider.models import Provider
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor import enable_trino_processing
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
@@ -75,6 +75,7 @@ class ParquetReportProcessor:
         self._start_date = context.get("start_date")
         self.presto_table_exists = {}
         self._file_list = context.get("split_files") if context.get("split_files") else [self._report_file]
+        self._create_table = context.get("create_table", False)
         self._resolve_enabled_tags_model()
 
     def convert_to_parquet(  # noqa: C901
@@ -146,11 +147,19 @@ class ParquetReportProcessor:
                 LOG.info(log_json(request_id, msg, context))
                 return
 
+        manifest_accessor = ReportManifestDBAccessor()
+        manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+
         post_processor = None
         # OCP data is daily chunked report files.
         # AWS and Azure are monthly reports. Previous reports should be removed so data isn't duplicated
-        if provider_type not in (Provider.PROVIDER_OCP, Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+        if not manifest_accessor.get_s3_parquet_cleared(manifest) and provider_type not in (
+            Provider.PROVIDER_OCP,
+            Provider.PROVIDER_GCP,
+            Provider.PROVIDER_GCP_LOCAL,
+        ):
             remove_files_not_in_set_from_s3_bucket(request_id, s3_parquet_path, manifest_id, context)
+            manifest_accessor.mark_s3_parquet_cleared(manifest)
 
         if provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
             post_processor = aws_post_processor
@@ -266,9 +275,13 @@ class ParquetReportProcessor:
                 )
 
             bill_date = self._start_date.replace(day=1).date()
-            processor.create_table()
+            if not processor.schema_exists():
+                processor.create_schema()
+            if not processor.table_exists():
+                processor.create_table()
             processor.create_bill(bill_date=bill_date)
             processor.get_or_create_postgres_partition(bill_date=bill_date)
+            processor.sync_hive_partitions()
             self.presto_table_exists[report_type] = True
 
     def convert_csv_to_parquet(  # noqa: C901
@@ -319,9 +332,6 @@ class ParquetReportProcessor:
         try:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
             converters.update({col: str for col in col_names if col not in converters})
-            data_frame = pd.read_csv(
-                csv_filename, converters=converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
-            )
             with pd.read_csv(
                 csv_filename, converters=converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
             ) as reader:
@@ -347,39 +357,42 @@ class ParquetReportProcessor:
                             msg = f"{parquet_file} sent to S3."
                             LOG.info(msg)
                     except Exception as err:
-                        shutil.rmtree(local_path, ignore_errors=True)
                         s3_key = f"{s3_parquet_path}/{parquet_file}"
                         msg = f"File {csv_filename} could not be written as parquet to S3 {s3_key}. Reason: {str(err)}"
                         LOG.warn(log_json(request_id, msg, context))
                         return False
+
+            if unique_keys:
+                create_enabled_keys(self.schema, self._enabled_tags_table, unique_keys)
+
+            s3_hive_table_path = get_hive_table_path(
+                context.get("account"), self._provider_type, report_type=report_type
+            )
+
+            if self._create_table and not self.presto_table_exists.get(report_type):
+                self.create_parquet_table(
+                    context.get("account"),
+                    context.get("provider_uuid"),
+                    manifest_id,
+                    s3_hive_table_path,
+                    parquet_file,
+                    report_type,
+                )
         except Exception as err:
-            shutil.rmtree(local_path, ignore_errors=True)
             msg = (
                 f"File {csv_filename} could not be written as parquet to temp file {parquet_file}. Reason: {str(err)}"
             )
             LOG.warn(log_json(request_id, msg, context))
             return False
+        finally:
+            # Delete the local parquet file
+            if os.path.exists(parquet_file):
+                os.remove(parquet_file)
 
-        if unique_keys:
-            create_enabled_keys(self._schema_name, self._enabled_tags_table, unique_keys)
+            # Now we can delete the local CSV
+            if os.path.exists(csv_filename):
+                os.remove(csv_filename)
 
-        s3_hive_table_path = get_hive_table_path(context.get("account"), self._provider_type, report_type=report_type)
-
-        if not self.presto_table_exists.get(report_type):
-            self.create_parquet_table(
-                context.get("account"),
-                context.get("provider_uuid"),
-                manifest_id,
-                s3_hive_table_path,
-                parquet_file,
-                report_type,
-            )
-
-        # Delete the local parquet files
-        shutil.rmtree(local_path, ignore_errors=True)
-        # Now we can delete the local CSV
-        if os.path.exists(csv_filename):
-            os.remove(csv_filename)
         return True
 
     def process(self):
