@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for temporary force download endpoint."""
-import logging
-
 from django.views.decorators.cache import never_cache
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
@@ -26,8 +24,6 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from masu.celery.tasks import check_report_updates
-
-logger = logging.getLogger(__name__)
 
 
 @never_cache

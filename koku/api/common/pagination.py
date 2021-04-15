@@ -25,7 +25,7 @@ from api import API_VERSION
 from api.utils import DateHelper
 
 PATH_INFO = "PATH_INFO"
-logger = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 class StandardResultsSetPagination(LimitOffsetPagination):
@@ -47,7 +47,7 @@ class StandardResultsSetPagination(LimitOffsetPagination):
                 path_link = "{}{}"
                 url = path_link.format(path[:path_api_index], link[local_api_index:])
             except ValueError:
-                logger.warning(f'Unable to rewrite link as "{version}" was not found.')
+                LOG.warning(f'Unable to rewrite link as "{version}" was not found.')
         return url
 
     def get_first_link(self):
