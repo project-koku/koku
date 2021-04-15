@@ -24,7 +24,7 @@ import sys
 from api import API_VERSION
 from koku.rbac import RbacService
 
-logger = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 class Status:
@@ -78,21 +78,21 @@ class Status:
 
     def startup(self):
         """Log startup information."""
-        logger.info("Platform:")
+        LOG.info("Platform:")
         for name, value in self.platform_info.items():
-            logger.info("%s - %s ", name, value)
+            LOG.info("%s - %s ", name, value)
 
-        logger.info("Python: %s", self.python_version)
+        LOG.info("Python: %s", self.python_version)
         module_list = []
         for mod, version in self.modules.items():
             module_list.append(f"{mod} - {version}")
 
         if module_list:
-            logger.info("Modules: %s", ", ".join(module_list))
+            LOG.info("Modules: %s", ", ".join(module_list))
         else:
-            logger.info("Modules: None")
-        logger.info("Commit: %s", self.commit)
-        logger.info("API Version: %s", self.api_version)
+            LOG.info("Modules: None")
+        LOG.info("Commit: %s", self.commit)
+        LOG.info("API Version: %s", self.api_version)
 
     @property
     def rbac_cache_ttl(self):
