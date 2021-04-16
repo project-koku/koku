@@ -440,29 +440,28 @@ def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
     LOG.info("Updating enabled tag keys records")
     changed = False
 
-    if enabled_keys:
-        enabled_keys_set = set(enabled_keys)
-        update_keys_enabled = []
-        update_keys_disabled = []
+    enabled_keys_set = set(enabled_keys)
+    update_keys_enabled = []
+    update_keys_disabled = []
 
-        with schema_context(schema):
-            for key in enabled_keys_model.objects.all():
-                if key.key in enabled_keys_set:
-                    if not key.enabled:
-                        update_keys_enabled.append(key.key)
-                else:
-                    update_keys_disabled.append(key.key)
+    with schema_context(schema):
+        for key in enabled_keys_model.objects.all():
+            if key.key in enabled_keys_set:
+                if not key.enabled:
+                    update_keys_enabled.append(key.key)
+            else:
+                update_keys_disabled.append(key.key)
 
-            # When we are in create mode, we do not want to change the state of existing keys
-            if update_keys_enabled or update_keys_disabled:
-                changed = True
-                if update_keys_enabled:
-                    LOG.info(f"Updating {len(update_keys_enabled)} keys to ENABLED")
-                    enabled_keys_model.objects.filter(key__in=update_keys_enabled).update(enabled=True)
+        # When we are in create mode, we do not want to change the state of existing keys
+        if update_keys_enabled or update_keys_disabled:
+            changed = True
+            if update_keys_enabled:
+                LOG.info(f"Updating {len(update_keys_enabled)} keys to ENABLED")
+                enabled_keys_model.objects.filter(key__in=update_keys_enabled).update(enabled=True)
 
-                if update_keys_disabled:
-                    LOG.info(f"Updating {len(update_keys_disabled)} keys to DISABLED")
-                    enabled_keys_model.objects.filter(key__in=update_keys_disabled).update(enabled=False)
+            if update_keys_disabled:
+                LOG.info(f"Updating {len(update_keys_disabled)} keys to DISABLED")
+                enabled_keys_model.objects.filter(key__in=update_keys_disabled).update(enabled=False)
 
     if not changed:
         LOG.info("No enabled keys updated.")
