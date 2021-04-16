@@ -15,16 +15,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 import logging
-import os
 import time
 
+from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
 from koku.database import check_migrations
-from koku.env import ENVIRONMENT
 from sources.kafka_listener import initialize_sources_integration
-
-# from django.core.management import call_command
 
 LOG = logging.getLogger(__name__)
 
@@ -50,14 +47,14 @@ class Command(BaseCommand):
         options["use_reloader"] = False
         options.pop("skip_checks", None)
 
-        if ENVIRONMENT.bool("RUN_GUNICORN", default=True):
+        # if ENVIRONMENT.bool("RUN_GUNICORN", default=True):
 
-            # This calls the container `run` file
-            os.system("gunicorn koku.wsgi --bind=0.0.0.0:8080 --access-logfile=- --config gunicorn.py --chdir ./koku")
+        #     # This calls the container `run` file
+        #     os.system("gunicorn koku.wsgi --bind=0.0.0.0:8080 --access-logfile=- --config gunicorn.py --chdir ./koku")
 
-        else:
-            from django.core.management import call_command
+        # else:
+        #     from django.core.management import call_command
 
-            call_command("runserver", addrport, *args, **options)
+        #     call_command("runserver", addrport, *args, **options)
 
-        # call_command("runserver", addrport, *args, **options)
+        call_command("runserver", addrport, *args, **options)
