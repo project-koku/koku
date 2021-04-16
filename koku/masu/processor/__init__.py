@@ -29,7 +29,10 @@ ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 def enable_trino_processing(source_uuid, source_type, account):
     """Helper to determine if source is enabled for Trino."""
-    LOG.info(f"enable_trino_processing({source_uuid}, {source_type}, {account}")
+    if not account.startswith('acct'):
+        account = f"acct{account}"
+
+    LOG.info(f"enable_trino_processing({source_uuid}, {source_type}, {account})")
     if (
         settings.ENABLE_PARQUET_PROCESSING
         or source_uuid in settings.ENABLE_TRINO_SOURCES
