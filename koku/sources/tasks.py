@@ -19,6 +19,7 @@ import logging
 
 from koku import celery_app
 from masu.processor.tasks import PRIORITY_QUEUE
+from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.storage import load_providers_to_delete
 
@@ -33,7 +34,7 @@ def delete_source(source_id, auth_header, koku_uuid):
     coordinator.destroy_account(koku_uuid)
 
 
-@celery_app.task(name="sources.tasks.delete_source_beat", queue="remove_expired")
+@celery_app.task(name="sources.tasks.delete_source_beat", queue=REMOVE_EXPIRED_DATA_QUEUE)
 def delete_source_beat():
     providers = load_providers_to_delete()
     for p in providers:

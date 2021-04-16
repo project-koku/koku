@@ -34,6 +34,8 @@ REGISTRY = CollectorRegistry()
 DB_CONNECTION_ERRORS_COUNTER = Counter("db_connection_errors", "Number of DB connection errors", registry=REGISTRY)
 PGSQL_GAUGE = Gauge("postgresql_schema_size_bytes", "PostgreSQL DB Size (bytes)", ["schema"], registry=REGISTRY)
 
+SUMMARIZE_REPORTS_QUEUE = "summary"
+
 
 class DatabaseStatus:
     """Database status information."""
@@ -130,7 +132,7 @@ class DatabaseStatus:
         return self.query(query, "DB storage consumption")
 
 
-@celery_app.task(name="koku.metrics.collect_metrics", bind=True)
+@celery_app.task(name="koku.metrics.collect_metrics", bind=True, queue=SUMMARIZE_REPORTS_QUEUE)
 def collect_metrics(self):
     """Collect DB metrics with scheduled celery task."""
     db_status = DatabaseStatus()
