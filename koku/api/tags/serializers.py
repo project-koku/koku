@@ -19,6 +19,7 @@ from rest_framework import serializers
 
 from api.report.serializers import add_operator_specified_fields
 from api.report.serializers import handle_invalid_fields
+from api.report.serializers import ParamSerializer
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 from api.utils import DateHelper
@@ -164,7 +165,7 @@ class GCPFilterSerializer(FilterSerializer):
         add_operator_specified_fields(self.fields, GCP_FILTER_OP_FIELDS)
 
 
-class TagsQueryParamSerializer(serializers.Serializer):
+class TagsQueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
     filter = FilterSerializer(required=False)
@@ -189,28 +190,6 @@ class TagsQueryParamSerializer(serializers.Serializer):
         """
         super().validate(data)
         handle_invalid_fields(self, data)
-
-        start_date = data.get("start_date")
-        end_date = data.get("end_date")
-        time_scope_value = data.get("filter", {}).get("time_scope_value")
-        time_scope_units = data.get("filter", {}).get("time_scope_units")
-
-        if (start_date or end_date) and (time_scope_value or time_scope_units):
-            error = {
-                "error": (
-                    "The parameters [start_date, end_date] may not be ",
-                    "used with the filters [time_scope_value, time_scope_units]",
-                )
-            }
-            raise serializers.ValidationError(error)
-
-        if (start_date and not end_date) or (end_date and not start_date):
-            error = {"error": "The parameters [start_date, end_date] must both be defined."}
-            raise serializers.ValidationError(error)
-
-        if start_date and end_date and (start_date > end_date):
-            error = {"error": "start_date must be a date that is before end_date."}
-            raise serializers.ValidationError(error)
 
         return data
 

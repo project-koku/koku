@@ -19,6 +19,7 @@ from rest_framework import serializers
 
 from api.report.serializers import add_operator_specified_fields
 from api.report.serializers import handle_invalid_fields
+from api.report.serializers import ParamSerializer
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 from api.utils import DateHelper
@@ -89,7 +90,7 @@ class AWSOrgFilterSerializer(FilterSerializer):
         add_operator_specified_fields(self.fields, AWS_FILTER_OP_FIELDS)
 
 
-class OrgQueryParamSerializer(serializers.Serializer):
+class OrgQueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
     filter = FilterSerializer(required=False)
