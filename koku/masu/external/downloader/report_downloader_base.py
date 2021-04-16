@@ -59,7 +59,12 @@ class ReportDownloaderBase:
         self._provider_type = kwargs.get("provider_type")
         self.request_id = kwargs.get("request_id")
         self.account = kwargs.get("account")
-        self.context = {"request_id": self.request_id, "provider_uuid": self._provider_uuid, "provider_type": self._provider_type, "account": self.account}
+        self.context = {
+            "request_id": self.request_id,
+            "provider_uuid": self._provider_uuid,
+            "provider_type": self._provider_type,
+            "account": self.account,
+        }
 
     def _get_existing_manifest_db_id(self, assembly_id):
         """Return a manifest DB object if it exists."""

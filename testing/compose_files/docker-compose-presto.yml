@@ -88,4 +88,4 @@ services:
 networks:
  default:
    external:
-     name: koku2_default
+     name: koku_default
