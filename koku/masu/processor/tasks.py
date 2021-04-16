@@ -52,6 +52,7 @@ from masu.processor.cost_model_cost_updater import CostModelCostUpdater
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
+from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.worker_cache import WorkerCache
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
@@ -373,6 +374,8 @@ def update_summary_tables(  # noqa: C901
         updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
         start_date, end_date = updater.update_daily_tables(start_date, end_date)
         updater.update_summary_tables(start_date, end_date)
+    except ReportSummaryUpdaterCloudError as ex:
+        LOG.info(f"Failed to correlate OpenShift metrics for provider: {str(provider_uuid)}. Error: {str(ex)}")
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
