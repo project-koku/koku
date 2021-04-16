@@ -354,6 +354,10 @@ class ParamSerializer(BaseSerializer):
             error = {"error": "start_date must be a date that is before end_date."}
             raise serializers.ValidationError(error)
 
+        if data.get("filter", {}).get("resolution") == "monthly" and (data.get("start_date") or data.get("end_date")):
+             error = {"error": "Monthly resolution is not supported with start_date and end_date parameters."}
+             raise serializers.ValidationError(error)
+
         return data
 
     def validate_order_by(self, value):
