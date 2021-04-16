@@ -290,7 +290,10 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
     """
     Copies data to s3 bucket file
     """
-    if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(context.get("provider_uuid"))):
+    if not (
+        settings.ENABLE_S3_ARCHIVING
+        or enable_trino_processing(context.get("provider_uuid"), context.get("provider_type"), context.get("account"))
+    ):
         return None
 
     upload = None
@@ -315,7 +318,10 @@ def copy_local_report_file_to_s3_bucket(
     """
     Copies local report file to s3 bucket
     """
-    if s3_path and (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(context.get("provider_uuid"))):
+    if s3_path and (
+        settings.ENABLE_S3_ARCHIVING
+        or enable_trino_processing(context.get("provider_uuid"), context.get("provider_type"), context.get("account"))
+    ):
         LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         with open(full_file_path, "rb") as fin:
             copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, manifest_id, context)
@@ -325,7 +331,10 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
     """
     Removes all files in a given prefix if they are not within the given set.
     """
-    if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(context.get("provider_uuid"))):
+    if not (
+        settings.ENABLE_S3_ARCHIVING
+        or enable_trino_processing(context.get("provider_uuid"), context.get("provider_type"), context.get("account"))
+    ):
         return []
 
     removed = []

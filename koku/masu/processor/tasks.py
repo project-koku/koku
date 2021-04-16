@@ -387,7 +387,7 @@ def update_summary_tables(  # noqa: C901
         ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
         return
 
-    if enable_trino_processing(provider_uuid) and provider in (
+    if enable_trino_processing(provider_uuid, provider, schema_name) and provider in (
         Provider.PROVIDER_AWS,
         Provider.PROVIDER_AWS_LOCAL,
         Provider.PROVIDER_AZURE,
