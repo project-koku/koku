@@ -100,25 +100,33 @@ class ReportSummaryUpdater:
         if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             report_summary_updater = (
                 AWSReportParquetSummaryUpdater
-                if enable_trino_processing(self._provider_uuid)
+                if enable_trino_processing(
+                    self._provider_uuid, self._provider.type, self._provider.customer.schema_name
+                )
                 else AWSReportSummaryUpdater
             )
         elif self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             report_summary_updater = (
                 AzureReportParquetSummaryUpdater
-                if enable_trino_processing(self._provider_uuid)
+                if enable_trino_processing(
+                    self._provider_uuid, self._provider.type, self._provider.customer.schema_name
+                )
                 else AzureReportSummaryUpdater
             )
         elif self._provider.type in (Provider.PROVIDER_OCP,):
             report_summary_updater = (
                 OCPReportParquetSummaryUpdater
-                if enable_trino_processing(self._provider_uuid)
+                if enable_trino_processing(
+                    self._provider_uuid, self._provider.type, self._provider.customer.schema_name
+                )
                 else OCPReportSummaryUpdater
             )
         elif self._provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             report_summary_updater = (
                 GCPReportParquetSummaryUpdater
-                if enable_trino_processing(self._provider_uuid)
+                if enable_trino_processing(
+                    self._provider_uuid, self._provider.type, self._provider.customer.schema_name
+                )
                 else GCPReportSummaryUpdater
             )
         else:
@@ -126,7 +134,7 @@ class ReportSummaryUpdater:
 
         ocp_cloud_updater = (
             OCPCloudParquetReportSummaryUpdater
-            if enable_trino_processing(self._provider_uuid)
+            if enable_trino_processing(self._provider_uuid, self._provider.type, self._provider.customer.schema_name)
             else OCPCloudReportSummaryUpdater
         )
 

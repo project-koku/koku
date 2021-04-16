@@ -47,6 +47,8 @@ services:
         - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
         - RUN_GUNICORN=${RUN_GUNICORN}
         - ENABLE_TRINO_SOURCES
+        - ENABLE_TRINO_ACCOUNTS
+        - ENABLE_TRINO_SOURCE_TYPE
       privileged: true
       ports:
           - 8000:8000
@@ -101,6 +103,8 @@ services:
         - MASU_DATE_OVERRIDE
         - MASU_DEBUG
         - ENABLE_TRINO_SOURCES
+        - ENABLE_TRINO_ACCOUNTS
+        - ENABLE_TRINO_SOURCE_TYPE
 
       privileged: true
       ports:
@@ -272,6 +276,8 @@ services:
         - DATE_OVERRIDE
         - MASU_DEBUG
         - ENABLE_TRINO_SOURCES
+        - ENABLE_TRINO_ACCOUNTS
+        - ENABLE_TRINO_SOURCE_TYPE
         - TRINO_DATE_STEP=${TRINO_DATE_STEP-31}
 
       privileged: true
@@ -336,6 +342,8 @@ services:
         - PRESTO_HOST=${PRESTO_HOST-presto}
         - PRESTO_PORT=${PRESTO_PORT-8080}
         - ENABLE_TRINO_SOURCES
+        - ENABLE_TRINO_ACCOUNTS
+        - ENABLE_TRINO_SOURCE_TYPE
 
       privileged: true
       ports:
