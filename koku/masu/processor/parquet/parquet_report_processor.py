@@ -213,7 +213,9 @@ class ParquetReportProcessor:
         Get all files in a given prefix that match the given manifest_id.
         """
         # TODO: Verify account format
-        if not enable_trino_processing(context.get("provider_uuid"), context.get("provider_type"), context.get("account")):
+        if not enable_trino_processing(
+            context.get("provider_uuid"), context.get("provider_type"), context.get("account")
+        ):
             return []
 
         keys = []
