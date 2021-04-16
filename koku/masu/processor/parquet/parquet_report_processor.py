@@ -97,7 +97,6 @@ class ParquetReportProcessor:
         if not context:
             context = {"account": account, "provider_uuid": provider_uuid, "provider_type": provider_type}
 
-        LOG.info(f"convert_to_parquet context: {str(context)}")
         if not enable_trino_processing(provider_uuid, provider_type, account):
             msg = "Skipping convert_to_parquet. Parquet processing is disabled."
             LOG.info(log_json(request_id, msg, context))
@@ -212,7 +211,6 @@ class ParquetReportProcessor:
         """
         Get all files in a given prefix that match the given manifest_id.
         """
-        LOG.info(f"get_file_keys_from_s3_with_manifest_id context: {str(context)}")
         if not enable_trino_processing(
             context.get("provider_uuid"), context.get("provider_type"), context.get("account")
         ):
