@@ -35,15 +35,12 @@ from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProc
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
+from masu.util import common as mutil
 from masu.util.aws.common import aws_post_processor
 from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import get_s3_resource
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.azure.common import azure_post_processor
-from masu.util.common import create_enabled_keys
-from masu.util.common import get_column_converters
-from masu.util.common import get_hive_table_path
-from masu.util.common import get_path_prefix
 from masu.util.gcp.common import gcp_post_processor
 from masu.util.ocp.common import REPORT_TYPES
 from reporting.provider.aws.models import AWSEnabledTagKeys
@@ -135,9 +132,11 @@ class ParquetReportProcessor:
             LOG.warn(log_json(request_id, msg, context))
             return
 
-        s3_csv_path = get_path_prefix(account, provider_type, provider_uuid, cost_date, Config.CSV_DATA_TYPE)
+        s3_csv_path = mutil.get_path_prefix(account, provider_type, provider_uuid, cost_date, Config.CSV_DATA_TYPE)
         local_path = f"{Config.TMP_DIR}/{account}/{provider_uuid}"
-        s3_parquet_path = get_path_prefix(account, provider_type, provider_uuid, cost_date, Config.PARQUET_DATA_TYPE)
+        s3_parquet_path = mutil.get_path_prefix(
+            account, provider_type, provider_uuid, cost_date, Config.PARQUET_DATA_TYPE
+        )
 
         if not files:
             file_keys = self.get_file_keys_from_s3_with_manifest_id(request_id, s3_csv_path, manifest_id, context)
@@ -176,7 +175,7 @@ class ParquetReportProcessor:
             if provider_type == Provider.PROVIDER_OCP:
                 for report_type in REPORT_TYPES.keys():
                     if report_type in csv_filename:
-                        parquet_path = get_path_prefix(
+                        parquet_path = mutil.get_path_prefix(
                             account,
                             provider_type,
                             provider_uuid,
@@ -192,7 +191,7 @@ class ParquetReportProcessor:
                     LOG.warn(log_json(request_id, msg, context))
                     continue
 
-            converters = get_column_converters(provider_type, **kwargs)
+            converters = mutil.get_column_converters(provider_type, **kwargs)
             result = self.convert_csv_to_parquet(
                 request_id,
                 s3_csv_path,
@@ -342,7 +341,9 @@ class ParquetReportProcessor:
                         data_frame = post_processor(data_frame)
                         if isinstance(data_frame, tuple):
                             data_frame, data_frame_tag_keys = data_frame
+                            LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
                             unique_keys.update(data_frame_tag_keys)
+                            LOG.info(f"Total unique keys for file {len(unique_keys)}")
                     data_frame.to_parquet(parquet_file, allow_truncated_timestamps=True, coerce_timestamps="ms")
                     try:
                         with open(parquet_file, "rb") as fin:
@@ -362,10 +363,9 @@ class ParquetReportProcessor:
                         LOG.warn(log_json(request_id, msg, context))
                         return False
 
-            if unique_keys:
-                create_enabled_keys(self.schema, self._enabled_tags_table, unique_keys)
+            mutil.create_enabled_keys(self._schema_name, self._enabled_tags_table, unique_keys)
 
-            s3_hive_table_path = get_hive_table_path(
+            s3_hive_table_path = mutil.get_hive_table_path(
                 context.get("account"), self._provider_type, report_type=report_type
             )
 

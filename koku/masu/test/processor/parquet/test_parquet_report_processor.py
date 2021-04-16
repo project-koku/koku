@@ -154,7 +154,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 self.assertIn(expected, " ".join(logger.output))
 
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
+            with patch("masu.processor.parquet.parquet_report_processor.mutil.get_path_prefix"):
                 with patch(
                     (
                         "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
@@ -193,7 +193,7 @@ class TestParquetReportProcessor(MasuTestCase):
 
         expected = "Failed to convert the following files to parquet"
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
+            with patch("masu.processor.parquet.parquet_report_processor.mutil.get_path_prefix"):
                 with patch(
                     (
                         "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
@@ -220,7 +220,7 @@ class TestParquetReportProcessor(MasuTestCase):
                             self.assertIn(expected, " ".join(logger.output))
 
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
+            with patch("masu.processor.parquet.parquet_report_processor.mutil.get_path_prefix"):
                 with patch(
                     (
                         "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
@@ -236,7 +236,7 @@ class TestParquetReportProcessor(MasuTestCase):
                         )
 
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
+            with patch("masu.processor.parquet.parquet_report_processor.mutil.get_path_prefix"):
                 with patch(
                     (
                         "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."

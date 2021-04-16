@@ -414,49 +414,57 @@ def batch(iterable, start=0, stop=None, _slice=1):
 
 
 def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
-    LOG.info(f"Starting create_enabled_keys")
+    LOG.info("Creating enabled tag key records")
     changed = False
-    enabled_keys_set = set(enabled_keys)
 
-    with schema_context(schema):
-        new_keys = list(enabled_keys_set - {k.key for k in enabled_keys_model.objects.all()})
-        if new_keys:
-            changed = True
-            # Processing in batches for increased efficiency
-            for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
-                batch_size = len(new_batch)
-                LOG.info(f"Create batch {batch_num + 1}: batch_size {batch_size}")
-                for ix in range(batch_size):
-                    new_batch[ix] = enabled_keys_model(key=new_batch[ix])
-                enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
+    if enabled_keys:
+        with schema_context(schema):
+            new_keys = list(set(enabled_keys) - {k.key for k in enabled_keys_model.objects.all()})
+            if new_keys:
+                changed = True
+                # Processing in batches for increased efficiency
+                for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
+                    batch_size = len(new_batch)
+                    LOG.info(f"Create batch {batch_num + 1}: batch_size {batch_size}")
+                    for ix in range(batch_size):
+                        new_batch[ix] = enabled_keys_model(key=new_batch[ix])
+                    enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
+
+    if not changed:
+        LOG.info("No enabled keys added.")
 
     return changed
 
 
 def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
-    LOG.info(f"Starting update_enabled_keys")
+    LOG.info("Updating enabled tag keys records")
     changed = False
-    enabled_keys_set = set(enabled_keys)
-    update_keys_enabled = []
-    update_keys_disabled = []
 
-    with schema_context(schema):
-        for key in enabled_keys_model.objects.all():
-            if key.key in enabled_keys_set:
-                if not key.enabled:
-                    update_keys_enabled.append(key.key)
-            else:
-                update_keys_disabled.append(key.key)
+    if enabled_keys:
+        enabled_keys_set = set(enabled_keys)
+        update_keys_enabled = []
+        update_keys_disabled = []
 
-        # When we are in create mode, we do not want to change the state of existing keys
-        if update_keys_enabled or update_keys_disabled:
-            changed = True
-            if update_keys_enabled:
-                LOG.info(f"Updating {len(update_keys_enabled)} keys to ENABLED")
-                enabled_keys_model.objects.filter(key__in=update_keys_enabled).update(enabled=True)
+        with schema_context(schema):
+            for key in enabled_keys_model.objects.all():
+                if key.key in enabled_keys_set:
+                    if not key.enabled:
+                        update_keys_enabled.append(key.key)
+                else:
+                    update_keys_disabled.append(key.key)
 
-            if update_keys_disabled:
-                LOG.info(f"Updating {len(update_keys_disabled)} keys to DISABLED")
-                enabled_keys_model.objects.filter(key__in=update_keys_disabled).update(enabled=False)
+            # When we are in create mode, we do not want to change the state of existing keys
+            if update_keys_enabled or update_keys_disabled:
+                changed = True
+                if update_keys_enabled:
+                    LOG.info(f"Updating {len(update_keys_enabled)} keys to ENABLED")
+                    enabled_keys_model.objects.filter(key__in=update_keys_enabled).update(enabled=True)
+
+                if update_keys_disabled:
+                    LOG.info(f"Updating {len(update_keys_disabled)} keys to DISABLED")
+                    enabled_keys_model.objects.filter(key__in=update_keys_disabled).update(enabled=False)
+
+    if not changed:
+        LOG.info("No enabled keys updated.")
 
     return changed
