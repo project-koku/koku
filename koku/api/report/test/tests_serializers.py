@@ -20,6 +20,7 @@ from unittest.mock import Mock
 
 from dateutil.relativedelta import relativedelta
 from rest_framework import serializers
+from rest_framework.serializers import ValidationError
 
 from api.report.aws.serializers import FilterSerializer
 from api.report.aws.serializers import GroupBySerializer
@@ -575,23 +576,23 @@ class QueryParamSerializerTest(TestCase):
         """Test parse of a filter date-based param with monthly presolution should not succeed."""
         dh = DateHelper()
         scenarios = [
-            {"start_date": dh.yesterday.date(), "end_date": dh.today.date()},
             {
                 "start_date": dh.last_month_end.date(),
                 "end_date": dh.this_month_start.date(),
-                "filter": {"resolution": "daily"},
+                "filter": {"resolution": "monthly"},
             },
             {
                 "start_date": materialized_view_month_start().date(),
                 "end_date": dh.today.date(),
-                "filter": {"resolution": "daily"},
+                "filter": {"resolution": "monthly"},
             },
         ]
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = QueryParamSerializer(data=params)
-                self.assertFalse(serializer.is_valid(raise_exception=True))
+                with self.assertRaises(ValidationError):
+                    serializer = QueryParamSerializer(data=params)
+                    serializer.is_valid(raise_exception=True)
 
     def test_parse_filter_dates_invalid(self):
         """Test parse of invalid data for filter date-based param should not succeed."""
