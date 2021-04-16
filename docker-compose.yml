@@ -377,8 +377,8 @@ services:
         - RABBITMQ_PORT=5672
         - REDIS_HOST=${REDIS_HOST-redis}
         - REDIS_PORT=${REDIS_PORT-6379}
-        - SOURCES_KAFKA_HOST=${SOURCES_KAFKA_HOST-kafka}
-        - SOURCES_KAFKA_PORT=${SOURCES_KAFKA_PORT-29092}
+        - INSIGHTS_KAFKA_HOST=${INSIGHTS_KAFKA_HOST-kafka}
+        - INSIGHTS_KAFKA_PORT=${INSIGHTS_KAFKA_PORT-29092}
         - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
         - DEMO_ACCOUNTS
@@ -388,7 +388,6 @@ services:
       privileged: true
       ports:
           - 4000:8080
-          - 4050:9000
       volumes:
         - '.:/koku'
       links:
