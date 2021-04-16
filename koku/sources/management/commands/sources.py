@@ -63,8 +63,6 @@ class Command(BaseCommand):
 
         LOG.info("Starting Sources Client Server")
         if ENVIRONMENT.bool("RUN_GUNICORN", default=True):
-
-            # This calls the container `run` file
             options = {"bind": "{}:{}".format("0.0.0.0", "8080"), "workers": 1, "timeout": 90, "loglevel": "info"}
             SourcesApplication(application, options).run()
 
