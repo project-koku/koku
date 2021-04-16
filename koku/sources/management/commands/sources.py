@@ -17,13 +17,31 @@
 import logging
 import time
 
-from django.core.management import call_command
+import gunicorn.app.base
 from django.core.management.base import BaseCommand
 
 from koku.database import check_migrations
+from koku.env import ENVIRONMENT
+from koku.wsgi import application
 from sources.kafka_listener import initialize_sources_integration
 
 LOG = logging.getLogger(__name__)
+
+
+class SourcesApplication(gunicorn.app.base.BaseApplication):
+    # reference https://docs.gunicorn.org/en/latest/custom.html
+    def __init__(self, app, options=None):
+        self.options = options or {}
+        self.application = app
+        super().__init__()
+
+    def load_config(self):
+        config = {key: value for key, value in self.options.items() if key in self.cfg.settings and value is not None}
+        for key, value in config.items():
+            self.cfg.set(key.lower(), value)
+
+    def load(self):
+        return self.application
 
 
 class Command(BaseCommand):
@@ -44,7 +62,16 @@ class Command(BaseCommand):
         initialize_sources_integration()
 
         LOG.info("Starting Sources Client Server")
-        options["use_reloader"] = False
-        options.pop("skip_checks", None)
+        if ENVIRONMENT.bool("RUN_GUNICORN", default=True):
 
-        call_command("runserver", addrport, *args, **options)
+            # This calls the container `run` file
+            options = {"bind": "{}:{}".format("0.0.0.0", "8080"), "workers": 1, "timeout": 90, "loglevel": "info"}
+            SourcesApplication(application, options).run()
+
+        else:
+            from django.core.management import call_command
+
+            options["use_reloader"] = False
+            options.pop("skip_checks", None)
+
+            call_command("runserver", addrport, *args, **options)
