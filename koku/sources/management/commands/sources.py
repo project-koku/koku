@@ -24,6 +24,8 @@ from koku.database import check_migrations
 from koku.env import ENVIRONMENT
 from sources.kafka_listener import initialize_sources_integration
 
+# from django.core.management import call_command
+
 LOG = logging.getLogger(__name__)
 
 
@@ -51,9 +53,11 @@ class Command(BaseCommand):
         if ENVIRONMENT.bool("RUN_GUNICORN", default=True):
 
             # This calls the container `run` file
-            os.system("/usr/libexec/s2i/run")
+            os.system("gunicorn koku.wsgi --bind=0.0.0.0:8080 --access-logfile=- --config gunicorn.py --chdir ./koku")
 
         else:
             from django.core.management import call_command
 
             call_command("runserver", addrport, *args, **options)
+
+        # call_command("runserver", addrport, *args, **options)
