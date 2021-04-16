@@ -68,7 +68,7 @@ class ReportDownloader:
         self.account = account
         if self.account is None:
             self.account = customer_name[4:]
-        self.context = {"request_id": self.request_id, "provider_uuid": self.provider_uuid, "account": self.account}
+        self.context = {"request_id": self.request_id, "provider_uuid": self.provider_uuid, "provider_type": self.provider_type, "account": self.account}
 
         try:
             self._downloader = self._set_downloader()
@@ -100,6 +100,7 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
                 account=self.account,
+                provider_type = self.provider_type
             )
         if self.provider_type == Provider.PROVIDER_AWS_LOCAL:
             return AWSLocalReportDownloader(
@@ -110,6 +111,7 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
                 account=self.account,
+                provider_type = self.provider_type
             )
         if self.provider_type == Provider.PROVIDER_AZURE:
             return AzureReportDownloader(
@@ -120,6 +122,7 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
                 account=self.account,
+                provider_type = self.provider_type
             )
         if self.provider_type == Provider.PROVIDER_AZURE_LOCAL:
             return AzureLocalReportDownloader(
@@ -130,6 +133,7 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
                 account=self.account,
+                provider_type = self.provider_type
             )
         if self.provider_type == Provider.PROVIDER_OCP:
             return OCPReportDownloader(
@@ -140,6 +144,7 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
                 account=self.account,
+                provider_type = self.provider_type
             )
         if self.provider_type == Provider.PROVIDER_GCP:
             return GCPReportDownloader(
@@ -150,6 +155,7 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
                 account=self.account,
+                provider_type = self.provider_type
             )
         if self.provider_type == Provider.PROVIDER_GCP_LOCAL:
             return GCPLocalReportDownloader(
@@ -160,6 +166,7 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
                 account=self.account,
+                provider_type = self.provider_type
             )
         if self.provider_type == Provider.PROVIDER_IBM:
             return IBMReportDownloader(
@@ -170,6 +177,7 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
                 account=self.account,
+                provider_type = self.provider_type
             )
         return None
 

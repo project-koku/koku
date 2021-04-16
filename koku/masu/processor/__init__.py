@@ -29,7 +29,7 @@ ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 def enable_trino_processing(source_uuid, source_type, account):
     """Helper to determine if source is enabled for Trino."""
-    if not account.startswith('acct'):
+    if account and not account.startswith('acct'):
         account = f"acct{account}"
 
     LOG.info(f"enable_trino_processing({source_uuid}, {source_type}, {account})")
