@@ -331,8 +331,8 @@ docker-up-no-build: docker-up-db
 docker-up-min:
 	$(DOCKER_COMPOSE) up --build -d --scale koku-worker=$(scale) db redis koku-server masu-server koku-worker
 
-docker-up-min-no-build:
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) db redis koku-server masu-server koku-worker koku-listener
+docker-up-min-no-build: docker-up-db
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker koku-listener
 
 docker-up-min-presto: docker-up-min docker-presto-up
 
