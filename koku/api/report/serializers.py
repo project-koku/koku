@@ -355,8 +355,8 @@ class ParamSerializer(BaseSerializer):
             raise serializers.ValidationError(error)
 
         if data.get("filter", {}).get("resolution") == "monthly" and (data.get("start_date") or data.get("end_date")):
-             error = {"error": "Monthly resolution is not supported with start_date and end_date parameters."}
-             raise serializers.ValidationError(error)
+            error = {"error": "Monthly resolution is not supported with start_date and end_date parameters."}
+            raise serializers.ValidationError(error)
 
         return data
 
