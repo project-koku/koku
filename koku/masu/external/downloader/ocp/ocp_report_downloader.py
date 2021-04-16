@@ -87,7 +87,8 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
         context (Dict): Logging context dictionary
     """
     daily_file_names = []
-    if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid):
+
+    if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, Provider.PROVIDER_OCP, account):
         daily_files = divide_csv_daily(filepath, filename)
         for daily_file in daily_files:
             # Push to S3
