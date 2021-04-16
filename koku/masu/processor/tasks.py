@@ -34,8 +34,8 @@ from api.common import log_json
 from api.iam.models import Tenant
 from api.provider.models import Provider
 from api.utils import DateHelper
+from koku import celery_app
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
-from koku.celery import app
 from koku.middleware import KokuTenantMiddleware
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -52,6 +52,7 @@ from masu.processor.cost_model_cost_updater import CostModelCostUpdater
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
+from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.worker_cache import WorkerCache
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
@@ -131,7 +132,7 @@ def record_report_status(manifest_id, file_name, request_id, context={}):
 
 
 # pylint: disable=too-many-locals
-@app.task(name="masu.processor.tasks.get_report_files", queue_name=GET_REPORT_FILES_QUEUE, bind=True)
+@celery_app.task(name="masu.processor.tasks.get_report_files", queue_name=GET_REPORT_FILES_QUEUE, bind=True)
 def get_report_files(
     self,
     customer_name,
@@ -238,7 +239,7 @@ def get_report_files(
         WorkerCache().remove_task_from_cache(cache_key)
 
 
-@app.task(name="masu.processor.tasks.remove_expired_data", queue_name=REMOVE_EXPIRED_DATA_QUEUE)
+@celery_app.task(name="masu.processor.tasks.remove_expired_data", queue_name=REMOVE_EXPIRED_DATA_QUEUE)
 def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, line_items_only=False, queue_name=None):
     """
     Remove expired report data.
@@ -268,7 +269,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
         )
 
 
-@app.task(name="masu.processor.tasks.summarize_reports", queue_name=SUMMARIZE_REPORTS_QUEUE)
+@celery_app.task(name="masu.processor.tasks.summarize_reports", queue_name=SUMMARIZE_REPORTS_QUEUE)
 def summarize_reports(reports_to_summarize, queue_name=None):
     """
     Summarize reports returned from line summary task.
@@ -313,7 +314,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                 ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
 
 
-@app.task(name="masu.processor.tasks.update_summary_tables", queue_name=UPDATE_SUMMARY_TABLES_QUEUE)
+@celery_app.task(name="masu.processor.tasks.update_summary_tables", queue_name=UPDATE_SUMMARY_TABLES_QUEUE)
 def update_summary_tables(  # noqa: C901
     schema_name,
     provider,
@@ -373,6 +374,8 @@ def update_summary_tables(  # noqa: C901
         updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
         start_date, end_date = updater.update_daily_tables(start_date, end_date)
         updater.update_summary_tables(start_date, end_date)
+    except ReportSummaryUpdaterCloudError as ex:
+        LOG.info(f"Failed to correlate OpenShift metrics for provider: {str(provider_uuid)}. Error: {str(ex)}")
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
@@ -440,7 +443,7 @@ def update_summary_tables(  # noqa: C901
         worker_cache.release_single_task(task_name, cache_args)
 
 
-@app.task(name="masu.processor.tasks.update_all_summary_tables", queue_name="reporting")
+@celery_app.task(name="masu.processor.tasks.update_all_summary_tables", queue_name="reporting")
 def update_all_summary_tables(start_date, end_date=None):
     """Populate all the summary tables for reporting.
 
@@ -475,7 +478,7 @@ def update_all_summary_tables(start_date, end_date=None):
         LOG.error("Unable to get accounts. Error: %s", str(error))
 
 
-@app.task(name="masu.processor.tasks.update_cost_model_costs", queue_name=UPDATE_COST_MODEL_COSTS_QUEUE)
+@celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue_name=UPDATE_COST_MODEL_COSTS_QUEUE)
 def update_cost_model_costs(
     schema_name, provider_uuid, start_date=None, end_date=None, queue_name=None, synchronous=False
 ):
@@ -531,7 +534,7 @@ def update_cost_model_costs(
         worker_cache.release_single_task(task_name, cache_args)
 
 
-@app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name=REFRESH_MATERIALIZED_VIEWS_QUEUE)
+@celery_app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name=REFRESH_MATERIALIZED_VIEWS_QUEUE)
 def refresh_materialized_views(  # noqa: C901
     schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False, queue_name=None
 ):
@@ -597,7 +600,7 @@ def refresh_materialized_views(  # noqa: C901
         worker_cache.release_single_task(task_name, cache_args)
 
 
-@app.task(name="masu.processor.tasks.vacuum_schema", queue_name="reporting")
+@celery_app.task(name="masu.processor.tasks.vacuum_schema", queue_name="reporting")
 def vacuum_schema(schema_name):
     """Vacuum the reporting tables in the specified schema."""
     table_sql = """
@@ -639,7 +642,7 @@ def normalize_table_options(table_options):
 # At this time, no table parameter will be lowered past the known production engine
 # setting of 0.2 by default. However this function's settings can be overridden via the
 # AUTOVACUUM_TUNING environment variable. See below.
-@app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name="reporting")
+@celery_app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name="reporting")
 def autovacuum_tune_schema(schema_name):  # noqa: C901
     """Set the autovacuum table settings based on table size for the specified schema."""
     table_sql = """
@@ -736,7 +739,7 @@ SELECT s.relname as "table_name",
     LOG.info(f"Altered autovacuum_vacuum_scale_factor on {alter_count} tables")
 
 
-@app.task(name="masu.processor.tasks.remove_stale_tenants", queue_name="remove_stale_tenants")
+@celery_app.task(name="masu.processor.tasks.remove_stale_tenants", queue_name="remove_stale_tenants")
 def remove_stale_tenants():
     """ Remove stale tenants from the tenant api """
     table_sql = """

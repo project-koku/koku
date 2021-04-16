@@ -25,7 +25,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from koku.celery import CELERY_INSPECT
+from koku import CELERY_INSPECT
 
 LOG = logging.getLogger(__name__)
 

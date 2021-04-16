@@ -316,6 +316,14 @@ class CostModelViewTests(IamTestCase):
             response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_delete_cost_model_invalid_uuid(self):
+        """Test that deleting an invalid cost model returns an error."""
+        url = reverse("cost-models-detail", kwargs={"uuid": "not-a-uuid"})
+        client = APIClient()
+        with patch("cost_models.cost_model_manager.chain"):
+            response = client.delete(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_read_cost_model_list_success(self):
         """Test that we can read a list of cost models."""
         url = reverse("cost-models-list")
