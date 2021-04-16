@@ -119,7 +119,7 @@ def download_pages_from(page_downloader, writer, page):
 def create_daily_archives(
     request_id, account, provider_uuid, filename, file_path, manifest_id, start_date, context={}
 ):
-    if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid):
+    if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, Provider.PROVIDER_IBM, account):
         s3_csv_path = get_path_prefix(account, Provider.PROVIDER_IBM, provider_uuid, start_date, Config.CSV_DATA_TYPE)
         # add day to S3 CSV path because the IBM report is monthly and we want to diff between two days
         s3_csv_path = f"{s3_csv_path}/day={start_date.strftime('%d')}"
