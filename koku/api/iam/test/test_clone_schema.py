@@ -170,7 +170,7 @@ class CloneSchemaTest(IamTestCase):
             cur.execute("""create table if not exists "eek01"."tab01" (id serial primary key, data text);""")
 
         # Verify that the existing schema was detected
-        expected = 'WARNING:api.iam.models:Schema "eek01" already exists.'
+        expected = 'WARNING:api.iam.models:Schema "eek01" already exists. Exit with False.'
         with self.assertLogs("api.iam.models", level="INFO") as _logger:
             Tenant(schema_name="eek01").save()
             self.assertIn(expected, _logger.output)
