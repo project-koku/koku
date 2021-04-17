@@ -169,6 +169,7 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
             _check_schema_name(self.schema_name)
         except ValidationError as e:
             LOG.error(f"ValidationError: {str(e)}")
+            raise e
 
         with transaction.atomic():
             # Make sure all of our special pieces are in play
