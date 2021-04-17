@@ -19,8 +19,8 @@ import logging
 import os
 from uuid import uuid4
 
+from django.core.exceptions import ValidationError
 from django.db import connection as conn
-from django.db import DatabaseError as DBError
 from django.db import models
 from django.db import transaction
 from tenant_schemas.models import TenantMixin
@@ -121,6 +121,9 @@ class Tenant(TenantMixin):
             res = dbfunc_exists(
                 conn, self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG
             )
+        else:
+            LOG.info("Clone function exists")
+
         return res
 
     def _verify_template(self, verbosity=1):
@@ -132,17 +135,20 @@ class Tenant(TenantMixin):
         template_schema = self.__class__.objects.get_or_create(schema_name=self._TEMPLATE_SCHEMA)
 
         # Strict check here! Both the record and the schema *should* exist!
-        return template_schema and schema_exists(self._TEMPLATE_SCHEMA)
+        res = bool(template_schema) and schema_exists(self._TEMPLATE_SCHEMA)
+        LOG.info(f"{str(res)}")
+
+        return res
 
     def _clone_schema(self):
         result = None
-        with conn.cursor() as cur:
-            # This db func will clone the schema objects
-            # bypassing the time it takes to run migrations
-            sql = """
+        # This db func will clone the schema objects
+        # bypassing the time it takes to run migrations
+        sql = """
 select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
 """
-            LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}" with data')
+        LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}" with data')
+        with conn.cursor() as cur:
             cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
             result = cur.fetchone()
 
@@ -158,10 +164,13 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
             return super().create_schema(check_if_exists=True, sync_schema=sync_schema, verbosity=verbosity)
 
         db_exc = None
-        with transaction.atomic():
-            # Verify name structure
+        # Verify name structure
+        try:
             _check_schema_name(self.schema_name)
+        except ValidationError as e:
+            LOG.error(f"ValidationError: {str(e)}")
 
+        with transaction.atomic():
             # Make sure all of our special pieces are in play
             ret = self._check_clone_func()
             if not ret:
@@ -176,26 +185,29 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
                 raise CloneSchemaTemplateMissing(errmsg)
 
             # Always check to see if the schema exists!
+            LOG.info(f"Check if target schema {self.schema_name} already exists")
             if schema_exists(self.schema_name):
-                LOG.warning(f'Schema "{self.schema_name}" already exists.')
+                LOG.warning(f'Schema "{self.schema_name}" already exists. Exit with False.')
                 return False
 
             # Clone the schema. The database function will check
             # that the source schema exists and the destination schema does not.
             try:
                 self._clone_schema()
-            except DBError as dbe:
+            except Exception as dbe:
                 db_exc = dbe
                 LOG.error(
                     f"""Exception {dbe.__class__.__name__} cloning"""
                     + f""" "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}": {str(dbe)}"""
                 )
+                LOG.info("Setting transaction to exit with ROLLBACK")
                 transaction.set_rollback(True)  # Set this transaction context to issue a rollback on exit
             else:
                 LOG.info(f'Successful clone of "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
 
         # Set schema to public (even if there was an exception)
         with transaction.atomic():
+            LOG.info("Reset DB search path to public")
             conn.set_schema_to_public()
 
         if db_exc:
