@@ -554,6 +554,56 @@ class OCPEnabledTagKeys(models.Model):
     key = models.CharField(max_length=253, unique=True)
 
 
+class OCPCluster(models.Model):
+    """All clusters for a tenant."""
+
+    class Meta:
+        """Meta for OCPCluster."""
+
+        db_table = "reporting_ocp_clusters"
+
+    cluster_id = models.TextField(primary_key=True)
+    cluster_alias = models.TextField(null=True)
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
+
+
+class OCPNode(models.Model):
+    """All nodes for a cluster."""
+
+    class Meta:
+        """Meta for OCPNode."""
+
+        db_table = "reporting_ocp_nodes"
+
+    node = models.TextField(primary_key=True)
+    resource_id = models.TextField(null=True)
+    cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
+
+
+class OCPPVC(models.Model):
+    """All PVCs for a cluster."""
+
+    class Meta:
+        """Meta for OCPPVC."""
+
+        db_table = "reporting_ocp_pvcs"
+
+    pvc = models.TextField(primary_key=True)
+    cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
+
+
+class OCPProject(models.Model):
+    """All Projects for a cluster."""
+
+    class Meta:
+        """Meta for OCPProject."""
+
+        db_table = "reporting_ocp_projects"
+
+    project = models.TextField(primary_key=True)
+    cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
+
+
 class OCPCostSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
 
