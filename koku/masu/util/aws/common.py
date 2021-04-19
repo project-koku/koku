@@ -21,6 +21,7 @@ import logging
 import re
 
 import boto3
+import ciso8601
 from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from dateutil.relativedelta import relativedelta
@@ -33,6 +34,8 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor import enable_trino_processing
 from masu.util import common as utils
+from masu.util.common import safe_float
+from masu.util.common import strip_characters_from_column_name
 from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
 
 LOG = logging.getLogger(__name__)
@@ -381,13 +384,32 @@ def aws_post_processor(data_frame):
     column_name_map = {}
     drop_columns = []
     for column in columns:
-        new_col_name = column.replace("-", "_").replace("/", "_").replace(":", "_").lower()
+        new_col_name = strip_characters_from_column_name(column)
         column_name_map[column] = new_col_name
         if "resourceTags/" in column:
             drop_columns.append(column)
     data_frame = data_frame.drop(columns=drop_columns)
     data_frame = data_frame.rename(columns=column_name_map)
     return data_frame
+
+
+def get_column_converters():
+    """Return source specific parquet column converters."""
+    return {
+        "bill/BillingPeriodStartDate": ciso8601.parse_datetime,
+        "bill/BillingPeriodEndDate": ciso8601.parse_datetime,
+        "lineItem/UsageStartDate": ciso8601.parse_datetime,
+        "lineItem/UsageEndDate": ciso8601.parse_datetime,
+        "lineItem/UsageAmount": safe_float,
+        "lineItem/NormalizationFactor": safe_float,
+        "lineItem/NormalizedUsageAmount": safe_float,
+        "lineItem/UnblendedRate": safe_float,
+        "lineItem/UnblendedCost": safe_float,
+        "lineItem/BlendedRate": safe_float,
+        "lineItem/BlendedCost": safe_float,
+        "pricing/publicOnDemandCost": safe_float,
+        "pricing/publicOnDemandRate": safe_float,
+    }
 
 
 # pylint: disable=too-few-public-methods
