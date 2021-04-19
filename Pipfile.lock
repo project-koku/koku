@@ -2170,11 +2170,10 @@
         },
         "sphinx": {
             "hashes": [
-                "sha256:11d521e787d9372c289472513d807277caafb1684b33eb4f08f7574c405893a9",
-                "sha256:e90161222e4d80ce5fc811ace7c6787a226b4f5951545f7f42acf97277bfc35c"
+                "sha256:19010b7b9fa0dc7756a6e105b2aacd3a80f798af3c25c273be64d7beeb482cb1",
+                "sha256:2320d4e994a191f4b4be27da514e46b3d6b420f2ff895d064f52415d342461e8"
             ],
-            "index": "pypi",
-            "version": "==3.5.1"
+            "version": "==3.5.4"
         },
         "sphinx-rtd-theme": {
             "hashes": [
