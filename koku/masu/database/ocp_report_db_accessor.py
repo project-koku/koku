@@ -42,6 +42,10 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.common import month_date_range_tuple
+from reporting.provider.ocp.models import OCPCluster
+from reporting.provider.ocp.models import OCPNode
+from reporting.provider.ocp.models import OCPProject
+from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -1764,3 +1768,120 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     self._execute_raw_sql_query(
                         table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
                     )
+
+    def populate_openshift_cluster_information_tables(self, provider, cluster_id, cluster_alias, start_date, end_date):
+        """Populate the cluster, node, PVC, and project tables for the cluster."""
+        cluster = self.populate_cluster_table(provider, cluster_id, cluster_alias)
+
+        nodes = self.get_nodes_presto(str(provider.uuid), start_date, end_date)
+        pvcs = self.get_pvcs_presto(str(provider.uuid), start_date, end_date)
+        projects = self.get_projects_presto(str(provider.uuid), start_date, end_date)
+
+        # pvcs = self.match_node_to_pvc(pvcs, projects)
+
+        self.populate_node_table(cluster, nodes)
+        self.populate_pvc_table(cluster, pvcs)
+        self.populate_project_table(cluster, projects)
+
+    def populate_cluster_table(self, provider, cluster_id, cluster_alias):
+        """Get or create an entry in the OCP cluster table."""
+        cluster, created = OCPCluster.objects.get_or_create(
+            cluster_id=cluster_id, cluster_alias=cluster_id, provider=provider
+        )
+
+        if created:
+            msg = f"Add entry in reporting_ocp_clusters for {cluster_id}/{cluster_alias}"
+            LOG.info(msg)
+
+        return cluster
+
+    def populate_node_table(self, cluster, nodes):
+        """Get or create an entry in the OCP cluster table."""
+        LOG.info("Populating reporting_ocp_nodes table.")
+        for node in nodes:
+            OCPNode.objects.get_or_create(node=node[0], resource_id=node[1], cluster=cluster)
+
+    def populate_pvc_table(self, cluster, pvcs):
+        """Get or create an entry in the OCP cluster table."""
+        LOG.info("Populating reporting_ocp_pvcs table.")
+        for pvc in pvcs:
+            OCPPVC.objects.get_or_create(pvc=pvc, cluster=cluster)
+
+    def populate_project_table(self, cluster, projects):
+        """Get or create an entry in the OCP cluster table."""
+        LOG.info("Populating reporting_ocp_projects table.")
+        for project in projects:
+            OCPProject.objects.get_or_create(project=project, cluster=cluster)
+
+    def get_nodes_presto(self, source_uuid, start_date, end_date):
+        """Get the nodes from an OpenShift cluster."""
+        sql = f"""
+            SELECT distinct node,
+                resource_id
+            FROM hive.{self.schema}.openshift_pod_usage_line_items as ocp
+            WHERE ocp.source = '{source_uuid}'
+                AND ocp.year = '{start_date.strftime("%Y")}'
+                AND ocp.month = '{start_date.strftime("%m")}'
+                AND ocp.interval_start >= TIMESTAMP '{start_date}'
+                AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
+        """
+
+        nodes = self._execute_presto_raw_sql_query(self.schema, sql)
+        LOG.info(nodes)
+
+        return nodes
+
+    def get_pvcs_presto(self, source_uuid, start_date, end_date):
+        """Get the nodes from an OpenShift cluster."""
+        sql = f"""
+            SELECT distinct persistentvolumeclaim
+            FROM hive.{self.schema}.openshift_storage_usage_line_items as ocp
+            WHERE ocp.source = '{source_uuid}'
+                AND ocp.year = '{start_date.strftime("%Y")}'
+                AND ocp.month = '{start_date.strftime("%m")}'
+                AND ocp.interval_start >= TIMESTAMP '{start_date}'
+                AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
+        """
+
+        pvcs = self._execute_presto_raw_sql_query(self.schema, sql)
+        LOG.info(pvcs)
+
+        return [pvc[0] for pvc in pvcs]
+
+    def get_projects_presto(self, source_uuid, start_date, end_date):
+        """Get the nodes from an OpenShift cluster."""
+        sql = f"""
+            SELECT distinct namespace
+            FROM hive.{self.schema}.openshift_pod_usage_line_items as ocp
+            WHERE ocp.source = '{source_uuid}'
+                AND ocp.year = '{start_date.strftime("%Y")}'
+                AND ocp.month = '{start_date.strftime("%m")}'
+                AND ocp.interval_start >= TIMESTAMP '{start_date}'
+                AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
+        """
+
+        projects = self._execute_presto_raw_sql_query(self.schema, sql)
+
+        return [project[0] for project in projects]
+
+    def get_nodes_for_cluster(self, cluster_id):
+        """Get all nodes for an OCP cluster."""
+        with schema_context(self.schema):
+
+            nodes = OCPNode.objects.filter(cluster_id=cluster_id).values_list("node", "resource_id")
+            nodes = [(node[0], node[1]) for node in nodes]
+        return nodes
+
+    def get_pvcs_for_cluster(self, cluster_id):
+        """Get all nodes for an OCP cluster."""
+        with schema_context(self.schema):
+            pvcs = OCPPVC.objects.filter(cluster_id=cluster_id).values_list("pvc")
+            pvcs = [pvc[0] for pvc in pvcs]
+        return pvcs
+
+    def get_projects_for_cluster(self, cluster_id):
+        """Get all nodes for an OCP cluster."""
+        with schema_context(self.schema):
+            projects = OCPProject.objects.filter(cluster_id=cluster_id).values_list("project")
+            projects = [project[0] for project in projects]
+        return projects
