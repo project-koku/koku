@@ -16,11 +16,12 @@
 #
 """Accessor for Customer information from koku database."""
 import logging
-import os
 
 from django.db import transaction
 from django.db.models import Subquery
 from tenant_schemas.utils import schema_context
+
+from masu.config import Config
 
 
 LOG = logging.getLogger(__name__)
@@ -130,23 +131,20 @@ def mini_transaction_delete(base_select_query):
     Returns:
         tuple : (deleted_record_total, records_remaining)
     """
-    del_record_limit = int(os.getenv("DELETE_CYCLE_RECORD_LIMIT", 5000))
-    max_iterations = int(os.getenv("DELETE_CYCLE_MAX_RETRY", 3))
-
     # Change the base query into a SELECT ... FOR UPDATE SKIP LOCKED query
     delete_subquery = base_select_query.select_for_update(skip_locked=True).values_list("pk")
     # Remove any ordering
     base_select_query.query.clear_ordering(True)
     delete_subquery.query.clear_ordering(True)
     # Use the line_item_query as a subquery with a LIMIT clause
-    delete_query = delete_subquery.model.objects.filter(pk__in=Subquery(delete_subquery[:del_record_limit]))
+    delete_query = delete_subquery.model.objects.filter(pk__in=Subquery(delete_subquery[: Config.DEL_RECORD_LIMIT]))
     # Remove any ordering
     delete_query.query.clear_ordering(True)
 
     iterations = 0
     del_total = 0
     remainder = 0
-    while iterations < max_iterations:
+    while iterations < Config.MAX_ITERATIONS:
         del_count = -1
         while del_count != 0:
             # The use of FOR UPDATE demands a transaction!
@@ -162,7 +160,7 @@ def mini_transaction_delete(base_select_query):
 
     LOG.debug(f"Removed {del_total} records")
 
-    if (iterations >= max_iterations) and (remainder > 0):
+    if (iterations >= Config.MAX_ITERATIONS) and (remainder > 0):
         LOG.error(f"Due to possible lock contention, there are {remainder} records remaining.")
 
     return (del_total, remainder)

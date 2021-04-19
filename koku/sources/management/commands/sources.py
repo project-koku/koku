@@ -47,4 +47,14 @@ class Command(BaseCommand):
         options["use_reloader"] = False
         options.pop("skip_checks", None)
 
+        # if ENVIRONMENT.bool("RUN_GUNICORN", default=True):
+
+        #     # This calls the container `run` file
+        #     os.system("gunicorn koku.wsgi --bind=0.0.0.0:8080 --access-logfile=- --config gunicorn.py --chdir ./koku")
+
+        # else:
+        #     from django.core.management import call_command
+
+        #     call_command("runserver", addrport, *args, **options)
+
         call_command("runserver", addrport, *args, **options)
