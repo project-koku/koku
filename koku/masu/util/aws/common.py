@@ -376,7 +376,7 @@ def aws_post_processor(data_frame):
     unique_keys = {scrub_resource_col_name(column) for column in resource_tag_columns}
     tag_df = data_frame[resource_tag_columns]
     resource_tags_dict = tag_df.apply(
-        lambda row: {scrub_resource_col_name(column): value for column, value in row.items()}, axis=1
+        lambda row: {scrub_resource_col_name(column): value for column, value in row.items() if value}, axis=1
     )
 
     data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
