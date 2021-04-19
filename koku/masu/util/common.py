@@ -377,10 +377,7 @@ def determine_if_full_summary_update_needed(bill):
 
     # Do a full month update if this is the first time we've seen the current month's data
     # or if it is from a previous month
-    if is_new_bill or not is_current_month:
-        return True
-
-    return False
+    return is_new_bill or not is_current_month
 
 
 def split_alphanumeric_string(s):
