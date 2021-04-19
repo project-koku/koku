@@ -197,4 +197,4 @@ class CloneSchemaTest(IamTestCase):
         Test that creating a tenant with a bad name will throw an exception
         """
         with self.assertRaises(ValidationError):
-            Tenant.objects.create("bad schema-name")
+            Tenant.objects.create(schema_name="bad schema-name")
