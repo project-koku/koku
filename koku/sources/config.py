@@ -15,44 +15,44 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Configuration for Source Service."""
-import os
-
-from koku.settings import KOKU_SOURCES_CLIENT_PORT
+from koku.configurator import CONFIGURATOR
+from koku.env import ENVIRONMENT
 
 
 class Config:
     """Configuration for service."""
 
-    SOURCES_KAFKA_HOST = os.getenv("SOURCES_KAFKA_HOST", "localhost")
-    SOURCES_KAFKA_PORT = os.getenv("SOURCES_KAFKA_PORT", "29092")
-    SOURCES_KAFKA_ADDRESS = f"{SOURCES_KAFKA_HOST}:{SOURCES_KAFKA_PORT}"
-    SOURCES_TOPIC = os.getenv("SOURCES_KAFKA_TOPIC", "platform.sources.event-stream")
+    # SOURCES_TOPIC = ENVIRONMENT.get_value("SOURCES_KAFKA_TOPIC", default="platform.sources.event-stream")
+    SOURCES_TOPIC = CONFIGURATOR.get_kafka_topic("platform.sources.event-stream")
 
-    SOURCES_API_HOST = os.getenv("SOURCES_API_HOST", "localhost")
-    SOURCES_API_PORT = os.getenv("SOURCES_API_PORT", "3000")
+    SOURCES_KAFKA_HOST = CONFIGURATOR.get_kafka_broker_host()
+    SOURCES_KAFKA_PORT = CONFIGURATOR.get_kafka_broker_port()
+    SOURCES_KAFKA_ADDRESS = f"{SOURCES_KAFKA_HOST}:{SOURCES_KAFKA_PORT}"
+
+    SOURCES_API_HOST = ENVIRONMENT.get_value("SOURCES_API_HOST", default="localhost")
+    SOURCES_API_PORT = ENVIRONMENT.get_value("SOURCES_API_PORT", default="3000")
     SOURCES_API_URL = f"http://{SOURCES_API_HOST}:{SOURCES_API_PORT}"
-    SOURCES_API_PREFIX = os.getenv("SOURCES_API_PREFIX", "/api/v1.0")
-    SOURCES_INTERNAL_API_PREFIX = os.getenv("SOURCES_INTERNAL_API_PREFIX", "/internal/v1.0")
-    SOURCES_FAKE_HEADER = os.getenv(
+    SOURCES_API_PREFIX = ENVIRONMENT.get_value("SOURCES_API_PREFIX", default="/api/v1.0")
+    SOURCES_INTERNAL_API_PREFIX = ENVIRONMENT.get_value("SOURCES_INTERNAL_API_PREFIX", default="/internal/v1.0")
+    SOURCES_FAKE_HEADER = ENVIRONMENT.get_value(
         "SOURCES_FAKE_HEADER",
-        (
+        default=(
             "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAidXNlciI6IHsiaXNfb3J"
             "nX2FkbWluIjogImZhbHNlIiwgInVzZXJuYW1lIjogInNvdXJjZXMiLCAiZW1haWwiOiAic291cm"
             "Nlc0Bzb3VyY2VzLmlvIn0sICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjU0MzIxIn19fQ=="
         ),
     )
-    SOURCES_FAKE_CLUSTER_HEADER = os.getenv(
+    SOURCES_FAKE_CLUSTER_HEADER = ENVIRONMENT.get_value(
         "SOURCES_FAKE_CLUSTER_HEADER",
-        (
+        default=(
             "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAiYXV0aF90eXBlIjogInVoYy1"
             "hdXRoIiwgInR5cGUiOiAiU3lzdGVtIiwgInN5c3RlbSI6IHsiY2x1c3Rlcl9pZCI6ICIwYmIyOTEzNS1k"
             "NmQxLTQ3OGItYjViNi02YmQxMjljYjZkNWQifSwgImludGVybmFsIjogeyJvcmdfaWQiOiAiNTQzMjEifX19"
         ),
     )
-    KOKU_API_HOST = os.getenv("KOKU_API_HOST", "localhost")
-    KOKU_API_PORT = os.getenv("KOKU_API_PORT", "8000")
-    KOKU_API_PATH_PREFIX = os.getenv("KOKU_API_PATH_PREFIX", "/api/cost-management")
+    KOKU_API_HOST = ENVIRONMENT.get_value("KOKU_API_HOST", default="localhost")
+    KOKU_API_PORT = ENVIRONMENT.get_value("KOKU_API_PORT", default="8000")
+    KOKU_API_PATH_PREFIX = ENVIRONMENT.get_value("KOKU_API_PATH_PREFIX", default="/api/cost-management")
     KOKU_API_URL = f"http://{KOKU_API_HOST}:{KOKU_API_PORT}{KOKU_API_PATH_PREFIX}/v1"
 
-    RETRY_SECONDS = int(os.getenv("RETRY_SECONDS", "10"))
-    SOURCES_CLIENT_RPC_PORT = int(KOKU_SOURCES_CLIENT_PORT)
+    RETRY_SECONDS = ENVIRONMENT.int("RETRY_SECONDS", default=10)

@@ -52,7 +52,7 @@ class DateAccessor:
         """
         Return the current date and time.
 
-        When the environment variable MASU_DEBUG is set to True,
+        When the environment variable DEVELOPMENT is set to True,
         the MASU_DATE_OVERRIDE environment variable can be used to
         override masu's current date and time.
 
@@ -76,7 +76,7 @@ class DateAccessor:
     def today_with_timezone(self, timezone):
         """Return the current datetime at the timezone indictated.
 
-        When the environment variable MASU_DEBUG is set to True,
+        When the environment variable DEVELOPMENT is set to True,
         the MASU_DATE_OVERRIDE environment variable can be used to
         override masu's current date and time.
 
