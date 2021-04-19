@@ -137,6 +137,9 @@ class OCPReportParquetSummaryUpdater:
             )
             accessor.populate_pod_label_summary_table(report_period_ids, start_date, end_date)
             accessor.populate_volume_label_summary_table(report_period_ids, start_date, end_date)
+            accessor.populate_openshift_cluster_information_tables(
+                self._provider, self._cluster_id, self._cluster_alias, start_date, end_date
+            )
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
 
             LOG.info("Updating OpenShift report periods")
