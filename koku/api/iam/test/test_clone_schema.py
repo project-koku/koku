@@ -17,6 +17,7 @@
 """Test the clone_schema functionality."""
 from unittest.mock import patch
 
+from django.core.exceptions import ValidationError
 from django.db import connection as conn
 from django.db import DatabaseError
 from tenant_schemas.utils import schema_exists
@@ -190,3 +191,10 @@ class CloneSchemaTest(IamTestCase):
             cur.execute("""select count(*) from pg_namespace where nspname = 'eek01';""")
             res = cur.fetchone()[0]
             self.assertEqual(res, 0)
+
+    def test_create_bad_tenant_name(self):
+        """
+        Test that creating a tenant with a bad name will throw an exception
+        """
+        with self.assertRaises(ValidationError):
+            Tenant.objects.create("bad schema-name")

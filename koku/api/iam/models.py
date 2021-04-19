@@ -24,7 +24,7 @@ from django.db import connection as conn
 from django.db import models
 from django.db import transaction
 from tenant_schemas.models import TenantMixin
-from tenant_schemas.postgresql_backend.base import _check_schema_name
+from tenant_schemas.postgresql_backend.base import _is_valid_schema_name
 from tenant_schemas.utils import schema_exists
 
 from koku.database import dbfunc_exists
@@ -165,11 +165,10 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
 
         db_exc = None
         # Verify name structure
-        try:
-            _check_schema_name(self.schema_name)
-        except ValidationError as e:
-            LOG.error(f"ValidationError: {str(e)}")
-            raise e
+        if not _is_valid_schema_name(self.schema_name):
+            exc = ValidationError(f'Invalid schema name: "{self.schema_name}"')
+            LOG.error(f"{exc.__class__.__name__}:: {''.join(exc)}")
+            raise exc
 
         with transaction.atomic():
             # Make sure all of our special pieces are in play
