@@ -180,7 +180,7 @@ class RbacService:
         self.host = rbac_conn_info.get(HOST)
         self.port = rbac_conn_info.get(PORT)
         self.path = rbac_conn_info.get(PATH)
-        self.cache_ttl = int(ENVIRONMENT.get_value("RBAC_CACHE_TTL", default="30"))
+        self.cache_ttl = ENVIRONMENT.int("RBAC_CACHE_TTL", default=30)
 
     def _get_rbac_service(self):
         """Get RBAC service host and port info from environment."""
