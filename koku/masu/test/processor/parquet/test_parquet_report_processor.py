@@ -36,7 +36,6 @@ from masu.processor.parquet.parquet_report_processor import ParquetReportProcess
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.test import MasuTestCase
 from masu.util.aws.common import aws_post_processor
-from masu.util.common import get_column_converters
 
 
 class TestParquetReportProcessor(MasuTestCase):
@@ -362,7 +361,7 @@ class TestParquetReportProcessor(MasuTestCase):
                             shutil.copy2(test_report_test_path, test_report)
                             local_path = "/tmp/parquet"
                             Path(local_path).mkdir(parents=True, exist_ok=True)
-                            converters = get_column_converters(Provider.PROVIDER_AWS)
+                            converters = self.report_processor._get_column_converters(Provider.PROVIDER_AWS)
 
                             result = self.report_processor.convert_csv_to_parquet(
                                 "request_id",
