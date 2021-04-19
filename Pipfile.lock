@@ -512,10 +512,9 @@
         },
         "ibm-platform-services": {
             "hashes": [
-                "sha256:e920653ac0cb0094ff75ddf6b5a7ac35dce4ece96362888b2d96baa20b681e52"
+                "sha256:54adc8a99f3afac1ac283e32a44d9353c8ea3e819bbb30786fba68b84625321a"
             ],
-            "index": "pypi",
-            "version": "==0.17.12"
+            "version": "==0.18.6"
         },
         "idna": {
             "hashes": [
