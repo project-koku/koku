@@ -200,7 +200,7 @@ class ParquetReportProcessor:
                     LOG.warn(log_json(request_id, msg, context))
                     continue
 
-            converters = self._get_column_converters(provider_type)
+            converters = self._get_column_converters()
             result = self.convert_csv_to_parquet(
                 request_id,
                 s3_csv_path,

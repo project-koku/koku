@@ -361,7 +361,7 @@ class TestParquetReportProcessor(MasuTestCase):
                             shutil.copy2(test_report_test_path, test_report)
                             local_path = "/tmp/parquet"
                             Path(local_path).mkdir(parents=True, exist_ok=True)
-                            converters = self.report_processor._get_column_converters(Provider.PROVIDER_AWS)
+                            converters = self.report_processor._get_column_converters()
 
                             result = self.report_processor.convert_csv_to_parquet(
                                 "request_id",
