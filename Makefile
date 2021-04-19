@@ -16,6 +16,7 @@ KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
 MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
 MASU_SERVER_PORT = $(shell echo "${MASU_SERVICE_PORT:-5000}")
 DOCKER := $(shell which docker 2>/dev/null || which podman 2>/dev/null)
+scale = 1
 
 # Testing directories
 TESTINGDIR = $(TOPDIR)/testing
@@ -322,16 +323,16 @@ _koku-wait:
      done
 
 docker-up:
-	$(DOCKER_COMPOSE) up --build -d
+	$(DOCKER_COMPOSE) up --build -d --scale koku-worker=$(scale)
 
 docker-up-no-build: docker-up-db
-	$(DOCKER_COMPOSE) up -d
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 docker-up-min:
-	$(DOCKER_COMPOSE) up --build -d db redis koku-server masu-server koku-worker
+	$(DOCKER_COMPOSE) up --build -d --scale koku-worker=$(scale) db redis koku-server masu-server koku-worker
 
-docker-up-min-no-build:
-	$(DOCKER_COMPOSE) up -d db redis koku-server masu-server koku-worker koku-listener
+docker-up-min-no-build: docker-up-db
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker koku-listener
 
 docker-up-min-presto: docker-up-min docker-presto-up
 

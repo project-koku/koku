@@ -54,6 +54,7 @@ from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.report_processor import ReportProcessorError
+from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import normalize_table_options
@@ -80,7 +81,6 @@ from reporting.models import GCP_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
 from reporting_common.models import CostUsageReportStatus
 
-# from koku.api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)
 
@@ -1149,7 +1149,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
     ):
         """Test that the worker cache is used."""
         task_name = "masu.processor.tasks.update_summary_tables"
-        cache_args = [self.schema]
+        cache_args = [self.schema, Provider.PROVIDER_AWS]
         mock_lock.side_effect = self.lock_single_task
 
         start_date = DateHelper().this_month_start
@@ -1198,6 +1198,41 @@ class TestWorkerCacheThrottling(MasuTestCase):
             update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
             mock_delay.assert_not_called()
             self.assertFalse(self.single_task_is_running(task_name, cache_args))
+
+    @patch("masu.processor.tasks.update_summary_tables.s")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.tasks.refresh_materialized_views")
+    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_summary_tables_cloud_summary_error(
+        self,
+        mock_inspect,
+        mock_lock,
+        mock_release,
+        mock_update_cost,
+        mock_refresh,
+        mock_chain,
+        mock_daily,
+        mock_summary,
+        mock_delay,
+    ):
+        """Test that the update_summary_table cloud exception is caught."""
+        start_date = DateHelper().this_month_start
+        end_date = DateHelper().this_month_end
+        mock_daily.return_value = start_date, end_date
+        mock_summary.side_effect = ReportSummaryUpdaterCloudError
+        expected = "Failed to correlate"
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
+            statement_found = False
+            for log in logger.output:
+                if expected in log:
+                    statement_found = True
+            self.assertTrue(statement_found)
 
     @patch("masu.processor.tasks.update_cost_model_costs.s")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
@@ -1261,7 +1296,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_lock.side_effect = self.lock_single_task
 
         task_name = "masu.processor.tasks.refresh_materialized_views"
-        cache_args = [self.schema]
+        cache_args = [self.schema, Provider.PROVIDER_AWS]
 
         manifest_dict = {
             "assembly_id": "12345",

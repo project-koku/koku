@@ -17,6 +17,7 @@
 """Test the OCPCloudParquetReportSummaryUpdaterTest."""
 import datetime
 import decimal
+from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -52,7 +53,8 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.aws_get_bills_from_provider")
     def test_update_aws_summary_tables(self, mock_utility, mock_ocp, mock_ocp_on_aws, mock_tag_summary, mock_map):
         """Test that summary tables are properly run for an OCP provider."""
-        fake_bills = Mock()
+        fake_bills = MagicMock()
+        fake_bills.__iter__.return_value = [Mock(), Mock()]
         first = Mock()
         bill_id = 1
         first.return_value.id = bill_id
@@ -92,7 +94,8 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.azure_get_bills_from_provider")
     def test_update_azure_summary_tables(self, mock_utility, mock_ocp, mock_ocp_on_azure, mock_tag_summary, mock_map):
         """Test that summary tables are properly run for an OCP provider."""
-        fake_bills = Mock()
+        fake_bills = MagicMock()
+        fake_bills.__iter__.return_value = [Mock(), Mock()]
         first = Mock()
         bill_id = 1
         first.return_value.id = bill_id
@@ -134,7 +137,8 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         self, mock_utility, mock_ocp, mock_ocp_on_azure, mock_tag_summary, mock_map
     ):
         """Test that summary tables are properly run for an OCP provider."""
-        fake_bills = Mock()
+        fake_bills = MagicMock()
+        fake_bills.__iter__.return_value = [Mock(), Mock()]
         first = Mock()
         bill_id = 1
         first.return_value.id = bill_id

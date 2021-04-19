@@ -24,10 +24,12 @@ import shutil
 from api.common import log_json
 from api.provider.models import Provider
 from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
+from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.azure import common as utils
 from masu.util.common import extract_uuids_from_string
 from masu.util.common import get_path_prefix
@@ -136,6 +138,14 @@ class AzureLocalReportDownloader(AzureReportDownloader):
             copy_local_report_file_to_s3_bucket(
                 self.request_id, s3_csv_path, full_file_path, local_filename, manifest_id, start_date, self.context
             )
+
+            manifest_accessor = ReportManifestDBAccessor()
+            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+
+            if not manifest_accessor.get_s3_csv_cleared(manifest):
+                remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
+                manifest_accessor.mark_s3_csv_cleared(manifest)
+
         msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
         LOG.info(log_json(self.request_id, msg, self.context))
         return full_file_path, etag, file_creation_date, []

@@ -18,7 +18,7 @@
 from unittest.mock import patch
 
 from api.iam.test.iam_test_case import IamTestCase
-from koku.celery import is_task_currently_running
+from koku import is_task_currently_running
 
 
 class CeleryTest(IamTestCase):

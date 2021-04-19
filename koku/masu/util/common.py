@@ -88,6 +88,7 @@ def ingest_method_for_provider(provider):
         Provider.PROVIDER_AZURE_LOCAL: POLL_INGEST,
         Provider.PROVIDER_GCP: POLL_INGEST,
         Provider.PROVIDER_GCP_LOCAL: POLL_INGEST,
+        Provider.PROVIDER_IBM: POLL_INGEST,
         Provider.PROVIDER_OCP: LISTEN_INGEST,
     }
     return ingest_map.get(provider)
@@ -375,10 +376,7 @@ def determine_if_full_summary_update_needed(bill):
 
     # Do a full month update if this is the first time we've seen the current month's data
     # or if it is from a previous month
-    if is_new_bill or not is_current_month:
-        return True
-
-    return False
+    return is_new_bill or not is_current_month
 
 
 def split_alphanumeric_string(s):

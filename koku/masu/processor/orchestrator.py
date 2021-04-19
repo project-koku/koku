@@ -19,6 +19,7 @@ import logging
 
 from celery import chord
 
+from api.models import Provider
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.account_label import AccountLabel
@@ -28,8 +29,10 @@ from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.tasks import get_report_files
+from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
+from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
 from masu.processor.worker_cache import WorkerCache
@@ -138,7 +141,7 @@ class Orchestrator:
                 assembly_id - (String): UUID identifying report file
                 compression - (String): Report compression format
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
-            (Boolaen) - Whether we are processing this manifest
+            (Boolean) - Whether we are processing this manifest
         """
         reports_tasks_queued = False
         downloader = ReportDownloader(
@@ -160,7 +163,8 @@ class Orchestrator:
         LOG.info(f"Found Manifests: {str(manifest)}")
         report_files = manifest.get("files", [])
         report_tasks = []
-        for report_file_dict in report_files:
+        last_report_index = len(report_files) - 1
+        for i, report_file_dict in enumerate(report_files):
             local_file = report_file_dict.get("local_file")
             report_file = report_file_dict.get("key")
 
@@ -179,6 +183,12 @@ class Orchestrator:
             report_context["local_file"] = local_file
             report_context["key"] = report_file
 
+            if provider_type == Provider.PROVIDER_OCP or i == last_report_index:
+                # To reduce the number of times we check Trino/Hive tables, we just do this
+                # on the final file of the set.
+                report_context["create_table"] = True
+
+            # This defaults to the celery queue
             report_tasks.append(
                 get_report_files.s(
                     customer_name,
@@ -189,13 +199,13 @@ class Orchestrator:
                     provider_uuid,
                     report_month,
                     report_context,
-                )
+                ).set(queue=GET_REPORT_FILES_QUEUE)
             )
             LOG.info("Download queued - schema_name: %s.", schema_name)
 
         if report_tasks:
             reports_tasks_queued = True
-            async_id = chord(report_tasks, summarize_reports.s())()
+            async_id = chord(report_tasks, summarize_reports.s().set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE))()
             LOG.info(f"Manifest Processing Async ID: {async_id}")
         return manifest, reports_tasks_queued
 
