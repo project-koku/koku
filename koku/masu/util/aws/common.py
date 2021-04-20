@@ -367,15 +367,21 @@ def aws_post_processor(data_frame):
     """
     Consume the AWS data and add a column creating a dictionary for the aws tags
     """
+
+    def scrub_resource_col_name(res_col_name):
+        return res_col_name.replace("resourceTags/user:", "")
+
     columns = set(list(data_frame))
     columns = set(PRESTO_REQUIRED_COLUMNS).union(columns)
     columns = sorted(list(columns))
 
     resource_tag_columns = [column for column in columns if "resourceTags/user:" in column]
+    unique_keys = {scrub_resource_col_name(column) for column in resource_tag_columns}
     tag_df = data_frame[resource_tag_columns]
     resource_tags_dict = tag_df.apply(
-        lambda row: {column.replace("resourceTags/user:", ""): value for column, value in row.items() if value}, axis=1
+        lambda row: {scrub_resource_col_name(column): value for column, value in row.items() if value}, axis=1
     )
+
     data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
     # Make sure we have entries for our required columns
     data_frame = data_frame.reindex(columns=columns)
@@ -390,7 +396,7 @@ def aws_post_processor(data_frame):
             drop_columns.append(column)
     data_frame = data_frame.drop(columns=drop_columns)
     data_frame = data_frame.rename(columns=column_name_map)
-    return data_frame
+    return (data_frame, unique_keys)
 
 
 def get_column_converters():

@@ -28,6 +28,11 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_s
     source_uuid,
     markup_cost
 )
+with cte_pg_enabled_keys as (
+    select array_agg(key order by key) as keys
+      from postgres.{{schema | sqlsafe}}.reporting_awsenabledtagkeys
+     where enabled = true
+)
 SELECT uuid() as uuid,
     INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
     usage_start,
@@ -51,7 +56,12 @@ SELECT uuid() as uuid,
     cast(blended_cost AS decimal(24,9)),
     cast(public_on_demand_cost AS decimal(24,9)),
     cast(public_on_demand_rate AS decimal(24,9)),
-    json_parse(tags) as tags,
+    cast(
+        map_filter(
+            cast(json_parse(tags) as map(varchar, varchar)),
+            (k,v) -> contains(pek.keys, k)
+        ) as json
+     ) as tags,
     aa.id as account_alias_id,
     ou.id as organizational_unit_id,
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
@@ -95,6 +105,7 @@ FROM (
         product_instancetype,
         pricing_unit
 ) AS ds
+CROSS JOIN cte_pg_enabled_keys AS pek
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
     ON ds.usage_account_id = aa.account_id
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsorganizationalunit AS ou
