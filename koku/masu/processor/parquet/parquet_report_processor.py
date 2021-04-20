@@ -84,7 +84,7 @@ class ParquetReportProcessor:
 
     def _get_column_converters(self):
         """Return column converters based on provider type."""
-        return COLUMN_CONVERTERS.get(self._provider_type)
+        return COLUMN_CONVERTERS.get(self._provider_type)()
 
     def convert_to_parquet(  # noqa: C901
         self, request_id, account, provider_uuid, provider_type, start_date, manifest_id, files=[], context={}
