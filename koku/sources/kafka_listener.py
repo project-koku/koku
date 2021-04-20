@@ -23,7 +23,6 @@ import random
 import sys
 import threading
 import time
-from xmlrpc.server import SimpleXMLRPCServer
 
 from confluent_kafka import Consumer
 from confluent_kafka import TopicPartition
@@ -51,7 +50,6 @@ from sources.config import Config
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
-from sources.sources_patch_handler import SourcesPatchHandler
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.sources_provider_coordinator import SourcesProviderCoordinatorError
 from sources.tasks import delete_source
@@ -731,20 +729,9 @@ def sources_integration_thread():  # pragma: no cover
     listen_for_messages_loop(cost_management_type_id)
 
 
-def rpc_thread():
-    """RPC Server to serve PATCH requests."""
-    LOG.info(f"Starting RPC server. Port: {Config.SOURCES_CLIENT_RPC_PORT}")
-    with SimpleXMLRPCServer(("0.0.0.0", Config.SOURCES_CLIENT_RPC_PORT), allow_none=True) as server:
-        server.register_introspection_functions()
-        server.register_instance(SourcesPatchHandler())
-        server.serve_forever()
-
-
 def initialize_sources_integration():  # pragma: no cover
     """Start Sources integration thread."""
 
     event_loop_thread = threading.Thread(target=sources_integration_thread)
     event_loop_thread.start()
     LOG.info("Listening for kafka events")
-    rpc = threading.Thread(target=rpc_thread)
-    rpc.start()
