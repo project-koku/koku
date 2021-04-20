@@ -36,7 +36,6 @@ from masu.processor.parquet.parquet_report_processor import ParquetReportProcess
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.test import MasuTestCase
 from masu.util.aws.common import aws_post_processor
-from masu.util.common import get_column_converters
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.gcp.models import GCPEnabledTagKeys
@@ -154,7 +153,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 self.assertIn(expected, " ".join(logger.output))
 
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-            with patch("masu.processor.parquet.parquet_report_processor.mutil.get_path_prefix"):
+            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
                 with patch(
                     (
                         "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
@@ -193,7 +192,7 @@ class TestParquetReportProcessor(MasuTestCase):
 
         expected = "Failed to convert the following files to parquet"
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-            with patch("masu.processor.parquet.parquet_report_processor.mutil.get_path_prefix"):
+            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
                 with patch(
                     (
                         "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
@@ -220,7 +219,7 @@ class TestParquetReportProcessor(MasuTestCase):
                             self.assertIn(expected, " ".join(logger.output))
 
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-            with patch("masu.processor.parquet.parquet_report_processor.mutil.get_path_prefix"):
+            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
                 with patch(
                     (
                         "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
@@ -236,7 +235,7 @@ class TestParquetReportProcessor(MasuTestCase):
                         )
 
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-            with patch("masu.processor.parquet.parquet_report_processor.mutil.get_path_prefix"):
+            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
                 with patch(
                     (
                         "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
@@ -393,7 +392,7 @@ class TestParquetReportProcessor(MasuTestCase):
                             shutil.copy2(test_report_test_path, test_report)
                             local_path = "/tmp/parquet"
                             Path(local_path).mkdir(parents=True, exist_ok=True)
-                            converters = get_column_converters(Provider.PROVIDER_AWS)
+                            converters = self.report_processor._get_column_converters()
 
                             result = self.report_processor.convert_csv_to_parquet(
                                 "request_id",

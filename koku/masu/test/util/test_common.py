@@ -323,6 +323,13 @@ class CommonUtilTests(MasuTestCase):
         res = list(common_utils.batch(vals, start=10))
         self.assertEqual(len(res), max_val - 10)
 
+    def test_batch_start_none(self):
+        """Test batch function with None start index"""
+        max_val = 101
+        vals = list(range(max_val))
+        res = list(common_utils.batch(vals, start=None))
+        self.assertEqual(len(res), 11)
+
     def test_batch_empty(self):
         """Test batch function with empty iterable"""
         res = list(common_utils.batch([]))
@@ -417,6 +424,14 @@ class CommonUtilTests(MasuTestCase):
         self.assertNotEqual(orig_disabled, check_disabled)
         self.assertNotEqual(orig_enabled, check_enabled)
         self.assertEqual((enabled - new_keys), check_enabled)
+
+    def test_strip_characters_from_column_name(self):
+        """Test that column names are converted properly."""
+        bad_str = r"column\one:two-three four,five/six_seven"
+        expected = "column_one_two_three_four_five_six_seven"
+
+        result = common_utils.strip_characters_from_column_name(bad_str)
+        self.assertEqual(result, expected)
 
 
 class NamedTemporaryGZipTests(TestCase):

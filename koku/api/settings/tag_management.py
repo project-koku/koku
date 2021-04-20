@@ -37,7 +37,7 @@ from api.tags.gcp.view import GCPTagView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
-from masu.util import common as mutil
+from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledTagKeys
 from reporting.models import AzureEnabledTagKeys
 from reporting.models import GCPEnabledTagKeys
@@ -211,7 +211,7 @@ class TagManagementSettings:
                 message = f"Invalid tag keys provided: {', '.join(invalid_keys)}."
                 raise ValidationError(error_obj(key, message))
             if "aws" in providerName:
-                updated[ix] = mutil.update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags)
+                updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags)
             else:
                 remove_tags = []
                 with schema_context(self.schema):
