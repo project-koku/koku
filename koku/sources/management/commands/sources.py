@@ -63,7 +63,7 @@ class Command(BaseCommand):
 
         LOG.info("Starting Sources Client Server")
         if ENVIRONMENT.bool("RUN_GUNICORN", default=True):
-            options = {"bind": "{}:{}".format("0.0.0.0", "8080"), "workers": 1, "timeout": 90, "loglevel": "info"}
+            options = {"bind": addrport, "workers": 1, "timeout": 90, "loglevel": "info"}
             SourcesApplication(application, options).run()
         else:
             from django.core.management import call_command
