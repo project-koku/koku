@@ -37,13 +37,16 @@ from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProc
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util.aws.common import aws_post_processor
 from masu.util.aws.common import copy_data_to_s3_bucket
+from masu.util.aws.common import get_column_converters as aws_column_converters
 from masu.util.aws.common import get_s3_resource
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.azure.common import azure_post_processor
-from masu.util.common import get_column_converters
+from masu.util.azure.common import get_column_converters as azure_column_converters
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
 from masu.util.gcp.common import gcp_post_processor
+from masu.util.gcp.common import get_column_converters as gcp_column_converters
+from masu.util.ocp.common import get_column_converters as ocp_column_converters
 from masu.util.ocp.common import REPORT_TYPES
 
 
@@ -51,6 +54,13 @@ LOG = logging.getLogger(__name__)
 CSV_GZIP_EXT = ".csv.gz"
 CSV_EXT = ".csv"
 PARQUET_EXT = ".parquet"
+
+COLUMN_CONVERTERS = {
+    Provider.PROVIDER_AWS: aws_column_converters,
+    Provider.PROVIDER_AZURE: azure_column_converters,
+    Provider.PROVIDER_GCP: gcp_column_converters,
+    Provider.PROVIDER_OCP: ocp_column_converters,
+}
 
 
 class ParquetReportProcessor:
@@ -71,6 +81,10 @@ class ParquetReportProcessor:
         self.presto_table_exists = {}
         self._file_list = context.get("split_files") if context.get("split_files") else [self._report_file]
         self._create_table = context.get("create_table", False)
+
+    def _get_column_converters(self):
+        """Return column converters based on provider type."""
+        return COLUMN_CONVERTERS.get(self._provider_type)()
 
     def convert_to_parquet(  # noqa: C901
         self, request_id, account, provider_uuid, provider_type, start_date, manifest_id, files=[], context={}
@@ -186,7 +200,7 @@ class ParquetReportProcessor:
                     LOG.warn(log_json(request_id, msg, context))
                     continue
 
-            converters = get_column_converters(provider_type, **kwargs)
+            converters = self._get_column_converters()
             result = self.convert_csv_to_parquet(
                 request_id,
                 s3_csv_path,

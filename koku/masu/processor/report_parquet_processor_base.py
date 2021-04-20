@@ -27,6 +27,7 @@ from prestodb.exceptions import PrestoUserError
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
+from masu.util.common import strip_characters_from_column_name
 from reporting.models import PartitionedTable
 
 LOG = logging.getLogger(__name__)
@@ -128,7 +129,7 @@ class ReportParquetProcessorBase:
         sql = f"CREATE TABLE IF NOT EXISTS {self._schema_name}.{self._table_name} ("
 
         for idx, col in enumerate(parquet_columns):
-            norm_col = col.replace("/", "_").replace(":", "_").lower()
+            norm_col = strip_characters_from_column_name(col)
             if norm_col in self._numeric_columns:
                 col_type = "double"
             elif norm_col in self._date_columns:
