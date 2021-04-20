@@ -774,6 +774,7 @@ class ReportQueryHandler(QueryHandler):
 
     def _zerofill_ranks(self, data, ranks):
         """Ensure the data set has at least one entry from every ranked category."""
+        copy_data = copy.deepcopy(data)
         rank_field = self._get_group_by()[0]
 
         data_ranks = [item[rank_field] for item in data]
@@ -793,10 +794,9 @@ class ReportQueryHandler(QueryHandler):
         for missed in missing:
             ranked_empty_row = empty_row
             ranked_empty_row[rank_field] = missed
-            ranked_empty_row["date"] = data[0]["date"]
-            data.append(ranked_empty_row)
-
-        return data
+            ranked_empty_row["date"] = data[0].get("date")
+            copy_data.append(ranked_empty_row)
+        return copy_data
 
     def _perform_rank_summation(self, entry, is_offset=False, ranks=[]):  # noqa: C901
         """Do the rank limiting for _ranked_list().
