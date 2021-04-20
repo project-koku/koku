@@ -31,6 +31,7 @@ from masu.external.downloader.azure.azure_report_downloader import AzureReportDo
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
+from masu.external.downloader.ibm.ibm_report_downloader import IBMReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from reporting_common.models import CostUsageReportStatus
 
@@ -67,7 +68,12 @@ class ReportDownloader:
         self.account = account
         if self.account is None:
             self.account = customer_name[4:]
-        self.context = {"request_id": self.request_id, "provider_uuid": self.provider_uuid, "account": self.account}
+        self.context = {
+            "request_id": self.request_id,
+            "provider_uuid": self.provider_uuid,
+            "provider_type": self.provider_type,
+            "account": self.account,
+        }
 
         try:
             self._downloader = self._set_downloader()
@@ -99,6 +105,7 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
                 account=self.account,
+                provider_type=self.provider_type,
             )
         if self.provider_type == Provider.PROVIDER_AWS_LOCAL:
             return AWSLocalReportDownloader(
@@ -109,6 +116,7 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
                 account=self.account,
+                provider_type=self.provider_type,
             )
         if self.provider_type == Provider.PROVIDER_AZURE:
             return AzureReportDownloader(
@@ -119,6 +127,7 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
                 account=self.account,
+                provider_type=self.provider_type,
             )
         if self.provider_type == Provider.PROVIDER_AZURE_LOCAL:
             return AzureLocalReportDownloader(
@@ -129,6 +138,7 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
                 account=self.account,
+                provider_type=self.provider_type,
             )
         if self.provider_type == Provider.PROVIDER_OCP:
             return OCPReportDownloader(
@@ -139,6 +149,7 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
                 account=self.account,
+                provider_type=self.provider_type,
             )
         if self.provider_type == Provider.PROVIDER_GCP:
             return GCPReportDownloader(
@@ -149,6 +160,7 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
                 account=self.account,
+                provider_type=self.provider_type,
             )
         if self.provider_type == Provider.PROVIDER_GCP_LOCAL:
             return GCPLocalReportDownloader(
@@ -159,6 +171,18 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 request_id=self.request_id,
                 account=self.account,
+                provider_type=self.provider_type,
+            )
+        if self.provider_type == Provider.PROVIDER_IBM:
+            return IBMReportDownloader(
+                customer_name=self.customer_name,
+                credentials=self.credentials,
+                data_source=self.data_source,
+                report_name=self.report_name,
+                provider_uuid=self.provider_uuid,
+                request_id=self.request_id,
+                account=self.account,
+                provider_type=self.provider_type,
             )
         return None
 
@@ -246,4 +270,5 @@ class ReportDownloader:
             "assembly_id": report_context.get("assembly_id"),
             "manifest_id": manifest_id,
             "provider_uuid": self.provider_uuid,
+            "create_table": report_context.get("create_table", False),
         }

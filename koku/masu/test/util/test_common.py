@@ -290,6 +290,14 @@ class CommonUtilTests(MasuTestCase):
         result = list(common_utils.split_alphanumeric_string(s))
         self.assertEqual(result, expected)
 
+    def test_strip_characters_from_column_name(self):
+        """Test that column names are converted properly."""
+        bad_str = r"column\one:two-three four,five/six_seven"
+        expected = "column_one_two_three_four_five_six_seven"
+
+        result = common_utils.strip_characters_from_column_name(bad_str)
+        self.assertEqual(result, expected)
+
 
 class NamedTemporaryGZipTests(TestCase):
     """Tests for NamedTemporaryGZip."""

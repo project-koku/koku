@@ -26,6 +26,7 @@ import shutil
 from api.common import log_json
 from api.provider.models import Provider
 from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws import common as utils
@@ -250,7 +251,13 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             utils.copy_local_report_file_to_s3_bucket(
                 self.request_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context
             )
-            utils.remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
+
+            manifest_accessor = ReportManifestDBAccessor()
+            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+
+            if not manifest_accessor.get_s3_csv_cleared(manifest):
+                utils.remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
+                manifest_accessor.mark_s3_csv_cleared(manifest)
         return full_file_path, s3_etag, file_creation_date, []
 
     def get_local_file_for_report(self, report):

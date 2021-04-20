@@ -180,3 +180,27 @@ class ReportManifestDBAccessorTest(IamTestCase):
         CostUsageReportStatus.objects.filter(manifest_id=manifest_id).update(last_completed_datetime=FAKE.date())
 
         self.assertFalse(ReportManifestDBAccessor().is_last_completed_datetime_null(manifest_id))
+
+    def test_get_s3_csv_cleared(self):
+        """Test that s3 CSV clear status is reported."""
+        with schema_context(self.schema):
+            manifest = self.manifest_accessor.add(**self.manifest_dict)
+            status = self.manifest_accessor.get_s3_csv_cleared(manifest)
+            self.assertFalse(status)
+
+            self.manifest_accessor.mark_s3_csv_cleared(manifest)
+
+            status = self.manifest_accessor.get_s3_csv_cleared(manifest)
+            self.assertTrue(status)
+
+    def test_get_s3_parquet_cleared(self):
+        """Test that s3 CSV clear status is reported."""
+        with schema_context(self.schema):
+            manifest = self.manifest_accessor.add(**self.manifest_dict)
+            status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
+            self.assertFalse(status)
+
+            self.manifest_accessor.mark_s3_parquet_cleared(manifest)
+
+            status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
+            self.assertTrue(status)
