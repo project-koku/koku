@@ -382,6 +382,9 @@ class TestAWSUtils(MasuTestCase):
         data_frame = pd.DataFrame.from_dict(data)
 
         processed_data_frame = utils.aws_post_processor(data_frame)
+        if isinstance(processed_data_frame, tuple):
+            processed_data_frame, df_tag_keys = processed_data_frame
+            self.assertIsInstance(df_tag_keys, set)
 
         columns = list(processed_data_frame)
 
