@@ -328,7 +328,7 @@ class CommonUtilTests(MasuTestCase):
         max_val = 101
         vals = list(range(max_val))
         res = list(common_utils.batch(vals, start=None))
-        self.assertEqual(len(res), 11)
+        self.assertEqual(len(res), 101)
 
     def test_batch_empty(self):
         """Test batch function with empty iterable"""
