@@ -17,8 +17,8 @@
 import logging
 import time
 
-import gunicorn.app.base
 from django.core.management.base import BaseCommand
+from gunicorn.app.base import BaseApplication
 
 from koku.database import check_migrations
 from koku.env import ENVIRONMENT
@@ -28,7 +28,7 @@ from sources.kafka_listener import initialize_sources_integration
 LOG = logging.getLogger(__name__)
 
 
-class SourcesApplication(gunicorn.app.base.BaseApplication):
+class SourcesApplication(BaseApplication):
     # reference https://docs.gunicorn.org/en/latest/custom.html
     def __init__(self, app, options=None):
         self.options = options or {}
@@ -65,11 +65,9 @@ class Command(BaseCommand):
         if ENVIRONMENT.bool("RUN_GUNICORN", default=True):
             options = {"bind": "{}:{}".format("0.0.0.0", "8080"), "workers": 1, "timeout": 90, "loglevel": "info"}
             SourcesApplication(application, options).run()
-
         else:
             from django.core.management import call_command
 
             options["use_reloader"] = False
             options.pop("skip_checks", None)
-
             call_command("runserver", addrport, *args, **options)
