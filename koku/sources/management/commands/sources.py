@@ -17,13 +17,31 @@
 import logging
 import time
 
-from django.core.management import call_command
 from django.core.management.base import BaseCommand
+from gunicorn.app.base import BaseApplication
 
 from koku.database import check_migrations
+from koku.env import ENVIRONMENT
+from koku.wsgi import application
 from sources.kafka_listener import initialize_sources_integration
 
 LOG = logging.getLogger(__name__)
+
+
+class SourcesApplication(BaseApplication):
+    # reference https://docs.gunicorn.org/en/latest/custom.html
+    def __init__(self, app, options=None):
+        self.options = options or {}
+        self.application = app
+        super().__init__()
+
+    def load_config(self):
+        config = {key: value for key, value in self.options.items() if key in self.cfg.settings and value is not None}
+        for key, value in config.items():
+            self.cfg.set(key.lower(), value)
+
+    def load(self):
+        return self.application
 
 
 class Command(BaseCommand):
@@ -44,17 +62,12 @@ class Command(BaseCommand):
         initialize_sources_integration()
 
         LOG.info("Starting Sources Client Server")
-        options["use_reloader"] = False
-        options.pop("skip_checks", None)
+        if ENVIRONMENT.bool("RUN_GUNICORN", default=True):
+            options = {"bind": addrport, "workers": 1, "timeout": 90, "loglevel": "info"}
+            SourcesApplication(application, options).run()
+        else:
+            from django.core.management import call_command
 
-        # if ENVIRONMENT.bool("RUN_GUNICORN", default=True):
-
-        #     # This calls the container `run` file
-        #     os.system("gunicorn koku.wsgi --bind=0.0.0.0:8080 --access-logfile=- --config gunicorn.py --chdir ./koku")
-
-        # else:
-        #     from django.core.management import call_command
-
-        #     call_command("runserver", addrport, *args, **options)
-
-        call_command("runserver", addrport, *args, **options)
+            options["use_reloader"] = False
+            options.pop("skip_checks", None)
+            call_command("runserver", addrport, *args, **options)
