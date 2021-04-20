@@ -158,7 +158,6 @@ def safe_dict(val):
 def strip_characters_from_column_name(column_name):
     """Return a valid Hive/Trino column name."""
     return re.sub(r"\W+", "_", column_name).lower()
-    # return column_name.replace("-", "_").replace("/", "_").replace(":", "_").replace(" ", "_").lower()
 
 
 class NamedTemporaryGZip:
