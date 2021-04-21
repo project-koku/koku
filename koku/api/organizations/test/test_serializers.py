@@ -134,12 +134,12 @@ class OrgQueryParamSerializerTest(TestCase):
             {
                 "start_date": dh.last_month_end.date(),
                 "end_date": dh.this_month_start.date(),
-                "filter": {"resolution": "monthly"},
+                "filter": {"resolution": "daily"},
             },
             {
                 "start_date": dh.last_month_start.date(),
                 "end_date": dh.last_month_end.date(),
-                "filter": {"resolution": "monthly"},
+                "filter": {"resolution": "daily"},
             },
         ]
 
