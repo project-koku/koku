@@ -737,8 +737,14 @@ class ReportQueryHandler(QueryHandler):
 
         rankings = []
         for rank in ranks:
-            rankings.insert((rank.get("rank") - 1), str(rank.get(group_by_value[0])))
+            rank_value = rank.get(group_by_value[0])
+            if not rank_value:
+                # Convert None in ranking to no-{group_by}
+                rank_value = f"no-{group_by_value[0]}"
+            rankings.insert((rank.get("rank") - 1), rank_value)
 
+        for query_return in data:
+            query_return = self._apply_group_null_label(query_return, gb)
         return self._ranked_list(data, rankings)
 
     def _ranked_list(self, data_list, ranks=None):
@@ -816,19 +822,35 @@ class ReportQueryHandler(QueryHandler):
             if other is None:
                 other = copy.deepcopy(data)
 
-            ranked_value = str(data.get(self._get_group_by()[0]))
             if ranks:
+                ranked_value = data.get(self._get_group_by()[0])
+                if not ranked_value:
+                    # Convert None to no-{group_by}
+                    ranked_value = f"no-{self._get_group_by()[0]}"
                 rank = ranks.index(ranked_value) + 1
                 data["rank"] = rank
             else:
                 rank = data.get("rank", 1)
 
+            LOG.info("\n")
+            LOG.info("data")
+            LOG.info(data)
+            LOG.info("limit")
+            LOG.info(self._limit)
             if rank > self._offset and rank <= self._limit + self._offset:
+                LOG.info("\n")
+                LOG.info("adding to ranked_list")
+                LOG.info("\n")
                 ranked_list.append(data)
             else:
                 others_list.append(data)
+                LOG.info("\n")
+                LOG.info("adding to others_list")
+                LOG.info("\n")
                 for column in self._mapper.sum_columns:
                     other_sums[column] += data.get(column) if data.get(column) else 0
+
+        LOG.info("---------------------")
 
         if other is not None and others_list and not is_offset:
             num_others = len(others_list)
