@@ -790,13 +790,14 @@ class ReportQueryHandler(QueryHandler):
         }
         empty_row = {key: row_defaults[str(type(val).__name__)] for key, val in data[0].items()}
 
+        missed_data = []
         for missed in missing:
-            ranked_empty_row = empty_row
+            ranked_empty_row = copy.deepcopy(empty_row)
             ranked_empty_row[rank_field] = missed
-            ranked_empty_row["date"] = data[0]["date"]
-            data.append(ranked_empty_row)
-
-        return data
+            ranked_empty_row["date"] = data[0].get("date")
+            missed_data.append(ranked_empty_row)
+        new_data = data + missed_data
+        return new_data
 
     def _perform_rank_summation(self, entry, is_offset=False, ranks=[]):  # noqa: C901
         """Do the rank limiting for _ranked_list().
