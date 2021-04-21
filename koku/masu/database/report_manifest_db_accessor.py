@@ -15,7 +15,8 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report manifest database accessor for cost usage reports."""
-from celery.utils.log import get_task_logger
+import logging
+
 from django.db.models import F
 from django.db.models.expressions import Window
 from django.db.models.functions import RowNumber
@@ -26,7 +27,7 @@ from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
-LOG = get_task_logger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 class ReportManifestDBAccessor(KokuDBAccess):
@@ -176,3 +177,29 @@ class ReportManifestDBAccessor(KokuDBAccess):
             provider_uuid,
             expired_date,
         )
+
+    def get_s3_csv_cleared(self, manifest):
+        """Return whether we have cleared CSV files from S3 for this manifest."""
+        s3_csv_cleared = False
+        if manifest:
+            s3_csv_cleared = manifest.s3_csv_cleared
+        return s3_csv_cleared
+
+    def mark_s3_csv_cleared(self, manifest):
+        """Return whether we have cleared CSV files from S3 for this manifest."""
+        if manifest:
+            manifest.s3_csv_cleared = True
+            manifest.save()
+
+    def get_s3_parquet_cleared(self, manifest):
+        """Return whether we have cleared CSV files from S3 for this manifest."""
+        s3_parquet_cleared = False
+        if manifest:
+            s3_parquet_cleared = manifest.s3_parquet_cleared
+        return s3_parquet_cleared
+
+    def mark_s3_parquet_cleared(self, manifest):
+        """Return whether we have cleared CSV files from S3 for this manifest."""
+        if manifest:
+            manifest.s3_parquet_cleared = True
+            manifest.save()

@@ -347,7 +347,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.close_and_set_db_connection")
     def test_handle_messages(self, _):
         """Test to ensure that kafka messages are handled."""
-        hccm_msg = MockMessage(msg_handler.HCCM_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
+        hccm_msg = MockMessage(Config.HCCM_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
         advisor_msg = MockMessage("platform.upload.advisor", "http://insights-upload.com/quarnantine/file_to_validate")
 
         # Verify that when extract_payload is successful with 'hccm' message that SUCCESS_CONFIRM_STATUS is returned
