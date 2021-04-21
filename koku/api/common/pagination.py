@@ -198,8 +198,6 @@ class ReportRankedPagination(ReportPagination):
         self.request = request
         self.limit = self.get_limit(request)
         self.offset = self.get_offset(request)
-        LOG.info("\n\n\nqueryset")
-        LOG.info(queryset)
         return queryset
 
 
