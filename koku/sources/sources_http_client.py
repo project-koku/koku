@@ -318,7 +318,7 @@ class SourcesHTTPClient:
 
         raise SourcesHTTPClientError(f"Unable to get Azure credentials for Source: {self._source_id}")
 
-    def build_source_status(self, error_obj):
+    def build_source_status(self, error_obj, in_progress=False):
         """
         Format the availability status for a source.
 
@@ -338,11 +338,15 @@ class SourcesHTTPClient:
                             'availability_status_error': 'User facing String'}
 
         """
-        if error_obj:
-            status = "unavailable"
-        else:
-            status = "available"
+        if in_progress:
+            status = "in_progress"
             error_obj = ""
+        else:
+            if error_obj:
+                status = "unavailable"
+            else:
+                status = "available"
+                error_obj = ""
 
         user_facing_string = SourcesErrorMessage(error_obj).display(self._source_id)
         return {"availability_status": status, "availability_status_error": user_facing_string}
@@ -368,7 +372,7 @@ class SourcesHTTPClient:
         except (binascii.Error, json.JSONDecodeError, TypeError, KeyError) as error:
             LOG.error(f"Unable to build internal status header. Error: {str(error)}")
 
-    def set_source_status(self, error_msg, cost_management_type_id=None):
+    def set_source_status(self, error_msg, in_progress=False, cost_management_type_id=None):
         """Set the source status with error message."""
         status_header = self.build_status_header()
         if not status_header:
@@ -388,7 +392,7 @@ class SourcesHTTPClient:
             application_id = response_data[0].get("id")
             application_url = f"{self._base_url}/applications/{str(application_id)}"
 
-            json_data = self.build_source_status(error_msg)
+            json_data = self.build_source_status(error_msg, in_progress=in_progress)
             if storage.save_status(self._source_id, json_data):
                 LOG.info(f"Setting Source Status for Source ID: {str(self._source_id)}: {str(json_data)}")
                 application_response = requests.patch(application_url, json=json_data, headers=status_header)

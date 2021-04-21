@@ -591,6 +591,7 @@ def execute_koku_provider_op(msg):
         sources_client.set_source_status(account_error)
     except SkipStatusPush as error:
         LOG.info(f"Platform sources status push skipped. Reason: {str(error)}")
+        sources_client.set_source_status(None, in_progress=True)
 
 
 def _requeue_provider_sync_message(priority, msg, queue):
