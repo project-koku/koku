@@ -81,7 +81,6 @@ class ParquetReportProcessor:
         self._manifest_id = manifest_id
         self._context = context
         self.presto_table_exists = {}
-        self._resolve_enabled_tags_model()
 
     @property
     def schema_name(self):
@@ -230,7 +229,7 @@ class ParquetReportProcessor:
 
     def _get_column_converters(self):
         """Return column converters based on provider type."""
-        return COLUMN_CONVERTERS.get(self._provider_type)()
+        return COLUMN_CONVERTERS.get(self.provider_type)()
 
     def _set_report_processor(self, parquet_file):
         """Return the correct ReportParquetProcessor."""
