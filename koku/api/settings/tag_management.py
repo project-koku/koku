@@ -37,6 +37,7 @@ from api.tags.gcp.view import GCPTagView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledTagKeys
 from reporting.models import AzureEnabledTagKeys
 from reporting.models import GCPEnabledTagKeys
@@ -116,7 +117,10 @@ class TagManagementSettings:
         all_tags_set = set(avail_data)
         enabled = []
         with schema_context(self.schema):
-            enabled_tags = tag_keys_kls.objects.all()
+            if tag_keys_kls == AWSEnabledTagKeys:
+                enabled_tags = tag_keys_kls.objects.filter(enabled=True).all()
+            else:
+                enabled_tags = tag_keys_kls.objects.all()
             enabled = [enabled_tag.key for enabled_tag in enabled_tags]
             all_tags_set.update(enabled)
 
@@ -196,7 +200,6 @@ class TagManagementSettings:
             if provider_in_settings is None:
                 continue
             enabled_tags = provider_in_settings.get("enabled", [])
-            remove_tags = []
             tag_view = obtainTagKeysProvidersParams[providerName]["tag_view"]
             query_handler = obtainTagKeysProvidersParams[providerName]["query_handler"]
             enabled_tag_keys = obtainTagKeysProvidersParams[providerName]["enabled_tag_keys"]
@@ -207,21 +210,27 @@ class TagManagementSettings:
                 key = "settings"
                 message = f"Invalid tag keys provided: {', '.join(invalid_keys)}."
                 raise ValidationError(error_obj(key, message))
-            with schema_context(self.schema):
-                existing_enabled_tags = enabled_tag_keys.objects.all()
-                for existing_tag in existing_enabled_tags:
-                    if existing_tag.key in enabled_tags:
-                        enabled_tags.remove(existing_tag.key)
-                    else:
-                        remove_tags.append(existing_tag)
+            if "aws" in providerName:
+                updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags)
+            else:
+                remove_tags = []
+                with schema_context(self.schema):
+                    existing_enabled_tags = enabled_tag_keys.objects.all()
+                    for existing_tag in existing_enabled_tags:
+                        if existing_tag.key in enabled_tags:
+                            enabled_tags.remove(existing_tag.key)
+                        else:
+                            remove_tags.append(existing_tag)
+                            updated[ix] = True
+                    for rm_tag in remove_tags:
+                        rm_tag.delete()
+                    for new_tag in enabled_tags:
+                        enabled_tag_keys.objects.create(key=new_tag)
                         updated[ix] = True
-                for rm_tag in remove_tags:
-                    rm_tag.delete()
-                for new_tag in enabled_tags:
-                    enabled_tag_keys.objects.create(key=new_tag)
-                    updated[ix] = True
+
             if updated[ix]:
                 invalidate_view_cache_for_tenant_and_source_type(self.schema, provider)
+
         return any(updated)
 
     def handle_settings(self, settings):

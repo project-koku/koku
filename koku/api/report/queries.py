@@ -18,6 +18,7 @@
 import copy
 import logging
 import random
+import re
 import string
 from collections import defaultdict
 from collections import OrderedDict
@@ -651,7 +652,11 @@ class ReportQueryHandler(QueryHandler):
                 for line_data in sorted_data:
                     if not line_data.get(field):
                         line_data[field] = f"no-{field}"
-                sorted_data = sorted(sorted_data, key=lambda entry: entry[field].lower(), reverse=reverse)
+                sorted_data = sorted(
+                    sorted_data,
+                    key=lambda entry: (bool(re.match(r"[0-9]+\sothers", entry[field].lower())), entry[field].lower()),
+                    reverse=reverse,
+                )
         return sorted_data
 
     def get_tag_order_by(self, tag):
@@ -709,9 +714,10 @@ class ReportQueryHandler(QueryHandler):
                 rank_annotations = {self._delta: self.report_annotations[self._delta]}
                 rank_orders.append(getattr(F(self._delta), self.order_direction)())
         else:
-            if self.report_annotations.get(self.order_field):
-                rank_annotations = {self.order_field: self.report_annotations.get(self.order_field)}
-            rank_orders.append(getattr(F(self.order_field), self.order_direction)())
+            for key, val in self.default_ordering.items():
+                order_field, order_direction = key, val
+            rank_annotations = {order_field: self.report_annotations.get(order_field)}
+            rank_orders.append(getattr(F(order_field), order_direction)())
 
         if tag_column in gb[0]:
             rank_orders.append(self.get_tag_order_by(gb[0]))
@@ -784,13 +790,14 @@ class ReportQueryHandler(QueryHandler):
         }
         empty_row = {key: row_defaults[str(type(val).__name__)] for key, val in data[0].items()}
 
+        missed_data = []
         for missed in missing:
-            ranked_empty_row = empty_row
+            ranked_empty_row = copy.deepcopy(empty_row)
             ranked_empty_row[rank_field] = missed
-            ranked_empty_row["date"] = data[0]["date"]
-            data.append(ranked_empty_row)
-
-        return data
+            ranked_empty_row["date"] = data[0].get("date")
+            missed_data.append(ranked_empty_row)
+        new_data = data + missed_data
+        return new_data
 
     def _perform_rank_summation(self, entry, is_offset=False, ranks=[]):  # noqa: C901
         """Do the rank limiting for _ranked_list().

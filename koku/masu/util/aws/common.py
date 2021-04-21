@@ -19,9 +19,9 @@ import datetime
 import json
 import logging
 import re
-from io import BytesIO
 
 import boto3
+import ciso8601
 from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from dateutil.relativedelta import relativedelta
@@ -34,6 +34,8 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor import enable_trino_processing
 from masu.util import common as utils
+from masu.util.common import safe_float
+from masu.util.common import strip_characters_from_column_name
 from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
 
 LOG = logging.getLogger(__name__)
@@ -291,19 +293,22 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
     """
     Copies data to s3 bucket file
     """
-    if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(context.get("provider_uuid"))):
+    if not (
+        settings.ENABLE_S3_ARCHIVING
+        or enable_trino_processing(context.get("provider_uuid"), context.get("provider_type"), context.get("account"))
+    ):
         return None
 
     upload = None
     upload_key = f"{path}/{filename}"
+    extra_args = {}
+    if manifest_id:
+        extra_args = {"Metadata": {"ManifestId": str(manifest_id)}}
     try:
         s3_resource = get_s3_resource()
         s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
         upload = s3_resource.Object(**s3_obj)
-        put_value = {"Body": data}
-        if manifest_id:
-            put_value["Metadata"] = {"ManifestId": str(manifest_id)}
-        upload.put(**put_value)
+        upload.upload_fileobj(data, ExtraArgs=extra_args)
     except (EndpointConnectionError, ClientError) as err:
         msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
         LOG.info(log_json(request_id, msg, context))
@@ -316,18 +321,23 @@ def copy_local_report_file_to_s3_bucket(
     """
     Copies local report file to s3 bucket
     """
-    if s3_path and (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(context.get("provider_uuid"))):
+    if s3_path and (
+        settings.ENABLE_S3_ARCHIVING
+        or enable_trino_processing(context.get("provider_uuid"), context.get("provider_type"), context.get("account"))
+    ):
         LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         with open(full_file_path, "rb") as fin:
-            data = BytesIO(fin.read())
-            copy_data_to_s3_bucket(request_id, s3_path, local_filename, data, manifest_id, context)
+            copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, manifest_id, context)
 
 
 def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context={}):
     """
     Removes all files in a given prefix if they are not within the given set.
     """
-    if not (settings.ENABLE_S3_ARCHIVING or settings.ENABLE_PARQUET_PROCESSING):
+    if not (
+        settings.ENABLE_S3_ARCHIVING
+        or enable_trino_processing(context.get("provider_uuid"), context.get("provider_type"), context.get("account"))
+    ):
         return []
 
     removed = []
@@ -357,15 +367,21 @@ def aws_post_processor(data_frame):
     """
     Consume the AWS data and add a column creating a dictionary for the aws tags
     """
+
+    def scrub_resource_col_name(res_col_name):
+        return res_col_name.replace("resourceTags/user:", "")
+
     columns = set(list(data_frame))
     columns = set(PRESTO_REQUIRED_COLUMNS).union(columns)
     columns = sorted(list(columns))
 
     resource_tag_columns = [column for column in columns if "resourceTags/user:" in column]
+    unique_keys = {scrub_resource_col_name(column) for column in resource_tag_columns}
     tag_df = data_frame[resource_tag_columns]
     resource_tags_dict = tag_df.apply(
-        lambda row: {column.replace("resourceTags/user:", ""): value for column, value in row.items()}, axis=1
+        lambda row: {scrub_resource_col_name(column): value for column, value in row.items() if value}, axis=1
     )
+
     data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
     # Make sure we have entries for our required columns
     data_frame = data_frame.reindex(columns=columns)
@@ -374,13 +390,32 @@ def aws_post_processor(data_frame):
     column_name_map = {}
     drop_columns = []
     for column in columns:
-        new_col_name = column.replace("-", "_").replace("/", "_").replace(":", "_").lower()
+        new_col_name = strip_characters_from_column_name(column)
         column_name_map[column] = new_col_name
         if "resourceTags/" in column:
             drop_columns.append(column)
     data_frame = data_frame.drop(columns=drop_columns)
     data_frame = data_frame.rename(columns=column_name_map)
-    return data_frame
+    return (data_frame, unique_keys)
+
+
+def get_column_converters():
+    """Return source specific parquet column converters."""
+    return {
+        "bill/BillingPeriodStartDate": ciso8601.parse_datetime,
+        "bill/BillingPeriodEndDate": ciso8601.parse_datetime,
+        "lineItem/UsageStartDate": ciso8601.parse_datetime,
+        "lineItem/UsageEndDate": ciso8601.parse_datetime,
+        "lineItem/UsageAmount": safe_float,
+        "lineItem/NormalizationFactor": safe_float,
+        "lineItem/NormalizedUsageAmount": safe_float,
+        "lineItem/UnblendedRate": safe_float,
+        "lineItem/UnblendedCost": safe_float,
+        "lineItem/BlendedRate": safe_float,
+        "lineItem/BlendedCost": safe_float,
+        "pricing/publicOnDemandCost": safe_float,
+        "pricing/publicOnDemandRate": safe_float,
+    }
 
 
 # pylint: disable=too-few-public-methods

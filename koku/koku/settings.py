@@ -36,7 +36,9 @@ from corsheaders.defaults import default_headers
 
 from . import database
 from . import sentry
+from .configurator import CONFIGURATOR
 from .env import ENVIRONMENT
+
 
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
@@ -50,15 +52,15 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # The SECRET_KEY is provided via an environment variable in OpenShift
-SECRET_KEY = os.getenv(
+SECRET_KEY = ENVIRONMENT.get_value(
     "DJANGO_SECRET_KEY",
     # safe value used for development when DJANGO_SECRET_KEY might not be set
-    "asvuhxowz)zjbo4%7pc$ek1nbfh_-#%$bq_x8tkh=#e24825=5",
+    default="asvuhxowz)zjbo4%7pc$ek1nbfh_-#%$bq_x8tkh=#e24825=5",
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Default value: False
-DEBUG = False if os.getenv("DJANGO_DEBUG", "False") == "False" else True
+DEBUG = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 
 ALLOWED_HOSTS = ["*"]
 
@@ -124,16 +126,12 @@ MIDDLEWARE = [
     "koku.middleware.DisableCSRF",
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "koku.middleware.IdentityHeaderMiddleware",
+    "koku.middleware.KokuTenantMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    PROMETHEUS_AFTER_MIDDLEWARE,
 ]
-MIDDLEWARE.extend(
-    [
-        "koku.middleware.IdentityHeaderMiddleware",
-        "koku.middleware.KokuTenantMiddleware",
-        "django.middleware.clickjacking.XFrameOptionsMiddleware",
-        "whitenoise.middleware.WhiteNoiseMiddleware",
-        PROMETHEUS_AFTER_MIDDLEWARE,
-    ]
-)
 
 DEVELOPMENT = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 if DEVELOPMENT:
@@ -183,9 +181,10 @@ CACHE_MIDDLEWARE_SECONDS = ENVIRONMENT.get_value("CACHE_TIMEOUT", default=3600)
 
 HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
 
-REDIS_HOST = ENVIRONMENT.get_value("REDIS_HOST", default="redis")
-REDIS_PORT = ENVIRONMENT.get_value("REDIS_PORT", default="6379")
+REDIS_HOST = CONFIGURATOR.get_in_memory_db_host()
+REDIS_PORT = CONFIGURATOR.get_in_memory_db_port()
 REDIS_DB = 1
+REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 KEEPDB = ENVIRONMENT.bool("KEEPDB", default=True)
 TEST_CACHE_LOCATION = "unique-snowflake"
@@ -231,7 +230,7 @@ else:
         },
     }
 
-if ENVIRONMENT.get_value("CACHED_VIEWS_DISABLED", default=False):
+if ENVIRONMENT.bool("CACHED_VIEWS_DISABLED", default=False):
     CACHES.update({"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
 DATABASES = {"default": database.config()}
 
@@ -271,7 +270,7 @@ USE_L10N = True
 
 USE_TZ = True
 
-API_PATH_PREFIX = os.getenv("API_PATH_PREFIX", ENVIRONMENT.get_value("API_PATH_PREFIX", default="/api"))
+API_PATH_PREFIX = ENVIRONMENT.get_value("API_PATH_PREFIX", default="/api")
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
@@ -301,15 +300,15 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": DEFAULT_EXCEPTION_HANDLER,
 }
 
-CW_AWS_ACCESS_KEY_ID = ENVIRONMENT.get_value("CW_AWS_ACCESS_KEY_ID", default=None)
-CW_AWS_SECRET_ACCESS_KEY = ENVIRONMENT.get_value("CW_AWS_SECRET_ACCESS_KEY", default=None)
-CW_AWS_REGION = ENVIRONMENT.get_value("CW_AWS_REGION", default="us-east-1")
-CW_LOG_GROUP = ENVIRONMENT.get_value("CW_LOG_GROUP", default="platform-dev")
+CW_AWS_ACCESS_KEY_ID = CONFIGURATOR.get_cloudwatch_access_id()
+CW_AWS_SECRET_ACCESS_KEY = CONFIGURATOR.get_cloudwatch_access_key()
+CW_AWS_REGION = CONFIGURATOR.get_cloudwatch_region()
+CW_LOG_GROUP = CONFIGURATOR.get_cloudwatch_log_group()
 
-LOGGING_FORMATTER = os.getenv("DJANGO_LOG_FORMATTER", "simple")
-DJANGO_LOGGING_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "INFO")
-KOKU_LOGGING_LEVEL = os.getenv("KOKU_LOG_LEVEL", "INFO")
-LOGGING_HANDLERS = os.getenv("DJANGO_LOG_HANDLERS", "console").split(",")
+LOGGING_FORMATTER = ENVIRONMENT.get_value("DJANGO_LOG_FORMATTER", default="simple")
+DJANGO_LOGGING_LEVEL = ENVIRONMENT.get_value("DJANGO_LOG_LEVEL", default="INFO")
+KOKU_LOGGING_LEVEL = ENVIRONMENT.get_value("KOKU_LOG_LEVEL", default="INFO")
+LOGGING_HANDLERS = ENVIRONMENT.get_value("DJANGO_LOG_HANDLERS", default="console").split(",")
 VERBOSE_FORMATTING = (
     "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d "
     "%(task_id)s %(task_parent_id)s %(task_root_id)s "
@@ -317,9 +316,9 @@ VERBOSE_FORMATTING = (
 )
 SIMPLE_FORMATTING = "[%(asctime)s] %(levelname)s %(task_root_id)s %(message)s"
 
-LOG_DIRECTORY = os.getenv("LOG_DIRECTORY", BASE_DIR)
+LOG_DIRECTORY = ENVIRONMENT.get_value("LOG_DIRECTORY", default=BASE_DIR)
 DEFAULT_LOG_FILE = os.path.join(LOG_DIRECTORY, "app.log")
-LOGGING_FILE = os.getenv("DJANGO_LOG_FILE", DEFAULT_LOG_FILE)
+LOGGING_FILE = ENVIRONMENT.get_value("DJANGO_LOG_FILE", default=DEFAULT_LOG_FILE)
 
 if CW_AWS_ACCESS_KEY_ID:
     try:
@@ -357,7 +356,6 @@ if CW_AWS_ACCESS_KEY_ID:
             }
         else:
             print("CloudWatch not configured.")
-
 
 LOGGING = {
     "version": 1,
@@ -422,29 +420,8 @@ MASU_BASE_URL = f"http://{MASU_SERVICE_HOST}:{MASU_SERVICE_PORT}"
 MASU_API_REPORT_DATA = f"{API_PATH_PREFIX}/v1/report_data/"
 
 # AMQP Message Broker
-RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
-RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", "5672")
-
-REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
-# Set Broker
-USE_RABBIT = ENVIRONMENT.bool("USE_RABBIT", default=False)
-if USE_RABBIT:
-    print("USING RABBIT!")
-    CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
-else:
-    print("USING REDIS!")
-    CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULTS_URL = REDIS_URL
-
-CELERY_IMPORTS = ("masu.processor.tasks", "masu.celery.tasks", "koku.metrics")
-CELERY_BROKER_POOL_LIMIT = None
-CELERY_WORKER_PREFETCH_MULTIPLIER = 1
-CELERY_WORKER_CONCURRENCY = 1
-CELERY_WORKER_LOG_FORMAT = "[%(asctime)s: %(levelname)s/%(processName)s] %(message)s"
-CELERY_WORKER_TASK_LOG_FORMAT = (
-    "[%(asctime)s: %(levelname)s/%(processName)s] [%(task_name)s(%(task_id)s via %(task_root_id)s)] %(message)s"
-)
-CELERY_RESULT_EXPIRES = 28800  # 8 hours (3600 seconds / hour * 8 hours)
+RABBITMQ_HOST = ENVIRONMENT.get_value("RABBITMQ_HOST", default="localhost")
+RABBITMQ_PORT = ENVIRONMENT.get_value("RABBITMQ_PORT", default="5672")
 
 
 # AWS S3 Bucket Settings
@@ -459,19 +436,21 @@ S3_ACCESS_KEY = ENVIRONMENT.get_value("S3_ACCESS_KEY", default=None)
 S3_SECRET = ENVIRONMENT.get_value("S3_SECRET", default=None)
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 ENABLE_PARQUET_PROCESSING = ENVIRONMENT.bool("ENABLE_PARQUET_PROCESSING", default=False)
-PARQUET_PROCESSING_BATCH_SIZE = ENVIRONMENT.get_value("PARQUET_PROCESSING_BATCH_SIZE", default=200000)
+PARQUET_PROCESSING_BATCH_SIZE = ENVIRONMENT.int("PARQUET_PROCESSING_BATCH_SIZE", default=200000)
 ENABLE_TRINO_SOURCES = ENVIRONMENT.list("ENABLE_TRINO_SOURCES", default=[])
+ENABLE_TRINO_ACCOUNTS = ENVIRONMENT.list("ENABLE_TRINO_ACCOUNTS", default=[])
+ENABLE_TRINO_SOURCE_TYPE = ENVIRONMENT.list("ENABLE_TRINO_SOURCE_TYPE", default=[])
 
 # Presto Settings
 PRESTO_HOST = ENVIRONMENT.get_value("PRESTO_HOST", default=None)
 PRESTO_PORT = ENVIRONMENT.get_value("PRESTO_PORT", default=None)
-TRINO_DATE_STEP = ENVIRONMENT.get_value("TRINO_DATE_STEP", default=5)
+TRINO_DATE_STEP = ENVIRONMENT.int("TRINO_DATE_STEP", default=5)
 
 # IBM Settings
 IBM_SERVICE_URL = ENVIRONMENT.get_value("IBM_SERVICE_URL", default="https://enterprise.cloud.ibm.com")
 
 # Time to wait between cold storage retrieval for data export. Default is 3 hours
-COLD_STORAGE_RETRIVAL_WAIT_TIME = int(os.getenv("COLD_STORAGE_RETRIVAL_WAIT_TIME", default="10800"))
+COLD_STORAGE_RETRIVAL_WAIT_TIME = ENVIRONMENT.int("COLD_STORAGE_RETRIVAL_WAIT_TIME", default=10800)
 
 # Sources Client API Endpoints
 KOKU_SOURCES_CLIENT_HOST = ENVIRONMENT.get_value("KOKU_SOURCES_CLIENT_HOST", default="localhost")
@@ -482,7 +461,7 @@ SOURCES_CLIENT_BASE_URL = f"http://{KOKU_SOURCES_CLIENT_HOST}:{KOKU_SOURCES_CLIE
 PROMETHEUS_PUSHGATEWAY = ENVIRONMENT.get_value("PROMETHEUS_PUSHGATEWAY", default="localhost:9091")
 
 # Flag for automatic data ingest on Provider create
-AUTO_DATA_INGEST = ENVIRONMENT.get_value("AUTO_DATA_INGEST", default=True)
+AUTO_DATA_INGEST = ENVIRONMENT.bool("AUTO_DATA_INGEST", default=True)
 
 # Demo Accounts list
 DEMO_ACCOUNTS = {}
@@ -494,3 +473,23 @@ except JSONDecodeError:
 # Aids the UI in showing pre-release features in allowed environments.
 # see: koku.api.user_access.view
 ENABLE_PRERELEASE_FEATURES = ENVIRONMENT.bool("ENABLE_PRERELEASE_FEATURES", default=False)
+
+
+# Celery configuration
+
+# Set Broker
+CELERY_BROKER_URL = REDIS_URL
+USE_RABBIT = ENVIRONMENT.bool("USE_RABBIT", default=False)
+if USE_RABBIT:
+    CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
+    print(f"celery broker using rabbit url: {CELERY_BROKER_URL}")
+else:
+    print(f"celery broker using redis url: {CELERY_BROKER_URL}")
+
+CELERY_BROKER_CONNECTION_MAX_RETRIES = 400
+CELERY_BROKER_CONNECTION_RETRY = True
+CELERY_BROKER_POOL_LIMIT = None
+CELERY_RESULT_EXPIRES = 28800  # 8 hours (3600 seconds / hour * 8 hours)
+CELERY_RESULTS_URL = REDIS_URL
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_WORKER_CONCURRENCY = 1
