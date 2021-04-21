@@ -831,10 +831,10 @@ class ReportQueryHandler(QueryHandler):
 
         if other is not None and others_list and not is_offset:
             num_others = len(others_list)
-            others_label = f"{num_others} Others"
+            others_label = "Others"
 
             if num_others == 1:
-                others_label = f"{num_others} Other"
+                others_label = "Other"
 
             other.update(other_sums)
             other["rank"] = self._limit + 1
