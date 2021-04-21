@@ -832,25 +832,12 @@ class ReportQueryHandler(QueryHandler):
             else:
                 rank = data.get("rank", 1)
 
-            LOG.info("\n")
-            LOG.info("data")
-            LOG.info(data)
-            LOG.info("limit")
-            LOG.info(self._limit)
             if rank > self._offset and rank <= self._limit + self._offset:
-                LOG.info("\n")
-                LOG.info("adding to ranked_list")
-                LOG.info("\n")
                 ranked_list.append(data)
             else:
                 others_list.append(data)
-                LOG.info("\n")
-                LOG.info("adding to others_list")
-                LOG.info("\n")
                 for column in self._mapper.sum_columns:
                     other_sums[column] += data.get(column) if data.get(column) else 0
-
-        LOG.info("---------------------")
 
         if other is not None and others_list and not is_offset:
             num_others = len(others_list)
