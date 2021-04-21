@@ -35,19 +35,34 @@ from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProc
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util.aws.common import aws_post_processor
 from masu.util.aws.common import copy_data_to_s3_bucket
+from masu.util.aws.common import get_column_converters as aws_column_converters
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.azure.common import azure_post_processor
-from masu.util.common import get_column_converters
+from masu.util.azure.common import get_column_converters as azure_column_converters
+from masu.util.common import create_enabled_keys
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
 from masu.util.gcp.common import gcp_post_processor
+from masu.util.gcp.common import get_column_converters as gcp_column_converters
+from masu.util.ocp.common import get_column_converters as ocp_column_converters
 from masu.util.ocp.common import REPORT_TYPES
+from reporting.provider.aws.models import AWSEnabledTagKeys
+from reporting.provider.azure.models import AzureEnabledTagKeys
+from reporting.provider.gcp.models import GCPEnabledTagKeys
+from reporting.provider.ocp.models import OCPEnabledTagKeys
 
 
 LOG = logging.getLogger(__name__)
 CSV_GZIP_EXT = ".csv.gz"
 CSV_EXT = ".csv"
 PARQUET_EXT = ".parquet"
+
+COLUMN_CONVERTERS = {
+    Provider.PROVIDER_AWS: aws_column_converters,
+    Provider.PROVIDER_AZURE: azure_column_converters,
+    Provider.PROVIDER_GCP: gcp_column_converters,
+    Provider.PROVIDER_OCP: ocp_column_converters,
+}
 
 
 class ParquetReportProcessorError:
@@ -66,6 +81,7 @@ class ParquetReportProcessor:
         self._manifest_id = manifest_id
         self._context = context
         self.presto_table_exists = {}
+        self._resolve_enabled_tags_model()
 
     @property
     def schema_name(self):
@@ -172,7 +188,6 @@ class ParquetReportProcessor:
             post_processor = azure_post_processor
         elif self.provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
             post_processor = gcp_post_processor
-
         return post_processor
 
     @property
@@ -199,6 +214,23 @@ class ParquetReportProcessor:
         local_path = f"{Config.TMP_DIR}/{self.account}/{self.provider_uuid}"
         Path(local_path).mkdir(parents=True, exist_ok=True)
         return local_path
+
+    @property
+    def enabled_tags_model(self):
+        """Return the enabled tags model class."""
+        if self.provider_type == Provider.PROVIDER_AWS:
+            return AWSEnabledTagKeys
+        elif self.provider_type == Provider.PROVIDER_OCP:
+            return OCPEnabledTagKeys
+        elif self.provider_type == Provider.PROVIDER_AZURE:
+            return AzureEnabledTagKeys
+        elif self.provider_type == Provider.PROVIDER_GCP:
+            return GCPEnabledTagKeys
+        return None
+
+    def _get_column_converters(self):
+        """Return column converters based on provider type."""
+        return COLUMN_CONVERTERS.get(self._provider_type)()
 
     def _set_report_processor(self, parquet_file):
         """Return the correct ReportParquetProcessor."""
@@ -298,8 +330,9 @@ class ParquetReportProcessor:
 
     def convert_csv_to_parquet(self, csv_filename):
         """Convert CSV file to parquet and send to S3."""
-        converters = get_column_converters(self.provider_type)
+        converters = self._get_column_converters()
         csv_path, csv_name = os.path.split(csv_filename)
+        unique_keys = set()
         parquet_file = None
         parquet_base_filename = csv_name.replace(self.file_extension, "")
         kwargs = {}
@@ -320,6 +353,11 @@ class ParquetReportProcessor:
                     parquet_file = f"{self.local_path}/{parquet_filename}"
                     if self.post_processor:
                         data_frame = self.post_processor(data_frame)
+                        if isinstance(data_frame, tuple):
+                            data_frame, data_frame_tag_keys = data_frame
+                            LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
+                            unique_keys.update(data_frame_tag_keys)
+                            LOG.info(f"Total unique keys for file {len(unique_keys)}")
                     data_frame.to_parquet(parquet_file, allow_truncated_timestamps=True, coerce_timestamps="ms")
                     try:
                         with open(parquet_file, "rb") as fin:
@@ -340,6 +378,7 @@ class ParquetReportProcessor:
                         return False
             if self.create_table and not self.presto_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_file)
+            create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
         except Exception as err:
             msg = (
                 f"File {csv_filename} could not be written as parquet to temp file {parquet_file}. Reason: {str(err)}"

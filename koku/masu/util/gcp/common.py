@@ -20,11 +20,14 @@ import json
 import logging
 from json.decoder import JSONDecodeError
 
+import ciso8601
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.util.common import safe_float
+from masu.util.common import strip_characters_from_column_name
 
 LOG = logging.getLogger(__name__)
 
@@ -113,7 +116,24 @@ def gcp_post_processor(data_frame):
     columns = list(data_frame)
     column_name_map = {}
     for column in columns:
-        new_col_name = column.replace("-", "_").replace("/", "_").replace(":", "_").replace(".", "_").lower()
+        new_col_name = strip_characters_from_column_name(column)
         column_name_map[column] = new_col_name
     data_frame = data_frame.rename(columns=column_name_map)
     return data_frame
+
+
+def get_column_converters():
+    """Return source specific parquet column converters."""
+    return {
+        "usage_start_time": ciso8601.parse_datetime,
+        "usage_end_time": ciso8601.parse_datetime,
+        "project.labels": process_gcp_labels,
+        "labels": process_gcp_labels,
+        "system_labels": process_gcp_labels,
+        "export_time": ciso8601.parse_datetime,
+        "cost": safe_float,
+        "currency_conversion_rate": safe_float,
+        "usage.amount": safe_float,
+        "usage.amount_in_pricing_units": safe_float,
+        "credits": process_gcp_credits,
+    }

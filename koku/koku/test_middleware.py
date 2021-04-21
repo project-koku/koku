@@ -46,7 +46,7 @@ from koku.middleware import EXTENDED_METRICS
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
-from koku.tests_rbac import mocked_requests_get_500_text
+from koku.test_rbac import mocked_requests_get_500_text
 
 LOG = logging.getLogger(__name__)
 

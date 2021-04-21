@@ -594,3 +594,11 @@ class AWSReportViewTest(IamTestCase):
             url = reverse("reports-aws-instance-type") + qs
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_start_end_parameters_monthly_resolution(self):
+        """Test that a validation error is raised for monthly resolution with start/end parameters."""
+        qs_list = ["?start_date=2021-04-01&end_date=2021-04-13&filter[resolution]=monthly"]
+        for qs in qs_list:
+            url = reverse("reports-aws-instance-type") + qs
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

@@ -59,8 +59,6 @@ from masu.util.ocp import common as utils
 
 
 LOG = logging.getLogger(__name__)
-HCCM_TOPIC = "platform.upload.hccm"
-VALIDATION_TOPIC = "platform.upload.validation"
 SUCCESS_CONFIRM_STATUS = "success"
 FAILURE_CONFIRM_STATUS = "failure"
 
@@ -374,7 +372,7 @@ def send_confirmation(request_id, status):  # pragma: no cover
     producer = get_producer()
     validation = {"request_id": request_id, "validation": status}
     msg = bytes(json.dumps(validation), "utf-8")
-    producer.produce(VALIDATION_TOPIC, value=msg, callback=delivery_callback)
+    producer.produce(Config.VALIDATION_TOPIC, value=msg, callback=delivery_callback)
     # Wait up to 1 second for events. Callbacks will be invoked during
     # this method call if the message is acknowledged.
     # `flush` makes this process synchronous compared to async with `poll`
@@ -420,7 +418,7 @@ def handle_message(msg):
                                  current_file: String
 
     """
-    if msg.topic() == HCCM_TOPIC:
+    if msg.topic() == Config.HCCM_TOPIC:
         value = json.loads(msg.value().decode("utf-8"))
         request_id = value.get("request_id", "no_request_id")
         account = value.get("account", "no_account")
@@ -649,7 +647,7 @@ def get_consumer():  # pragma: no cover
         },
         logger=LOG,
     )
-    consumer.subscribe([HCCM_TOPIC])
+    consumer.subscribe([Config.HCCM_TOPIC])
     return consumer
 
 
@@ -713,7 +711,7 @@ def listen_for_messages(msg, consumer):
     """
     offset = msg.offset()
     partition = msg.partition()
-    topic_partition = TopicPartition(topic=HCCM_TOPIC, partition=partition, offset=offset)
+    topic_partition = TopicPartition(topic=Config.HCCM_TOPIC, partition=partition, offset=offset)
     try:
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
         process_messages(msg)

@@ -36,6 +36,7 @@ from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
 from masu.test import MasuTestCase
 from reporting.provider.aws.models import AWSCostEntryBill
+from reporting.provider.aws.models import AWSEnabledTagKeys
 
 
 class CommonUtilTests(MasuTestCase):
@@ -288,6 +289,148 @@ class CommonUtilTests(MasuTestCase):
 
         expected = ["4 ", "GiB"]
         result = list(common_utils.split_alphanumeric_string(s))
+        self.assertEqual(result, expected)
+
+    def test_batch(self):
+        """Test batch function with default kwargs"""
+        max_val = 101
+        vals = list(range(max_val))
+        res = list(common_utils.batch(vals))
+        self.assertEqual(len(res), max_val)
+        self.assertTrue(all(len(e) == 1 for e in res))
+
+    def test_batch_set(self):
+        """Test batch function using set as iterable"""
+        max_val = 101
+        vals = list(range(max_val))
+        res = list(common_utils.batch(set(vals), _slice=10))
+        self.assertEqual(len(res), 11)
+
+    def test_batch_negative_index(self):
+        """Test batch function with negative val for stop/start index"""
+        max_val = 101
+        vals = list(range(max_val))
+        res = list(common_utils.batch(vals, stop=-1, _slice=10))
+        self.assertEqual(len(res), (max_val // len(res[0])))
+
+        res = list(common_utils.batch(vals, start=-1, _slice=10))
+        self.assertEqual(len(res), 1)
+
+    def test_batch_start_index(self):
+        """Test batch function with positive start index"""
+        max_val = 101
+        vals = list(range(max_val))
+        res = list(common_utils.batch(vals, start=10))
+        self.assertEqual(len(res), max_val - 10)
+
+    def test_batch_start_none(self):
+        """Test batch function with None start index"""
+        max_val = 101
+        vals = list(range(max_val))
+        res = list(common_utils.batch(vals, start=None))
+        self.assertEqual(len(res), 101)
+
+    def test_batch_empty(self):
+        """Test batch function with empty iterable"""
+        res = list(common_utils.batch([]))
+        self.assertEqual(res, [])
+
+    def test_batch_stop_gt_len(self):
+        """Test batch function with stop index > len(iterable)"""
+        max_val = 101
+        vals = list(range(max_val))
+        res = list(common_utils.batch(vals, stop=10000, _slice=10))
+        self.assertEqual(len(res), 11)
+
+    def test_batch_stop_lt_start(self):
+        """Test batch function with stop_ix < start_ix"""
+        max_val = 101
+        vals = list(range(max_val))
+        res = list(common_utils.batch(vals, start=10, stop=9))
+        self.assertEqual(res, [])
+
+    def test_batch_str_index(self):
+        """Test batch function with number strings for indexes"""
+        max_val = 101
+        vals = list(range(max_val))
+        res = list(common_utils.batch(vals, start="0", stop="10"))
+        self.assertEqual(len(res), 10)
+
+    def test_batch_value_error(self):
+        """Test batch function with bad strings for index"""
+        max_val = 101
+        vals = list(range(max_val))
+        with self.assertRaises(ValueError):
+            _ = list(common_utils.batch(vals, start="eek"))
+
+    def test_create_enabled_keys(self):
+        with schema_context(self.schema):
+            orig_keys = [{"key": e.key, "enabled": e.enabled} for e in AWSEnabledTagKeys.objects.all()]
+            AWSEnabledTagKeys.objects.all().delete()
+            for key in ("masu", "database", "processor", "common"):
+                AWSEnabledTagKeys.objects.create(key=key, enabled=(key != "masu"))
+            all_keys = list(AWSEnabledTagKeys.objects.all())
+
+        orig_disabled = {e.key for e in all_keys if not e.enabled}
+        orig_enabled = {e.key for e in all_keys if e.enabled}
+        enabled = orig_enabled.union({"ek_test1", "ek_test2"})
+
+        common_utils.create_enabled_keys(self.schema, AWSEnabledTagKeys, enabled)
+        with schema_context(self.schema):
+            all_keys = list(AWSEnabledTagKeys.objects.all())
+            AWSEnabledTagKeys.objects.all().delete()
+            AWSEnabledTagKeys.objects.bulk_create([AWSEnabledTagKeys(**rec) for rec in orig_keys])
+
+        check_disabled = {d.key for d in all_keys if not d.enabled}
+        check_enabled = {e.key for e in all_keys if e.enabled}
+
+        self.assertEqual(enabled, check_enabled)
+        self.assertEqual(orig_disabled, check_disabled)
+
+    def test_update_enabled_keys(self):
+        with schema_context(self.schema):
+            orig_keys = [{"key": e.key, "enabled": e.enabled} for e in AWSEnabledTagKeys.objects.all()]
+            AWSEnabledTagKeys.objects.all().delete()
+            for key in ("masu", "database", "processor", "common"):
+                AWSEnabledTagKeys.objects.create(key=key, enabled=(key != "masu"))
+            all_keys = list(AWSEnabledTagKeys.objects.all())
+
+        orig_disabled = {e.key for e in all_keys if not e.enabled}
+        orig_enabled = {e.key for e in all_keys if e.enabled}
+        disabled = None
+        enabled = set()
+        for i, k in enumerate(orig_enabled):
+            if i == 0:
+                disabled = k
+            else:
+                enabled.add(k)
+        new_keys = {"ek_test1", "ek_test2"}
+        enabled.update(new_keys)
+
+        common_utils.update_enabled_keys(self.schema, AWSEnabledTagKeys, enabled)
+        with schema_context(self.schema):
+            all_keys = list(AWSEnabledTagKeys.objects.all())
+            AWSEnabledTagKeys.objects.all().delete()
+            AWSEnabledTagKeys.objects.bulk_create([AWSEnabledTagKeys(**rec) for rec in orig_keys])
+
+        all_keys_set = {k.key for k in all_keys}
+        check_disabled = {d.key for d in all_keys if not d.enabled}
+        check_enabled = {e.key for e in all_keys if e.enabled}
+
+        self.assertTrue(new_keys.isdisjoint(all_keys))
+        self.assertTrue(disabled in all_keys_set)
+        self.assertTrue(disabled in check_disabled)
+        self.assertEqual(orig_disabled.intersection(check_disabled), orig_disabled)
+        self.assertNotEqual(orig_disabled, check_disabled)
+        self.assertNotEqual(orig_enabled, check_enabled)
+        self.assertEqual((enabled - new_keys), check_enabled)
+
+    def test_strip_characters_from_column_name(self):
+        """Test that column names are converted properly."""
+        bad_str = r"column\one:two-three four,five/six_seven"
+        expected = "column_one_two_three_four_five_six_seven"
+
+        result = common_utils.strip_characters_from_column_name(bad_str)
         self.assertEqual(result, expected)
 
 
