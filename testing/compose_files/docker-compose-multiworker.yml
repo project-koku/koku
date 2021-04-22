@@ -33,8 +33,6 @@ services:
         - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
         - REDIS_HOST=${REDIS_HOST-redis}
         - REDIS_PORT=${REDIS_PORT-6379}
-        - MASU_SERVICE_HOST=${MASU_SERVICE_HOST-masu-server}
-        - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
         - RBAC_CACHE_TTL
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
@@ -83,8 +81,6 @@ services:
         - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
         - REDIS_HOST=${REDIS_HOST-redis}
         - REDIS_PORT=${REDIS_PORT-6379}
-        - MASU_SERVICE_HOST=${MASU_SERVICE_HOST-masu-server}
-        - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
         - RBAC_CACHE_TTL
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
