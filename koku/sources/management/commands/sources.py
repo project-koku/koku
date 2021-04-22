@@ -26,6 +26,11 @@ from koku.wsgi import application
 from sources.kafka_listener import initialize_sources_integration
 
 LOG = logging.getLogger(__name__)
+CLOWDER_PORT = 8080
+if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
+    from app_common_python import LoadedConfig
+
+    CLOWDER_PORT = LoadedConfig.publicPort
 
 
 class SourcesApplication(BaseApplication):
@@ -47,7 +52,7 @@ class SourcesApplication(BaseApplication):
 class Command(BaseCommand):
     help = "Starts koku-sources"
 
-    def handle(self, addrport="0.0.0.0:8080", *args, **options):
+    def handle(self, addrport=f"0.0.0.0:{CLOWDER_PORT}", *args, **options):
         """Sources command customization point."""
 
         timeout = 5
