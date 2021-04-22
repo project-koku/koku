@@ -14,22 +14,24 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+import importlib
 import logging
 import time
 
 from django.core.management.base import BaseCommand
 from gunicorn.app.base import BaseApplication
 
-from gunicorn_conf import graceful_timeout
-from gunicorn_conf import gunicorn_threads
-from gunicorn_conf import loglevel
-from gunicorn_conf import timeout
+import gunicorn_conf
 from koku.database import check_migrations
 from koku.env import ENVIRONMENT
 from koku.wsgi import application
 from sources.kafka_listener import initialize_sources_integration
 
 LOG = logging.getLogger(__name__)
+
+
+def get_config_from_module_name(module_name):
+    return vars(importlib.import_module(module_name))
 
 
 class SourcesApplication(BaseApplication):
@@ -54,28 +56,21 @@ class Command(BaseCommand):
     def handle(self, addrport="0.0.0.0:8080", *args, **options):
         """Sources command customization point."""
 
-        migration_timeout = 5
+        timeout = 5
         # Koku API server is responsible for running all database migrations. The sources client
         # server and kafka listener thread should only be started if migration execution is
         # complete.
         while not check_migrations():
-            LOG.warning(f"Migrations not done. Sleeping {migration_timeout} seconds.")
-            time.sleep(migration_timeout)
+            LOG.warning(f"Migrations not done. Sleeping {timeout} seconds.")
+            time.sleep(timeout)
 
         LOG.info("Starting Sources Kafka Handler")
         initialize_sources_integration()
 
         LOG.info("Starting Sources Client Server")
         if ENVIRONMENT.bool("RUN_GUNICORN", default=True):
-            options = {
-                "bind": addrport,
-                "workers": 1,
-                "timeout": timeout,
-                "loglevel": loglevel,
-                "graceful_timeout": graceful_timeout,
-            }
-            if gunicorn_threads:
-                options["threads"] = 3
+            options = get_config_from_module_name(gunicorn_conf)
+            options["bind"] = addrport
             SourcesApplication(application, options).run()
         else:
             from django.core.management import call_command
