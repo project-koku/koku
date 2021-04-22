@@ -253,7 +253,19 @@ class TestParquetReportProcessor(MasuTestCase):
                         local_path = "/tmp/parquet"
                         Path(local_path).mkdir(parents=True, exist_ok=True)
 
-                        result = self.report_processor.convert_csv_to_parquet(test_report)
+                        report_processor = ParquetReportProcessor(
+                            schema_name=self.schema,
+                            report_path=test_report,
+                            provider_uuid=self.aws_provider_uuid,
+                            provider_type=Provider.PROVIDER_AWS_LOCAL,
+                            manifest_id=self.manifest_id,
+                            context={
+                                "request_id": self.request_id,
+                                "start_date": DateHelper().today,
+                                "create_table": True,
+                            },
+                        )
+                        result = report_processor.convert_csv_to_parquet(test_report)
                         self.assertTrue(result)
                         shutil.rmtree(local_path, ignore_errors=True)
                         shutil.rmtree(temp_dir)
