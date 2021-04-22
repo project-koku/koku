@@ -48,6 +48,12 @@ def strip_tag_prefix(tag):
     return tag.replace("tag:", "").replace("and:", "").replace("or:", "")
 
 
+def is_grouped_by_tag(parameters):
+    """Determine if grouped by tag."""
+    group_by = list(parameters.parameters.get("group_by", {}).keys())
+    return [key for key in group_by if "tag" in key]
+
+
 def is_grouped_by_project(parameters):
     """Determine if grouped or filtered by project."""
     group_by = list(parameters.parameters.get("group_by", {}).keys())
@@ -697,6 +703,24 @@ class ReportQueryHandler(QueryHandler):
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
             return None
 
+    def set_missing_rank_value(self):
+        """Set the correct rank value if missing.
+
+        Converts None in ranking to no-{group_by}
+        group
+
+
+        """
+        group_by_value = self._get_group_by()
+        # Convert None in ranking to no-{group_by}
+        check_tag_group_by = is_grouped_by_tag(self.parameters)
+        if check_tag_group_by:
+            tag_value = check_tag_group_by[0].split(":")[1]
+            rank_value = f"no-{tag_value}"
+        else:
+            rank_value = f"no-{group_by_value[0]}"
+        return rank_value
+
     def _group_by_ranks(self, query, data):
         """Handle grouping data by filter limit."""
         group_by_value = self._get_group_by()
@@ -739,8 +763,7 @@ class ReportQueryHandler(QueryHandler):
         for rank in ranks:
             rank_value = rank.get(group_by_value[0])
             if not rank_value:
-                # Convert None in ranking to no-{group_by}
-                rank_value = f"no-{group_by_value[0]}"
+                rank_value = self.set_missing_rank_value()
             rankings.insert((rank.get("rank") - 1), rank_value)
 
         for query_return in data:
@@ -825,8 +848,7 @@ class ReportQueryHandler(QueryHandler):
             if ranks:
                 ranked_value = data.get(self._get_group_by()[0])
                 if not ranked_value:
-                    # Convert None to no-{group_by}
-                    ranked_value = f"no-{self._get_group_by()[0]}"
+                    ranked_value = self.set_missing_rank_value()
                 rank = ranks.index(ranked_value) + 1
                 data["rank"] = rank
             else:
