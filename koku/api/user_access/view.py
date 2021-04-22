@@ -16,7 +16,6 @@
 """View for UserAccess."""
 import logging
 
-from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import status
