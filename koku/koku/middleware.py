@@ -335,10 +335,10 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                         return HttpResponseFailedDependency({"source": "Rbac", "exception": err})
                 cache.set(user.uuid, user_access, self.rbac.cache_ttl)
             user.access = user_access
-            if request.META['HTTP_REFERER']:
-                referer = request.META['HTTP_REFERER']
+            if request.META["HTTP_REFERER"]:
+                referer = request.META["HTTP_REFERER"]
                 if "/beta/" in referer:
-                    user.beta = True 
+                    user.beta = True
             request.user = user
 
     def process_response(self, request, response):

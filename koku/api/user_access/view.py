@@ -145,16 +145,15 @@ class UserAccessView(APIView):
         """
         query_params = request.query_params
         user_access = request.user.access
-        LOG.info(f"User Access RBAC permissions: {str(user_access)}. Org Admin: {str(request.user.admin)}")
+        LOG.info(
+            f"User Access RBAC permissions: {str(user_access)}. Org Admin: {str(request.user.admin)}. Beta: {str(beta)}"
+        )
         admin_user = request.user.admin
         beta = request.user.beta
-        LOG.info(f"User Access admin user: {str(admin_user)}")
-        LOG.info(f"REQUEST PATH: {str(request.path)}")
-        LOG.info(f"USER ON BETA PATH: {str(beta)}")
 
         # only show pre-release features in approved environments
         flag = query_params.get("beta", "False")  # query_params are strings, not bools.
-        if flag.lower() == "true" and not settings.ENABLE_PRERELEASE_FEATURES:
+        if flag.lower() == "true" and not beta:
             return Response({"data": False})
 
         source_type = query_params.get("type")

@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Identity and Access Serializers."""
-import logging
-
 import locale
 from base64 import b64decode
 from json import loads as json_loads
@@ -28,8 +26,6 @@ from ..common import error_obj
 from ..common import RH_IDENTITY_HEADER
 from .models import Customer
 from .models import User
-
-LOG = logging.getLogger(__name__)
 
 
 def _create_user(username, email, customer):
@@ -68,10 +64,6 @@ def extract_header(request, header):
         JWT(dict): Identity dictionary
 
     """
-    LOG.info(f"REQUEST: {str(request)}")
-    LOG.info(f"REQUEST type: {type(request)}")
-    LOG.info(f"REQUEST META: {str(request.META)}")
-    LOG.info(f"HEADER REFFER: {str(request.META['HTTP_REFERER'])}")
     rh_auth_header = request.META[header]
     decoded_rh_auth = b64decode(rh_auth_header)
     json_rh_auth = json_loads(decoded_rh_auth)
@@ -95,7 +87,6 @@ class UserSerializer(serializers.ModelSerializer):
     def get_customer_from_context(self):
         """Get customer from context."""
         customer = self.context.get("customer")
-
         if customer:
             return customer
         else:
