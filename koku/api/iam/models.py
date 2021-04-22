@@ -80,6 +80,7 @@ class User(models.Model):
         self.admin = False
         self.access = {}
         self.identity_header = None
+        self.beta = False
 
     class Meta:
         ordering = ["username"]
