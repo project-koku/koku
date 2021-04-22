@@ -87,6 +87,8 @@ class UserSerializer(serializers.ModelSerializer):
     def get_customer_from_context(self):
         """Get customer from context."""
         customer = self.context.get("customer")
+        LOG.info(f"CONTEXT: f{str(self.context)}")
+        LOG.info(f"CONTEXT dir: f{str(dir(self.context))}")
         if customer:
             return customer
         else:
