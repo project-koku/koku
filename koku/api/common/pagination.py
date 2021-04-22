@@ -212,6 +212,7 @@ class OrgUnitPagination(ReportPagination):
         self.limit = params.get("limit", 10)
         self.offset = params.get("offset", 0)
         self.count = 0
+        self.others = None
 
     def paginate_queryset(self, dataset, request, view=None):
         """Override queryset pagination."""

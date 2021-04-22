@@ -994,8 +994,8 @@ class AWSReportQueryTest(IamTestCase):
             {"account": "1", "account_alias": "1", "total": 5, "rank": 1},
             {"account": "2", "account_alias": "2", "total": 4, "rank": 2},
             {
-                "account": "2 Others",
-                "account_alias": "2 Others",
+                "account": "Others",
+                "account_alias": "Others",
                 "total": 5,
                 "rank": 3,
                 "cost_total": 0,
@@ -1020,7 +1020,7 @@ class AWSReportQueryTest(IamTestCase):
         expected = [
             {"service": "1", "total": 5, "rank": 1},
             {"service": "2", "total": 4, "rank": 2},
-            {"service": "2 Others", "total": 5, "rank": 3, "cost_total": 0, "infra_total": 0, "sup_total": 0},
+            {"service": "Others", "total": 5, "rank": 3, "cost_total": 0, "infra_total": 0, "sup_total": 0},
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
@@ -1103,7 +1103,7 @@ class AWSReportQueryTest(IamTestCase):
                 "date": "2000-01-01",
                 "infra_total": 0.03,
                 "rank": 3,
-                "service": "2 Others",
+                "service": "Others",
                 "sup_total": 0.05,
             },
             {
@@ -1127,7 +1127,7 @@ class AWSReportQueryTest(IamTestCase):
                 "date": "2000-01-02",
                 "infra_total": 0.03,
                 "rank": 3,
-                "service": "2 Others",
+                "service": "Others",
                 "sup_total": 0.05,
             },
             {
@@ -1151,7 +1151,7 @@ class AWSReportQueryTest(IamTestCase):
                 "date": "2000-01-03",
                 "infra_total": 0.02,
                 "rank": 3,
-                "service": "2 Others",
+                "service": "Others",
                 "sup_total": 0.03,
             },
         ]
