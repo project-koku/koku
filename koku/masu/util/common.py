@@ -31,6 +31,7 @@ from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
 from pytz import UTC
+from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from api.utils import DateHelper
@@ -291,3 +292,84 @@ def determine_if_full_summary_update_needed(bill):
 def split_alphanumeric_string(s):
     for k, g in groupby(s, str.isalpha):
         yield "".join(g)
+
+
+def batch(iterable, start=0, stop=None, _slice=1):
+    iterable = list(iterable) if not isinstance(iterable, list) else iterable
+    length = len(iterable)
+    if stop is None:
+        stop = length
+    else:
+        stop = int(stop)
+    if stop < 0:
+        stop = length + stop
+    if stop > length:
+        stop = length
+    if start is None:
+        start = 0
+    else:
+        start = int(start)
+    if start < 0:
+        start = length + start
+
+    while start < stop:
+        end = start + _slice
+        res = iterable[start:end]
+        start = end
+        yield res
+
+
+def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
+    LOG.info("Creating enabled tag key records")
+    changed = False
+
+    if enabled_keys:
+        with schema_context(schema):
+            new_keys = list(set(enabled_keys) - {k.key for k in enabled_keys_model.objects.all()})
+            if new_keys:
+                changed = True
+                # Processing in batches for increased efficiency
+                for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
+                    batch_size = len(new_batch)
+                    LOG.info(f"Create batch {batch_num + 1}: batch_size {batch_size}")
+                    for ix in range(batch_size):
+                        new_batch[ix] = enabled_keys_model(key=new_batch[ix])
+                    enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
+
+    if not changed:
+        LOG.info("No enabled keys added.")
+
+    return changed
+
+
+def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
+    LOG.info("Updating enabled tag keys records")
+    changed = False
+
+    enabled_keys_set = set(enabled_keys)
+    update_keys_enabled = []
+    update_keys_disabled = []
+
+    with schema_context(schema):
+        for key in enabled_keys_model.objects.all():
+            if key.key in enabled_keys_set:
+                if not key.enabled:
+                    update_keys_enabled.append(key.key)
+            else:
+                update_keys_disabled.append(key.key)
+
+        # When we are in create mode, we do not want to change the state of existing keys
+        if update_keys_enabled or update_keys_disabled:
+            changed = True
+            if update_keys_enabled:
+                LOG.info(f"Updating {len(update_keys_enabled)} keys to ENABLED")
+                enabled_keys_model.objects.filter(key__in=update_keys_enabled).update(enabled=True)
+
+            if update_keys_disabled:
+                LOG.info(f"Updating {len(update_keys_disabled)} keys to DISABLED")
+                enabled_keys_model.objects.filter(key__in=update_keys_disabled).update(enabled=False)
+
+    if not changed:
+        LOG.info("No enabled keys updated.")
+
+    return changed

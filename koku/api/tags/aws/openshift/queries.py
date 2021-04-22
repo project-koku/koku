@@ -39,7 +39,9 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
         {
             "db_table": OCPAWSTagsSummary,
             "db_column_period": "cost_entry_bill__billing_period",
-            "annotations": {"enabled": Exists(AWSEnabledTagKeys.objects.filter(key=OuterRef("key")))},
+            "annotations": {
+                "enabled": Exists(AWSEnabledTagKeys.objects.filter(key=OuterRef("key")).filter(enabled=True))
+            },
         },
         {
             "db_table": OCPAWSTagsSummary,

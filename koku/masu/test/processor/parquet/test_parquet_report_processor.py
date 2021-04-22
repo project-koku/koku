@@ -36,6 +36,10 @@ from masu.processor.parquet.parquet_report_processor import ParquetReportProcess
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.test import MasuTestCase
 from masu.util.aws.common import aws_post_processor
+from reporting.provider.aws.models import AWSEnabledTagKeys
+from reporting.provider.azure.models import AzureEnabledTagKeys
+from reporting.provider.gcp.models import GCPEnabledTagKeys
+from reporting.provider.ocp.models import OCPEnabledTagKeys
 
 
 class TestParquetReportProcessor(MasuTestCase):
@@ -75,6 +79,33 @@ class TestParquetReportProcessor(MasuTestCase):
             manifest_id=self.manifest_id,
             context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
         )
+
+    def test_resolve_enabled_tag_keys_model(self):
+        """
+        Test that the expected enabled tag keys model is resolved from each provider type.
+        """
+        test_matrix = (
+            (Provider.PROVIDER_AWS, AWSEnabledTagKeys),
+            (Provider.PROVIDER_AWS_LOCAL, AWSEnabledTagKeys),
+            (Provider.PROVIDER_AZURE, AzureEnabledTagKeys),
+            (Provider.PROVIDER_AZURE_LOCAL, AzureEnabledTagKeys),
+            (Provider.PROVIDER_GCP, GCPEnabledTagKeys),
+            (Provider.PROVIDER_GCP_LOCAL, GCPEnabledTagKeys),
+            (Provider.PROVIDER_OCP, OCPEnabledTagKeys),
+            (Provider.PROVIDER_IBM, None),
+            (Provider.PROVIDER_IBM_LOCAL, None),
+        )
+        for provider_type, expected_tag_keys_model in test_matrix:
+            prp = ParquetReportProcessor(
+                schema_name="self.schema",
+                report_path="self.report_path",
+                compression="GZIP",
+                provider_uuid="self.aws_provider_uuid",
+                provider_type=provider_type,
+                manifest_id="self.manifest_id",
+                context={},
+            )
+            self.assertEqual(prp._enabled_tags_table, expected_tag_keys_model)
 
     def test_convert_to_parquet(self):
         """Test the convert_to_parquet task."""

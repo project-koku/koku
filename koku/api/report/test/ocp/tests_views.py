@@ -460,6 +460,10 @@ class OCPReportViewTest(IamTestCase):
 
         self.assertIn("nodes", data.get("data")[0])
 
+        # assert the others count is correct
+        meta = data.get("meta")
+        self.assertEqual(meta.get("others"), num_nodes - 1)
+
         # Check if limit returns the correct number of results, and
         # that the totals add up properly
         for item in data.get("data"):
@@ -467,7 +471,7 @@ class OCPReportViewTest(IamTestCase):
                 date = item.get("date")
                 nodes = item.get("nodes")
                 self.assertEqual(len(nodes), 2)
-                self.assertEqual(nodes[1].get("node"), f"{num_nodes-1} Others")
+                self.assertEqual(nodes[1].get("node"), "Others")
                 usage_total = nodes[0].get("values")[0].get("usage", {}).get("value") + nodes[1].get("values")[0].get(
                     "usage", {}
                 ).get("value")
