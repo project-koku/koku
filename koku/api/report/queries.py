@@ -703,16 +703,16 @@ class ReportQueryHandler(QueryHandler):
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
             return None
 
-    def set_missing_rank_value(self):
-        """Set the correct rank value if missing.
+    def check_missing_rank_value(self, rank_value):
+        """Check to see ranked values is missing.
 
-        Converts None in ranking to no-{group_by}
-        group
+        If it is missing, it converts it to no-{group_by}
 
-
+        rank_value: string or None value
         """
+        if rank_value:
+            return rank_value
         group_by_value = self._get_group_by()
-        # Convert None in ranking to no-{group_by}
         check_tag_group_by = is_grouped_by_tag(self.parameters)
         if check_tag_group_by:
             tag_value = check_tag_group_by[0].split(":")[1]
@@ -762,8 +762,7 @@ class ReportQueryHandler(QueryHandler):
         rankings = []
         for rank in ranks:
             rank_value = rank.get(group_by_value[0])
-            if not rank_value:
-                rank_value = self.set_missing_rank_value()
+            rank_value = self.check_missing_rank_value(rank_value)
             rankings.insert((rank.get("rank") - 1), rank_value)
 
         for query_return in data:
@@ -847,8 +846,7 @@ class ReportQueryHandler(QueryHandler):
 
             if ranks:
                 ranked_value = data.get(self._get_group_by()[0])
-                if not ranked_value:
-                    ranked_value = self.set_missing_rank_value()
+                ranked_value = self.check_missing_rank_value(ranked_value)
                 rank = ranks.index(ranked_value) + 1
                 data["rank"] = rank
             else:
