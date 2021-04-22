@@ -21,13 +21,17 @@ import time
 from django.core.management.base import BaseCommand
 from gunicorn.app.base import BaseApplication
 
-import gunicorn_conf
 from koku.database import check_migrations
 from koku.env import ENVIRONMENT
 from koku.wsgi import application
 from sources.kafka_listener import initialize_sources_integration
 
 LOG = logging.getLogger(__name__)
+CLOWDER_PORT = 8080
+if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
+    from app_common_python import LoadedConfig
+
+    CLOWDER_PORT = LoadedConfig.publicPort
 
 
 def get_config_from_module_name(module_name):
@@ -53,7 +57,7 @@ class SourcesApplication(BaseApplication):
 class Command(BaseCommand):
     help = "Starts koku-sources"
 
-    def handle(self, addrport="0.0.0.0:8080", *args, **options):
+    def handle(self, addrport=f"0.0.0.0:{CLOWDER_PORT}", *args, **options):
         """Sources command customization point."""
 
         timeout = 5
@@ -69,7 +73,7 @@ class Command(BaseCommand):
 
         LOG.info("Starting Sources Client Server")
         if ENVIRONMENT.bool("RUN_GUNICORN", default=True):
-            options = get_config_from_module_name(gunicorn_conf)
+            options = get_config_from_module_name("gunicorn_conf")
             options["bind"] = addrport
             SourcesApplication(application, options).run()
         else:
