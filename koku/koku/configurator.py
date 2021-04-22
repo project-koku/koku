@@ -447,7 +447,9 @@ class ClowderConfigurator(Configurator):
         endpoint = DependencyEndpoints.get(app, {}).get(name)
         if endpoint:
             return endpoint.hostname
-        return default
+        # if the endpoint is not defined by clowder, fall back to env variable
+        svc = "_".join((app, name, "HOST")).replace("-", "_").upper()
+        return ENVIRONMENT.get_value(svc, default=default)
 
     @staticmethod
     def get_endpoint_port(app, name, default):
@@ -455,7 +457,9 @@ class ClowderConfigurator(Configurator):
         endpoint = DependencyEndpoints.get(app, {}).get(name)
         if endpoint:
             return endpoint.port
-        return default
+        # if the endpoint is not defined by clowder, fall back to env variable
+        svc = "_".join((app, name, "PORT")).replace("-", "_").upper()
+        return ENVIRONMENT.get_value(svc, default=default)
 
 
 class ConfigFactory:
