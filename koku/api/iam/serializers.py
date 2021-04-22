@@ -64,6 +64,9 @@ def extract_header(request, header):
         JWT(dict): Identity dictionary
 
     """
+    LOG.info(f"REQUEST: {str(request)}")
+    LOG.info(f"REQUEST type: {type(request)}")
+    LOG.info(f"REQUEST META: {str(request.META)}")
     rh_auth_header = request.META[header]
     decoded_rh_auth = b64decode(rh_auth_header)
     json_rh_auth = json_loads(decoded_rh_auth)
@@ -87,8 +90,7 @@ class UserSerializer(serializers.ModelSerializer):
     def get_customer_from_context(self):
         """Get customer from context."""
         customer = self.context.get("customer")
-        LOG.info(f"CONTEXT: f{str(self.context)}")
-        LOG.info(f"CONTEXT dir: f{str(dir(self.context))}")
+
         if customer:
             return customer
         else:
