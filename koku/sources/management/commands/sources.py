@@ -20,6 +20,10 @@ import time
 from django.core.management.base import BaseCommand
 from gunicorn.app.base import BaseApplication
 
+from gunicorn_conf import graceful_timeout
+from gunicorn_conf import gunicorn_threads
+from gunicorn_conf import loglevel
+from gunicorn_conf import timeout
 from koku.database import check_migrations
 from koku.env import ENVIRONMENT
 from koku.wsgi import application
@@ -50,20 +54,28 @@ class Command(BaseCommand):
     def handle(self, addrport="0.0.0.0:8080", *args, **options):
         """Sources command customization point."""
 
-        timeout = 5
+        migration_timeout = 5
         # Koku API server is responsible for running all database migrations. The sources client
         # server and kafka listener thread should only be started if migration execution is
         # complete.
         while not check_migrations():
-            LOG.warning(f"Migrations not done. Sleeping {timeout} seconds.")
-            time.sleep(timeout)
+            LOG.warning(f"Migrations not done. Sleeping {migration_timeout} seconds.")
+            time.sleep(migration_timeout)
 
         LOG.info("Starting Sources Kafka Handler")
         initialize_sources_integration()
 
         LOG.info("Starting Sources Client Server")
         if ENVIRONMENT.bool("RUN_GUNICORN", default=True):
-            options = {"bind": addrport, "workers": 1, "timeout": 90, "loglevel": "info"}
+            options = {
+                "bind": addrport,
+                "workers": 1,
+                "timeout": timeout,
+                "loglevel": loglevel,
+                "graceful_timeout": graceful_timeout,
+            }
+            if gunicorn_threads:
+                options["threads"] = 3
             SourcesApplication(application, options).run()
         else:
             from django.core.management import call_command
