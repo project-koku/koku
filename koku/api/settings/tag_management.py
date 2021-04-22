@@ -139,7 +139,9 @@ class TagManagementSettings:
             + " Changes will be reflected within 24 hours. <link>Learn more</link>"
         )
         doc_link = dict(
-            href=generate_doc_link("managing_cost_data_using_tagging/configuring_tags_and_labels_in_cost_management")
+            href=generate_doc_link(
+                "html-single/managing_cost_data_using_tagging/index#assembly-configuring-tags-and-labels-in-cost-management"
+            )
         )
         tag_key_text = create_plain_text_with_doc(tag_key_text_name, tag_key_text_context, doc_link)
         components = []
