@@ -47,8 +47,10 @@ def get_paginator(filter_query_params, count, group_by_params=False):
         if "offset" in filter_query_params:
             paginator = ReportRankedPagination(filter_query_params)
             paginator.count = count
+            paginator.others = count
         else:
-            paginator = ReportPagination(filter_query_params)
+            paginator = ReportPagination()
+            paginator.others = count
     return paginator
 
 
@@ -177,9 +179,7 @@ class ReportView(APIView):
                     error = {"details": _("Unit conversion failed.")}
                     raise ValidationError(error)
 
-        filter_params = params.parameters.get("filter", {})
-        filter_params["others"] = max_rank
-        paginator = get_paginator(filter_params, max_rank, request.query_params)
+        paginator = get_paginator(params.parameters.get("filter", {}), max_rank, request.query_params)
         paginated_result = paginator.paginate_queryset(output, request)
         LOG.debug(f"DATA: {output}")
         return paginator.get_paginated_response(paginated_result)

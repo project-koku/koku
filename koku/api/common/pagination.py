@@ -135,9 +135,9 @@ class ReportPagination(StandardResultsSetPagination):
 
     default_limit = 100
 
-    def __init__(self, params):
+    def __init__(self):
         """Set the parameters."""
-        self.others = params.get("others")
+        self.others = None
 
     def get_count(self, queryset):
         """Determine a report data's count."""
@@ -167,9 +167,12 @@ class ReportPagination(StandardResultsSetPagination):
         """Override pagination output."""
         paginated_data = data.pop("data", [])
         filter_limit = data.get("filter", {}).get("limit", 0)
-        self.others = self.others - filter_limit
+        meta = {"count": self.count}
+        if self.others:
+            self.others = self.others - filter_limit
+            meta["others"] = self.others
         response = {
-            "meta": {"count": self.count, "others": self.others},
+            "meta": meta,
             "links": {
                 "first": self.get_first_link(),
                 "next": self.get_next_link(),
