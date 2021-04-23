@@ -17,6 +17,7 @@
 """Models for identity and access management."""
 import logging
 import os
+import pkgutil
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError
@@ -142,18 +143,38 @@ class Tenant(TenantMixin):
         return res
 
     def _clone_schema(self):
-        result = None
+        # result = None
         # This db func will clone the schema objects
         # bypassing the time it takes to run migrations
-        sql = """
-select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
-"""
-        LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}" with data')
-        with conn.cursor() as cur:
-            cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
-            result = cur.fetchone()
+        #         sql = """
+        # select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
+        # """
+        LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
 
-        return result[0] if result else False
+        create_sql = pkgutil.get_data("api.iam", "sql/tenant_create.sql")
+        create_sql = create_sql.decode("utf-8").replace(self._TEMPLATE_SCHEMA, self.schema_name)
+
+        with conn.cursor() as cur:
+            # cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
+            # result = cur.fetchone()
+            cur.execute(create_sql)
+
+        self._populate_django_migrations()
+
+        # return result[0] if result else False
+        return True
+
+    def _populate_django_migrations(self):
+        """Make sure the migrations table is populated."""
+        sql = f"SELECT app, name FROM {self._TEMPLATE_SCHEMA}.django_migrations"
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            results = cur.fetchall()
+
+        sql = f"INSERT INTO {self.schema_name}.django_migrations (app, name, applied) VALUES (%s, %s, now())"
+        with conn.cursor() as cur:
+            cur.executemany(sql, results)
+        LOG.info("Populated django_migrations table.")
 
     def create_schema(self, check_if_exists=True, sync_schema=True, verbosity=1):
         """
@@ -173,17 +194,17 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
 
         with transaction.atomic():
             # Make sure all of our special pieces are in play
-            ret = self._check_clone_func()
-            if not ret:
-                errmsg = "Missing clone_schema function even after re-applying the function SQL file."
-                LOG.critical(errmsg)
-                raise CloneSchemaFuncMissing(errmsg)
+            # ret = self._check_clone_func()
+            # if not ret:
+            #     errmsg = "Missing clone_schema function even after re-applying the function SQL file."
+            #     LOG.critical(errmsg)
+            #     raise CloneSchemaFuncMissing(errmsg)
 
-            ret = self._verify_template(verbosity=verbosity)
-            if not ret:
-                errmsg = f'Template schema "{self._TEMPLATE_SCHEMA}" does not exist'
-                LOG.critical(errmsg)
-                raise CloneSchemaTemplateMissing(errmsg)
+            # ret = self._verify_template(verbosity=verbosity)
+            # if not ret:
+            #     errmsg = f'Template schema "{self._TEMPLATE_SCHEMA}" does not exist'
+            #     LOG.critical(errmsg)
+            #     raise CloneSchemaTemplateMissing(errmsg)
 
             # Always check to see if the schema exists!
             LOG.info(f"Check if target schema {self.schema_name} already exists")
