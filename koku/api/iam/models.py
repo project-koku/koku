@@ -201,11 +201,11 @@ class Tenant(TenantMixin):
 
         with transaction.atomic():
             # Make sure all of our special pieces are in play
-            # ret = self._check_clone_func()
-            # if not ret:
-            #     errmsg = "Missing clone_schema function even after re-applying the function SQL file."
-            #     LOG.critical(errmsg)
-            #     raise CloneSchemaFuncMissing(errmsg)
+            ret = self._check_clone_func()
+            if not ret:
+                errmsg = "Missing clone_schema function even after re-applying the function SQL file."
+                LOG.critical(errmsg)
+                raise CloneSchemaFuncMissing(errmsg)
 
             ret = self._verify_template(verbosity=verbosity)
             if not ret:
