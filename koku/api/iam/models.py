@@ -163,6 +163,7 @@ class Tenant(TenantMixin):
         with conn.cursor() as cur:
             # cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
             # result = cur.fetchone()
+            # cur.execute(f"SET search_path=public")
             cur.execute(create_sql)
 
         self._populate_django_migrations()
@@ -206,11 +207,11 @@ class Tenant(TenantMixin):
             #     LOG.critical(errmsg)
             #     raise CloneSchemaFuncMissing(errmsg)
 
-            # ret = self._verify_template(verbosity=verbosity)
-            # if not ret:
-            #     errmsg = f'Template schema "{self._TEMPLATE_SCHEMA}" does not exist'
-            #     LOG.critical(errmsg)
-            #     raise CloneSchemaTemplateMissing(errmsg)
+            ret = self._verify_template(verbosity=verbosity)
+            if not ret:
+                errmsg = f'Template schema "{self._TEMPLATE_SCHEMA}" does not exist'
+                LOG.critical(errmsg)
+                raise CloneSchemaTemplateMissing(errmsg)
 
             # Always check to see if the schema exists!
             LOG.info(f"Check if target schema {self.schema_name} already exists")
