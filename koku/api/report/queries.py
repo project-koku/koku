@@ -48,6 +48,12 @@ def strip_tag_prefix(tag):
     return tag.replace("tag:", "").replace("and:", "").replace("or:", "")
 
 
+def is_grouped_by_tag(parameters):
+    """Determine if grouped by tag."""
+    group_by = list(parameters.parameters.get("group_by", {}).keys())
+    return [key for key in group_by if "tag" in key]
+
+
 def is_grouped_by_project(parameters):
     """Determine if grouped or filtered by project."""
     group_by = list(parameters.parameters.get("group_by", {}).keys())
@@ -654,7 +660,7 @@ class ReportQueryHandler(QueryHandler):
                         line_data[field] = f"no-{field}"
                 sorted_data = sorted(
                     sorted_data,
-                    key=lambda entry: (bool(re.match(r"[0-9]+\sothers", entry[field].lower())), entry[field].lower()),
+                    key=lambda entry: (bool(re.match(r"other*", entry[field].lower())), entry[field].lower()),
                     reverse=reverse,
                 )
         return sorted_data
@@ -697,6 +703,24 @@ class ReportQueryHandler(QueryHandler):
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
             return None
 
+    def check_missing_rank_value(self, rank_value):
+        """Check to see ranked values is missing.
+
+        If it is missing, it converts it to no-{group_by}
+
+        rank_value: string or None value
+        """
+        if rank_value:
+            return rank_value
+        group_by_value = self._get_group_by()
+        check_tag_group_by = is_grouped_by_tag(self.parameters)
+        if check_tag_group_by:
+            tag_value = check_tag_group_by[0].split(":")[1]
+            rank_value = f"no-{tag_value}"
+        else:
+            rank_value = f"no-{group_by_value[0]}"
+        return rank_value
+
     def _group_by_ranks(self, query, data):
         """Handle grouping data by filter limit."""
         group_by_value = self._get_group_by()
@@ -737,8 +761,12 @@ class ReportQueryHandler(QueryHandler):
 
         rankings = []
         for rank in ranks:
-            rankings.insert((rank.get("rank") - 1), str(rank.get(group_by_value[0])))
+            rank_value = rank.get(group_by_value[0])
+            rank_value = self.check_missing_rank_value(rank_value)
+            rankings.insert((rank.get("rank") - 1), rank_value)
 
+        for query_return in data:
+            query_return = self._apply_group_null_label(query_return, gb)
         return self._ranked_list(data, rankings)
 
     def _ranked_list(self, data_list, ranks=None):
@@ -816,8 +844,9 @@ class ReportQueryHandler(QueryHandler):
             if other is None:
                 other = copy.deepcopy(data)
 
-            ranked_value = str(data.get(self._get_group_by()[0]))
             if ranks:
+                ranked_value = data.get(self._get_group_by()[0])
+                ranked_value = self.check_missing_rank_value(ranked_value)
                 rank = ranks.index(ranked_value) + 1
                 data["rank"] = rank
             else:
@@ -832,10 +861,10 @@ class ReportQueryHandler(QueryHandler):
 
         if other is not None and others_list and not is_offset:
             num_others = len(others_list)
-            others_label = f"{num_others} Others"
+            others_label = "Others"
 
             if num_others == 1:
-                others_label = f"{num_others} Other"
+                others_label = "Other"
 
             other.update(other_sums)
             other["rank"] = self._limit + 1
