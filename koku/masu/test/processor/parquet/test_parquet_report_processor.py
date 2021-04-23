@@ -17,7 +17,6 @@
 import logging
 import os
 import shutil
-import tempfile
 from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -27,6 +26,7 @@ from django.test import override_settings
 
 from api.models import Provider
 from api.utils import DateHelper
+from masu.config import Config
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
@@ -247,11 +247,10 @@ class TestParquetReportProcessor(MasuTestCase):
                     with patch("masu.processor.parquet.parquet_report_processor.os") as mock_os:
                         mock_os.path.split.return_value = ("path", "file.csv")
                         test_report_test_path = "./koku/masu/test/data/test_cur.csv.gz"
-                        temp_dir = tempfile.mkdtemp()
-                        test_report = f"{temp_dir}/test_cur.csv.gz"
-                        shutil.copy2(test_report_test_path, test_report)
-                        local_path = "/tmp/parquet"
+                        local_path = f"{Config.TMP_DIR}/{self.account_id}/{self.aws_provider_uuid}"
                         Path(local_path).mkdir(parents=True, exist_ok=True)
+                        test_report = f"{local_path}/test_cur.csv.gz"
+                        shutil.copy2(test_report_test_path, test_report)
 
                         report_processor = ParquetReportProcessor(
                             schema_name=self.schema,
@@ -268,7 +267,6 @@ class TestParquetReportProcessor(MasuTestCase):
                         result = report_processor.convert_csv_to_parquet(test_report)
                         self.assertTrue(result)
                         shutil.rmtree(local_path, ignore_errors=True)
-                        shutil.rmtree(temp_dir)
 
     def test_convert_csv_to_parquet_report_type_already_processed(self):
         """Test that we don't re-create a table when we already have created this run."""
