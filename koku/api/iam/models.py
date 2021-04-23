@@ -166,53 +166,8 @@ class Tenant(TenantMixin):
             # cur.execute(f"SET search_path=public")
             cur.execute(create_sql)
 
-        self._populate_django_migrations()
-        self._populate_partioned_tables_table()
-
-        # return result[0] if result else False
+            # return result[0] if result else False
         return True
-
-    def _populate_django_migrations(self):
-        """Make sure the migrations table is populated."""
-        sql = f"SELECT app, name FROM {self._TEMPLATE_SCHEMA}.django_migrations"
-        with conn.cursor() as cur:
-            cur.execute(sql)
-            results = cur.fetchall()
-
-        sql = f"INSERT INTO {self.schema_name}.django_migrations (app, name, applied) VALUES (%s, %s, now())"
-        with conn.cursor() as cur:
-            cur.executemany(sql, results)
-        LOG.info("Populated django_migrations table.")
-
-    def _populate_partioned_tables_table(self):
-        """Make sure the migrations table is populated."""
-        sql = f"""SELECT table_name,
-            partition_of_table_name,
-            partition_type,
-            partition_col,
-            partition_parameters,
-            active
-            FROM {self._TEMPLATE_SCHEMA}.partitioned_tables
-        """
-        with conn.cursor() as cur:
-            cur.execute(sql)
-            results = cur.fetchall()
-
-        sql = f"""INSERT INTO {self.schema_name}.partitioned_tables (
-                schema_name,
-                table_name,
-                partition_of_table_name,
-                partition_type,
-                partition_col,
-                partition_parameters,
-                active
-            ) VALUES ('{self.schema_name}', %s, %s, %s, %s, %s, %s)
-        """
-        with conn.cursor() as cur:
-            LOG.info(sql)
-            LOG.info(results)
-            cur.executemany(sql, results)
-        LOG.info("Populated partitioned_tables table.")
 
     def create_schema(self, check_if_exists=True, sync_schema=True, verbosity=1):
         """
