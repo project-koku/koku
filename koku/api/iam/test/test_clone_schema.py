@@ -84,9 +84,7 @@ class CloneSchemaTest(IamTestCase):
 
         test_schema = "acct90909090"
         # Also validate that the customer tenant schema will be created using the clone function
-        expected1 = (
-            f'INFO:api.iam.models:Cloning template schema "{Tenant._TEMPLATE_SCHEMA}" to "{test_schema}" with data'
-        )
+        expected1 = f'INFO:api.iam.models:Cloning template schema "{Tenant._TEMPLATE_SCHEMA}" to "{test_schema}"'
         expected2 = f'INFO:api.iam.models:Successful clone of "{Tenant._TEMPLATE_SCHEMA}" to "{test_schema}"'
         with self.assertLogs("api.iam.models", level="INFO") as _logger:
             Tenant(schema_name=test_schema).save()
