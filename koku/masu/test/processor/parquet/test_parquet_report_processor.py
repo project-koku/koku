@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+import datetime
 import logging
 import os
 import shutil
@@ -29,10 +30,17 @@ from api.utils import DateHelper
 from masu.config import Config
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
+from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
+from masu.processor.parquet.parquet_report_processor import CSV_EXT
+from masu.processor.parquet.parquet_report_processor import CSV_GZIP_EXT
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
+from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.test import MasuTestCase
+from masu.util.aws.common import aws_post_processor
+from masu.util.azure.common import azure_post_processor
+from masu.util.gcp.common import gcp_post_processor
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.gcp.models import GCPEnabledTagKeys
@@ -95,6 +103,114 @@ class TestParquetReportProcessor(MasuTestCase):
                 context={},
             )
             self.assertEqual(prp.enabled_tags_model, expected_tag_keys_model)
+
+    def test_request_id(self):
+        """Test that the request_id property is handled."""
+        self.assertIsNotNone(self.report_processor.request_id)
+
+        # Test with missing context
+        with self.assertRaises(ParquetReportProcessorError):
+            report_processor = ParquetReportProcessor(
+                schema_name=self.schema,
+                report_path=self.report_path,
+                provider_uuid=self.aws_provider_uuid,
+                provider_type=Provider.PROVIDER_AWS_LOCAL,
+                manifest_id=self.manifest_id,
+                context={},
+            )
+            report_processor.request_id
+
+    def test_start_date(self):
+        """Test that the start_date property is handled."""
+        self.assertIsInstance(self.report_processor.start_date, datetime.date)
+
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.aws_provider_uuid,
+            provider_type=Provider.PROVIDER_AWS_LOCAL,
+            manifest_id=self.manifest_id,
+            context={"start_date": "2021-04-22"},
+        )
+        self.assertIsInstance(report_processor.start_date, datetime.date)
+
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.aws_provider_uuid,
+            provider_type=Provider.PROVIDER_AWS_LOCAL,
+            manifest_id=self.manifest_id,
+            context={"start_date": datetime.datetime.utcnow()},
+        )
+        self.assertIsInstance(report_processor.start_date, datetime.date)
+
+        with self.assertRaises(ParquetReportProcessorError):
+            report_processor = ParquetReportProcessor(
+                schema_name=self.schema,
+                report_path=self.report_path,
+                provider_uuid=self.aws_provider_uuid,
+                provider_type=Provider.PROVIDER_AWS_LOCAL,
+                manifest_id=self.manifest_id,
+                context={},
+            )
+            report_processor.start_date
+
+    def test_file_extension(self):
+        """Test that the file_extension property is handled."""
+        self.assertEqual(self.report_processor.file_extension, CSV_GZIP_EXT)
+
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path="file.csv",
+            provider_uuid=self.aws_provider_uuid,
+            provider_type=Provider.PROVIDER_AWS_LOCAL,
+            manifest_id=self.manifest_id,
+            context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+        )
+        self.assertEqual(report_processor.file_extension, CSV_EXT)
+
+        with self.assertRaises(ParquetReportProcessorError):
+            report_processor = ParquetReportProcessor(
+                schema_name=self.schema,
+                report_path="file.xlsx",
+                provider_uuid=self.aws_provider_uuid,
+                provider_type=Provider.PROVIDER_AWS_LOCAL,
+                manifest_id=self.manifest_id,
+                context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+            )
+            report_processor.file_extension
+
+    def test_post_processor(self):
+        """Test that the post_processor property is handled."""
+        test_matrix = [
+            {
+                "provider_uuid": str(self.aws_provider_uuid),
+                "provider_type": Provider.PROVIDER_AWS,
+                "expected": aws_post_processor,
+            },
+            {
+                "provider_uuid": str(self.azure_provider_uuid),
+                "provider_type": Provider.PROVIDER_AZURE,
+                "expected": azure_post_processor,
+            },
+            {
+                "provider_uuid": str(self.gcp_provider_uuid),
+                "provider_type": Provider.PROVIDER_GCP,
+                "expected": gcp_post_processor,
+            },
+        ]
+
+        for test in test_matrix:
+            report_processor = ParquetReportProcessor(
+                schema_name=self.schema,
+                report_path=self.report_path,
+                provider_uuid=test.get("provider_uuid"),
+                provider_type=test.get("provider_type"),
+                manifest_id=self.manifest_id,
+                context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+            )
+
+            self.assertEqual(report_processor.post_processor, test.get("expected"))
 
     @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
@@ -324,6 +440,11 @@ class TestParquetReportProcessor(MasuTestCase):
                 "provider_uuid": str(self.azure_provider_uuid),
                 "provider_type": Provider.PROVIDER_AZURE,
                 "patch": (AzureReportParquetProcessor, "create_bill"),
+            },
+            {
+                "provider_uuid": str(self.gcp_provider_uuid),
+                "provider_type": Provider.PROVIDER_GCP,
+                "patch": (GCPReportParquetProcessor, "create_bill"),
             },
         ]
         output_file = "local_path/file.parquet"

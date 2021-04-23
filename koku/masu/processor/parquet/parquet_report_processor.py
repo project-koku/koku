@@ -65,7 +65,7 @@ COLUMN_CONVERTERS = {
 }
 
 
-class ParquetReportProcessorError:
+class ParquetReportProcessorError(Exception):
     pass
 
 
@@ -130,7 +130,8 @@ class ParquetReportProcessor:
         request_id = self._context.get("request_id")
         if request_id is None:
             msg = "missing required context key: request_id"
-            ParquetReportProcessorError(msg)
+            raise ParquetReportProcessorError(msg)
+        return request_id
 
     @property
     def start_date(self):
@@ -144,7 +145,7 @@ class ParquetReportProcessor:
             return start_date
         try:
             return parser.parse(start_date).date()
-        except ValueError:
+        except (ValueError, TypeError):
             msg = "Parquet processing is enabled, but the start_date was not a valid date string ISO 8601 format."
             LOG.error(log_json(self.request_id, msg, self.error_context))
             raise ParquetReportProcessorError(msg)
