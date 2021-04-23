@@ -16,7 +16,6 @@
 """View for UserAccess."""
 import logging
 
-from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import status
@@ -145,13 +144,13 @@ class UserAccessView(APIView):
         """
         query_params = request.query_params
         user_access = request.user.access
-        LOG.debug(f"User Access RBAC permissions: {str(user_access)}. Org Admin: {str(request.user.admin)}")
         admin_user = request.user.admin
-        LOG.debug(f"User Access admin user: {str(admin_user)}")
+        beta = request.user.beta
+        LOG.debug(f"User Access RBAC permissions: {str(user_access)}. Org Admin: {str(admin_user)}. Beta: {str(beta)}")
 
         # only show pre-release features in approved environments
         flag = query_params.get("beta", "False")  # query_params are strings, not bools.
-        if flag.lower() == "true" and not settings.ENABLE_PRERELEASE_FEATURES:
+        if flag.lower() == "true" and not beta:
             return Response({"data": False})
 
         source_type = query_params.get("type")

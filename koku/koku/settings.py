@@ -470,10 +470,6 @@ try:
 except JSONDecodeError:
     pass
 
-# Aids the UI in showing pre-release features in allowed environments.
-# see: koku.api.user_access.view
-ENABLE_PRERELEASE_FEATURES = ENVIRONMENT.bool("ENABLE_PRERELEASE_FEATURES", default=False)
-
 
 # Celery configuration
 
