@@ -41,8 +41,8 @@ class FilterSerializer(serializers.Serializer):
     key = StringOrListField(required=False)
     value = StringOrListField(required=False)
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
-    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)  # deprecated
-    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)  # deprecated
+    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
+    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
     limit = serializers.IntegerField(required=False, min_value=1)
     offset = serializers.IntegerField(required=False, min_value=0)
 

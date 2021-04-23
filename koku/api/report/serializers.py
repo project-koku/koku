@@ -209,8 +209,8 @@ class FilterSerializer(BaseSerializer):
     TIME_UNIT_CHOICES = (("day", "day"), ("month", "month"))
 
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
-    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)  # deprecated
-    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)  # deprecated
+    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
+    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
 
     resource_scope = StringOrListField(child=serializers.CharField(), required=False)
     limit = serializers.IntegerField(required=False, min_value=1)
