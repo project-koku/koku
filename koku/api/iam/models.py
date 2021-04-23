@@ -28,10 +28,10 @@ from tenant_schemas.models import TenantMixin
 from tenant_schemas.postgresql_backend.base import _is_valid_schema_name
 from tenant_schemas.utils import schema_exists
 
+from koku.configurator import CONFIGURATOR
 from koku.database import dbfunc_exists
 from koku.migration_sql_helpers import apply_sql_file
 from koku.migration_sql_helpers import find_db_functions_dir
-
 
 LOG = logging.getLogger(__name__)
 
@@ -151,8 +151,14 @@ class Tenant(TenantMixin):
         # """
         LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
 
+        database_user = CONFIGURATOR.get_database_user()
+
         create_sql = pkgutil.get_data("api.iam", "sql/tenant_create.sql")
-        create_sql = create_sql.decode("utf-8").replace(self._TEMPLATE_SCHEMA, self.schema_name)
+        create_sql = (
+            create_sql.decode("utf-8")
+            .replace(self._TEMPLATE_SCHEMA, self.schema_name)
+            .replace("table_owner", database_user)
+        )
 
         with conn.cursor() as cur:
             # cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])

@@ -17,16 +17,16 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- Name: template0; Type: SCHEMA; Schema: -; Owner: kokuadmin
+-- Name: template0; Type: SCHEMA; Schema: -; Owner: table_owner
 --
 
 CREATE SCHEMA template0;
 
 
-ALTER SCHEMA template0 OWNER TO kokuadmin;
+ALTER SCHEMA template0 OWNER TO table_owner;
 
 --
--- Name: process_cost_model_audit(); Type: FUNCTION; Schema: template0; Owner: kokuadmin
+-- Name: process_cost_model_audit(); Type: FUNCTION; Schema: template0; Owner: table_owner
 --
 
 CREATE FUNCTION template0.process_cost_model_audit() RETURNS trigger
@@ -57,14 +57,14 @@ CREATE FUNCTION template0.process_cost_model_audit() RETURNS trigger
             $$;
 
 
-ALTER FUNCTION template0.process_cost_model_audit() OWNER TO kokuadmin;
+ALTER FUNCTION template0.process_cost_model_audit() OWNER TO table_owner;
 
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
 --
--- Name: cost_model; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: cost_model; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.cost_model (
@@ -79,10 +79,10 @@ CREATE TABLE template0.cost_model (
 );
 
 
-ALTER TABLE template0.cost_model OWNER TO kokuadmin;
+ALTER TABLE template0.cost_model OWNER TO table_owner;
 
 --
--- Name: cost_model_audit; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: cost_model_audit; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.cost_model_audit (
@@ -101,10 +101,10 @@ CREATE TABLE template0.cost_model_audit (
 );
 
 
-ALTER TABLE template0.cost_model_audit OWNER TO kokuadmin;
+ALTER TABLE template0.cost_model_audit OWNER TO table_owner;
 
 --
--- Name: cost_model_audit_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: cost_model_audit_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.cost_model_audit_id_seq
@@ -116,17 +116,17 @@ CREATE SEQUENCE template0.cost_model_audit_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.cost_model_audit_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.cost_model_audit_id_seq OWNER TO table_owner;
 
 --
--- Name: cost_model_audit_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: cost_model_audit_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.cost_model_audit_id_seq OWNED BY template0.cost_model_audit.id;
 
 
 --
--- Name: cost_model_map; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: cost_model_map; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.cost_model_map (
@@ -136,10 +136,10 @@ CREATE TABLE template0.cost_model_map (
 );
 
 
-ALTER TABLE template0.cost_model_map OWNER TO kokuadmin;
+ALTER TABLE template0.cost_model_map OWNER TO table_owner;
 
 --
--- Name: cost_model_map_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: cost_model_map_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.cost_model_map_id_seq
@@ -151,17 +151,17 @@ CREATE SEQUENCE template0.cost_model_map_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.cost_model_map_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.cost_model_map_id_seq OWNER TO table_owner;
 
 --
--- Name: cost_model_map_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: cost_model_map_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.cost_model_map_id_seq OWNED BY template0.cost_model_map.id;
 
 
 --
--- Name: django_migrations; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: django_migrations; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.django_migrations (
@@ -172,10 +172,10 @@ CREATE TABLE template0.django_migrations (
 );
 
 
-ALTER TABLE template0.django_migrations OWNER TO kokuadmin;
+ALTER TABLE template0.django_migrations OWNER TO table_owner;
 
 --
--- Name: django_migrations_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: django_migrations_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.django_migrations_id_seq
@@ -187,17 +187,17 @@ CREATE SEQUENCE template0.django_migrations_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.django_migrations_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.django_migrations_id_seq OWNER TO table_owner;
 
 --
--- Name: django_migrations_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: django_migrations_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.django_migrations_id_seq OWNED BY template0.django_migrations.id;
 
 
 --
--- Name: partitioned_tables; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: partitioned_tables; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.partitioned_tables (
@@ -212,10 +212,10 @@ CREATE TABLE template0.partitioned_tables (
 );
 
 
-ALTER TABLE template0.partitioned_tables OWNER TO kokuadmin;
+ALTER TABLE template0.partitioned_tables OWNER TO table_owner;
 
 --
--- Name: partitioned_tables_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: partitioned_tables_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.partitioned_tables_id_seq
@@ -227,17 +227,17 @@ CREATE SEQUENCE template0.partitioned_tables_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.partitioned_tables_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.partitioned_tables_id_seq OWNER TO table_owner;
 
 --
--- Name: partitioned_tables_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: partitioned_tables_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.partitioned_tables_id_seq OWNED BY template0.partitioned_tables.id;
 
 
 --
--- Name: presto_delete_wrapper_log; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: presto_delete_wrapper_log; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.presto_delete_wrapper_log (
@@ -249,38 +249,38 @@ CREATE TABLE template0.presto_delete_wrapper_log (
 );
 
 
-ALTER TABLE template0.presto_delete_wrapper_log OWNER TO kokuadmin;
+ALTER TABLE template0.presto_delete_wrapper_log OWNER TO table_owner;
 
 --
--- Name: TABLE presto_delete_wrapper_log; Type: COMMENT; Schema: template0; Owner: kokuadmin
+-- Name: TABLE presto_delete_wrapper_log; Type: COMMENT; Schema: template0; Owner: table_owner
 --
 
 COMMENT ON TABLE template0.presto_delete_wrapper_log IS 'Table to log and execute delete statements initiated from Presto';
 
 
 --
--- Name: COLUMN presto_delete_wrapper_log.table_name; Type: COMMENT; Schema: template0; Owner: kokuadmin
+-- Name: COLUMN presto_delete_wrapper_log.table_name; Type: COMMENT; Schema: template0; Owner: table_owner
 --
 
 COMMENT ON COLUMN template0.presto_delete_wrapper_log.table_name IS 'Target table from which to delete';
 
 
 --
--- Name: COLUMN presto_delete_wrapper_log.where_clause; Type: COMMENT; Schema: template0; Owner: kokuadmin
+-- Name: COLUMN presto_delete_wrapper_log.where_clause; Type: COMMENT; Schema: template0; Owner: table_owner
 --
 
 COMMENT ON COLUMN template0.presto_delete_wrapper_log.where_clause IS 'Where clause for delete action';
 
 
 --
--- Name: COLUMN presto_delete_wrapper_log.result_rows; Type: COMMENT; Schema: template0; Owner: kokuadmin
+-- Name: COLUMN presto_delete_wrapper_log.result_rows; Type: COMMENT; Schema: template0; Owner: table_owner
 --
 
 COMMENT ON COLUMN template0.presto_delete_wrapper_log.result_rows IS 'Number of records affected by the delete action';
 
 
 --
--- Name: presto_pk_delete_wrapper_log; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: presto_pk_delete_wrapper_log; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.presto_pk_delete_wrapper_log (
@@ -293,52 +293,52 @@ CREATE TABLE template0.presto_pk_delete_wrapper_log (
 );
 
 
-ALTER TABLE template0.presto_pk_delete_wrapper_log OWNER TO kokuadmin;
+ALTER TABLE template0.presto_pk_delete_wrapper_log OWNER TO table_owner;
 
 --
--- Name: TABLE presto_pk_delete_wrapper_log; Type: COMMENT; Schema: template0; Owner: kokuadmin
+-- Name: TABLE presto_pk_delete_wrapper_log; Type: COMMENT; Schema: template0; Owner: table_owner
 --
 
 COMMENT ON TABLE template0.presto_pk_delete_wrapper_log IS 'Table to hold primary key values to use when bulk-deleting using the presto delete wrapper log';
 
 
 --
--- Name: COLUMN presto_pk_delete_wrapper_log.transaction_id; Type: COMMENT; Schema: template0; Owner: kokuadmin
+-- Name: COLUMN presto_pk_delete_wrapper_log.transaction_id; Type: COMMENT; Schema: template0; Owner: table_owner
 --
 
 COMMENT ON COLUMN template0.presto_pk_delete_wrapper_log.transaction_id IS 'Presto transaction identifier';
 
 
 --
--- Name: COLUMN presto_pk_delete_wrapper_log.table_name; Type: COMMENT; Schema: template0; Owner: kokuadmin
+-- Name: COLUMN presto_pk_delete_wrapper_log.table_name; Type: COMMENT; Schema: template0; Owner: table_owner
 --
 
 COMMENT ON COLUMN template0.presto_pk_delete_wrapper_log.table_name IS 'Target table in which the primary key values reside';
 
 
 --
--- Name: COLUMN presto_pk_delete_wrapper_log.pk_column; Type: COMMENT; Schema: template0; Owner: kokuadmin
+-- Name: COLUMN presto_pk_delete_wrapper_log.pk_column; Type: COMMENT; Schema: template0; Owner: table_owner
 --
 
 COMMENT ON COLUMN template0.presto_pk_delete_wrapper_log.pk_column IS 'Name of the primary key column for the target table';
 
 
 --
--- Name: COLUMN presto_pk_delete_wrapper_log.pk_value; Type: COMMENT; Schema: template0; Owner: kokuadmin
+-- Name: COLUMN presto_pk_delete_wrapper_log.pk_value; Type: COMMENT; Schema: template0; Owner: table_owner
 --
 
 COMMENT ON COLUMN template0.presto_pk_delete_wrapper_log.pk_value IS 'String representation of the primary key value';
 
 
 --
--- Name: COLUMN presto_pk_delete_wrapper_log.pk_value_cast; Type: COMMENT; Schema: template0; Owner: kokuadmin
+-- Name: COLUMN presto_pk_delete_wrapper_log.pk_value_cast; Type: COMMENT; Schema: template0; Owner: table_owner
 --
 
 COMMENT ON COLUMN template0.presto_pk_delete_wrapper_log.pk_value_cast IS 'Data type to which the string primary key value should be cast';
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_awscostentrylineitem_daily_summary (
@@ -375,10 +375,10 @@ CREATE TABLE template0.reporting_awscostentrylineitem_daily_summary (
 PARTITION BY RANGE (usage_start);
 
 
-ALTER TABLE template0.reporting_awscostentrylineitem_daily_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentrylineitem_daily_summary OWNER TO table_owner;
 
 --
--- Name: reporting_aws_compute_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_compute_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_aws_compute_summary AS
@@ -417,10 +417,10 @@ CREATE MATERIALIZED VIEW template0.reporting_aws_compute_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_aws_compute_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_aws_compute_summary OWNER TO table_owner;
 
 --
--- Name: reporting_aws_compute_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_compute_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_aws_compute_summary_by_account AS
@@ -469,10 +469,10 @@ CREATE MATERIALIZED VIEW template0.reporting_aws_compute_summary_by_account AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_aws_compute_summary_by_account OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_aws_compute_summary_by_account OWNER TO table_owner;
 
 --
--- Name: reporting_aws_compute_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_compute_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_aws_compute_summary_by_region AS
@@ -529,10 +529,10 @@ CREATE MATERIALIZED VIEW template0.reporting_aws_compute_summary_by_region AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_aws_compute_summary_by_region OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_aws_compute_summary_by_region OWNER TO table_owner;
 
 --
--- Name: reporting_aws_compute_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_compute_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_aws_compute_summary_by_service AS
@@ -589,10 +589,10 @@ CREATE MATERIALIZED VIEW template0.reporting_aws_compute_summary_by_service AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_aws_compute_summary_by_service OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_aws_compute_summary_by_service OWNER TO table_owner;
 
 --
--- Name: reporting_aws_cost_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_cost_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_aws_cost_summary AS
@@ -609,10 +609,10 @@ CREATE MATERIALIZED VIEW template0.reporting_aws_cost_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_aws_cost_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_aws_cost_summary OWNER TO table_owner;
 
 --
--- Name: reporting_aws_cost_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_cost_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_aws_cost_summary_by_account AS
@@ -632,10 +632,10 @@ CREATE MATERIALIZED VIEW template0.reporting_aws_cost_summary_by_account AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_aws_cost_summary_by_account OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_aws_cost_summary_by_account OWNER TO table_owner;
 
 --
--- Name: reporting_aws_cost_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_cost_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_aws_cost_summary_by_region AS
@@ -657,10 +657,10 @@ CREATE MATERIALIZED VIEW template0.reporting_aws_cost_summary_by_region AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_aws_cost_summary_by_region OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_aws_cost_summary_by_region OWNER TO table_owner;
 
 --
--- Name: reporting_aws_cost_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_cost_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_aws_cost_summary_by_service AS
@@ -682,10 +682,10 @@ CREATE MATERIALIZED VIEW template0.reporting_aws_cost_summary_by_service AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_aws_cost_summary_by_service OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_aws_cost_summary_by_service OWNER TO table_owner;
 
 --
--- Name: reporting_aws_database_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_database_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_aws_database_summary AS
@@ -708,10 +708,10 @@ CREATE MATERIALIZED VIEW template0.reporting_aws_database_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_aws_database_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_aws_database_summary OWNER TO table_owner;
 
 --
--- Name: reporting_aws_network_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_network_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_aws_network_summary AS
@@ -734,10 +734,10 @@ CREATE MATERIALIZED VIEW template0.reporting_aws_network_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_aws_network_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_aws_network_summary OWNER TO table_owner;
 
 --
--- Name: reporting_aws_storage_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_storage_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_aws_storage_summary AS
@@ -757,10 +757,10 @@ CREATE MATERIALIZED VIEW template0.reporting_aws_storage_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_aws_storage_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_aws_storage_summary OWNER TO table_owner;
 
 --
--- Name: reporting_aws_storage_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_storage_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_aws_storage_summary_by_account AS
@@ -783,10 +783,10 @@ CREATE MATERIALIZED VIEW template0.reporting_aws_storage_summary_by_account AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_aws_storage_summary_by_account OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_aws_storage_summary_by_account OWNER TO table_owner;
 
 --
--- Name: reporting_aws_storage_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_storage_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_aws_storage_summary_by_region AS
@@ -811,10 +811,10 @@ CREATE MATERIALIZED VIEW template0.reporting_aws_storage_summary_by_region AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_aws_storage_summary_by_region OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_aws_storage_summary_by_region OWNER TO table_owner;
 
 --
--- Name: reporting_aws_storage_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_storage_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_aws_storage_summary_by_service AS
@@ -838,10 +838,10 @@ CREATE MATERIALIZED VIEW template0.reporting_aws_storage_summary_by_service AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_aws_storage_summary_by_service OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_aws_storage_summary_by_service OWNER TO table_owner;
 
 --
--- Name: reporting_awsaccountalias; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsaccountalias; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_awsaccountalias (
@@ -851,10 +851,10 @@ CREATE TABLE template0.reporting_awsaccountalias (
 );
 
 
-ALTER TABLE template0.reporting_awsaccountalias OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awsaccountalias OWNER TO table_owner;
 
 --
--- Name: reporting_awsaccountalias_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsaccountalias_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_awsaccountalias_id_seq
@@ -866,17 +866,17 @@ CREATE SEQUENCE template0.reporting_awsaccountalias_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_awsaccountalias_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awsaccountalias_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_awsaccountalias_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsaccountalias_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_awsaccountalias_id_seq OWNED BY template0.reporting_awsaccountalias.id;
 
 
 --
--- Name: reporting_awscostentry; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentry; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_awscostentry (
@@ -887,10 +887,10 @@ CREATE TABLE template0.reporting_awscostentry (
 );
 
 
-ALTER TABLE template0.reporting_awscostentry OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentry OWNER TO table_owner;
 
 --
--- Name: reporting_awscostentry_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentry_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_awscostentry_id_seq
@@ -902,17 +902,17 @@ CREATE SEQUENCE template0.reporting_awscostentry_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_awscostentry_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentry_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_awscostentry_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentry_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_awscostentry_id_seq OWNED BY template0.reporting_awscostentry.id;
 
 
 --
--- Name: reporting_awscostentrybill; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrybill; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_awscostentrybill (
@@ -930,10 +930,10 @@ CREATE TABLE template0.reporting_awscostentrybill (
 );
 
 
-ALTER TABLE template0.reporting_awscostentrybill OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentrybill OWNER TO table_owner;
 
 --
--- Name: reporting_awscostentrybill_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrybill_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_awscostentrybill_id_seq
@@ -945,17 +945,17 @@ CREATE SEQUENCE template0.reporting_awscostentrybill_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_awscostentrybill_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentrybill_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_awscostentrybill_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrybill_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_awscostentrybill_id_seq OWNED BY template0.reporting_awscostentrybill.id;
 
 
 --
--- Name: reporting_awscostentrylineitem; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_awscostentrylineitem (
@@ -995,10 +995,10 @@ CREATE TABLE template0.reporting_awscostentrylineitem (
 );
 
 
-ALTER TABLE template0.reporting_awscostentrylineitem OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentrylineitem OWNER TO table_owner;
 
 --
--- Name: reporting_awscostentrylineitem_daily; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_awscostentrylineitem_daily (
@@ -1031,10 +1031,10 @@ CREATE TABLE template0.reporting_awscostentrylineitem_daily (
 );
 
 
-ALTER TABLE template0.reporting_awscostentrylineitem_daily OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentrylineitem_daily OWNER TO table_owner;
 
 --
--- Name: reporting_awscostentrylineitem_daily_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_awscostentrylineitem_daily_id_seq
@@ -1045,17 +1045,17 @@ CREATE SEQUENCE template0.reporting_awscostentrylineitem_daily_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_awscostentrylineitem_daily_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentrylineitem_daily_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_awscostentrylineitem_daily_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_awscostentrylineitem_daily_id_seq OWNED BY template0.reporting_awscostentrylineitem_daily.id;
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summary_default; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summary_default; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_awscostentrylineitem_daily_summary_default (
@@ -1092,10 +1092,10 @@ CREATE TABLE template0.reporting_awscostentrylineitem_daily_summary_default (
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily_summary ATTACH PARTITION template0.reporting_awscostentrylineitem_daily_summary_default DEFAULT;
 
 
-ALTER TABLE template0.reporting_awscostentrylineitem_daily_summary_default OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentrylineitem_daily_summary_default OWNER TO table_owner;
 
 --
--- Name: reporting_awscostentrylineitem_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_awscostentrylineitem_id_seq
@@ -1106,17 +1106,17 @@ CREATE SEQUENCE template0.reporting_awscostentrylineitem_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_awscostentrylineitem_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentrylineitem_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_awscostentrylineitem_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_awscostentrylineitem_id_seq OWNED BY template0.reporting_awscostentrylineitem.id;
 
 
 --
--- Name: reporting_awscostentrypricing; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrypricing; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_awscostentrypricing (
@@ -1126,10 +1126,10 @@ CREATE TABLE template0.reporting_awscostentrypricing (
 );
 
 
-ALTER TABLE template0.reporting_awscostentrypricing OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentrypricing OWNER TO table_owner;
 
 --
--- Name: reporting_awscostentrypricing_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrypricing_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_awscostentrypricing_id_seq
@@ -1141,17 +1141,17 @@ CREATE SEQUENCE template0.reporting_awscostentrypricing_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_awscostentrypricing_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentrypricing_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_awscostentrypricing_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrypricing_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_awscostentrypricing_id_seq OWNED BY template0.reporting_awscostentrypricing.id;
 
 
 --
--- Name: reporting_awscostentryproduct; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryproduct; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_awscostentryproduct (
@@ -1169,10 +1169,10 @@ CREATE TABLE template0.reporting_awscostentryproduct (
 );
 
 
-ALTER TABLE template0.reporting_awscostentryproduct OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentryproduct OWNER TO table_owner;
 
 --
--- Name: reporting_awscostentryproduct_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryproduct_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_awscostentryproduct_id_seq
@@ -1184,17 +1184,17 @@ CREATE SEQUENCE template0.reporting_awscostentryproduct_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_awscostentryproduct_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentryproduct_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_awscostentryproduct_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryproduct_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_awscostentryproduct_id_seq OWNED BY template0.reporting_awscostentryproduct.id;
 
 
 --
--- Name: reporting_awscostentryreservation; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryreservation; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_awscostentryreservation (
@@ -1208,10 +1208,10 @@ CREATE TABLE template0.reporting_awscostentryreservation (
 );
 
 
-ALTER TABLE template0.reporting_awscostentryreservation OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentryreservation OWNER TO table_owner;
 
 --
--- Name: reporting_awscostentryreservation_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryreservation_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_awscostentryreservation_id_seq
@@ -1223,17 +1223,17 @@ CREATE SEQUENCE template0.reporting_awscostentryreservation_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_awscostentryreservation_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awscostentryreservation_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_awscostentryreservation_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryreservation_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_awscostentryreservation_id_seq OWNED BY template0.reporting_awscostentryreservation.id;
 
 
 --
--- Name: reporting_awsenabledtagkeys; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsenabledtagkeys; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_awsenabledtagkeys (
@@ -1242,10 +1242,10 @@ CREATE TABLE template0.reporting_awsenabledtagkeys (
 );
 
 
-ALTER TABLE template0.reporting_awsenabledtagkeys OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awsenabledtagkeys OWNER TO table_owner;
 
 --
--- Name: reporting_awsorganizationalunit; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsorganizationalunit; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_awsorganizationalunit (
@@ -1262,10 +1262,10 @@ CREATE TABLE template0.reporting_awsorganizationalunit (
 );
 
 
-ALTER TABLE template0.reporting_awsorganizationalunit OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awsorganizationalunit OWNER TO table_owner;
 
 --
--- Name: reporting_awsorganizationalunit_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsorganizationalunit_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_awsorganizationalunit_id_seq
@@ -1277,17 +1277,17 @@ CREATE SEQUENCE template0.reporting_awsorganizationalunit_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_awsorganizationalunit_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awsorganizationalunit_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_awsorganizationalunit_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsorganizationalunit_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_awsorganizationalunit_id_seq OWNED BY template0.reporting_awsorganizationalunit.id;
 
 
 --
--- Name: reporting_awstags_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awstags_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_awstags_summary (
@@ -1300,10 +1300,10 @@ CREATE TABLE template0.reporting_awstags_summary (
 );
 
 
-ALTER TABLE template0.reporting_awstags_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awstags_summary OWNER TO table_owner;
 
 --
--- Name: reporting_awstags_values; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awstags_values; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_awstags_values (
@@ -1315,10 +1315,10 @@ CREATE TABLE template0.reporting_awstags_values (
 );
 
 
-ALTER TABLE template0.reporting_awstags_values OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_awstags_values OWNER TO table_owner;
 
 --
--- Name: reporting_azurecostentrylineitem_daily_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_azurecostentrylineitem_daily_summary (
@@ -1344,10 +1344,10 @@ CREATE TABLE template0.reporting_azurecostentrylineitem_daily_summary (
 PARTITION BY RANGE (usage_start);
 
 
-ALTER TABLE template0.reporting_azurecostentrylineitem_daily_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azurecostentrylineitem_daily_summary OWNER TO table_owner;
 
 --
--- Name: reporting_azure_compute_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_compute_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_azure_compute_summary AS
@@ -1390,10 +1390,10 @@ CREATE MATERIALIZED VIEW template0.reporting_azure_compute_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_azure_compute_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azure_compute_summary OWNER TO table_owner;
 
 --
--- Name: reporting_azure_cost_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_cost_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_azure_cost_summary AS
@@ -1410,10 +1410,10 @@ CREATE MATERIALIZED VIEW template0.reporting_azure_cost_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_azure_cost_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azure_cost_summary OWNER TO table_owner;
 
 --
--- Name: reporting_azure_cost_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_cost_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_azure_cost_summary_by_account AS
@@ -1431,10 +1431,10 @@ CREATE MATERIALIZED VIEW template0.reporting_azure_cost_summary_by_account AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_azure_cost_summary_by_account OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azure_cost_summary_by_account OWNER TO table_owner;
 
 --
--- Name: reporting_azure_cost_summary_by_location; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_cost_summary_by_location; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_azure_cost_summary_by_location AS
@@ -1453,10 +1453,10 @@ CREATE MATERIALIZED VIEW template0.reporting_azure_cost_summary_by_location AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_azure_cost_summary_by_location OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azure_cost_summary_by_location OWNER TO table_owner;
 
 --
--- Name: reporting_azure_cost_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_cost_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_azure_cost_summary_by_service AS
@@ -1475,10 +1475,10 @@ CREATE MATERIALIZED VIEW template0.reporting_azure_cost_summary_by_service AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_azure_cost_summary_by_service OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azure_cost_summary_by_service OWNER TO table_owner;
 
 --
--- Name: reporting_azure_database_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_database_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_azure_database_summary AS
@@ -1499,10 +1499,10 @@ CREATE MATERIALIZED VIEW template0.reporting_azure_database_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_azure_database_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azure_database_summary OWNER TO table_owner;
 
 --
--- Name: reporting_azure_network_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_network_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_azure_network_summary AS
@@ -1523,10 +1523,10 @@ CREATE MATERIALIZED VIEW template0.reporting_azure_network_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_azure_network_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azure_network_summary OWNER TO table_owner;
 
 --
--- Name: reporting_azure_storage_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_storage_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_azure_storage_summary AS
@@ -1547,10 +1547,10 @@ CREATE MATERIALIZED VIEW template0.reporting_azure_storage_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_azure_storage_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azure_storage_summary OWNER TO table_owner;
 
 --
--- Name: reporting_azurecostentrybill; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrybill; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_azurecostentrybill (
@@ -1565,10 +1565,10 @@ CREATE TABLE template0.reporting_azurecostentrybill (
 );
 
 
-ALTER TABLE template0.reporting_azurecostentrybill OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azurecostentrybill OWNER TO table_owner;
 
 --
--- Name: reporting_azurecostentrybill_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrybill_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_azurecostentrybill_id_seq
@@ -1580,17 +1580,17 @@ CREATE SEQUENCE template0.reporting_azurecostentrybill_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_azurecostentrybill_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azurecostentrybill_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_azurecostentrybill_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrybill_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_azurecostentrybill_id_seq OWNED BY template0.reporting_azurecostentrybill.id;
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_azurecostentrylineitem_daily (
@@ -1606,10 +1606,10 @@ CREATE TABLE template0.reporting_azurecostentrylineitem_daily (
 );
 
 
-ALTER TABLE template0.reporting_azurecostentrylineitem_daily OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azurecostentrylineitem_daily OWNER TO table_owner;
 
 --
--- Name: reporting_azurecostentrylineitem_daily_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_azurecostentrylineitem_daily_id_seq
@@ -1620,17 +1620,17 @@ CREATE SEQUENCE template0.reporting_azurecostentrylineitem_daily_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_azurecostentrylineitem_daily_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azurecostentrylineitem_daily_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_azurecostentrylineitem_daily_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_azurecostentrylineitem_daily_id_seq OWNED BY template0.reporting_azurecostentrylineitem_daily.id;
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily_summary_default; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily_summary_default; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_azurecostentrylineitem_daily_summary_default (
@@ -1656,10 +1656,10 @@ CREATE TABLE template0.reporting_azurecostentrylineitem_daily_summary_default (
 ALTER TABLE ONLY template0.reporting_azurecostentrylineitem_daily_summary ATTACH PARTITION template0.reporting_azurecostentrylineitem_daily_summary_default DEFAULT;
 
 
-ALTER TABLE template0.reporting_azurecostentrylineitem_daily_summary_default OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azurecostentrylineitem_daily_summary_default OWNER TO table_owner;
 
 --
--- Name: reporting_azurecostentryproductservice; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentryproductservice; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_azurecostentryproductservice (
@@ -1679,10 +1679,10 @@ CREATE TABLE template0.reporting_azurecostentryproductservice (
 );
 
 
-ALTER TABLE template0.reporting_azurecostentryproductservice OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azurecostentryproductservice OWNER TO table_owner;
 
 --
--- Name: reporting_azurecostentryproductservice_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentryproductservice_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_azurecostentryproductservice_id_seq
@@ -1694,17 +1694,17 @@ CREATE SEQUENCE template0.reporting_azurecostentryproductservice_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_azurecostentryproductservice_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azurecostentryproductservice_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_azurecostentryproductservice_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentryproductservice_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_azurecostentryproductservice_id_seq OWNED BY template0.reporting_azurecostentryproductservice.id;
 
 
 --
--- Name: reporting_azureenabledtagkeys; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azureenabledtagkeys; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_azureenabledtagkeys (
@@ -1713,10 +1713,10 @@ CREATE TABLE template0.reporting_azureenabledtagkeys (
 );
 
 
-ALTER TABLE template0.reporting_azureenabledtagkeys OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azureenabledtagkeys OWNER TO table_owner;
 
 --
--- Name: reporting_azureenabledtagkeys_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azureenabledtagkeys_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_azureenabledtagkeys_id_seq
@@ -1727,17 +1727,17 @@ CREATE SEQUENCE template0.reporting_azureenabledtagkeys_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_azureenabledtagkeys_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azureenabledtagkeys_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_azureenabledtagkeys_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azureenabledtagkeys_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_azureenabledtagkeys_id_seq OWNED BY template0.reporting_azureenabledtagkeys.id;
 
 
 --
--- Name: reporting_azuremeter; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuremeter; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_azuremeter (
@@ -1754,10 +1754,10 @@ CREATE TABLE template0.reporting_azuremeter (
 );
 
 
-ALTER TABLE template0.reporting_azuremeter OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azuremeter OWNER TO table_owner;
 
 --
--- Name: reporting_azuremeter_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuremeter_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_azuremeter_id_seq
@@ -1769,17 +1769,17 @@ CREATE SEQUENCE template0.reporting_azuremeter_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_azuremeter_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azuremeter_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_azuremeter_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuremeter_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_azuremeter_id_seq OWNED BY template0.reporting_azuremeter.id;
 
 
 --
--- Name: reporting_azuretags_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuretags_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_azuretags_summary (
@@ -1791,10 +1791,10 @@ CREATE TABLE template0.reporting_azuretags_summary (
 );
 
 
-ALTER TABLE template0.reporting_azuretags_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azuretags_summary OWNER TO table_owner;
 
 --
--- Name: reporting_azuretags_values; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuretags_values; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_azuretags_values (
@@ -1805,10 +1805,10 @@ CREATE TABLE template0.reporting_azuretags_values (
 );
 
 
-ALTER TABLE template0.reporting_azuretags_values OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_azuretags_values OWNER TO table_owner;
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_gcpcostentrylineitem_daily_summary (
@@ -1837,10 +1837,10 @@ CREATE TABLE template0.reporting_gcpcostentrylineitem_daily_summary (
 PARTITION BY RANGE (usage_start);
 
 
-ALTER TABLE template0.reporting_gcpcostentrylineitem_daily_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcpcostentrylineitem_daily_summary OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_compute_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_compute_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_compute_summary AS
@@ -1860,10 +1860,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_compute_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_compute_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_compute_summary OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_compute_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_compute_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_compute_summary_by_account AS
@@ -1884,10 +1884,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_compute_summary_by_account AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_compute_summary_by_account OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_compute_summary_by_account OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_compute_summary_by_project; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_compute_summary_by_project; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_compute_summary_by_project AS
@@ -1910,10 +1910,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_compute_summary_by_project AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_compute_summary_by_project OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_compute_summary_by_project OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_compute_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_compute_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_compute_summary_by_region AS
@@ -1935,10 +1935,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_compute_summary_by_region AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_compute_summary_by_region OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_compute_summary_by_region OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_compute_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_compute_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_compute_summary_by_service AS
@@ -1961,10 +1961,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_compute_summary_by_service AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_compute_summary_by_service OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_compute_summary_by_service OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_cost_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_cost_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_cost_summary AS
@@ -1981,10 +1981,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_cost_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_cost_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_cost_summary OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_cost_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_cost_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_cost_summary_by_account AS
@@ -2002,10 +2002,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_cost_summary_by_account AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_cost_summary_by_account OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_cost_summary_by_account OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_cost_summary_by_project; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_cost_summary_by_project; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_cost_summary_by_project AS
@@ -2025,10 +2025,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_cost_summary_by_project AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_cost_summary_by_project OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_cost_summary_by_project OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_cost_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_cost_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_cost_summary_by_region AS
@@ -2047,10 +2047,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_cost_summary_by_region AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_cost_summary_by_region OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_cost_summary_by_region OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_cost_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_cost_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_cost_summary_by_service AS
@@ -2070,10 +2070,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_cost_summary_by_service AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_cost_summary_by_service OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_cost_summary_by_service OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_database_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_database_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_database_summary AS
@@ -2095,10 +2095,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_database_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_database_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_database_summary OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_network_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_network_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_network_summary AS
@@ -2120,10 +2120,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_network_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_network_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_network_summary OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_storage_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_storage_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_storage_summary AS
@@ -2142,10 +2142,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_storage_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_storage_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_storage_summary OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_storage_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_storage_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_storage_summary_by_account AS
@@ -2165,10 +2165,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_storage_summary_by_account AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_storage_summary_by_account OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_storage_summary_by_account OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_storage_summary_by_project; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_storage_summary_by_project; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_storage_summary_by_project AS
@@ -2190,10 +2190,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_storage_summary_by_project AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_storage_summary_by_project OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_storage_summary_by_project OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_storage_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_storage_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_storage_summary_by_region AS
@@ -2214,10 +2214,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_storage_summary_by_region AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_storage_summary_by_region OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_storage_summary_by_region OWNER TO table_owner;
 
 --
--- Name: reporting_gcp_storage_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_storage_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_gcp_storage_summary_by_service AS
@@ -2239,10 +2239,10 @@ CREATE MATERIALIZED VIEW template0.reporting_gcp_storage_summary_by_service AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_gcp_storage_summary_by_service OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcp_storage_summary_by_service OWNER TO table_owner;
 
 --
--- Name: reporting_gcpcostentrybill; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrybill; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_gcpcostentrybill (
@@ -2257,10 +2257,10 @@ CREATE TABLE template0.reporting_gcpcostentrybill (
 );
 
 
-ALTER TABLE template0.reporting_gcpcostentrybill OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcpcostentrybill OWNER TO table_owner;
 
 --
--- Name: reporting_gcpcostentrybill_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrybill_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_gcpcostentrybill_id_seq
@@ -2272,17 +2272,17 @@ CREATE SEQUENCE template0.reporting_gcpcostentrybill_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_gcpcostentrybill_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcpcostentrybill_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_gcpcostentrybill_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrybill_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_gcpcostentrybill_id_seq OWNED BY template0.reporting_gcpcostentrybill.id;
 
 
 --
--- Name: reporting_gcpcostentrylineitem; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_gcpcostentrylineitem (
@@ -2311,10 +2311,10 @@ CREATE TABLE template0.reporting_gcpcostentrylineitem (
 );
 
 
-ALTER TABLE template0.reporting_gcpcostentrylineitem OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcpcostentrylineitem OWNER TO table_owner;
 
 --
--- Name: reporting_gcpcostentrylineitem_daily; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_gcpcostentrylineitem_daily (
@@ -2338,10 +2338,10 @@ CREATE TABLE template0.reporting_gcpcostentrylineitem_daily (
 );
 
 
-ALTER TABLE template0.reporting_gcpcostentrylineitem_daily OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcpcostentrylineitem_daily OWNER TO table_owner;
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_gcpcostentrylineitem_daily_id_seq
@@ -2352,17 +2352,17 @@ CREATE SEQUENCE template0.reporting_gcpcostentrylineitem_daily_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_gcpcostentrylineitem_daily_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcpcostentrylineitem_daily_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_gcpcostentrylineitem_daily_id_seq OWNED BY template0.reporting_gcpcostentrylineitem_daily.id;
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_summary_default; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_summary_default; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_gcpcostentrylineitem_daily_summary_default (
@@ -2391,10 +2391,10 @@ CREATE TABLE template0.reporting_gcpcostentrylineitem_daily_summary_default (
 ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem_daily_summary ATTACH PARTITION template0.reporting_gcpcostentrylineitem_daily_summary_default DEFAULT;
 
 
-ALTER TABLE template0.reporting_gcpcostentrylineitem_daily_summary_default OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcpcostentrylineitem_daily_summary_default OWNER TO table_owner;
 
 --
--- Name: reporting_gcpcostentrylineitem_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_gcpcostentrylineitem_id_seq
@@ -2405,17 +2405,17 @@ CREATE SEQUENCE template0.reporting_gcpcostentrylineitem_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_gcpcostentrylineitem_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcpcostentrylineitem_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_gcpcostentrylineitem_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_gcpcostentrylineitem_id_seq OWNED BY template0.reporting_gcpcostentrylineitem.id;
 
 
 --
--- Name: reporting_gcpcostentryproductservice; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentryproductservice; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_gcpcostentryproductservice (
@@ -2427,10 +2427,10 @@ CREATE TABLE template0.reporting_gcpcostentryproductservice (
 );
 
 
-ALTER TABLE template0.reporting_gcpcostentryproductservice OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcpcostentryproductservice OWNER TO table_owner;
 
 --
--- Name: reporting_gcpcostentryproductservice_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentryproductservice_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_gcpcostentryproductservice_id_seq
@@ -2441,17 +2441,17 @@ CREATE SEQUENCE template0.reporting_gcpcostentryproductservice_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_gcpcostentryproductservice_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcpcostentryproductservice_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_gcpcostentryproductservice_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentryproductservice_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_gcpcostentryproductservice_id_seq OWNED BY template0.reporting_gcpcostentryproductservice.id;
 
 
 --
--- Name: reporting_gcpenabledtagkeys; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpenabledtagkeys; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_gcpenabledtagkeys (
@@ -2460,10 +2460,10 @@ CREATE TABLE template0.reporting_gcpenabledtagkeys (
 );
 
 
-ALTER TABLE template0.reporting_gcpenabledtagkeys OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcpenabledtagkeys OWNER TO table_owner;
 
 --
--- Name: reporting_gcpenabledtagkeys_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpenabledtagkeys_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_gcpenabledtagkeys_id_seq
@@ -2474,17 +2474,17 @@ CREATE SEQUENCE template0.reporting_gcpenabledtagkeys_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_gcpenabledtagkeys_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcpenabledtagkeys_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_gcpenabledtagkeys_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpenabledtagkeys_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_gcpenabledtagkeys_id_seq OWNED BY template0.reporting_gcpenabledtagkeys.id;
 
 
 --
--- Name: reporting_gcpproject; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpproject; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_gcpproject (
@@ -2496,10 +2496,10 @@ CREATE TABLE template0.reporting_gcpproject (
 );
 
 
-ALTER TABLE template0.reporting_gcpproject OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcpproject OWNER TO table_owner;
 
 --
--- Name: reporting_gcpproject_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpproject_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_gcpproject_id_seq
@@ -2511,17 +2511,17 @@ CREATE SEQUENCE template0.reporting_gcpproject_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_gcpproject_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcpproject_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_gcpproject_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpproject_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_gcpproject_id_seq OWNED BY template0.reporting_gcpproject.id;
 
 
 --
--- Name: reporting_gcptags_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcptags_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_gcptags_summary (
@@ -2535,10 +2535,10 @@ CREATE TABLE template0.reporting_gcptags_summary (
 );
 
 
-ALTER TABLE template0.reporting_gcptags_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcptags_summary OWNER TO table_owner;
 
 --
--- Name: reporting_gcptags_values; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcptags_values; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_gcptags_values (
@@ -2551,10 +2551,10 @@ CREATE TABLE template0.reporting_gcptags_values (
 );
 
 
-ALTER TABLE template0.reporting_gcptags_values OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_gcptags_values OWNER TO table_owner;
 
 --
--- Name: reporting_ocpusagelineitem_daily_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpusagelineitem_daily_summary (
@@ -2603,10 +2603,10 @@ CREATE TABLE template0.reporting_ocpusagelineitem_daily_summary (
 PARTITION BY RANGE (usage_start);
 
 
-ALTER TABLE template0.reporting_ocpusagelineitem_daily_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpusagelineitem_daily_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocp_cost_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocp_cost_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocp_cost_summary AS
@@ -2628,10 +2628,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocp_cost_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocp_cost_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocp_cost_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocp_cost_summary_by_node; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocp_cost_summary_by_node; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocp_cost_summary_by_node AS
@@ -2656,10 +2656,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocp_cost_summary_by_node AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocp_cost_summary_by_node OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocp_cost_summary_by_node OWNER TO table_owner;
 
 --
--- Name: reporting_ocp_cost_summary_by_project; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocp_cost_summary_by_project; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocp_cost_summary_by_project AS
@@ -2682,10 +2682,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocp_cost_summary_by_project AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocp_cost_summary_by_project OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocp_cost_summary_by_project OWNER TO table_owner;
 
 --
--- Name: reporting_ocp_pod_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocp_pod_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocp_pod_summary AS
@@ -2716,10 +2716,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocp_pod_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocp_pod_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocp_pod_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocp_pod_summary_by_project; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocp_pod_summary_by_project; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocp_pod_summary_by_project AS
@@ -2751,10 +2751,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocp_pod_summary_by_project AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocp_pod_summary_by_project OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocp_pod_summary_by_project OWNER TO table_owner;
 
 --
--- Name: reporting_ocp_volume_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocp_volume_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocp_volume_summary AS
@@ -2780,10 +2780,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocp_volume_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocp_volume_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocp_volume_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocp_volume_summary_by_project; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocp_volume_summary_by_project; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocp_volume_summary_by_project AS
@@ -2810,10 +2810,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocp_volume_summary_by_project AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocp_volume_summary_by_project OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocp_volume_summary_by_project OWNER TO table_owner;
 
 --
--- Name: reporting_ocpawscostlineitem_daily_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineitem_daily_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpawscostlineitem_daily_summary (
@@ -2847,10 +2847,10 @@ CREATE TABLE template0.reporting_ocpawscostlineitem_daily_summary (
 );
 
 
-ALTER TABLE template0.reporting_ocpawscostlineitem_daily_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpawscostlineitem_daily_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpazurecostlineitem_daily_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazurecostlineitem_daily_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpazurecostlineitem_daily_summary (
@@ -2880,10 +2880,10 @@ CREATE TABLE template0.reporting_ocpazurecostlineitem_daily_summary (
 );
 
 
-ALTER TABLE template0.reporting_ocpazurecostlineitem_daily_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpazurecostlineitem_daily_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpallcostlineitem_daily_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpallcostlineitem_daily_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpallcostlineitem_daily_summary AS
@@ -2969,10 +2969,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpallcostlineitem_daily_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpallcostlineitem_daily_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpallcostlineitem_daily_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpall_compute_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_compute_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpall_compute_summary AS
@@ -2998,10 +2998,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpall_compute_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpall_compute_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpall_compute_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpall_cost_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_cost_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpall_cost_summary AS
@@ -3020,10 +3020,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpall_cost_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpall_cost_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpall_cost_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpall_cost_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_cost_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpall_cost_summary_by_account AS
@@ -3044,10 +3044,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpall_cost_summary_by_account AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpall_cost_summary_by_account OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpall_cost_summary_by_account OWNER TO table_owner;
 
 --
--- Name: reporting_ocpall_cost_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_cost_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpall_cost_summary_by_region AS
@@ -3070,10 +3070,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpall_cost_summary_by_region AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpall_cost_summary_by_region OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpall_cost_summary_by_region OWNER TO table_owner;
 
 --
--- Name: reporting_ocpall_cost_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_cost_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpall_cost_summary_by_service AS
@@ -3096,10 +3096,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpall_cost_summary_by_service AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpall_cost_summary_by_service OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpall_cost_summary_by_service OWNER TO table_owner;
 
 --
--- Name: reporting_ocpall_database_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_database_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpall_database_summary AS
@@ -3123,10 +3123,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpall_database_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpall_database_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpall_database_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpall_network_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_network_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpall_network_summary AS
@@ -3150,10 +3150,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpall_network_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpall_network_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpall_network_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpall_storage_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_storage_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpall_storage_summary AS
@@ -3178,10 +3178,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpall_storage_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpall_storage_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpall_storage_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpawscostlineitem_project_daily_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineitem_project_daily_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpawscostlineitem_project_daily_summary (
@@ -3216,10 +3216,10 @@ CREATE TABLE template0.reporting_ocpawscostlineitem_project_daily_summary (
 );
 
 
-ALTER TABLE template0.reporting_ocpawscostlineitem_project_daily_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpawscostlineitem_project_daily_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpazurecostlineitem_project_daily_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazurecostlineitem_project_daily_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpazurecostlineitem_project_daily_summary (
@@ -3250,10 +3250,10 @@ CREATE TABLE template0.reporting_ocpazurecostlineitem_project_daily_summary (
 );
 
 
-ALTER TABLE template0.reporting_ocpazurecostlineitem_project_daily_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpazurecostlineitem_project_daily_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpallcostlineitem_project_daily_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpallcostlineitem_project_daily_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpallcostlineitem_project_daily_summary AS
@@ -3340,10 +3340,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpallcostlineitem_project_daily_su
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpallcostlineitem_project_daily_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpallcostlineitem_project_daily_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpaws_compute_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_compute_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpaws_compute_summary AS
@@ -3368,10 +3368,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpaws_compute_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpaws_compute_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpaws_compute_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpaws_cost_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_cost_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpaws_cost_summary AS
@@ -3390,10 +3390,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpaws_cost_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpaws_cost_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpaws_cost_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpaws_cost_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_cost_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpaws_cost_summary_by_account AS
@@ -3414,10 +3414,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpaws_cost_summary_by_account AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpaws_cost_summary_by_account OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpaws_cost_summary_by_account OWNER TO table_owner;
 
 --
--- Name: reporting_ocpaws_cost_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_cost_summary_by_region; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpaws_cost_summary_by_region AS
@@ -3440,10 +3440,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpaws_cost_summary_by_region AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpaws_cost_summary_by_region OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpaws_cost_summary_by_region OWNER TO table_owner;
 
 --
--- Name: reporting_ocpaws_cost_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_cost_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpaws_cost_summary_by_service AS
@@ -3466,10 +3466,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpaws_cost_summary_by_service AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpaws_cost_summary_by_service OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpaws_cost_summary_by_service OWNER TO table_owner;
 
 --
--- Name: reporting_ocpaws_database_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_database_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpaws_database_summary AS
@@ -3493,10 +3493,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpaws_database_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpaws_database_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpaws_database_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpaws_network_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_network_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpaws_network_summary AS
@@ -3520,10 +3520,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpaws_network_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpaws_network_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpaws_network_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpaws_storage_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_storage_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpaws_storage_summary AS
@@ -3547,10 +3547,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpaws_storage_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpaws_storage_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpaws_storage_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpawstags_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawstags_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpawstags_summary (
@@ -3566,10 +3566,10 @@ CREATE TABLE template0.reporting_ocpawstags_summary (
 );
 
 
-ALTER TABLE template0.reporting_ocpawstags_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpawstags_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpawstags_values; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawstags_values; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpawstags_values (
@@ -3585,10 +3585,10 @@ CREATE TABLE template0.reporting_ocpawstags_values (
 );
 
 
-ALTER TABLE template0.reporting_ocpawstags_values OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpawstags_values OWNER TO table_owner;
 
 --
--- Name: reporting_ocpazure_compute_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_compute_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpazure_compute_summary AS
@@ -3612,10 +3612,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpazure_compute_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpazure_compute_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpazure_compute_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpazure_cost_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_cost_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpazure_cost_summary AS
@@ -3634,10 +3634,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpazure_cost_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpazure_cost_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpazure_cost_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpazure_cost_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_cost_summary_by_account; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpazure_cost_summary_by_account AS
@@ -3657,10 +3657,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpazure_cost_summary_by_account AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpazure_cost_summary_by_account OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpazure_cost_summary_by_account OWNER TO table_owner;
 
 --
--- Name: reporting_ocpazure_cost_summary_by_location; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_cost_summary_by_location; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpazure_cost_summary_by_location AS
@@ -3681,10 +3681,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpazure_cost_summary_by_location A
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpazure_cost_summary_by_location OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpazure_cost_summary_by_location OWNER TO table_owner;
 
 --
--- Name: reporting_ocpazure_cost_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_cost_summary_by_service; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpazure_cost_summary_by_service AS
@@ -3705,10 +3705,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpazure_cost_summary_by_service AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpazure_cost_summary_by_service OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpazure_cost_summary_by_service OWNER TO table_owner;
 
 --
--- Name: reporting_ocpazure_database_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_database_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpazure_database_summary AS
@@ -3731,10 +3731,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpazure_database_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpazure_database_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpazure_database_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpazure_network_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_network_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpazure_network_summary AS
@@ -3757,10 +3757,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpazure_network_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpazure_network_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpazure_network_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpazure_storage_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_storage_summary; Type: MATERIALIZED VIEW; Schema: template0; Owner: table_owner
 --
 
 CREATE MATERIALIZED VIEW template0.reporting_ocpazure_storage_summary AS
@@ -3783,10 +3783,10 @@ CREATE MATERIALIZED VIEW template0.reporting_ocpazure_storage_summary AS
   WITH NO DATA;
 
 
-ALTER TABLE template0.reporting_ocpazure_storage_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpazure_storage_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpazuretags_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazuretags_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpazuretags_summary (
@@ -3801,10 +3801,10 @@ CREATE TABLE template0.reporting_ocpazuretags_summary (
 );
 
 
-ALTER TABLE template0.reporting_ocpazuretags_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpazuretags_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpazuretags_values; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazuretags_values; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpazuretags_values (
@@ -3819,10 +3819,10 @@ CREATE TABLE template0.reporting_ocpazuretags_values (
 );
 
 
-ALTER TABLE template0.reporting_ocpazuretags_values OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpazuretags_values OWNER TO table_owner;
 
 --
--- Name: reporting_ocpcosts_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpcosts_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpcosts_summary (
@@ -3847,10 +3847,10 @@ CREATE TABLE template0.reporting_ocpcosts_summary (
 );
 
 
-ALTER TABLE template0.reporting_ocpcosts_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpcosts_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpcosts_summary_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpcosts_summary_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_ocpcosts_summary_id_seq
@@ -3862,17 +3862,17 @@ CREATE SEQUENCE template0.reporting_ocpcosts_summary_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_ocpcosts_summary_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpcosts_summary_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_ocpcosts_summary_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpcosts_summary_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_ocpcosts_summary_id_seq OWNED BY template0.reporting_ocpcosts_summary.id;
 
 
 --
--- Name: reporting_ocpenabledtagkeys; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpenabledtagkeys; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpenabledtagkeys (
@@ -3881,10 +3881,10 @@ CREATE TABLE template0.reporting_ocpenabledtagkeys (
 );
 
 
-ALTER TABLE template0.reporting_ocpenabledtagkeys OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpenabledtagkeys OWNER TO table_owner;
 
 --
--- Name: reporting_ocpenabledtagkeys_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpenabledtagkeys_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_ocpenabledtagkeys_id_seq
@@ -3895,17 +3895,17 @@ CREATE SEQUENCE template0.reporting_ocpenabledtagkeys_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_ocpenabledtagkeys_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpenabledtagkeys_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_ocpenabledtagkeys_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpenabledtagkeys_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_ocpenabledtagkeys_id_seq OWNED BY template0.reporting_ocpenabledtagkeys.id;
 
 
 --
--- Name: reporting_ocpnamespacelabellineitem; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnamespacelabellineitem; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpnamespacelabellineitem (
@@ -3917,10 +3917,10 @@ CREATE TABLE template0.reporting_ocpnamespacelabellineitem (
 );
 
 
-ALTER TABLE template0.reporting_ocpnamespacelabellineitem OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpnamespacelabellineitem OWNER TO table_owner;
 
 --
--- Name: reporting_ocpnamespacelabellineitem_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnamespacelabellineitem_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_ocpnamespacelabellineitem_id_seq
@@ -3931,17 +3931,17 @@ CREATE SEQUENCE template0.reporting_ocpnamespacelabellineitem_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_ocpnamespacelabellineitem_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpnamespacelabellineitem_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_ocpnamespacelabellineitem_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnamespacelabellineitem_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_ocpnamespacelabellineitem_id_seq OWNED BY template0.reporting_ocpnamespacelabellineitem.id;
 
 
 --
--- Name: reporting_ocpnodelabellineitem; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpnodelabellineitem (
@@ -3953,10 +3953,10 @@ CREATE TABLE template0.reporting_ocpnodelabellineitem (
 );
 
 
-ALTER TABLE template0.reporting_ocpnodelabellineitem OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpnodelabellineitem OWNER TO table_owner;
 
 --
--- Name: reporting_ocpnodelabellineitem_daily; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem_daily; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpnodelabellineitem_daily (
@@ -3972,10 +3972,10 @@ CREATE TABLE template0.reporting_ocpnodelabellineitem_daily (
 );
 
 
-ALTER TABLE template0.reporting_ocpnodelabellineitem_daily OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpnodelabellineitem_daily OWNER TO table_owner;
 
 --
--- Name: reporting_ocpnodelabellineitem_daily_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem_daily_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_ocpnodelabellineitem_daily_id_seq
@@ -3986,17 +3986,17 @@ CREATE SEQUENCE template0.reporting_ocpnodelabellineitem_daily_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_ocpnodelabellineitem_daily_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpnodelabellineitem_daily_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_ocpnodelabellineitem_daily_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem_daily_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_ocpnodelabellineitem_daily_id_seq OWNED BY template0.reporting_ocpnodelabellineitem_daily.id;
 
 
 --
--- Name: reporting_ocpnodelabellineitem_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_ocpnodelabellineitem_id_seq
@@ -4007,17 +4007,17 @@ CREATE SEQUENCE template0.reporting_ocpnodelabellineitem_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_ocpnodelabellineitem_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpnodelabellineitem_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_ocpnodelabellineitem_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_ocpnodelabellineitem_id_seq OWNED BY template0.reporting_ocpnodelabellineitem.id;
 
 
 --
--- Name: reporting_ocpstoragelineitem; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpstoragelineitem (
@@ -4038,10 +4038,10 @@ CREATE TABLE template0.reporting_ocpstoragelineitem (
 );
 
 
-ALTER TABLE template0.reporting_ocpstoragelineitem OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpstoragelineitem OWNER TO table_owner;
 
 --
--- Name: reporting_ocpstoragelineitem_daily; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem_daily; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpstoragelineitem_daily (
@@ -4067,10 +4067,10 @@ CREATE TABLE template0.reporting_ocpstoragelineitem_daily (
 );
 
 
-ALTER TABLE template0.reporting_ocpstoragelineitem_daily OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpstoragelineitem_daily OWNER TO table_owner;
 
 --
--- Name: reporting_ocpstoragelineitem_daily_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem_daily_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_ocpstoragelineitem_daily_id_seq
@@ -4081,17 +4081,17 @@ CREATE SEQUENCE template0.reporting_ocpstoragelineitem_daily_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_ocpstoragelineitem_daily_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpstoragelineitem_daily_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_ocpstoragelineitem_daily_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem_daily_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_ocpstoragelineitem_daily_id_seq OWNED BY template0.reporting_ocpstoragelineitem_daily.id;
 
 
 --
--- Name: reporting_ocpstoragelineitem_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_ocpstoragelineitem_id_seq
@@ -4102,17 +4102,17 @@ CREATE SEQUENCE template0.reporting_ocpstoragelineitem_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_ocpstoragelineitem_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpstoragelineitem_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_ocpstoragelineitem_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_ocpstoragelineitem_id_seq OWNED BY template0.reporting_ocpstoragelineitem.id;
 
 
 --
--- Name: reporting_ocpstoragevolumelabel_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragevolumelabel_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpstoragevolumelabel_summary (
@@ -4125,10 +4125,10 @@ CREATE TABLE template0.reporting_ocpstoragevolumelabel_summary (
 );
 
 
-ALTER TABLE template0.reporting_ocpstoragevolumelabel_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpstoragevolumelabel_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocptags_values; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocptags_values; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocptags_values (
@@ -4142,10 +4142,10 @@ CREATE TABLE template0.reporting_ocptags_values (
 );
 
 
-ALTER TABLE template0.reporting_ocptags_values OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocptags_values OWNER TO table_owner;
 
 --
--- Name: reporting_ocpusagelineitem; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpusagelineitem (
@@ -4170,10 +4170,10 @@ CREATE TABLE template0.reporting_ocpusagelineitem (
 );
 
 
-ALTER TABLE template0.reporting_ocpusagelineitem OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpusagelineitem OWNER TO table_owner;
 
 --
--- Name: reporting_ocpusagelineitem_daily; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpusagelineitem_daily (
@@ -4204,10 +4204,10 @@ CREATE TABLE template0.reporting_ocpusagelineitem_daily (
 );
 
 
-ALTER TABLE template0.reporting_ocpusagelineitem_daily OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpusagelineitem_daily OWNER TO table_owner;
 
 --
--- Name: reporting_ocpusagelineitem_daily_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_ocpusagelineitem_daily_id_seq
@@ -4218,17 +4218,17 @@ CREATE SEQUENCE template0.reporting_ocpusagelineitem_daily_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_ocpusagelineitem_daily_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpusagelineitem_daily_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_ocpusagelineitem_daily_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_ocpusagelineitem_daily_id_seq OWNED BY template0.reporting_ocpusagelineitem_daily.id;
 
 
 --
--- Name: reporting_ocpusagelineitem_daily_summary_default; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_summary_default; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpusagelineitem_daily_summary_default (
@@ -4277,10 +4277,10 @@ CREATE TABLE template0.reporting_ocpusagelineitem_daily_summary_default (
 ALTER TABLE ONLY template0.reporting_ocpusagelineitem_daily_summary ATTACH PARTITION template0.reporting_ocpusagelineitem_daily_summary_default DEFAULT;
 
 
-ALTER TABLE template0.reporting_ocpusagelineitem_daily_summary_default OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpusagelineitem_daily_summary_default OWNER TO table_owner;
 
 --
--- Name: reporting_ocpusagelineitem_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_ocpusagelineitem_id_seq
@@ -4291,17 +4291,17 @@ CREATE SEQUENCE template0.reporting_ocpusagelineitem_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_ocpusagelineitem_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpusagelineitem_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_ocpusagelineitem_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_ocpusagelineitem_id_seq OWNED BY template0.reporting_ocpusagelineitem.id;
 
 
 --
--- Name: reporting_ocpusagepodlabel_summary; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagepodlabel_summary; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpusagepodlabel_summary (
@@ -4314,10 +4314,10 @@ CREATE TABLE template0.reporting_ocpusagepodlabel_summary (
 );
 
 
-ALTER TABLE template0.reporting_ocpusagepodlabel_summary OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpusagepodlabel_summary OWNER TO table_owner;
 
 --
--- Name: reporting_ocpusagereport; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereport; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpusagereport (
@@ -4328,10 +4328,10 @@ CREATE TABLE template0.reporting_ocpusagereport (
 );
 
 
-ALTER TABLE template0.reporting_ocpusagereport OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpusagereport OWNER TO table_owner;
 
 --
--- Name: reporting_ocpusagereport_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereport_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_ocpusagereport_id_seq
@@ -4343,17 +4343,17 @@ CREATE SEQUENCE template0.reporting_ocpusagereport_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_ocpusagereport_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpusagereport_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_ocpusagereport_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereport_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_ocpusagereport_id_seq OWNED BY template0.reporting_ocpusagereport.id;
 
 
 --
--- Name: reporting_ocpusagereportperiod; Type: TABLE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereportperiod; Type: TABLE; Schema: template0; Owner: table_owner
 --
 
 CREATE TABLE template0.reporting_ocpusagereportperiod (
@@ -4369,10 +4369,10 @@ CREATE TABLE template0.reporting_ocpusagereportperiod (
 );
 
 
-ALTER TABLE template0.reporting_ocpusagereportperiod OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpusagereportperiod OWNER TO table_owner;
 
 --
--- Name: reporting_ocpusagereportperiod_id_seq; Type: SEQUENCE; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereportperiod_id_seq; Type: SEQUENCE; Schema: template0; Owner: table_owner
 --
 
 CREATE SEQUENCE template0.reporting_ocpusagereportperiod_id_seq
@@ -4384,280 +4384,280 @@ CREATE SEQUENCE template0.reporting_ocpusagereportperiod_id_seq
     CACHE 1;
 
 
-ALTER TABLE template0.reporting_ocpusagereportperiod_id_seq OWNER TO kokuadmin;
+ALTER TABLE template0.reporting_ocpusagereportperiod_id_seq OWNER TO table_owner;
 
 --
--- Name: reporting_ocpusagereportperiod_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereportperiod_id_seq; Type: SEQUENCE OWNED BY; Schema: template0; Owner: table_owner
 --
 
 ALTER SEQUENCE template0.reporting_ocpusagereportperiod_id_seq OWNED BY template0.reporting_ocpusagereportperiod.id;
 
 
 --
--- Name: cost_model_audit id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: cost_model_audit id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.cost_model_audit ALTER COLUMN id SET DEFAULT nextval('template0.cost_model_audit_id_seq'::regclass);
 
 
 --
--- Name: cost_model_map id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: cost_model_map id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.cost_model_map ALTER COLUMN id SET DEFAULT nextval('template0.cost_model_map_id_seq'::regclass);
 
 
 --
--- Name: django_migrations id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: django_migrations id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.django_migrations ALTER COLUMN id SET DEFAULT nextval('template0.django_migrations_id_seq'::regclass);
 
 
 --
--- Name: partitioned_tables id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: partitioned_tables id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.partitioned_tables ALTER COLUMN id SET DEFAULT nextval('template0.partitioned_tables_id_seq'::regclass);
 
 
 --
--- Name: reporting_awsaccountalias id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsaccountalias id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awsaccountalias ALTER COLUMN id SET DEFAULT nextval('template0.reporting_awsaccountalias_id_seq'::regclass);
 
 
 --
--- Name: reporting_awscostentry id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentry id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentry ALTER COLUMN id SET DEFAULT nextval('template0.reporting_awscostentry_id_seq'::regclass);
 
 
 --
--- Name: reporting_awscostentrybill id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrybill id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrybill ALTER COLUMN id SET DEFAULT nextval('template0.reporting_awscostentrybill_id_seq'::regclass);
 
 
 --
--- Name: reporting_awscostentrylineitem id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem ALTER COLUMN id SET DEFAULT nextval('template0.reporting_awscostentrylineitem_id_seq'::regclass);
 
 
 --
--- Name: reporting_awscostentrylineitem_daily id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily ALTER COLUMN id SET DEFAULT nextval('template0.reporting_awscostentrylineitem_daily_id_seq'::regclass);
 
 
 --
--- Name: reporting_awscostentrypricing id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrypricing id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrypricing ALTER COLUMN id SET DEFAULT nextval('template0.reporting_awscostentrypricing_id_seq'::regclass);
 
 
 --
--- Name: reporting_awscostentryproduct id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryproduct id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentryproduct ALTER COLUMN id SET DEFAULT nextval('template0.reporting_awscostentryproduct_id_seq'::regclass);
 
 
 --
--- Name: reporting_awscostentryreservation id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryreservation id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentryreservation ALTER COLUMN id SET DEFAULT nextval('template0.reporting_awscostentryreservation_id_seq'::regclass);
 
 
 --
--- Name: reporting_awsorganizationalunit id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsorganizationalunit id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awsorganizationalunit ALTER COLUMN id SET DEFAULT nextval('template0.reporting_awsorganizationalunit_id_seq'::regclass);
 
 
 --
--- Name: reporting_azurecostentrybill id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrybill id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azurecostentrybill ALTER COLUMN id SET DEFAULT nextval('template0.reporting_azurecostentrybill_id_seq'::regclass);
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azurecostentrylineitem_daily ALTER COLUMN id SET DEFAULT nextval('template0.reporting_azurecostentrylineitem_daily_id_seq'::regclass);
 
 
 --
--- Name: reporting_azurecostentryproductservice id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentryproductservice id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azurecostentryproductservice ALTER COLUMN id SET DEFAULT nextval('template0.reporting_azurecostentryproductservice_id_seq'::regclass);
 
 
 --
--- Name: reporting_azureenabledtagkeys id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azureenabledtagkeys id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azureenabledtagkeys ALTER COLUMN id SET DEFAULT nextval('template0.reporting_azureenabledtagkeys_id_seq'::regclass);
 
 
 --
--- Name: reporting_azuremeter id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuremeter id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azuremeter ALTER COLUMN id SET DEFAULT nextval('template0.reporting_azuremeter_id_seq'::regclass);
 
 
 --
--- Name: reporting_gcpcostentrybill id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrybill id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrybill ALTER COLUMN id SET DEFAULT nextval('template0.reporting_gcpcostentrybill_id_seq'::regclass);
 
 
 --
--- Name: reporting_gcpcostentrylineitem id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem ALTER COLUMN id SET DEFAULT nextval('template0.reporting_gcpcostentrylineitem_id_seq'::regclass);
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem_daily ALTER COLUMN id SET DEFAULT nextval('template0.reporting_gcpcostentrylineitem_daily_id_seq'::regclass);
 
 
 --
--- Name: reporting_gcpcostentryproductservice id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentryproductservice id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentryproductservice ALTER COLUMN id SET DEFAULT nextval('template0.reporting_gcpcostentryproductservice_id_seq'::regclass);
 
 
 --
--- Name: reporting_gcpenabledtagkeys id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpenabledtagkeys id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpenabledtagkeys ALTER COLUMN id SET DEFAULT nextval('template0.reporting_gcpenabledtagkeys_id_seq'::regclass);
 
 
 --
--- Name: reporting_gcpproject id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpproject id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpproject ALTER COLUMN id SET DEFAULT nextval('template0.reporting_gcpproject_id_seq'::regclass);
 
 
 --
--- Name: reporting_ocpcosts_summary id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpcosts_summary id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpcosts_summary ALTER COLUMN id SET DEFAULT nextval('template0.reporting_ocpcosts_summary_id_seq'::regclass);
 
 
 --
--- Name: reporting_ocpenabledtagkeys id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpenabledtagkeys id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpenabledtagkeys ALTER COLUMN id SET DEFAULT nextval('template0.reporting_ocpenabledtagkeys_id_seq'::regclass);
 
 
 --
--- Name: reporting_ocpnamespacelabellineitem id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnamespacelabellineitem id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpnamespacelabellineitem ALTER COLUMN id SET DEFAULT nextval('template0.reporting_ocpnamespacelabellineitem_id_seq'::regclass);
 
 
 --
--- Name: reporting_ocpnodelabellineitem id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpnodelabellineitem ALTER COLUMN id SET DEFAULT nextval('template0.reporting_ocpnodelabellineitem_id_seq'::regclass);
 
 
 --
--- Name: reporting_ocpnodelabellineitem_daily id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem_daily id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpnodelabellineitem_daily ALTER COLUMN id SET DEFAULT nextval('template0.reporting_ocpnodelabellineitem_daily_id_seq'::regclass);
 
 
 --
--- Name: reporting_ocpstoragelineitem id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpstoragelineitem ALTER COLUMN id SET DEFAULT nextval('template0.reporting_ocpstoragelineitem_id_seq'::regclass);
 
 
 --
--- Name: reporting_ocpstoragelineitem_daily id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem_daily id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpstoragelineitem_daily ALTER COLUMN id SET DEFAULT nextval('template0.reporting_ocpstoragelineitem_daily_id_seq'::regclass);
 
 
 --
--- Name: reporting_ocpusagelineitem id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagelineitem ALTER COLUMN id SET DEFAULT nextval('template0.reporting_ocpusagelineitem_id_seq'::regclass);
 
 
 --
--- Name: reporting_ocpusagelineitem_daily id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagelineitem_daily ALTER COLUMN id SET DEFAULT nextval('template0.reporting_ocpusagelineitem_daily_id_seq'::regclass);
 
 
 --
--- Name: reporting_ocpusagereport id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereport id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagereport ALTER COLUMN id SET DEFAULT nextval('template0.reporting_ocpusagereport_id_seq'::regclass);
 
 
 --
--- Name: reporting_ocpusagereportperiod id; Type: DEFAULT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereportperiod id; Type: DEFAULT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagereportperiod ALTER COLUMN id SET DEFAULT nextval('template0.reporting_ocpusagereportperiod_id_seq'::regclass);
 
 
 --
--- Data for Name: cost_model; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: cost_model; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: cost_model_audit; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: cost_model_audit; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: cost_model_map; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: cost_model_map; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: django_migrations; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: django_migrations; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 INSERT INTO template0.django_migrations VALUES (1, 'api', '0001_initial_squashed_0008_auto_20190305_2015', '2021-04-23 14:29:05.580039+00');
@@ -4816,7 +4816,7 @@ INSERT INTO template0.django_migrations VALUES (153, 'cost_models', '0001_initia
 
 
 --
--- Data for Name: partitioned_tables; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: partitioned_tables; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 INSERT INTO template0.partitioned_tables VALUES (1, 'template0', 'reporting_ocpusagelineitem_daily_summary_default', 'reporting_ocpusagelineitem_daily_summary', 'range', 'usage_start', '{"default": true}', true);
@@ -4826,582 +4826,582 @@ INSERT INTO template0.partitioned_tables VALUES (4, 'template0', 'reporting_gcpc
 
 
 --
--- Data for Name: presto_delete_wrapper_log; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: presto_delete_wrapper_log; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: presto_pk_delete_wrapper_log; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: presto_pk_delete_wrapper_log; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_awsaccountalias; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_awsaccountalias; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_awscostentry; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_awscostentry; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_awscostentrybill; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_awscostentrybill; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_awscostentrylineitem; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_awscostentrylineitem; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_awscostentrylineitem_daily; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_awscostentrylineitem_daily; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_awscostentrylineitem_daily_summary_default; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_awscostentrylineitem_daily_summary_default; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_awscostentrypricing; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_awscostentrypricing; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_awscostentryproduct; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_awscostentryproduct; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_awscostentryreservation; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_awscostentryreservation; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_awsenabledtagkeys; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_awsenabledtagkeys; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_awsorganizationalunit; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_awsorganizationalunit; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_awstags_summary; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_awstags_summary; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_awstags_values; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_awstags_values; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_azurecostentrybill; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_azurecostentrybill; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_azurecostentrylineitem_daily; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_azurecostentrylineitem_daily; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_azurecostentrylineitem_daily_summary_default; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_azurecostentrylineitem_daily_summary_default; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_azurecostentryproductservice; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_azurecostentryproductservice; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_azureenabledtagkeys; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_azureenabledtagkeys; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_azuremeter; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_azuremeter; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_azuretags_summary; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_azuretags_summary; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_azuretags_values; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_azuretags_values; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_gcpcostentrybill; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_gcpcostentrybill; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_gcpcostentrylineitem; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_gcpcostentrylineitem; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_gcpcostentrylineitem_daily; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_gcpcostentrylineitem_daily; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_gcpcostentrylineitem_daily_summary_default; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_gcpcostentrylineitem_daily_summary_default; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_gcpcostentryproductservice; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_gcpcostentryproductservice; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_gcpenabledtagkeys; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_gcpenabledtagkeys; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_gcpproject; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_gcpproject; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_gcptags_summary; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_gcptags_summary; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_gcptags_values; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_gcptags_values; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpawscostlineitem_daily_summary; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpawscostlineitem_daily_summary; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpawscostlineitem_project_daily_summary; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpawscostlineitem_project_daily_summary; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpawstags_summary; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpawstags_summary; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpawstags_values; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpawstags_values; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpazurecostlineitem_daily_summary; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpazurecostlineitem_daily_summary; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpazurecostlineitem_project_daily_summary; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpazurecostlineitem_project_daily_summary; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpazuretags_summary; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpazuretags_summary; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpazuretags_values; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpazuretags_values; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpcosts_summary; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpcosts_summary; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpenabledtagkeys; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpenabledtagkeys; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpnamespacelabellineitem; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpnamespacelabellineitem; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpnodelabellineitem; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpnodelabellineitem; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpnodelabellineitem_daily; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpnodelabellineitem_daily; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpstoragelineitem; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpstoragelineitem; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpstoragelineitem_daily; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpstoragelineitem_daily; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpstoragevolumelabel_summary; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpstoragevolumelabel_summary; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocptags_values; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocptags_values; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpusagelineitem; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpusagelineitem; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpusagelineitem_daily; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpusagelineitem_daily; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpusagelineitem_daily_summary_default; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpusagelineitem_daily_summary_default; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpusagepodlabel_summary; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpusagepodlabel_summary; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpusagereport; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpusagereport; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Data for Name: reporting_ocpusagereportperiod; Type: TABLE DATA; Schema: template0; Owner: kokuadmin
+-- Data for Name: reporting_ocpusagereportperiod; Type: TABLE DATA; Schema: template0; Owner: table_owner
 --
 
 
 
 --
--- Name: cost_model_audit_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: cost_model_audit_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.cost_model_audit_id_seq', 1, false);
 
 
 --
--- Name: cost_model_map_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: cost_model_map_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.cost_model_map_id_seq', 1, false);
 
 
 --
--- Name: django_migrations_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: django_migrations_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.django_migrations_id_seq', 153, true);
 
 
 --
--- Name: partitioned_tables_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: partitioned_tables_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.partitioned_tables_id_seq', 4, true);
 
 
 --
--- Name: reporting_awsaccountalias_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsaccountalias_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_awsaccountalias_id_seq', 1, false);
 
 
 --
--- Name: reporting_awscostentry_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentry_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_awscostentry_id_seq', 1, false);
 
 
 --
--- Name: reporting_awscostentrybill_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrybill_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_awscostentrybill_id_seq', 1, false);
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_awscostentrylineitem_daily_id_seq', 1, false);
 
 
 --
--- Name: reporting_awscostentrylineitem_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_awscostentrylineitem_id_seq', 1, false);
 
 
 --
--- Name: reporting_awscostentrypricing_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrypricing_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_awscostentrypricing_id_seq', 1, false);
 
 
 --
--- Name: reporting_awscostentryproduct_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryproduct_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_awscostentryproduct_id_seq', 1, false);
 
 
 --
--- Name: reporting_awscostentryreservation_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryreservation_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_awscostentryreservation_id_seq', 1, false);
 
 
 --
--- Name: reporting_awsorganizationalunit_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsorganizationalunit_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_awsorganizationalunit_id_seq', 1, false);
 
 
 --
--- Name: reporting_azurecostentrybill_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrybill_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_azurecostentrybill_id_seq', 1, false);
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_azurecostentrylineitem_daily_id_seq', 1, false);
 
 
 --
--- Name: reporting_azurecostentryproductservice_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentryproductservice_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_azurecostentryproductservice_id_seq', 1, false);
 
 
 --
--- Name: reporting_azureenabledtagkeys_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azureenabledtagkeys_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_azureenabledtagkeys_id_seq', 1, false);
 
 
 --
--- Name: reporting_azuremeter_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuremeter_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_azuremeter_id_seq', 1, false);
 
 
 --
--- Name: reporting_gcpcostentrybill_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrybill_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_gcpcostentrybill_id_seq', 1, false);
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_gcpcostentrylineitem_daily_id_seq', 1, false);
 
 
 --
--- Name: reporting_gcpcostentrylineitem_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_gcpcostentrylineitem_id_seq', 1, false);
 
 
 --
--- Name: reporting_gcpcostentryproductservice_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentryproductservice_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_gcpcostentryproductservice_id_seq', 1, false);
 
 
 --
--- Name: reporting_gcpenabledtagkeys_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpenabledtagkeys_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_gcpenabledtagkeys_id_seq', 1, false);
 
 
 --
--- Name: reporting_gcpproject_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpproject_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_gcpproject_id_seq', 1, false);
 
 
 --
--- Name: reporting_ocpcosts_summary_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpcosts_summary_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_ocpcosts_summary_id_seq', 1, false);
 
 
 --
--- Name: reporting_ocpenabledtagkeys_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpenabledtagkeys_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_ocpenabledtagkeys_id_seq', 1, false);
 
 
 --
--- Name: reporting_ocpnamespacelabellineitem_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnamespacelabellineitem_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_ocpnamespacelabellineitem_id_seq', 1, false);
 
 
 --
--- Name: reporting_ocpnodelabellineitem_daily_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem_daily_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_ocpnodelabellineitem_daily_id_seq', 1, false);
 
 
 --
--- Name: reporting_ocpnodelabellineitem_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_ocpnodelabellineitem_id_seq', 1, false);
 
 
 --
--- Name: reporting_ocpstoragelineitem_daily_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem_daily_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_ocpstoragelineitem_daily_id_seq', 1, false);
 
 
 --
--- Name: reporting_ocpstoragelineitem_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_ocpstoragelineitem_id_seq', 1, false);
 
 
 --
--- Name: reporting_ocpusagelineitem_daily_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_ocpusagelineitem_daily_id_seq', 1, false);
 
 
 --
--- Name: reporting_ocpusagelineitem_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_ocpusagelineitem_id_seq', 1, false);
 
 
 --
--- Name: reporting_ocpusagereport_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereport_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_ocpusagereport_id_seq', 1, false);
 
 
 --
--- Name: reporting_ocpusagereportperiod_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereportperiod_id_seq; Type: SEQUENCE SET; Schema: template0; Owner: table_owner
 --
 
 SELECT pg_catalog.setval('template0.reporting_ocpusagereportperiod_id_seq', 1, false);
 
 
 --
--- Name: cost_model_audit cost_model_audit_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: cost_model_audit cost_model_audit_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.cost_model_audit
@@ -5409,7 +5409,7 @@ ALTER TABLE ONLY template0.cost_model_audit
 
 
 --
--- Name: cost_model_map cost_model_map_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: cost_model_map cost_model_map_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.cost_model_map
@@ -5417,7 +5417,7 @@ ALTER TABLE ONLY template0.cost_model_map
 
 
 --
--- Name: cost_model_map cost_model_map_provider_uuid_cost_model_id_40cf193b_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: cost_model_map cost_model_map_provider_uuid_cost_model_id_40cf193b_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.cost_model_map
@@ -5425,7 +5425,7 @@ ALTER TABLE ONLY template0.cost_model_map
 
 
 --
--- Name: cost_model cost_model_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: cost_model cost_model_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.cost_model
@@ -5433,7 +5433,7 @@ ALTER TABLE ONLY template0.cost_model
 
 
 --
--- Name: django_migrations django_migrations_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: django_migrations django_migrations_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.django_migrations
@@ -5441,7 +5441,7 @@ ALTER TABLE ONLY template0.django_migrations
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_summary p_reporting_gcpcostentrylineitem_daily_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_summary p_reporting_gcpcostentrylineitem_daily_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem_daily_summary
@@ -5449,7 +5449,7 @@ ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem_daily_summary
 
 
 --
--- Name: partitioned_tables partitioned_tables_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: partitioned_tables partitioned_tables_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.partitioned_tables
@@ -5457,7 +5457,7 @@ ALTER TABLE ONLY template0.partitioned_tables
 
 
 --
--- Name: partitioned_tables partitioned_tables_schema_name_table_name_5f95f299_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: partitioned_tables partitioned_tables_schema_name_table_name_5f95f299_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.partitioned_tables
@@ -5465,7 +5465,7 @@ ALTER TABLE ONLY template0.partitioned_tables
 
 
 --
--- Name: presto_delete_wrapper_log presto_delete_wrapper_log_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: presto_delete_wrapper_log presto_delete_wrapper_log_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.presto_delete_wrapper_log
@@ -5473,7 +5473,7 @@ ALTER TABLE ONLY template0.presto_delete_wrapper_log
 
 
 --
--- Name: reporting_awsaccountalias reporting_awsaccountalias_account_id_key; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsaccountalias reporting_awsaccountalias_account_id_key; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awsaccountalias
@@ -5481,7 +5481,7 @@ ALTER TABLE ONLY template0.reporting_awsaccountalias
 
 
 --
--- Name: reporting_awsaccountalias reporting_awsaccountalias_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsaccountalias reporting_awsaccountalias_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awsaccountalias
@@ -5489,7 +5489,7 @@ ALTER TABLE ONLY template0.reporting_awsaccountalias
 
 
 --
--- Name: reporting_awscostentry reporting_awscostentry_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentry reporting_awscostentry_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentry
@@ -5497,7 +5497,7 @@ ALTER TABLE ONLY template0.reporting_awscostentry
 
 
 --
--- Name: reporting_awscostentrybill reporting_awscostentrybi_bill_type_payer_account__6f101061_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrybill reporting_awscostentrybi_bill_type_payer_account__6f101061_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrybill
@@ -5505,7 +5505,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrybill
 
 
 --
--- Name: reporting_awscostentrybill reporting_awscostentrybill_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrybill reporting_awscostentrybill_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrybill
@@ -5513,7 +5513,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrybill
 
 
 --
--- Name: reporting_awscostentrylineitem_daily reporting_awscostentrylineitem_daily_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily reporting_awscostentrylineitem_daily_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily
@@ -5521,7 +5521,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summary reporting_awscostentrylineitem_daily_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summary reporting_awscostentrylineitem_daily_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily_summary
@@ -5529,7 +5529,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily_summary
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summary_default reporting_awscostentrylineitem_daily_summary_default_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summary_default reporting_awscostentrylineitem_daily_summary_default_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily_summary_default
@@ -5537,7 +5537,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily_summary_default
 
 
 --
--- Name: reporting_awscostentrylineitem reporting_awscostentrylineitem_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem reporting_awscostentrylineitem_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem
@@ -5545,7 +5545,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrylineitem
 
 
 --
--- Name: reporting_awscostentryproduct reporting_awscostentrypr_sku_product_name_region_fea902ae_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryproduct reporting_awscostentrypr_sku_product_name_region_fea902ae_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentryproduct
@@ -5553,7 +5553,7 @@ ALTER TABLE ONLY template0.reporting_awscostentryproduct
 
 
 --
--- Name: reporting_awscostentrypricing reporting_awscostentrypricing_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrypricing reporting_awscostentrypricing_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrypricing
@@ -5561,7 +5561,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrypricing
 
 
 --
--- Name: reporting_awscostentrypricing reporting_awscostentrypricing_term_unit_c3978af3_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrypricing reporting_awscostentrypricing_term_unit_c3978af3_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrypricing
@@ -5569,7 +5569,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrypricing
 
 
 --
--- Name: reporting_awscostentryproduct reporting_awscostentryproduct_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryproduct reporting_awscostentryproduct_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentryproduct
@@ -5577,7 +5577,7 @@ ALTER TABLE ONLY template0.reporting_awscostentryproduct
 
 
 --
--- Name: reporting_awscostentryreservation reporting_awscostentryreservation_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryreservation reporting_awscostentryreservation_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentryreservation
@@ -5585,7 +5585,7 @@ ALTER TABLE ONLY template0.reporting_awscostentryreservation
 
 
 --
--- Name: reporting_awscostentryreservation reporting_awscostentryreservation_reservation_arn_key; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryreservation reporting_awscostentryreservation_reservation_arn_key; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentryreservation
@@ -5593,7 +5593,7 @@ ALTER TABLE ONLY template0.reporting_awscostentryreservation
 
 
 --
--- Name: reporting_awsenabledtagkeys reporting_awsenabledtagkeys_key_8c2841c2_pk; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsenabledtagkeys reporting_awsenabledtagkeys_key_8c2841c2_pk; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awsenabledtagkeys
@@ -5601,7 +5601,7 @@ ALTER TABLE ONLY template0.reporting_awsenabledtagkeys
 
 
 --
--- Name: reporting_awsorganizationalunit reporting_awsorganizationalunit_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsorganizationalunit reporting_awsorganizationalunit_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awsorganizationalunit
@@ -5609,7 +5609,7 @@ ALTER TABLE ONLY template0.reporting_awsorganizationalunit
 
 
 --
--- Name: reporting_awstags_summary reporting_awstags_summar_key_cost_entry_bill_id_u_1f71e435_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awstags_summary reporting_awstags_summar_key_cost_entry_bill_id_u_1f71e435_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awstags_summary
@@ -5617,7 +5617,7 @@ ALTER TABLE ONLY template0.reporting_awstags_summary
 
 
 --
--- Name: reporting_awstags_summary reporting_awstags_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awstags_summary reporting_awstags_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awstags_summary
@@ -5625,7 +5625,7 @@ ALTER TABLE ONLY template0.reporting_awstags_summary
 
 
 --
--- Name: reporting_awstags_values reporting_awstags_values_key_value_56d23b8e_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awstags_values reporting_awstags_values_key_value_56d23b8e_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awstags_values
@@ -5633,7 +5633,7 @@ ALTER TABLE ONLY template0.reporting_awstags_values
 
 
 --
--- Name: reporting_awstags_values reporting_awstags_values_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awstags_values reporting_awstags_values_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awstags_values
@@ -5641,7 +5641,7 @@ ALTER TABLE ONLY template0.reporting_awstags_values
 
 
 --
--- Name: reporting_azurecostentrybill reporting_azurecostentry_billing_period_start_pro_c99ba20a_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrybill reporting_azurecostentry_billing_period_start_pro_c99ba20a_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azurecostentrybill
@@ -5649,7 +5649,7 @@ ALTER TABLE ONLY template0.reporting_azurecostentrybill
 
 
 --
--- Name: reporting_azurecostentryproductservice reporting_azurecostentry_instance_id_instance_typ_44f8ec94_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentryproductservice reporting_azurecostentry_instance_id_instance_typ_44f8ec94_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azurecostentryproductservice
@@ -5657,7 +5657,7 @@ ALTER TABLE ONLY template0.reporting_azurecostentryproductservice
 
 
 --
--- Name: reporting_azurecostentrybill reporting_azurecostentrybill_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrybill reporting_azurecostentrybill_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azurecostentrybill
@@ -5665,7 +5665,7 @@ ALTER TABLE ONLY template0.reporting_azurecostentrybill
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily reporting_azurecostentrylineitem_daily_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily reporting_azurecostentrylineitem_daily_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azurecostentrylineitem_daily
@@ -5673,7 +5673,7 @@ ALTER TABLE ONLY template0.reporting_azurecostentrylineitem_daily
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily_summary reporting_azurecostentrylineitem_daily_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily_summary reporting_azurecostentrylineitem_daily_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azurecostentrylineitem_daily_summary
@@ -5681,7 +5681,7 @@ ALTER TABLE ONLY template0.reporting_azurecostentrylineitem_daily_summary
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily_summary_default reporting_azurecostentrylineitem_daily_summary_default_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily_summary_default reporting_azurecostentrylineitem_daily_summary_default_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azurecostentrylineitem_daily_summary_default
@@ -5689,7 +5689,7 @@ ALTER TABLE ONLY template0.reporting_azurecostentrylineitem_daily_summary_defaul
 
 
 --
--- Name: reporting_azurecostentryproductservice reporting_azurecostentryproductservice_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentryproductservice reporting_azurecostentryproductservice_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azurecostentryproductservice
@@ -5697,7 +5697,7 @@ ALTER TABLE ONLY template0.reporting_azurecostentryproductservice
 
 
 --
--- Name: reporting_azureenabledtagkeys reporting_azureenabledtagkeys_key_key; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azureenabledtagkeys reporting_azureenabledtagkeys_key_key; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azureenabledtagkeys
@@ -5705,7 +5705,7 @@ ALTER TABLE ONLY template0.reporting_azureenabledtagkeys
 
 
 --
--- Name: reporting_azureenabledtagkeys reporting_azureenabledtagkeys_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azureenabledtagkeys reporting_azureenabledtagkeys_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azureenabledtagkeys
@@ -5713,7 +5713,7 @@ ALTER TABLE ONLY template0.reporting_azureenabledtagkeys
 
 
 --
--- Name: reporting_azuremeter reporting_azuremeter_meter_id_key; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuremeter reporting_azuremeter_meter_id_key; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azuremeter
@@ -5721,7 +5721,7 @@ ALTER TABLE ONLY template0.reporting_azuremeter
 
 
 --
--- Name: reporting_azuremeter reporting_azuremeter_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuremeter reporting_azuremeter_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azuremeter
@@ -5729,7 +5729,7 @@ ALTER TABLE ONLY template0.reporting_azuremeter
 
 
 --
--- Name: reporting_azuretags_summary reporting_azuretags_summ_key_cost_entry_bill_id_s_bf83e989_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuretags_summary reporting_azuretags_summ_key_cost_entry_bill_id_s_bf83e989_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azuretags_summary
@@ -5737,7 +5737,7 @@ ALTER TABLE ONLY template0.reporting_azuretags_summary
 
 
 --
--- Name: reporting_azuretags_summary reporting_azuretags_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuretags_summary reporting_azuretags_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azuretags_summary
@@ -5745,7 +5745,7 @@ ALTER TABLE ONLY template0.reporting_azuretags_summary
 
 
 --
--- Name: reporting_azuretags_values reporting_azuretags_values_key_value_bb8b5dff_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuretags_values reporting_azuretags_values_key_value_bb8b5dff_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azuretags_values
@@ -5753,7 +5753,7 @@ ALTER TABLE ONLY template0.reporting_azuretags_values
 
 
 --
--- Name: reporting_azuretags_values reporting_azuretags_values_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuretags_values reporting_azuretags_values_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azuretags_values
@@ -5761,7 +5761,7 @@ ALTER TABLE ONLY template0.reporting_azuretags_values
 
 
 --
--- Name: reporting_gcpcostentrybill reporting_gcpcostentrybi_billing_period_start_pro_f84030ae_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrybill reporting_gcpcostentrybi_billing_period_start_pro_f84030ae_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrybill
@@ -5769,7 +5769,7 @@ ALTER TABLE ONLY template0.reporting_gcpcostentrybill
 
 
 --
--- Name: reporting_gcpcostentrybill reporting_gcpcostentrybill_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrybill reporting_gcpcostentrybill_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrybill
@@ -5777,7 +5777,7 @@ ALTER TABLE ONLY template0.reporting_gcpcostentrybill
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily reporting_gcpcostentrylineitem_daily_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily reporting_gcpcostentrylineitem_daily_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem_daily
@@ -5785,7 +5785,7 @@ ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem_daily
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_summary_default reporting_gcpcostentrylineitem_daily_summary_default_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_summary_default reporting_gcpcostentrylineitem_daily_summary_default_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem_daily_summary_default
@@ -5793,7 +5793,7 @@ ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem_daily_summary_default
 
 
 --
--- Name: reporting_gcpcostentrylineitem reporting_gcpcostentrylineitem_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem reporting_gcpcostentrylineitem_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem
@@ -5801,7 +5801,7 @@ ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem
 
 
 --
--- Name: reporting_gcpcostentryproductservice reporting_gcpcostentrypr_service_id_service_alias_47942f37_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentryproductservice reporting_gcpcostentrypr_service_id_service_alias_47942f37_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentryproductservice
@@ -5809,7 +5809,7 @@ ALTER TABLE ONLY template0.reporting_gcpcostentryproductservice
 
 
 --
--- Name: reporting_gcpcostentryproductservice reporting_gcpcostentryproductservice_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentryproductservice reporting_gcpcostentryproductservice_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentryproductservice
@@ -5817,7 +5817,7 @@ ALTER TABLE ONLY template0.reporting_gcpcostentryproductservice
 
 
 --
--- Name: reporting_gcpenabledtagkeys reporting_gcpenabledtagkeys_key_key; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpenabledtagkeys reporting_gcpenabledtagkeys_key_key; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpenabledtagkeys
@@ -5825,7 +5825,7 @@ ALTER TABLE ONLY template0.reporting_gcpenabledtagkeys
 
 
 --
--- Name: reporting_gcpenabledtagkeys reporting_gcpenabledtagkeys_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpenabledtagkeys reporting_gcpenabledtagkeys_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpenabledtagkeys
@@ -5833,7 +5833,7 @@ ALTER TABLE ONLY template0.reporting_gcpenabledtagkeys
 
 
 --
--- Name: reporting_gcpproject reporting_gcpproject_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpproject reporting_gcpproject_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpproject
@@ -5841,7 +5841,7 @@ ALTER TABLE ONLY template0.reporting_gcpproject
 
 
 --
--- Name: reporting_gcpproject reporting_gcpproject_project_id_key; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpproject reporting_gcpproject_project_id_key; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpproject
@@ -5849,7 +5849,7 @@ ALTER TABLE ONLY template0.reporting_gcpproject
 
 
 --
--- Name: reporting_gcptags_summary reporting_gcptags_summar_key_cost_entry_bill_id_a_a0ec79e3_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcptags_summary reporting_gcptags_summar_key_cost_entry_bill_id_a_a0ec79e3_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcptags_summary
@@ -5857,7 +5857,7 @@ ALTER TABLE ONLY template0.reporting_gcptags_summary
 
 
 --
--- Name: reporting_gcptags_summary reporting_gcptags_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcptags_summary reporting_gcptags_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcptags_summary
@@ -5865,7 +5865,7 @@ ALTER TABLE ONLY template0.reporting_gcptags_summary
 
 
 --
--- Name: reporting_gcptags_values reporting_gcptags_values_key_value_dfee3462_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcptags_values reporting_gcptags_values_key_value_dfee3462_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcptags_values
@@ -5873,7 +5873,7 @@ ALTER TABLE ONLY template0.reporting_gcptags_values
 
 
 --
--- Name: reporting_gcptags_values reporting_gcptags_values_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcptags_values reporting_gcptags_values_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcptags_values
@@ -5881,7 +5881,7 @@ ALTER TABLE ONLY template0.reporting_gcptags_values
 
 
 --
--- Name: reporting_ocpawscostlineitem_project_daily_summary reporting_ocpawscostline_uuid_9afa8623_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineitem_project_daily_summary reporting_ocpawscostline_uuid_9afa8623_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_project_daily_summary
@@ -5889,7 +5889,7 @@ ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_project_daily_summary
 
 
 --
--- Name: reporting_ocpawscostlineitem_project_daily_summary reporting_ocpawscostlinei_uuid_9afa8623_pk; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineitem_project_daily_summary reporting_ocpawscostlinei_uuid_9afa8623_pk; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_project_daily_summary
@@ -5897,7 +5897,7 @@ ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_project_daily_summary
 
 
 --
--- Name: reporting_ocpawscostlineitem_daily_summary reporting_ocpawscostlineitem_daily_summary_uuid_3d5dc959_pk; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineitem_daily_summary reporting_ocpawscostlineitem_daily_summary_uuid_3d5dc959_pk; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_daily_summary
@@ -5905,7 +5905,7 @@ ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_daily_summary
 
 
 --
--- Name: reporting_ocpawscostlineitem_daily_summary reporting_ocpawscostlineitem_daily_summary_uuid_3d5dc959_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineitem_daily_summary reporting_ocpawscostlineitem_daily_summary_uuid_3d5dc959_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_daily_summary
@@ -5913,7 +5913,7 @@ ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_daily_summary
 
 
 --
--- Name: reporting_ocpawstags_summary reporting_ocpawstags_sum_key_cost_entry_bill_id_r_00bc8a3b_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawstags_summary reporting_ocpawstags_sum_key_cost_entry_bill_id_r_00bc8a3b_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawstags_summary
@@ -5921,7 +5921,7 @@ ALTER TABLE ONLY template0.reporting_ocpawstags_summary
 
 
 --
--- Name: reporting_ocpawstags_summary reporting_ocpawstags_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawstags_summary reporting_ocpawstags_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawstags_summary
@@ -5929,7 +5929,7 @@ ALTER TABLE ONLY template0.reporting_ocpawstags_summary
 
 
 --
--- Name: reporting_ocpawstags_values reporting_ocpawstags_values_key_value_1efa08ea_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawstags_values reporting_ocpawstags_values_key_value_1efa08ea_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawstags_values
@@ -5937,7 +5937,7 @@ ALTER TABLE ONLY template0.reporting_ocpawstags_values
 
 
 --
--- Name: reporting_ocpawstags_values reporting_ocpawstags_values_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawstags_values reporting_ocpawstags_values_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawstags_values
@@ -5945,7 +5945,7 @@ ALTER TABLE ONLY template0.reporting_ocpawstags_values
 
 
 --
--- Name: reporting_ocpazurecostlineitem_project_daily_summary reporting_ocpazurecostli_uuid_1cf2074c_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazurecostlineitem_project_daily_summary reporting_ocpazurecostli_uuid_1cf2074c_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_project_daily_summary
@@ -5953,7 +5953,7 @@ ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_project_daily_summary
 
 
 --
--- Name: reporting_ocpazurecostlineitem_project_daily_summary reporting_ocpazurecostlin_uuid_1cf2074c_pk; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazurecostlineitem_project_daily_summary reporting_ocpazurecostlin_uuid_1cf2074c_pk; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_project_daily_summary
@@ -5961,7 +5961,7 @@ ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_project_daily_summary
 
 
 --
--- Name: reporting_ocpazurecostlineitem_daily_summary reporting_ocpazurecostlineitem_daily_summary_uuid_4063f4f5_pk; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazurecostlineitem_daily_summary reporting_ocpazurecostlineitem_daily_summary_uuid_4063f4f5_pk; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_daily_summary
@@ -5969,7 +5969,7 @@ ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_daily_summary
 
 
 --
--- Name: reporting_ocpazurecostlineitem_daily_summary reporting_ocpazurecostlineitem_daily_summary_uuid_4063f4f5_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazurecostlineitem_daily_summary reporting_ocpazurecostlineitem_daily_summary_uuid_4063f4f5_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_daily_summary
@@ -5977,7 +5977,7 @@ ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_daily_summary
 
 
 --
--- Name: reporting_ocpazuretags_summary reporting_ocpazuretags_s_key_cost_entry_bill_id_r_7fb461bc_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazuretags_summary reporting_ocpazuretags_s_key_cost_entry_bill_id_r_7fb461bc_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpazuretags_summary
@@ -5985,7 +5985,7 @@ ALTER TABLE ONLY template0.reporting_ocpazuretags_summary
 
 
 --
--- Name: reporting_ocpazuretags_summary reporting_ocpazuretags_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazuretags_summary reporting_ocpazuretags_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpazuretags_summary
@@ -5993,7 +5993,7 @@ ALTER TABLE ONLY template0.reporting_ocpazuretags_summary
 
 
 --
--- Name: reporting_ocpazuretags_values reporting_ocpazuretags_values_key_value_306fdd41_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazuretags_values reporting_ocpazuretags_values_key_value_306fdd41_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpazuretags_values
@@ -6001,7 +6001,7 @@ ALTER TABLE ONLY template0.reporting_ocpazuretags_values
 
 
 --
--- Name: reporting_ocpazuretags_values reporting_ocpazuretags_values_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazuretags_values reporting_ocpazuretags_values_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpazuretags_values
@@ -6009,7 +6009,7 @@ ALTER TABLE ONLY template0.reporting_ocpazuretags_values
 
 
 --
--- Name: reporting_ocpcosts_summary reporting_ocpcosts_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpcosts_summary reporting_ocpcosts_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpcosts_summary
@@ -6017,7 +6017,7 @@ ALTER TABLE ONLY template0.reporting_ocpcosts_summary
 
 
 --
--- Name: reporting_ocpenabledtagkeys reporting_ocpenabledtagkeys_key_key; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpenabledtagkeys reporting_ocpenabledtagkeys_key_key; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpenabledtagkeys
@@ -6025,7 +6025,7 @@ ALTER TABLE ONLY template0.reporting_ocpenabledtagkeys
 
 
 --
--- Name: reporting_ocpenabledtagkeys reporting_ocpenabledtagkeys_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpenabledtagkeys reporting_ocpenabledtagkeys_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpenabledtagkeys
@@ -6033,7 +6033,7 @@ ALTER TABLE ONLY template0.reporting_ocpenabledtagkeys
 
 
 --
--- Name: reporting_ocpnamespacelabellineitem reporting_ocpnamespacela_report_id_namespace_00f2972c_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnamespacelabellineitem reporting_ocpnamespacela_report_id_namespace_00f2972c_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpnamespacelabellineitem
@@ -6041,7 +6041,7 @@ ALTER TABLE ONLY template0.reporting_ocpnamespacelabellineitem
 
 
 --
--- Name: reporting_ocpnamespacelabellineitem reporting_ocpnamespacelabellineitem_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnamespacelabellineitem reporting_ocpnamespacelabellineitem_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpnamespacelabellineitem
@@ -6049,7 +6049,7 @@ ALTER TABLE ONLY template0.reporting_ocpnamespacelabellineitem
 
 
 --
--- Name: reporting_ocpnodelabellineitem_daily reporting_ocpnodelabellineitem_daily_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem_daily reporting_ocpnodelabellineitem_daily_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpnodelabellineitem_daily
@@ -6057,7 +6057,7 @@ ALTER TABLE ONLY template0.reporting_ocpnodelabellineitem_daily
 
 
 --
--- Name: reporting_ocpnodelabellineitem reporting_ocpnodelabellineitem_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem reporting_ocpnodelabellineitem_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpnodelabellineitem
@@ -6065,7 +6065,7 @@ ALTER TABLE ONLY template0.reporting_ocpnodelabellineitem
 
 
 --
--- Name: reporting_ocpnodelabellineitem reporting_ocpnodelabellineitem_report_id_node_babd91c2_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem reporting_ocpnodelabellineitem_report_id_node_babd91c2_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpnodelabellineitem
@@ -6073,7 +6073,7 @@ ALTER TABLE ONLY template0.reporting_ocpnodelabellineitem
 
 
 --
--- Name: reporting_ocpstoragelineitem reporting_ocpstorageline_report_id_namespace_pers_9bf00103_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem reporting_ocpstorageline_report_id_namespace_pers_9bf00103_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpstoragelineitem
@@ -6081,7 +6081,7 @@ ALTER TABLE ONLY template0.reporting_ocpstoragelineitem
 
 
 --
--- Name: reporting_ocpstoragelineitem_daily reporting_ocpstoragelineitem_daily_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem_daily reporting_ocpstoragelineitem_daily_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpstoragelineitem_daily
@@ -6089,7 +6089,7 @@ ALTER TABLE ONLY template0.reporting_ocpstoragelineitem_daily
 
 
 --
--- Name: reporting_ocpstoragelineitem reporting_ocpstoragelineitem_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem reporting_ocpstoragelineitem_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpstoragelineitem
@@ -6097,7 +6097,7 @@ ALTER TABLE ONLY template0.reporting_ocpstoragelineitem
 
 
 --
--- Name: reporting_ocpstoragevolumelabel_summary reporting_ocpstoragevolu_key_report_period_id_nam_17bc3852_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragevolumelabel_summary reporting_ocpstoragevolu_key_report_period_id_nam_17bc3852_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpstoragevolumelabel_summary
@@ -6105,7 +6105,7 @@ ALTER TABLE ONLY template0.reporting_ocpstoragevolumelabel_summary
 
 
 --
--- Name: reporting_ocpstoragevolumelabel_summary reporting_ocpstoragevolumelabel_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragevolumelabel_summary reporting_ocpstoragevolumelabel_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpstoragevolumelabel_summary
@@ -6113,7 +6113,7 @@ ALTER TABLE ONLY template0.reporting_ocpstoragevolumelabel_summary
 
 
 --
--- Name: reporting_ocptags_values reporting_ocptags_values_key_value_135d8752_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocptags_values reporting_ocptags_values_key_value_135d8752_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocptags_values
@@ -6121,7 +6121,7 @@ ALTER TABLE ONLY template0.reporting_ocptags_values
 
 
 --
--- Name: reporting_ocptags_values reporting_ocptags_values_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocptags_values reporting_ocptags_values_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocptags_values
@@ -6129,7 +6129,7 @@ ALTER TABLE ONLY template0.reporting_ocptags_values
 
 
 --
--- Name: reporting_ocpusagelineitem reporting_ocpusagelineit_report_id_namespace_pod__dfc2c342_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem reporting_ocpusagelineit_report_id_namespace_pod__dfc2c342_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagelineitem
@@ -6137,7 +6137,7 @@ ALTER TABLE ONLY template0.reporting_ocpusagelineitem
 
 
 --
--- Name: reporting_ocpusagelineitem_daily reporting_ocpusagelineitem_daily_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily reporting_ocpusagelineitem_daily_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagelineitem_daily
@@ -6145,7 +6145,7 @@ ALTER TABLE ONLY template0.reporting_ocpusagelineitem_daily
 
 
 --
--- Name: reporting_ocpusagelineitem_daily_summary reporting_ocpusagelineitem_daily_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_summary reporting_ocpusagelineitem_daily_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagelineitem_daily_summary
@@ -6153,7 +6153,7 @@ ALTER TABLE ONLY template0.reporting_ocpusagelineitem_daily_summary
 
 
 --
--- Name: reporting_ocpusagelineitem_daily_summary_default reporting_ocpusagelineitem_daily_summary_default_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_summary_default reporting_ocpusagelineitem_daily_summary_default_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagelineitem_daily_summary_default
@@ -6161,7 +6161,7 @@ ALTER TABLE ONLY template0.reporting_ocpusagelineitem_daily_summary_default
 
 
 --
--- Name: reporting_ocpusagelineitem reporting_ocpusagelineitem_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem reporting_ocpusagelineitem_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagelineitem
@@ -6169,7 +6169,7 @@ ALTER TABLE ONLY template0.reporting_ocpusagelineitem
 
 
 --
--- Name: reporting_ocpusagepodlabel_summary reporting_ocpusagepodlab_key_report_period_id_nam_8284236c_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagepodlabel_summary reporting_ocpusagepodlab_key_report_period_id_nam_8284236c_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagepodlabel_summary
@@ -6177,7 +6177,7 @@ ALTER TABLE ONLY template0.reporting_ocpusagepodlabel_summary
 
 
 --
--- Name: reporting_ocpusagepodlabel_summary reporting_ocpusagepodlabel_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagepodlabel_summary reporting_ocpusagepodlabel_summary_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagepodlabel_summary
@@ -6185,7 +6185,7 @@ ALTER TABLE ONLY template0.reporting_ocpusagepodlabel_summary
 
 
 --
--- Name: reporting_ocpusagereportperiod reporting_ocpusagereport_cluster_id_report_period_ff3ea314_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereportperiod reporting_ocpusagereport_cluster_id_report_period_ff3ea314_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagereportperiod
@@ -6193,7 +6193,7 @@ ALTER TABLE ONLY template0.reporting_ocpusagereportperiod
 
 
 --
--- Name: reporting_ocpusagereport reporting_ocpusagereport_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereport reporting_ocpusagereport_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagereport
@@ -6201,7 +6201,7 @@ ALTER TABLE ONLY template0.reporting_ocpusagereport
 
 
 --
--- Name: reporting_ocpusagereport reporting_ocpusagereport_report_period_id_interva_066551f3_uniq; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereport reporting_ocpusagereport_report_period_id_interva_066551f3_uniq; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagereport
@@ -6209,7 +6209,7 @@ ALTER TABLE ONLY template0.reporting_ocpusagereport
 
 
 --
--- Name: reporting_ocpusagereportperiod reporting_ocpusagereportperiod_pkey; Type: CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereportperiod reporting_ocpusagereportperiod_pkey; Type: CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagereportperiod
@@ -6217,2058 +6217,2058 @@ ALTER TABLE ONLY template0.reporting_ocpusagereportperiod
 
 
 --
--- Name: aws_compute_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_compute_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX aws_compute_summary ON template0.reporting_aws_compute_summary USING btree (usage_start, source_uuid, instance_type);
 
 
 --
--- Name: aws_compute_summary_account; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_compute_summary_account; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX aws_compute_summary_account ON template0.reporting_aws_compute_summary_by_account USING btree (usage_start, usage_account_id, account_alias_id, instance_type);
 
 
 --
--- Name: aws_compute_summary_region; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_compute_summary_region; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX aws_compute_summary_region ON template0.reporting_aws_compute_summary_by_region USING btree (usage_start, usage_account_id, region, availability_zone, instance_type);
 
 
 --
--- Name: aws_compute_summary_service; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_compute_summary_service; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX aws_compute_summary_service ON template0.reporting_aws_compute_summary_by_service USING btree (usage_start, usage_account_id, product_code, product_family, instance_type);
 
 
 --
--- Name: aws_cost_entry; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_cost_entry; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX aws_cost_entry ON template0.reporting_awscostentrylineitem_daily USING gin (tags);
 
 
 --
--- Name: aws_cost_pcode_like; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_cost_pcode_like; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX aws_cost_pcode_like ON template0.reporting_awscostentrylineitem_daily USING gin (product_code public.gin_trgm_ops);
 
 
 --
--- Name: aws_cost_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_cost_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX aws_cost_summary ON template0.reporting_aws_cost_summary USING btree (usage_start, source_uuid);
 
 
 --
--- Name: aws_cost_summary_account; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_cost_summary_account; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX aws_cost_summary_account ON template0.reporting_aws_cost_summary_by_account USING btree (usage_start, usage_account_id);
 
 
 --
--- Name: aws_cost_summary_region; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_cost_summary_region; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX aws_cost_summary_region ON template0.reporting_aws_cost_summary_by_region USING btree (usage_start, usage_account_id, region, availability_zone);
 
 
 --
--- Name: aws_cost_summary_service; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_cost_summary_service; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX aws_cost_summary_service ON template0.reporting_aws_cost_summary_by_service USING btree (usage_start, usage_account_id, product_code, product_family);
 
 
 --
--- Name: aws_database_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_database_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX aws_database_summary ON template0.reporting_aws_database_summary USING btree (usage_start, usage_account_id, product_code);
 
 
 --
--- Name: aws_enabled_key_index; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_enabled_key_index; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX aws_enabled_key_index ON template0.reporting_awsenabledtagkeys USING btree (key, enabled);
 
 
 --
--- Name: aws_network_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_network_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX aws_network_summary ON template0.reporting_aws_network_summary USING btree (usage_start, usage_account_id, product_code);
 
 
 --
--- Name: aws_storage_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_storage_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX aws_storage_summary ON template0.reporting_aws_storage_summary USING btree (usage_start, source_uuid, product_family);
 
 
 --
--- Name: aws_storage_summary_account; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_storage_summary_account; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX aws_storage_summary_account ON template0.reporting_aws_storage_summary_by_account USING btree (usage_start, usage_account_id, product_family);
 
 
 --
--- Name: aws_storage_summary_region; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_storage_summary_region; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX aws_storage_summary_region ON template0.reporting_aws_storage_summary_by_region USING btree (usage_start, usage_account_id, region, availability_zone, product_family);
 
 
 --
--- Name: aws_storage_summary_service; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_storage_summary_service; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX aws_storage_summary_service ON template0.reporting_aws_storage_summary_by_service USING btree (usage_start, usage_account_id, product_code, product_family);
 
 
 --
--- Name: aws_summ_usage_pcode_ilike; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_summ_usage_pcode_ilike; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX aws_summ_usage_pcode_ilike ON ONLY template0.reporting_awscostentrylineitem_daily_summary USING gin (upper((product_family)::text) public.gin_trgm_ops);
 
 
 --
--- Name: aws_summ_usage_pfam_ilike; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_summ_usage_pfam_ilike; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX aws_summ_usage_pfam_ilike ON ONLY template0.reporting_awscostentrylineitem_daily_summary USING gin (upper((product_family)::text) public.gin_trgm_ops);
 
 
 --
--- Name: aws_tags_value_key_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: aws_tags_value_key_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX aws_tags_value_key_idx ON template0.reporting_awstags_values USING btree (key);
 
 
 --
--- Name: azure_compute_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: azure_compute_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX azure_compute_summary ON template0.reporting_azure_compute_summary USING btree (usage_start, subscription_guid, instance_type);
 
 
 --
--- Name: azure_cost_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: azure_cost_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX azure_cost_summary ON template0.reporting_azure_cost_summary USING btree (usage_start, source_uuid);
 
 
 --
--- Name: azure_cost_summary_account; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: azure_cost_summary_account; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX azure_cost_summary_account ON template0.reporting_azure_cost_summary_by_account USING btree (usage_start, subscription_guid);
 
 
 --
--- Name: azure_cost_summary_location; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: azure_cost_summary_location; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX azure_cost_summary_location ON template0.reporting_azure_cost_summary_by_location USING btree (usage_start, subscription_guid, resource_location);
 
 
 --
--- Name: azure_cost_summary_service; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: azure_cost_summary_service; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX azure_cost_summary_service ON template0.reporting_azure_cost_summary_by_service USING btree (usage_start, subscription_guid, service_name);
 
 
 --
--- Name: azure_database_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: azure_database_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX azure_database_summary ON template0.reporting_azure_database_summary USING btree (usage_start, subscription_guid, service_name);
 
 
 --
--- Name: azure_network_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: azure_network_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX azure_network_summary ON template0.reporting_azure_network_summary USING btree (usage_start, subscription_guid, service_name);
 
 
 --
--- Name: azure_storage_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: azure_storage_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX azure_storage_summary ON template0.reporting_azure_storage_summary USING btree (usage_start, subscription_guid, service_name);
 
 
 --
--- Name: azure_tags_value_key_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: azure_tags_value_key_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX azure_tags_value_key_idx ON template0.reporting_azuretags_values USING btree (key);
 
 
 --
--- Name: cost__proj_sum_namespace_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: cost__proj_sum_namespace_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX cost__proj_sum_namespace_idx ON template0.reporting_ocpawscostlineitem_project_daily_summary USING btree (namespace varchar_pattern_ops);
 
 
 --
--- Name: cost__proj_sum_namespace_like_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: cost__proj_sum_namespace_like_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX cost__proj_sum_namespace_like_idx ON template0.reporting_ocpawscostlineitem_project_daily_summary USING gin (upper((namespace)::text) public.gin_trgm_ops);
 
 
 --
--- Name: cost__proj_sum_node_like_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: cost__proj_sum_node_like_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX cost__proj_sum_node_like_idx ON template0.reporting_ocpawscostlineitem_project_daily_summary USING gin (upper((node)::text) public.gin_trgm_ops);
 
 
 --
--- Name: cost_model_map_cost_model_id_3c67db61; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: cost_model_map_cost_model_id_3c67db61; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX cost_model_map_cost_model_id_3c67db61 ON template0.cost_model_map USING btree (cost_model_id);
 
 
 --
--- Name: cost_proj_pod_labels_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: cost_proj_pod_labels_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX cost_proj_pod_labels_idx ON template0.reporting_ocpawscostlineitem_project_daily_summary USING gin (pod_labels);
 
 
 --
--- Name: cost_proj_sum_node_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: cost_proj_sum_node_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX cost_proj_sum_node_idx ON template0.reporting_ocpawscostlineitem_project_daily_summary USING btree (node varchar_pattern_ops);
 
 
 --
--- Name: cost_proj_sum_ocp_usage_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: cost_proj_sum_ocp_usage_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX cost_proj_sum_ocp_usage_idx ON template0.reporting_ocpawscostlineitem_project_daily_summary USING btree (usage_start);
 
 
 --
--- Name: cost_proj_sum_resource_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: cost_proj_sum_resource_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX cost_proj_sum_resource_idx ON template0.reporting_ocpawscostlineitem_project_daily_summary USING btree (resource_id);
 
 
 --
--- Name: cost_summary_namespace_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: cost_summary_namespace_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX cost_summary_namespace_idx ON template0.reporting_ocpawscostlineitem_daily_summary USING btree (namespace);
 
 
 --
--- Name: cost_summary_node_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: cost_summary_node_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX cost_summary_node_idx ON template0.reporting_ocpawscostlineitem_daily_summary USING btree (node varchar_pattern_ops);
 
 
 --
--- Name: cost_summary_node_like_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: cost_summary_node_like_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX cost_summary_node_like_idx ON template0.reporting_ocpawscostlineitem_daily_summary USING gin (upper((node)::text) public.gin_trgm_ops);
 
 
 --
--- Name: cost_summary_ocp_usage_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: cost_summary_ocp_usage_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX cost_summary_ocp_usage_idx ON template0.reporting_ocpawscostlineitem_daily_summary USING btree (usage_start);
 
 
 --
--- Name: cost_summary_resource_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: cost_summary_resource_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX cost_summary_resource_idx ON template0.reporting_ocpawscostlineitem_daily_summary USING btree (resource_id);
 
 
 --
--- Name: cost_tags_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: cost_tags_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX cost_tags_idx ON template0.reporting_ocpawscostlineitem_daily_summary USING gin (tags);
 
 
 --
--- Name: gcp_compute_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_compute_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_compute_summary ON template0.reporting_gcp_compute_summary USING btree (usage_start, source_uuid, instance_type);
 
 
 --
--- Name: gcp_compute_summary_account; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_compute_summary_account; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_compute_summary_account ON template0.reporting_gcp_compute_summary_by_account USING btree (usage_start, instance_type, account_id);
 
 
 --
--- Name: gcp_compute_summary_project; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_compute_summary_project; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_compute_summary_project ON template0.reporting_gcp_compute_summary_by_project USING btree (usage_start, instance_type, project_id, project_name, account_id);
 
 
 --
--- Name: gcp_compute_summary_region; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_compute_summary_region; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_compute_summary_region ON template0.reporting_gcp_compute_summary_by_region USING btree (usage_start, instance_type, account_id, region);
 
 
 --
--- Name: gcp_compute_summary_service; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_compute_summary_service; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_compute_summary_service ON template0.reporting_gcp_compute_summary_by_service USING btree (usage_start, instance_type, account_id, service_id, service_alias);
 
 
 --
--- Name: gcp_cost_entry; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_cost_entry; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX gcp_cost_entry ON template0.reporting_gcpcostentrylineitem_daily USING gin (tags);
 
 
 --
--- Name: gcp_cost_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_cost_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_cost_summary ON template0.reporting_gcp_cost_summary USING btree (usage_start, source_uuid);
 
 
 --
--- Name: gcp_cost_summary_account; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_cost_summary_account; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_cost_summary_account ON template0.reporting_gcp_cost_summary_by_account USING btree (usage_start, account_id);
 
 
 --
--- Name: gcp_cost_summary_project; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_cost_summary_project; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_cost_summary_project ON template0.reporting_gcp_cost_summary_by_project USING btree (usage_start, project_id, project_name, account_id);
 
 
 --
--- Name: gcp_cost_summary_region; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_cost_summary_region; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_cost_summary_region ON template0.reporting_gcp_cost_summary_by_region USING btree (usage_start, account_id, region);
 
 
 --
--- Name: gcp_cost_summary_service; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_cost_summary_service; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_cost_summary_service ON template0.reporting_gcp_cost_summary_by_service USING btree (usage_start, account_id, service_id, service_alias);
 
 
 --
--- Name: gcp_database_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_database_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_database_summary ON template0.reporting_gcp_database_summary USING btree (usage_start, account_id, service_id, service_alias);
 
 
 --
--- Name: gcp_network_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_network_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_network_summary ON template0.reporting_gcp_network_summary USING btree (usage_start, account_id, service_id, service_alias);
 
 
 --
--- Name: gcp_storage_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_storage_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_storage_summary ON template0.reporting_gcp_storage_summary USING btree (usage_start, source_uuid);
 
 
 --
--- Name: gcp_storage_summary_account; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_storage_summary_account; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_storage_summary_account ON template0.reporting_gcp_storage_summary_by_account USING btree (usage_start, account_id);
 
 
 --
--- Name: gcp_storage_summary_project; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_storage_summary_project; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_storage_summary_project ON template0.reporting_gcp_storage_summary_by_project USING btree (usage_start, project_id, project_name, account_id);
 
 
 --
--- Name: gcp_storage_summary_region; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_storage_summary_region; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_storage_summary_region ON template0.reporting_gcp_storage_summary_by_region USING btree (usage_start, account_id, region);
 
 
 --
--- Name: gcp_storage_summary_service; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_storage_summary_service; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX gcp_storage_summary_service ON template0.reporting_gcp_storage_summary_by_service USING btree (usage_start, account_id, service_id, service_alias);
 
 
 --
--- Name: gcp_tags_value_key_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_tags_value_key_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX gcp_tags_value_key_idx ON template0.reporting_gcptags_values USING btree (key);
 
 
 --
--- Name: gcp_usage_start_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: gcp_usage_start_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX gcp_usage_start_idx ON template0.reporting_gcpcostentrylineitem_daily USING btree (usage_start);
 
 
 --
--- Name: interval_start_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: interval_start_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX interval_start_idx ON template0.reporting_awscostentry USING btree (interval_start);
 
 
 --
--- Name: ix_azure_costentrydlysumm_service_name; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ix_azure_costentrydlysumm_service_name; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ix_azure_costentrydlysumm_service_name ON ONLY template0.reporting_azurecostentrylineitem_daily_summary USING gin (upper(service_name) public.gin_trgm_ops);
 
 
 --
--- Name: ix_ocp_aws_product_code_ilike; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ix_ocp_aws_product_code_ilike; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ix_ocp_aws_product_code_ilike ON template0.reporting_ocpawscostlineitem_daily_summary USING gin (upper((product_code)::text) public.gin_trgm_ops);
 
 
 --
--- Name: ix_ocp_aws_product_family_ilike; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ix_ocp_aws_product_family_ilike; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ix_ocp_aws_product_family_ilike ON template0.reporting_ocpawscostlineitem_daily_summary USING gin (upper((product_family)::text) public.gin_trgm_ops);
 
 
 --
--- Name: ix_ocpazure_service_name_ilike; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ix_ocpazure_service_name_ilike; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ix_ocpazure_service_name_ilike ON template0.reporting_ocpazurecostlineitem_daily_summary USING gin (upper(service_name) public.gin_trgm_ops);
 
 
 --
--- Name: name_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: name_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX name_idx ON template0.cost_model USING btree (name);
 
 
 --
--- Name: namespace_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: namespace_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX namespace_idx ON template0.reporting_ocpusagelineitem_daily USING btree (namespace varchar_pattern_ops);
 
 
 --
--- Name: node_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: node_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX node_idx ON template0.reporting_ocpusagelineitem_daily USING btree (node varchar_pattern_ops);
 
 
 --
--- Name: ocp_aws_instance_type_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_aws_instance_type_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_aws_instance_type_idx ON template0.reporting_ocpawscostlineitem_daily_summary USING btree (instance_type);
 
 
 --
--- Name: ocp_aws_product_family_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_aws_product_family_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_aws_product_family_idx ON template0.reporting_ocpawscostlineitem_daily_summary USING btree (product_family);
 
 
 --
--- Name: ocp_aws_proj_inst_type_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_aws_proj_inst_type_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_aws_proj_inst_type_idx ON template0.reporting_ocpawscostlineitem_project_daily_summary USING btree (instance_type);
 
 
 --
--- Name: ocp_aws_proj_prod_fam_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_aws_proj_prod_fam_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_aws_proj_prod_fam_idx ON template0.reporting_ocpawscostlineitem_project_daily_summary USING btree (product_family);
 
 
 --
--- Name: ocp_aws_tags_value_key_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_aws_tags_value_key_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_aws_tags_value_key_idx ON template0.reporting_ocpawstags_values USING btree (key);
 
 
 --
--- Name: ocp_azure_tags_value_key_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_azure_tags_value_key_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_azure_tags_value_key_idx ON template0.reporting_ocpazuretags_values USING btree (key);
 
 
 --
--- Name: ocp_cost_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_cost_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocp_cost_summary ON template0.reporting_ocp_cost_summary USING btree (usage_start, cluster_id, cluster_alias, source_uuid);
 
 
 --
--- Name: ocp_cost_summary_by_node; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_cost_summary_by_node; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocp_cost_summary_by_node ON template0.reporting_ocp_cost_summary_by_node USING btree (usage_start, cluster_id, cluster_alias, node, source_uuid);
 
 
 --
--- Name: ocp_cost_summary_by_project; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_cost_summary_by_project; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocp_cost_summary_by_project ON template0.reporting_ocp_cost_summary_by_project USING btree (usage_start, cluster_id, cluster_alias, namespace, source_uuid);
 
 
 --
--- Name: ocp_interval_start_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_interval_start_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_interval_start_idx ON template0.reporting_ocpusagereport USING btree (interval_start);
 
 
 --
--- Name: ocp_namespace_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_namespace_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_namespace_idx ON template0.reporting_ocpusagelineitem_daily USING gin (upper((namespace)::text) public.gin_trgm_ops);
 
 
 --
--- Name: ocp_node_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_node_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_node_idx ON template0.reporting_ocpusagelineitem_daily USING gin (upper((node)::text) public.gin_trgm_ops);
 
 
 --
--- Name: ocp_pod_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_pod_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocp_pod_summary ON template0.reporting_ocp_pod_summary USING btree (usage_start, cluster_id, cluster_alias, source_uuid);
 
 
 --
--- Name: ocp_pod_summary_by_project; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_pod_summary_by_project; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocp_pod_summary_by_project ON template0.reporting_ocp_pod_summary_by_project USING btree (usage_start, cluster_id, cluster_alias, namespace, source_uuid);
 
 
 --
--- Name: ocp_storage_li_namespace_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_storage_li_namespace_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_storage_li_namespace_idx ON template0.reporting_ocpstoragelineitem_daily USING btree (namespace varchar_pattern_ops);
 
 
 --
--- Name: ocp_storage_li_namespace_like_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_storage_li_namespace_like_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_storage_li_namespace_like_idx ON template0.reporting_ocpstoragelineitem_daily USING gin (upper((namespace)::text) public.gin_trgm_ops);
 
 
 --
--- Name: ocp_storage_li_node_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_storage_li_node_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_storage_li_node_idx ON template0.reporting_ocpstoragelineitem_daily USING btree (node varchar_pattern_ops);
 
 
 --
--- Name: ocp_storage_li_node_like_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_storage_li_node_like_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_storage_li_node_like_idx ON template0.reporting_ocpstoragelineitem_daily USING gin (upper((node)::text) public.gin_trgm_ops);
 
 
 --
--- Name: ocp_summary_namespace_like_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_summary_namespace_like_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_summary_namespace_like_idx ON ONLY template0.reporting_ocpusagelineitem_daily_summary USING gin (upper((namespace)::text) public.gin_trgm_ops);
 
 
 --
--- Name: ocp_summary_node_like_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_summary_node_like_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_summary_node_like_idx ON ONLY template0.reporting_ocpusagelineitem_daily_summary USING gin (upper((node)::text) public.gin_trgm_ops);
 
 
 --
--- Name: ocp_usage_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_usage_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocp_usage_idx ON template0.reporting_ocpusagelineitem_daily USING btree (usage_start);
 
 
 --
--- Name: ocp_volume_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_volume_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocp_volume_summary ON template0.reporting_ocp_volume_summary USING btree (usage_start, cluster_id, cluster_alias, source_uuid);
 
 
 --
--- Name: ocp_volume_summary_by_project; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocp_volume_summary_by_project; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocp_volume_summary_by_project ON template0.reporting_ocp_volume_summary_by_project USING btree (usage_start, cluster_id, cluster_alias, namespace, source_uuid);
 
 
 --
--- Name: ocpall_compute_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpall_compute_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpall_compute_summary ON template0.reporting_ocpall_compute_summary USING btree (usage_start, cluster_id, usage_account_id, product_code, instance_type, resource_id);
 
 
 --
--- Name: ocpall_cost_daily_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpall_cost_daily_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpall_cost_daily_summary ON template0.reporting_ocpallcostlineitem_daily_summary USING btree (source_type, usage_start, cluster_id, namespace, node, usage_account_id, resource_id, product_code, product_family, instance_type, region, availability_zone, tags);
 
 
 --
--- Name: ocpall_cost_project_daily_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpall_cost_project_daily_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpall_cost_project_daily_summary ON template0.reporting_ocpallcostlineitem_project_daily_summary USING btree (source_type, usage_start, cluster_id, data_source, namespace, node, usage_account_id, resource_id, product_code, product_family, instance_type, region, availability_zone, pod_labels);
 
 
 --
--- Name: ocpall_cost_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpall_cost_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpall_cost_summary ON template0.reporting_ocpall_cost_summary USING btree (usage_start, cluster_id, source_uuid);
 
 
 --
--- Name: ocpall_cost_summary_account; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpall_cost_summary_account; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpall_cost_summary_account ON template0.reporting_ocpall_cost_summary_by_account USING btree (usage_start, cluster_id, usage_account_id);
 
 
 --
--- Name: ocpall_cost_summary_region; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpall_cost_summary_region; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpall_cost_summary_region ON template0.reporting_ocpall_cost_summary_by_region USING btree (usage_start, cluster_id, usage_account_id, region, availability_zone);
 
 
 --
--- Name: ocpall_cost_summary_service; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpall_cost_summary_service; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpall_cost_summary_service ON template0.reporting_ocpall_cost_summary_by_service USING btree (usage_start, cluster_id, usage_account_id, product_code, product_family);
 
 
 --
--- Name: ocpall_database_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpall_database_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpall_database_summary ON template0.reporting_ocpall_database_summary USING btree (usage_start, cluster_id, usage_account_id, product_code);
 
 
 --
--- Name: ocpall_network_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpall_network_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpall_network_summary ON template0.reporting_ocpall_network_summary USING btree (usage_start, cluster_id, usage_account_id, product_code);
 
 
 --
--- Name: ocpall_product_code_ilike; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpall_product_code_ilike; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpall_product_code_ilike ON template0.reporting_ocpallcostlineitem_daily_summary USING gin (upper((product_code)::text) public.gin_trgm_ops);
 
 
 --
--- Name: ocpall_product_family_ilike; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpall_product_family_ilike; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpall_product_family_ilike ON template0.reporting_ocpallcostlineitem_daily_summary USING gin (upper((product_family)::text) public.gin_trgm_ops);
 
 
 --
--- Name: ocpall_storage_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpall_storage_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpall_storage_summary ON template0.reporting_ocpall_storage_summary USING btree (usage_start, cluster_id, usage_account_id, product_family, product_code);
 
 
 --
--- Name: ocpallcstdlysumm_node; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpallcstdlysumm_node; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpallcstdlysumm_node ON template0.reporting_ocpallcostlineitem_daily_summary USING btree (node text_pattern_ops);
 
 
 --
--- Name: ocpallcstdlysumm_node_like; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpallcstdlysumm_node_like; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpallcstdlysumm_node_like ON template0.reporting_ocpallcostlineitem_daily_summary USING gin (node public.gin_trgm_ops);
 
 
 --
--- Name: ocpallcstdlysumm_nsp; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpallcstdlysumm_nsp; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpallcstdlysumm_nsp ON template0.reporting_ocpallcostlineitem_daily_summary USING gin (namespace);
 
 
 --
--- Name: ocpallcstprjdlysumm_node; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpallcstprjdlysumm_node; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpallcstprjdlysumm_node ON template0.reporting_ocpallcostlineitem_project_daily_summary USING btree (node text_pattern_ops);
 
 
 --
--- Name: ocpallcstprjdlysumm_node_like; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpallcstprjdlysumm_node_like; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpallcstprjdlysumm_node_like ON template0.reporting_ocpallcostlineitem_project_daily_summary USING gin (node public.gin_trgm_ops);
 
 
 --
--- Name: ocpallcstprjdlysumm_nsp; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpallcstprjdlysumm_nsp; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpallcstprjdlysumm_nsp ON template0.reporting_ocpallcostlineitem_project_daily_summary USING btree (namespace text_pattern_ops);
 
 
 --
--- Name: ocpallcstprjdlysumm_nsp_like; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpallcstprjdlysumm_nsp_like; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpallcstprjdlysumm_nsp_like ON template0.reporting_ocpallcostlineitem_project_daily_summary USING gin (namespace public.gin_trgm_ops);
 
 
 --
--- Name: ocpaws_compute_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpaws_compute_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpaws_compute_summary ON template0.reporting_ocpaws_compute_summary USING btree (usage_start, cluster_id, usage_account_id, instance_type, resource_id);
 
 
 --
--- Name: ocpaws_cost_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpaws_cost_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpaws_cost_summary ON template0.reporting_ocpaws_cost_summary USING btree (usage_start, cluster_id);
 
 
 --
--- Name: ocpaws_cost_summary_account; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpaws_cost_summary_account; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpaws_cost_summary_account ON template0.reporting_ocpaws_cost_summary_by_account USING btree (usage_start, cluster_id, usage_account_id);
 
 
 --
--- Name: ocpaws_cost_summary_region; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpaws_cost_summary_region; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpaws_cost_summary_region ON template0.reporting_ocpaws_cost_summary_by_region USING btree (usage_start, cluster_id, usage_account_id, region, availability_zone);
 
 
 --
--- Name: ocpaws_cost_summary_service; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpaws_cost_summary_service; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpaws_cost_summary_service ON template0.reporting_ocpaws_cost_summary_by_service USING btree (usage_start, cluster_id, usage_account_id, product_code, product_family);
 
 
 --
--- Name: ocpaws_database_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpaws_database_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpaws_database_summary ON template0.reporting_ocpaws_database_summary USING btree (usage_start, cluster_id, usage_account_id, product_code);
 
 
 --
--- Name: ocpaws_network_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpaws_network_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpaws_network_summary ON template0.reporting_ocpaws_network_summary USING btree (usage_start, cluster_id, usage_account_id, product_code);
 
 
 --
--- Name: ocpaws_storage_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpaws_storage_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpaws_storage_summary ON template0.reporting_ocpaws_storage_summary USING btree (usage_start, cluster_id, usage_account_id, product_family);
 
 
 --
--- Name: ocpazure_compute_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_compute_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpazure_compute_summary ON template0.reporting_ocpazure_compute_summary USING btree (usage_start, cluster_id, subscription_guid, instance_type, resource_id);
 
 
 --
--- Name: ocpazure_cost_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_cost_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpazure_cost_summary ON template0.reporting_ocpazure_cost_summary USING btree (usage_start, cluster_id, cluster_alias, source_uuid);
 
 
 --
--- Name: ocpazure_cost_summary_account; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_cost_summary_account; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpazure_cost_summary_account ON template0.reporting_ocpazure_cost_summary_by_account USING btree (usage_start, cluster_id, subscription_guid);
 
 
 --
--- Name: ocpazure_cost_summary_location; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_cost_summary_location; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpazure_cost_summary_location ON template0.reporting_ocpazure_cost_summary_by_location USING btree (usage_start, cluster_id, subscription_guid, resource_location);
 
 
 --
--- Name: ocpazure_cost_summary_service; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_cost_summary_service; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpazure_cost_summary_service ON template0.reporting_ocpazure_cost_summary_by_service USING btree (usage_start, cluster_id, subscription_guid, service_name);
 
 
 --
--- Name: ocpazure_database_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_database_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpazure_database_summary ON template0.reporting_ocpazure_database_summary USING btree (usage_start, cluster_id, subscription_guid, service_name);
 
 
 --
--- Name: ocpazure_instance_type_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_instance_type_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_instance_type_idx ON template0.reporting_ocpazurecostlineitem_daily_summary USING btree (instance_type);
 
 
 --
--- Name: ocpazure_namespace_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_namespace_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_namespace_idx ON template0.reporting_ocpazurecostlineitem_daily_summary USING btree (namespace);
 
 
 --
--- Name: ocpazure_network_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_network_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpazure_network_summary ON template0.reporting_ocpazure_network_summary USING btree (usage_start, cluster_id, subscription_guid, service_name);
 
 
 --
--- Name: ocpazure_node_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_node_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_node_idx ON template0.reporting_ocpazurecostlineitem_daily_summary USING btree (node varchar_pattern_ops);
 
 
 --
--- Name: ocpazure_node_like_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_node_like_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_node_like_idx ON template0.reporting_ocpazurecostlineitem_daily_summary USING gin (upper((node)::text) public.gin_trgm_ops);
 
 
 --
--- Name: ocpazure_proj_inst_type_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_proj_inst_type_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_proj_inst_type_idx ON template0.reporting_ocpazurecostlineitem_project_daily_summary USING btree (instance_type);
 
 
 --
--- Name: ocpazure_proj_namespace_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_proj_namespace_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_proj_namespace_idx ON template0.reporting_ocpazurecostlineitem_project_daily_summary USING btree (namespace varchar_pattern_ops);
 
 
 --
--- Name: ocpazure_proj_namespace_like_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_proj_namespace_like_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_proj_namespace_like_idx ON template0.reporting_ocpazurecostlineitem_project_daily_summary USING gin (upper((namespace)::text) public.gin_trgm_ops);
 
 
 --
--- Name: ocpazure_proj_node_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_proj_node_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_proj_node_idx ON template0.reporting_ocpazurecostlineitem_project_daily_summary USING btree (node varchar_pattern_ops);
 
 
 --
--- Name: ocpazure_proj_node_like_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_proj_node_like_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_proj_node_like_idx ON template0.reporting_ocpazurecostlineitem_project_daily_summary USING gin (upper((node)::text) public.gin_trgm_ops);
 
 
 --
--- Name: ocpazure_proj_pod_labels_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_proj_pod_labels_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_proj_pod_labels_idx ON template0.reporting_ocpazurecostlineitem_project_daily_summary USING gin (pod_labels);
 
 
 --
--- Name: ocpazure_proj_resource_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_proj_resource_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_proj_resource_id_idx ON template0.reporting_ocpazurecostlineitem_project_daily_summary USING btree (resource_id);
 
 
 --
--- Name: ocpazure_proj_service_name_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_proj_service_name_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_proj_service_name_idx ON template0.reporting_ocpazurecostlineitem_project_daily_summary USING btree (service_name);
 
 
 --
--- Name: ocpazure_proj_usage_start_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_proj_usage_start_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_proj_usage_start_idx ON template0.reporting_ocpazurecostlineitem_project_daily_summary USING btree (usage_start);
 
 
 --
--- Name: ocpazure_resource_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_resource_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_resource_idx ON template0.reporting_ocpazurecostlineitem_daily_summary USING btree (resource_id);
 
 
 --
--- Name: ocpazure_service_name_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_service_name_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_service_name_idx ON template0.reporting_ocpazurecostlineitem_daily_summary USING btree (service_name);
 
 
 --
--- Name: ocpazure_storage_summary; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_storage_summary; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE UNIQUE INDEX ocpazure_storage_summary ON template0.reporting_ocpazure_storage_summary USING btree (usage_start, cluster_id, subscription_guid, service_name);
 
 
 --
--- Name: ocpazure_tags_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_tags_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_tags_idx ON template0.reporting_ocpazurecostlineitem_daily_summary USING gin (tags);
 
 
 --
--- Name: ocpazure_usage_start_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpazure_usage_start_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpazure_usage_start_idx ON template0.reporting_ocpazurecostlineitem_daily_summary USING btree (usage_start);
 
 
 --
--- Name: ocpcostsum_namespace_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpcostsum_namespace_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpcostsum_namespace_idx ON template0.reporting_ocpcosts_summary USING btree (namespace varchar_pattern_ops);
 
 
 --
--- Name: ocpcostsum_namespace_like_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpcostsum_namespace_like_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpcostsum_namespace_like_idx ON template0.reporting_ocpcosts_summary USING gin (upper((namespace)::text) public.gin_trgm_ops);
 
 
 --
--- Name: ocpcostsum_node_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpcostsum_node_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpcostsum_node_idx ON template0.reporting_ocpcosts_summary USING btree (node varchar_pattern_ops);
 
 
 --
--- Name: ocpcostsum_node_like_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpcostsum_node_like_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpcostsum_node_like_idx ON template0.reporting_ocpcosts_summary USING gin (upper((node)::text) public.gin_trgm_ops);
 
 
 --
--- Name: ocpcostsum_pod_labels_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpcostsum_pod_labels_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpcostsum_pod_labels_idx ON template0.reporting_ocpcosts_summary USING gin (pod_labels);
 
 
 --
--- Name: ocpcostsum_usage_start_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocpcostsum_usage_start_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocpcostsum_usage_start_idx ON template0.reporting_ocpcosts_summary USING btree (usage_start);
 
 
 --
--- Name: ocplblnitdly_node_labels; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocplblnitdly_node_labels; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocplblnitdly_node_labels ON template0.reporting_ocpnodelabellineitem_daily USING gin (node_labels);
 
 
 --
--- Name: ocplblnitdly_usage_start; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: ocplblnitdly_usage_start; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX ocplblnitdly_usage_start ON template0.reporting_ocpnodelabellineitem_daily USING btree (usage_start);
 
 
 --
--- Name: openshift_tags_value_key_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: openshift_tags_value_key_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX openshift_tags_value_key_idx ON template0.reporting_ocptags_values USING btree (key);
 
 
 --
--- Name: p_gcp_summary_instance_type_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_gcp_summary_instance_type_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_gcp_summary_instance_type_idx ON ONLY template0.reporting_gcpcostentrylineitem_daily_summary USING btree (instance_type);
 
 
 --
--- Name: p_gcp_summary_project_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_gcp_summary_project_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_gcp_summary_project_id_idx ON ONLY template0.reporting_gcpcostentrylineitem_daily_summary USING btree (project_id);
 
 
 --
--- Name: p_gcp_summary_project_name_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_gcp_summary_project_name_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_gcp_summary_project_name_idx ON ONLY template0.reporting_gcpcostentrylineitem_daily_summary USING btree (project_name);
 
 
 --
--- Name: p_gcp_summary_service_alias_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_gcp_summary_service_alias_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_gcp_summary_service_alias_idx ON ONLY template0.reporting_gcpcostentrylineitem_daily_summary USING btree (service_alias);
 
 
 --
--- Name: p_gcp_summary_service_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_gcp_summary_service_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_gcp_summary_service_id_idx ON ONLY template0.reporting_gcpcostentrylineitem_daily_summary USING btree (service_id);
 
 
 --
--- Name: p_gcp_summary_usage_start_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_gcp_summary_usage_start_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_gcp_summary_usage_start_idx ON ONLY template0.reporting_gcpcostentrylineitem_daily_summary USING btree (usage_start);
 
 
 --
--- Name: p_gcp_tags_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_gcp_tags_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_gcp_tags_idx ON ONLY template0.reporting_gcpcostentrylineitem_daily_summary USING gin (tags);
 
 
 --
--- Name: p_ix_azurecstentrydlysumm_start; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_ix_azurecstentrydlysumm_start; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_ix_azurecstentrydlysumm_start ON ONLY template0.reporting_azurecostentrylineitem_daily_summary USING btree (usage_start);
 
 
 --
--- Name: p_pod_labels_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_pod_labels_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_pod_labels_idx ON ONLY template0.reporting_ocpusagelineitem_daily_summary USING gin (pod_labels);
 
 
 --
--- Name: p_reporting_gcpcostentryline_cost_entry_bill_id_bf00a16b; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_reporting_gcpcostentryline_cost_entry_bill_id_bf00a16b; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_reporting_gcpcostentryline_cost_entry_bill_id_bf00a16b ON ONLY template0.reporting_gcpcostentrylineitem_daily_summary USING btree (cost_entry_bill_id);
 
 
 --
--- Name: p_summary_account_alias_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_summary_account_alias_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_summary_account_alias_idx ON ONLY template0.reporting_awscostentrylineitem_daily_summary USING btree (account_alias_id);
 
 
 --
--- Name: p_summary_data_source_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_summary_data_source_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_summary_data_source_idx ON ONLY template0.reporting_ocpusagelineitem_daily_summary USING btree (data_source);
 
 
 --
--- Name: p_summary_instance_type_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_summary_instance_type_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_summary_instance_type_idx ON ONLY template0.reporting_awscostentrylineitem_daily_summary USING btree (instance_type);
 
 
 --
--- Name: p_summary_namespace_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_summary_namespace_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_summary_namespace_idx ON ONLY template0.reporting_ocpusagelineitem_daily_summary USING btree (namespace varchar_pattern_ops);
 
 
 --
--- Name: p_summary_node_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_summary_node_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_summary_node_idx ON ONLY template0.reporting_ocpusagelineitem_daily_summary USING btree (node varchar_pattern_ops);
 
 
 --
--- Name: p_summary_ocp_usage_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_summary_ocp_usage_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_summary_ocp_usage_idx ON ONLY template0.reporting_ocpusagelineitem_daily_summary USING btree (usage_start);
 
 
 --
--- Name: p_summary_product_code_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_summary_product_code_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_summary_product_code_idx ON ONLY template0.reporting_awscostentrylineitem_daily_summary USING btree (product_code);
 
 
 --
--- Name: p_summary_product_family_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_summary_product_family_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_summary_product_family_idx ON ONLY template0.reporting_awscostentrylineitem_daily_summary USING btree (product_family);
 
 
 --
--- Name: p_summary_usage_account_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_summary_usage_account_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_summary_usage_account_id_idx ON ONLY template0.reporting_awscostentrylineitem_daily_summary USING btree (usage_account_id);
 
 
 --
--- Name: p_summary_usage_start_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_summary_usage_start_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_summary_usage_start_idx ON ONLY template0.reporting_awscostentrylineitem_daily_summary USING btree (usage_start);
 
 
 --
--- Name: p_tags_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: p_tags_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX p_tags_idx ON ONLY template0.reporting_awscostentrylineitem_daily_summary USING gin (tags);
 
 
 --
--- Name: partable_partition_parameters; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: partable_partition_parameters; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX partable_partition_parameters ON template0.partitioned_tables USING gin (partition_parameters);
 
 
 --
--- Name: partable_partition_type; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: partable_partition_type; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX partable_partition_type ON template0.partitioned_tables USING btree (partition_type);
 
 
 --
--- Name: partable_table; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: partable_table; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX partable_table ON template0.partitioned_tables USING btree (schema_name, table_name);
 
 
 --
--- Name: pod_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: pod_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX pod_idx ON template0.reporting_ocpusagelineitem_daily USING btree (pod);
 
 
 --
--- Name: presto_pk_delete_wrapper_log_tx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: presto_pk_delete_wrapper_log_tx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX presto_pk_delete_wrapper_log_tx ON template0.presto_pk_delete_wrapper_log USING btree (transaction_id, table_name);
 
 
 --
--- Name: product_code_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: product_code_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX product_code_idx ON template0.reporting_awscostentrylineitem_daily USING btree (product_code);
 
 
 --
--- Name: region_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: region_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX region_idx ON template0.reporting_awscostentryproduct USING btree (region);
 
 
 --
--- Name: reporting_awsaccountalias_account_id_85724b8c_like; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsaccountalias_account_id_85724b8c_like; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awsaccountalias_account_id_85724b8c_like ON template0.reporting_awsaccountalias USING btree (account_id varchar_pattern_ops);
 
 
 --
--- Name: reporting_awscostentry_bill_id_017f27a3; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentry_bill_id_017f27a3; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentry_bill_id_017f27a3 ON template0.reporting_awscostentry USING btree (bill_id);
 
 
 --
--- Name: reporting_awscostentrybill_provider_id_a08725b3; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrybill_provider_id_a08725b3; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrybill_provider_id_a08725b3 ON template0.reporting_awscostentrybill USING btree (provider_id);
 
 
 --
--- Name: reporting_awscostentryline_account_alias_id_684d6c01; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryline_account_alias_id_684d6c01; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentryline_account_alias_id_684d6c01 ON ONLY template0.reporting_awscostentrylineitem_daily_summary USING btree (account_alias_id);
 
 
 --
--- Name: reporting_awscostentryline_cost_entry_bill_id_54ece653; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryline_cost_entry_bill_id_54ece653; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentryline_cost_entry_bill_id_54ece653 ON template0.reporting_awscostentrylineitem_daily USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_awscostentryline_cost_entry_bill_id_d7af1eb6; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryline_cost_entry_bill_id_d7af1eb6; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentryline_cost_entry_bill_id_d7af1eb6 ON ONLY template0.reporting_awscostentrylineitem_daily_summary USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_awscostentryline_cost_entry_pricing_id_5a6a9b38; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryline_cost_entry_pricing_id_5a6a9b38; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentryline_cost_entry_pricing_id_5a6a9b38 ON template0.reporting_awscostentrylineitem_daily USING btree (cost_entry_pricing_id);
 
 
 --
--- Name: reporting_awscostentryline_cost_entry_product_id_4d8ef2fd; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryline_cost_entry_product_id_4d8ef2fd; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentryline_cost_entry_product_id_4d8ef2fd ON template0.reporting_awscostentrylineitem_daily USING btree (cost_entry_product_id);
 
 
 --
--- Name: reporting_awscostentryline_cost_entry_reservation_id_13b1cb08; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryline_cost_entry_reservation_id_13b1cb08; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentryline_cost_entry_reservation_id_13b1cb08 ON template0.reporting_awscostentrylineitem_daily USING btree (cost_entry_reservation_id);
 
 
 --
--- Name: reporting_awscostentryline_cost_entry_reservation_id_9332b371; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryline_cost_entry_reservation_id_9332b371; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentryline_cost_entry_reservation_id_9332b371 ON template0.reporting_awscostentrylineitem USING btree (cost_entry_reservation_id);
 
 
 --
--- Name: reporting_awscostentryline_organizational_unit_id_01926b46; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryline_organizational_unit_id_01926b46; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentryline_organizational_unit_id_01926b46 ON ONLY template0.reporting_awscostentrylineitem_daily_summary USING btree (organizational_unit_id);
 
 
 --
--- Name: reporting_awscostentrylineitem_cost_entry_bill_id_5ae74e09; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_cost_entry_bill_id_5ae74e09; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_cost_entry_bill_id_5ae74e09 ON template0.reporting_awscostentrylineitem USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_awscostentrylineitem_cost_entry_id_4d1a7fc4; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_cost_entry_id_4d1a7fc4; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_cost_entry_id_4d1a7fc4 ON template0.reporting_awscostentrylineitem USING btree (cost_entry_id);
 
 
 --
--- Name: reporting_awscostentrylineitem_cost_entry_pricing_id_a654a7e3; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_cost_entry_pricing_id_a654a7e3; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_cost_entry_pricing_id_a654a7e3 ON template0.reporting_awscostentrylineitem USING btree (cost_entry_pricing_id);
 
 
 --
--- Name: reporting_awscostentrylineitem_cost_entry_product_id_29c80210; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_cost_entry_product_id_29c80210; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_cost_entry_product_id_29c80210 ON template0.reporting_awscostentrylineitem USING btree (cost_entry_product_id);
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_organizational_unit_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_organizational_unit_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_daily_organizational_unit_id_idx ON template0.reporting_awscostentrylineitem_daily_summary_default USING btree (organizational_unit_id);
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_sum_cost_entry_bill_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_sum_cost_entry_bill_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_daily_sum_cost_entry_bill_id_idx ON template0.reporting_awscostentrylineitem_daily_summary_default USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summ_account_alias_id_idx1; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summ_account_alias_id_idx1; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_daily_summ_account_alias_id_idx1 ON template0.reporting_awscostentrylineitem_daily_summary_default USING btree (account_alias_id);
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summa_account_alias_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summa_account_alias_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_daily_summa_account_alias_id_idx ON template0.reporting_awscostentrylineitem_daily_summary_default USING btree (account_alias_id);
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summa_usage_account_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summa_usage_account_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_daily_summa_usage_account_id_idx ON template0.reporting_awscostentrylineitem_daily_summary_default USING btree (usage_account_id);
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summary__instance_type_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summary__instance_type_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_daily_summary__instance_type_idx ON template0.reporting_awscostentrylineitem_daily_summary_default USING btree (instance_type);
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summary_d_product_code_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summary_d_product_code_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_daily_summary_d_product_code_idx ON template0.reporting_awscostentrylineitem_daily_summary_default USING btree (product_code);
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summary_de_usage_start_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summary_de_usage_start_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_daily_summary_de_usage_start_idx ON template0.reporting_awscostentrylineitem_daily_summary_default USING btree (usage_start);
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summary_default_tags_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summary_default_tags_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_daily_summary_default_tags_idx ON template0.reporting_awscostentrylineitem_daily_summary_default USING gin (tags);
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summary_default_upper_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summary_default_upper_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_daily_summary_default_upper_idx ON template0.reporting_awscostentrylineitem_daily_summary_default USING gin (upper((product_family)::text) public.gin_trgm_ops);
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summary_default_upper_idx1; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summary_default_upper_idx1; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_daily_summary_default_upper_idx1 ON template0.reporting_awscostentrylineitem_daily_summary_default USING gin (upper((product_family)::text) public.gin_trgm_ops);
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summary_product_family_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summary_product_family_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentrylineitem_daily_summary_product_family_idx ON template0.reporting_awscostentrylineitem_daily_summary_default USING btree (product_family);
 
 
 --
--- Name: reporting_awscostentryreservation_reservation_arn_e387aa5b_like; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentryreservation_reservation_arn_e387aa5b_like; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awscostentryreservation_reservation_arn_e387aa5b_like ON template0.reporting_awscostentryreservation USING btree (reservation_arn text_pattern_ops);
 
 
 --
--- Name: reporting_awsenabledtagkeys_key_8c2841c2_like; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsenabledtagkeys_key_8c2841c2_like; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awsenabledtagkeys_key_8c2841c2_like ON template0.reporting_awsenabledtagkeys USING btree (key varchar_pattern_ops);
 
 
 --
--- Name: reporting_awsorganizationalunit_account_alias_id_7bd6273b; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsorganizationalunit_account_alias_id_7bd6273b; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awsorganizationalunit_account_alias_id_7bd6273b ON template0.reporting_awsorganizationalunit USING btree (account_alias_id);
 
 
 --
--- Name: reporting_awsorganizationalunit_provider_id_6e91f0ae; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsorganizationalunit_provider_id_6e91f0ae; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awsorganizationalunit_provider_id_6e91f0ae ON template0.reporting_awsorganizationalunit USING btree (provider_id);
 
 
 --
--- Name: reporting_awstags_summary_account_alias_id_8a49f381; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awstags_summary_account_alias_id_8a49f381; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awstags_summary_account_alias_id_8a49f381 ON template0.reporting_awstags_summary USING btree (account_alias_id);
 
 
 --
--- Name: reporting_awstags_summary_cost_entry_bill_id_c9c45ad6; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awstags_summary_cost_entry_bill_id_c9c45ad6; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_awstags_summary_cost_entry_bill_id_c9c45ad6 ON template0.reporting_awstags_summary USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_azurecostentrybill_provider_id_5b7738d5; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrybill_provider_id_5b7738d5; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_azurecostentrybill_provider_id_5b7738d5 ON template0.reporting_azurecostentrybill USING btree (provider_id);
 
 
 --
--- Name: reporting_azurecostentryli_cost_entry_bill_id_7898bce4; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentryli_cost_entry_bill_id_7898bce4; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_azurecostentryli_cost_entry_bill_id_7898bce4 ON template0.reporting_azurecostentrylineitem_daily USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_azurecostentryli_cost_entry_bill_id_e7c3e625; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentryli_cost_entry_bill_id_e7c3e625; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_azurecostentryli_cost_entry_bill_id_e7c3e625 ON ONLY template0.reporting_azurecostentrylineitem_daily_summary USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_azurecostentryli_cost_entry_product_id_b84c188a; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentryli_cost_entry_product_id_b84c188a; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_azurecostentryli_cost_entry_product_id_b84c188a ON template0.reporting_azurecostentrylineitem_daily USING btree (cost_entry_product_id);
 
 
 --
--- Name: reporting_azurecostentryli_meter_id_799dc028; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentryli_meter_id_799dc028; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_azurecostentryli_meter_id_799dc028 ON ONLY template0.reporting_azurecostentrylineitem_daily_summary USING btree (meter_id);
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily_meter_id_292c06f8; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily_meter_id_292c06f8; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_azurecostentrylineitem_daily_meter_id_292c06f8 ON template0.reporting_azurecostentrylineitem_daily USING btree (meter_id);
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily_s_cost_entry_bill_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily_s_cost_entry_bill_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_azurecostentrylineitem_daily_s_cost_entry_bill_id_idx ON template0.reporting_azurecostentrylineitem_daily_summary_default USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily_summary__usage_start_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily_summary__usage_start_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_azurecostentrylineitem_daily_summary__usage_start_idx ON template0.reporting_azurecostentrylineitem_daily_summary_default USING btree (usage_start);
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily_summary_def_meter_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily_summary_def_meter_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_azurecostentrylineitem_daily_summary_def_meter_id_idx ON template0.reporting_azurecostentrylineitem_daily_summary_default USING btree (meter_id);
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily_summary_defaul_upper_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily_summary_defaul_upper_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_azurecostentrylineitem_daily_summary_defaul_upper_idx ON template0.reporting_azurecostentrylineitem_daily_summary_default USING gin (upper(service_name) public.gin_trgm_ops);
 
 
 --
--- Name: reporting_azurecostentryproductservice_provider_id_2072db59; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentryproductservice_provider_id_2072db59; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_azurecostentryproductservice_provider_id_2072db59 ON template0.reporting_azurecostentryproductservice USING btree (provider_id);
 
 
 --
--- Name: reporting_azureenabledtagkeys_key_a00bc136_like; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azureenabledtagkeys_key_a00bc136_like; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_azureenabledtagkeys_key_a00bc136_like ON template0.reporting_azureenabledtagkeys USING btree (key varchar_pattern_ops);
 
 
 --
--- Name: reporting_azuremeter_provider_id_d6bb7273; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuremeter_provider_id_d6bb7273; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_azuremeter_provider_id_d6bb7273 ON template0.reporting_azuremeter USING btree (provider_id);
 
 
 --
--- Name: reporting_azuretags_summary_cost_entry_bill_id_cb69e67a; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuretags_summary_cost_entry_bill_id_cb69e67a; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_azuretags_summary_cost_entry_bill_id_cb69e67a ON template0.reporting_azuretags_summary USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_gcpcostentrybill_provider_id_4da1742f; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrybill_provider_id_4da1742f; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpcostentrybill_provider_id_4da1742f ON template0.reporting_gcpcostentrybill USING btree (provider_id);
 
 
 --
--- Name: reporting_gcpcostentryline_cost_entry_bill_id_a3272999; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentryline_cost_entry_bill_id_a3272999; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpcostentryline_cost_entry_bill_id_a3272999 ON template0.reporting_gcpcostentrylineitem_daily USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_gcpcostentryline_cost_entry_product_id_bce5f583; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentryline_cost_entry_product_id_bce5f583; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpcostentryline_cost_entry_product_id_bce5f583 ON template0.reporting_gcpcostentrylineitem_daily USING btree (cost_entry_product_id);
 
 
 --
--- Name: reporting_gcpcostentrylineitem_cost_entry_bill_id_7a8f16fd; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_cost_entry_bill_id_7a8f16fd; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpcostentrylineitem_cost_entry_bill_id_7a8f16fd ON template0.reporting_gcpcostentrylineitem USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_gcpcostentrylineitem_cost_entry_product_id_cec870b8; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_cost_entry_product_id_cec870b8; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpcostentrylineitem_cost_entry_product_id_cec870b8 ON template0.reporting_gcpcostentrylineitem USING btree (cost_entry_product_id);
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_project_id_18365d99; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_project_id_18365d99; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpcostentrylineitem_daily_project_id_18365d99 ON template0.reporting_gcpcostentrylineitem_daily USING btree (project_id);
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_sum_cost_entry_bill_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_sum_cost_entry_bill_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpcostentrylineitem_daily_sum_cost_entry_bill_id_idx ON template0.reporting_gcpcostentrylineitem_daily_summary_default USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_summary__instance_type_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_summary__instance_type_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpcostentrylineitem_daily_summary__instance_type_idx ON template0.reporting_gcpcostentrylineitem_daily_summary_default USING btree (instance_type);
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_summary__service_alias_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_summary__service_alias_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpcostentrylineitem_daily_summary__service_alias_idx ON template0.reporting_gcpcostentrylineitem_daily_summary_default USING btree (service_alias);
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_summary_d_project_name_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_summary_d_project_name_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpcostentrylineitem_daily_summary_d_project_name_idx ON template0.reporting_gcpcostentrylineitem_daily_summary_default USING btree (project_name);
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_summary_de_usage_start_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_summary_de_usage_start_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpcostentrylineitem_daily_summary_de_usage_start_idx ON template0.reporting_gcpcostentrylineitem_daily_summary_default USING btree (usage_start);
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_summary_def_project_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_summary_def_project_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpcostentrylineitem_daily_summary_def_project_id_idx ON template0.reporting_gcpcostentrylineitem_daily_summary_default USING btree (project_id);
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_summary_def_service_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_summary_def_service_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpcostentrylineitem_daily_summary_def_service_id_idx ON template0.reporting_gcpcostentrylineitem_daily_summary_default USING btree (service_id);
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_summary_default_tags_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_summary_default_tags_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpcostentrylineitem_daily_summary_default_tags_idx ON template0.reporting_gcpcostentrylineitem_daily_summary_default USING gin (tags);
 
 
 --
--- Name: reporting_gcpcostentrylineitem_project_id_bf066e6e; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_project_id_bf066e6e; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpcostentrylineitem_project_id_bf066e6e ON template0.reporting_gcpcostentrylineitem USING btree (project_id);
 
 
 --
--- Name: reporting_gcpenabledtagkeys_key_0e50e656_like; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpenabledtagkeys_key_0e50e656_like; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpenabledtagkeys_key_0e50e656_like ON template0.reporting_gcpenabledtagkeys USING btree (key varchar_pattern_ops);
 
 
 --
--- Name: reporting_gcpproject_project_id_77600c9d_like; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpproject_project_id_77600c9d_like; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcpproject_project_id_77600c9d_like ON template0.reporting_gcpproject USING btree (project_id varchar_pattern_ops);
 
 
 --
--- Name: reporting_gcptags_summary_cost_entry_bill_id_e442ff66; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcptags_summary_cost_entry_bill_id_e442ff66; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_gcptags_summary_cost_entry_bill_id_e442ff66 ON template0.reporting_gcptags_summary USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_ocpawscostlineit_account_alias_id_d12902c6; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineit_account_alias_id_d12902c6; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpawscostlineit_account_alias_id_d12902c6 ON template0.reporting_ocpawscostlineitem_project_daily_summary USING btree (account_alias_id);
 
 
 --
--- Name: reporting_ocpawscostlineit_account_alias_id_f19d2883; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineit_account_alias_id_f19d2883; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpawscostlineit_account_alias_id_f19d2883 ON template0.reporting_ocpawscostlineitem_daily_summary USING btree (account_alias_id);
 
 
 --
--- Name: reporting_ocpawscostlineit_cost_entry_bill_id_2740da80; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineit_cost_entry_bill_id_2740da80; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpawscostlineit_cost_entry_bill_id_2740da80 ON template0.reporting_ocpawscostlineitem_project_daily_summary USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_ocpawscostlineit_cost_entry_bill_id_2a473151; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineit_cost_entry_bill_id_2a473151; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpawscostlineit_cost_entry_bill_id_2a473151 ON template0.reporting_ocpawscostlineitem_daily_summary USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_ocpawscostlineit_report_period_id_150c5620; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineit_report_period_id_150c5620; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpawscostlineit_report_period_id_150c5620 ON template0.reporting_ocpawscostlineitem_daily_summary USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpawscostlineit_report_period_id_3f8d2da5; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineit_report_period_id_3f8d2da5; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpawscostlineit_report_period_id_3f8d2da5 ON template0.reporting_ocpawscostlineitem_project_daily_summary USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpawstags_summary_account_alias_id_f3d8c2e0; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawstags_summary_account_alias_id_f3d8c2e0; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpawstags_summary_account_alias_id_f3d8c2e0 ON template0.reporting_ocpawstags_summary USING btree (account_alias_id);
 
 
 --
--- Name: reporting_ocpawstags_summary_cost_entry_bill_id_9fe9ad45; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawstags_summary_cost_entry_bill_id_9fe9ad45; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpawstags_summary_cost_entry_bill_id_9fe9ad45 ON template0.reporting_ocpawstags_summary USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_ocpawstags_summary_report_period_id_54cc3cc4; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawstags_summary_report_period_id_54cc3cc4; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpawstags_summary_report_period_id_54cc3cc4 ON template0.reporting_ocpawstags_summary USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpazurecostline_cost_entry_bill_id_442560ac; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazurecostline_cost_entry_bill_id_442560ac; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpazurecostline_cost_entry_bill_id_442560ac ON template0.reporting_ocpazurecostlineitem_project_daily_summary USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_ocpazurecostline_cost_entry_bill_id_b12d05bd; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazurecostline_cost_entry_bill_id_b12d05bd; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpazurecostline_cost_entry_bill_id_b12d05bd ON template0.reporting_ocpazurecostlineitem_daily_summary USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_ocpazurecostline_report_period_id_145b540e; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazurecostline_report_period_id_145b540e; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpazurecostline_report_period_id_145b540e ON template0.reporting_ocpazurecostlineitem_project_daily_summary USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpazurecostline_report_period_id_e5bbf81f; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazurecostline_report_period_id_e5bbf81f; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpazurecostline_report_period_id_e5bbf81f ON template0.reporting_ocpazurecostlineitem_daily_summary USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpazuretags_summary_cost_entry_bill_id_c84d2dc3; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazuretags_summary_cost_entry_bill_id_c84d2dc3; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpazuretags_summary_cost_entry_bill_id_c84d2dc3 ON template0.reporting_ocpazuretags_summary USING btree (cost_entry_bill_id);
 
 
 --
--- Name: reporting_ocpazuretags_summary_report_period_id_19a6abdb; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazuretags_summary_report_period_id_19a6abdb; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpazuretags_summary_report_period_id_19a6abdb ON template0.reporting_ocpazuretags_summary USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpcosts_summary_report_period_id_e53cdbb2; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpcosts_summary_report_period_id_e53cdbb2; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpcosts_summary_report_period_id_e53cdbb2 ON template0.reporting_ocpcosts_summary USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpenabledtagkeys_key_c3a4025b_like; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpenabledtagkeys_key_c3a4025b_like; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpenabledtagkeys_key_c3a4025b_like ON template0.reporting_ocpenabledtagkeys USING btree (key varchar_pattern_ops);
 
 
 --
--- Name: reporting_ocpnamespacelabellineitem_report_id_16489a95; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnamespacelabellineitem_report_id_16489a95; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpnamespacelabellineitem_report_id_16489a95 ON template0.reporting_ocpnamespacelabellineitem USING btree (report_id);
 
 
 --
--- Name: reporting_ocpnamespacelabellineitem_report_period_id_704a722f; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnamespacelabellineitem_report_period_id_704a722f; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpnamespacelabellineitem_report_period_id_704a722f ON template0.reporting_ocpnamespacelabellineitem USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpnodelabellineitem_daily_report_period_id_de6c8f1f; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem_daily_report_period_id_de6c8f1f; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpnodelabellineitem_daily_report_period_id_de6c8f1f ON template0.reporting_ocpnodelabellineitem_daily USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpnodelabellineitem_report_id_5e2f992a; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem_report_id_5e2f992a; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpnodelabellineitem_report_id_5e2f992a ON template0.reporting_ocpnodelabellineitem USING btree (report_id);
 
 
 --
--- Name: reporting_ocpnodelabellineitem_report_period_id_d3fcf22e; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem_report_period_id_d3fcf22e; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpnodelabellineitem_report_period_id_d3fcf22e ON template0.reporting_ocpnodelabellineitem USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpstoragelineitem_daily_report_period_id_ad325037; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem_daily_report_period_id_ad325037; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpstoragelineitem_daily_report_period_id_ad325037 ON template0.reporting_ocpstoragelineitem_daily USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpstoragelineitem_report_id_6ff71ea6; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem_report_id_6ff71ea6; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpstoragelineitem_report_id_6ff71ea6 ON template0.reporting_ocpstoragelineitem USING btree (report_id);
 
 
 --
--- Name: reporting_ocpstoragelineitem_report_period_id_6d730b12; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem_report_period_id_6d730b12; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpstoragelineitem_report_period_id_6d730b12 ON template0.reporting_ocpstoragelineitem USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpstoragevolume_report_period_id_53b5a3b8; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragevolume_report_period_id_53b5a3b8; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpstoragevolume_report_period_id_53b5a3b8 ON template0.reporting_ocpstoragevolumelabel_summary USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpusagelineitem_daily_report_period_id_d5388c41; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_report_period_id_d5388c41; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpusagelineitem_daily_report_period_id_d5388c41 ON template0.reporting_ocpusagelineitem_daily USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpusagelineitem_report_period_id_fc68baea; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_report_period_id_fc68baea; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpusagelineitem_report_period_id_fc68baea ON ONLY template0.reporting_ocpusagelineitem_daily_summary USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpusagelineitem_daily_summary_d_report_period_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_summary_d_report_period_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpusagelineitem_daily_summary_d_report_period_id_idx ON template0.reporting_ocpusagelineitem_daily_summary_default USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpusagelineitem_daily_summary_defaul_data_source_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_summary_defaul_data_source_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpusagelineitem_daily_summary_defaul_data_source_idx ON template0.reporting_ocpusagelineitem_daily_summary_default USING btree (data_source);
 
 
 --
--- Name: reporting_ocpusagelineitem_daily_summary_defaul_usage_start_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_summary_defaul_usage_start_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpusagelineitem_daily_summary_defaul_usage_start_idx ON template0.reporting_ocpusagelineitem_daily_summary_default USING btree (usage_start);
 
 
 --
--- Name: reporting_ocpusagelineitem_daily_summary_default_namespace_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_summary_default_namespace_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpusagelineitem_daily_summary_default_namespace_idx ON template0.reporting_ocpusagelineitem_daily_summary_default USING btree (namespace varchar_pattern_ops);
 
 
 --
--- Name: reporting_ocpusagelineitem_daily_summary_default_node_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_summary_default_node_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpusagelineitem_daily_summary_default_node_idx ON template0.reporting_ocpusagelineitem_daily_summary_default USING btree (node varchar_pattern_ops);
 
 
 --
--- Name: reporting_ocpusagelineitem_daily_summary_default_pod_labels_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_summary_default_pod_labels_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpusagelineitem_daily_summary_default_pod_labels_idx ON template0.reporting_ocpusagelineitem_daily_summary_default USING gin (pod_labels);
 
 
 --
--- Name: reporting_ocpusagelineitem_daily_summary_default_upper_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_summary_default_upper_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpusagelineitem_daily_summary_default_upper_idx ON template0.reporting_ocpusagelineitem_daily_summary_default USING gin (upper((namespace)::text) public.gin_trgm_ops);
 
 
 --
--- Name: reporting_ocpusagelineitem_daily_summary_default_upper_idx1; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_summary_default_upper_idx1; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpusagelineitem_daily_summary_default_upper_idx1 ON template0.reporting_ocpusagelineitem_daily_summary_default USING gin (upper((node)::text) public.gin_trgm_ops);
 
 
 --
--- Name: reporting_ocpusagelineitem_report_id_32a973b0; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_report_id_32a973b0; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpusagelineitem_report_id_32a973b0 ON template0.reporting_ocpusagelineitem USING btree (report_id);
 
 
 --
--- Name: reporting_ocpusagelineitem_report_period_id_be7fa5ad; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_report_period_id_be7fa5ad; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpusagelineitem_report_period_id_be7fa5ad ON template0.reporting_ocpusagelineitem USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpusagepodlabel_summary_report_period_id_fa250ee5; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagepodlabel_summary_report_period_id_fa250ee5; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpusagepodlabel_summary_report_period_id_fa250ee5 ON template0.reporting_ocpusagepodlabel_summary USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpusagereport_report_period_id_477508c6; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereport_report_period_id_477508c6; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpusagereport_report_period_id_477508c6 ON template0.reporting_ocpusagereport USING btree (report_period_id);
 
 
 --
--- Name: reporting_ocpusagereportperiod_provider_id_7348fe66; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereportperiod_provider_id_7348fe66; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX reporting_ocpusagereportperiod_provider_id_7348fe66 ON template0.reporting_ocpusagereportperiod USING btree (provider_id);
 
 
 --
--- Name: resource_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: resource_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX resource_id_idx ON template0.reporting_awscostentrylineitem_daily USING btree (resource_id);
 
 
 --
--- Name: source_type_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: source_type_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX source_type_idx ON template0.cost_model USING btree (source_type);
 
 
 --
--- Name: updated_timestamp_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: updated_timestamp_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX updated_timestamp_idx ON template0.cost_model USING btree (updated_timestamp);
 
 
 --
--- Name: usage_account_id_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: usage_account_id_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX usage_account_id_idx ON template0.reporting_awscostentrylineitem_daily USING btree (usage_account_id);
 
 
 --
--- Name: usage_start_idx; Type: INDEX; Schema: template0; Owner: kokuadmin
+-- Name: usage_start_idx; Type: INDEX; Schema: template0; Owner: table_owner
 --
 
 CREATE INDEX usage_start_idx ON template0.reporting_awscostentrylineitem_daily USING btree (usage_start);
@@ -8527,35 +8527,35 @@ ALTER INDEX template0.ocp_summary_node_like_idx ATTACH PARTITION template0.repor
 
 
 --
--- Name: cost_model cost_model_audit; Type: TRIGGER; Schema: template0; Owner: kokuadmin
+-- Name: cost_model cost_model_audit; Type: TRIGGER; Schema: template0; Owner: table_owner
 --
 
 CREATE TRIGGER cost_model_audit AFTER INSERT OR DELETE OR UPDATE ON template0.cost_model FOR EACH ROW EXECUTE FUNCTION template0.process_cost_model_audit();
 
 
 --
--- Name: partitioned_tables tr_attach_date_range_partition; Type: TRIGGER; Schema: template0; Owner: kokuadmin
+-- Name: partitioned_tables tr_attach_date_range_partition; Type: TRIGGER; Schema: template0; Owner: table_owner
 --
 
 CREATE TRIGGER tr_attach_date_range_partition AFTER UPDATE OF active ON template0.partitioned_tables FOR EACH ROW EXECUTE FUNCTION public.trfn_attach_date_range_partition();
 
 
 --
--- Name: partitioned_tables tr_manage_date_range_partition; Type: TRIGGER; Schema: template0; Owner: kokuadmin
+-- Name: partitioned_tables tr_manage_date_range_partition; Type: TRIGGER; Schema: template0; Owner: table_owner
 --
 
 CREATE TRIGGER tr_manage_date_range_partition AFTER INSERT OR DELETE OR UPDATE OF partition_parameters ON template0.partitioned_tables FOR EACH ROW EXECUTE FUNCTION public.trfn_manage_date_range_partition();
 
 
 --
--- Name: presto_delete_wrapper_log tr_presto_before_insert; Type: TRIGGER; Schema: template0; Owner: kokuadmin
+-- Name: presto_delete_wrapper_log tr_presto_before_insert; Type: TRIGGER; Schema: template0; Owner: table_owner
 --
 
 CREATE TRIGGER tr_presto_before_insert BEFORE INSERT ON template0.presto_delete_wrapper_log FOR EACH ROW EXECUTE FUNCTION public.tr_presto_delete_wrapper_log_action();
 
 
 --
--- Name: cost_model_map cost_model_map_cost_model_id_3c67db61_fk_cost_model_uuid; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: cost_model_map cost_model_map_cost_model_id_3c67db61_fk_cost_model_uuid; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.cost_model_map
@@ -8563,7 +8563,7 @@ ALTER TABLE ONLY template0.cost_model_map
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summary p_reporting_awscostent_account_alias_id_684d6c01_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summary p_reporting_awscostent_account_alias_id_684d6c01_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE template0.reporting_awscostentrylineitem_daily_summary
@@ -8571,7 +8571,7 @@ ALTER TABLE template0.reporting_awscostentrylineitem_daily_summary
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summary p_reporting_awscostent_cost_entry_bill_id_d7af1eb6_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summary p_reporting_awscostent_cost_entry_bill_id_d7af1eb6_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE template0.reporting_awscostentrylineitem_daily_summary
@@ -8579,7 +8579,7 @@ ALTER TABLE template0.reporting_awscostentrylineitem_daily_summary
 
 
 --
--- Name: reporting_awscostentrylineitem_daily_summary p_reporting_awscostent_organizational_unit__01926b46_fk_reporti; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily_summary p_reporting_awscostent_organizational_unit__01926b46_fk_reporti; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE template0.reporting_awscostentrylineitem_daily_summary
@@ -8587,7 +8587,7 @@ ALTER TABLE template0.reporting_awscostentrylineitem_daily_summary
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily_summary p_reporting_azurecoste_cost_entry_bill_id_e7c3e625_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily_summary p_reporting_azurecoste_cost_entry_bill_id_e7c3e625_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE template0.reporting_azurecostentrylineitem_daily_summary
@@ -8595,7 +8595,7 @@ ALTER TABLE template0.reporting_azurecostentrylineitem_daily_summary
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily_summary p_reporting_azurecoste_meter_id_799dc028_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily_summary p_reporting_azurecoste_meter_id_799dc028_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE template0.reporting_azurecostentrylineitem_daily_summary
@@ -8603,7 +8603,7 @@ ALTER TABLE template0.reporting_azurecostentrylineitem_daily_summary
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily_summary p_reporting_gcpcostent_cost_entry_bill_id_bf00a16b_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily_summary p_reporting_gcpcostent_cost_entry_bill_id_bf00a16b_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE template0.reporting_gcpcostentrylineitem_daily_summary
@@ -8611,7 +8611,7 @@ ALTER TABLE template0.reporting_gcpcostentrylineitem_daily_summary
 
 
 --
--- Name: reporting_ocpusagelineitem_daily_summary p_reporting_ocpusageli_report_period_id_fc68baea_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily_summary p_reporting_ocpusageli_report_period_id_fc68baea_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE template0.reporting_ocpusagelineitem_daily_summary
@@ -8619,7 +8619,7 @@ ALTER TABLE template0.reporting_ocpusagelineitem_daily_summary
 
 
 --
--- Name: reporting_awscostentry reporting_awscostent_bill_id_017f27a3_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentry reporting_awscostent_bill_id_017f27a3_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentry
@@ -8627,7 +8627,7 @@ ALTER TABLE ONLY template0.reporting_awscostentry
 
 
 --
--- Name: reporting_awscostentrylineitem_daily reporting_awscostent_cost_entry_bill_id_54ece653_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily reporting_awscostent_cost_entry_bill_id_54ece653_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily
@@ -8635,7 +8635,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily
 
 
 --
--- Name: reporting_awscostentrylineitem reporting_awscostent_cost_entry_bill_id_5ae74e09_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem reporting_awscostent_cost_entry_bill_id_5ae74e09_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem
@@ -8643,7 +8643,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrylineitem
 
 
 --
--- Name: reporting_awscostentrylineitem reporting_awscostent_cost_entry_id_4d1a7fc4_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem reporting_awscostent_cost_entry_id_4d1a7fc4_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem
@@ -8651,7 +8651,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrylineitem
 
 
 --
--- Name: reporting_awscostentrylineitem_daily reporting_awscostent_cost_entry_pricing_i_5a6a9b38_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily reporting_awscostent_cost_entry_pricing_i_5a6a9b38_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily
@@ -8659,7 +8659,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily
 
 
 --
--- Name: reporting_awscostentrylineitem reporting_awscostent_cost_entry_pricing_i_a654a7e3_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem reporting_awscostent_cost_entry_pricing_i_a654a7e3_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem
@@ -8667,7 +8667,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrylineitem
 
 
 --
--- Name: reporting_awscostentrylineitem reporting_awscostent_cost_entry_product_i_29c80210_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem reporting_awscostent_cost_entry_product_i_29c80210_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem
@@ -8675,7 +8675,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrylineitem
 
 
 --
--- Name: reporting_awscostentrylineitem_daily reporting_awscostent_cost_entry_product_i_4d8ef2fd_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily reporting_awscostent_cost_entry_product_i_4d8ef2fd_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily
@@ -8683,7 +8683,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily
 
 
 --
--- Name: reporting_awscostentrylineitem_daily reporting_awscostent_cost_entry_reservati_13b1cb08_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem_daily reporting_awscostent_cost_entry_reservati_13b1cb08_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily
@@ -8691,7 +8691,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrylineitem_daily
 
 
 --
--- Name: reporting_awscostentrylineitem reporting_awscostent_cost_entry_reservati_9332b371_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrylineitem reporting_awscostent_cost_entry_reservati_9332b371_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrylineitem
@@ -8699,7 +8699,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrylineitem
 
 
 --
--- Name: reporting_awscostentrybill reporting_awscostent_provider_id_a08725b3_fk_api_provi; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awscostentrybill reporting_awscostent_provider_id_a08725b3_fk_api_provi; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awscostentrybill
@@ -8707,7 +8707,7 @@ ALTER TABLE ONLY template0.reporting_awscostentrybill
 
 
 --
--- Name: reporting_awsorganizationalunit reporting_awsorganiz_account_alias_id_7bd6273b_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsorganizationalunit reporting_awsorganiz_account_alias_id_7bd6273b_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awsorganizationalunit
@@ -8715,7 +8715,7 @@ ALTER TABLE ONLY template0.reporting_awsorganizationalunit
 
 
 --
--- Name: reporting_awsorganizationalunit reporting_awsorganiz_provider_id_6e91f0ae_fk_api_provi; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awsorganizationalunit reporting_awsorganiz_provider_id_6e91f0ae_fk_api_provi; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awsorganizationalunit
@@ -8723,7 +8723,7 @@ ALTER TABLE ONLY template0.reporting_awsorganizationalunit
 
 
 --
--- Name: reporting_awstags_summary reporting_awstags_su_account_alias_id_8a49f381_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awstags_summary reporting_awstags_su_account_alias_id_8a49f381_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awstags_summary
@@ -8731,7 +8731,7 @@ ALTER TABLE ONLY template0.reporting_awstags_summary
 
 
 --
--- Name: reporting_awstags_summary reporting_awstags_su_cost_entry_bill_id_c9c45ad6_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_awstags_summary reporting_awstags_su_cost_entry_bill_id_c9c45ad6_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_awstags_summary
@@ -8739,7 +8739,7 @@ ALTER TABLE ONLY template0.reporting_awstags_summary
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily reporting_azurecoste_cost_entry_bill_id_7898bce4_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily reporting_azurecoste_cost_entry_bill_id_7898bce4_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azurecostentrylineitem_daily
@@ -8747,7 +8747,7 @@ ALTER TABLE ONLY template0.reporting_azurecostentrylineitem_daily
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily reporting_azurecoste_cost_entry_product_i_b84c188a_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily reporting_azurecoste_cost_entry_product_i_b84c188a_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azurecostentrylineitem_daily
@@ -8755,7 +8755,7 @@ ALTER TABLE ONLY template0.reporting_azurecostentrylineitem_daily
 
 
 --
--- Name: reporting_azurecostentrylineitem_daily reporting_azurecoste_meter_id_292c06f8_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrylineitem_daily reporting_azurecoste_meter_id_292c06f8_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azurecostentrylineitem_daily
@@ -8763,7 +8763,7 @@ ALTER TABLE ONLY template0.reporting_azurecostentrylineitem_daily
 
 
 --
--- Name: reporting_azurecostentryproductservice reporting_azurecoste_provider_id_2072db59_fk_api_provi; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentryproductservice reporting_azurecoste_provider_id_2072db59_fk_api_provi; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azurecostentryproductservice
@@ -8771,7 +8771,7 @@ ALTER TABLE ONLY template0.reporting_azurecostentryproductservice
 
 
 --
--- Name: reporting_azurecostentrybill reporting_azurecoste_provider_id_5b7738d5_fk_api_provi; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azurecostentrybill reporting_azurecoste_provider_id_5b7738d5_fk_api_provi; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azurecostentrybill
@@ -8779,7 +8779,7 @@ ALTER TABLE ONLY template0.reporting_azurecostentrybill
 
 
 --
--- Name: reporting_azuremeter reporting_azuremeter_provider_id_d6bb7273_fk_api_provider_uuid; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuremeter reporting_azuremeter_provider_id_d6bb7273_fk_api_provider_uuid; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azuremeter
@@ -8787,7 +8787,7 @@ ALTER TABLE ONLY template0.reporting_azuremeter
 
 
 --
--- Name: reporting_azuretags_summary reporting_azuretags__cost_entry_bill_id_cb69e67a_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azuretags_summary reporting_azuretags__cost_entry_bill_id_cb69e67a_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_azuretags_summary
@@ -8795,7 +8795,7 @@ ALTER TABLE ONLY template0.reporting_azuretags_summary
 
 
 --
--- Name: reporting_gcpcostentrylineitem reporting_gcpcostent_cost_entry_bill_id_7a8f16fd_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem reporting_gcpcostent_cost_entry_bill_id_7a8f16fd_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem
@@ -8803,7 +8803,7 @@ ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily reporting_gcpcostent_cost_entry_bill_id_a3272999_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily reporting_gcpcostent_cost_entry_bill_id_a3272999_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem_daily
@@ -8811,7 +8811,7 @@ ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem_daily
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily reporting_gcpcostent_cost_entry_product_i_bce5f583_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily reporting_gcpcostent_cost_entry_product_i_bce5f583_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem_daily
@@ -8819,7 +8819,7 @@ ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem_daily
 
 
 --
--- Name: reporting_gcpcostentrylineitem reporting_gcpcostent_cost_entry_product_i_cec870b8_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem reporting_gcpcostent_cost_entry_product_i_cec870b8_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem
@@ -8827,7 +8827,7 @@ ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem
 
 
 --
--- Name: reporting_gcpcostentrylineitem_daily reporting_gcpcostent_project_id_18365d99_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem_daily reporting_gcpcostent_project_id_18365d99_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem_daily
@@ -8835,7 +8835,7 @@ ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem_daily
 
 
 --
--- Name: reporting_gcpcostentrylineitem reporting_gcpcostent_project_id_bf066e6e_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrylineitem reporting_gcpcostent_project_id_bf066e6e_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem
@@ -8843,7 +8843,7 @@ ALTER TABLE ONLY template0.reporting_gcpcostentrylineitem
 
 
 --
--- Name: reporting_gcpcostentrybill reporting_gcpcostent_provider_id_4da1742f_fk_api_provi; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcpcostentrybill reporting_gcpcostent_provider_id_4da1742f_fk_api_provi; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcpcostentrybill
@@ -8851,7 +8851,7 @@ ALTER TABLE ONLY template0.reporting_gcpcostentrybill
 
 
 --
--- Name: reporting_gcptags_summary reporting_gcptags_su_cost_entry_bill_id_e442ff66_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcptags_summary reporting_gcptags_su_cost_entry_bill_id_e442ff66_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_gcptags_summary
@@ -8859,7 +8859,7 @@ ALTER TABLE ONLY template0.reporting_gcptags_summary
 
 
 --
--- Name: reporting_ocpawscostlineitem_project_daily_summary reporting_ocpawscost_account_alias_id_d12902c6_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineitem_project_daily_summary reporting_ocpawscost_account_alias_id_d12902c6_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_project_daily_summary
@@ -8867,7 +8867,7 @@ ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_project_daily_summary
 
 
 --
--- Name: reporting_ocpawscostlineitem_daily_summary reporting_ocpawscost_account_alias_id_f19d2883_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineitem_daily_summary reporting_ocpawscost_account_alias_id_f19d2883_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_daily_summary
@@ -8875,7 +8875,7 @@ ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_daily_summary
 
 
 --
--- Name: reporting_ocpawscostlineitem_project_daily_summary reporting_ocpawscost_cost_entry_bill_id_2740da80_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineitem_project_daily_summary reporting_ocpawscost_cost_entry_bill_id_2740da80_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_project_daily_summary
@@ -8883,7 +8883,7 @@ ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_project_daily_summary
 
 
 --
--- Name: reporting_ocpawscostlineitem_daily_summary reporting_ocpawscost_cost_entry_bill_id_2a473151_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineitem_daily_summary reporting_ocpawscost_cost_entry_bill_id_2a473151_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_daily_summary
@@ -8891,7 +8891,7 @@ ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_daily_summary
 
 
 --
--- Name: reporting_ocpawscostlineitem_daily_summary reporting_ocpawscost_report_period_id_150c5620_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineitem_daily_summary reporting_ocpawscost_report_period_id_150c5620_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_daily_summary
@@ -8899,7 +8899,7 @@ ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_daily_summary
 
 
 --
--- Name: reporting_ocpawscostlineitem_project_daily_summary reporting_ocpawscost_report_period_id_3f8d2da5_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawscostlineitem_project_daily_summary reporting_ocpawscost_report_period_id_3f8d2da5_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_project_daily_summary
@@ -8907,7 +8907,7 @@ ALTER TABLE ONLY template0.reporting_ocpawscostlineitem_project_daily_summary
 
 
 --
--- Name: reporting_ocpawstags_summary reporting_ocpawstags_account_alias_id_f3d8c2e0_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawstags_summary reporting_ocpawstags_account_alias_id_f3d8c2e0_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawstags_summary
@@ -8915,7 +8915,7 @@ ALTER TABLE ONLY template0.reporting_ocpawstags_summary
 
 
 --
--- Name: reporting_ocpawstags_summary reporting_ocpawstags_cost_entry_bill_id_9fe9ad45_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawstags_summary reporting_ocpawstags_cost_entry_bill_id_9fe9ad45_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawstags_summary
@@ -8923,7 +8923,7 @@ ALTER TABLE ONLY template0.reporting_ocpawstags_summary
 
 
 --
--- Name: reporting_ocpawstags_summary reporting_ocpawstags_report_period_id_54cc3cc4_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpawstags_summary reporting_ocpawstags_report_period_id_54cc3cc4_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpawstags_summary
@@ -8931,7 +8931,7 @@ ALTER TABLE ONLY template0.reporting_ocpawstags_summary
 
 
 --
--- Name: reporting_ocpazurecostlineitem_project_daily_summary reporting_ocpazureco_cost_entry_bill_id_442560ac_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazurecostlineitem_project_daily_summary reporting_ocpazureco_cost_entry_bill_id_442560ac_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_project_daily_summary
@@ -8939,7 +8939,7 @@ ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_project_daily_summary
 
 
 --
--- Name: reporting_ocpazurecostlineitem_daily_summary reporting_ocpazureco_cost_entry_bill_id_b12d05bd_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazurecostlineitem_daily_summary reporting_ocpazureco_cost_entry_bill_id_b12d05bd_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_daily_summary
@@ -8947,7 +8947,7 @@ ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_daily_summary
 
 
 --
--- Name: reporting_ocpazurecostlineitem_project_daily_summary reporting_ocpazureco_report_period_id_145b540e_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazurecostlineitem_project_daily_summary reporting_ocpazureco_report_period_id_145b540e_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_project_daily_summary
@@ -8955,7 +8955,7 @@ ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_project_daily_summary
 
 
 --
--- Name: reporting_ocpazurecostlineitem_daily_summary reporting_ocpazureco_report_period_id_e5bbf81f_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazurecostlineitem_daily_summary reporting_ocpazureco_report_period_id_e5bbf81f_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_daily_summary
@@ -8963,7 +8963,7 @@ ALTER TABLE ONLY template0.reporting_ocpazurecostlineitem_daily_summary
 
 
 --
--- Name: reporting_ocpazuretags_summary reporting_ocpazureta_cost_entry_bill_id_c84d2dc3_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazuretags_summary reporting_ocpazureta_cost_entry_bill_id_c84d2dc3_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpazuretags_summary
@@ -8971,7 +8971,7 @@ ALTER TABLE ONLY template0.reporting_ocpazuretags_summary
 
 
 --
--- Name: reporting_ocpazuretags_summary reporting_ocpazureta_report_period_id_19a6abdb_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazuretags_summary reporting_ocpazureta_report_period_id_19a6abdb_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpazuretags_summary
@@ -8979,7 +8979,7 @@ ALTER TABLE ONLY template0.reporting_ocpazuretags_summary
 
 
 --
--- Name: reporting_ocpcosts_summary reporting_ocpcosts_s_report_period_id_e53cdbb2_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpcosts_summary reporting_ocpcosts_s_report_period_id_e53cdbb2_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpcosts_summary
@@ -8987,7 +8987,7 @@ ALTER TABLE ONLY template0.reporting_ocpcosts_summary
 
 
 --
--- Name: reporting_ocpnamespacelabellineitem reporting_ocpnamespa_report_id_16489a95_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnamespacelabellineitem reporting_ocpnamespa_report_id_16489a95_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpnamespacelabellineitem
@@ -8995,7 +8995,7 @@ ALTER TABLE ONLY template0.reporting_ocpnamespacelabellineitem
 
 
 --
--- Name: reporting_ocpnamespacelabellineitem reporting_ocpnamespa_report_period_id_704a722f_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnamespacelabellineitem reporting_ocpnamespa_report_period_id_704a722f_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpnamespacelabellineitem
@@ -9003,7 +9003,7 @@ ALTER TABLE ONLY template0.reporting_ocpnamespacelabellineitem
 
 
 --
--- Name: reporting_ocpnodelabellineitem reporting_ocpnodelab_report_id_5e2f992a_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem reporting_ocpnodelab_report_id_5e2f992a_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpnodelabellineitem
@@ -9011,7 +9011,7 @@ ALTER TABLE ONLY template0.reporting_ocpnodelabellineitem
 
 
 --
--- Name: reporting_ocpnodelabellineitem reporting_ocpnodelab_report_period_id_d3fcf22e_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem reporting_ocpnodelab_report_period_id_d3fcf22e_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpnodelabellineitem
@@ -9019,7 +9019,7 @@ ALTER TABLE ONLY template0.reporting_ocpnodelabellineitem
 
 
 --
--- Name: reporting_ocpnodelabellineitem_daily reporting_ocpnodelab_report_period_id_de6c8f1f_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpnodelabellineitem_daily reporting_ocpnodelab_report_period_id_de6c8f1f_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpnodelabellineitem_daily
@@ -9027,7 +9027,7 @@ ALTER TABLE ONLY template0.reporting_ocpnodelabellineitem_daily
 
 
 --
--- Name: reporting_ocpstoragelineitem reporting_ocpstorage_report_id_6ff71ea6_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem reporting_ocpstorage_report_id_6ff71ea6_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpstoragelineitem
@@ -9035,7 +9035,7 @@ ALTER TABLE ONLY template0.reporting_ocpstoragelineitem
 
 
 --
--- Name: reporting_ocpstoragevolumelabel_summary reporting_ocpstorage_report_period_id_53b5a3b8_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragevolumelabel_summary reporting_ocpstorage_report_period_id_53b5a3b8_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpstoragevolumelabel_summary
@@ -9043,7 +9043,7 @@ ALTER TABLE ONLY template0.reporting_ocpstoragevolumelabel_summary
 
 
 --
--- Name: reporting_ocpstoragelineitem reporting_ocpstorage_report_period_id_6d730b12_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem reporting_ocpstorage_report_period_id_6d730b12_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpstoragelineitem
@@ -9051,7 +9051,7 @@ ALTER TABLE ONLY template0.reporting_ocpstoragelineitem
 
 
 --
--- Name: reporting_ocpstoragelineitem_daily reporting_ocpstorage_report_period_id_ad325037_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpstoragelineitem_daily reporting_ocpstorage_report_period_id_ad325037_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpstoragelineitem_daily
@@ -9059,7 +9059,7 @@ ALTER TABLE ONLY template0.reporting_ocpstoragelineitem_daily
 
 
 --
--- Name: reporting_ocpusagelineitem reporting_ocpusageli_report_id_32a973b0_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem reporting_ocpusageli_report_id_32a973b0_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagelineitem
@@ -9067,7 +9067,7 @@ ALTER TABLE ONLY template0.reporting_ocpusagelineitem
 
 
 --
--- Name: reporting_ocpusagelineitem reporting_ocpusageli_report_period_id_be7fa5ad_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem reporting_ocpusageli_report_period_id_be7fa5ad_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagelineitem
@@ -9075,7 +9075,7 @@ ALTER TABLE ONLY template0.reporting_ocpusagelineitem
 
 
 --
--- Name: reporting_ocpusagelineitem_daily reporting_ocpusageli_report_period_id_d5388c41_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagelineitem_daily reporting_ocpusageli_report_period_id_d5388c41_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagelineitem_daily
@@ -9083,7 +9083,7 @@ ALTER TABLE ONLY template0.reporting_ocpusagelineitem_daily
 
 
 --
--- Name: reporting_ocpusagepodlabel_summary reporting_ocpusagepo_report_period_id_fa250ee5_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagepodlabel_summary reporting_ocpusagepo_report_period_id_fa250ee5_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagepodlabel_summary
@@ -9091,7 +9091,7 @@ ALTER TABLE ONLY template0.reporting_ocpusagepodlabel_summary
 
 
 --
--- Name: reporting_ocpusagereportperiod reporting_ocpusagere_provider_id_7348fe66_fk_api_provi; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereportperiod reporting_ocpusagere_provider_id_7348fe66_fk_api_provi; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagereportperiod
@@ -9099,7 +9099,7 @@ ALTER TABLE ONLY template0.reporting_ocpusagereportperiod
 
 
 --
--- Name: reporting_ocpusagereport reporting_ocpusagere_report_period_id_477508c6_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpusagereport reporting_ocpusagere_report_period_id_477508c6_fk_reporting; Type: FK CONSTRAINT; Schema: template0; Owner: table_owner
 --
 
 ALTER TABLE ONLY template0.reporting_ocpusagereport
@@ -9107,504 +9107,504 @@ ALTER TABLE ONLY template0.reporting_ocpusagereport
 
 
 --
--- Name: reporting_aws_compute_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_compute_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_aws_compute_summary;
 
 
 --
--- Name: reporting_aws_compute_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_compute_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_aws_compute_summary_by_account;
 
 
 --
--- Name: reporting_aws_compute_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_compute_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_aws_compute_summary_by_region;
 
 
 --
--- Name: reporting_aws_compute_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_compute_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_aws_compute_summary_by_service;
 
 
 --
--- Name: reporting_aws_cost_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_cost_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_aws_cost_summary;
 
 
 --
--- Name: reporting_aws_cost_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_cost_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_aws_cost_summary_by_account;
 
 
 --
--- Name: reporting_aws_cost_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_cost_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_aws_cost_summary_by_region;
 
 
 --
--- Name: reporting_aws_cost_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_cost_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_aws_cost_summary_by_service;
 
 
 --
--- Name: reporting_aws_database_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_database_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_aws_database_summary;
 
 
 --
--- Name: reporting_aws_network_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_network_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_aws_network_summary;
 
 
 --
--- Name: reporting_aws_storage_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_storage_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_aws_storage_summary;
 
 
 --
--- Name: reporting_aws_storage_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_storage_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_aws_storage_summary_by_account;
 
 
 --
--- Name: reporting_aws_storage_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_storage_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_aws_storage_summary_by_region;
 
 
 --
--- Name: reporting_aws_storage_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_aws_storage_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_aws_storage_summary_by_service;
 
 
 --
--- Name: reporting_azure_compute_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_compute_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_azure_compute_summary;
 
 
 --
--- Name: reporting_azure_cost_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_cost_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_azure_cost_summary;
 
 
 --
--- Name: reporting_azure_cost_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_cost_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_azure_cost_summary_by_account;
 
 
 --
--- Name: reporting_azure_cost_summary_by_location; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_cost_summary_by_location; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_azure_cost_summary_by_location;
 
 
 --
--- Name: reporting_azure_cost_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_cost_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_azure_cost_summary_by_service;
 
 
 --
--- Name: reporting_azure_database_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_database_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_azure_database_summary;
 
 
 --
--- Name: reporting_azure_network_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_network_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_azure_network_summary;
 
 
 --
--- Name: reporting_azure_storage_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_azure_storage_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_azure_storage_summary;
 
 
 --
--- Name: reporting_gcp_compute_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_compute_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_compute_summary;
 
 
 --
--- Name: reporting_gcp_compute_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_compute_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_compute_summary_by_account;
 
 
 --
--- Name: reporting_gcp_compute_summary_by_project; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_compute_summary_by_project; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_compute_summary_by_project;
 
 
 --
--- Name: reporting_gcp_compute_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_compute_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_compute_summary_by_region;
 
 
 --
--- Name: reporting_gcp_compute_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_compute_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_compute_summary_by_service;
 
 
 --
--- Name: reporting_gcp_cost_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_cost_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_cost_summary;
 
 
 --
--- Name: reporting_gcp_cost_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_cost_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_cost_summary_by_account;
 
 
 --
--- Name: reporting_gcp_cost_summary_by_project; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_cost_summary_by_project; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_cost_summary_by_project;
 
 
 --
--- Name: reporting_gcp_cost_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_cost_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_cost_summary_by_region;
 
 
 --
--- Name: reporting_gcp_cost_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_cost_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_cost_summary_by_service;
 
 
 --
--- Name: reporting_gcp_database_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_database_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_database_summary;
 
 
 --
--- Name: reporting_gcp_network_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_network_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_network_summary;
 
 
 --
--- Name: reporting_gcp_storage_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_storage_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_storage_summary;
 
 
 --
--- Name: reporting_gcp_storage_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_storage_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_storage_summary_by_account;
 
 
 --
--- Name: reporting_gcp_storage_summary_by_project; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_storage_summary_by_project; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_storage_summary_by_project;
 
 
 --
--- Name: reporting_gcp_storage_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_storage_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_storage_summary_by_region;
 
 
 --
--- Name: reporting_gcp_storage_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_gcp_storage_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_gcp_storage_summary_by_service;
 
 
 --
--- Name: reporting_ocp_cost_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocp_cost_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocp_cost_summary;
 
 
 --
--- Name: reporting_ocp_cost_summary_by_node; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocp_cost_summary_by_node; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocp_cost_summary_by_node;
 
 
 --
--- Name: reporting_ocp_cost_summary_by_project; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocp_cost_summary_by_project; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocp_cost_summary_by_project;
 
 
 --
--- Name: reporting_ocp_pod_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocp_pod_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocp_pod_summary;
 
 
 --
--- Name: reporting_ocp_pod_summary_by_project; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocp_pod_summary_by_project; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocp_pod_summary_by_project;
 
 
 --
--- Name: reporting_ocp_volume_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocp_volume_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocp_volume_summary;
 
 
 --
--- Name: reporting_ocp_volume_summary_by_project; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocp_volume_summary_by_project; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocp_volume_summary_by_project;
 
 
 --
--- Name: reporting_ocpallcostlineitem_daily_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpallcostlineitem_daily_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpallcostlineitem_daily_summary;
 
 
 --
--- Name: reporting_ocpall_compute_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_compute_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpall_compute_summary;
 
 
 --
--- Name: reporting_ocpall_cost_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_cost_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpall_cost_summary;
 
 
 --
--- Name: reporting_ocpall_cost_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_cost_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpall_cost_summary_by_account;
 
 
 --
--- Name: reporting_ocpall_cost_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_cost_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpall_cost_summary_by_region;
 
 
 --
--- Name: reporting_ocpall_cost_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_cost_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpall_cost_summary_by_service;
 
 
 --
--- Name: reporting_ocpall_database_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_database_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpall_database_summary;
 
 
 --
--- Name: reporting_ocpall_network_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_network_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpall_network_summary;
 
 
 --
--- Name: reporting_ocpall_storage_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpall_storage_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpall_storage_summary;
 
 
 --
--- Name: reporting_ocpallcostlineitem_project_daily_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpallcostlineitem_project_daily_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpallcostlineitem_project_daily_summary;
 
 
 --
--- Name: reporting_ocpaws_compute_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_compute_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpaws_compute_summary;
 
 
 --
--- Name: reporting_ocpaws_cost_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_cost_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpaws_cost_summary;
 
 
 --
--- Name: reporting_ocpaws_cost_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_cost_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpaws_cost_summary_by_account;
 
 
 --
--- Name: reporting_ocpaws_cost_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_cost_summary_by_region; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpaws_cost_summary_by_region;
 
 
 --
--- Name: reporting_ocpaws_cost_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_cost_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpaws_cost_summary_by_service;
 
 
 --
--- Name: reporting_ocpaws_database_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_database_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpaws_database_summary;
 
 
 --
--- Name: reporting_ocpaws_network_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_network_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpaws_network_summary;
 
 
 --
--- Name: reporting_ocpaws_storage_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpaws_storage_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpaws_storage_summary;
 
 
 --
--- Name: reporting_ocpazure_compute_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_compute_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpazure_compute_summary;
 
 
 --
--- Name: reporting_ocpazure_cost_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_cost_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpazure_cost_summary;
 
 
 --
--- Name: reporting_ocpazure_cost_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_cost_summary_by_account; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpazure_cost_summary_by_account;
 
 
 --
--- Name: reporting_ocpazure_cost_summary_by_location; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_cost_summary_by_location; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpazure_cost_summary_by_location;
 
 
 --
--- Name: reporting_ocpazure_cost_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_cost_summary_by_service; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpazure_cost_summary_by_service;
 
 
 --
--- Name: reporting_ocpazure_database_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_database_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpazure_database_summary;
 
 
 --
--- Name: reporting_ocpazure_network_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_network_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpazure_network_summary;
 
 
 --
--- Name: reporting_ocpazure_storage_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: kokuadmin
+-- Name: reporting_ocpazure_storage_summary; Type: MATERIALIZED VIEW DATA; Schema: template0; Owner: table_owner
 --
 
 REFRESH MATERIALIZED VIEW template0.reporting_ocpazure_storage_summary;
