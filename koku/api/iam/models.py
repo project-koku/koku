@@ -148,10 +148,12 @@ class Tenant(TenantMixin):
         sql = """
 select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
 """
-        LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}" with data')
+        LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
+
         with conn.cursor() as cur:
             cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
             result = cur.fetchone()
+            cur.execute("SET search_path = public;")
 
         return result[0] if result else False
 
