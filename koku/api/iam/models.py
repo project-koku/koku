@@ -153,7 +153,7 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
         with conn.cursor() as cur:
             cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
             result = cur.fetchone()
-            cur.execute(f"SET search_path=public")
+            cur.execute("SET search_path = public;")
 
         return result[0] if result else False
 
