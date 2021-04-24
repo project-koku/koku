@@ -17,7 +17,6 @@
 """Models for identity and access management."""
 import logging
 import os
-import pkgutil
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError
@@ -28,10 +27,10 @@ from tenant_schemas.models import TenantMixin
 from tenant_schemas.postgresql_backend.base import _is_valid_schema_name
 from tenant_schemas.utils import schema_exists
 
-from koku.configurator import CONFIGURATOR
 from koku.database import dbfunc_exists
 from koku.migration_sql_helpers import apply_sql_file
 from koku.migration_sql_helpers import find_db_functions_dir
+
 
 LOG = logging.getLogger(__name__)
 
@@ -143,31 +142,20 @@ class Tenant(TenantMixin):
         return res
 
     def _clone_schema(self):
-        # result = None
+        result = None
         # This db func will clone the schema objects
         # bypassing the time it takes to run migrations
-        #         sql = """
-        # select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
-        # """
+        sql = """
+select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
+"""
         LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
 
-        database_user = CONFIGURATOR.get_database_user()
-
-        create_sql = pkgutil.get_data("api.iam", "sql/tenant_create.sql")
-        create_sql = (
-            create_sql.decode("utf-8")
-            .replace(self._TEMPLATE_SCHEMA, self.schema_name)
-            .replace("table_owner", database_user)
-        )
-
         with conn.cursor() as cur:
-            # cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
-            # result = cur.fetchone()
-            # cur.execute(f"SET search_path=public")
-            cur.execute(create_sql)
+            cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
+            result = cur.fetchone()
+            cur.execute(f"SET search_path=public")
 
-            # return result[0] if result else False
-        return True
+        return result[0] if result else False
 
     def create_schema(self, check_if_exists=True, sync_schema=True, verbosity=1):
         """
