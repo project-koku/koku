@@ -21,7 +21,7 @@ import re
 from django.conf import settings
 from django.core.cache import caches
 
-from koku.celery import CELERY_INSPECT
+from koku import CELERY_INSPECT
 
 TASK_CACHE_EXPIRE = 30
 LOG = logging.getLogger(__name__)

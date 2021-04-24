@@ -96,7 +96,6 @@ class TagQueryHandler(QueryHandler):
         filters.add(QueryFilter(field="key", operation="exact", parameter=self.key))
         return self.query_filter & filters.compose()
 
-    # deprecated
     def _set_start_and_end_dates(self):
         """Set start and end dates.
 

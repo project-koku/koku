@@ -18,6 +18,7 @@
 import copy
 import logging
 import random
+import re
 import string
 from collections import defaultdict
 from collections import OrderedDict
@@ -45,6 +46,12 @@ LOG = logging.getLogger(__name__)
 def strip_tag_prefix(tag):
     """Remove the query tag prefix from a tag key."""
     return tag.replace("tag:", "").replace("and:", "").replace("or:", "")
+
+
+def is_grouped_by_tag(parameters):
+    """Determine if grouped by tag."""
+    group_by = list(parameters.parameters.get("group_by", {}).keys())
+    return [key for key in group_by if "tag" in key]
 
 
 def is_grouped_by_project(parameters):
@@ -651,7 +658,11 @@ class ReportQueryHandler(QueryHandler):
                 for line_data in sorted_data:
                     if not line_data.get(field):
                         line_data[field] = f"no-{field}"
-                sorted_data = sorted(sorted_data, key=lambda entry: entry[field].lower(), reverse=reverse)
+                sorted_data = sorted(
+                    sorted_data,
+                    key=lambda entry: (bool(re.match(r"other*", entry[field].lower())), entry[field].lower()),
+                    reverse=reverse,
+                )
         return sorted_data
 
     def get_tag_order_by(self, tag):
@@ -692,6 +703,24 @@ class ReportQueryHandler(QueryHandler):
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
             return None
 
+    def check_missing_rank_value(self, rank_value):
+        """Check to see ranked values is missing.
+
+        If it is missing, it converts it to no-{group_by}
+
+        rank_value: string or None value
+        """
+        if rank_value:
+            return rank_value
+        group_by_value = self._get_group_by()
+        check_tag_group_by = is_grouped_by_tag(self.parameters)
+        if check_tag_group_by:
+            tag_value = check_tag_group_by[0].split(":")[1]
+            rank_value = f"no-{tag_value}"
+        else:
+            rank_value = f"no-{group_by_value[0]}"
+        return rank_value
+
     def _group_by_ranks(self, query, data):
         """Handle grouping data by filter limit."""
         group_by_value = self._get_group_by()
@@ -709,9 +738,10 @@ class ReportQueryHandler(QueryHandler):
                 rank_annotations = {self._delta: self.report_annotations[self._delta]}
                 rank_orders.append(getattr(F(self._delta), self.order_direction)())
         else:
-            if self.report_annotations.get(self.order_field):
-                rank_annotations = {self.order_field: self.report_annotations.get(self.order_field)}
-            rank_orders.append(getattr(F(self.order_field), self.order_direction)())
+            for key, val in self.default_ordering.items():
+                order_field, order_direction = key, val
+            rank_annotations = {order_field: self.report_annotations.get(order_field)}
+            rank_orders.append(getattr(F(order_field), order_direction)())
 
         if tag_column in gb[0]:
             rank_orders.append(self.get_tag_order_by(gb[0]))
@@ -731,8 +761,12 @@ class ReportQueryHandler(QueryHandler):
 
         rankings = []
         for rank in ranks:
-            rankings.insert((rank.get("rank") - 1), str(rank.get(group_by_value[0])))
+            rank_value = rank.get(group_by_value[0])
+            rank_value = self.check_missing_rank_value(rank_value)
+            rankings.insert((rank.get("rank") - 1), rank_value)
 
+        for query_return in data:
+            query_return = self._apply_group_null_label(query_return, gb)
         return self._ranked_list(data, rankings)
 
     def _ranked_list(self, data_list, ranks=None):
@@ -784,13 +818,14 @@ class ReportQueryHandler(QueryHandler):
         }
         empty_row = {key: row_defaults[str(type(val).__name__)] for key, val in data[0].items()}
 
+        missed_data = []
         for missed in missing:
-            ranked_empty_row = empty_row
+            ranked_empty_row = copy.deepcopy(empty_row)
             ranked_empty_row[rank_field] = missed
-            ranked_empty_row["date"] = data[0]["date"]
-            data.append(ranked_empty_row)
-
-        return data
+            ranked_empty_row["date"] = data[0].get("date")
+            missed_data.append(ranked_empty_row)
+        new_data = data + missed_data
+        return new_data
 
     def _perform_rank_summation(self, entry, is_offset=False, ranks=[]):  # noqa: C901
         """Do the rank limiting for _ranked_list().
@@ -809,8 +844,9 @@ class ReportQueryHandler(QueryHandler):
             if other is None:
                 other = copy.deepcopy(data)
 
-            ranked_value = str(data.get(self._get_group_by()[0]))
             if ranks:
+                ranked_value = data.get(self._get_group_by()[0])
+                ranked_value = self.check_missing_rank_value(ranked_value)
                 rank = ranks.index(ranked_value) + 1
                 data["rank"] = rank
             else:
@@ -825,10 +861,10 @@ class ReportQueryHandler(QueryHandler):
 
         if other is not None and others_list and not is_offset:
             num_others = len(others_list)
-            others_label = f"{num_others} Others"
+            others_label = "Others"
 
             if num_others == 1:
-                others_label = f"{num_others} Other"
+                others_label = "Other"
 
             other.update(other_sums)
             other["rank"] = self._limit + 1

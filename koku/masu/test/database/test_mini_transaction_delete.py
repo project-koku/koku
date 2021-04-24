@@ -19,6 +19,7 @@ import os
 from unittest.mock import patch
 
 from api.provider.models import Sources
+from koku.env import ENVIRONMENT
 from masu.database.koku_database_access import mini_transaction_delete
 from masu.test import MasuTestCase
 
@@ -43,8 +44,8 @@ class MiniTransactionDeleteTest(MasuTestCase):
         remainder_check.return_value = 1
         del_rec_lim_key = "DELETE_CYCLE_RECORD_LIMIT"
         del_cycle_try_key = "DELETE_CYCLE_MAX_RETRY"
-        dcrl = os.getenv(del_rec_lim_key, None)
-        dcmr = os.getenv(del_cycle_try_key, None)
+        dcrl = ENVIRONMENT.get_value(del_rec_lim_key, default=None)
+        dcmr = ENVIRONMENT.get_value(del_cycle_try_key, default=None)
         os.environ[del_rec_lim_key] = "3"
         os.environ[del_cycle_try_key] = "1"
 

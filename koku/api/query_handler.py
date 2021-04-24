@@ -71,8 +71,9 @@ class QueryHandler:
         self.time_interval = []
         self._max_rank = 0
 
-        self.time_scope_units = self.parameters.get_filter("time_scope_units")  # deprecated
-        self.time_scope_value = int(self.parameters.get_filter("time_scope_value"))  # deprecated
+        self.time_scope_units = self.parameters.get_filter("time_scope_units")
+        if self.parameters.get_filter("time_scope_value"):
+            self.time_scope_value = int(self.parameters.get_filter("time_scope_value"))
 
         # self.start_datetime = parameters["start_date"]
         # self.end_datetime = parameters["end_date"]
@@ -184,7 +185,6 @@ class QueryHandler:
         """
         return self.parameters and key in self.parameters and in_key in self.parameters.get(key)  # noqa: W504
 
-    # deprecated
     def get_time_scope_units(self):
         """Extract time scope units or provide default.
 
@@ -199,7 +199,6 @@ class QueryHandler:
         self.time_scope_units = time_scope_units
         return self.time_scope_units
 
-    # deprecated
     def get_time_scope_value(self):
         """Extract time scope value or provide default.
 
@@ -214,7 +213,6 @@ class QueryHandler:
         self.time_scope_value = int(time_scope_value)
         return self.time_scope_value
 
-    # deprecated
     def _get_timeframe(self):
         """Obtain timeframe start and end dates.
 

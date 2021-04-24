@@ -863,14 +863,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         expected = [
             {"subscription_guid": "1", "total": 5, "rank": 1},
             {"subscription_guid": "2", "total": 4, "rank": 2},
-            {
-                "subscription_guid": "2 Others",
-                "total": 5,
-                "rank": 3,
-                "cost_total": 0,
-                "infra_total": 0,
-                "sup_total": 0,
-            },
+            {"subscription_guid": "Others", "total": 5, "rank": 3, "cost_total": 0, "infra_total": 0, "sup_total": 0},
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
@@ -889,7 +882,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         expected = [
             {"service_name": "1", "total": 5, "rank": 1},
             {"service_name": "2", "total": 4, "rank": 2},
-            {"service_name": "2 Others", "total": 5, "rank": 3, "cost_total": 0, "infra_total": 0, "sup_total": 0},
+            {"service_name": "Others", "total": 5, "rank": 3, "cost_total": 0, "infra_total": 0, "sup_total": 0},
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)

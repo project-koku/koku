@@ -204,6 +204,28 @@ class AWSReportQueryTest(IamTestCase):
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
 
+    def test_transform_null_group_with_limit(self):
+        """Test transform data with null group value."""
+        url = "?filter[limit]=1"
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        groups = ["region"]
+        group_index = 0
+        data = {None: [{"region": "no-region", "units": "USD"}]}
+        expected = [{"region": "no-region", "values": [{"region": "no-region", "units": "USD"}]}]
+        out_data = handler._transform_data(groups, group_index, data)
+        self.assertEqual(expected, out_data)
+
+        data = {"us-east": [{"region": "us-east", "units": "USD"}]}
+        expected = [{"region": "us-east", "values": [{"region": "us-east", "units": "USD"}]}]
+        out_data = handler._transform_data(groups, group_index, data)
+        self.assertEqual(expected, out_data)
+
+        data = {None: {"region": "no-region", "units": "USD"}}
+        expected = [{"region": "no-region", "values": {"region": "no-region", "units": "USD"}}]
+        out_data = handler._transform_data(groups, group_index, data)
+        self.assertEqual(expected, out_data)
+
     def test_get_group_by_with_group_by_and_limit_params(self):
         """Test the _get_group_by method with limit and group by params."""
         expected = ["account"]
@@ -994,8 +1016,8 @@ class AWSReportQueryTest(IamTestCase):
             {"account": "1", "account_alias": "1", "total": 5, "rank": 1},
             {"account": "2", "account_alias": "2", "total": 4, "rank": 2},
             {
-                "account": "2 Others",
-                "account_alias": "2 Others",
+                "account": "Others",
+                "account_alias": "Others",
                 "total": 5,
                 "rank": 3,
                 "cost_total": 0,
@@ -1020,7 +1042,7 @@ class AWSReportQueryTest(IamTestCase):
         expected = [
             {"service": "1", "total": 5, "rank": 1},
             {"service": "2", "total": 4, "rank": 2},
-            {"service": "2 Others", "total": 5, "rank": 3, "cost_total": 0, "infra_total": 0, "sup_total": 0},
+            {"service": "Others", "total": 5, "rank": 3, "cost_total": 0, "infra_total": 0, "sup_total": 0},
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
@@ -1103,7 +1125,7 @@ class AWSReportQueryTest(IamTestCase):
                 "date": "2000-01-01",
                 "infra_total": 0.03,
                 "rank": 3,
-                "service": "2 Others",
+                "service": "Others",
                 "sup_total": 0.05,
             },
             {
@@ -1127,7 +1149,7 @@ class AWSReportQueryTest(IamTestCase):
                 "date": "2000-01-02",
                 "infra_total": 0.03,
                 "rank": 3,
-                "service": "2 Others",
+                "service": "Others",
                 "sup_total": 0.05,
             },
             {
@@ -1151,7 +1173,7 @@ class AWSReportQueryTest(IamTestCase):
                 "date": "2000-01-03",
                 "infra_total": 0.02,
                 "rank": 3,
-                "service": "2 Others",
+                "service": "Others",
                 "sup_total": 0.03,
             },
         ]

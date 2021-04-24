@@ -751,8 +751,8 @@ class GCPReportQueryHandlerTest(IamTestCase):
             {"account": "1", "total": 5, "rank": 1},
             {"account": "2", "total": 4, "rank": 2},
             {
-                "account": "2 Others",
-                "account_alias": "2 Others",
+                "account": "Others",
+                "account_alias": "Others",
                 "total": 5,
                 "rank": 3,
                 "cost_total": 0,
@@ -779,7 +779,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             {"service_alias": "1", "total": 5, "rank": 1},
             {"service_alias": "2", "total": 4, "rank": 2},
             {
-                "service": "2 Others",
+                "service": "Others",
                 "service_alias": "1",
                 "total": 5,
                 "rank": 3,

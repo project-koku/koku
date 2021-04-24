@@ -17,6 +17,7 @@
 """Test the clone_schema functionality."""
 from unittest.mock import patch
 
+from django.core.exceptions import ValidationError
 from django.db import connection as conn
 from django.db import DatabaseError
 from tenant_schemas.utils import schema_exists
@@ -83,9 +84,7 @@ class CloneSchemaTest(IamTestCase):
 
         test_schema = "acct90909090"
         # Also validate that the customer tenant schema will be created using the clone function
-        expected1 = (
-            f'INFO:api.iam.models:Cloning template schema "{Tenant._TEMPLATE_SCHEMA}" to "{test_schema}" with data'
-        )
+        expected1 = f'INFO:api.iam.models:Cloning template schema "{Tenant._TEMPLATE_SCHEMA}" to "{test_schema}"'
         expected2 = f'INFO:api.iam.models:Successful clone of "{Tenant._TEMPLATE_SCHEMA}" to "{test_schema}"'
         with self.assertLogs("api.iam.models", level="INFO") as _logger:
             Tenant(schema_name=test_schema).save()
@@ -170,7 +169,7 @@ class CloneSchemaTest(IamTestCase):
             cur.execute("""create table if not exists "eek01"."tab01" (id serial primary key, data text);""")
 
         # Verify that the existing schema was detected
-        expected = 'WARNING:api.iam.models:Schema "eek01" already exists.'
+        expected = 'WARNING:api.iam.models:Schema "eek01" already exists. Exit with False.'
         with self.assertLogs("api.iam.models", level="INFO") as _logger:
             Tenant(schema_name="eek01").save()
             self.assertIn(expected, _logger.output)
@@ -190,3 +189,10 @@ class CloneSchemaTest(IamTestCase):
             cur.execute("""select count(*) from pg_namespace where nspname = 'eek01';""")
             res = cur.fetchone()[0]
             self.assertEqual(res, 0)
+
+    def test_create_bad_tenant_name(self):
+        """
+        Test that creating a tenant with a bad name will throw an exception
+        """
+        with self.assertRaises(ValidationError):
+            Tenant.objects.create(schema_name="bad schema-name")
