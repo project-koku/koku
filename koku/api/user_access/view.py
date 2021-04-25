@@ -163,7 +163,7 @@ class UserAccessView(APIView):
             )
             if source_accessor:
                 access_class = source_accessor.get("access_class")
-                if admin_user:
+                if admin_user == 'True':
                     access_granted = True
                 else:
                     access_granted = access_class(user_access).access
@@ -174,7 +174,7 @@ class UserAccessView(APIView):
         data = []
         for source_type in self._source_types:
             access_granted = False
-            if admin_user:
+            if admin_user == 'True':
                 access_granted = True
             else:
                 access_granted = source_type.get("access_class")(user_access).access
