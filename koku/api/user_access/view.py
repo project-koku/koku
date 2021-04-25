@@ -16,6 +16,7 @@
 """View for UserAccess."""
 import logging
 
+from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import status
@@ -59,13 +60,18 @@ class UIFeatureAccess:
         """Return the access value from the inner dict."""
         return self.access_dict.get(key1, {}).get(key2, default)
 
-    @property
-    def access(self):
+    def access(self, admin_user, pre_release_feature):
         """Access property returns whether the user has the requested access.
 
         Return:
             (bool)
         """
+        if pre_release_feature and not settings.ENABLE_PRERELEASE_FEATURES:
+            return False
+
+        if admin_user:
+            return True
+
         for key in self.access_keys:
             if self._get_access_value(key, "read") or self._get_access_value(key, "write"):
                 return True
@@ -127,7 +133,7 @@ class UserAccessView(APIView):
         {"type": "azure", "access_class": AzureUserAccess},
         {"type": "cost_model", "access_class": CostModelUserAccess},
         {"type": "gcp", "access_class": GCPUserAccess},
-        {"type": "ibm", "access_class": IBMUserAccess},
+        {"type": "ibm", "access_class": IBMUserAccess, "pre_release_feature": True},
         {"type": "ocp", "access_class": OCPUserAccess},
     ]
 
@@ -148,7 +154,6 @@ class UserAccessView(APIView):
         beta = request.user.beta
         LOG.debug(f"User Access RBAC permissions: {str(user_access)}. Org Admin: {str(admin_user)}. Beta: {str(beta)}")
 
-        # only show pre-release features in approved environments
         flag = query_params.get("beta", "False")  # query_params are strings, not bools.
         if flag.lower() == "true" and not beta:
             return Response({"data": False})
@@ -160,10 +165,8 @@ class UserAccessView(APIView):
             )
             if source_accessor:
                 access_class = source_accessor.get("access_class")
-                if admin_user:
-                    access_granted = True
-                else:
-                    access_granted = access_class(user_access).access
+                pre_release_feature = source_accessor.get("pre_release_feature")
+                access_granted = access_class(user_access).access(admin_user, pre_release_feature)
                 return Response({"data": access_granted})
             else:
                 return Response({f"Unknown source type: {source_type}"}, status=status.HTTP_400_BAD_REQUEST)
@@ -171,10 +174,9 @@ class UserAccessView(APIView):
         data = []
         for source_type in self._source_types:
             access_granted = False
-            if admin_user:
-                access_granted = True
-            else:
-                access_granted = source_type.get("access_class")(user_access).access
+            access_granted = source_type.get("access_class")(user_access).access(
+                admin_user, source_type.get("pre_release_feature")
+            )
             data.append({"type": source_type.get("type"), "access": access_granted})
 
         paginator = ListPaginator(data, request)
