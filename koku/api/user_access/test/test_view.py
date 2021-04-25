@@ -421,6 +421,7 @@ class UserAccessViewTest(IamTestCase):
     def test_ibm_view_account_wildcard(self):
         """Test user-access view with ibm account read wildcard permission."""
         url = reverse("user-access")
+        import pdb; pdb.set_trace()
         response = self.client.get(url, **self.headers)
 
         self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
