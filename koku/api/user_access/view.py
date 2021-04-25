@@ -66,7 +66,7 @@ class UIFeatureAccess:
         Return:
             (bool)
         """
-        if pre_release_feature == True and settings.ENABLE_PRERELEASE_FEATURES == False:
+        if pre_release_feature and not settings.ENABLE_PRERELEASE_FEATURES:
             return False
 
         if admin_user:
