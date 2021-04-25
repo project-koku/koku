@@ -152,9 +152,8 @@ class UserAccessView(APIView):
         user_access = request.user.access
         admin_user = request.user.admin
         beta = request.user.beta
-        LOG.info(f"User Access RBAC permissions: {str(user_access)}. Org Admin: {str(admin_user)}. Beta: {str(beta)}")
+        LOG.debug(f"User Access RBAC permissions: {str(user_access)}. Org Admin: {str(admin_user)}. Beta: {str(beta)}")
 
-        # only show pre-release features in approved environments
         flag = query_params.get("beta", "False")  # query_params are strings, not bools.
         if flag.lower() == "true" and not beta:
             return Response({"data": False})
