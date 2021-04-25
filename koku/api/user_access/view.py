@@ -148,8 +148,9 @@ class UserAccessView(APIView):
         query_params = request.query_params
         user_access = request.user.access
         admin_user = request.user.admin
+        LOG.info(f"TYPE admin_user: {type(admin_user)}")
         beta = request.user.beta
-        LOG.debug(f"User Access RBAC permissions: {str(user_access)}. Org Admin: {str(admin_user)}. Beta: {str(beta)}")
+        LOG.info(f"User Access RBAC permissions: {str(user_access)}. Org Admin: {str(admin_user)}. Beta: {str(beta)}")
 
         # only show pre-release features in approved environments
         flag = query_params.get("beta", "False")  # query_params are strings, not bools.
