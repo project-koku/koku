@@ -16,6 +16,7 @@
 """View for UserAccess."""
 import logging
 
+from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import status
@@ -99,7 +100,9 @@ class GCPUserAccess(UIFeatureAccess):
 class IBMUserAccess(UIFeatureAccess):
     """Access to IBM UI Features."""
 
-    access_keys = ["ibm.account"]
+    access_keys = ["disabled"]
+    if settings.ENABLE_PRERELEASE_FEATURES:
+        access_keys = ["ibm.account"]
 
 
 class CostModelUserAccess(UIFeatureAccess):
