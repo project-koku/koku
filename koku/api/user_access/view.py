@@ -148,7 +148,6 @@ class UserAccessView(APIView):
         query_params = request.query_params
         user_access = request.user.access
         admin_user = request.user.admin
-        LOG.info(f"TYPE admin_user: {type(admin_user)}")
         beta = request.user.beta
         LOG.info(f"User Access RBAC permissions: {str(user_access)}. Org Admin: {str(admin_user)}. Beta: {str(beta)}")
 
@@ -164,7 +163,7 @@ class UserAccessView(APIView):
             )
             if source_accessor:
                 access_class = source_accessor.get("access_class")
-                if admin_user == 'True':
+                if admin_user:
                     access_granted = True
                 else:
                     access_granted = access_class(user_access).access
@@ -175,7 +174,7 @@ class UserAccessView(APIView):
         data = []
         for source_type in self._source_types:
             access_granted = False
-            if admin_user == 'True':
+            if admin_user:
                 access_granted = True
             else:
                 access_granted = source_type.get("access_class")(user_access).access
