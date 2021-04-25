@@ -175,7 +175,9 @@ class UserAccessView(APIView):
         data = []
         for source_type in self._source_types:
             access_granted = False
-            access_granted = source_type.get("access_class")(user_access).access(admin_user, source_type.get("pre_release_feature"))
+            access_granted = source_type.get("access_class")(user_access).access(
+                admin_user, source_type.get("pre_release_feature")
+            )
             data.append({"type": source_type.get("type"), "access": access_granted})
 
         paginator = ListPaginator(data, request)
