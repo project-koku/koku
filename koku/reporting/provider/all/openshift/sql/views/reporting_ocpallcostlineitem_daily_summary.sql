@@ -93,9 +93,9 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
           lids.product_code, lids.product_family, lids.instance_type, lids.region, lids.availability_zone, lids.tags, lids.project_costs,
           lids.tags
 )
-WITH DATA
 ;
 
+/* Once sql and/or data are fixed, add WITH DATA back in */
 
 CREATE UNIQUE INDEX ocpall_cost_daily_summary ON reporting_ocpallcostlineitem_daily_summary USING btree
                     (source_type, usage_start, cluster_id, namespace, node, usage_account_id, resource_id,
