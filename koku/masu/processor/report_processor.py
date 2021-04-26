@@ -75,7 +75,7 @@ class ReportProcessor:
             (Object) : Provider-specific report processor
 
         """
-        if enable_trino_processing(self.provider_uuid):
+        if enable_trino_processing(self.provider_uuid, self.provider_type, self.schema_name):
             return ParquetReportProcessor(
                 schema_name=self.schema_name,
                 report_path=self.report_path,

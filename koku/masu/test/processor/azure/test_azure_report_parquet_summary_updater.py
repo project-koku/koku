@@ -120,7 +120,7 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
         mock_presto.assert_called_with(
             expected_start, expected_end, self.azure_provider.uuid, current_bill_id, markup_value
         )
-        mock_tag_update.assert_called_with(bill_ids)
+        mock_tag_update.assert_called_with(bill_ids, start, end)
 
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)

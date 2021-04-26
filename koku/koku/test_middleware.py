@@ -46,7 +46,7 @@ from koku.middleware import EXTENDED_METRICS
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
-from koku.tests_rbac import mocked_requests_get_500_text
+from koku.test_rbac import mocked_requests_get_500_text
 
 LOG = logging.getLogger(__name__)
 
@@ -333,6 +333,38 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         middleware = IdentityHeaderMiddleware()
         with self.assertRaises(PermissionDenied):
             middleware.process_request(mock_request)
+
+    def test_process_beta_url_path(self):
+        """Test that user beta flag is True for beta url path."""
+        user_data = self._create_user_data()
+        customer = self._create_customer_data()
+        request_context = self._create_request_context(
+            customer, user_data, create_customer=True, create_tenant=True, is_admin=True, is_cost_management=True
+        )
+        mock_request = request_context["request"]
+        mock_request.path = "/api/v1/tags/aws/"
+        mock_request.META["QUERY_STRING"] = ""
+        mock_request.META["HTTP_REFERER"] = "http://cost.com/beta/report"
+
+        middleware = IdentityHeaderMiddleware()
+        middleware.process_request(mock_request)
+        self.assertTrue(mock_request.user.beta)
+
+    def test_process_non_beta_url_path(self):
+        """Test that user non-beta flag is False for beta url path."""
+        user_data = self._create_user_data()
+        customer = self._create_customer_data()
+        request_context = self._create_request_context(
+            customer, user_data, create_customer=True, create_tenant=True, is_admin=True, is_cost_management=True
+        )
+        mock_request = request_context["request"]
+        mock_request.path = "/api/v1/tags/aws/"
+        mock_request.META["QUERY_STRING"] = ""
+        mock_request.META["HTTP_REFERER"] = "http://cost.com/report"
+
+        middleware = IdentityHeaderMiddleware()
+        middleware.process_request(mock_request)
+        self.assertFalse(mock_request.user.beta)
 
     @patch("koku.middleware.IdentityHeaderMiddleware.customer_cache", TTLCache(5, 3))
     def test_process_operational_error_return_424(self):

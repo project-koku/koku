@@ -29,6 +29,7 @@ from django.db.models import DecimalField
 from django.db.models.aggregates import Func
 from django.db.models.fields.json import KeyTextTransform
 
+from .configurator import CONFIGURATOR
 from .env import ENVIRONMENT
 from .migration_sql_helpers import apply_sql_file
 from .migration_sql_helpers import find_db_functions_dir
@@ -46,7 +47,7 @@ engines = {
 def _cert_config(db_config, database_cert):
     """Add certificate configuration as needed."""
     if database_cert:
-        cert_file = "/etc/ssl/certs/server.pem"
+        cert_file = CONFIGURATOR.get_database_ca_file()
         db_options = {"OPTIONS": {"sslmode": "verify-full", "sslrootcert": cert_file}}
         db_config.update(db_options)
     return db_config
@@ -60,7 +61,7 @@ def config():
     else:
         engine = engines["postgresql"]
 
-    name = ENVIRONMENT.get_value("DATABASE_NAME", default="postgres")
+    name = CONFIGURATOR.get_database_name()
 
     if not name and engine == engines["sqlite"]:
         name = os.path.join(settings.BASE_DIR, "db.sqlite3")
@@ -68,13 +69,13 @@ def config():
     db_config = {
         "ENGINE": engine,
         "NAME": name,
-        "USER": ENVIRONMENT.get_value("DATABASE_USER", default="postgres"),
-        "PASSWORD": ENVIRONMENT.get_value("DATABASE_PASSWORD", default="postgres"),
-        "HOST": ENVIRONMENT.get_value(f"{service_name}_SERVICE_HOST", default="localhost"),
-        "PORT": ENVIRONMENT.get_value(f"{service_name}_SERVICE_PORT", default=15432),
+        "USER": CONFIGURATOR.get_database_user(),
+        "PASSWORD": CONFIGURATOR.get_database_password(),
+        "HOST": CONFIGURATOR.get_database_host(),
+        "PORT": CONFIGURATOR.get_database_port(),
     }
 
-    database_cert = ENVIRONMENT.get_value("DATABASE_SERVICE_CERT", default=None)
+    database_cert = CONFIGURATOR.get_database_ca()
     return _cert_config(db_config, database_cert)
 
 
@@ -145,7 +146,6 @@ def check_migrations():
         with transaction.atomic():
             verify_migrations_dbfunc(connection)
             res = check_migrations_dbfunc(connection, targets)
-
         return res
     except OperationalError:
         return False

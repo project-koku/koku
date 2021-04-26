@@ -209,8 +209,8 @@ class FilterSerializer(BaseSerializer):
     TIME_UNIT_CHOICES = (("day", "day"), ("month", "month"))
 
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
-    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)  # deprecated
-    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)  # deprecated
+    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
+    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
 
     resource_scope = StringOrListField(child=serializers.CharField(), required=False)
     limit = serializers.IntegerField(required=False, min_value=1)
@@ -352,6 +352,10 @@ class ParamSerializer(BaseSerializer):
 
         if start_date and end_date and (start_date > end_date):
             error = {"error": "start_date must be a date that is before end_date."}
+            raise serializers.ValidationError(error)
+
+        if data.get("filter", {}).get("resolution") == "monthly" and (data.get("start_date") or data.get("end_date")):
+            error = {"error": "Monthly resolution is not supported with start_date and end_date parameters."}
             raise serializers.ValidationError(error)
 
         return data

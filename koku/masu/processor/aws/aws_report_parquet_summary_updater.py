@@ -121,9 +121,9 @@ class AWSReportParquetSummaryUpdater:
                 accessor.populate_line_item_daily_summary_table_presto(
                     start, end, self._provider.uuid, current_bill_id, markup_value
                 )
-                accessor.populate_enabled_tag_keys(start, end, bill_ids)
-            accessor.populate_tags_summary_table(bill_ids)
-            accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
+                # accessor.populate_enabled_tag_keys(start, end, bill_ids)
+            accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
+            # accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
                     bill.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
