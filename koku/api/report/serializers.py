@@ -346,6 +346,10 @@ class ParamSerializer(BaseSerializer):
             }
             raise serializers.ValidationError(error)
 
+        if data.get("delta") and (data.get("start_date") or data.get("end_date")):
+            error = {"error": "Delta calculation is not supported with start_date and end_date parameters."}
+            raise serializers.ValidationError(error)
+
         if (start_date and not end_date) or (end_date and not start_date):
             error = {"error": "The parameters [start_date, end_date] must both be defined."}
             raise serializers.ValidationError(error)
@@ -356,10 +360,6 @@ class ParamSerializer(BaseSerializer):
 
         if data.get("filter", {}).get("resolution") == "monthly" and (data.get("start_date") or data.get("end_date")):
             error = {"error": "Monthly resolution is not supported with start_date and end_date parameters."}
-            raise serializers.ValidationError(error)
-
-        if data.get("delta") and (data.get("start_date") or data.get("end_date")):
-            error = {"error": "Delta calculation is not supported with start_date and end_date parameters."}
             raise serializers.ValidationError(error)
 
         return data
