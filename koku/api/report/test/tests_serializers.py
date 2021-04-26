@@ -606,6 +606,7 @@ class QueryParamSerializerTest(TestCase):
             with self.subTest(params=params):
                 with self.assertRaises(ValidationError):
                     serializer = QueryParamSerializer(data=params)
+                    self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
 
     def test_parse_filter_dates_invalid(self):
