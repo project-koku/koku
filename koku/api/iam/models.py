@@ -159,7 +159,7 @@ class Tenant(TenantMixin):
     #         return result[0] if result else False
 
     def _clone_schema(self):
-        LOG.info(f"Loading create script from koku_tenant_create.sql file.")
+        LOG.info("Loading create script from koku_tenant_create.sql file.")
         create_sql_buff = pkgutil.get_data("api.iam", "sql/koku_tenant_create.sql").decode("utf-8")
         LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
         with conn.cursor() as cur:
