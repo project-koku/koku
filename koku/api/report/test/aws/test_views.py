@@ -605,7 +605,11 @@ class AWSReportViewTest(IamTestCase):
 
     def test_start_end_parameters_with_delta(self):
         """Test that a validation error is raised for monthly resolution with start/end parameters."""
-        qs_list = ["?start_date=2021-04-01&end_date=2021-04-13&delta=cost"]
+        qs_list = [
+            "?start_date=2021-04-01&end_date=2021-04-13&delta=usage",
+            "?start_date=2021-04-01&delta=usage",
+            "?end_date=2021-04-13&delta=usage",
+        ]
         for qs in qs_list:
             url = reverse("reports-aws-instance-type") + qs
             response = self.client.get(url, **self.headers)
