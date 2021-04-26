@@ -21,6 +21,6 @@ class Migration(migrations.Migration):
     dependencies = [("reporting", "0173_auto_20210325_1354")]
 
     operations = [
-        migrations.RunSQL("""drop materialized view reporting_ocpallcostlineitem_daily_summary cascade;"""),
-        migrations.RunPython(add_views),
+        migrations.RunSQL("""select 1;"""),
+        # migrations.RunPython(add_views),
     ]
