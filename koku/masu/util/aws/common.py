@@ -22,6 +22,7 @@ import re
 
 import boto3
 import ciso8601
+import pandas as pd
 from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from dateutil.relativedelta import relativedelta
@@ -397,6 +398,30 @@ def aws_post_processor(data_frame):
     data_frame = data_frame.drop(columns=drop_columns)
     data_frame = data_frame.rename(columns=column_name_map)
     return (data_frame, unique_keys)
+
+
+def aws_generate_daily_data(data_frame):
+    """Given a dataframe, group the data to create daily data."""
+    # usage_start = data_frame["lineitem_usagestartdate"]
+    # usage_start_dates = usage_start.apply(lambda row: row.date())
+    # data_frame["usage_start"] = usage_start_dates
+    daily_data_frame = data_frame.groupby(
+        [
+            "lineitem_resourceid",
+            pd.Grouper(key="lineitem_usagestartdate", freq="D"),
+            "lineitem_productcode",
+            "product_productfamily",
+            "product_instancetype",
+            "lineitem_usageaccountid",
+            "lineitem_availabilityzone",
+            "product_region",
+            "pricing_unit",
+            "resourcetags",
+        ],
+        dropna=False,
+        as_index=False,
+    ).sum()
+    return daily_data_frame
 
 
 def get_column_converters():
