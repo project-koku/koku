@@ -33,9 +33,11 @@ from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProc
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
+from masu.util.aws.common import aws_generate_daily_data
 from masu.util.aws.common import aws_post_processor
 from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import get_column_converters as aws_column_converters
+from masu.util.aws.common import match_openshift_resources_and_labels
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.azure.common import azure_post_processor
 from masu.util.azure.common import get_column_converters as azure_column_converters
@@ -56,6 +58,8 @@ LOG = logging.getLogger(__name__)
 CSV_GZIP_EXT = ".csv.gz"
 CSV_EXT = ".csv"
 PARQUET_EXT = ".parquet"
+
+DAILY_FILE_TYPE = "daily"
 
 COLUMN_CONVERTERS = {
     Provider.PROVIDER_AWS: aws_column_converters,
@@ -191,6 +195,24 @@ class ParquetReportProcessor:
         return post_processor
 
     @property
+    def daily_data_processor(self):
+        """Post processor based on provider type."""
+        daily_data_processor = None
+        if self.provider_type == Provider.PROVIDER_AWS:
+            daily_data_processor = aws_generate_daily_data
+
+        return daily_data_processor
+
+    @property
+    def ocp_on_cloud_data_processor(self):
+        """Post processor based on provider type."""
+        ocp_on_cloud_data_processor = None
+        if self.provider_type == Provider.PROVIDER_AWS:
+            ocp_on_cloud_data_processor = match_openshift_resources_and_labels
+
+        return ocp_on_cloud_data_processor
+
+    @property
     def csv_path_s3(self):
         """The path in the S3 bucket where CSV files are loaded."""
         return get_path_prefix(
@@ -207,6 +229,35 @@ class ParquetReportProcessor:
             self.start_date,
             Config.PARQUET_DATA_TYPE,
             report_type=self.report_type,
+        )
+
+    @property
+    def parquet_daily_path_s3(self):
+        """The path in the S3 bucket where Parquet files are loaded."""
+        report_type = self.report_type
+        if report_type is None:
+            report_type = "raw"
+        return get_path_prefix(
+            self.account,
+            self.provider_type,
+            self.provider_uuid,
+            self.start_date,
+            Config.PARQUET_DATA_TYPE,
+            report_type=report_type,
+            daily=True,
+        )
+
+    @property
+    def parquet_ocp_on_cloud_path_s3(self):
+        """The path in the S3 bucket where Parquet files are loaded."""
+        return get_path_prefix(
+            self.account,
+            self.provider_type,
+            self.provider_uuid,
+            self.start_date,
+            Config.PARQUET_DATA_TYPE,
+            report_type="openshift",
+            daily=True,
         )
 
     @property
@@ -227,6 +278,13 @@ class ParquetReportProcessor:
         elif self.provider_type == Provider.PROVIDER_GCP:
             return GCPEnabledTagKeys
         return None
+
+    @property
+    def has_linked_openshift_cluster(self):
+        """Return whether the cloud source has a linked OpenShift source."""
+        if self._context.get("linked_openshift_cluster"):
+            return True
+        return False
 
     def _get_column_converters(self):
         """Return column converters based on provider type."""
@@ -305,8 +363,10 @@ class ParquetReportProcessor:
                 failed_conversion.append(csv_filename)
                 continue
 
-            result = self.convert_csv_to_parquet(csv_filename)
-            if not result:
+            parquet_base_filename, daily_data_frame = self.convert_csv_to_parquet(csv_filename)
+            if not daily_data_frame.empty:
+                self.create_daily_parquet(parquet_base_filename, daily_data_frame)
+            else:
                 failed_conversion.append(csv_filename)
 
         if failed_conversion:
@@ -328,8 +388,9 @@ class ParquetReportProcessor:
         processor.sync_hive_partitions()
         self.presto_table_exists[self.report_type] = True
 
-    def convert_csv_to_parquet(self, csv_filename):
+    def convert_csv_to_parquet(self, csv_filename):  # noqa: C901
         """Convert CSV file to parquet and send to S3."""
+        daily_data_frames = []
         converters = self._get_column_converters()
         csv_path, csv_name = os.path.split(csv_filename)
         unique_keys = set()
@@ -355,27 +416,15 @@ class ParquetReportProcessor:
                         data_frame = self.post_processor(data_frame)
                         if isinstance(data_frame, tuple):
                             data_frame, data_frame_tag_keys = data_frame
+                            if self.daily_data_processor is not None:
+                                daily_data_frames.append(self.daily_data_processor(data_frame))
                             LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
                             unique_keys.update(data_frame_tag_keys)
                             LOG.info(f"Total unique keys for file {len(unique_keys)}")
-                    data_frame.to_parquet(parquet_file, allow_truncated_timestamps=True, coerce_timestamps="ms")
-                    try:
-                        with open(parquet_file, "rb") as fin:
-                            copy_data_to_s3_bucket(
-                                self.request_id,
-                                self.parquet_path_s3,
-                                parquet_filename,
-                                fin,
-                                manifest_id=self.manifest_id,
-                                context=self.error_context,
-                            )
-                            msg = f"{parquet_file} sent to S3."
-                            LOG.info(log_json(self.request_id, msg, self.error_context))
-                    except Exception as err:
-                        s3_key = f"{self.parquet_path_s3}/{parquet_file}"
-                        msg = f"File {csv_filename} could not be written as parquet to S3 {s3_key}. Reason: {str(err)}"
-                        LOG.warn(log_json(self.request_id, msg, self.error_context))
-                        return False
+
+                    success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
+                    if not success:
+                        return parquet_base_filename, []
             if self.create_table and not self.presto_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_file)
             create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
@@ -384,7 +433,7 @@ class ParquetReportProcessor:
                 f"File {csv_filename} could not be written as parquet to temp file {parquet_file}. Reason: {str(err)}"
             )
             LOG.warn(log_json(self.request_id, msg, self.error_context))
-            return False
+            return parquet_base_filename, []
         finally:
             # Delete the local parquet file
             if os.path.exists(parquet_file):
@@ -394,6 +443,36 @@ class ParquetReportProcessor:
             if os.path.exists(csv_filename):
                 os.remove(csv_filename)
 
+        if daily_data_frames:
+            daily_data_frames = pd.concat(daily_data_frames)
+
+        return parquet_base_filename, daily_data_frames
+
+    def create_daily_parquet(self, parquet_base_filename, data_frame):
+        """Create a parquet file for daily aggregated data."""
+        file_name = f"{parquet_base_filename}_{DAILY_FILE_TYPE}{PARQUET_EXT}"
+        file_path = f"{self.local_path}/{file_name}"
+        self._write_parquet_to_file(file_path, file_name, data_frame, file_type=DAILY_FILE_TYPE)
+
+    def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):
+        """Write Parquet file and send to S3."""
+        if file_type == DAILY_FILE_TYPE:
+            s3_path = self.parquet_daily_path_s3
+        else:
+            s3_path = self.parquet_path_s3
+        data_frame.to_parquet(file_path, allow_truncated_timestamps=True, coerce_timestamps="ms")
+        try:
+            with open(file_path, "rb") as fin:
+                copy_data_to_s3_bucket(
+                    self.request_id, s3_path, file_name, fin, manifest_id=self.manifest_id, context=self.error_context
+                )
+                msg = f"{file_path} sent to S3."
+                LOG.info(log_json(self.request_id, msg, self.error_context))
+        except Exception as err:
+            s3_key = f"{self.parquet_path_s3}/{file_path}"
+            msg = f"File {file_name} could not be written as parquet to S3 {s3_key}. Reason: {str(err)}"
+            LOG.warn(log_json(self.request_id, msg, self.error_context))
+            return False
         return True
 
     def process(self):
