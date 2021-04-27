@@ -6,7 +6,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0042_reapply_clone_func"), ("reporting", "0175_auto_20210407_2043")]
+    dependencies = [("api", "0042_reapply_clone_func"), ("reporting", "0176_update_aws_enabled_keys")]
 
     operations = [
         migrations.CreateModel(
