@@ -46,6 +46,7 @@ from koku.middleware import EXTENDED_METRICS
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
+from koku.middleware import RequestTimingMiddleware
 from koku.test_rbac import mocked_requests_get_500_text
 
 LOG = logging.getLogger(__name__)
@@ -463,6 +464,38 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         with self.assertLogs(logger="koku.middleware", level=logging.WARNING):
             middleware = IdentityHeaderMiddleware()
             middleware.process_request(mock_request)
+
+
+class RequestTimingMiddlewareTest(IamTestCase):
+    """Tests against the koku tenant middleware."""
+
+    def setUp(self):
+        """Set up middleware tests."""
+        super().setUp()
+        self.request = self.request_context["request"]
+        self.request.path = "/api/v1/status/"
+        self.request.META["QUERY_STRING"] = ""
+
+    def test_process_request(self):
+        """Test that the request gets a user."""
+        # mock_request = Mock(path="/api/v1/status/")
+        middleware = RequestTimingMiddleware()
+        middleware.process_request(self.request)
+        self.assertTrue(hasattr(self.request, "start_time"))
+
+    def test_process_response(self):
+        """Test that the request gets a user."""
+        # mock_request = Mock(path="/api/v1/status/")
+        client = APIClient()
+        url = reverse("server-status")
+        with self.assertLogs(logger="koku.middleware", level="INFO") as logger:
+            client.get(url, **self.headers)
+            output = logger.output
+            logged = False
+            for msg in output:
+                if "response_time" in msg:
+                    logged = True
+            self.assertTrue(logged)
 
 
 class AccountEnhancedMiddlewareTest(PrometheusTestCaseMixin, IamTestCase):

@@ -122,6 +122,7 @@ if ACCOUNT_ENHANCED_METRICS:
 ### Middleware setup
 MIDDLEWARE = [
     PROMETHEUS_BEFORE_MIDDLEWARE,
+    "koku.middleware.RequestTimingMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "koku.middleware.DisableCSRF",
     "django.middleware.security.SecurityMiddleware",
