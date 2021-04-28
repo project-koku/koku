@@ -173,17 +173,19 @@ class GCPReportProcessorTest(MasuTestCase):
         """Test calling _get_or_create_gcp_project on a project id that exists gets it."""
         project_id = fake.word()
         account_id = fake.word()
+        project_name = fake.word()
         with schema_context(self.schema):
-            project = GCPProject.objects.create(project_id=project_id, account_id=account_id, project_name=fake.word())
+            project = GCPProject.objects.create(
+                project_id=project_id, account_id=account_id, project_name=project_name
+            )
         fetched_project_id = self.processor._get_or_create_gcp_project(
-            {"project.id": project_id, "billing_account_id": fake.word(), "project.name": fake.word()}, self.accessor
+            {"project.id": project_id, "billing_account_id": account_id, "project.name": project_name}, self.accessor
         )
         self.assertEquals(fetched_project_id, project.id)
         with schema_context(self.schema):
-            # Even if _get_or_create_gcp_project is called with a different
-            # account_id, but the same project_id, we expect account_id to remain the same
             gcp_project = GCPProject.objects.get(id=project.id)
             self.assertEquals(gcp_project.account_id, account_id)
+            self.assertEquals(gcp_project.project_name, project_name)
 
     def test_gcp_process_can_run_twice(self):
         """Test that row duplicates are inserted into the DB when process called twice."""
