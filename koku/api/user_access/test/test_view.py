@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the UserAccess view."""
+from django.test.utils import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -416,9 +417,11 @@ class UserAccessViewTest(IamTestCase):
             "cost_model": {"read": [], "write": []},
         }
     )
-    def test_ibm_view_account_wildcard(self):
-        """Test user-access view with ibm account read wildcard permission."""
+    @override_settings(ENABLE_PRERELEASE_FEATURES=True)
+    def test_ibm_view_account_wildcard_with_pre_release_features(self):
+        """Test user-access view with ibm account read wildcard permission and pre_release env=true."""
         url = reverse("user-access")
+
         response = self.client.get(url, **self.headers)
 
         self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
@@ -427,6 +430,36 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "ibm", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
+
+    @RbacPermissions(
+        {
+            "aws.account": {"read": []},
+            "aws.organizational_unit": {"read": []},
+            "gcp.account": {"read": []},
+            "gcp.project": {"read": []},
+            "ibm.account": {"read": ["*"]},
+            "azure.subscription_guid": {"read": []},
+            "openshift.cluster": {"read": []},
+            "openshift.node": {"read": []},
+            "openshift.project": {"read": []},
+            "cost_model": {"read": [], "write": []},
+        }
+    )
+    @override_settings(ENABLE_PRERELEASE_FEATURES=False)
+    def test_ibm_view_account_wildcard_with_pre_release_features_false(self):
+        """Test user-access view with ibm account read wildcard permission and pre_release env=false."""
+        url = reverse("user-access")
+
+        response = self.client.get(url, **self.headers)
+
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "aws", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": False} in response.data.get("data"))
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
@@ -500,7 +533,8 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "azure", "access": False} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": False} in response.data.get("data"))
 
-    def test_view_as_org_admin(self):
+    @override_settings(ENABLE_PRERELEASE_FEATURES=False)
+    def test_view_as_org_admin_prerelease_features_off(self):
         """Test user-access view as an org admin."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
@@ -510,7 +544,28 @@ class UserAccessViewTest(IamTestCase):
         self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
+
+        # IBM is a pre-release feature
+        self.assertTrue({"type": "ibm", "access": False} in response.data.get("data"))
+
+        self.assertTrue({"type": "azure", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "cost_model", "access": True} in response.data.get("data"))
+
+    @override_settings(ENABLE_PRERELEASE_FEATURES=True)
+    def test_view_as_org_admin_prerelease_features_on(self):
+        """Test user-access view as an org admin."""
+        url = reverse("user-access")
+        response = self.client.get(url, **self.headers)
+
+        self.assertEqual(len(response.data.get("data")), self.NUM_ACCESS_CLASSES)
+        self.assertTrue({"type": "any", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "aws", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "ocp", "access": True} in response.data.get("data"))
+        self.assertTrue({"type": "gcp", "access": True} in response.data.get("data"))
+
+        # IBM is a pre-release feature
         self.assertTrue({"type": "ibm", "access": True} in response.data.get("data"))
+
         self.assertTrue({"type": "azure", "access": True} in response.data.get("data"))
         self.assertTrue({"type": "cost_model", "access": True} in response.data.get("data"))
 
