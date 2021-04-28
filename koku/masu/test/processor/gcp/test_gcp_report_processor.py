@@ -153,6 +153,22 @@ class GCPReportProcessorTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertTrue(GCPProject.objects.filter(id=project_id).exists())
 
+    def test_create_gcp_project_name_change(self):
+        """Test changing the project name will update in the table."""
+        project_id = fake.word()
+        project_info = {"project.id": project_id, "billing_account_id": fake.word(), "project.name": fake.word()}
+        expected_name = "BiggoStormsMixTape"
+        pt_id_1 = self.processor._get_or_create_gcp_project(project_info, self.accessor)
+        with schema_context(self.schema):
+            self.assertTrue(GCPProject.objects.filter(id=pt_id_1).exists())
+        project_info["project.name"] = expected_name
+        pt_id_2 = self.processor._get_or_create_gcp_project(project_info, self.accessor)
+        # Check that both calls return the same project table id
+        self.assertEqual(pt_id_1, pt_id_2)
+        with schema_context(self.schema):
+            p = GCPProject.objects.filter(project_id=project_id).first()
+            self.assertEqual(p.project_name, expected_name)
+
     def test_get_gcp_project(self):
         """Test calling _get_or_create_gcp_project on a project id that exists gets it."""
         project_id = fake.word()
