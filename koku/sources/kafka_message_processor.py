@@ -69,7 +69,7 @@ class SourceDetails:
         self.source_type_id = int(details.get("source_type_id"))
         self.source_uuid = details.get("uid")
         self.source_type_name = sources_network.get_source_type_name(self.source_type_id)
-        self.source_type = None
+        self.source_type = SOURCE_PROVIDER_MAP.get(self.source_type_name)
 
 
 class KafkaMessageProcessor:
@@ -118,7 +118,6 @@ class KafkaMessageProcessor:
         Details are stored in the Sources database table.
         """
         details = self.get_source_details()
-        details.source_type = SOURCE_PROVIDER_MAP.get(details.source_type_name)
         if not details.source_type:
             LOG.warning(f"Unexpected source type ID: {details.source_type_id}")
             return
@@ -246,7 +245,7 @@ class SourceMsgProcessor(KafkaMessageProcessor):
 
     def process(self):
         if self.event_type in (KAFKA_SOURCE_UPDATE,):
-            if self.source_id not in storage.KNOWN_SOURCES:
+            if not storage.is_known_source(self.source_id):
                 LOG.info("Update event for unknown source id, skipping...")
                 return
             updated = self.sources_details()

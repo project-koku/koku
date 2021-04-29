@@ -50,9 +50,5 @@ class Config:
             "NmQxLTQ3OGItYjViNi02YmQxMjljYjZkNWQifSwgImludGVybmFsIjogeyJvcmdfaWQiOiAiNTQzMjEifX19"
         ),
     )
-    KOKU_API_HOST = ENVIRONMENT.get_value("KOKU_API_HOST", default="localhost")
-    KOKU_API_PORT = ENVIRONMENT.get_value("KOKU_API_PORT", default="8000")
-    KOKU_API_PATH_PREFIX = ENVIRONMENT.get_value("KOKU_API_PATH_PREFIX", default="/api/cost-management")
-    KOKU_API_URL = f"http://{KOKU_API_HOST}:{KOKU_API_PORT}{KOKU_API_PATH_PREFIX}/v1"
 
     RETRY_SECONDS = ENVIRONMENT.int("RETRY_SECONDS", default=10)

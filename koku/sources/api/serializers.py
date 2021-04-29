@@ -100,19 +100,17 @@ class AdminSourcesSerializer(SourcesSerializer):
 
     def _validate_source_id(self, source_id):
         sources_set = Sources.objects.all()
-        if sources_set:
-            ordered_id = Sources.objects.all().order_by("-source_id").first().source_id
-            return ordered_id + 1
-        else:
+        if not sources_set:
             return 1
+        ordered_id = Sources.objects.all().order_by("-source_id").first().source_id
+        return ordered_id + 1
 
     def _validate_offset(self, offset):
         sources_set = Sources.objects.all()
-        if sources_set:
-            ordered_offset = Sources.objects.all().order_by("-offset").first().offset
-            return ordered_offset + 1
-        else:
+        if not sources_set:
             return 1
+        ordered_offset = Sources.objects.all().order_by("-offset").first().offset
+        return ordered_offset + 1
 
     def _validate_account_id(self, account_id):
         return get_account_from_header(self.context.get("request"))

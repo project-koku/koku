@@ -40,7 +40,6 @@ ALLOWED_BILLING_SOURCE_PROVIDERS = (
     Provider.PROVIDER_GCP_LOCAL,
 )
 ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
-KNOWN_SOURCES = set()
 
 
 class SourcesStorageError(Exception):
@@ -188,8 +187,6 @@ def load_providers_to_create():
     providers_to_create = []
     all_providers = Sources.objects.all()
     for provider in all_providers:
-        global KNOWN_SOURCES
-        KNOWN_SOURCES.add(provider.source_id)
         source_event = screen_and_build_provider_sync_create_event(provider)
         if source_event:
             providers_to_create.append(source_event)
@@ -338,8 +335,6 @@ def create_source_event(source_id, auth_header, offset):
         else:
             new_event = Sources(source_id=source_id, auth_header=auth_header, offset=offset, account_id=account_id)
             new_event.save()
-            global KNOWN_SOURCES
-            KNOWN_SOURCES.add(source_id)
             LOG.info(f"source.storage.create_source_event created Source ID: {source_id}")
     except (InterfaceError, OperationalError) as error:
         LOG.error(f"source.storage.create_provider_event {type(error).__name__}: {error}")
@@ -349,9 +344,6 @@ def create_source_event(source_id, auth_header, offset):
 def destroy_source_event(source_id):
     """Destroy a Sources database object."""
     koku_uuid = None
-    global KNOWN_SOURCES
-    if source_id in KNOWN_SOURCES:
-        KNOWN_SOURCES.remove(source_id)
     try:
         source = Sources.objects.get(source_id=source_id)
         koku_uuid = source.koku_uuid

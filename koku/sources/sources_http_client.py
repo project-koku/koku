@@ -41,6 +41,11 @@ APP_EXTRA_FIELD_MAP = {
     Provider.PROVIDER_GCP: ["dataset"],
     Provider.PROVIDER_GCP_LOCAL: ["dataset"],
 }
+ENDPOINT_APPLICATIONS = "applications"
+ENDPOINT_APPLICATION_TYPES = "application_types"
+ENDPOINT_AUTHENTICATIONS = "authentications"
+ENDPOINT_SOURCES = "sources"
+ENDPOINT_SOURCE_TYPES = "source_types"
 
 
 class SourcesHTTPClientError(Exception):
