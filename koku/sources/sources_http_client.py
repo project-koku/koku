@@ -102,14 +102,16 @@ class SourcesHTTPClient:
 
     def get_source_details(self):
         """Get details on source_id."""
-        url = f"{self._base_url}/sources/{self._source_id}"
+        url = f"{self._base_url}/{ENDPOINT_SOURCES}/{self._source_id}"
         return self._get_network_response(url, "Unable to get source details")
 
     def get_application_type_is_cost_management(self, cost_mgmt_id=None):
         """Get application_type_id from source_id."""
         if cost_mgmt_id is None:
             cost_mgmt_id = self.get_cost_management_application_type_id()
-        endpoint_url = f"{self._base_url}/application_types/{cost_mgmt_id}/sources?&filter[id][]={self._source_id}"
+        endpoint_url = (
+            f"{self._base_url}/{ENDPOINT_APPLICATION_TYPES}/{cost_mgmt_id}/sources?&filter[id][]={self._source_id}"
+        )
         endpoint_response = self._get_network_response(endpoint_url, "Unable to cost management application type")
 
         is_cost_mgmt_type = False
@@ -120,7 +122,9 @@ class SourcesHTTPClient:
 
     def get_cost_management_application_type_id(self):
         """Get the cost management application type id."""
-        application_types_url = f"{self._base_url}/application_types?filter[name]=/insights/platform/cost-management"
+        application_types_url = (
+            f"{self._base_url}/{ENDPOINT_APPLICATION_TYPES}?filter[name]=/insights/platform/cost-management"
+        )
         app_types_response = self._get_network_response(
             application_types_url, "Unable to get cost management application ID Type"
         )
@@ -129,7 +133,7 @@ class SourcesHTTPClient:
 
     def get_source_type_name(self, type_id):
         """Get the source name for a give type id."""
-        source_types_url = f"{self._base_url}/source_types?filter[id]={type_id}"
+        source_types_url = f"{self._base_url}/{ENDPOINT_SOURCE_TYPES}?filter[id]={type_id}"
         source_types_response = self._get_network_response(source_types_url, "Unable to get source name")
         return source_types_response.get("data")[0].get("name")
 
@@ -138,7 +142,7 @@ class SourcesHTTPClient:
         if source_type not in APP_EXTRA_FIELD_MAP.keys():
             LOG.error(f"Unexpected source type: {source_type}")
             return
-        application_url = f"{self._base_url}/applications?source_id={self._source_id}"
+        application_url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}"
         applications_response = self._get_network_response(application_url, "Unable to get application settings")
         if not applications_response.get("data"):
             raise SourcesHTTPClientError(f"No application data for source: {self._source_id}")
@@ -163,7 +167,7 @@ class SourcesHTTPClient:
 
     def _get_aws_credentials(self):
         """Get the roleARN from Sources Authentication service."""
-        authentications_url = f"{self._base_url}/authentications?source_id={self._source_id}"
+        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}"
         auth_response = self._get_network_response(authentications_url, "Unable to get AWS RoleARN")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:
@@ -176,7 +180,9 @@ class SourcesHTTPClient:
             return {"role_arn": username}
 
         auth_id = auth_data.get("id")
-        auth_internal_url = f"{self._internal_url}/authentications/{auth_id}?expose_encrypted_attribute[]=password"
+        auth_internal_url = (
+            f"{self._internal_url}/{ENDPOINT_AUTHENTICATIONS}/{auth_id}?expose_encrypted_attribute[]=password"
+        )
         auth_internal_response = self._get_network_response(auth_internal_url, "Unable to get AWS RoleARN")
         password = auth_internal_response.get("password")
         if password:
@@ -186,7 +192,7 @@ class SourcesHTTPClient:
 
     def _get_gcp_credentials(self):
         """Get the GCP credentials from Sources Authentication service."""
-        authentications_url = f"{self._base_url}/authentications?source_id={self._source_id}"
+        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}"
         auth_response = self._get_network_response(authentications_url, "Unable to get GCP credentials")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:
@@ -201,7 +207,7 @@ class SourcesHTTPClient:
         """Get the Azure Credentials from Sources Authentication service."""
 
         # get subscription_id from applications extra
-        url = f"{self._base_url}/applications?source_id={self._source_id}"
+        url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}"
         app_response = self._get_network_response(url, "Unable to get Azure credentials")
         app_data = (app_response.get("data") or [None])[0]
         if not app_data:
@@ -209,14 +215,16 @@ class SourcesHTTPClient:
         subscription_id = app_data.get("extra", {}).get("subscription_id")
 
         # get client and tenant ids
-        authentications_url = f"{self._base_url}/authentications?source_id={self._source_id}"
+        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}"
         auth_response = self._get_network_response(authentications_url, "Unable to get Azure credentials")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:
             raise SourcesHTTPClientError(f"Unable to get Azure credentials for Source: {self._source_id}")
         auth_id = auth_data.get("id")
         # get client secret
-        auth_internal_url = f"{self._internal_url}/authentications/{auth_id}?expose_encrypted_attribute[]=password"
+        auth_internal_url = (
+            f"{self._internal_url}/{ENDPOINT_AUTHENTICATIONS}/{auth_id}?expose_encrypted_attribute[]=password"
+        )
         auth_internal_response = self._get_network_response(auth_internal_url, "Unable to get Azure credentials")
         password = auth_internal_response.get("password")
 
@@ -242,8 +250,9 @@ class SourcesHTTPClient:
         if not cost_management_type_id:
             cost_management_type_id = self.get_cost_management_application_type_id()
 
-        application_query_url = "{}/applications?filter[application_type_id]={}&filter[source_id]={}".format(
-            self._base_url, cost_management_type_id, str(self._source_id)
+        application_query_url = (
+            f"{self._base_url}/{ENDPOINT_APPLICATIONS}"
+            f"?filter[application_type_id]={cost_management_type_id}&filter[source_id]={self._source_id}"
         )
         application_query_response = self._get_network_response(
             application_query_url, "Unable to get Azure credentials"
@@ -251,7 +260,7 @@ class SourcesHTTPClient:
         response_data = application_query_response.get("data")
         if response_data:
             application_id = response_data[0].get("id")
-            application_url = f"{self._base_url}/applications/{application_id}"
+            application_url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}/{application_id}"
 
             json_data = self.build_source_status(error_msg)
             if storage.save_status(self._source_id, json_data):
@@ -303,8 +312,6 @@ class SourcesHTTPClient:
 
         Args:
             error_obj (Object): ValidationError or String
-
-
         Returns:
             status (Dict): {'availability_status': 'unavailable/available',
                             'availability_status_error': 'User facing String'}
