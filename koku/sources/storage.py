@@ -317,6 +317,7 @@ def get_source_instance(source_id):
 
 def create_source_event(source_id, auth_header, offset):
     """Create a Sources database object."""
+    LOG.info("create source event...")
     try:
         decoded_rh_auth = b64decode(auth_header)
         json_rh_auth = json_loads(decoded_rh_auth)
@@ -343,6 +344,7 @@ def create_source_event(source_id, auth_header, offset):
 
 def destroy_source_event(source_id):
     """Destroy a Sources database object."""
+    LOG.info("destroy source event...")
     koku_uuid = None
     try:
         source = Sources.objects.get(source_id=source_id)

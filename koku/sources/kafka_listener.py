@@ -237,8 +237,7 @@ def listen_for_messages(kaf_msg, consumer, application_source_id):  # noqa: C901
                     consumer.commit()
                     return
                 tp = TopicPartition(Config.SOURCES_TOPIC, msg_processor.partition, msg_processor.offset)
-                LOG.info(f"Processing message offset: {msg_processor.offset} partition: {msg_processor.partition}")
-                LOG.info(f"Cost Management Message to process: {msg_processor}")
+                LOG.info(f"processing cost-mgmt message: {msg_processor}")
                 with transaction.atomic():
                     msg_processor.process()
         except (InterfaceError, OperationalError) as error:

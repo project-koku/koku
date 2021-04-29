@@ -62,6 +62,8 @@ class SourcesMessageError(ValidationError):
 
 
 class SourceDetails:
+    """Sources Details object."""
+
     def __init__(self, auth_header, source_id):
         sources_network = SourcesHTTPClient(auth_header, source_id)
         details = sources_network.get_source_details()
@@ -73,10 +75,12 @@ class SourceDetails:
 
 
 class KafkaMessageProcessor:
+    """Base Kafka Message Processor class"""
+
     def __init__(self, msg, event_type, cost_mgmt_id):
         try:
             self.value = json.loads(msg.value().decode("utf-8"))
-            LOG.info(f"EVENT TYPE: {event_type} | MESSAGE VALUE: {str(self.value)}")
+            LOG.debug(f"EVENT TYPE: {event_type} | MESSAGE VALUE: {str(self.value)}")
         except (AttributeError, ValueError, TypeError) as error:
             LOG.error(f"Unable to load message: {msg.value}. Error: {error}")
             raise SourcesMessageError("Unable to load message")
@@ -89,8 +93,8 @@ class KafkaMessageProcessor:
 
     def __repr__(self):
         return (
-            f"Event type: {self.event_type} | Source ID: {self.source_id} |"
-            f" Partition: {self.partition} | Offset: {self.offset}"
+            f"{{event_type: {self.event_type}, source_id: {self.source_id},"
+            f" partition: {self.partition}, offset: {self.offset}}}"
         )
 
     def msg_for_cost_mgmt(self):
@@ -117,6 +121,7 @@ class KafkaMessageProcessor:
             - Source UID
         Details are stored in the Sources database table.
         """
+        LOG.info("adding source details...")
         details = self.get_source_details()
         if not details.source_type:
             LOG.warning(f"Unexpected source type ID: {details.source_type_id}")
@@ -133,6 +138,7 @@ class KafkaMessageProcessor:
         attached to the Cost Management application.
         Authentication is stored in the Sources database table.
         """
+        LOG.info("adding source authentication...")
         source_type = storage.get_source_type(self.source_id)
 
         if not source_type:
@@ -144,14 +150,14 @@ class KafkaMessageProcessor:
         try:
             authentication = {"credentials": sources_network.get_credentials(source_type)}
         except SourcesHTTPClientError as error:
-            LOG.info(f"Authentication info not available for Source ID: {self.source_id}")
+            LOG.info(f"authentication info not available for Source ID: {self.source_id}")
             sources_network.set_source_status(error)
         else:
             if not authentication.get("credentials"):
                 return
             saved = storage.add_provider_sources_auth_info(self.source_id, authentication)
             if saved:
-                LOG.info(f"Authentication attached to Source ID: {self.source_id}")
+                LOG.info(f"authentication attached to Source ID: {self.source_id}")
                 return True
 
     def save_billing_source(self):
@@ -164,6 +170,7 @@ class KafkaMessageProcessor:
         attached to the Cost Management application.
         Authentication is stored in the Sources database table.
         """
+        LOG.info("adding source billing info...")
         source_type = storage.get_source_type(self.source_id)
 
         if not source_type:
@@ -175,14 +182,14 @@ class KafkaMessageProcessor:
         try:
             data_source = {"data_source": sources_network.get_data_source(source_type)}
         except SourcesHTTPClientError as error:
-            LOG.info(f"Billing info not available for Source ID: {self.source_id}")
+            LOG.info(f"billing info not available for Source ID: {self.source_id}")
             sources_network.set_source_status(error)
         else:
             if not data_source.get("data_source"):
                 return
             saved = storage.add_provider_sources_billing_info(self.source_id, data_source)
             if saved:
-                LOG.info(f"Billing info attached to Source ID: {self.source_id}")
+                LOG.info(f"billing info attached to Source ID: {self.source_id}")
                 return True
 
 
@@ -268,11 +275,21 @@ def extract_from_header(headers, header_type):
                     continue
                 else:
                     return item.decode("ascii")
-    return None
+    return
 
 
 def create_msg_processor(msg, cost_mgmt_id):
     if msg.topic() == Config.SOURCES_TOPIC:
+        print("HEY LOOK HERE")
+        print(f"VALUE: {msg.value()}")
+        print(f"HEADERS: {msg.headers()}")
+        print(f"TOPIC: {msg.topic()}")
+        print(f"TIMESTAMP: {msg.timestamp()}")
+        print(f"KEY: {msg.key()}")
+        print(f"OFFSET: {msg.offset()}")
+        print(f"PARTITION: {msg.partition()}")
+        print(f"ERROR: {msg.error()}")
+
         event_type = extract_from_header(msg.headers(), KAFKA_HDR_EVENT_TYPE)
         LOG.debug(f"event_type: {str(event_type)}")
         if event_type in (KAFKA_APPLICATION_CREATE, KAFKA_APPLICATION_UPDATE, KAFKA_APPLICATION_DESTROY):
@@ -282,4 +299,4 @@ def create_msg_processor(msg, cost_mgmt_id):
         elif event_type in (KAFKA_SOURCE_DESTROY):
             return SourceMsgProcessor(msg, event_type, cost_mgmt_id)
         else:
-            LOG.debug("Other Message: %s", str(msg))
+            LOG.info("Other Message: %s", str(msg))
