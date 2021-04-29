@@ -101,7 +101,7 @@ class KafkaMessageProcessor:
         """Filter messages not intended for cost management."""
         if self.event_type in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
             return True
-        if self.event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
+        if self.event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_APPLICATION_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
             sources_network = self.get_sources_client()
             return sources_network.get_application_type_is_cost_management(self.cost_mgmt_id)
         return True
@@ -289,4 +289,4 @@ def create_msg_processor(msg, cost_mgmt_id):
         elif event_type in (KAFKA_SOURCE_DESTROY):
             return SourceMsgProcessor(msg, event_type, cost_mgmt_id)
         else:
-            LOG.info("Other Message: %s", str(msg))
+            LOG.debug(f"Other Message: {msg.value()}")
