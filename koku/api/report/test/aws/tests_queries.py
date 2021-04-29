@@ -1061,43 +1061,54 @@ class AWSReportQueryTest(IamTestCase):
         expected = [{"account": "2", "account_alias": "2", "total": 4, "rank": 2}]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
-
-    def test_rank_list_zerofill(self):
-        """Test rank list limit with account alias, ensuring we zero-fill missing ranks."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&filter[limit]=2&group_by[service]=*"  # noqa: E501
+    
+    def test_rank_list_zerofill_account(self):
+        """Test rank list limit with account alias, ensuring we zero-fill missing ranks and populate account_alias."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&filter[limit]=10&group_by[account]=*&order_by[account_alias]=asc"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         data_list = [
             {
                 "date": "2000-01-01",
-                "service": "AmazonDynamoDB",
+                "account": "1",
+                "account_alias": "acct 1",
                 "infra_total": 0.01,
                 "sup_total": 0.02,
                 "cost_total": 0.03,
             },
-            {"date": "2000-01-01", "service": "AmazonEC2", "infra_total": 0.02, "sup_total": 0.03, "cost_total": 0.05},
-            {"date": "2000-01-01", "service": "AmazonRDS", "infra_total": 0.03, "sup_total": 0.04, "cost_total": 0.07},
+            {"date": "2000-01-01", "account": "2", "account_alias": "acct 2","infra_total": 0.02, "sup_total": 0.03, "cost_total": 0.05},
+            {"date": "2000-01-01", "account": "3", "account_alias": "acct 3", "infra_total": 0.03, "sup_total": 0.04, "cost_total": 0.07},
             {
                 "date": "2000-01-01",
-                "service": "AmazonRoute53",
+                "account": "4",
+                "account_alias": "acct 4",
+                "infra_total": 0.04,
+                "sup_total": 0.05,
+                "cost_total": 0.09,
+            },
+            {
+                "date": "2000-01-01",
+                "account": "5",
                 "infra_total": 0.04,
                 "sup_total": 0.05,
                 "cost_total": 0.09,
             },
             {
                 "date": "2000-01-02",
-                "service": "AmazonDynamoDB",
+                "account": "1",
+                "account_alias": "acct 1",
                 "infra_total": 0.01,
                 "sup_total": 0.02,
                 "cost_total": 0.03,
             },
-            {"date": "2000-01-02", "service": "AmazonEC2", "infra_total": 0.02, "sup_total": 0.03, "cost_total": 0.05},
-            {"date": "2000-01-02", "service": "AmazonRDS", "infra_total": 0.03, "sup_total": 0.04, "cost_total": 0.07},
-            {"date": "2000-01-03", "service": "AmazonEC2", "infra_total": 0.02, "sup_total": 0.03, "cost_total": 0.05},
-            {"date": "2000-01-03", "service": "AmazonRDS", "infra_total": 0.03, "sup_total": 0.04, "cost_total": 0.07},
+            {"date": "2000-01-02", "account": "2", "account_alias": "acct 2", "infra_total": 0.02, "sup_total": 0.03, "cost_total": 0.05},
+            {"date": "2000-01-02", "account": "3", "account_alias": "acct 3", "infra_total": 0.03, "sup_total": 0.04, "cost_total": 0.07},
+            {"date": "2000-01-03", "account": "2", "account_alias": "acct 2", "infra_total": 0.02, "sup_total": 0.03, "cost_total": 0.05},
+            {"date": "2000-01-03", "account": "3", "account_alias": "acct 3", "infra_total": 0.03, "sup_total": 0.04, "cost_total": 0.07},
             {
                 "date": "2000-01-03",
-                "service": "AmazonRoute53",
+                "account": "4",
+                "account_alias": "acct 4",
                 "infra_total": 0.04,
                 "sup_total": 0.05,
                 "cost_total": 0.09,
@@ -1105,80 +1116,142 @@ class AWSReportQueryTest(IamTestCase):
         ]
         expected = [
             {
-                "cost_total": 0.07,
-                "date": "2000-01-01",
-                "infra_total": 0.03,
-                "rank": 1,
-                "service": "AmazonRDS",
-                "sup_total": 0.04,
+                "date": "2000-01-01", 
+                "account": "1", 
+                "account_alias": "acct 1", 
+                "infra_total": 0.01, 
+                "sup_total": 0.02, 
+                "cost_total": 0.03, 
+                "rank": 4
             },
             {
-                "cost_total": 0.09,
-                "date": "2000-01-01",
-                "infra_total": 0.04,
-                "rank": 2,
-                "service": "AmazonRoute53",
-                "sup_total": 0.05,
+                "date": "2000-01-01", 
+                "account": "2", 
+                "account_alias": "acct 2", 
+                "infra_total": 0.02, 
+                "sup_total": 0.03, 
+                "cost_total": 0.05, 
+                "rank": 3
             },
             {
-                "cost_total": 0.08,
-                "date": "2000-01-01",
-                "infra_total": 0.03,
-                "rank": 3,
-                "service": "Others",
-                "sup_total": 0.05,
+                "date": "2000-01-01", 
+                "account": "3", 
+                "account_alias": "acct 3", 
+                "infra_total": 0.03, 
+                "sup_total": 0.04, 
+                "cost_total": 0.07, 
+                "rank": 1
             },
             {
-                "cost_total": 0.07,
-                "date": "2000-01-02",
-                "infra_total": 0.03,
-                "rank": 1,
-                "service": "AmazonRDS",
-                "sup_total": 0.04,
+                "date": "2000-01-01", 
+                "account": "4", 
+                "account_alias": "acct 4", 
+                "infra_total": 0.04, 
+                "sup_total": 0.05, 
+                "cost_total": 0.09, 
+                "rank": 2
             },
             {
-                "cost_total": 0.0,
-                "date": "2000-01-02",
-                "infra_total": 0.0,
-                "rank": 2,
-                "service": "AmazonRoute53",
-                "sup_total": 0.0,
+                "date": "2000-01-01", 
+                "account": "5", 
+                "infra_total": 0.04, 
+                "sup_total": 0.05, 
+                "cost_total": 0.09, 
+                "rank": 5
             },
             {
-                "cost_total": 0.08,
-                "date": "2000-01-02",
-                "infra_total": 0.03,
-                "rank": 3,
-                "service": "Others",
-                "sup_total": 0.05,
+                "date": "2000-01-02", 
+                "account": "1", 
+                "account_alias": "acct 1", 
+                "infra_total": 0.01, 
+                "sup_total": 0.02, 
+                "cost_total": 0.03, 
+                "rank": 4
             },
             {
-                "cost_total": 0.07,
-                "date": "2000-01-03",
-                "infra_total": 0.03,
-                "rank": 1,
-                "service": "AmazonRDS",
-                "sup_total": 0.04,
+                "date": "2000-01-02", 
+                "account": "2", 
+                "account_alias": "acct 2", 
+                "infra_total": 0.02, 
+                "sup_total": 0.03, 
+                "cost_total": 0.05, 
+                "rank": 3
             },
             {
-                "cost_total": 0.09,
-                "date": "2000-01-03",
-                "infra_total": 0.04,
-                "rank": 2,
-                "service": "AmazonRoute53",
-                "sup_total": 0.05,
+                "date": "2000-01-02", 
+                "account": "3", 
+                "account_alias": "acct 3", 
+                "infra_total": 0.03, 
+                "sup_total": 0.04, 
+                "cost_total": 0.07, 
+                "rank": 1
             },
             {
-                "cost_total": 0.05,
-                "date": "2000-01-03",
-                "infra_total": 0.02,
-                "rank": 3,
-                "service": "Others",
-                "sup_total": 0.03,
+                "date": "2000-01-02", 
+                "account": "4", 
+                "account_alias": "acct 4", 
+                "infra_total": 0.0, 
+                "sup_total": 0.0, 
+                "cost_total": 0.0, 
+                "rank": 2
             },
+            {
+                "date": "2000-01-02", 
+                "account": "5", 
+                "account_alias": "5", 
+                "infra_total": 0.0, 
+                "sup_total": 0.0, 
+                "cost_total": 0.0, 
+                "rank": 5
+            },
+            {
+                "date": "2000-01-03", 
+                "account": "2", 
+                "account_alias": "acct 2", 
+                "infra_total": 0.02, 
+                "sup_total": 0.03, 
+                "cost_total": 0.05, 
+                "rank": 3
+            },
+            {
+                "date": "2000-01-03", 
+                "account": "3", 
+                "account_alias": "acct 3", 
+                "infra_total": 0.03, 
+                "sup_total": 0.04, 
+                "cost_total": 0.07, 
+                "rank": 1
+            },
+            {
+                "date": "2000-01-03", 
+                "account": "4", 
+                "account_alias": "acct 4", 
+                "infra_total": 0.04, 
+                "sup_total": 0.05, 
+                "cost_total": 0.09, 
+                "rank": 2
+            },
+            {
+                "date": "2000-01-03", 
+                "account": "1", 
+                "account_alias": "acct 1", 
+                "infra_total": 0.0, 
+                "sup_total": 0.0, 
+                "cost_total": 0.0, 
+                "rank": 4
+            },
+            {
+                "date": "2000-01-03", 
+                "account": "5", 
+                "account_alias": "5", 
+                "infra_total": 0.0, 
+                "sup_total": 0.0, 
+                "cost_total": 0.0, 
+                "rank": 5
+            }
         ]
         ranked_list = handler._ranked_list(
-            data_list, ranks=["AmazonRDS", "AmazonRoute53", "AmazonEC2", "AmazonDynamoDB"]
+            data_list, ranks=["3", "4", "2", "1", "5"]
         )
         self.assertEqual(ranked_list, expected)
 

@@ -899,7 +899,9 @@ class ReportQueryHandler(QueryHandler):
         account_alias_map = {}
         for data in data_list:
             key = data.get("date")
-            account_alias_map[data.get("account")] = data.get("account_alias")
+            alias = data.get("account_alias")
+            if alias:
+                account_alias_map[data.get("account")] = alias
             date_grouped_data[key].append(data)
         return date_grouped_data, account_alias_map
 
