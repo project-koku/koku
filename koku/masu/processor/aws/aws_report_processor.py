@@ -121,6 +121,7 @@ class AWSReportProcessor(ReportProcessorBase):
             (None)
 
         """
+        row_count = 0
         opener, mode = self._get_file_opener(self._compression)
 
         if not path.exists(self._report_path):
@@ -140,7 +141,6 @@ class AWSReportProcessor(ReportProcessorBase):
                 temp_table = report_db.create_temp_table(self.table_name._meta.db_table, drop_column="id")
                 LOG.info("File %s opened for processing", str(f))
                 reader = csv.DictReader(f)
-                row_count = 0
                 for row in reader:
                     # If this isn't an initial load and it isn't finalized data
                     # we should only process recent data.
