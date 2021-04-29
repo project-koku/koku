@@ -290,9 +290,11 @@ class ParquetReportProcessor:
         """Return column converters based on provider type."""
         return COLUMN_CONVERTERS.get(self.provider_type)()
 
-    def _set_report_processor(self, parquet_file):
+    def _set_report_processor(self, parquet_file, daily=False):
         """Return the correct ReportParquetProcessor."""
-        s3_hive_table_path = get_hive_table_path(self.account, self.provider_type, report_type=self.report_type)
+        s3_hive_table_path = get_hive_table_path(
+            self.account, self.provider_type, report_type=self.report_type, daily=daily
+        )
         processor = None
         if self.provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             processor = AWSReportParquetProcessor(
@@ -374,16 +376,17 @@ class ParquetReportProcessor:
             LOG.warn(log_json(self.request_id, msg, self.error_context))
             return
 
-    def create_parquet_table(self, parquet_file):
+    def create_parquet_table(self, parquet_file, daily=False):
         """Create parquet table."""
-        processor = self._set_report_processor(parquet_file)
+        processor = self._set_report_processor(parquet_file, daily=daily)
 
         bill_date = self.start_date.replace(day=1)
         if not processor.schema_exists():
             processor.create_schema()
         if not processor.table_exists():
             processor.create_table()
-        processor.create_bill(bill_date=bill_date)
+        if not daily:
+            processor.create_bill(bill_date=bill_date)
         processor.get_or_create_postgres_partition(bill_date=bill_date)
         processor.sync_hive_partitions()
         self.presto_table_exists[self.report_type] = True
@@ -424,7 +427,7 @@ class ParquetReportProcessor:
 
                     success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
                     if not success:
-                        return parquet_base_filename, []
+                        return parquet_base_filename, pd.DataFrame()
             if self.create_table and not self.presto_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_file)
             create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
@@ -433,7 +436,7 @@ class ParquetReportProcessor:
                 f"File {csv_filename} could not be written as parquet to temp file {parquet_file}. Reason: {str(err)}"
             )
             LOG.warn(log_json(self.request_id, msg, self.error_context))
-            return parquet_base_filename, []
+            return parquet_base_filename, pd.DataFrame()
         finally:
             # Delete the local parquet file
             if os.path.exists(parquet_file):
@@ -445,6 +448,8 @@ class ParquetReportProcessor:
 
         if daily_data_frames:
             daily_data_frames = pd.concat(daily_data_frames)
+        else:
+            daily_data_frames = pd.DataFrame()
 
         return parquet_base_filename, daily_data_frames
 
@@ -453,6 +458,7 @@ class ParquetReportProcessor:
         file_name = f"{parquet_base_filename}_{DAILY_FILE_TYPE}{PARQUET_EXT}"
         file_path = f"{self.local_path}/{file_name}"
         self._write_parquet_to_file(file_path, file_name, data_frame, file_type=DAILY_FILE_TYPE)
+        self.create_parquet_table(file_path, daily=True)
 
     def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):
         """Write Parquet file and send to S3."""
