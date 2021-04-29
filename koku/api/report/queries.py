@@ -784,11 +784,11 @@ class ReportQueryHandler(QueryHandler):
         elif data_list:
             self.max_rank = max(entry.get("rank", 0) for entry in data_list)
 
-        date_grouped_data = self.date_group_data(data_list)
+        date_grouped_data, account_alias_map = self.date_group_data(data_list)
         if ranks:
             padded_data = OrderedDict()
             for date in date_grouped_data:
-                padded_data[date] = self._zerofill_ranks(date_grouped_data[date], ranks)
+                padded_data[date] = self._zerofill_ranks(date_grouped_data[date], ranks, account_alias_map)
         else:
             padded_data = date_grouped_data
 
@@ -800,7 +800,7 @@ class ReportQueryHandler(QueryHandler):
 
         return self.unpack_date_grouped_data(rank_limited_data)
 
-    def _zerofill_ranks(self, data, ranks):
+    def _zerofill_ranks(self, data, ranks, account_alias_map):
         """Ensure the data set has at least one entry from every ranked category."""
         rank_field = self._get_group_by()[0]
 
@@ -817,12 +817,13 @@ class ReportQueryHandler(QueryHandler):
             "NoneType": None,
         }
         empty_row = {key: row_defaults[str(type(val).__name__)] for key, val in data[0].items()}
-
         missed_data = []
         for missed in missing:
             ranked_empty_row = copy.deepcopy(empty_row)
             ranked_empty_row[rank_field] = missed
             ranked_empty_row["date"] = data[0].get("date")
+            if rank_field == "account":
+                ranked_empty_row["account_alias"] = account_alias_map.get(missed, missed)
             missed_data.append(ranked_empty_row)
         new_data = data + missed_data
         return new_data
@@ -895,11 +896,12 @@ class ReportQueryHandler(QueryHandler):
     def date_group_data(self, data_list):
         """Group data by date."""
         date_grouped_data = defaultdict(list)
-
+        account_alias_map = {}
         for data in data_list:
             key = data.get("date")
+            account_alias_map[data.get("account")] = data.get("account_alias")
             date_grouped_data[key].append(data)
-        return date_grouped_data
+        return date_grouped_data, account_alias_map
 
     def unpack_date_grouped_data(self, date_grouped_data):
         """Return date grouped data to a flatter form."""
