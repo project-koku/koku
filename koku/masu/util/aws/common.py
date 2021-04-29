@@ -409,18 +409,33 @@ def aws_generate_daily_data(data_frame):
         [
             "lineitem_resourceid",
             pd.Grouper(key="lineitem_usagestartdate", freq="D"),
+            "lineitem_usageaccountid",
             "lineitem_productcode",
+            "lineitem_availabilityzone",
             "product_productfamily",
             "product_instancetype",
-            "lineitem_usageaccountid",
-            "lineitem_availabilityzone",
             "product_region",
             "pricing_unit",
             "resourcetags",
         ],
         dropna=False,
-        as_index=False,
-    ).sum()
+    ).agg(
+        {
+            "lineitem_usageamount": ["sum"],
+            "lineitem_normalizationfactor": ["max"],
+            "lineitem_normalizedusageamount": ["sum"],
+            "lineitem_currencycode": ["max"],
+            "lineitem_unblendedrate": ["max"],
+            "lineitem_unblendedcost": ["sum"],
+            "lineitem_blendedrate": ["max"],
+            "lineitem_blendedcost": ["sum"],
+            "pricing_publicondemandcost": ["sum"],
+            "pricing_publicondemandrate": ["max"],
+        }
+    )
+    columns = daily_data_frame.columns.droplevel(1)
+    daily_data_frame.columns = columns
+
     return daily_data_frame
 
 
