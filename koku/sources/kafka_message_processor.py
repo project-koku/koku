@@ -280,16 +280,6 @@ def extract_from_header(headers, header_type):
 
 def create_msg_processor(msg, cost_mgmt_id):
     if msg.topic() == Config.SOURCES_TOPIC:
-        print("HEY LOOK HERE")
-        print(f"VALUE: {msg.value()}")
-        print(f"HEADERS: {msg.headers()}")
-        print(f"TOPIC: {msg.topic()}")
-        print(f"TIMESTAMP: {msg.timestamp()}")
-        print(f"KEY: {msg.key()}")
-        print(f"OFFSET: {msg.offset()}")
-        print(f"PARTITION: {msg.partition()}")
-        print(f"ERROR: {msg.error()}")
-
         event_type = extract_from_header(msg.headers(), KAFKA_HDR_EVENT_TYPE)
         LOG.debug(f"event_type: {str(event_type)}")
         if event_type in (KAFKA_APPLICATION_CREATE, KAFKA_APPLICATION_UPDATE, KAFKA_APPLICATION_DESTROY):
