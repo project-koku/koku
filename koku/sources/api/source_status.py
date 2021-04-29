@@ -166,6 +166,8 @@ def source_status(request):
                         'availability_status_error': ValidationError-detail}
 
     """
+    LOG.info(f"{{'method': {request.method}, 'body': {request.data}}}")
+
     source_id = _get_source_id_from_request(request)
 
     if source_id is None:
