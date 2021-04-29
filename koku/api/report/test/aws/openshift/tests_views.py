@@ -219,6 +219,10 @@ class OCPAWSReportViewTest(IamTestCase):
 
         self.assertIn("nodes", data.get("data")[0])
 
+        # assert the others count is correct
+        meta = data.get("meta")
+        self.assertEqual(meta.get("others"), 2)
+
         # Check if limit returns the correct number of results, and
         # that the totals add up properly
         for item in data.get("data"):
@@ -227,7 +231,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 projects = item.get("nodes")
                 self.assertTrue(len(projects) <= 2)
                 if len(projects) == 2:
-                    self.assertEqual(projects[1].get("node"), "2 Others")
+                    self.assertEqual(projects[1].get("node"), "Others")
                     usage_total = projects[0].get("values")[0].get("usage", {}).get("value") + projects[1].get(
                         "values"
                     )[0].get("usage", {}).get("value")

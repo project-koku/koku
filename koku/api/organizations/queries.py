@@ -84,7 +84,6 @@ class OrgQueryHandler(QueryHandler):
         # super() needs to be called before calling _get_filter()
         self.query_filter = self._get_filter()
 
-    # deprecated
     def _set_start_and_end_dates(self):
         """Set start and end dates.
 

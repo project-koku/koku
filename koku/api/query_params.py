@@ -292,17 +292,24 @@ class QueryParameters:
         """Set the default filter parameters."""
         time_scope_units = self.get_filter("time_scope_units")
         time_scope_value = self.get_filter("time_scope_value")
+        start_date = self.get_start_date()
+        end_date = self.get_end_date()
         resolution = self.get_filter("resolution")
 
-        if not time_scope_value:
-            time_scope_value = -1 if time_scope_units == "month" else -10
-        if not time_scope_units:
-            time_scope_units = "month" if int(time_scope_value) in [-1, -2] else "day"
-        if not resolution:
-            resolution = "monthly" if int(time_scope_value) in [-1, -2] else "daily"
-        self.set_filter(
-            time_scope_value=str(time_scope_value), time_scope_units=str(time_scope_units), resolution=str(resolution)
-        )
+        if not (start_date or end_date):
+            if not time_scope_value:
+                time_scope_value = -1 if time_scope_units == "month" else -10
+            if not time_scope_units:
+                time_scope_units = "month" if int(time_scope_value) in [-1, -2] else "day"
+            if not resolution:
+                resolution = "monthly" if int(time_scope_value) in [-1, -2] else "daily"
+            self.set_filter(
+                time_scope_value=str(time_scope_value),
+                time_scope_units=str(time_scope_units),
+                resolution=str(resolution),
+            )
+        else:
+            self.set_filter(resolution="daily")
 
     def _validate(self):
         """Validate query parameters.
@@ -409,6 +416,14 @@ class QueryParameters:
     def get_filter(self, filt, default=None):
         """Get a filter parameter."""
         return self.get("filter", OrderedDict()).get(filt, default)
+
+    def get_start_date(self):
+        """Get a start_date parameter."""
+        return self.get("start_date")
+
+    def get_end_date(self):
+        """Get a end_date parameter."""
+        return self.get("end_date")
 
     def get_group_by(self, key, default=None):
         """Get a group_by parameter key."""
