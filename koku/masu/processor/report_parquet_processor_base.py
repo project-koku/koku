@@ -154,7 +154,6 @@ class ReportParquetProcessorBase:
         sql = self._generate_create_table_sql()
         self._execute_sql(sql, self._schema_name)
         LOG.info(f"Presto Table: {self._table_name} created.")
-        self._execute_sql(sql, self._schema_name)
 
     def get_or_create_postgres_partition(self, bill_date, **kwargs):
         """Make sure we have a Postgres partition for a billing period."""
