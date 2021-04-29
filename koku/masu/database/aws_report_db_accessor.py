@@ -36,7 +36,7 @@ from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSCostEntryPricing
 from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
-from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
+from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE
 
 LOG = logging.getLogger(__name__)
 
@@ -258,7 +258,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "schema": self.schema,
-            "table": PRESTO_LINE_ITEM_TABLE,
+            "table": PRESTO_LINE_ITEM_DAILY_TABLE,
             "source_uuid": source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),

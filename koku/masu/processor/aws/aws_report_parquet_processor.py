@@ -23,6 +23,7 @@ from masu.processor.report_parquet_processor_base import ReportParquetProcessorB
 from masu.util import common as utils
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
+from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
 
 
@@ -45,6 +46,10 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
             "bill_billingperiodstartdate",
             "bill_billingperiodenddate",
         ]
+        if "daily" in s3_path:
+            table_name = PRESTO_LINE_ITEM_DAILY_TABLE
+        else:
+            table_name = PRESTO_LINE_ITEM_TABLE
         super().__init__(
             manifest_id=manifest_id,
             account=account,
@@ -53,7 +58,7 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
             parquet_local_path=parquet_local_path,
             numeric_columns=numeric_columns,
             date_columns=date_columns,
-            table_name=PRESTO_LINE_ITEM_TABLE,
+            table_name=table_name,
         )
 
     @property
