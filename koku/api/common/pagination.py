@@ -167,12 +167,9 @@ class ReportPagination(StandardResultsSetPagination):
         """Override pagination output."""
         paginated_data = data.pop("data", [])
         filter_limit = data.get("filter", {}).get("limit", 0)
-        meta = {"count": self.count}
+        meta = {"count": self.count, "others": 0}
         if self.others & self.others > filter_limit:
-            self.others = self.others - filter_limit
-        else:
-            self.others = 0
-        meta["others"] = self.others
+            meta["others"] = self.others - filter_limit
         response = {
             "meta": meta,
             "links": {
