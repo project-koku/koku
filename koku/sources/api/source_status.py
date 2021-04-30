@@ -99,17 +99,11 @@ class SourceStatus:
             builder = SourcesProviderCoordinator(self.source_id, self.source.auth_header)
             builder.update_account(self.source)
 
-    def _gcp_bigquery_table_found(self):
-        """Helper to determine if this is the first time a GCP BigQuery table was found."""
-        if self.source.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL) and not self.source.status:
-            return True
-        return False
-
     def push_status(self):
         """Push status_msg to platform sources."""
         try:
             status_obj = self.status()
-            if self._gcp_bigquery_table_found():
+            if self.source.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
                 builder = SourcesProviderCoordinator(self.source.source_id, self.source.auth_header)
                 if self.source.koku_uuid:
                     builder.update_account(self.source)
@@ -120,6 +114,8 @@ class SourceStatus:
             LOG.info(f"Source status for Source ID: {str(self.source_id)}: Status: {str(status_obj)}")
         except SkipStatusPush as error:
             LOG.info(f"Platform sources status push skipped. Reason: {str(error)}")
+            self.sources_client.set_source_status(None, in_progress=True)
+            self._set_provider_active_status(False)
         except SourcesHTTPClientError as error:
             err_msg = "Unable to push source status. Reason: {}".format(str(error))
             LOG.warning(err_msg)

@@ -101,6 +101,6 @@ class SourcesErrorMessage:
             LOG.warning(f"Source ID: {source_id} error message: {display_message}")
         else:
             display_message = ""
-            LOG.info(f"Source ID: {source_id} is available.")
+            LOG.info(f"Source ID: {source_id} is available or in progress.")
 
         return display_message
