@@ -598,7 +598,6 @@ class AWSReportViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
             response_data = response.json()
-            data = response_data.get("data", [])
             meta = response_data.get("meta", {})
             self.assertNotEqual(meta.get("others"), 0)
 
