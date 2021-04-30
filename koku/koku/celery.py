@@ -127,7 +127,7 @@ app.conf.beat_schedule["delete_source_beat"] = {
 # Specify the frequency for pushing source status.
 SOURCE_STATUS_FREQUENCY_MINUTES = ENVIRONMENT.get_value("SOURCE_STATUS_FREQUENCY_MINUTES", default="45")
 source_status_schedule = crontab(minute=f"*/{SOURCE_STATUS_FREQUENCY_MINUTES}")
-LOGGER.info(f"Source status schedule: {str(source_status_schedule)}")
+LOG.info(f"Source status schedule: {str(source_status_schedule)}")
 
 # task to push source status`
 app.conf.beat_schedule["source_status_beat"] = {
