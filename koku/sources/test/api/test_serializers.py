@@ -36,7 +36,6 @@ from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesDependencyError
 from sources.api.serializers import SourcesSerializer
 from sources.config import Config
-from sources.sources_patch_handler import SourcesPatchHandler
 from sources.storage import SourcesStorageError
 
 fake = Faker()
@@ -47,10 +46,12 @@ class MockSourcesClient:
         self._url = address
 
     def update_billing_source(self, source_id, billing_source):
-        return SourcesPatchHandler().update_billing_source(source_id, billing_source)
+        pass
+        # return SourcesPatchHandler().update_billing_source(source_id, billing_source)
 
     def update_authentication(self, source_id, authentication):
-        return SourcesPatchHandler().update_authentication(source_id, authentication)
+        pass
+        # return SourcesPatchHandler().update_authentication(source_id, authentication)
 
 
 @patch("sources.sources_patch_handler.reset_db_connection")

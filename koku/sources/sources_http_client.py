@@ -105,21 +105,6 @@ class SourcesHTTPClient:
         url = f"{self._base_url}/{ENDPOINT_SOURCES}/{self._source_id}"
         return self._get_network_response(url, "Unable to get source details")
 
-    def get_application_type_is_cost_management(self, cost_mgmt_id=None):
-        """Get application_type_id from source_id."""
-        if cost_mgmt_id is None:
-            cost_mgmt_id = self.get_cost_management_application_type_id()
-        endpoint_url = (
-            f"{self._base_url}/{ENDPOINT_APPLICATION_TYPES}/{cost_mgmt_id}/sources?&filter[id][]={self._source_id}"
-        )
-        endpoint_response = self._get_network_response(endpoint_url, "Unable to cost management application type")
-
-        is_cost_mgmt_type = False
-        if endpoint_response.get("data"):
-            is_cost_mgmt_type = len(endpoint_response.get("data")) > 0
-
-        return is_cost_mgmt_type
-
     def get_cost_management_application_type_id(self):
         """Get the cost management application type id."""
         application_types_url = (
@@ -128,25 +113,44 @@ class SourcesHTTPClient:
         app_types_response = self._get_network_response(
             application_types_url, "Unable to get cost management application ID Type"
         )
-        application_type_id = app_types_response.get("data")[0].get("id")
-        return int(application_type_id)
+        app_type_id_data = app_types_response.get("data")
+        if not app_type_id_data or len(app_type_id_data) != 1 or not app_type_id_data[0].get("id"):
+            raise SourcesHTTPClientError("cost management application type id not found")
+        return int(app_type_id_data[0].get("id"))
+
+    def get_application_type_is_cost_management(self, cost_mgmt_id=None):
+        """Get application_type_id from source_id."""
+        if cost_mgmt_id is None:
+            cost_mgmt_id = self.get_cost_management_application_type_id()
+        endpoint_url = (
+            f"{self._base_url}/{ENDPOINT_APPLICATION_TYPES}/{cost_mgmt_id}/sources?filter[id]={self._source_id}"
+        )
+        endpoint_response = self._get_network_response(endpoint_url, "Unable to cost management application type")
+        is_cost_mgmt_type = False
+        if endpoint_response.get("data"):
+            is_cost_mgmt_type = len(endpoint_response.get("data")) > 0
+        return is_cost_mgmt_type
 
     def get_source_type_name(self, type_id):
         """Get the source name for a give type id."""
         source_types_url = f"{self._base_url}/{ENDPOINT_SOURCE_TYPES}?filter[id]={type_id}"
         source_types_response = self._get_network_response(source_types_url, "Unable to get source name")
-        return source_types_response.get("data")[0].get("name")
+        source_types_data = source_types_response.get("data")
+        if not source_types_data or len(source_types_data) != 1 or not source_types_data[0].get("name"):
+            raise SourcesHTTPClientError("cost management application type id not found")
+        return source_types_data[0].get("name")
 
     def get_data_source(self, source_type):
         """Get the data_source settings from Sources."""
         if source_type not in APP_EXTRA_FIELD_MAP.keys():
             LOG.error(f"Unexpected source type: {source_type}")
-            return
+            raise SourcesHTTPClientError(f"[get_data_source] Unexpected source type: {source_type}")
         application_url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}"
         applications_response = self._get_network_response(application_url, "Unable to get application settings")
-        if not applications_response.get("data"):
+        applications_data = applications_response.get("data")
+        if not applications_data or len(applications_data) != 1 or not applications_data[0].get("extra"):
             raise SourcesHTTPClientError(f"No application data for source: {self._source_id}")
-        app_settings = applications_response.get("data")[0].get("extra")
+        app_settings = applications_data[0].get("extra")
         extras = APP_EXTRA_FIELD_MAP[source_type]
         return {k: app_settings.get(k) for k in extras}
 

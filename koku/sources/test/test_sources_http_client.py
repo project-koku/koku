@@ -19,7 +19,6 @@ from base64 import b64encode
 from json import dumps as json_dumps
 from unittest.mock import patch
 
-import requests
 import requests_mock
 import responses
 from django.db.models.signals import post_save
@@ -30,11 +29,16 @@ from requests.exceptions import RequestException
 from api.provider.models import Sources
 from sources.config import Config
 from sources.kafka_listener import storage_callback
+from sources.sources_http_client import ENDPOINT_APPLICATION_TYPES
+from sources.sources_http_client import ENDPOINT_SOURCE_TYPES
+from sources.sources_http_client import ENDPOINT_SOURCES
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 
 faker = Faker()
+COST_MGMT_APP_TYPE_ID = 2
+MOCK_URL = "http://mock.url"
 
 
 class SourcesHTTPClientTest(TestCase):
@@ -45,128 +49,136 @@ class SourcesHTTPClientTest(TestCase):
         super().setUp()
         post_save.disconnect(storage_callback, sender=Sources)
         self.name = "Test Source"
-        self.application_type = 2
+        self.application_type = COST_MGMT_APP_TYPE_ID
         self.source_id = 1
         self.authentication = "testauth"
 
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_network_response_success(self):
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(url=MOCK_URL, json={"data": "valid json"})
+            resp = client._get_network_response(MOCK_URL, "test error")
+            self.assertEqual(resp.get("data"), "valid json")
+
+    def test_get_network_response_json_exception(self):
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(url=MOCK_URL, text="this is not valid json")
+            with self.assertRaises(SourcesHTTPClientError):
+                client._get_network_response(MOCK_URL, "test error")
+
+    def test_get_network_response_exception(self):
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(url=MOCK_URL, exc=RequestException)
+            with self.assertRaises(SourcesHTTPClientError):
+                client._get_network_response(MOCK_URL, "test error")
+
+    def test_get_network_response_status_exception(self):
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        table = [{"status": 404, "expected": SourceNotFoundError}, {"status": 403, "expected": SourcesHTTPClientError}]
+        for test in table:
+            with self.subTest(test=test):
+                with requests_mock.mock() as m:
+                    m.get(url=MOCK_URL, status_code=test.get("status"), exc=test.get("exc"))
+                    with self.assertRaises(test.get("expected")):
+                        client._get_network_response(MOCK_URL, "test error")
+
+    # because every url request goes thru `_get_network_response`, we don't need to test particular status anymore
+
+    @patch.object(Config, "SOURCES_API_URL", MOCK_URL)
     def test_get_source_details(self):
         """Test to get source details."""
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(
-                f"http://www.sources.com/api/v1.0/sources/{self.source_id}", status_code=200, json={"name": self.name}
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_id}", status_code=200, json={"name": self.name}
             )
             response = client.get_source_details()
             self.assertEqual(response.get("name"), self.name)
 
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_source_details_unsuccessful(self):
-        """Test to get source details unsuccessfully."""
-        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
-        with requests_mock.mock() as m:
-            m.get(f"http://www.sources.com/api/v1.0/sources/{self.source_id}", status_code=404)
-            with self.assertRaises(SourceNotFoundError):
-                client.get_source_details()
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_source_details_connection_error(self):
-        """Test to get source details with connection error."""
-        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
-        with requests_mock.mock() as m:
-            m.get(f"http://www.sources.com/api/v1.0/sources/{self.source_id}", exc=RequestException)
-            with self.assertRaises(SourcesHTTPClientError):
-                client.get_source_details()
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    @patch.object(Config, "SOURCES_API_URL", MOCK_URL)
     def test_get_cost_management_application_type_id(self):
         """Test to get application type id."""
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
         with requests_mock.mock() as m:
             m.get(
-                "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATION_TYPES}?filter[name]=/insights/platform/cost-management",
                 status_code=200,
                 json={"data": [{"id": self.application_type}]},
             )
             response = client.get_cost_management_application_type_id()
             self.assertEqual(response, self.application_type)
 
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_cost_management_application_type_id_error(self):
-        """Test to get application type id with error."""
-        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
-        with requests_mock.mock() as m:
-            m.get(
-                "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
-                exc=requests.exceptions.RequestException,
-            )
-            with self.assertRaises(SourcesHTTPClientError):
-                client.get_cost_management_application_type_id()
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_cost_management_application_type_id_not_found(self):
+    @patch.object(Config, "SOURCES_API_URL", MOCK_URL)
+    def test_get_cost_management_application_type_id_exceptions(self):
         """Test to get application type id with invalid prefix."""
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
-        with requests_mock.mock() as m:
-            m.get(
-                "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
-                status_code=404,
-                json={"data": [{"id": self.application_type}]},
-            )
-            with self.assertRaises(SourceNotFoundError):
-                client.get_cost_management_application_type_id()
+        json_data = [None, [], [{"not_id": 4}]]
+        for test in json_data:
+            with self.subTest(test=test):
+                with requests_mock.mock() as m:
+                    m.get(
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATION_TYPES}?filter[name]=/insights/platform/cost-management",  # noqa: E501
+                        json={"data": test},
+                    )
+                    with self.assertRaises(SourcesHTTPClientError):
+                        client.get_cost_management_application_type_id()
 
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    @patch.object(Config, "SOURCES_API_URL", MOCK_URL)
+    def test_get_application_type_is_cost_management(self):
+        """Test if app belongs to cost management."""
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        table = [
+            {"data": None, "expected": False},
+            {"data": [], "expected": False},
+            {"data": [{"not": "empty"}], "expected": True},
+            {"cost-id": COST_MGMT_APP_TYPE_ID, "data": None, "expected": False},
+            {"cost-id": COST_MGMT_APP_TYPE_ID, "data": [], "expected": False},
+            {"cost-id": COST_MGMT_APP_TYPE_ID, "data": [{"not": "empty"}], "expected": True},
+        ]
+        for test in table:
+            with self.subTest(test=test):
+                with patch.object(SourcesHTTPClient, "get_cost_management_application_type_id", return_value=2):
+                    with requests_mock.mock() as m:
+                        m.get(
+                            f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_id}",  # noqa: E501
+                            json={"data": test.get("data")},
+                        )
+                        result = client.get_application_type_is_cost_management(test.get("cost-id"))
+                        self.assertEqual(result, test.get("expected"))
+
+    @patch.object(Config, "SOURCES_API_URL", MOCK_URL)
     def test_get_source_type_name(self):
         """Test to get source type name from type id."""
         source_type_id = 3
-        mock_source_name = "fakesource"
+        mock_source_name = faker.name()
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
         with requests_mock.mock() as m:
             m.get(
-                f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCE_TYPES}?filter[id]={source_type_id}",
                 status_code=200,
                 json={"data": [{"name": mock_source_name}]},
             )
             response = client.get_source_type_name(source_type_id)
             self.assertEqual(response, mock_source_name)
 
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_source_type_name_error(self):
+    @patch.object(Config, "SOURCES_API_URL", MOCK_URL)
+    def test_get_source_type_name_exceptions(self):
         """Test to get source type name from type id with error."""
         source_type_id = 3
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
-                exc=requests.exceptions.RequestException,
-            )
-            with self.assertRaises(SourcesHTTPClientError):
-                client.get_source_type_name(source_type_id)
+        json_data = [None, [], [{"not_name": 4}]]
+        for test in json_data:
+            with self.subTest(test=test):
+                with requests_mock.mock() as m:
+                    m.get(
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCE_TYPES}?filter[id]={source_type_id}", json={"data": test}
+                    )
+                    with self.assertRaises(SourcesHTTPClientError):
+                        client.get_source_type_name(source_type_id)
 
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_get_source_type_name_non_200(self):
-        """Test to get source type name from type id with bad response."""
-        source_type_id = 3
-        mock_source_name = "fakesource"
-        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
-                status_code=404,
-                json={"data": [{"name": mock_source_name}]},
-            )
-            with self.assertRaises(SourceNotFoundError):
-                client.get_source_type_name(source_type_id)
-
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
-                status_code=401,
-                json={"data": [{"name": mock_source_name}]},
-            )
-            with self.assertRaises(SourcesHTTPClientError):
-                client.get_source_type_name(source_type_id)
+    # TODO PICK UP HERE
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_get_aws_credentials(self):

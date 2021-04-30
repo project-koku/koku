@@ -251,7 +251,7 @@ class SourceMsgProcessor(KafkaMessageProcessor):
         self.source_id = int(self.value.get("id"))
 
     def process(self):
-        if self.event_type in (KAFKA_SOURCE_UPDATE,):
+        if self.event_type in (KAFKA_SOURCE_UPDATE,):  # TODO source.update events are currently ignored
             if not storage.is_known_source(self.source_id):
                 LOG.info("Update event for unknown source id, skipping...")
                 return
@@ -275,7 +275,7 @@ def extract_from_header(headers, header_type):
                     continue
                 else:
                     return item.decode("ascii")
-    return
+    return "unknown"
 
 
 def create_msg_processor(msg, cost_mgmt_id):
