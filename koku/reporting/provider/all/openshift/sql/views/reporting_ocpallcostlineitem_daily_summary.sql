@@ -89,12 +89,13 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
            FROM reporting_ocpazurecostlineitem_daily_summary
           WHERE reporting_ocpazurecostlineitem_daily_summary.usage_start
                     >= date_trunc('month'::text, (now() - '1 mon'::interval))::date) lids
- GROUP BY source_type, usage_start, cluster_id, namespace, node, usage_account_id, resource_id,
-          product_code, product_family, instance_type, region, availability_zone, tags, project_costs
+ GROUP BY lids.source_type, lids.usage_start, lids.cluster_id, lids.namespace, lids.node, lids.usage_account_id, lids.resource_id,
+          lids.product_code, lids.product_family, lids.instance_type, lids.region, lids.availability_zone, lids.tags, lids.project_costs,
+          lids.tags
 )
-WITH DATA
 ;
 
+/* Once sql and/or data are fixed, add WITH DATA back in */
 
 CREATE UNIQUE INDEX ocpall_cost_daily_summary ON reporting_ocpallcostlineitem_daily_summary USING btree
                     (source_type, usage_start, cluster_id, namespace, node, usage_account_id, resource_id,

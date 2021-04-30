@@ -18,6 +18,7 @@
 import binascii
 import logging
 import threading
+import time
 from http import HTTPStatus
 from json.decoder import JSONDecodeError
 
@@ -335,6 +336,12 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                         return HttpResponseFailedDependency({"source": "Rbac", "exception": err})
                 cache.set(user.uuid, user_access, self.rbac.cache_ttl)
             user.access = user_access
+
+            user.beta = False
+            if request.META.get("HTTP_REFERER"):
+                referer = request.META["HTTP_REFERER"]
+                if "/beta/" in referer:
+                    user.beta = True
             request.user = user
 
     def process_response(self, request, response):
@@ -366,8 +373,32 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             "username": username,
             "is_admin": is_admin,
         }
-        LOG.info(stmt)
+        response.log_statement = stmt
 
+        return response
+
+
+class RequestTimingMiddleware(MiddlewareMixin):
+    """A class to add total time taken to a request/response."""
+
+    def process_request(self, request):  # noqa: C901
+        """Process request to add start time.
+        Args:
+            request (object): The request object
+        """
+        request.start_time = time.time()
+
+    def process_response(self, request, response):
+        """Process response to log total time.
+        Args:
+            request (object): The request object
+            response (object): The response object
+        """
+        if hasattr(response, "log_statement"):
+            stmt = response.log_statement
+            time_taken_ms = (time.time() - request.start_time) * 1000
+            stmt.update({"response_time": f"{time_taken_ms:.2f} ms"})
+            LOG.info(stmt)
         return response
 
 

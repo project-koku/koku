@@ -150,6 +150,9 @@ class TestGCPUtils(MasuTestCase):
         df = pd.DataFrame(data)
 
         result_df = utils.gcp_post_processor(df)
+        if isinstance(result_df, tuple):
+            result_df, df_tag_keys = result_df
+            self.assertIsInstance(df_tag_keys, set)
 
         result_columns = list(result_df)
         self.assertEqual(sorted(result_columns), sorted(expected_columns))

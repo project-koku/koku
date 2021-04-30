@@ -61,6 +61,9 @@ class TestAzureUtils(MasuTestCase):
         data = {"MeterSubCategory": [1]}
         df = pd.DataFrame(data)
         result = azure_post_processor(df)
+        if isinstance(result, tuple):
+            result, df_tag_keys = result
+            self.assertIsInstance(df_tag_keys, set)
 
         columns = list(result)
 
