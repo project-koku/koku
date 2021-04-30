@@ -1224,21 +1224,21 @@ class AWSReportQueryTest(IamTestCase):
             },
             {
                 "date": "2000-01-02",
-                "account": "4",
-                "account_alias": "acct 4",
-                "infra_total": 0.0,
-                "sup_total": 0.0,
-                "cost_total": 0.0,
-                "rank": 2,
-            },
-            {
-                "date": "2000-01-02",
                 "account": "5",
                 "account_alias": "5",
                 "infra_total": 0.0,
                 "sup_total": 0.0,
                 "cost_total": 0.0,
                 "rank": 5,
+            },
+            {
+                "date": "2000-01-02",
+                "account": "4",
+                "account_alias": "acct 4",
+                "infra_total": 0.0,
+                "sup_total": 0.0,
+                "cost_total": 0.0,
+                "rank": 2,
             },
             {
                 "date": "2000-01-03",
@@ -1269,15 +1269,6 @@ class AWSReportQueryTest(IamTestCase):
             },
             {
                 "date": "2000-01-03",
-                "account": "1",
-                "account_alias": "acct 1",
-                "infra_total": 0.0,
-                "sup_total": 0.0,
-                "cost_total": 0.0,
-                "rank": 4,
-            },
-            {
-                "date": "2000-01-03",
                 "account": "5",
                 "account_alias": "5",
                 "infra_total": 0.0,
@@ -1285,9 +1276,19 @@ class AWSReportQueryTest(IamTestCase):
                 "cost_total": 0.0,
                 "rank": 5,
             },
+            {
+                "date": "2000-01-03",
+                "account": "1",
+                "account_alias": "acct 1",
+                "infra_total": 0.0,
+                "sup_total": 0.0,
+                "cost_total": 0.0,
+                "rank": 4,
+            },
         ]
         ranked_list = handler._ranked_list(data_list, ranks=["3", "4", "2", "1", "5"])
-        self.assertEqual(ranked_list, expected)
+        for each in expected: 
+            self.assertIn(each, ranked_list)
 
     def test_rank_list_big_limit(self):
         """Test rank list limit with account alias, ensuring we return results with limited data."""
