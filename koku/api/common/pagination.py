@@ -168,7 +168,7 @@ class ReportPagination(StandardResultsSetPagination):
         paginated_data = data.pop("data", [])
         filter_limit = data.get("filter", {}).get("limit", 0)
         meta = {"count": self.count, "others": 0}
-        if self.others & self.others > filter_limit:
+        if self.others and (self.others > filter_limit):
             meta["others"] = self.others - filter_limit
         response = {
             "meta": meta,
