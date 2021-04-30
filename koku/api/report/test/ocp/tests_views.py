@@ -477,6 +477,32 @@ class OCPReportViewTest(IamTestCase):
                 ).get("value")
                 self.assertEqual(usage_total, totals.get(date))
 
+    def test_execute_query_ocp_memory_group_by_limit_large(self):
+        """Test that OCP Mem endpoint works with limits."""
+        url = reverse("reports-openshift-memory")
+        client = APIClient()
+        params = {
+            "group_by[node]": "*",
+            "filter[limit]": "1000",
+            "filter[time_scope_value]": "-10",
+            "filter[time_scope_units]": "day",
+            "filter[resolution]": "daily",
+        }
+        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        data = response.data
+
+        with tenant_context(self.tenant):
+            num_nodes = (
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
+                .aggregate(Count("node", distinct=True))
+                .get("node__count")
+            )
+
+        # assert the others count is correct
+        meta = data.get("meta")
+        self.assertEqual(meta.get("others"), 0)
+
     def test_execute_query_ocp_costs_group_by_cluster(self):
         """Test that the costs endpoint is reachable."""
         url = reverse("reports-openshift-costs")
