@@ -492,13 +492,6 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         data = response.data
 
-        with tenant_context(self.tenant):
-            num_nodes = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
-                .aggregate(Count("node", distinct=True))
-                .get("node__count")
-            )
-
         # assert the others count is correct
         meta = data.get("meta")
         self.assertEqual(meta.get("others"), 0)
