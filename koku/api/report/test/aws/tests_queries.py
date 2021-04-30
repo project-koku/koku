@@ -1287,7 +1287,7 @@ class AWSReportQueryTest(IamTestCase):
             },
         ]
         ranked_list = handler._ranked_list(data_list, ranks=["3", "4", "2", "1", "5"])
-        for each in expected: 
+        for each in expected:
             self.assertIn(each, ranked_list)
 
     def test_rank_list_big_limit(self):
