@@ -504,8 +504,6 @@ class SourcesHTTPClientTest(TestCase):
         for app, auth, internal in product(
             applications_reponse_table, authentications_response_table, internal_response_table
         ):
-            if all([app.get("valid"), auth.get("valid"), internal.get("valid")]):
-                continue  # skip that last valid permutation
             with self.subTest(test=(app, auth, internal)):
                 with requests_mock.mock() as m:
                     m.get(
@@ -526,8 +524,11 @@ class SourcesHTTPClientTest(TestCase):
                         status_code=200,
                         json=internal.get("json"),
                     )
-                    with self.assertRaises(SourcesHTTPClientError):
-                        client._get_azure_credentials()
+                    if all([app.get("valid"), auth.get("valid"), internal.get("valid")]):
+                        self.assertIsNotNone(client._get_azure_credentials())
+                    else:
+                        with self.assertRaises(SourcesHTTPClientError):
+                            client._get_azure_credentials()
 
     def test_build_status_header(self):
         """Test build status header success and failure."""
