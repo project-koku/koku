@@ -42,7 +42,6 @@ class MockSourcesClient:
         self._url = address
 
 
-@patch("sources.sources_patch_handler.reset_db_connection")
 class AdminSourcesSerializerTests(IamTestCase):
     """Test Cases for the sources endpoint."""
 
@@ -90,7 +89,7 @@ class AdminSourcesSerializerTests(IamTestCase):
         )
         self.aws_obj.save()
 
-    def test_create_via_admin_serializer(self, _):
+    def test_create_via_admin_serializer(self):
         """Test create source with admin serializer."""
         source_data = {
             "name": "test1",
@@ -125,7 +124,7 @@ class AdminSourcesSerializerTests(IamTestCase):
             else:
                 self.fail("test_create_via_admin_serializer failed")
 
-    def test_create_via_admin_serializer_bad_source_type(self, _):
+    def test_create_via_admin_serializer_bad_source_type(self):
         """Raise error for bad source type on create."""
         source_data = {
             "name": "test",
@@ -140,7 +139,7 @@ class AdminSourcesSerializerTests(IamTestCase):
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
 
-    def test_negative_get_account_from_header(self, _):
+    def test_negative_get_account_from_header(self):
         """Test flow with out header."""
         account = get_account_from_header(Mock(headers={}))
         self.assertIsNone(account)
@@ -150,7 +149,7 @@ class AdminSourcesSerializerTests(IamTestCase):
 
     @patch("api.provider.serializers.ProviderSerializer.get_request_info")
     @patch("sources.api.serializers.get_auth_header", return_value=Config.SOURCES_FAKE_HEADER)
-    def test_provider_create(self, mock_header, mock_request_info, _):
+    def test_provider_create(self, mock_header, mock_request_info):
         mock_request_info.return_value = self.User, self.Customer
 
         serializer = AdminSourcesSerializer(context=self.request_context)
@@ -170,7 +169,7 @@ class AdminSourcesSerializerTests(IamTestCase):
 
     @patch("api.provider.serializers.ProviderSerializer.get_request_info")
     @patch("sources.api.serializers.get_auth_header", return_value=Config.SOURCES_FAKE_HEADER)
-    def test_gcp_admin_add_table_not_ready(self, mock_header, mock_request_info, _):
+    def test_gcp_admin_add_table_not_ready(self, mock_header, mock_request_info):
         """Test a GCP Admin Source add where the billing table is not ready."""
         mock_request_info.return_value = self.User, self.Customer
 

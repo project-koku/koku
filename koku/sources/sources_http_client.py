@@ -136,10 +136,10 @@ class SourcesHTTPClient:
         """Get the source name for a give type id."""
         source_types_url = f"{self._base_url}/{ENDPOINT_SOURCE_TYPES}?filter[id]={type_id}"
         source_types_response = self._get_network_response(source_types_url, "Unable to get source name")
-        source_types_data = source_types_response.get("data")
-        if not source_types_data or len(source_types_data) != 1 or not source_types_data[0].get("name"):
-            raise SourcesHTTPClientError("cost management application type id not found")
-        return source_types_data[0].get("name")
+        source_types_data = (source_types_response.get("data") or [None])[0]
+        if not source_types_data or not source_types_data.get("name"):
+            raise SourcesHTTPClientError("source type name not found")
+        return source_types_data.get("name")
 
     def get_data_source(self, source_type):
         """Get the data_source settings from Sources."""

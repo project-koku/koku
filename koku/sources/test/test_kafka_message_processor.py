@@ -15,10 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 import json
+from unittest.mock import patch
+from uuid import uuid4
 
 from django.db.models.signals import post_save
 from django.test import TestCase
+from faker import Faker
 
+from api.provider.models import Provider
 from api.provider.models import Sources
 from koku.middleware import IdentityHeaderMiddleware
 from sources.config import Config
@@ -33,11 +37,31 @@ from sources.kafka_message_processor import KAFKA_AUTHENTICATION_CREATE
 from sources.kafka_message_processor import KAFKA_AUTHENTICATION_UPDATE
 from sources.kafka_message_processor import KAFKA_SOURCE_DESTROY
 from sources.kafka_message_processor import KAFKA_SOURCE_UPDATE
+from sources.kafka_message_processor import SourceDetails
 from sources.kafka_message_processor import SourceMsgProcessor
+from sources.kafka_message_processor import SOURCES_AWS_SOURCE_NAME
+from sources.kafka_message_processor import SOURCES_AZURE_SOURCE_NAME
+from sources.kafka_message_processor import SOURCES_GCP_SOURCE_NAME
+from sources.kafka_message_processor import SOURCES_OCP_SOURCE_NAME
+from sources.sources_http_client import SourcesHTTPClient
 from sources.test.test_kafka_listener import ConsumerRecord
 from sources.test.test_sources_http_client import COST_MGMT_APP_TYPE_ID
 
 NoneType = type(None)
+
+FAKER = Faker()
+SOURCE_TYPE_IDS = {
+    1: SOURCES_AWS_SOURCE_NAME,
+    2: SOURCES_AZURE_SOURCE_NAME,
+    3: SOURCES_GCP_SOURCE_NAME,
+    4: SOURCES_OCP_SOURCE_NAME,
+}
+SOURCE_TYPE_IDS_MAP = {
+    Provider.PROVIDER_AWS: 1,
+    Provider.PROVIDER_AZURE: 2,
+    Provider.PROVIDER_GCP: 3,
+    Provider.PROVIDER_OCP: 4,
+}
 
 
 def msg_generator(event_type, topic=None, offset=None, value=None):
@@ -53,6 +77,15 @@ def msg_generator(event_type, topic=None, offset=None, value=None):
     )
 
 
+def mock_details_generator(provider_type, name, uid, source_id):
+    """Generates a fake source details dict."""
+    source_type_id = SOURCE_TYPE_IDS_MAP[provider_type]
+    details = {"name": name, "source_type_id": source_type_id, "uid": uid}
+    with patch.object(SourcesHTTPClient, "get_source_details", return_value=details):
+        with patch.object(SourcesHTTPClient, "get_source_type_name", return_value=SOURCE_TYPE_IDS[source_type_id]):
+            return SourceDetails(Config.SOURCES_FAKE_HEADER, source_id)
+
+
 class KafkaMessageProcessorTest(TestCase):
     """Test cases for KafkaMessageProcessor."""
 
@@ -63,6 +96,21 @@ class KafkaMessageProcessorTest(TestCase):
         post_save.disconnect(storage_callback, sender=Sources)
         account = "12345"
         IdentityHeaderMiddleware.create_customer(account)
+
+    def test_fake_details_generator(self):
+        """Test to ensure the generator makes things correctly."""
+        provider_types = [Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP, Provider.PROVIDER_OCP]
+        for provider in provider_types:
+            with self.subTest(test=provider):
+                uid = uuid4()
+                name = FAKER.name()
+                source_id = FAKER.pyint()
+                deets = mock_details_generator(provider, name, uid, source_id)
+                self.assertIsInstance(deets, SourceDetails)
+                self.assertEqual(deets.name, name)
+                self.assertEqual(deets.source_type, provider)
+                self.assertEqual(deets.source_type_name, SOURCE_TYPE_IDS[SOURCE_TYPE_IDS_MAP[provider]])
+                self.assertEqual(deets.source_uuid, uid)
 
     def test_create_msg_processor(self):
         """Test create_msg_processor returns the correct processor based on msg event."""

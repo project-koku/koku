@@ -76,14 +76,12 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
 
 
 LOG = logging.getLogger(__name__)
-MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet]
+MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet]
 HTTP_METHOD_LIST = ["get", "head"]
 
 if settings.DEVELOPMENT:
-    MIXIN_LIST.append(mixins.CreateModelMixin)
-    MIXIN_LIST.append(DestroySourceMixin)
-    HTTP_METHOD_LIST.append("post")
-    HTTP_METHOD_LIST.append("delete")
+    MIXIN_LIST.extend([mixins.CreateModelMixin, mixins.UpdateModelMixin, DestroySourceMixin])
+    HTTP_METHOD_LIST.extend(["post", "patch", "delete"])
 
 
 class SourceFilter(FilterSet):
