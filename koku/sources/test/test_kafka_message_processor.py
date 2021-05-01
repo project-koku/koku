@@ -19,9 +19,9 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from django.db.models.signals import post_save
-from django.test import TestCase
 from faker import Faker
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
 from koku.middleware import IdentityHeaderMiddleware
@@ -86,7 +86,7 @@ def mock_details_generator(provider_type, name, uid, source_id):
             return SourceDetails(Config.SOURCES_FAKE_HEADER, source_id)
 
 
-class KafkaMessageProcessorTest(TestCase):
+class KafkaMessageProcessorTest(IamTestCase):
     """Test cases for KafkaMessageProcessor."""
 
     @classmethod

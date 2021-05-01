@@ -25,13 +25,13 @@ from django.db import IntegrityError
 from django.db import InterfaceError
 from django.db import OperationalError
 from django.db.models.signals import post_save
-from django.test import TestCase
 from django.test.utils import override_settings
 from faker import Faker
 from kafka.errors import KafkaError
 from rest_framework.exceptions import ValidationError
 
 import sources.kafka_listener as source_integration
+from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
@@ -159,7 +159,7 @@ class MockKafkaConsumer:
         return await self.getone()
 
 
-class SourcesKafkaMsgHandlerTest(TestCase):
+class SourcesKafkaMsgHandlerTest(IamTestCase):
     """Test Cases for the Sources Kafka Listener."""
 
     @classmethod
