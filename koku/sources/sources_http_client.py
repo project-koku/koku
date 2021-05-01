@@ -16,11 +16,12 @@
 #
 """Sources HTTP Client."""
 import binascii
-import json
 import logging
 from base64 import b64decode
 from base64 import b64encode
 from json import dumps as json_dumps
+from json import JSONDecodeError
+from json import loads as json_loads
 
 import requests
 from requests.exceptions import RequestException
@@ -147,12 +148,17 @@ class SourcesHTTPClient:
             raise SourcesHTTPClientError(f"[get_data_source] Unexpected source type: {source_type}")
         application_url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}"
         applications_response = self._get_network_response(application_url, "Unable to get application settings")
-        applications_data = applications_response.get("data")
-        if not applications_data or len(applications_data) != 1 or not applications_data[0].get("extra"):
+        applications_data = (applications_response.get("data") or [None])[0]
+        if not applications_data:
             raise SourcesHTTPClientError(f"No application data for source: {self._source_id}")
-        app_settings = applications_data[0].get("extra")
-        extras = APP_EXTRA_FIELD_MAP[source_type]
-        return {k: app_settings.get(k) for k in extras}
+        app_settings = applications_data.get("extra", {})
+        required_extras = APP_EXTRA_FIELD_MAP[source_type]
+        if any(k not in app_settings for k in required_extras):
+            raise SourcesHTTPClientError(
+                f"missing application data for source: {self._source_id}. "
+                f"expected: {required_extras}, got: {app_settings.keys()}"
+            )
+        return {k: app_settings.get(k) for k in required_extras}
 
     def get_credentials(self, source_type):
         """Get the source credentials."""
@@ -209,7 +215,6 @@ class SourcesHTTPClient:
 
     def _get_azure_credentials(self):
         """Get the Azure Credentials from Sources Authentication service."""
-
         # get subscription_id from applications extra
         url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}"
         app_response = self._get_network_response(url, "Unable to get Azure credentials")
@@ -225,6 +230,7 @@ class SourcesHTTPClient:
         if not auth_data:
             raise SourcesHTTPClientError(f"Unable to get Azure credentials for Source: {self._source_id}")
         auth_id = auth_data.get("id")
+
         # get client secret
         auth_internal_url = (
             f"{self._internal_url}/{ENDPOINT_AUTHENTICATIONS}/{auth_id}?expose_encrypted_attribute[]=password"
@@ -243,50 +249,11 @@ class SourcesHTTPClient:
 
         raise SourcesHTTPClientError(f"Unable to get Azure credentials for Source: {self._source_id}")
 
-    def set_source_status(self, error_msg, cost_management_type_id=None):
-        """Set the source status with error message."""
-        if storage.is_known_source(self._source_id):
-            storage.clear_update_flag(self._source_id)
-        status_header = self.build_status_header()
-        if not status_header:
-            return False
-
-        if not cost_management_type_id:
-            cost_management_type_id = self.get_cost_management_application_type_id()
-
-        application_query_url = (
-            f"{self._base_url}/{ENDPOINT_APPLICATIONS}"
-            f"?filter[application_type_id]={cost_management_type_id}&filter[source_id]={self._source_id}"
-        )
-        application_query_response = self._get_network_response(
-            application_query_url, "Unable to get Azure credentials"
-        )
-        response_data = application_query_response.get("data")
-        if response_data:
-            application_id = response_data[0].get("id")
-            application_url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}/{application_id}"
-
-            json_data = self.build_source_status(error_msg)
-            if storage.save_status(self._source_id, json_data):
-                LOG.info(f"Setting Source Status for Source ID: {self._source_id}: {json_data}")
-                application_response = requests.patch(application_url, json=json_data, headers=status_header)
-                error_message = (
-                    f"Unable to set status for Source {self._source_id}. Reason: Status code: "
-                    f"{application_response.status_code}. Response: {application_response.text}."
-                )
-                if application_response.status_code != 204:
-                    if application_response.status_code != 404:
-                        raise SourcesHTTPClientError(error_message)
-                    else:
-                        LOG.info(error_message)
-                return True
-        return False
-
     def build_status_header(self):
         """Build org-admin header for internal status delivery."""
         try:
             encoded_auth_header = self._identity_header.get("x-rh-identity")
-            identity = json.loads(b64decode(encoded_auth_header))
+            identity = json_loads(b64decode(encoded_auth_header))
             account = identity["identity"]["account_number"]
 
             identity_header = {
@@ -300,7 +267,7 @@ class SourcesHTTPClient:
             cost_internal_header = b64encode(json_identity.encode("utf-8"))
 
             return {"x-rh-identity": cost_internal_header}
-        except (binascii.Error, json.JSONDecodeError, TypeError, KeyError) as error:
+        except (binascii.Error, JSONDecodeError, TypeError, KeyError, ValueError) as error:
             LOG.error(f"Unable to build internal status header. Error: {str(error)}")
 
     def build_source_status(self, error_obj):
@@ -329,3 +296,42 @@ class SourcesHTTPClient:
 
         user_facing_string = SourcesErrorMessage(error_obj).display(self._source_id)
         return {"availability_status": status, "availability_status_error": user_facing_string}
+
+    def set_source_status(self, error_msg, cost_management_type_id=None):
+        """Set the source status with error message."""
+        if storage.is_known_source(self._source_id):
+            storage.clear_update_flag(self._source_id)
+        status_header = self.build_status_header()
+        if not status_header:
+            return False
+
+        if not cost_management_type_id:
+            cost_management_type_id = self.get_cost_management_application_type_id()
+
+        application_query_url = (
+            f"{self._base_url}/{ENDPOINT_APPLICATIONS}"
+            f"?filter[application_type_id]={cost_management_type_id}&filter[source_id]={self._source_id}"
+        )
+        application_query_response = self._get_network_response(
+            application_query_url, "[set_source_status] Unable to get application"
+        )
+        response_data = (application_query_response.get("data") or [None])[0]
+        if response_data:
+            application_id = response_data.get("id")
+            application_url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}/{application_id}"
+
+            json_data = self.build_source_status(error_msg)
+            if storage.save_status(self._source_id, json_data):
+                LOG.info(f"Setting Source Status for Source ID: {self._source_id}: {json_data}")
+                application_response = requests.patch(application_url, json=json_data, headers=status_header)
+                error_message = (
+                    f"Unable to set status for Source {self._source_id}. Reason: Status code: "
+                    f"{application_response.status_code}. Response: {application_response.text}."
+                )
+                if application_response.status_code != 204:
+                    if application_response.status_code != 404:
+                        raise SourcesHTTPClientError(error_message)
+                    else:
+                        LOG.info(error_message)
+                return True
+        return False
