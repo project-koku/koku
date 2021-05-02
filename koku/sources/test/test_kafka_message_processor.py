@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+import copy
 import json
 from itertools import product
 from random import choice
@@ -286,8 +287,9 @@ class KafkaMessageProcessorTest(IamTestCase):
         msg = msg_generator(event)
         processor = KafkaMessageProcessor(msg, event, COST_MGMT_APP_TYPE_ID)
         with patch.object(SourcesHTTPClient, "get_data_source", side_effect=side_effect_func):
-            PROVIDER_LIST.remove(Provider.PROVIDER_OCP)  # OCP is the oddball and does not save billing data
-            for saved, provider in product([True, None], PROVIDER_LIST):
+            new_list = copy.copy(PROVIDER_LIST)
+            new_list.remove(Provider.PROVIDER_OCP)  # OCP is the oddball and does not save billing data
+            for saved, provider in product([True, None], new_list):
                 with self.subTest(test=(saved, provider)):
                     with patch("sources.storage.get_source_type", return_value=provider):
                         with patch(
@@ -317,8 +319,9 @@ class KafkaMessageProcessorTest(IamTestCase):
         msg = msg_generator(event)
         processor = KafkaMessageProcessor(msg, event, COST_MGMT_APP_TYPE_ID)
         with patch.object(SourcesHTTPClient, "get_data_source", side_effect=SourcesHTTPClientError):
-            PROVIDER_LIST.remove(Provider.PROVIDER_OCP)  # OCP is the oddball and does not save billing data
-            for saved, provider in product([True, None], PROVIDER_LIST):
+            new_list = copy.copy(PROVIDER_LIST)
+            new_list.remove(Provider.PROVIDER_OCP)  # OCP is the oddball and does not save billing data
+            for saved, provider in product([True, None], new_list):
                 with self.subTest(test=(saved, provider)):
                     with patch("sources.storage.get_source_type", return_value=provider):
                         with patch.object(SourcesHTTPClient, "set_source_status") as mock_set:
