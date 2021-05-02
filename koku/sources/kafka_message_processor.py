@@ -178,7 +178,7 @@ class KafkaMessageProcessor:
             return
         if source_type == Provider.PROVIDER_OCP:
             # OCP sources do not have billing sources, so skip running thru this function
-            LOG.info("skipping save billing source for OCP provider")
+            LOG.info("skipping save_billing_source for OCP source")
             return
 
         sources_network = self.get_sources_client()

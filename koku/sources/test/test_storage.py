@@ -171,7 +171,7 @@ class SourcesStorageTest(TestCase):
             with self.assertRaises(InterfaceError):
                 storage.destroy_source_event(self.test_source_id)
 
-    def test_add_provider_network_info(self):
+    def test_add_provider_sources_details(self):
         """Tests that adding information retrieved from the sources network API is successful."""
         test_source = Sources.objects.get(source_id=self.test_source_id)
         self.assertIsNone(test_source.name)
@@ -190,7 +190,7 @@ class SourcesStorageTest(TestCase):
         self.assertEqual(test_source.source_type, source_type)
         self.assertEqual(str(test_source.source_uuid), source_uuid)
 
-    def test_add_provider_network_info_not_found(self):
+    def test_add_provider_sources_details_not_found(self):
         """Tests that adding information retrieved from the sources network API is not successful."""
         try:
             test_name = "My Source Name"
@@ -363,7 +363,8 @@ class SourcesStorageTest(TestCase):
         )
         aws_obj.save()
 
-        storage.add_provider_sources_auth_info(test_source_id, test_authentication)
+        result = storage.add_provider_sources_auth_info(test_source_id, test_authentication)
+        self.assertTrue(result)
         response = Sources.objects.filter(source_id=test_source_id).first()
         self.assertEquals(response.authentication, test_authentication)
 
@@ -381,10 +382,38 @@ class SourcesStorageTest(TestCase):
         )
         azure_obj.save()
 
-        storage.add_provider_sources_auth_info(test_source_id, test_authentication)
+        result = storage.add_provider_sources_auth_info(test_source_id, test_authentication)
+        self.assertTrue(result)
         response = Sources.objects.filter(source_id=test_source_id).first()
         self.assertEquals(response.authentication.get("credentials").get("subscription_id"), "orig-sub-id")
         self.assertEquals(response.authentication.get("credentials").get("client_id"), "new-client-id")
+
+    def test_add_provider_sources_billing_info(self):
+        """Test to add billing_source to a source."""
+        test_source_id = 3
+        test_billing = {"bucket": "bucket"}
+        aws_obj = Sources(
+            source_id=test_source_id,
+            auth_header=self.test_header,
+            offset=3,
+            source_type=Provider.PROVIDER_AWS,
+            name="Test AWS Source",
+            authentication={"role_arn": "arn:test"},
+        )
+        aws_obj.save()
+
+        result = storage.add_provider_sources_billing_info(test_source_id, test_billing)
+        self.assertTrue(result)
+        response = Sources.objects.filter(source_id=test_source_id).first()
+        self.assertEquals(response.billing_source, test_billing)
+
+    def test_add_provider_sources_billing_info_no_source(self):
+        """Test to add billing_source to a non-existent source."""
+        test_source_id = 3
+        test_billing = {"bucket": "bucket"}
+
+        result = storage.add_provider_sources_billing_info(test_source_id, test_billing)
+        self.assertIsNotNone(result)
 
     def test_enqueue_source_delete(self):
         """Test for enqueuing source delete."""
