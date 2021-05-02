@@ -144,8 +144,9 @@ class SourcesHTTPClient:
     def get_data_source(self, source_type):
         """Get the data_source settings from Sources."""
         if source_type not in APP_EXTRA_FIELD_MAP.keys():
-            LOG.error(f"Unexpected source type: {source_type}")
-            raise SourcesHTTPClientError(f"[get_data_source] Unexpected source type: {source_type}")
+            msg = f"[get_data_source] Unexpected source type: {source_type}"
+            LOG.error(msg)
+            raise SourcesHTTPClientError(msg)
         application_url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}"
         applications_response = self._get_network_response(application_url, "Unable to get application settings")
         applications_data = (applications_response.get("data") or [None])[0]
@@ -163,8 +164,9 @@ class SourcesHTTPClient:
     def get_credentials(self, source_type):
         """Get the source credentials."""
         if source_type not in self.credential_map.keys():
-            LOG.error(f"Unexpected source type: {source_type}")
-            return
+            msg = f"[get_credentials] unexpected source type: {source_type}"
+            LOG.error(msg)
+            raise SourcesHTTPClientError(msg)
         return self.credential_map.get(source_type)()
 
     def _get_ocp_credentials(self):

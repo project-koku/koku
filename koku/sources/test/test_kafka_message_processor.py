@@ -260,7 +260,7 @@ class KafkaMessageProcessorTest(IamTestCase):
             _get_gcp_credentials=MagicMock(side_effect=SourcesHTTPClientError),
             _get_ocp_credentials=MagicMock(side_effect=SourcesHTTPClientError),
         ):
-            for provider in PROVIDER_LIST:
+            for provider in Provider.PROVIDER_LIST:
                 with self.subTest(test=provider):
                     with patch("sources.storage.get_source_type", return_value=provider):
                         with patch.object(SourcesHTTPClient, "set_source_status") as mock_set:
@@ -319,7 +319,7 @@ class KafkaMessageProcessorTest(IamTestCase):
         msg = msg_generator(event)
         processor = KafkaMessageProcessor(msg, event, COST_MGMT_APP_TYPE_ID)
         with patch.object(SourcesHTTPClient, "get_data_source", side_effect=SourcesHTTPClientError):
-            new_list = copy.copy(PROVIDER_LIST)
+            new_list = copy.copy(Provider.PROVIDER_LIST)
             new_list.remove(Provider.PROVIDER_OCP)  # OCP is the oddball and does not save billing data
             for saved, provider in product([True, None], new_list):
                 with self.subTest(test=(saved, provider)):
