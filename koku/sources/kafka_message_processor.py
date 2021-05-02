@@ -104,7 +104,7 @@ class KafkaMessageProcessor:
         if self.event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_APPLICATION_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
             sources_network = self.get_sources_client()
             return sources_network.get_application_type_is_cost_management(self.cost_mgmt_id)
-        return True
+        return True  # TODO: I wonder if this should be false?
 
     def get_sources_client(self):
         return SourcesHTTPClient(self.auth_header, self.source_id)
@@ -112,7 +112,7 @@ class KafkaMessageProcessor:
     def get_source_details(self):
         return SourceDetails(self.auth_header, self.source_id)
 
-    def sources_details(self):
+    def save_sources_details(self):
         """
         Get additional sources context from Sources REST API.
         Additional details retrieved from the network includes:
@@ -153,7 +153,7 @@ class KafkaMessageProcessor:
             LOG.info(f"authentication info not available for Source ID: {self.source_id}")
             sources_network.set_source_status(error)
         else:
-            if not authentication.get("credentials"):
+            if not authentication.get("credentials"):  # TODO: is this check needed?
                 return
             saved = storage.add_provider_sources_auth_info(self.source_id, authentication)
             if saved:
@@ -175,6 +175,10 @@ class KafkaMessageProcessor:
 
         if not source_type:
             LOG.info(f"Source ID not found for ID: {self.source_id}")
+            return
+        if source_type == Provider.PROVIDER_OCP:
+            # OCP sources do not have billing sources, so skip running thru this function
+            LOG.info("skipping save billing source for OCP provider")
             return
 
         sources_network = self.get_sources_client()
@@ -204,9 +208,13 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
 
         if storage.is_known_source(self.source_id):
             if self.event_type in (KAFKA_APPLICATION_CREATE,):
-                self.sources_details()
+                self.save_sources_details()
                 self.save_billing_source()
-                if storage.get_source_type(self.source_id) == Provider.PROVIDER_OCP:  # of course, OCP is the oddball
+                # Authentication messages are responsible for saving credentials.
+                # However, OCP does not send an Auth message. Therefore, we need
+                # to run the following branch for OCP which completes the source creation
+                # for an OCP source.
+                if storage.get_source_type(self.source_id) == Provider.PROVIDER_OCP:
                     self.save_credentials()
             if self.event_type in (KAFKA_APPLICATION_UPDATE,):
                 # Because azure auth is split in Sources backend, we need to check both
@@ -255,7 +263,7 @@ class SourceMsgProcessor(KafkaMessageProcessor):
             if not storage.is_known_source(self.source_id):
                 LOG.info("Update event for unknown source id, skipping...")
                 return
-            updated = self.sources_details()
+            updated = self.save_sources_details()
             if updated:
                 LOG.info(f"Source ID {self.source_id} updated")
                 storage.enqueue_source_update(self.source_id)

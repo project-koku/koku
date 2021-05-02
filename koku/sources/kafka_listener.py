@@ -93,21 +93,6 @@ class SourcesMessageError(ValidationError):
     """Sources Message error."""
 
 
-class SourceDetails:
-    """Sources Details object."""
-
-    def __init__(self, auth_header, source_id):
-        """Constructor."""
-        sources_network = SourcesHTTPClient(auth_header, source_id)
-        details = sources_network.get_source_details()
-        self.name = details.get("name")
-        self.source_type_id = int(details.get("source_type_id"))
-        self.source_uuid = details.get("uid")
-        self.source_type_name = sources_network.get_source_type_name(self.source_type_id)
-        self.source_type = SOURCE_PROVIDER_MAP.get(self.source_type_name)
-        self.app_settings = sources_network.get_application_settings(self.source_type)
-
-
 def _collect_pending_items():
     """Gather all sources to create update, or delete."""
     create_events = storage.load_providers_to_create()

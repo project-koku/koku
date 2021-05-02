@@ -172,8 +172,7 @@ class SourcesHTTPClient:
         source_details = self.get_source_details()
         if source_details.get("source_ref"):
             return {"cluster_id": source_details.get("source_ref")}
-        else:
-            raise SourcesHTTPClientError("Unable to find Cluster ID")
+        raise SourcesHTTPClientError("Unable to find Cluster ID")
 
     def _get_aws_credentials(self):
         """Get the roleARN from Sources Authentication service."""
