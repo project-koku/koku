@@ -314,7 +314,7 @@ class SourcesHTTPClient:
             f"?filter[application_type_id]={cost_management_type_id}&filter[source_id]={self._source_id}"
         )
         application_query_response = self._get_network_response(
-            application_query_url, "[set_source_status] Unable to get application"
+            application_query_url, "[set_source_status] unable to get application"
         )
         response_data = (application_query_response.get("data") or [None])[0]
         if response_data:
@@ -323,10 +323,10 @@ class SourcesHTTPClient:
 
             json_data = self.build_source_status(error_msg)
             if storage.save_status(self._source_id, json_data):
-                LOG.info(f"Setting Source Status for Source ID: {self._source_id}: {json_data}")
+                LOG.info(f"[set_source_status] source_id: {self._source_id}: {json_data}")
                 application_response = requests.patch(application_url, json=json_data, headers=status_header)
                 error_message = (
-                    f"Unable to set status for Source {self._source_id}. Reason: Status code: "
+                    f"[set_source_status] error: Status code: "
                     f"{application_response.status_code}. Response: {application_response.text}."
                 )
                 if application_response.status_code != 204:

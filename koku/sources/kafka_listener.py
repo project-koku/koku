@@ -102,7 +102,7 @@ def load_process_queue():
     """
     pending_events = _collect_pending_items()
     for event in pending_events:
-        _log_process_queue_event(PROCESS_QUEUE, event)
+        _log_process_queue_event(PROCESS_QUEUE, event, "load_process_queue")
         PROCESS_QUEUE.put_nowait((next(COUNT), event))
 
 
@@ -114,12 +114,12 @@ def _collect_pending_items():
     return create_events + update_events + destroy_events
 
 
-def _log_process_queue_event(queue, event):
+def _log_process_queue_event(queue, event, trigger=""):
     """Log process queue event."""
     operation = event.get("operation", "unknown")
     provider = event.get("provider")
     name = provider.name if provider else "unknown"
-    LOG.info(f"Adding operation {operation} for {name} to process queue (size: {queue.qsize()})")
+    LOG.info(f"[{trigger}] adding operation {operation} for {name} to process queue (size: {queue.qsize()})")
 
 
 @receiver(post_save, sender=Sources)
@@ -127,19 +127,19 @@ def storage_callback(sender, instance, **kwargs):
     """Load Sources ready for Koku Synchronization when Sources table is updated."""
     if instance.koku_uuid and instance.pending_update and not instance.pending_delete:
         update_event = {"operation": "update", "provider": instance}
-        _log_process_queue_event(PROCESS_QUEUE, update_event)
+        _log_process_queue_event(PROCESS_QUEUE, update_event, "storage_callback")
         LOG.debug(f"Update Event Queued for:\n{str(instance)}")
         PROCESS_QUEUE.put_nowait((next(COUNT), update_event))
 
     if instance.pending_delete:
         delete_event = {"operation": "destroy", "provider": instance}
-        _log_process_queue_event(PROCESS_QUEUE, delete_event)
+        _log_process_queue_event(PROCESS_QUEUE, delete_event, "storage_callback")
         LOG.debug(f"Delete Event Queued for:\n{str(instance)}")
         PROCESS_QUEUE.put_nowait((next(COUNT), delete_event))
 
     process_event = storage.screen_and_build_provider_sync_create_event(instance)
     if process_event:
-        _log_process_queue_event(PROCESS_QUEUE, process_event)
+        _log_process_queue_event(PROCESS_QUEUE, process_event, "storage_callback")
         LOG.debug(f"Create Event Queued for:\n{str(instance)}")
         PROCESS_QUEUE.put_nowait((next(COUNT), process_event))
 
@@ -177,12 +177,12 @@ def process_synchronize_sources_msg(msg_tuple, process_queue):
     operation = msg.get("operation")
     provider = msg.get("provider")
 
-    LOG.info(f"Koku provider operation to execute: {operation} for Source ID: {provider.source_id}")
+    LOG.info(f"[synchronize_sources] starting `{operation}` for source_id: {provider.source_id}")
     try:
         execute_koku_provider_op(msg)
-        LOG.info(f"Koku provider operation to execute: {operation} for Source ID: {provider.source_id} complete.")
+        LOG.info(f"[synchronize_sources] completed `{operation}` for source_id: {provider.source_id}")
     except (IntegrityError, SourcesIntegrationError) as error:
-        LOG.warning(f"[synchronize_sources] Re-queuing failed operation. Error: {error}")
+        LOG.warning(f"[synchronize_sources] re-queuing failed operation. Error: {error}")
         _requeue_provider_sync_message(priority, msg, process_queue)
     except (InterfaceError, OperationalError) as error:
         close_and_set_db_connection()
@@ -196,7 +196,7 @@ def process_synchronize_sources_msg(msg_tuple, process_queue):
         # loop remains active in the event that provider synchronization fails unexpectedly.
         source_id = provider.source_id if provider else "unknown"
         LOG.error(
-            f"[synchronize_sources] Unexpected synchronization error for Source ID {source_id} "
+            f"[synchronize_sources] Unexpected synchronization error for source_id {source_id} "
             f"encountered: {type(error).__name__}: {error}",
             exc_info=True,
         )
@@ -232,18 +232,19 @@ def execute_koku_provider_op(msg):
 
     try:
         if operation == "create":
-            LOG.info(f"Creating Koku Provider for Source ID: {provider.source_id}")
+            LOG.info(f"[provider_operation] creating Koku Provider for source_id: {provider.source_id}")
             instance = account_coordinator.create_account(provider)
-            LOG.info(f"Created provider {instance.uuid} for Source ID: {provider.source_id}")
+            LOG.info(f"[provider_operation] created provider {instance.uuid} for source_id: {provider.source_id}")
         elif operation == "update":
-            LOG.info(f"Updating Koku Provider for Source ID: {provider.source_id}")
+            LOG.info(f"[provider_operation] updating Koku Provider for source_id: {provider.source_id}")
             instance = account_coordinator.update_account(provider)
-            LOG.info(f"Updated provider {instance.uuid} for Source ID: {provider.source_id}")
+            LOG.info(f"[provider_operation] updated provider {instance.uuid} for source_id: {provider.source_id}")
         elif operation == "destroy":
-            LOG.info(f"Destroying Koku Provider for Source ID: {provider.source_id}")
+            LOG.info(f"[provider_operation] destroying Koku Provider for source_id: {provider.source_id}")
             delete_source.delay(provider.source_id, provider.auth_header, provider.koku_uuid)
             LOG.info(
-                f"Destroy provider task queued for provider {provider.koku_uuid} for Source ID: {provider.source_id}"
+                f"[provider_operation] destroy provider task queued for provider {provider.koku_uuid}"
+                f" for source_id: {provider.source_id}"
             )
         else:
             LOG.error(f"unknown operation: {operation}")
@@ -251,24 +252,27 @@ def execute_koku_provider_op(msg):
 
     except SourcesProviderCoordinatorError as account_error:
         sources_client.set_source_status(account_error)
-        raise SourcesIntegrationError(f"Koku provider error: {account_error}")
+        raise SourcesIntegrationError(f"[provider_operation] Koku Provider error: {account_error}")
     except ValidationError as account_error:
-        err_msg = f"Unable to {operation} provider for Source ID: {provider.source_id}. Reason: {account_error}"
+        err_msg = (
+            f"[provider_operation] unable to {operation} provider for"
+            f" source_id: {provider.source_id}. Reason: {account_error}"
+        )
         LOG.warning(err_msg)
         sources_client.set_source_status(account_error)
     except SkipStatusPush as error:
-        LOG.info(f"Platform sources status push skipped. Reason: {error}")
+        LOG.info(f"[provider_operation] platform sources status push skipped. Reason: {error}")
 
 
 def _requeue_provider_sync_message(priority, msg, queue):
     """Helper to requeue provider sync messages."""
     SOURCES_PROVIDER_OP_RETRY_LOOP_COUNTER.inc()
     time.sleep(Config.RETRY_SECONDS)
-    _log_process_queue_event(queue, msg)
+    _log_process_queue_event(queue, msg, "_requeue_provider_sync_message")
     queue.put((priority, msg))
     LOG.warning(
         f'Requeue of failed operation: {msg.get("operation")} '
-        f'for Source ID: {msg.get("provider").source_id} complete.'
+        f'for source_id: {msg.get("provider").source_id} complete.'
     )
 
 

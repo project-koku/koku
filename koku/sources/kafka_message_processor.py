@@ -121,18 +121,18 @@ class KafkaMessageProcessor:
             - Source UID
         Details are stored in the Sources database table.
         """
-        LOG.info(f"adding source details for Source ID {self.source_id} ...")
+        LOG.info(f"[save_sources_details] starting for source_id {self.source_id} ...")
         details = self.get_source_details()
         if not details.source_type:
-            LOG.warning(f"Unexpected source type ID: {details.source_type_id}")
+            LOG.warning(f"[save_sources_details] unexpected source_type_id: {details.source_type_id}")
             return
         result = storage.add_provider_sources_details(details, self.source_id) or False
-        LOG.info(f"added source details for Source ID {self.source_id}: {result}")
+        LOG.info(f"[save_sources_details] complete for source_id {self.source_id}: {result}")
         return result
 
     def save_credentials(self):
         """
-        Store Sources Authentication information given an Source ID.
+        Store Sources Authentication information given an source_id.
         This method is called when a Cost Management application is
         attached to a given Source as well as when an Authentication
         is created.  We have to handle both cases since an
@@ -140,11 +140,11 @@ class KafkaMessageProcessor:
         attached to the Cost Management application.
         Authentication is stored in the Sources database table.
         """
-        LOG.info(f"adding source authentication for Source ID {self.source_id} ...")
+        LOG.info(f"[save_credentials] starting for source_id {self.source_id} ...")
         source_type = storage.get_source_type(self.source_id)
 
         if not source_type:
-            LOG.info(f"Source ID not found for ID: {self.source_id}")
+            LOG.info(f"[save_credentials] source_type not found for source_id: {self.source_id}")
             return
 
         sources_network = self.get_sources_client()
@@ -152,18 +152,18 @@ class KafkaMessageProcessor:
         try:
             authentication = {"credentials": sources_network.get_credentials(source_type)}
         except SourcesHTTPClientError as error:
-            LOG.info(f"authentication info not available for Source ID: {self.source_id}")
+            LOG.info(f"[save_credentials] authentication info not available for source_id: {self.source_id}")
             sources_network.set_source_status(error)
         else:
             if not authentication.get("credentials"):  # TODO: is this check needed?
                 return
             result = storage.add_provider_sources_auth_info(self.source_id, authentication) or False
-            LOG.info(f"authentication attached to Source ID: {self.source_id}: {result}")
+            LOG.info(f"[save_credentials] complete for source_id: {self.source_id}: {result}")
             return result
 
     def save_billing_source(self):
         """
-        Store Sources Authentication information given an Source ID.
+        Store Sources Authentication information given an source_id.
         This method is called when a Cost Management application is
         attached to a given Source as well as when an Authentication
         is created.  We have to handle both cases since an
@@ -171,15 +171,15 @@ class KafkaMessageProcessor:
         attached to the Cost Management application.
         Authentication is stored in the Sources database table.
         """
-        LOG.info(f"adding source billing info for Source ID {self.source_id} ...")
+        LOG.info(f"[save_billing_source] starting for source_id {self.source_id} ...")
         source_type = storage.get_source_type(self.source_id)
 
         if not source_type:
-            LOG.info(f"Source ID not found for ID: {self.source_id}")
+            LOG.info(f"[save_billing_source] source_type not found for source_id: {self.source_id}")
             return
         if source_type == Provider.PROVIDER_OCP:
             # OCP sources do not have billing sources, so skip running thru this function
-            LOG.info("skipping save_billing_source for OCP source")
+            LOG.info("[save_billing_source] skipping for OCP source")
             return
 
         sources_network = self.get_sources_client()
@@ -187,13 +187,13 @@ class KafkaMessageProcessor:
         try:
             data_source = {"data_source": sources_network.get_data_source(source_type)}
         except SourcesHTTPClientError as error:
-            LOG.info(f"billing info not available for Source ID: {self.source_id}")
+            LOG.info(f"[save_billing_source] billing info not available for source_id: {self.source_id}")
             sources_network.set_source_status(error)
         else:
             if not data_source.get("data_source"):
                 return
             result = storage.add_provider_sources_billing_info(self.source_id, data_source) or False
-            LOG.info(f"billing info attached to Source ID: {self.source_id}: {result}")
+            LOG.info(f"[save_billing_source] completed for source_id: {self.source_id}: {result}")
             return result
 
 
@@ -221,10 +221,10 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
                 # auth and billing when we recieve either auth update or app update event
                 updated = any((self.save_billing_source(), self.save_credentials()))
                 if updated:
-                    LOG.info(f"Source ID {self.source_id} updated")
+                    LOG.info(f"[ApplicationMsgProcessor] source_id {self.source_id} updated")
                     storage.enqueue_source_update(self.source_id)
                 else:
-                    LOG.info(f"Source ID {self.source_id} not updated. No changes detected.")
+                    LOG.info(f"[ApplicationMsgProcessor] source_id {self.source_id} not updated. No changes detected.")
 
         if self.event_type in (KAFKA_APPLICATION_DESTROY,):
             storage.enqueue_source_delete(self.source_id, self.offset, allow_out_of_order=True)
@@ -247,10 +247,12 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
                 # auth and billing when we recieve either auth update or app update event
                 updated = any((self.save_billing_source(), self.save_credentials()))
                 if updated:
-                    LOG.info(f"Source ID {self.source_id} updated")
+                    LOG.info(f"[AuthenticationMsgProcessor] source_id {self.source_id} updated")
                     storage.enqueue_source_update(self.source_id)
                 else:
-                    LOG.info(f"Source ID {self.source_id} not updated. No changes detected.")
+                    LOG.info(
+                        f"[AuthenticationMsgProcessor] source_id {self.source_id} not updated. No changes detected."
+                    )
 
 
 class SourceMsgProcessor(KafkaMessageProcessor):
@@ -261,14 +263,14 @@ class SourceMsgProcessor(KafkaMessageProcessor):
     def process(self):
         if self.event_type in (KAFKA_SOURCE_UPDATE,):  # TODO source.update events are currently ignored
             if not storage.is_known_source(self.source_id):
-                LOG.info("Update event for unknown source id, skipping...")
+                LOG.info("[SourceMsgProcessor] update event for unknown source_id, skipping...")
                 return
             updated = self.save_sources_details()
             if updated:
-                LOG.info(f"Source ID {self.source_id} updated")
+                LOG.info(f"[SourceMsgProcessor] source_id {self.source_id} updated")
                 storage.enqueue_source_update(self.source_id)
             else:
-                LOG.info(f"Source ID {self.source_id} not updated. No changes detected.")
+                LOG.info(f"[SourceMsgProcessor] source_id {self.source_id} not updated. No changes detected.")
 
         elif self.event_type in (KAFKA_SOURCE_DESTROY,):
             storage.enqueue_source_delete(self.source_id, self.offset)

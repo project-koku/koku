@@ -277,10 +277,10 @@ def enqueue_source_delete(source_id, offset, allow_out_of_order=False):
             mark_provider_as_inactive(source.koku_uuid)
     except Sources.DoesNotExist:
         if allow_out_of_order:
-            LOG.info(f"Source ID: {source_id} not known.  Marking as out of order delete.")
+            LOG.info(f"[enqueue_source_delete] source_id: {source_id} not known. Marking as out of order delete.")
             new_event = Sources(source_id=source_id, offset=offset, out_of_order_delete=True)
             new_event.save()
-            LOG.info(f"source.storage.create_source_event created Source ID as pending delete: {source_id}")
+            LOG.info(f"[enqueue_source_delete] created source_id as pending delete: {source_id}")
     except (InterfaceError, OperationalError) as error:
         LOG.error(f"Accessing sources resulted in {type(error).__name__}: {error}")
         raise error
@@ -297,7 +297,7 @@ def enqueue_source_update(source_id):
         None
 
     """
-    source = get_source(source_id, f"Unable to enqueue source update. Source ID {source_id} not found.", LOG.error)
+    source = get_source(source_id, f"[enqueue_source_update] error: source_id: {source_id} does not exist.", LOG.error)
     if source and source.koku_uuid and not source.pending_delete and not source.pending_update:
         source.pending_update = True
         source.save(update_fields=["pending_update"])
@@ -305,19 +305,19 @@ def enqueue_source_update(source_id):
 
 def clear_update_flag(source_id):
     """Clear pending update flag after updating Koku provider."""
-    source = get_source(source_id, f"Unable to clear update flag. Source ID {source_id} not found.", LOG.error)
+    source = get_source(source_id, f"[clear_update_flag] error: source_id: {source_id} does not exist.", LOG.error)
     if source and source.koku_uuid and source.pending_update:
         source.pending_update = False
         source.save()
 
 
 def get_source_instance(source_id):
-    return get_source(source_id, "Source not found", LOG.info)
+    return get_source(source_id, f"[get_source_instance] source_id: {source_id} does not exist.", LOG.info)
 
 
 def create_source_event(source_id, auth_header, offset):
     """Create a Sources database object."""
-    LOG.info("create source event...")
+    LOG.info(f"[create_source_event] starting for source_id {source_id} ...")
     try:
         decoded_rh_auth = b64decode(auth_header)
         json_rh_auth = json_loads(decoded_rh_auth)
@@ -329,16 +329,16 @@ def create_source_event(source_id, auth_header, offset):
     try:
         source = Sources.objects.filter(source_id=source_id).first()
         if source:
-            LOG.debug(f"Source ID {str(source_id)} already exists.")
+            LOG.info(f"[create_source_event] source_id: {str(source_id)} already exists.")
             if source.out_of_order_delete:
-                LOG.info(f"Source ID: {source_id} destroy event already occurred.")
+                LOG.info(f"[create_source_event] source_id: {source_id} destroy event already occurred.")
                 source.delete()
         else:
             new_event = Sources(source_id=source_id, auth_header=auth_header, offset=offset, account_id=account_id)
             new_event.save()
-            LOG.info(f"source.storage.create_source_event created Source ID: {source_id}")
+            LOG.info(f"[create_source_event] created source_id: {source_id}")
     except (InterfaceError, OperationalError) as error:
-        LOG.error(f"source.storage.create_provider_event {type(error).__name__}: {error}")
+        LOG.error(f"[create_source_event] {type(error).__name__}: {error}")
         raise error
 
 
@@ -350,21 +350,19 @@ def destroy_source_event(source_id):
         source = Sources.objects.get(source_id=source_id)
         koku_uuid = source.koku_uuid
         source.delete()
-        LOG.info(f"source.storage.destroy_source_event destroyed Source ID: {source_id}")
+        LOG.info(f"[destroy_source_event] destroyed source_id: {source_id}")
     except Sources.DoesNotExist:
-        LOG.debug("Source ID: %s already removed.", str(source_id))
+        LOG.debug(f"[destroy_source_event] source_id: {source_id} already removed.")
     except (InterfaceError, OperationalError) as error:
-        LOG.error(f"source.storage.destroy_provider_event {type(error).__name__}: {error}")
+        LOG.error(f"[destroy_source_event] {type(error).__name__}: {error}")
         raise error
     return koku_uuid
 
 
 def get_source_type(source_id):
-    """Get Source Type from Source ID."""
+    """Get Source Type from source_id."""
     source_type = None
-    source = get_source(
-        source_id, f"[get_source_type] Unable to get Source Type.  Source ID: {source_id} does not exist", LOG.error
-    )
+    source = get_source(source_id, f"[get_source_type] error: source_id: {source_id} does not exist", LOG.error)
     if source:
         source_type = source.source_type
     return source_type
@@ -373,7 +371,7 @@ def get_source_type(source_id):
 def add_provider_sources_auth_info(source_id, authentication):
     """Add additional Sources information to a Source database object."""
     source = get_source(
-        source_id, f"Unable to add authentication details.  Source ID: {source_id} does not exist", LOG.error
+        source_id, f"[add_provider_sources_auth_info] error: source_id: {source_id} does not exist", LOG.error
     )
     if source:
         current_auth_dict = source.authentication
@@ -392,7 +390,7 @@ def add_provider_sources_auth_info(source_id, authentication):
 def add_provider_sources_billing_info(source_id, billing_source):
     """Add additional Sources information to a Source database object."""
     source = get_source(
-        source_id, f"Unable to add authentication details.  Source ID: {source_id} does not exist", LOG.error
+        source_id, f"[add_provider_sources_billing_info] error: source_id: {source_id} does not exist", LOG.error
     )
     if source and source.billing_source != billing_source:
         source.billing_source = billing_source
@@ -403,7 +401,9 @@ def add_provider_sources_billing_info(source_id, billing_source):
 def add_provider_sources_details(details, source_id):
     """Add additional Sources information to a Source database object."""
     save_needed = False
-    source = get_source(source_id, f"Unable to add network details.  Source ID: {source_id} does not exist", LOG.error)
+    source = get_source(
+        source_id, f"[add_provider_sources_details] error: source_id: {source_id} does not exist", LOG.error
+    )
     if source:
         if source.name != details.name:
             source.name = details.name
@@ -421,17 +421,19 @@ def add_provider_sources_details(details, source_id):
 
 def add_provider_koku_uuid(source_id, koku_uuid):
     """Add Koku provider UUID to Sources database object."""
-    LOG.info(f"Attempting to add provider uuid {str(koku_uuid)} to Source ID: {str(source_id)}")
-    source = get_source(source_id, f"Source ID {source_id} does not exist.", LOG.error)
+    LOG.info(f"[add_provider_koku_uuid] start attaching koku_uuid: {koku_uuid} to source_id: {source_id}")
+    source = get_source(
+        source_id, f"[add_provider_koku_uuid] error: source_id: {source_id} does not exist.", LOG.error
+    )
     if source and source.koku_uuid != koku_uuid:
-        LOG.info(f"Adding provider uuid {str(koku_uuid)} to Source ID: {str(source_id)}")
+        LOG.info(f"[add_provider_koku_uuid] attached koku_uuid: {koku_uuid} to source_id: {source_id}")
         source_query = Sources.objects.filter(source_id=source.source_id)
         source_query.update(koku_uuid=koku_uuid)
 
 
 def save_status(source_id, status):
     """Save source status."""
-    source = get_source(source_id, f"Source ID {source_id} does not exist.", LOG.warning)
+    source = get_source(source_id, f"[save_status] warning: source_id: {source_id} does not exist.", LOG.warning)
     if source and source.status != status:
         source.status = status
         source.save()
