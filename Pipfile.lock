@@ -1850,11 +1850,10 @@
         },
         "model-bakery": {
             "hashes": [
-                "sha256:c2b3521a866b2b25ee0b5f953bfa385ef7d27ad75f30abf5e2de6dd61160c404",
-                "sha256:d3260bd055c25998b54eda2082a507ba7fd113fe071156bdad065da426b14851"
+                "sha256:3bd63ac4135a6918f1b7bb3da31cd9c44283d99c37dc6315c13d061026d6ab2d",
+                "sha256:713b2d32319e033b221714b5c3a3e1c88e0c40c84481b21955c44979801e5e03"
             ],
-            "index": "pypi",
-            "version": "==1.2.1"
+            "version": "==1.3.1"
         },
         "msrest": {
             "hashes": [
