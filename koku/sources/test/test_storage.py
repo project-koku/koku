@@ -413,7 +413,7 @@ class SourcesStorageTest(TestCase):
         test_billing = {"bucket": "bucket"}
 
         result = storage.add_provider_sources_billing_info(test_source_id, test_billing)
-        self.assertIsNotNone(result)
+        self.assertIsNone(result)
 
     def test_enqueue_source_delete(self):
         """Test for enqueuing source delete."""

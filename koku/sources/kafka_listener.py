@@ -93,6 +93,19 @@ class SourcesMessageError(ValidationError):
     """Sources Message error."""
 
 
+def load_process_queue():
+    """
+    Re-populate the process queue for any Source events that need synchronization.
+
+    Handles the case for when the Sources Integration service goes down before
+    Koku Synchronization could be completed.
+    """
+    pending_events = _collect_pending_items()
+    for event in pending_events:
+        _log_process_queue_event(PROCESS_QUEUE, event)
+        PROCESS_QUEUE.put_nowait((next(COUNT), event))
+
+
 def _collect_pending_items():
     """Gather all sources to create update, or delete."""
     create_events = storage.load_providers_to_create()
@@ -107,33 +120,6 @@ def _log_process_queue_event(queue, event):
     provider = event.get("provider")
     name = provider.name if provider else "unknown"
     LOG.info(f"Adding operation {operation} for {name} to process queue (size: {queue.qsize()})")
-
-
-def close_and_set_db_connection():  # pragma: no cover
-    """Close the db connection and set to None."""
-    if connections[DEFAULT_DB_ALIAS].connection:
-        connections[DEFAULT_DB_ALIAS].connection.close()
-    connections[DEFAULT_DB_ALIAS].connection = None
-
-
-def load_process_queue():
-    """
-    Re-populate the process queue for any Source events that need synchronization.
-
-    Handles the case for when the Sources Integration service goes down before
-    Koku Synchronization could be completed.
-    """
-    pending_events = _collect_pending_items()
-    for event in pending_events:
-        _log_process_queue_event(PROCESS_QUEUE, event)
-        PROCESS_QUEUE.put_nowait((next(COUNT), event))
-
-
-def execute_process_queue():
-    """Execute process queue to synchronize providers."""
-    while not PROCESS_QUEUE.empty():
-        msg_tuple = PROCESS_QUEUE.get()
-        process_synchronize_sources_msg(msg_tuple, PROCESS_QUEUE)
 
 
 @receiver(post_save, sender=Sources)
@@ -160,92 +146,60 @@ def storage_callback(sender, instance, **kwargs):
     execute_process_queue()
 
 
-def get_consumer():
-    """Create a Kafka consumer."""
-    consumer = Consumer(
-        {
-            "bootstrap.servers": Config.SOURCES_KAFKA_ADDRESS,
-            "group.id": "hccm-sources",
-            "queued.max.messages.kbytes": 1024,
-            "enable.auto.commit": False,
-        },
-        logger=LOG,
-    )
-    consumer.subscribe([Config.SOURCES_TOPIC])
-    return consumer
+def execute_process_queue():
+    """Execute process queue to synchronize providers."""
+    while not PROCESS_QUEUE.empty():
+        msg_tuple = PROCESS_QUEUE.get()
+        process_synchronize_sources_msg(msg_tuple, PROCESS_QUEUE)
 
 
-def listen_for_messages_loop(application_source_id):  # pragma: no cover
-    """Wrap listen_for_messages in while true."""
-    consumer = get_consumer()
-    LOG.info("Listener started.  Waiting for messages...")
-    while True:
-        msg_list = consumer.consume()
-        if len(msg_list) == 1:
-            msg = msg_list.pop()
-        else:
-            consumer.commit()
-            continue
-
-        listen_for_messages(msg, consumer, application_source_id)
-        execute_process_queue()
-
-
-def rewind_consumer_to_retry(consumer, topic_partition):
-    """Helper method to log and rewind kafka consumer for retry."""
-    SOURCES_KAFKA_LOOP_RETRY.inc()
-    LOG.info(f"Seeking back to offset: {topic_partition.offset}, partition: {topic_partition.partition}")
-    consumer.seek(topic_partition)
-    time.sleep(Config.RETRY_SECONDS)
-
-
-@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()  # noqa: C901
-def listen_for_messages(kaf_msg, consumer, application_source_id):  # noqa: C901
+def process_synchronize_sources_msg(msg_tuple, process_queue):
     """
-    Listen for Platform-Sources kafka messages.
+    Synchronize Platform Sources with Koku Providers.
+
+    Task will process the process_queue which contains filtered
+    events (Cost Management Platform-Sources).
+
+    The items on the queue are Koku-Provider 'create' or 'destroy
+    events.  If the Koku-Provider operation fails the event will
+    be re-queued until the operation is successful.
 
     Args:
-        consumer (Consumer): Kafka consumer object
-        application_source_id (Integer): Cost Management's current Application Source ID. Used for
-            kafka message filtering.
+        process_queue (Asyncio.Queue): Dictionary messages containing operation,
+                                       provider and offset.
+            example: {'operation': 'create', 'provider': SourcesModelObj, 'offset': 3}
 
     Returns:
         None
 
     """
-    try:
-        try:
-            msg_processor = create_msg_processor(kaf_msg, application_source_id)
-            if msg_processor and msg_processor.source_id:
-                if not msg_processor.msg_for_cost_mgmt():
-                    LOG.info("Event not associated with cost-management.")
-                    consumer.commit()
-                    return
-                tp = TopicPartition(Config.SOURCES_TOPIC, msg_processor.partition, msg_processor.offset)
-                LOG.info(f"processing cost-mgmt message: {msg_processor}")
-                with transaction.atomic():
-                    msg_processor.process()
-        except (InterfaceError, OperationalError) as error:
-            close_and_set_db_connection()
-            LOG.error(f"[listen_for_messages] Database error. Error: {type(error).__name__}: {error}. Retrying...")
-            rewind_consumer_to_retry(consumer, tp)
-        except IntegrityError as error:
-            LOG.error(f"[listen_for_messages] {type(error).__name__}: {error}. Retrying...", exc_info=True)
-            rewind_consumer_to_retry(consumer, tp)
-        except SourcesHTTPClientError as err:
-            LOG.warning(f"[listen_for_messages] {type(err).__name__}: {err}. Retrying...")
-            SOURCES_HTTP_CLIENT_ERROR_COUNTER.inc()
-            rewind_consumer_to_retry(consumer, tp)
-        except (SourcesMessageError, SourceNotFoundError) as error:
-            LOG.warning(f"[listen_for_messages] {type(error).__name__}: {error}. Skipping msg: {kaf_msg}")
-            consumer.commit()
-        else:
-            consumer.commit()
+    priority, msg = msg_tuple
+    operation = msg.get("operation")
+    provider = msg.get("provider")
 
-    except KafkaError as error:
-        LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
+    LOG.info(f"Koku provider operation to execute: {operation} for Source ID: {provider.source_id}")
+    try:
+        execute_koku_provider_op(msg)
+        LOG.info(f"Koku provider operation to execute: {operation} for Source ID: {provider.source_id} complete.")
+    except (IntegrityError, SourcesIntegrationError) as error:
+        LOG.warning(f"[synchronize_sources] Re-queuing failed operation. Error: {error}")
+        _requeue_provider_sync_message(priority, msg, process_queue)
+    except (InterfaceError, OperationalError) as error:
+        close_and_set_db_connection()
+        LOG.warning(
+            f"[synchronize_sources] Closing DB connection and re-queueing failed operation."
+            f" Encountered {type(error).__name__}: {error}"
+        )
+        _requeue_provider_sync_message(priority, msg, process_queue)
     except Exception as error:
-        LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)
+        # The reason for catching all exceptions is to ensure that the event
+        # loop remains active in the event that provider synchronization fails unexpectedly.
+        source_id = provider.source_id if provider else "unknown"
+        LOG.error(
+            f"[synchronize_sources] Unexpected synchronization error for Source ID {source_id} "
+            f"encountered: {type(error).__name__}: {error}",
+            exc_info=True,
+        )
 
 
 def execute_koku_provider_op(msg):
@@ -318,53 +272,98 @@ def _requeue_provider_sync_message(priority, msg, queue):
     )
 
 
-def process_synchronize_sources_msg(msg_tuple, process_queue):
+def listen_for_messages_loop(application_source_id):  # pragma: no cover
+    """Wrap listen_for_messages in while true."""
+    consumer = get_consumer()
+    LOG.info("Listener started.  Waiting for messages...")
+    while True:
+        msg_list = consumer.consume()
+        if len(msg_list) == 1:
+            msg = msg_list.pop()
+        else:
+            consumer.commit()
+            continue
+        listen_for_messages(msg, consumer, application_source_id)
+        execute_process_queue()
+
+
+def get_consumer():
+    """Create a Kafka consumer."""
+    consumer = Consumer(
+        {
+            "bootstrap.servers": Config.SOURCES_KAFKA_ADDRESS,
+            "group.id": "hccm-sources",
+            "queued.max.messages.kbytes": 1024,
+            "enable.auto.commit": False,
+        },
+        logger=LOG,
+    )
+    consumer.subscribe([Config.SOURCES_TOPIC])
+    return consumer
+
+
+@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()  # noqa: C901
+def listen_for_messages(kaf_msg, consumer, application_source_id):  # noqa: C901
     """
-    Synchronize Platform Sources with Koku Providers.
-
-    Task will process the process_queue which contains filtered
-    events (Cost Management Platform-Sources).
-
-    The items on the queue are Koku-Provider 'create' or 'destroy
-    events.  If the Koku-Provider operation fails the event will
-    be re-queued until the operation is successful.
+    Listen for Platform-Sources kafka messages.
 
     Args:
-        process_queue (Asyncio.Queue): Dictionary messages containing operation,
-                                       provider and offset.
-            example: {'operation': 'create', 'provider': SourcesModelObj, 'offset': 3}
+        consumer (Consumer): Kafka consumer object
+        application_source_id (Integer): Cost Management's current Application Source ID. Used for
+            kafka message filtering.
 
     Returns:
         None
 
     """
-    priority, msg = msg_tuple
-    operation = msg.get("operation")
-    provider = msg.get("provider")
-
-    LOG.info(f"Koku provider operation to execute: {operation} for Source ID: {provider.source_id}")
     try:
-        execute_koku_provider_op(msg)
-        LOG.info(f"Koku provider operation to execute: {operation} for Source ID: {provider.source_id} complete.")
-    except (IntegrityError, SourcesIntegrationError) as error:
-        LOG.warning(f"[synchronize_sources] Re-queuing failed operation. Error: {error}")
-        _requeue_provider_sync_message(priority, msg, process_queue)
-    except (InterfaceError, OperationalError) as error:
-        close_and_set_db_connection()
-        LOG.warning(
-            f"[synchronize_sources] Closing DB connection and re-queueing failed operation."
-            f" Encountered {type(error).__name__}: {error}"
-        )
-        _requeue_provider_sync_message(priority, msg, process_queue)
+        try:
+            msg_processor = create_msg_processor(kaf_msg, application_source_id)
+            if msg_processor and msg_processor.source_id:
+                if not msg_processor.msg_for_cost_mgmt():
+                    LOG.info("Event not associated with cost-management.")
+                    consumer.commit()
+                    return
+                tp = TopicPartition(Config.SOURCES_TOPIC, msg_processor.partition, msg_processor.offset)
+                LOG.info(f"processing cost-mgmt message: {msg_processor}")
+                with transaction.atomic():
+                    msg_processor.process()
+        except (InterfaceError, OperationalError) as error:
+            close_and_set_db_connection()
+            LOG.error(f"[listen_for_messages] Database error. Error: {type(error).__name__}: {error}. Retrying...")
+            rewind_consumer_to_retry(consumer, tp)
+        except IntegrityError as error:
+            LOG.error(f"[listen_for_messages] {type(error).__name__}: {error}. Retrying...", exc_info=True)
+            rewind_consumer_to_retry(consumer, tp)
+        except SourcesHTTPClientError as err:
+            LOG.warning(f"[listen_for_messages] {type(err).__name__}: {err}. Retrying...")
+            SOURCES_HTTP_CLIENT_ERROR_COUNTER.inc()
+            rewind_consumer_to_retry(consumer, tp)
+        except (SourcesMessageError, SourceNotFoundError) as error:
+            LOG.warning(f"[listen_for_messages] {type(error).__name__}: {error}. Skipping msg: {kaf_msg}")
+            consumer.commit()
+        else:
+            consumer.commit()
+
+    except KafkaError as error:
+        LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
     except Exception as error:
-        # The reason for catching all exceptions is to ensure that the event
-        # loop remains active in the event that provider synchronization fails unexpectedly.
-        source_id = provider.source_id if provider else "unknown"
-        LOG.error(
-            f"[synchronize_sources] Unexpected synchronization error for Source ID {source_id} "
-            f"encountered: {type(error).__name__}: {error}",
-            exc_info=True,
-        )
+        LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)
+
+
+def close_and_set_db_connection():  # pragma: no cover
+    """Close the db connection and set to None."""
+    if connections[DEFAULT_DB_ALIAS].connection:
+        connections[DEFAULT_DB_ALIAS].connection.close()
+    connections[DEFAULT_DB_ALIAS].connection = None
+
+
+def rewind_consumer_to_retry(consumer, topic_partition):
+    """Helper method to log and rewind kafka consumer for retry."""
+    SOURCES_KAFKA_LOOP_RETRY.inc()
+    LOG.info(f"Seeking back to offset: {topic_partition.offset}, partition: {topic_partition.partition}")
+    consumer.seek(topic_partition)
+    time.sleep(Config.RETRY_SECONDS)
 
 
 def backoff(interval, maximum=120):
@@ -435,7 +434,6 @@ def sources_integration_thread():  # pragma: no cover
 
 def initialize_sources_integration():  # pragma: no cover
     """Start Sources integration thread."""
-
     event_loop_thread = threading.Thread(target=sources_integration_thread)
     event_loop_thread.start()
     LOG.info("Listening for kafka events")

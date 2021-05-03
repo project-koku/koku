@@ -40,6 +40,7 @@ from koku.middleware import IdentityHeaderMiddleware
 from masu.prometheus_stats import WORKER_REGISTRY
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
+from sources import storage
 from sources.config import Config
 from sources.kafka_listener import PROCESS_QUEUE
 from sources.kafka_listener import process_synchronize_sources_msg
@@ -51,7 +52,6 @@ from sources.test.test_sources_http_client import COST_MGMT_APP_TYPE_ID
 
 # import requests_mock
 # from requests.exceptions import RequestException
-# from sources import storage
 # from sources.sources_http_client import SourceNotFoundError
 # from sources.sources_http_client import SourcesHTTPClientError
 
@@ -277,45 +277,50 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             source_integration.execute_koku_provider_op(msg)
         self.assertFalse(Provider.objects.filter(uuid=provider.source_uuid).exists())
 
-    # def test_execute_koku_provider_op_update(self):
-    #     """Test to execute Koku Operations to sync with Sources for update."""
-    #     source_id = self.aws_source.get("source_id")
-    #     provider = Sources(**self.aws_source)
-    #     provider.save()
+    def test_execute_koku_provider_op_update(self):
+        """Test to execute Koku Operations to sync with Sources for update."""
 
-    #     msg = {"operation": "create", "provider": provider, "offset": provider.offset}
-    #     with patch.object(SourcesHTTPClient, "set_source_status"):
-    #         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-    #             source_integration.execute_koku_provider_op(msg)
+        def set_status_helper(*args, **kwargs):
+            """helper to clear update flag."""
+            storage.clear_update_flag(source_id)
 
-    #     builder = SourcesProviderCoordinator(source_id, provider.auth_header)
+        source_id = self.aws_source.get("source_id")
+        provider = Sources(**self.aws_source)
+        provider.save()
 
-    #     source = storage.get_source_instance(source_id)
-    #     uuid = source.koku_uuid
+        msg = {"operation": "create", "provider": provider, "offset": provider.offset}
+        with patch.object(SourcesHTTPClient, "set_source_status"):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                source_integration.execute_koku_provider_op(msg)
 
-    #     with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-    #         builder.update_account(source)
+        builder = SourcesProviderCoordinator(source_id, provider.auth_header)
 
-    #     self.assertEqual(
-    #         Provider.objects.get(uuid=uuid).billing_source.data_source,
-    #         self.aws_source.get("billing_source").get("data_source"),
-    #     )
+        source = storage.get_source_instance(source_id)
+        uuid = source.koku_uuid
 
-    #     provider.billing_source = {"data_source": {"bucket": "new-bucket"}}
-    #     provider.koku_uuid = uuid
-    #     provider.pending_update = True
-    #     provider.save()
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            builder.update_account(source)
 
-    #     msg = {"operation": "update", "provider": provider, "offset": provider.offset}
-    #     with patch.object(SourcesHTTPClient, "set_source_status"):
-    #         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-    #             source_integration.execute_koku_provider_op(msg)
-    #     response = Sources.objects.get(source_id=source_id)
-    #     self.assertEqual(response.pending_update, False)
-    #     self.assertEqual(response.billing_source, {"data_source": {"bucket": "new-bucket"}})
+        self.assertEqual(
+            Provider.objects.get(uuid=uuid).billing_source.data_source,
+            self.aws_source.get("billing_source").get("data_source"),
+        )
 
-    #     response = Provider.objects.get(uuid=uuid)
-    #     self.assertEqual(response.billing_source.data_source.get("bucket"), "new-bucket")
+        provider.billing_source = {"data_source": {"bucket": "new-bucket"}}
+        provider.koku_uuid = uuid
+        provider.pending_update = True
+        provider.save()
+
+        msg = {"operation": "update", "provider": provider, "offset": provider.offset}
+        with patch.object(SourcesHTTPClient, "set_source_status", side_effect=set_status_helper):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                source_integration.execute_koku_provider_op(msg)
+        response = Sources.objects.get(source_id=source_id)
+        self.assertEqual(response.pending_update, False)
+        self.assertEqual(response.billing_source, {"data_source": {"bucket": "new-bucket"}})
+
+        response = Provider.objects.get(uuid=uuid)
+        self.assertEqual(response.billing_source.data_source.get("bucket"), "new-bucket")
 
     def test_execute_koku_provider_op_skip_status(self):
         """Test to execute Koku Operations to sync with Sources and not push status."""
@@ -328,155 +333,6 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             with patch.object(ProviderAccessor, "cost_usage_source_ready", side_effect=SkipStatusPush):
                 source_integration.execute_koku_provider_op(msg)
         self.assertEqual(Sources.objects.get(source_id=source_id).status, {})
-
-    # def test_get_sources_msg_data(self):
-    #     """Test to get sources details from msg."""
-    #     test_topic = "platform.sources.event-stream"
-    #     test_event_type = "Application.create"
-    #     test_offset = 5
-    #     cost_management_app_type = 2
-    #     test_auth_header = "testheader"
-    #     test_value = '{"id":1,"source_id":1,"application_type_id":2}'
-
-    #     msg = ConsumerRecord(
-    #         topic=test_topic,
-    #         offset=test_offset,
-    #         event_type=test_event_type,
-    #         auth_header=test_auth_header,
-    #         value=bytes(test_value, encoding="utf-8"),
-    #     )
-
-    #     response = source_integration.get_sources_msg_data(msg, cost_management_app_type)
-    #     self.assertEqual(response.get("event_type"), test_event_type)
-    #     self.assertEqual(response.get("offset"), test_offset)
-    #     self.assertEqual(response.get("source_id"), 1)
-    #     self.assertEqual(response.get("auth_header"), test_auth_header)
-
-    # def test_get_sources_msg_data_destroy(self):
-    #     """Test to get sources details from msg for destroy event."""
-    #     destroy_events = ["Application.destroy", "Source.destroy"]
-    #     test_topic = "platform.sources.event-stream"
-    #     test_offset = 5
-    #     cost_management_app_type = 2
-    #     test_auth_header = "testheader"
-    #     test_value = '{"id":1,"source_id":1,"application_type_id":2}'
-
-    #     for event in destroy_events:
-    #         msg = ConsumerRecord(
-    #             topic=test_topic,
-    #             offset=test_offset,
-    #             event_type=event,
-    #             auth_header=test_auth_header,
-    #             value=bytes(test_value, encoding="utf-8"),
-    #         )
-
-    #         response = source_integration.get_sources_msg_data(msg, cost_management_app_type)
-    #         self.assertEqual(response.get("event_type"), event)
-    #         self.assertEqual(response.get("offset"), test_offset)
-    #         self.assertEqual(response.get("source_id"), 1)
-    #         self.assertEqual(response.get("auth_header"), test_auth_header)
-
-    # def test_get_sources_msg_authentication_unsuported_auth_endpoint(self):
-    #     """Test to ensure Authentication event for Endpoint is filtered."""
-    #     test_topic = "platform.sources.event-stream"
-    #     authentication_events = ["Authentication.create", "Authentication.update"]
-    #     test_offset = 5
-    #     cost_management_app_type = 2
-    #     test_auth_header = "testheader"
-    #     test_value = '{"id":1,"resource_id":1,"resource_type": "Endpoint"}'
-
-    #     for event in authentication_events:
-    #         msg = ConsumerRecord(
-    #             topic=test_topic,
-    #             offset=test_offset,
-    #             event_type=event,
-    #             auth_header=test_auth_header,
-    #             value=bytes(test_value, encoding="utf-8"),
-    #         )
-    #         response = source_integration.get_sources_msg_data(msg, cost_management_app_type)
-    #         self.assertEqual(response, {})
-
-    # def test_get_sources_msg_data_other(self):
-    #     """Test to get sources details from other message."""
-    #     test_topic = "platform.sources.event-stream"
-    #     test_offset = 5
-    #     cost_management_app_type = 2
-    #     test_auth_header = "testheader"
-    #     test_value = '{"id":1,"source_id":1,"application_type_id":2}'
-    #     source_events = [
-    #         {"event": "Source.create", "expected_response": {}},
-    #         {"event": "Source.update", "expected_response": {}},
-    #     ]
-    #     for test in source_events:
-    #         msg = ConsumerRecord(
-    #             topic=test_topic,
-    #             offset=test_offset,
-    #             partition=1,
-    #             event_type=test.get("event"),
-    #             auth_header=test_auth_header,
-    #             value=bytes(test_value, encoding="utf-8"),
-    #         )
-
-    #         response = source_integration.get_sources_msg_data(msg, cost_management_app_type)
-    #         self.assertEqual(response, test.get("expected_response"))
-
-    # def test_get_sources_msg_data_other_app_type(self):
-    #     """Test to get sources details from Application.create event type for a non-Cost Management app."""
-    #     test_topic = "platform.sources.event-stream"
-    #     test_event_type = "Application.create"
-    #     test_offset = 5
-    #     cost_management_app_type = 2
-    #     test_auth_header = "testheader"
-    #     test_value = '{"id":1,"source_id":1,"application_type_id":1}'  # 1 is not Cost Management
-
-    #     msg = ConsumerRecord(
-    #         topic=test_topic,
-    #         offset=test_offset,
-    #         event_type=test_event_type,
-    #         auth_header=test_auth_header,
-    #         value=bytes(test_value, encoding="utf-8"),
-    #     )
-
-    #     response = source_integration.get_sources_msg_data(msg, cost_management_app_type)
-    #     self.assertEqual(response, {})
-
-    # def test_get_sources_msg_data_malformed(self):
-    #     """Test to get sources details from Application.create event with malformed data."""
-    #     test_topic = "platform.sources.event-stream"
-    #     test_event_type = "Application.create"
-    #     test_offset = 5
-    #     cost_management_app_type = 2
-    #     test_auth_header = "testheader"
-    #     test_value = {"id": 1, "source_id": 1, "application_type_id": 2}
-
-    #     msg = ConsumerRecord(
-    #         topic=test_topic,
-    #         offset=test_offset,
-    #         event_type=test_event_type,
-    #         auth_header=test_auth_header,
-    #         value=test_value,
-    #     )
-    #     with self.assertRaises(source_integration.SourcesMessageError):
-    #         source_integration.get_sources_msg_data(msg, cost_management_app_type)
-
-    # def test_get_sources_missing_header(self):
-    #     """Test to get sources details from Application.create event with missing identity header."""
-    #     test_topic = "platform.sources.event-stream"
-    #     test_event_type = "Application.create"
-    #     test_offset = 5
-    #     cost_management_app_type = 2
-    #     test_auth_header = None
-    #     test_value = '{"id": 1, "source_id": 1, "application_type_id": 2}'
-
-    #     msg = ConsumerRecord(
-    #         topic=test_topic,
-    #         offset=test_offset,
-    #         event_type=test_event_type,
-    #         auth_header=test_auth_header,
-    #         value=bytes(test_value, encoding="utf-8"),
-    #     )
-    #     with self.assertRaises(source_integration.SourcesMessageError):
-    #         source_integration.get_sources_msg_data(msg, cost_management_app_type)
 
     def test_collect_pending_items(self):
         """Test to load the in-progress queue."""
@@ -525,423 +381,6 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
 
         response = source_integration._collect_pending_items()
         self.assertEqual(len(response), 3)
-
-    # @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    # def test_sources_network_info_sync_aws(self):
-    #     """Test to get additional Source context from Sources API for AWS."""
-    #     test_source_id = 2
-    #     test_auth_header = Config.SOURCES_FAKE_HEADER
-    #     source_name = "AWS Source"
-    #     source_uid = faker.uuid4()
-    #     authentication = "roleARNhere"
-    #     aws_source = Sources(source_id=test_source_id, auth_header=test_auth_header, offset=1)
-    #     aws_source.save()
-    #     source_type_id = 1
-    #     mock_source_name = "amazon"
-    #     resource_id = 2
-    #     authentication_id = 3
-    #     with requests_mock.mock() as m:
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/sources/{test_source_id}",
-    #             status_code=200,
-    #             json={"name": source_name, "source_type_id": source_type_id, "uid": source_uid},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
-    #             status_code=200,
-    #             json={"data": [{"name": mock_source_name}]},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
-    #             status_code=200,
-    #             json={"data": []},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
-    #             status_code=200,
-    #             json={"data": [{"id": resource_id}]},
-    #         )
-    #         m.get(
-    #             (f"http://www.sources.com/api/v1.0/authentications?" f"[authtype]=arn&[resource_id]={resource_id}"),
-    #             status_code=200,
-    #             json={"data": [{"id": authentication_id}]},
-    #         )
-    #         m.get(
-    #             (
-    #                 f"http://www.sources.com/internal/v1.0/authentications/{authentication_id}"
-    #                 f"?expose_encrypted_attribute[]=password"
-    #             ),
-    #             status_code=200,
-    #             json={"password": authentication},
-    #         )
-
-    #         source_integration.sources_network_info(test_source_id, test_auth_header)
-
-    #     source_obj = Sources.objects.get(source_id=test_source_id)
-    #     self.assertEqual(source_obj.name, source_name)
-    #     self.assertEqual(source_obj.source_type, Provider.PROVIDER_AWS)
-    #     self.assertEqual(source_obj.authentication, {"credentials": {"role_arn": authentication}})
-
-    # @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    # def test_sources_network_info_sync_gcp(self):
-    #     """Test to get additional Source context from Sources API for GCP."""
-    #     test_source_id = self.gcp_source.get("source_id")
-    #     provider = Sources(**self.gcp_source)
-    #     provider.save()
-
-    #     test_auth_header = Config.SOURCES_FAKE_HEADER
-    #     source_name = "GCP Source"
-    #     source_uid = faker.uuid4()
-    #     authentication = "project_id_test"
-    #     source_type_id = 1
-    #     mock_source_name = "google"
-    #     resource_id = 2
-    #     with requests_mock.mock() as m:
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/sources/{test_source_id}",
-    #             status_code=200,
-    #             json={"name": source_name, "source_type_id": source_type_id, "uid": source_uid},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
-    #             status_code=200,
-    #             json={"data": [{"name": mock_source_name}]},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
-    #             status_code=200,
-    #             json={
-    #                 "data": [
-    #                     {
-    #                         "id": resource_id,
-    #                         "extra": {"billing_source": {"data_source": {"dataset": "billing_datset"}}},
-    #                     }
-    #                 ]
-    #             },
-    #         )
-    #         m.get(
-    #             (
-    #                 f"http://www.sources.com/api/v1.0/authentications?"
-    #                 f"[authtype]=project_id_service_account_json&[resource_id]={resource_id}"
-    #             ),
-    #             status_code=200,
-    #             json={"data": [{"username": authentication}]},
-    #         )
-    #         source_integration.sources_network_info(test_source_id, test_auth_header)
-
-    #     source_obj = Sources.objects.get(source_id=test_source_id)
-    #     self.assertEqual(source_obj.name, source_name)
-    #     self.assertEqual(source_obj.source_type, Provider.PROVIDER_GCP)
-    #     self.assertEqual(source_obj.authentication, {"credentials": {"project_id": authentication}})
-
-    # @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    # def test_sources_network_info_sync_aws_local(self):
-    #     """Test to get additional Source context from Sources API for AWS-local."""
-    #     test_source_id = self.aws_local_source.get("source_id")
-    #     local_source = Sources(**self.aws_local_source)
-    #     local_source.save()
-
-    #     test_auth_header = Config.SOURCES_FAKE_HEADER
-    #     source_name = "AWS Local Source"
-    #     source_uid = faker.uuid4()
-    #     authentication = "roleARNhere"
-    #     aws_source = Sources(source_id=test_source_id, auth_header=test_auth_header, offset=1)
-    #     aws_source.save()
-    #     source_type_id = 1
-    #     mock_source_name = "amazon-local"
-    #     resource_id = 1
-    #     authentication_id = 3
-    #     with requests_mock.mock() as m:
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/sources/{test_source_id}",
-    #             status_code=200,
-    #             json={"name": source_name, "source_type_id": source_type_id, "uid": source_uid},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
-    #             status_code=200,
-    #             json={"data": [{"name": mock_source_name}]},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
-    #             status_code=200,
-    #             json={"data": [{"id": resource_id}]},
-    #         )
-    #         m.get(
-    #             (f"http://www.sources.com/api/v1.0/authentications?[authtype]=arn&[resource_id]={resource_id}"),
-    #             status_code=200,
-    #             json={"data": [{"id": authentication_id}]},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
-    #             status_code=200,
-    #             json={"data": [{"id": resource_id, "extra": {"foo": "bar"}}]},
-    #         )
-    #         m.get(
-    #             (
-    #                 f"http://www.sources.com/internal/v1.0/authentications/{authentication_id}"
-    #                 f"?expose_encrypted_attribute[]=password"
-    #             ),
-    #             status_code=200,
-    #             json={"password": authentication},
-    #         )
-
-    #         source_integration.sources_network_info(test_source_id, test_auth_header)
-
-    #     source_obj = Sources.objects.get(source_id=test_source_id)
-    #     self.assertEqual(source_obj.name, source_name)
-    #     self.assertEqual(source_obj.source_type, Provider.PROVIDER_AWS_LOCAL)
-    #     self.assertEqual(source_obj.authentication, {"credentials": {"role_arn": authentication}})
-
-    # @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    # def test_sources_network_info_sync_ocp(self):
-    #     """Test to get additional Source context from Sources API for OCP."""
-    #     test_source_id = 1
-    #     application_type = 2
-    #     app_id = 1
-    #     test_auth_header = Config.SOURCES_FAKE_HEADER
-    #     source_name = "OCP Source"
-    #     source_uid = faker.uuid4()
-    #     ocp_source = Sources(source_id=test_source_id, auth_header=test_auth_header, offset=1)
-    #     ocp_source.save()
-    #     source_type_id = 3
-    #     resource_id = 2
-    #     authentication_id = 4
-    #     mock_source_name = "openshift"
-    #     with requests_mock.mock() as m:
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/sources/{test_source_id}",
-    #             status_code=200,
-    #             json={"name": source_name, "source_type_id": source_type_id, "uid": source_uid},
-    #         )
-    #         m.get(
-    #             "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
-    #             status_code=200,
-    #             json={"data": [{"id": application_type}]},
-    #         )
-    #         m.get(
-    #             SOURCES_APPS.format(application_type, test_source_id), status_code=200, json={"data": [{"id": app_id}]} # noqa
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
-    #             status_code=200,
-    #             json={"data": [{"name": mock_source_name}]},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
-    #             status_code=200,
-    #             json={"data": [{"id": resource_id}]},
-    #         )
-    #         m.get(
-    #             (f"http://www.sources.com/api/v1.0/authentications?" f"[authtype]=token&[resource_id]={resource_id}"),
-    #             status_code=200,
-    #             json={"data": [{"id": authentication_id}]},
-    #         )
-    #         m.patch(f"http://www.sources.com/api/v1.0/applications/{resource_id}", status_code=204)
-    #         source_integration.sources_network_info(test_source_id, test_auth_header)
-
-    #     source_obj = Sources.objects.get(source_id=test_source_id)
-    #     self.assertEqual(source_obj.name, source_name)
-    #     self.assertEqual(source_obj.source_type, Provider.PROVIDER_OCP)
-    #     self.assertEqual(source_obj.authentication, {})
-
-    # @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    # def test_sources_network_info_sync_azure(self):
-    #     """Test to get additional Source context from Sources API for AZURE."""
-    #     test_source_id = 3
-    #     test_auth_header = Config.SOURCES_FAKE_HEADER
-    #     source_name = "AZURE Source"
-    #     source_uid = faker.uuid4()
-    #     username = "test_user"
-    #     authentication = "testclientcreds"
-    #     tenent_id = "test_tenent_id"
-    #     azure_source = Sources(source_id=test_source_id, auth_header=test_auth_header, offset=1)
-    #     azure_source.save()
-    #     source_type_id = 2
-    #     mock_source_name = "azure"
-    #     resource_id = 3
-    #     authentication_id = 4
-    #     authentications_response = {
-    #         "id": authentication_id,
-    #         "username": username,
-    #         "extra": {"azure": {"tenant_id": tenent_id}},
-    #     }
-    #     with requests_mock.mock() as m:
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/sources/{test_source_id}",
-    #             status_code=200,
-    #             json={"name": source_name, "source_type_id": source_type_id, "uid": source_uid},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
-    #             status_code=200,
-    #             json={"data": [{"name": mock_source_name}]},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
-    #             status_code=200,
-    #             json={"data": [{"id": resource_id}]},
-    #         )
-    #         m.get(
-    #             (
-    #                 f"http://www.sources.com/api/v1.0/authentications?"
-    #                 f"[authtype]=tenant_id_client_id_client_secret&[resource_id]={resource_id}"
-    #             ),
-    #             status_code=200,
-    #             json={"data": [authentications_response]},
-    #         )
-    #         m.get(
-    #             (
-    #                 f"http://www.sources.com/internal/v1.0/authentications/{authentication_id}"
-    #                 f"?expose_encrypted_attribute[]=password"
-    #             ),
-    #             status_code=200,
-    #             json={"password": authentication},
-    #         )
-
-    #         source_integration.sources_network_info(test_source_id, test_auth_header)
-
-    #     source_obj = Sources.objects.get(source_id=test_source_id)
-    #     self.assertEqual(source_obj.name, source_name)
-    #     self.assertEqual(source_obj.source_type, Provider.PROVIDER_AZURE)
-    #     self.assertEqual(
-    #         source_obj.authentication,
-    #         {"credentials": {"client_id": username, "client_secret": authentication, "tenant_id": tenent_id}},
-    #     )
-
-    # @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    # def test_sources_network_info_sync_azure_local(self):
-    #     """Test to get additional Source context from Sources API for AZURE-local."""
-    #     test_source_id = self.azure_local_source.get("source_id")
-    #     local_source = Sources(**self.azure_local_source)
-    #     local_source.save()
-
-    #     test_auth_header = Config.SOURCES_FAKE_HEADER
-    #     source_name = "AZURE Local Source"
-    #     source_uid = faker.uuid4()
-    #     username = "test_user"
-    #     authentication = "testclientcreds"
-    #     tenent_id = "test_tenent_id"
-    #     azure_source = Sources(source_id=test_source_id, auth_header=test_auth_header, offset=1)
-    #     azure_source.save()
-    #     source_type_id = 2
-    #     mock_source_name = "azure-local"
-    #     resource_id = 3
-    #     authentication_id = 4
-    #     authentications_response = {
-    #         "id": authentication_id,
-    #         "username": username,
-    #         "extra": {"azure": {"tenant_id": tenent_id}},
-    #     }
-    #     with requests_mock.mock() as m:
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/sources/{test_source_id}",
-    #             status_code=200,
-    #             json={"name": source_name, "source_type_id": source_type_id, "uid": source_uid},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
-    #             status_code=200,
-    #             json={"data": [{"name": mock_source_name}]},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
-    #             status_code=200,
-    #             json={"data": [{"id": resource_id}]},
-    #         )
-    #         m.get(
-    #             (
-    #                 f"http://www.sources.com/api/v1.0/authentications?"
-    #                 f"[authtype]=tenant_id_client_id_client_secret&[resource_id]={resource_id}"
-    #             ),
-    #             status_code=200,
-    #             json={"data": [authentications_response]},
-    #         )
-    #         m.get(
-    #             (
-    #                 f"http://www.sources.com/internal/v1.0/authentications/{authentication_id}"
-    #                 f"?expose_encrypted_attribute[]=password"
-    #             ),
-    #             status_code=200,
-    #             json={"password": authentication},
-    #         )
-
-    #         source_integration.sources_network_info(test_source_id, test_auth_header)
-
-    #     source_obj = Sources.objects.get(source_id=test_source_id)
-    #     self.assertEqual(source_obj.name, source_name)
-    #     self.assertEqual(source_obj.source_type, Provider.PROVIDER_AZURE_LOCAL)
-    #     self.assertEqual(
-    #         source_obj.authentication,
-    #         {"credentials": {"client_id": username, "client_secret": authentication, "tenant_id": tenent_id}},
-    #     )
-
-    # @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    # def test_sources_network_info_sync_connection_error(self):
-    #     """Test to get additional Source context from Sources API with connection_error."""
-    #     test_source_id = 1
-    #     test_auth_header = Config.SOURCES_FAKE_HEADER
-    #     ocp_source = Sources(source_id=test_source_id, auth_header=test_auth_header, offset=1)
-    #     ocp_source.save()
-
-    #     with requests_mock.mock() as m:
-    #         m.get(f"http://www.sources.com/api/v1.0/sources/{test_source_id}", exc=RequestException)
-
-    #         with self.assertRaises(SourcesHTTPClientError):
-    #             source_integration.sources_network_info(test_source_id, test_auth_header)
-
-    # @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    # def test_sources_network_info_no_endpoint(self):
-    #     """Test to get additional Source context from Sources API with no endpoint found."""
-    #     test_source_id = 1
-    #     application_type = 2
-    #     mock_source_name = "amazon"
-    #     source_type_id = 1
-    #     resource_id = 3
-    #     source_uid = faker.uuid4()
-    #     test_auth_header = Config.SOURCES_FAKE_HEADER
-    #     ocp_source = Sources(source_id=test_source_id, auth_header=test_auth_header, offset=1)
-    #     ocp_source.save()
-
-    #     with requests_mock.mock() as m:
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/sources/{test_source_id}",
-    #             status_code=200,
-    #             json={"name": mock_source_name, "source_type_id": source_type_id, "uid": source_uid},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
-    #             status_code=200,
-    #             json={"data": [{"name": mock_source_name}]},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
-    #             status_code=200,
-    #             json={"data": []},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/applications?filter[source_id]={test_source_id}",
-    #             status_code=200,
-    #             json={"data": [{"id": resource_id, "extra": {}}]},
-    #         )
-    #         m.get(
-    #             f"http://www.sources.com/api/v1.0/authentications?[authtype]=arn&[resource_id]={resource_id}",
-    #             status_code=200,
-    #             json={"data": []},
-    #         )
-    #         m.get(
-    #             "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
-    #             status_code=200,
-    #             json={"data": [{"id": application_type}]},
-    #         )
-    #         m.patch(f"http://www.sources.com/api/v1.0/applications/{resource_id}", status_code=204)
-
-    #         source_integration.sources_network_info(test_source_id, test_auth_header)
-
-    #     source_obj = Sources.objects.get(source_id=test_source_id)
-    #     self.assertEquals(source_obj.name, mock_source_name)
-    #     self.assertEquals(source_obj.source_type, "AWS")
-    #     self.assertEquals(source_obj.authentication, {})
 
     @patch("time.sleep", side_effect=None)
     @patch("sources.kafka_listener.check_kafka_connection", side_effect=[bool(0), bool(1)])
