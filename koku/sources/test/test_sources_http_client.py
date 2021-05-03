@@ -609,6 +609,11 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=200,
                 json={"data": [{"id": application_id}]},
             )
+            m.get(
+                "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
+                status_code=200,
+                json={"data": [{"id": self.application_type}]},
+            )
             m.patch(
                 f"http://www.sources.com/api/v1.0/applications/{application_id}",
                 status_code=204,
@@ -635,6 +640,11 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=200,
                 json={"data": []},
             )
+            m.get(
+                "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
+                status_code=200,
+                json={"data": [{"id": self.application_type}]},
+            )
             response = client.set_source_status(error_msg, application_type_id)
             self.assertFalse(response)
 
@@ -657,6 +667,11 @@ class SourcesHTTPClientTest(TestCase):
                 ),
                 status_code=200,
                 json={"data": [{"id": application_id}]},
+            )
+            m.get(
+                "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
+                status_code=200,
+                json={"data": [{"id": self.application_type}]},
             )
             m.patch(
                 f"http://www.sources.com/api/v1.0/applications/{application_id}",
@@ -685,6 +700,11 @@ class SourcesHTTPClientTest(TestCase):
                 ),
                 status_code=200,
                 json={"data": [{"id": application_id}]},
+            )
+            m.get(
+                "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
+                status_code=200,
+                json={"data": [{"id": self.application_type}]},
             )
             m.patch(f"http://www.sources.com/api/v1.0/applications/{application_id}", status_code=404)
             with self.assertLogs("sources.sources_http_client", "INFO") as captured_logs:
