@@ -121,12 +121,14 @@ class KafkaMessageProcessor:
             - Source UID
         Details are stored in the Sources database table.
         """
-        LOG.info("adding source details...")
+        LOG.info(f"adding source details for Source ID {self.source_id} ...")
         details = self.get_source_details()
         if not details.source_type:
             LOG.warning(f"Unexpected source type ID: {details.source_type_id}")
             return
-        return storage.add_provider_sources_details(details, self.source_id)
+        result = storage.add_provider_sources_details(details, self.source_id) or False
+        LOG.info(f"added source details for Source ID {self.source_id}: {result}")
+        return result
 
     def save_credentials(self):
         """
@@ -138,7 +140,7 @@ class KafkaMessageProcessor:
         attached to the Cost Management application.
         Authentication is stored in the Sources database table.
         """
-        LOG.info("adding source authentication...")
+        LOG.info(f"adding source authentication for Source ID {self.source_id} ...")
         source_type = storage.get_source_type(self.source_id)
 
         if not source_type:
@@ -155,10 +157,9 @@ class KafkaMessageProcessor:
         else:
             if not authentication.get("credentials"):  # TODO: is this check needed?
                 return
-            saved = storage.add_provider_sources_auth_info(self.source_id, authentication)
-            if saved:
-                LOG.info(f"authentication attached to Source ID: {self.source_id}")
-                return True
+            result = storage.add_provider_sources_auth_info(self.source_id, authentication) or False
+            LOG.info(f"authentication attached to Source ID: {self.source_id}: {result}")
+            return result
 
     def save_billing_source(self):
         """
@@ -170,7 +171,7 @@ class KafkaMessageProcessor:
         attached to the Cost Management application.
         Authentication is stored in the Sources database table.
         """
-        LOG.info("adding source billing info...")
+        LOG.info(f"adding source billing info for Source ID {self.source_id} ...")
         source_type = storage.get_source_type(self.source_id)
 
         if not source_type:
@@ -191,10 +192,9 @@ class KafkaMessageProcessor:
         else:
             if not data_source.get("data_source"):
                 return
-            saved = storage.add_provider_sources_billing_info(self.source_id, data_source)
-            if saved:
-                LOG.info(f"billing info attached to Source ID: {self.source_id}")
-                return True
+            result = storage.add_provider_sources_billing_info(self.source_id, data_source) or False
+            LOG.info(f"billing info attached to Source ID: {self.source_id}: {result}")
+            return result
 
 
 class ApplicationMsgProcessor(KafkaMessageProcessor):

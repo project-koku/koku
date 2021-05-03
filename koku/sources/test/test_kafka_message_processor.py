@@ -200,7 +200,7 @@ class KafkaMessageProcessorTest(IamTestCase):
 
     def test_save_sources_details(self):
         """Test save_source_details calls storage method."""
-        table = [None, True]
+        table = [{"return": None, "expected": False}, {"return": True, "expected": True}]
         event = choice(EVENT_LIST)
         msg = msg_generator(event)
         processor = KafkaMessageProcessor(msg, event, COST_MGMT_APP_TYPE_ID)
@@ -208,9 +208,11 @@ class KafkaMessageProcessorTest(IamTestCase):
             mock_details = mock_details_generator(provider, FAKER.name(), uuid4(), FAKER.pyint())
             with self.subTest(test=f"(test={test}, provider={provider}, mock_details={mock_details.__dict__})"):
                 with patch.object(KafkaMessageProcessor, "get_source_details", return_value=mock_details):
-                    with patch("sources.storage.add_provider_sources_details", return_value=test) as mock_details_save:
+                    with patch(
+                        "sources.storage.add_provider_sources_details", return_value=test.get("return")
+                    ) as mock_details_save:
                         result = processor.save_sources_details()
-                        self.assertEqual(result, test)
+                        self.assertEqual(result, test.get("expected"))
                         mock_details_save.assert_called_once()
 
     def test_save_sources_details_unknown_source_type(self):
@@ -240,12 +242,15 @@ class KafkaMessageProcessorTest(IamTestCase):
             _get_gcp_credentials=MagicMock(return_value=self.valid_creds.get(Provider.PROVIDER_GCP)),
             _get_ocp_credentials=MagicMock(return_value=self.valid_creds.get(Provider.PROVIDER_OCP)),
         ):
-            for saved, provider in product([True, None], PROVIDER_LIST):
-                with self.subTest(test=(saved, provider)):
+            table = [{"return": None, "expected": False}, {"return": True, "expected": True}]
+            for test, provider in product(table, PROVIDER_LIST):
+                with self.subTest(test=(test, provider)):
                     with patch("sources.storage.get_source_type", return_value=provider):
-                        with patch("sources.storage.add_provider_sources_auth_info", return_value=saved) as mock_add:
+                        with patch(
+                            "sources.storage.add_provider_sources_auth_info", return_value=test.get("return")
+                        ) as mock_add:
                             result = processor.save_credentials()
-                            self.assertEqual(result, saved)
+                            self.assertEqual(result, test.get("expected"))
                             mock_add.assert_called_with(None, {"credentials": self.valid_creds.get(provider)})
 
     def test_save_credentials_errors(self):
@@ -289,14 +294,15 @@ class KafkaMessageProcessorTest(IamTestCase):
         with patch.object(SourcesHTTPClient, "get_data_source", side_effect=side_effect_func):
             new_list = copy.copy(PROVIDER_LIST)
             new_list.remove(Provider.PROVIDER_OCP)  # OCP is the oddball and does not save billing data
-            for saved, provider in product([True, None], new_list):
-                with self.subTest(test=(saved, provider)):
+            table = [{"return": None, "expected": False}, {"return": True, "expected": True}]
+            for test, provider in product(table, new_list):
+                with self.subTest(test=(test, provider)):
                     with patch("sources.storage.get_source_type", return_value=provider):
                         with patch(
-                            "sources.storage.add_provider_sources_billing_info", return_value=saved
+                            "sources.storage.add_provider_sources_billing_info", return_value=test.get("return")
                         ) as mock_add:
                             result = processor.save_billing_source()
-                            self.assertEqual(result, saved)
+                            self.assertEqual(result, test.get("expected"))
                             mock_add.assert_called_with(None, {"data_source": self.valid_billing.get(provider)})
 
     def test_save_billing_source_skipped_for_OCP(self):
