@@ -77,6 +77,7 @@ class SourceStatus:
         except ValidationError as validation_error:
             self._set_provider_active_status(False)
             error_obj = validation_error
+        self.source.refresh_from_db()
         return error_obj
 
     def status(self):
@@ -104,7 +105,7 @@ class SourceStatus:
                 builder = SourcesProviderCoordinator(self.source.source_id, self.source.auth_header)
                 if self.source.koku_uuid:
                     builder.update_account(self.source)
-                else:
+                elif self.source.billing_source.get("data_source", {}).get("table_id"):
                     builder.create_account(self.source)
             self.sources_client.set_source_status(status_obj)
             self.update_source_name()
