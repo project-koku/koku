@@ -32,10 +32,9 @@
         },
         "app-common-python": {
             "hashes": [
-                "sha256:2dbe55b6ed818c4592728a7980678d6062403d865f8adc60e4050e825e0d0d31"
+                "sha256:4419ff6bd792215661af286bd40f30c105d392b35ddda66f01cb0664a4dbf3dc"
             ],
-            "index": "pypi",
-            "version": "==0.1.7"
+            "version": "==0.1.8"
         },
         "asgiref": {
             "hashes": [
