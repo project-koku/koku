@@ -101,9 +101,9 @@ class SourceStatus:
 
     def _gcp_bigquery_table_found(self):
         """Helper to determine if this is the first time a GCP BigQuery table was found."""
-        if self.source.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL) and not self.source.status:
-            return True
-        return False
+        return (
+            self.source.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL) and not self.source.status
+        )
 
     def push_status(self):
         """Push status_msg to platform sources."""
@@ -115,7 +115,7 @@ class SourceStatus:
                     builder.update_account(self.source)
                 else:
                     builder.create_account(self.source)
-            self.sources_client.set_source_status(status_obj)
+                self.sources_client.set_source_status(status_obj)
             self.update_source_name()
             LOG.info(f"Source status for Source ID: {str(self.source_id)}: Status: {str(status_obj)}")
         except SkipStatusPush as error:
