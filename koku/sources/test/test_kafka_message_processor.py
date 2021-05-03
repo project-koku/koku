@@ -50,7 +50,6 @@ from sources.kafka_message_processor import SOURCES_GCP_SOURCE_NAME
 from sources.kafka_message_processor import SOURCES_OCP_SOURCE_NAME
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
-from sources.test.test_kafka_listener import ConsumerRecord
 from sources.test.test_sources_http_client import COST_MGMT_APP_TYPE_ID
 
 NoneType = type(None)
@@ -102,6 +101,39 @@ def mock_details_generator(provider_type, name, uid, source_id):
             SourcesHTTPClient, "get_source_type_name", return_value=SOURCE_TYPE_IDS.get(source_type_id, "unknown")
         ):
             return SourceDetails(Config.SOURCES_FAKE_HEADER, source_id)
+
+
+class ConsumerRecord:
+    """Test class for kafka msg."""
+
+    def __init__(self, topic, offset, event_type, value, auth_header=None, partition=0):
+        """Initialize Msg."""
+        self._topic = topic
+        self._offset = offset
+        self._partition = partition
+        if auth_header:
+            self._headers = (
+                ("event_type", bytes(event_type, encoding="utf-8")),
+                ("x-rh-identity", bytes(auth_header, encoding="utf-8")),
+            )
+        else:
+            self._headers = (("event_type", bytes(event_type, encoding="utf-8")),)
+        self._value = value
+
+    def topic(self):
+        return self._topic
+
+    def offset(self):
+        return self._offset
+
+    def partition(self):
+        return self._partition
+
+    def value(self):
+        return self._value
+
+    def headers(self):
+        return self._headers
 
 
 class KafkaMessageProcessorTest(IamTestCase):

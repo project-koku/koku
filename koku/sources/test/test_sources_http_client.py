@@ -60,6 +60,7 @@ class SourcesHTTPClientTest(TestCase):
         self.authentication = "testauth"
 
     def test_get_network_response_success(self):
+        """Test get network response succeeds."""
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(url=MOCK_URL, json={"data": "valid json"})
@@ -67,6 +68,7 @@ class SourcesHTTPClientTest(TestCase):
             self.assertEqual(resp.get("data"), "valid json")
 
     def test_get_network_response_json_exception(self):
+        """Test get network response with invalid json response."""
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(url=MOCK_URL, text="this is not valid json")
@@ -74,6 +76,7 @@ class SourcesHTTPClientTest(TestCase):
                 client._get_network_response(MOCK_URL, "test error")
 
     def test_get_network_response_exception(self):
+        """Test get network response with request exception."""
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(url=MOCK_URL, exc=RequestException)
@@ -81,6 +84,7 @@ class SourcesHTTPClientTest(TestCase):
                 client._get_network_response(MOCK_URL, "test error")
 
     def test_get_network_response_status_exception(self):
+        """Test get network response with invalid status responses."""
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         table = [{"status": 404, "expected": SourceNotFoundError}, {"status": 403, "expected": SourcesHTTPClientError}]
         for test in table:
@@ -218,7 +222,7 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=test):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/applications?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_id}",
                         status_code=200,
                         json={"data": [test.get("json")]},
                     )
@@ -234,7 +238,7 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=(source_type, json)):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/applications?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_id}",
                         status_code=200,
                         json={"data": json},
                     )
@@ -250,7 +254,7 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=(source_type, json)):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/applications?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_id}",
                         status_code=200,
                         json={"data": json},
                     )
@@ -299,21 +303,25 @@ class SourcesHTTPClientTest(TestCase):
     def test_get_aws_credentials_internal_endpoint(self):
         """Test to get AWS Role ARN from authentication service from internal endpoint."""
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
-        with requests_mock.mock() as m:
-            resource_id = 2
-            m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
-                status_code=200,
-                json={"data": [{"id": resource_id}]},
-            )
-            m.get(
-                (
+        resource_id = 2
+        responses = [
+            {
+                "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                "status": 200,
+                "json": {"data": [{"id": resource_id}]},
+            },
+            {
+                "url": (
                     f"{MOCK_URL}/internal/v1.0/{ENDPOINT_AUTHENTICATIONS}/"
                     f"{resource_id}?expose_encrypted_attribute[]=password"
                 ),
-                status_code=200,
-                json={"authtype": "arn", "password": self.authentication},
-            )
+                "status": 200,
+                "json": {"authtype": "arn", "password": self.authentication},
+            },
+        ]
+        with requests_mock.mock() as m:
+            for resp in responses:
+                m.get(resp.get("url"), status_code=resp.get("status"), json=resp.get("json"))
             response = client._get_aws_credentials()
             self.assertEqual(response.get("role_arn"), self.authentication)
 

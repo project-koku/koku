@@ -210,10 +210,10 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
             if self.event_type in (KAFKA_APPLICATION_CREATE,):
                 self.save_sources_details()
                 self.save_billing_source()
-                # Authentication messages are responsible for saving credentials.
+                # _Authentication_ messages are responsible for saving credentials.
                 # However, OCP does not send an Auth message. Therefore, we need
-                # to run the following branch for OCP which completes the source creation
-                # for an OCP source.
+                # to run the following branch for OCP which completes the source
+                # creation cycle for an OCP source.
                 if storage.get_source_type(self.source_id) == Provider.PROVIDER_OCP:
                     self.save_credentials()
             if self.event_type in (KAFKA_APPLICATION_UPDATE,):

@@ -15,16 +15,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Sources Kafka Listener handler."""
-# import asyncio
-import json
 import queue
 from unittest.mock import patch
 from uuid import uuid4
 
+import requests_mock
 from django.db import IntegrityError
 from django.db import InterfaceError
 from django.db import OperationalError
 from django.db.models.signals import post_save
+from django.forms.models import model_to_dict
 from django.test.utils import override_settings
 from faker import Faker
 from kafka.errors import KafkaError
@@ -42,13 +42,24 @@ from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
 from sources import storage
 from sources.config import Config
+from sources.kafka_listener import KAFKA_APPLICATION_CREATE
+from sources.kafka_listener import KAFKA_AUTHENTICATION_CREATE
 from sources.kafka_listener import PROCESS_QUEUE
 from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import SourcesIntegrationError
 from sources.kafka_listener import storage_callback
+from sources.sources_http_client import ENDPOINT_APPLICATION_TYPES
+from sources.sources_http_client import ENDPOINT_APPLICATIONS
+from sources.sources_http_client import ENDPOINT_AUTHENTICATIONS
+from sources.sources_http_client import ENDPOINT_SOURCE_TYPES
+from sources.sources_http_client import ENDPOINT_SOURCES
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
+from sources.test.test_kafka_message_processor import msg_generator
+from sources.test.test_kafka_message_processor import SOURCE_TYPE_IDS
+from sources.test.test_kafka_message_processor import SOURCE_TYPE_IDS_MAP
 from sources.test.test_sources_http_client import COST_MGMT_APP_TYPE_ID
+from sources.test.test_sources_http_client import MOCK_URL
 
 # import requests_mock
 # from requests.exceptions import RequestException
@@ -56,6 +67,7 @@ from sources.test.test_sources_http_client import COST_MGMT_APP_TYPE_ID
 # from sources.sources_http_client import SourcesHTTPClientError
 
 faker = Faker()
+FAKE_AWS_ARN = "arn:aws:iam::111111111111:role/CostManagement"
 SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}"
 
 
@@ -74,80 +86,24 @@ def raise_provider_manager_error(param_a):
     raise ProviderBuilderError("test exception")
 
 
-class ConsumerRecord:
-    """Test class for kafka msg."""
-
-    def __init__(self, topic, offset, event_type, value, auth_header=None, partition=0):
-        """Initialize Msg."""
-        self._topic = topic
-        self._offset = offset
-        self._partition = partition
-        if auth_header:
-            self._headers = (
-                ("event_type", bytes(event_type, encoding="utf-8")),
-                ("x-rh-identity", bytes(auth_header, encoding="utf-8")),
-            )
-        else:
-            self._headers = (("event_type", bytes(event_type, encoding="utf-8")),)
-        self._value = value
-
-    def topic(self):
-        return self._topic
-
-    def offset(self):
-        return self._offset
-
-    def partition(self):
-        return self._partition
-
-    def value(self):
-        return self._value
-
-    def headers(self):
-        return self._headers
-
-
-class MsgDataGenerator:
-    """Test class to create msg_data."""
-
-    def __init__(self, event_type, test_topic=None, value=None):
-        """Initialize MsgDataGenerator."""
-        self.test_topic = test_topic or "platform.sources.event-stream"
-        self.test_offset = 5
-        self.cost_management_app_type = COST_MGMT_APP_TYPE_ID
-        self.test_auth_header = Config.SOURCES_FAKE_HEADER
-        self.event_type = event_type
-        if value:
-            self.test_value = json.dumps(value)
-        else:
-            self.test_value = '{"id":1,"source_id":1,"application_type_id":2}'
-        self.msg = ConsumerRecord(
-            topic=self.test_topic,
-            offset=self.test_offset,
-            event_type=self.event_type,
-            auth_header=self.test_auth_header,
-            value=bytes(self.test_value, encoding="utf-8"),
-        )
-
-
 class MockKafkaConsumer:
     def __init__(self, preloaded_messages=["hi", "world"]):
         self.preloaded_messages = preloaded_messages
 
-    async def start(self):
+    def start(self):
         pass
 
-    async def stop(self):
+    def stop(self):
         pass
 
-    async def commit(self):
+    def commit(self):
         self.preloaded_messages.pop()
 
-    async def seek(self, topic_partition):
+    def seek(self, topic_partition):
         # This isn't realistic... But it's one way to stop the consumer for our needs.
         raise KafkaError("Seek to commited. Closing...")
 
-    async def getone(self):
+    def getone(self):
         for msg in self.preloaded_messages:
             return msg
         raise KafkaError("Closing Mock Consumer")
@@ -155,10 +111,11 @@ class MockKafkaConsumer:
     def __aiter__(self):
         return self
 
-    async def __anext__(self):
-        return await self.getone()
+    def __anext__(self):
+        return self.getone()
 
 
+@patch.object(Config, "SOURCES_API_URL", MOCK_URL)
 class SourcesKafkaMsgHandlerTest(IamTestCase):
     """Test Cases for the Sources Kafka Listener."""
 
@@ -173,17 +130,6 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
     def setUp(self):
         """Setup the test method."""
         super().setUp()
-        self.aws_source = {
-            "source_id": 10,
-            "source_uuid": uuid4(),
-            "name": "ProviderAWS",
-            "source_type": "AWS",
-            "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
-            "billing_source": {"data_source": {"bucket": "fake-bucket"}},
-            "auth_header": Config.SOURCES_FAKE_HEADER,
-            "account_id": "acct10001",
-            "offset": 10,
-        }
         self.aws_local_source = {
             "source_id": 11,
             "source_uuid": uuid4(),
@@ -195,33 +141,140 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             "account_id": "acct10001",
             "offset": 11,
         }
-        self.azure_local_source = {
-            "source_id": 12,
-            "source_uuid": uuid4(),
-            "name": "ProviderAzure Local",
-            "source_type": "Azure-local",
-            "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
-            "billing_source": {"data_source": {"bucket": "fake-local-bucket"}},
-            "auth_header": Config.SOURCES_FAKE_HEADER,
-            "account_id": "acct10001",
-            "offset": 12,
+        self.uuids = {Provider.PROVIDER_AWS: uuid4()}
+        self.source_ids = {
+            Provider.PROVIDER_AWS: 10,
+            Provider.PROVIDER_AZURE: 11,
+            Provider.PROVIDER_GCP: 12,
+            Provider.PROVIDER_OCP: 13,
         }
-        self.gcp_source = {
-            "source_id": 13,
-            "source_uuid": uuid4(),
-            "name": "Provider GCP",
-            "source_type": "GCP",
-            "authentication": {"credentials": {"project_id": "test_project"}},
-            "billing_source": {"data_source": {"dataset": "test_dataset", "table_id": "test_table_id"}},
-            "auth_header": Config.SOURCES_FAKE_HEADER,
-            "account_id": "acct10001",
-            "offset": 12,
+        self.sources = {
+            Provider.PROVIDER_AWS: {
+                "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
+                "source_uuid": self.uuids.get(Provider.PROVIDER_AWS),
+                "name": "Provider AWS",
+                "source_type": "AWS",
+                "authentication": {"credentials": {"role_arn": FAKE_AWS_ARN}},
+                "billing_source": {"data_source": {"bucket": "test_bucket"}},
+                "auth_header": Config.SOURCES_FAKE_HEADER,
+                "account_id": "12345",
+                "offset": 5,
+            },
+            Provider.PROVIDER_AZURE: {
+                "source_id": self.source_ids.get(Provider.PROVIDER_AZURE),
+                "source_uuid": uuid4(),
+                "name": "Provider Azure",
+                "source_type": "Azure",
+                "authentication": {
+                    "credentials": {
+                        "client_id": "test_client_id",
+                        "client_secret": "test_client_secret",
+                        "subscription_id": "test_subscription_id",
+                        "tenant_id": "test_tenant_id",
+                    }
+                },
+                "billing_source": {
+                    "data_source": {"resource_group": "test_resource_group", "storage_account": "test_storage_account"}
+                },
+                "auth_header": Config.SOURCES_FAKE_HEADER,
+                "account_id": "12345",
+                "offset": 5,
+            },
+            Provider.PROVIDER_GCP: {
+                "source_id": self.source_ids.get(Provider.PROVIDER_GCP),
+                "source_uuid": uuid4(),
+                "name": "Provider GCP",
+                "source_type": "GCP",
+                "authentication": {"credentials": {"project_id": "test_project_id"}},
+                "billing_source": {"data_source": {"dataset": "test_dataset", "table_id": "test_table_id"}},
+                "auth_header": Config.SOURCES_FAKE_HEADER,
+                "account_id": "12345",
+                "offset": 5,
+            },
+            Provider.PROVIDER_OCP: {
+                "source_id": self.source_ids.get(Provider.PROVIDER_OCP),
+                "source_uuid": uuid4(),
+                "name": "Provider OCP",
+                "source_type": "OCP",
+                "authentication": {"credentials": {"cluster_id": "cluster_id"}},
+                "billing_source": {},
+                "auth_header": Config.SOURCES_FAKE_HEADER,
+                "account_id": "12345",
+                "offset": 5,
+            },
         }
+        self.mock_requests = {
+            Provider.PROVIDER_AWS: [
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "status": 200,
+                    "json": {"data": [{"not": "empty"}]},
+                },
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCE_TYPES}?filter[id]={SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "status": 200,
+                    "json": {"data": [{"name": SOURCE_TYPE_IDS[SOURCE_TYPE_IDS_MAP[Provider.PROVIDER_AWS]]}]},
+                },
+                # {
+                #     "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_AWS)}",
+                #     "json": {"data": [{"extra": {"bucket": "test_bucket"}}]},
+                #     "status": 200,
+                # },
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "status": 200,
+                    "json": {"data": [{"extra": {"bucket": "test_bucket"}}]},
+                },
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "status": 200,
+                    "json": {"data": [{"id": self.source_ids.get(Provider.PROVIDER_AWS), "username": FAKE_AWS_ARN}]},
+                },
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_AWS)}",
+                    "status": 200,
+                    "json": {
+                        "name": "Provider AWS",
+                        "source_type_id": SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_AWS),
+                        "uid": str(self.uuids.get(Provider.PROVIDER_AWS)),
+                    },
+                },
+            ]
+        }
+
+    def test_listen_for_messages_aws_create(self):
+        msgs = [
+            msg_generator(
+                KAFKA_APPLICATION_CREATE,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            ),
+            msg_generator(
+                KAFKA_AUTHENTICATION_CREATE,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            ),
+        ]
+        with requests_mock.mock() as m:
+            for resp in self.mock_requests.get(Provider.PROVIDER_AWS):
+                m.get(url=resp.get("url"), status_code=resp.get("status"), json=resp.get("json"))
+            for msg in msgs:
+                mock_consumer = MockKafkaConsumer([msg])
+                source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
+            source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
+            s = model_to_dict(source, fields=[f for f in self.sources.get(Provider.PROVIDER_AWS).keys()])
+            self.assertDictEqual(s, self.sources.get(Provider.PROVIDER_AWS))
 
     def test_execute_koku_provider_op_create(self):
         """Test to execute Koku Operations to sync with Sources for creation."""
-        source_id = self.aws_source.get("source_id")
-        provider = Sources(**self.aws_source)
+        source_id = self.source_ids.get(Provider.PROVIDER_AWS)
+        provider = Sources(**self.sources.get(Provider.PROVIDER_AWS))
         provider.save()
 
         msg = {"operation": "create", "provider": provider, "offset": provider.offset}
@@ -235,8 +288,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     def test_execute_koku_provider_op_destroy(self):
         """Test to execute Koku Operations to sync with Sources for destruction."""
-        source_id = self.aws_source.get("source_id")
-        provider = Sources(**self.aws_source)
+        source_id = self.source_ids.get(Provider.PROVIDER_AWS)
+        provider = Sources(**self.sources.get(Provider.PROVIDER_AWS))
         provider.save()
 
         msg = {"operation": "destroy", "provider": provider, "offset": provider.offset}
@@ -252,8 +305,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
         Then, re-call provider destroy without exception, then see both source and provider are gone.
 
         """
-        source_id = self.aws_source.get("source_id")
-        provider = Sources(**self.aws_source)
+        source_id = self.source_ids.get(Provider.PROVIDER_AWS)
+        provider = Sources(**self.sources.get(Provider.PROVIDER_AWS))
         provider.save()
         # check that the source exists
         self.assertTrue(Sources.objects.filter(source_id=source_id).exists())
@@ -284,8 +337,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             """helper to clear update flag."""
             storage.clear_update_flag(source_id)
 
-        source_id = self.aws_source.get("source_id")
-        provider = Sources(**self.aws_source)
+        source_id = self.source_ids.get(Provider.PROVIDER_AWS)
+        provider = Sources(**self.sources.get(Provider.PROVIDER_AWS))
         provider.save()
 
         msg = {"operation": "create", "provider": provider, "offset": provider.offset}
@@ -303,7 +356,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
 
         self.assertEqual(
             Provider.objects.get(uuid=uuid).billing_source.data_source,
-            self.aws_source.get("billing_source").get("data_source"),
+            self.sources.get(Provider.PROVIDER_AWS).get("billing_source").get("data_source"),
         )
 
         provider.billing_source = {"data_source": {"bucket": "new-bucket"}}
@@ -324,8 +377,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
 
     def test_execute_koku_provider_op_skip_status(self):
         """Test to execute Koku Operations to sync with Sources and not push status."""
-        source_id = self.aws_source.get("source_id")
-        provider = Sources(**self.aws_source)
+        source_id = self.source_ids.get(Provider.PROVIDER_AWS)
+        provider = Sources(**self.sources.get(Provider.PROVIDER_AWS))
         provider.save()
 
         msg = {"operation": "create", "provider": provider, "offset": provider.offset}
@@ -731,7 +784,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
     @patch("sources.kafka_listener.execute_koku_provider_op")
     def test_process_synchronize_sources_msg_db_error(self, mock_process_message):
         """Test processing synchronize messages with database errors."""
-        provider = Sources.objects.create(**self.aws_source)
+        provider = Sources.objects.create(**self.sources.get(Provider.PROVIDER_AWS))
         provider.save()
 
         test_queue = queue.PriorityQueue()
@@ -754,7 +807,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
     @patch("sources.kafka_listener.execute_koku_provider_op")
     def test_process_synchronize_sources_msg_integration_error(self, mock_process_message):
         """Test processing synchronize messages with database errors."""
-        provider = Sources.objects.create(**self.aws_source)
+        provider = Sources.objects.create(**self.sources.get(Provider.PROVIDER_AWS))
         provider.save()
 
         test_queue = queue.PriorityQueue()
