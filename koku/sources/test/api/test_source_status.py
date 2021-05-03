@@ -149,7 +149,7 @@ class SourcesStatusTest(IamTestCase):
                 name="New GCP Mock Test Source",
                 source_type=Provider.PROVIDER_GCP,
                 authentication={"credentials": {"project_id": "test_project_id"}},
-                billing_source={"data_source": {"dataset": "test_dataset"}},
+                billing_source={"data_source": {"dataset": "test_dataset", "table_id": "cost_table"}},
                 status={},
                 offset=1,
             )
