@@ -15,7 +15,6 @@
 #
 """View for Source status."""
 import logging
-import threading
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
@@ -45,10 +44,8 @@ LOG = logging.getLogger(__name__)
 class SourceStatus:
     """Source Status."""
 
-    def __init__(self, request, source_id):
+    def __init__(self, source_id):
         """Initialize source id."""
-        self.request = request
-        self.user = request.user
         self.source_id = source_id
         self.source = Sources.objects.get(source_id=source_id)
         if not source_settings_complete(self.source) or self.source.pending_delete:
@@ -109,7 +106,7 @@ class SourceStatus:
                     builder.update_account(self.source)
                 else:
                     builder.create_account(self.source)
-                self.sources_client.set_source_status(status_obj)
+            self.sources_client.set_source_status(status_obj)
             self.update_source_name()
             LOG.info(f"Source status for Source ID: {str(self.source_id)}: Status: {str(status_obj)}")
         except SkipStatusPush as error:
@@ -137,10 +134,6 @@ def _deliver_status(request, status_obj):
     if request.method == "GET":
         return Response(status_obj.sources_response, status=status.HTTP_200_OK)
     elif request.method == "POST":
-        LOG.info("Delivering source status for Source ID: %s", status_obj.source_id)
-        status_thread = threading.Thread(target=status_obj.push_status)
-        status_thread.daemon = True
-        status_thread.start()
         return Response(status=status.HTTP_204_NO_CONTENT)
     else:
         raise status.HTTP_405_METHOD_NOT_ALLOWED
@@ -173,7 +166,7 @@ def source_status(request):
         return Response(data="source_id must be an integer", status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        source_status_obj = SourceStatus(request, source_id)
+        source_status_obj = SourceStatus(source_id)
     except ObjectDoesNotExist:
         # Source isn't in our database, return 404.
         return Response(status=status.HTTP_404_NOT_FOUND)
