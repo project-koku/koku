@@ -358,8 +358,7 @@ services:
       image: koku_base
       restart: on-failure:25
       working_dir: /koku/
-      entrypoint:
-        - /koku/run_sources.sh
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', /koku/run_sources.sh]
       environment:
         - DATABASE_SERVICE_NAME=POSTGRES_SQL
         - DATABASE_ENGINE=postgresql
