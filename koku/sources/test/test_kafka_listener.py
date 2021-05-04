@@ -52,6 +52,9 @@ from sources.kafka_listener import PROCESS_QUEUE
 from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import SourcesIntegrationError
 from sources.kafka_listener import storage_callback
+from sources.kafka_message_processor import ApplicationMsgProcessor
+from sources.kafka_message_processor import AuthenticationMsgProcessor
+from sources.kafka_message_processor import SourceMsgProcessor
 from sources.sources_http_client import ENDPOINT_APPLICATION_TYPES
 from sources.sources_http_client import ENDPOINT_APPLICATIONS
 from sources.sources_http_client import ENDPOINT_AUTHENTICATIONS
@@ -414,6 +417,33 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
             self.assertTrue(source.pending_delete)
+
+    def test_message_not_associated_with_cost_mgmt(self):
+        """Test that messages not associated with cost-mgmt are not processed."""
+        table = [
+            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_CREATE, "called": True},
+            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_UPDATE},
+            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_DESTROY, "called": True},
+            {"processor": AuthenticationMsgProcessor, "event": KAFKA_AUTHENTICATION_CREATE},
+            {"processor": AuthenticationMsgProcessor, "event": KAFKA_AUTHENTICATION_UPDATE},
+            {"processor": SourceMsgProcessor, "event": KAFKA_SOURCE_DESTROY, "called": True},
+        ]
+        for test in table:
+            with self.subTest(test=test):
+                with requests_mock.mock() as m:
+                    m.get(
+                        url=f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]=1",  # noqa: E501
+                        status_code=200,
+                        json={"data": []},
+                    )
+                    with patch.object(test.get("processor"), "process") as mock_processor:
+                        msg = msg_generator(event_type=test.get("event"))
+                        mock_consumer = MockKafkaConsumer([msg])
+                        source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
+                        if test.get("called"):
+                            mock_processor.assert_called()
+                        else:
+                            mock_processor.assert_not_called()
 
     def test_execute_koku_provider_op_create(self):
         """Test to execute Koku Operations to sync with Sources for creation."""
