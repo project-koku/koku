@@ -302,9 +302,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     LOG.debug(f"Customer added to cache: {account}")
                 customer = IdentityHeaderMiddleware.customer_cache[account]
             except Customer.DoesNotExist:
-                create_schema = False
-                if settings.DEVELOPMENT and request.user.req_id == "DEVELOPMENT":
-                    create_schema = True
+                create_schema = settings.DEVELOPMENT and request.user.req_id == "DEVELOPMENT"
                 customer = IdentityHeaderMiddleware.create_customer(account, create_schema)
             except OperationalError as err:
                 LOG.error("IdentityHeaderMiddleware exception: %s", err)
