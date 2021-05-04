@@ -32,6 +32,8 @@ from koku.database import dbfunc_exists
 from koku.migration_sql_helpers import apply_sql_file
 from koku.migration_sql_helpers import find_db_functions_dir
 
+# from koku.database import dbfunc_not_exists
+
 
 LOG = logging.getLogger(__name__)
 
@@ -141,10 +143,11 @@ class Tenant(TenantMixin):
     def _check_clone_func(self):
         clone_func_state = TENANT_SUPPORT.get("clone_func_state")
         if clone_func_state is None:
-            LOG.info(f'Verify that clone function "{self._CLONE_SCHEMA_FUNC_SIG}" exists')
-            clone_func_state = dbfunc_exists(
-                conn, self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG
-            )
+            # fumc_map = {self._CLONE_SCHEMA_FUNC_SCHEMA: {self._CLONE_SHEMA_FUNC_NAME: self._CLONE_SCHEMA_FUNC_SIG}}
+            # LOG.info(f'Verify that clone function "{self._CLONE_SCHEMA_FUNC_SIG}" exists')
+            # clone_func_state = dbfunc_exists(
+            #     conn, self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG
+            # )
             if not clone_func_state:
                 LOG.warning(f'Clone function "{self._CLONE_SCHEMA_FUNC_SIG}" does not exist')
                 LOG.info(f'Creating clone function "{self._CLONE_SCHEMA_FUNC_SIG}"')
