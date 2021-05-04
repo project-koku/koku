@@ -157,7 +157,7 @@ APP_SETTINGS_SCREEN_MAP = {
 def source_settings_complete(provider):
     """Determine if the source application settings are complete."""
     screen_fn = APP_SETTINGS_SCREEN_MAP.get(provider.source_type)
-    return screen_fn(provider)
+    return screen_fn(provider) if screen_fn else False
 
 
 def load_providers_to_create():
