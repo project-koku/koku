@@ -41,6 +41,7 @@ from django_prometheus.middleware import PrometheusBeforeMiddleware
 from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.middleware import BaseTenantMiddleware
+from tenant_schemas.utils import schema_exists
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.models import Customer
@@ -111,6 +112,14 @@ class HttpResponseFailedDependency(JsonResponse):
             ]
         }
         super().__init__(data)
+
+
+class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
+    """A middleware to check if schema exists for Tenant."""
+
+    def process_request(self, request):
+        if not schema_exists(request.tenant.schema_name):
+            return JsonResponse(data={})
 
 
 class KokuTenantMiddleware(BaseTenantMiddleware):
