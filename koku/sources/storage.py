@@ -265,6 +265,7 @@ def enqueue_source_delete(source_id, offset, allow_out_of_order=False):
         source = Sources.objects.get(source_id=source_id)
         if not source.pending_delete and not source.out_of_order_delete:
             source.pending_delete = True
+            LOG.info(f"[enqueue_source_delete] source_id: {source_id} marked for deletion")
             source.save()
             mark_provider_as_inactive(source.koku_uuid)
     except Sources.DoesNotExist:
@@ -273,6 +274,8 @@ def enqueue_source_delete(source_id, offset, allow_out_of_order=False):
             new_event = Sources(source_id=source_id, offset=offset, out_of_order_delete=True)
             new_event.save()
             LOG.info(f"[enqueue_source_delete] created source_id as pending delete: {source_id}")
+        else:
+            LOG.info(f"[enqueue_source_delete] source_id: {source_id} already removed")
     except (InterfaceError, OperationalError) as error:
         LOG.error(f"Accessing sources resulted in {type(error).__name__}: {error}")
         raise error

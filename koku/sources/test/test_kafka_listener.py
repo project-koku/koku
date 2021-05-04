@@ -43,9 +43,11 @@ from providers.provider_errors import SkipStatusPush
 from sources import storage
 from sources.config import Config
 from sources.kafka_listener import KAFKA_APPLICATION_CREATE
+from sources.kafka_listener import KAFKA_APPLICATION_DESTROY
 from sources.kafka_listener import KAFKA_APPLICATION_UPDATE
 from sources.kafka_listener import KAFKA_AUTHENTICATION_CREATE
 from sources.kafka_listener import KAFKA_AUTHENTICATION_UPDATE
+from sources.kafka_listener import KAFKA_SOURCE_DESTROY
 from sources.kafka_listener import PROCESS_QUEUE
 from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import SourcesIntegrationError
@@ -328,8 +330,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             ]
         }
 
-    def test_listen_for_messages_aws_create_and_update(self):
-
+    def test_listen_for_messages_aws_create_update_delete(self):
+        """Test for app/auth create, app/auth update, app/source delete."""
         # First, test the create pathway:
         msgs = [
             msg_generator(
@@ -387,6 +389,31 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
             s = model_to_dict(source, fields=[f for f in self.updated_sources.get(Provider.PROVIDER_AWS).keys()])
             self.assertDictEqual(s, self.updated_sources.get(Provider.PROVIDER_AWS))
+
+        # now test the delete pathway
+        msgs = [
+            msg_generator(
+                KAFKA_APPLICATION_DESTROY,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            ),
+            msg_generator(
+                KAFKA_SOURCE_DESTROY,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            ),
+        ]
+        for msg in msgs:
+            mock_consumer = MockKafkaConsumer([msg])
+            source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
+            source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
+            self.assertTrue(source.pending_delete)
 
     def test_execute_koku_provider_op_create(self):
         """Test to execute Koku Operations to sync with Sources for creation."""
@@ -562,41 +589,6 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
         self.assertEqual(connection_errors_after - connection_errors_before, 1)
 
     # @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    # @patch("sources.kafka_listener.sources_network_info", returns=None)
-    # def test_process_message_application_create(self, mock_sources_network_info):
-    #     """Test the process_message function."""
-    #     test_application_id = 2
-
-    #     def _expected_application_create(msg_data, test, source_network_info_mock):
-    #         source_name = test.get("source_name")
-    #         query_results = Sources.objects.filter(source_id=msg_data.get("source_id"))
-    #         if source_name in ["amazon", "ocp"]:
-    #             self.assertTrue(query_results.exists())
-    #             self.assertEqual(query_results.first().auth_header, msg_data.get("auth_header"))
-    #             source_network_info_mock.assert_called()
-
-    #     test_matrix = [
-    #         {
-    #             "event": source_integration.KAFKA_APPLICATION_CREATE,
-    #             "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
-    #             "source_name": "ocp",
-    #             "expected_fn": _expected_application_create,
-    #         },
-    #         {
-    #             "event": source_integration.KAFKA_APPLICATION_CREATE,
-    #             "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
-    #             "source_name": "amazon",
-    #             "expected_fn": _expected_application_create,
-    #         },
-    #     ]
-    #     for test in test_matrix:
-    #         msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
-    #         with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
-    #             with patch.object(SourcesHTTPClient, "get_source_type_name", return_value=test.get("source_name")):
-    #                 # process_message(test_application_id, msg_data)
-    #                 test.get("expected_fn")(msg_data, test, mock_sources_network_info)
-
-    # @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     # def test_process_message_application_unsupported_source_type(self):
     #     """Test the process_message function with an unsupported source type."""
     #     test_application_id = 2
@@ -614,289 +606,6 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
     #                 # self.assertIsNone(process_message(test_application_id, msg_data))
     #                 self.assertIsNone(msg_data)
     #                 pass
-
-    # @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    # @patch("sources.kafka_listener.sources_network_info", returns=None)
-    # @patch("sources.kafka_listener.save_auth_info", returns=None)
-    # def test_process_message_authentication_create(self, mock_save_auth_info, mock_sources_network_info):
-    #     """Test the process_message function for authentication create."""
-    #     test_application_id = 2
-
-    #     def _expected_authentication_create(msg_data, test, save_auth_info_mock):
-    #         expected_cost_mgmt_match = test.get("expected_cost_mgmt_match")
-    #         query_results = Sources.objects.filter(source_id=test.get("value").get("source_id"))
-    #         if expected_cost_mgmt_match:
-    #             self.assertTrue(query_results.exists())
-    #             self.assertEqual(query_results.first().auth_header, msg_data.get("auth_header"))
-    #             save_auth_info_mock.assert_called()
-    #         else:
-    #             self.assertFalse(query_results.exists())
-    #             save_auth_info_mock.assert_not_called()
-
-    #     test_matrix = [
-    #         {
-    #             "event": source_integration.KAFKA_AUTHENTICATION_CREATE,
-    #             "value": {
-    #                 "id": 1,
-    #                 "source_id": 1,
-    #                 "resource_type": "Application",
-    #                 "resource_id": "1",
-    #                 "application_type_id": test_application_id,
-    #             },
-    #             "expected_cost_mgmt_match": False,
-    #             "expected_fn": _expected_authentication_create,
-    #         },
-    #         {
-    #             "event": source_integration.KAFKA_AUTHENTICATION_CREATE,
-    #             "value": {
-    #                 "id": 1,
-    #                 "source_id": 1,
-    #                 "resource_type": "Application",
-    #                 "resource_id": "1",
-    #                 "application_type_id": test_application_id,
-    #             },
-    #             "expected_cost_mgmt_match": True,
-    #             "expected_fn": _expected_authentication_create,
-    #         },
-    #         {
-    #             "event": source_integration.KAFKA_AUTHENTICATION_CREATE,
-    #             "value": {
-    #                 "id": 1,
-    #                 "source_id": 1,
-    #                 "resource_type": "Application",
-    #                 "resource_id": "1",
-    #                 "application_type_id": test_application_id,
-    #             },
-    #             "expected_cost_mgmt_match": True,
-    #             "expected_fn": _expected_authentication_create,
-    #         },
-    #         {
-    #             "event": source_integration.KAFKA_AUTHENTICATION_UPDATE,
-    #             "value": {
-    #                 "id": 1,
-    #                 "source_id": 1,
-    #                 "resource_type": "Application",
-    #                 "resource_id": "1",
-    #                 "application_type_id": test_application_id,
-    #             },
-    #             "expected_cost_mgmt_match": True,
-    #             "expected_fn": _expected_authentication_create,
-    #         },
-    #     ]
-
-    #     for test in test_matrix:
-    #         msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
-    #         with patch.object(
-    #             SourcesHTTPClient,
-    #             "get_application_type_is_cost_management",
-    #             return_value=test.get("expected_cost_mgmt_match"),
-    #         ):
-    #             with patch.object(
-    #                 SourcesHTTPClient,
-    #                 "get_source_id_from_applications_id",
-    #                 return_value=test.get("expected_cost_mgmt_match"),
-    #             ):
-    #                 with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
-    #                     with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
-    #                         # process_message(test_application_id, msg_data)
-    #                         test.get("expected_fn")(msg_data, test, mock_save_auth_info)
-
-    # @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    # def test_process_message_destroy(self):
-    #     """Test the process_message function for application and source destroy."""
-    #     test_application_id = 2
-
-    #     def _expected_destroy(msg_data):
-    #         query_results = Sources.objects.filter(source_id=msg_data.get("source_id"))
-    #         self.assertTrue(query_results.exists())
-    #         self.assertTrue(query_results.first().pending_delete)
-
-    #     test_matrix = [
-    #         {
-    #             "event": source_integration.KAFKA_APPLICATION_DESTROY,
-    #             "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
-    #             "expected_fn": _expected_destroy,
-    #         },
-    #         {
-    #             "event": source_integration.KAFKA_SOURCE_DESTROY,
-    #             "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
-    #             "expected_fn": _expected_destroy,
-    #         },
-    #     ]
-
-    #     for test in test_matrix:
-    #         storage.create_source_event(test.get("value").get("source_id"), Config.SOURCES_FAKE_HEADER, 3)
-    #         msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
-    #         with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
-    #             with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
-    #                 # process_message(test_application_id, msg_data)
-    #                 test.get("expected_fn")(msg_data)
-    #         Sources.objects.all().delete()
-
-    # @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    # @patch("sources.kafka_listener.sources_network_info", returns=None)
-    # def test_process_message_update(self, mock_sources_network_info):
-    #     """Test the process_message function for authentication and source update."""
-    #     test_application_id = 2
-
-    #     def _expected_update(test):
-    #         query_results = Sources.objects.filter(source_id=test.get("value").get("source_id"))
-    #         self.assertTrue(query_results.exists())
-    #         self.assertTrue(query_results.first().pending_update)
-
-    #     test_matrix = [
-    #         {
-    #             "event": source_integration.KAFKA_AUTHENTICATION_UPDATE,
-    #             "value": {
-    #                 "id": 1,
-    #                 "source_id": 1,
-    #                 "resource_type": "Application",
-    #                 "resource_id": "1",
-    #                 "application_type_id": test_application_id,
-    #             },
-    #             "expected_cost_mgmt_match": True,
-    #             "expected_fn": _expected_update,
-    #         }
-    #     ]
-
-    #     for test in test_matrix:
-    #         test_source = Sources(
-    #             source_id=test.get("value").get("source_id"),
-    #             koku_uuid="testkokuid",
-    #             auth_header=Config.SOURCES_FAKE_HEADER,
-    #             offset=4,
-    #         )
-    #         test_source.save()
-    #         msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
-    #         with patch.object(
-    #             SourcesHTTPClient,
-    #             "get_application_type_is_cost_management",
-    #             return_value=test.get("expected_cost_mgmt_match"),
-    #         ):
-    #             with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
-    #                 with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
-    #                     with patch.object(SourcesHTTPClient, "get_source_id_from_applications_id", return_value=1):
-    #                         # process_message(test_application_id, msg_data)
-    #                         self.assertIsNone(msg_data)
-    #                         test.get("expected_fn")(test)
-    #                         Sources.objects.all().delete()
-
-    # @patch("sources.kafka_listener.process_message")
-    # def test_listen_for_messages(self, mock_process_message):
-    #     """Test to listen for kafka messages."""
-    #     future_mock = asyncio.Future()
-    #     future_mock.set_result("test result")
-    #     mock_process_message.return_value = future_mock
-
-    #     cost_management_app_type = 2
-
-    #     test_matrix = [
-    #         {
-    #             "test_value": '{"id": 1, "source_id": 1, "application_type_id": 2',
-    #             "operation": "Application.create",
-    #             "expected_process": False,
-    #         },
-    #         {
-    #             "test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}),
-    #             "operation": "Source.update",
-    #             "expected_process": False,
-    #         },
-    #         {
-    #             "test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}),
-    #             "operation": "Application.create",
-    #             "expected_process": True,
-    #         },
-    #     ]
-    #     for test in test_matrix:
-    #         msg = ConsumerRecord(
-    #             topic="platform.sources.event-stream",
-    #             offset=5,
-    #             event_type=test.get("operation"),
-    #             auth_header="testheader",
-    #             value=bytes(test.get("test_value"), encoding="utf-8"),
-    #         )
-
-    #         mock_consumer = MockKafkaConsumer([msg])
-
-    #         source_integration.listen_for_messages(msg, mock_consumer, cost_management_app_type)
-
-    #         if test.get("expected_process"):
-    #             mock_process_message.assert_called()
-    #         else:
-    #             mock_process_message.assert_not_called()
-
-    # @patch("sources.kafka_listener.process_message")
-    # def test_listen_for_messages_db_error(self, mock_process_message):
-    #     """Test to listen for kafka messages with database errors."""
-    #     future_mock = asyncio.Future()
-    #     future_mock.set_result("test result")
-
-    #     cost_management_app_type = 2
-
-    #     test_matrix = [
-    #         {
-    #             "test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}),
-    #             "side_effect": InterfaceError,
-    #         },
-    #         {
-    #             "test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}),
-    #             "side_effect": OperationalError,
-    #         },
-    #     ]
-
-    #     for test in test_matrix:
-    #         with self.subTest(test=test):
-    #             msg = ConsumerRecord(
-    #                 topic="platform.sources.event-stream",
-    #                 offset=5,
-    #                 event_type="Application.create",
-    #                 auth_header="testheader",
-    #                 value=bytes(test.get("test_value"), encoding="utf-8"),
-    #             )
-
-    #             mock_consumer = MockKafkaConsumer([msg])
-
-    #             mock_process_message.side_effect = test.get("side_effect")
-    #             with patch("sources.kafka_listener.close_and_set_db_connection") as close_mock:
-    #                 with patch.object(Config, "RETRY_SECONDS", 0):
-    #                     source_integration.listen_for_messages(msg, mock_consumer, cost_management_app_type)
-    #                     close_mock.assert_called()
-
-    # @patch("sources.kafka_listener.process_message")
-    # def test_listen_for_messages_other_errors(self, mock_process_message):
-    #     """Test to listen for kafka messages with network errors and source not found."""
-    #     future_mock = asyncio.Future()
-    #     future_mock.set_result("test result")
-
-    #     cost_management_app_type = 2
-
-    #     test_matrix = [
-    #         {
-    #             "test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}),
-    #             "side_effect": SourcesHTTPClientError,
-    #         },
-    #         {
-    #             "test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}),
-    #             "side_effect": SourceNotFoundError,
-    #         },
-    #     ]
-
-    #     for test in test_matrix:
-    #         msg = ConsumerRecord(
-    #             topic="platform.sources.event-stream",
-    #             offset=5,
-    #             event_type="Application.create",
-    #             auth_header="testheader",
-    #             value=bytes(test.get("test_value"), encoding="utf-8"),
-    #         )
-
-    #         mock_consumer = MockKafkaConsumer([msg])
-
-    #         mock_process_message.side_effect = test.get("side_effect")
-    #         with patch("sources.kafka_listener.close_and_set_db_connection") as close_mock:
-    #             with patch.object(Config, "RETRY_SECONDS", 0):
-    #                 source_integration.listen_for_messages(msg, mock_consumer, cost_management_app_type)
-    #                 close_mock.assert_not_called()
 
     @patch("sources.kafka_listener.execute_koku_provider_op")
     def test_process_synchronize_sources_msg_db_error(self, mock_process_message):
