@@ -706,4 +706,4 @@ class SourcesHTTPClientTest(TestCase):
             with self.assertLogs("sources.sources_http_client", "INFO") as captured_logs:
                 error_msg = "my error"
                 client.set_source_status(error_msg, application_type_id)
-            self.assertIn("Unable to set status for Source", captured_logs.output[-1])
+            self.assertIn("[set_source_status] error", captured_logs.output[-1])
