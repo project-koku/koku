@@ -127,7 +127,7 @@ class Tenant(TenantMixin):
     # Delete all schemas when a tenant is removed
     auto_drop_schema = True
     # auto_create_schema = False
-    auto_create_schema = getattr(settings, "DEVELOPMENT", False)
+    auto_create_schema = bool(settings.DEVELOPMENT)
 
     template_schema_source = _TEMPLATE_SOURCE_FILE
 
