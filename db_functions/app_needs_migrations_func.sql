@@ -110,7 +110,7 @@ BEGIN
                             schema_rec.schema_name;
         END IF;
 
-        CONTINUE WHEN (NOT exists_rec.tenant_exists) OR (NOT exists_rec.schema_exists);
+        CONTINUE WHEN (exists_rec.tenant_exists) AND (NOT exists_rec.schema_exists);
 
         IF NOT exists_rec.objects_exist
         THEN
