@@ -203,6 +203,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 customer.save()
                 tenant = Tenant(schema_name=schema_name)
                 tenant.save()
+                if settings.DEVELOPMENT:
+                    tenant.create_schema()
                 UNIQUE_ACCOUNT_COUNTER.inc()
                 LOG.info("Created new customer from account_id %s.", account)
         except IntegrityError:
