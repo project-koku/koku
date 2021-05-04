@@ -26,6 +26,7 @@ from cachetools import TTLCache
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db.utils import OperationalError
+from django.http import JsonResponse
 from django.test.utils import modify_settings
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -521,3 +522,30 @@ class AccountEnhancedMiddlewareTest(PrometheusTestCaseMixin, IamTestCase):
         for metric in registry:
             if metric.name in EXTENDED_METRICS:
                 self.assertIn("account", metric.samples[0].labels)
+
+
+class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
+    def setUp(self):
+        """Set up middleware tests."""
+        super().setUp()
+        self.request = self.request_context["request"]
+        self.request.path = "/api/v1/tags/aws/"
+        self.request.META["QUERY_STRING"] = ""
+
+    def test_tenant_without_schema(self):
+        test_schema = "acct00000"
+        customer = {"account_id": "00000", "schema_name": test_schema}
+        user_data = self._create_user_data()
+        request_context = self._create_request_context(customer, user_data, create_customer=True, create_tenant=False)
+
+        tenant = Tenant(schema_name=test_schema)
+        tenant.auto_create_schema = False
+        tenant.save()
+
+        # mock_request = Mock(path="/api/v1/tags/aws/")
+        client = APIClient()
+        url = reverse("aws-tags")
+        result = client.get(url, **request_context["request"].META)
+        print(result.__dict__)
+        self.assertDictEqual(result.json(), {})
+        self.assertIsInstance(result, JsonResponse)
