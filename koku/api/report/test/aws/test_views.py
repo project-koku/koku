@@ -571,8 +571,6 @@ class AWSReportViewTest(IamTestCase):
             self.assertIn("total", meta)
             self.assertIn("filter", meta)
             self.assertIn("count", meta)
-            # test the others is zero with a large limit
-            self.assertEqual(meta.get("others"), 0)
 
             compared_deltas = False
             for day in data:

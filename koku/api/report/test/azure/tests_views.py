@@ -191,17 +191,6 @@ class AzureReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_others(self):
-        """Test that the others count is correct."""
-        qs = "limit=10"
-        url = reverse("reports-azure-costs") + "?" + qs
-        client = APIClient()
-        response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        response_data = response.json()
-        meta = response_data.get("meta", {})
-        self.assertEqual(meta.get("others"), 0)
-
     def test_execute_query_w_delta_bad_choice(self):
         """Test invalid delta value."""
         bad_delta = "Invalid"
