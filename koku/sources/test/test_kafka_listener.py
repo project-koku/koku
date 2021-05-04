@@ -342,6 +342,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             {"processor": AuthenticationMsgProcessor, "event": KAFKA_AUTHENTICATION_CREATE},
             {"processor": AuthenticationMsgProcessor, "event": KAFKA_AUTHENTICATION_UPDATE},
             {"processor": SourceMsgProcessor, "event": KAFKA_SOURCE_DESTROY, "called": True},
+            {"processor": SourceMsgProcessor, "event": "Source.create"},
         ]
         for test in table:
             with self.subTest(test=test):
