@@ -43,7 +43,9 @@ from providers.provider_errors import SkipStatusPush
 from sources import storage
 from sources.config import Config
 from sources.kafka_listener import KAFKA_APPLICATION_CREATE
+from sources.kafka_listener import KAFKA_APPLICATION_UPDATE
 from sources.kafka_listener import KAFKA_AUTHENTICATION_CREATE
+from sources.kafka_listener import KAFKA_AUTHENTICATION_UPDATE
 from sources.kafka_listener import PROCESS_QUEUE
 from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import SourcesIntegrationError
@@ -68,6 +70,7 @@ from sources.test.test_sources_http_client import MOCK_URL
 
 faker = Faker()
 FAKE_AWS_ARN = "arn:aws:iam::111111111111:role/CostManagement"
+FAKE_AWS_ARN2 = "arn:aws:iam::22222222222:role/CostManagement"
 SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}"
 
 
@@ -203,7 +206,62 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 "offset": 5,
             },
         }
-        self.mock_requests = {
+        self.updated_sources = {
+            Provider.PROVIDER_AWS: {
+                "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
+                "source_uuid": self.uuids.get(Provider.PROVIDER_AWS),
+                "name": "Provider AWS",
+                "source_type": "AWS",
+                "authentication": {"credentials": {"role_arn": FAKE_AWS_ARN2}},
+                "billing_source": {"data_source": {"bucket": "test_bucket_2"}},
+                "auth_header": Config.SOURCES_FAKE_HEADER,
+                "account_id": "12345",
+                "offset": 5,
+            },
+            Provider.PROVIDER_AZURE: {
+                "source_id": self.source_ids.get(Provider.PROVIDER_AZURE),
+                "source_uuid": uuid4(),
+                "name": "Provider Azure",
+                "source_type": "Azure",
+                "authentication": {
+                    "credentials": {
+                        "client_id": "test_client_id",
+                        "client_secret": "test_client_secret",
+                        "subscription_id": "test_subscription_id",
+                        "tenant_id": "test_tenant_id",
+                    }
+                },
+                "billing_source": {
+                    "data_source": {"resource_group": "test_resource_group", "storage_account": "test_storage_account"}
+                },
+                "auth_header": Config.SOURCES_FAKE_HEADER,
+                "account_id": "12345",
+                "offset": 5,
+            },
+            Provider.PROVIDER_GCP: {
+                "source_id": self.source_ids.get(Provider.PROVIDER_GCP),
+                "source_uuid": uuid4(),
+                "name": "Provider GCP",
+                "source_type": "GCP",
+                "authentication": {"credentials": {"project_id": "test_project_id"}},
+                "billing_source": {"data_source": {"dataset": "test_dataset", "table_id": "test_table_id"}},
+                "auth_header": Config.SOURCES_FAKE_HEADER,
+                "account_id": "12345",
+                "offset": 5,
+            },
+            Provider.PROVIDER_OCP: {
+                "source_id": self.source_ids.get(Provider.PROVIDER_OCP),
+                "source_uuid": uuid4(),
+                "name": "Provider OCP",
+                "source_type": "OCP",
+                "authentication": {"credentials": {"cluster_id": "cluster_id"}},
+                "billing_source": {},
+                "auth_header": Config.SOURCES_FAKE_HEADER,
+                "account_id": "12345",
+                "offset": 5,
+            },
+        }
+        self.mock_create_requests = {
             Provider.PROVIDER_AWS: [
                 {
                     "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
@@ -215,11 +273,6 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                     "status": 200,
                     "json": {"data": [{"name": SOURCE_TYPE_IDS[SOURCE_TYPE_IDS_MAP[Provider.PROVIDER_AWS]]}]},
                 },
-                # {
-                #     "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_AWS)}",
-                #     "json": {"data": [{"extra": {"bucket": "test_bucket"}}]},
-                #     "status": 200,
-                # },
                 {
                     "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
@@ -241,8 +294,43 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 },
             ]
         }
+        self.mock_update_requests = {
+            Provider.PROVIDER_AWS: [
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "status": 200,
+                    "json": {"data": [{"not": "empty"}]},
+                },
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCE_TYPES}?filter[id]={SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "status": 200,
+                    "json": {"data": [{"name": SOURCE_TYPE_IDS[SOURCE_TYPE_IDS_MAP[Provider.PROVIDER_AWS]]}]},
+                },
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "status": 200,
+                    "json": {"data": [{"extra": {"bucket": "test_bucket_2"}}]},
+                },
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "status": 200,
+                    "json": {"data": [{"id": self.source_ids.get(Provider.PROVIDER_AWS), "username": FAKE_AWS_ARN2}]},
+                },
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_AWS)}",
+                    "status": 200,
+                    "json": {
+                        "name": "Provider AWS",
+                        "source_type_id": SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_AWS),
+                        "uid": str(self.uuids.get(Provider.PROVIDER_AWS)),
+                    },
+                },
+            ]
+        }
 
-    def test_listen_for_messages_aws_create(self):
+    def test_listen_for_messages_aws_create_and_update(self):
+
+        # First, test the create pathway:
         msgs = [
             msg_generator(
                 KAFKA_APPLICATION_CREATE,
@@ -262,7 +350,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             ),
         ]
         with requests_mock.mock() as m:
-            for resp in self.mock_requests.get(Provider.PROVIDER_AWS):
+            for resp in self.mock_create_requests.get(Provider.PROVIDER_AWS):
                 m.get(url=resp.get("url"), status_code=resp.get("status"), json=resp.get("json"))
             for msg in msgs:
                 mock_consumer = MockKafkaConsumer([msg])
@@ -270,6 +358,35 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
             s = model_to_dict(source, fields=[f for f in self.sources.get(Provider.PROVIDER_AWS).keys()])
             self.assertDictEqual(s, self.sources.get(Provider.PROVIDER_AWS))
+
+        # now test the update pathway
+        msgs = [
+            msg_generator(
+                KAFKA_APPLICATION_UPDATE,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            ),
+            msg_generator(
+                KAFKA_AUTHENTICATION_UPDATE,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            ),
+        ]
+        with requests_mock.mock() as m:
+            for resp in self.mock_update_requests.get(Provider.PROVIDER_AWS):
+                m.get(url=resp.get("url"), status_code=resp.get("status"), json=resp.get("json"))
+            for msg in msgs:
+                mock_consumer = MockKafkaConsumer([msg])
+                source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
+            source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
+            s = model_to_dict(source, fields=[f for f in self.updated_sources.get(Provider.PROVIDER_AWS).keys()])
+            self.assertDictEqual(s, self.updated_sources.get(Provider.PROVIDER_AWS))
 
     def test_execute_koku_provider_op_create(self):
         """Test to execute Koku Operations to sync with Sources for creation."""
