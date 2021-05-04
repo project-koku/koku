@@ -21,6 +21,7 @@ from base64 import b64decode
 
 from django.db import connection
 from rest_framework.exceptions import ValidationError
+from tenant_schemas.utils import schema_exists
 
 from api.models import Customer
 from api.models import Provider
@@ -127,6 +128,8 @@ class ProviderBuilder:
         connection.set_schema_to_public()
         context, customer, _ = self._create_context()
         tenant = self._tenant_for_schema(customer.schema_name)
+        if not schema_exists(customer.schema_name):
+            tenant.create_schema()
         provider_type = source.source_type
         json_data = {
             "name": source.name,
