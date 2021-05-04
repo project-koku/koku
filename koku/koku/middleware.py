@@ -41,6 +41,7 @@ from django_prometheus.middleware import PrometheusBeforeMiddleware
 from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.middleware import BaseTenantMiddleware
+from tenant_schemas.utils import schema_exists
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.models import Customer
@@ -111,6 +112,18 @@ class HttpResponseFailedDependency(JsonResponse):
             ]
         }
         super().__init__(data)
+
+
+class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
+    """A middleware to check if schema exists for Tenant."""
+
+    def process_request(self, request):
+        tenant_username = request.user.username
+        user = User.objects.get(username=tenant_username)
+        customer = user.customer
+        schema_name = customer.schema_name
+        if not schema_exists(schema_name):
+            return JsonResponse(data={})
 
 
 class KokuTenantMiddleware(BaseTenantMiddleware):
@@ -189,7 +202,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
     customer_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
 
     @staticmethod
-    def create_customer(account, create_schema=False):
+    def create_customer(account):
         """Create a customer.
         Args:
             account (str): The account identifier
@@ -202,7 +215,6 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 customer = Customer(account_id=account, schema_name=schema_name)
                 customer.save()
                 tenant = Tenant(schema_name=schema_name)
-                tenant.auto_create_schema = create_schema
                 tenant.save()
                 UNIQUE_ACCOUNT_COUNTER.inc()
                 LOG.info("Created new customer from account_id %s.", account)
@@ -302,8 +314,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     LOG.debug(f"Customer added to cache: {account}")
                 customer = IdentityHeaderMiddleware.customer_cache[account]
             except Customer.DoesNotExist:
-                create_schema = settings.DEVELOPMENT and request.user.req_id == "DEVELOPMENT"
-                customer = IdentityHeaderMiddleware.create_customer(account, create_schema)
+                customer = IdentityHeaderMiddleware.create_customer(account)
             except OperationalError as err:
                 LOG.error("IdentityHeaderMiddleware exception: %s", err)
                 DB_CONNECTION_ERRORS_COUNTER.inc()
