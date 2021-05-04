@@ -17,6 +17,7 @@
 """Common exception handler class."""
 import copy
 
+from django.db import ProgrammingError
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
@@ -70,5 +71,9 @@ def custom_exception_handler(exc, context):
             errors += _generate_errors_from_list(data, **{"status_code": response.status_code})
         error_response = {"errors": errors}
         response.data = error_response
+        return response
 
-    return Response({}, status=200, headers={})
+    if isinstance(exc, ProgrammingError):
+        return Response({}, status=200, headers={})
+
+    return None
