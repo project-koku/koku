@@ -108,8 +108,7 @@ class MockKafkaConsumer:
         self.preloaded_messages.pop()
 
     def seek(self, topic_partition):
-        # This isn't realistic... But it's one way to stop the consumer for our needs.
-        raise KafkaError("Seek to commited. Closing...")
+        return
 
     def getone(self):
         for msg in self.preloaded_messages:
@@ -152,9 +151,9 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
         self.uuids = {Provider.PROVIDER_AWS: uuid4()}
         self.source_ids = {
             Provider.PROVIDER_AWS: 10,
-            Provider.PROVIDER_AZURE: 11,
-            Provider.PROVIDER_GCP: 12,
-            Provider.PROVIDER_OCP: 13,
+            # Provider.PROVIDER_AZURE: 11,
+            # Provider.PROVIDER_GCP: 12,
+            # Provider.PROVIDER_OCP: 13,
         }
         self.sources = {
             Provider.PROVIDER_AWS: {
@@ -167,49 +166,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 "auth_header": Config.SOURCES_FAKE_HEADER,
                 "account_id": "12345",
                 "offset": 5,
-            },
-            Provider.PROVIDER_AZURE: {
-                "source_id": self.source_ids.get(Provider.PROVIDER_AZURE),
-                "source_uuid": uuid4(),
-                "name": "Provider Azure",
-                "source_type": "Azure",
-                "authentication": {
-                    "credentials": {
-                        "client_id": "test_client_id",
-                        "client_secret": "test_client_secret",
-                        "subscription_id": "test_subscription_id",
-                        "tenant_id": "test_tenant_id",
-                    }
-                },
-                "billing_source": {
-                    "data_source": {"resource_group": "test_resource_group", "storage_account": "test_storage_account"}
-                },
-                "auth_header": Config.SOURCES_FAKE_HEADER,
-                "account_id": "12345",
-                "offset": 5,
-            },
-            Provider.PROVIDER_GCP: {
-                "source_id": self.source_ids.get(Provider.PROVIDER_GCP),
-                "source_uuid": uuid4(),
-                "name": "Provider GCP",
-                "source_type": "GCP",
-                "authentication": {"credentials": {"project_id": "test_project_id"}},
-                "billing_source": {"data_source": {"dataset": "test_dataset", "table_id": "test_table_id"}},
-                "auth_header": Config.SOURCES_FAKE_HEADER,
-                "account_id": "12345",
-                "offset": 5,
-            },
-            Provider.PROVIDER_OCP: {
-                "source_id": self.source_ids.get(Provider.PROVIDER_OCP),
-                "source_uuid": uuid4(),
-                "name": "Provider OCP",
-                "source_type": "OCP",
-                "authentication": {"credentials": {"cluster_id": "cluster_id"}},
-                "billing_source": {},
-                "auth_header": Config.SOURCES_FAKE_HEADER,
-                "account_id": "12345",
-                "offset": 5,
-            },
+            }
         }
         self.updated_sources = {
             Provider.PROVIDER_AWS: {
@@ -222,49 +179,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 "auth_header": Config.SOURCES_FAKE_HEADER,
                 "account_id": "12345",
                 "offset": 5,
-            },
-            Provider.PROVIDER_AZURE: {
-                "source_id": self.source_ids.get(Provider.PROVIDER_AZURE),
-                "source_uuid": uuid4(),
-                "name": "Provider Azure",
-                "source_type": "Azure",
-                "authentication": {
-                    "credentials": {
-                        "client_id": "test_client_id",
-                        "client_secret": "test_client_secret",
-                        "subscription_id": "test_subscription_id",
-                        "tenant_id": "test_tenant_id",
-                    }
-                },
-                "billing_source": {
-                    "data_source": {"resource_group": "test_resource_group", "storage_account": "test_storage_account"}
-                },
-                "auth_header": Config.SOURCES_FAKE_HEADER,
-                "account_id": "12345",
-                "offset": 5,
-            },
-            Provider.PROVIDER_GCP: {
-                "source_id": self.source_ids.get(Provider.PROVIDER_GCP),
-                "source_uuid": uuid4(),
-                "name": "Provider GCP",
-                "source_type": "GCP",
-                "authentication": {"credentials": {"project_id": "test_project_id"}},
-                "billing_source": {"data_source": {"dataset": "test_dataset", "table_id": "test_table_id"}},
-                "auth_header": Config.SOURCES_FAKE_HEADER,
-                "account_id": "12345",
-                "offset": 5,
-            },
-            Provider.PROVIDER_OCP: {
-                "source_id": self.source_ids.get(Provider.PROVIDER_OCP),
-                "source_uuid": uuid4(),
-                "name": "Provider OCP",
-                "source_type": "OCP",
-                "authentication": {"credentials": {"cluster_id": "cluster_id"}},
-                "billing_source": {},
-                "auth_header": Config.SOURCES_FAKE_HEADER,
-                "account_id": "12345",
-                "offset": 5,
-            },
+            }
         }
         self.mock_create_requests = {
             Provider.PROVIDER_AWS: [
@@ -444,6 +359,90 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                             mock_processor.assert_called()
                         else:
                             mock_processor.assert_not_called()
+
+    def test_listen_for_messages_exceptions_no_retry(self):
+        """Test listen_for_messages exceptions that do not cause a retry."""
+        table = [
+            {"event": KAFKA_APPLICATION_CREATE, "value": b'{"this value is messeged up}'},
+            {"event": KAFKA_AUTHENTICATION_CREATE},
+        ]
+        for test in table:
+            with self.subTest(test=test):
+                with requests_mock.mock() as m:
+                    m.get(
+                        url=f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]=1",  # noqa: E501
+                        status_code=404,
+                        json={},
+                    )
+                    msg = msg_generator(test.get("event"))
+                    if test.get("value"):
+                        msg._value = test.get("value")
+                    mock_consumer = MockKafkaConsumer([msg])
+                    with patch("sources.kafka_listener.time.sleep") as mock_time:
+                        with patch.object(MockKafkaConsumer, "commit") as mocked_mock_consumer:
+                            source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
+                            mocked_mock_consumer.assert_called()
+                            mock_time.assert_not_called()
+
+    def test_listen_for_messages_http_exception(self):
+        """Test listen_for_messages exceptions that cause a retry (http errors)."""
+        table = [KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE]
+        for test in table:
+            with self.subTest(test=test):
+                with requests_mock.mock() as m:
+                    for resp in self.mock_create_requests.get(Provider.PROVIDER_AWS):
+                        m.get(url=resp.get("url"), status_code=401, json=resp.get("json"))
+                    msg = msg_generator(
+                        test,
+                        value={
+                            "id": 1,
+                            "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
+                            "application_type_id": COST_MGMT_APP_TYPE_ID,
+                        },
+                    )
+                    mock_consumer = MockKafkaConsumer([msg])
+                    with patch("sources.kafka_listener.time.sleep") as mock_time:
+                        source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
+                        mock_time.assert_called()
+
+    def test_listen_for_messages_exceptions_db_errors(self):
+        """Test listen_for_messages exceptions that cause a retry (db errors)."""
+        table = [
+            {
+                "event": KAFKA_APPLICATION_CREATE,
+                "exception": InterfaceError,
+                "path": "sources.storage.create_source_event",
+            },
+            {
+                "event": KAFKA_AUTHENTICATION_CREATE,
+                "exception": OperationalError,
+                "path": "sources.storage.create_source_event",
+            },
+            {
+                "event": KAFKA_APPLICATION_DESTROY,
+                "exception": IntegrityError,
+                "path": "sources.storage.enqueue_source_delete",
+            },
+        ]
+        for test in table:
+            with self.subTest(test=test):
+                with requests_mock.mock() as m:
+                    for resp in self.mock_create_requests.get(Provider.PROVIDER_AWS):
+                        m.get(url=resp.get("url"), status_code=resp.get("status"), json=resp.get("json"))
+                    msg = msg_generator(
+                        test.get("event"),
+                        value={
+                            "id": 1,
+                            "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
+                            "application_type_id": COST_MGMT_APP_TYPE_ID,
+                        },
+                    )
+                    mock_consumer = MockKafkaConsumer([msg])
+                    with patch(test.get("path"), side_effect=test.get("exception")):
+                        with patch("sources.kafka_listener.time.sleep") as mock_time:
+                            with patch("sources.kafka_listener.close_and_set_db_connection"):
+                                source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
+                                mock_time.assert_called()
 
     def test_execute_koku_provider_op_create(self):
         """Test to execute Koku Operations to sync with Sources for creation."""

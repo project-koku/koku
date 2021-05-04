@@ -47,6 +47,7 @@ from sources import storage
 from sources.api.status import check_kafka_connection
 from sources.config import Config
 from sources.kafka_message_processor import create_msg_processor
+from sources.kafka_message_processor import SourcesMessageError
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
@@ -87,10 +88,6 @@ SOURCE_PROVIDER_MAP = {
 
 class SourcesIntegrationError(ValidationError):
     """Sources Integration error."""
-
-
-class SourcesMessageError(ValidationError):
-    """Sources Message error."""
 
 
 def load_process_queue():
@@ -324,11 +321,11 @@ def listen_for_messages(kaf_msg, consumer, application_source_id):  # noqa: C901
         try:
             msg_processor = create_msg_processor(kaf_msg, application_source_id)
             if msg_processor and msg_processor.source_id:
+                tp = TopicPartition(Config.SOURCES_TOPIC, msg_processor.partition, msg_processor.offset)
                 if not msg_processor.msg_for_cost_mgmt():
                     LOG.info("Event not associated with cost-management.")
                     consumer.commit()
                     return
-                tp = TopicPartition(Config.SOURCES_TOPIC, msg_processor.partition, msg_processor.offset)
                 LOG.info(f"processing cost-mgmt message: {msg_processor}")
                 with transaction.atomic():
                     msg_processor.process()
@@ -344,7 +341,7 @@ def listen_for_messages(kaf_msg, consumer, application_source_id):  # noqa: C901
             SOURCES_HTTP_CLIENT_ERROR_COUNTER.inc()
             rewind_consumer_to_retry(consumer, tp)
         except (SourcesMessageError, SourceNotFoundError) as error:
-            LOG.warning(f"[listen_for_messages] {type(error).__name__}: {error}. Skipping msg: {kaf_msg}")
+            LOG.warning(f"[listen_for_messages] {type(error).__name__}: {error}. Skipping msg: {kaf_msg.value()}")
             consumer.commit()
         else:
             consumer.commit()

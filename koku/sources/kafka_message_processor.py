@@ -82,8 +82,9 @@ class KafkaMessageProcessor:
             self.value = json.loads(msg.value().decode("utf-8"))
             LOG.debug(f"EVENT TYPE: {event_type} | MESSAGE VALUE: {str(self.value)}")
         except (AttributeError, ValueError, TypeError) as error:
-            LOG.error(f"Unable to load message: {msg.value}. Error: {error}")
-            raise SourcesMessageError("Unable to load message")
+            msg = f"[KafkaMessageProcessor] unable to load message: {msg.value}. Error: {error}"
+            LOG.error(msg)
+            raise SourcesMessageError(msg)
         self.event_type = event_type
         self.cost_mgmt_id = cost_mgmt_id
         self.offset = msg.offset()
