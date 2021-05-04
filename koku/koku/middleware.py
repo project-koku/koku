@@ -118,11 +118,7 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
     """A middleware to check if schema exists for Tenant."""
 
     def process_request(self, request):
-        tenant_username = request.user.username
-        user = User.objects.get(username=tenant_username)
-        customer = user.customer
-        schema_name = customer.schema_name
-        if not schema_exists(schema_name):
+        if not schema_exists(request.tenant.schema_name):
             return JsonResponse(data={})
 
 
