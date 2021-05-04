@@ -246,12 +246,6 @@ select public.create_schema(%s::text, %s::jsonb, %s::text[], copy_data => true) 
                 LOG.critical(errmsg)
                 raise CloneSchemaFuncMissing(errmsg)
 
-            ret = self._verify_template()
-            if not ret:
-                errmsg = f'Template schema "{self._TEMPLATE_SCHEMA}" does not exist'
-                LOG.critical(errmsg)
-                raise CloneSchemaTemplateMissing(errmsg)
-
             res = self._clone_schema_from_catalog()
 
         return res
@@ -264,6 +258,12 @@ select public.create_schema(%s::text, %s::jsonb, %s::text[], copy_data => true) 
         if self.schema_name in ("public", self._TEMPLATE_SCHEMA):
             LOG.info(f'Using superclass for "{self.schema_name}" schema creation')
             return super().create_schema(check_if_exists=True, **kwargs)
+
+        ret = self._verify_template()
+        if not ret:
+            errmsg = f'Template schema "{self._TEMPLATE_SCHEMA}" does not exist'
+            LOG.critical(errmsg)
+            raise CloneSchemaTemplateMissing(errmsg)
 
         if check_if_exists:
             # Check to see if the schema exists!
