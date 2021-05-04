@@ -198,7 +198,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
     customer_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
 
     @staticmethod
-    def create_customer(account):
+    def create_customer(account, create_schema):
         """Create a customer.
         Args:
             account (str): The account identifier
@@ -211,6 +211,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 customer = Customer(account_id=account, schema_name=schema_name)
                 customer.save()
                 tenant = Tenant(schema_name=schema_name)
+                tenant.auto_create_schema = create_schema
                 tenant.save()
                 UNIQUE_ACCOUNT_COUNTER.inc()
                 LOG.info("Created new customer from account_id %s.", account)
@@ -310,7 +311,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     LOG.debug(f"Customer added to cache: {account}")
                 customer = IdentityHeaderMiddleware.customer_cache[account]
             except Customer.DoesNotExist:
-                customer = IdentityHeaderMiddleware.create_customer(account)
+                create_schema = settings.DEVELOPMENT and request.user.req_id == "DEVELOPMENT"
+                customer = IdentityHeaderMiddleware.create_customer(account, create_schema)
             except OperationalError as err:
                 LOG.error("IdentityHeaderMiddleware exception: %s", err)
                 DB_CONNECTION_ERRORS_COUNTER.inc()
