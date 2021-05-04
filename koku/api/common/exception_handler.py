@@ -69,6 +69,5 @@ def custom_exception_handler(exc, context):
             errors += _generate_errors_from_list(data, **{"status_code": response.status_code})
         error_response = {"errors": errors}
         response.data = error_response
-        return response
 
     return response
