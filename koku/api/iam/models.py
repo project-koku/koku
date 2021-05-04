@@ -129,7 +129,9 @@ class Tenant(TenantMixin):
     # auto_create_schema = False
     auto_create_schema = bool(settings.DEVELOPMENT)
 
-    template_schema_source = _TEMPLATE_SOURCE_FILE
+    # Change this to get schema info from the database catalog (_TEMPLATE_SOURCE_CATALOG)
+    # or from a pg_dump output file (_TEMPLATE_SOURCE_FILE)
+    template_schema_source = _TEMPLATE_SOURCE_CATALOG
 
     def __repr__(self):
         return f'<Tenant("{self.schema_name}")>'
