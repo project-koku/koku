@@ -280,6 +280,8 @@ class SourceMsgProcessor(KafkaMessageProcessor):
 
 def extract_from_header(headers, header_type):
     """Retrieve information from Kafka Headers."""
+    if headers is None:
+        return "unknown"
     for header in headers:
         if header_type in header:
             for item in header:
