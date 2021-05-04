@@ -180,6 +180,8 @@ class Tenant(TenantMixin):
             # and extra code must be written to handle the sync of the table data to the state of
             # the database.
             template_schema = self.__class__.objects.get_or_create(schema_name=self._TEMPLATE_SCHEMA)
+            if not template_schema.auto_create_schema:
+                template_schema.create_schema()
 
             # Strict check here! Both the record and the schema *should* exist!
             tenant_state = bool(template_schema) and schema_exists(self._TEMPLATE_SCHEMA)
