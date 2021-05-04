@@ -117,16 +117,7 @@ class Tenant(TenantMixin):
         "_verbose boolean DEFAULT false"
         ")"
     )
-    _CLONE_SCHEMA_FUNC_FILENAME = os.path.join(find_db_functions_dir(), "clone_schema.sql")
-    _CLONE_SCHEMA_FUNC_SCHEMA = "public"
-    _CLONE_SHEMA_FUNC_NAME = "clone_schema"
-    _CLONE_SCHEMA_FUNC_SIG = (
-        f"{_CLONE_SCHEMA_FUNC_SCHEMA}.{_CLONE_SHEMA_FUNC_NAME}("
-        "source_schema text, dest_schema text, "
-        "copy_data boolean DEFAULT false, "
-        "_verbose boolean DEFAULT false"
-        ")"
-    )
+
     _TEMPLATE_SOURCE_CATALOG = 0
     _TEMPLATE_SOURCE_FILE = 1
 
@@ -137,20 +128,23 @@ class Tenant(TenantMixin):
     auto_drop_schema = True
     # auto_create_schema = False
     auto_create_schema = getattr(settings, "DEVELOPMENT", False)
+
     template_schema_source = _TEMPLATE_SOURCE_FILE
+
+    def __repr__(self):
+        return f'<Tenant("{self.schema_name}")>'
 
     def _check_clone_func(self):
         clone_func_state = TENANT_SUPPORT.get("clone_func_state")
         if clone_func_state is None:
+            LOG.info("Checking state of functions from the DB")
             func_map = {
-                self._CLONE_SCHEMA_FUNC_SCHEMA: {
-                    self._CLONE_SHEMA_FUNC_NAME: self._CLONE_SCHEMA_FUNC_SIG,
+                self._READ_SCHEMA_FUNC_SCHEMA: {
                     self._READ_SCHEMA_FUNC_NAME: self._READ_SCHEMA_FUNC_SIG,
                     self._CREATE_SCHEMA_FUNC_NAME: self._CREATE_SCHEMA_FUNC_SIG,
                 }
             }
             func_file_map = {
-                self._CLONE_SHEMA_FUNC_NAME: self._CLONE_SCHEMA_FUNC_FILENAME,
                 self._READ_SCHEMA_FUNC_NAME: self._READ_SCHEMA_FUNC_FILENAME,
                 self._CREATE_SCHEMA_FUNC_NAME: self._CREATE_SCHEMA_FUNC_FILENAME,
             }
@@ -159,17 +153,17 @@ class Tenant(TenantMixin):
                 missing_functions = [f"{s}.{f}" for s in clone_func_state for f in clone_func_state[s]]
                 LOG.warning(f"Clone functions {', '.join(missing_functions)} are missing.")
                 for schema in list(clone_func_state):
-                    conn.cursor.execute(f"set search_path = {schema}, public;")
+                    conn.cursor().execute(f"set search_path = {schema}, public;")
                     for func_name in list(clone_func_state[schema]):
                         LOG.info(f"Appliying clone function {func_name} to database.")
                         apply_sql_file(conn.schema_editor(), func_file_map[func_name], literal_placeholder=True)
                         del clone_func_state[schema][func_name]
                     del clone_func_state[schema]
-            else:
-                LOG.info("Clone functions exist")
 
             clone_func_state = not bool(clone_func_state)
             TENANT_SUPPORT["clone_func_state"] = clone_func_state
+
+        LOG.info(f"{'Clone functions exist' if clone_func_state else 'Clone functions DO NOT EXIST'}")
 
         return clone_func_state
 
@@ -178,6 +172,7 @@ class Tenant(TenantMixin):
 
         tenant_state = TENANT_SUPPORT.get("tenant_state", None)
         if tenant_state is None:
+            LOG.info("Checking template state from the DB")
             # This is using the teanant table data as the source of truth which can be dangerous.
             # If this becomes unreliable, then the database itself should be the source of truth
             # and extra code must be written to handle the sync of the table data to the state of
@@ -187,21 +182,25 @@ class Tenant(TenantMixin):
             # Strict check here! Both the record and the schema *should* exist!
             tenant_state = bool(template_schema) and schema_exists(self._TEMPLATE_SCHEMA)
             TENANT_SUPPORT["tenant_state"] = tenant_state
-            LOG.info(f"{str(tenant_state)}")
+
+        LOG.info(f"{'Template exists' if tenant_state else 'Template does not exist!'}")
 
         return tenant_state
 
     def _clone_schema_from_catalog(self):
         template_info = TENANT_SUPPORT.get("template_info", None)
         if template_info is None:
+            LOG.info(f'Reading teamplate "{self._TEMPLATE_SCHEMA}" info from the DB')
             with conn.cursor() as cur:
-                cur.execute("public.read_schema(%s)", (self._TEMPLATE_SCHEMA,))
+                cur.execute("select public.read_schema(%s)", (self._TEMPLATE_SCHEMA,))
                 template_info = cur.fetchone()
 
             if isinstance(template_info, dict):
                 template_info = json.dumps(template_info)
 
             TENANT_SUPPORT["template_info"] = template_info
+        else:
+            LOG.info(f'Using cached template "{self._TEMPLATE_SCHEMA}" info')
 
         result = None
         # This db func will clone the schema objects
@@ -215,6 +214,13 @@ select public.create_schema(%s::text, %s::jsonb, %s::text[], copy_data => true) 
             cur.execute(sql, (self._TEMPLATE_SCHEMA, template_info, [self.schema_name]))
             result = cur.fetchone()
             cur.execute("SET search_path = public;")
+
+        result = result[0]
+        created = [f'"{s[1:]}"' for s in result if s.startswith("+")] or ["none"]
+        existing = [f'"{s[1:]}"' for s in result if s.startswith("!")] or ["none"]
+
+        LOG.info(f"Schema create function created {', '.join(created)}")
+        LOG.info(f"Schema create function skipped {', '.join(existing)}")
 
         return result[0] if result else False
 
