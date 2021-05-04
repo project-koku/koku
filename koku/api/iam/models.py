@@ -20,7 +20,6 @@ import os
 import pkgutil
 from uuid import uuid4
 
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import connection as conn
 from django.db import models
@@ -32,6 +31,8 @@ from tenant_schemas.utils import schema_exists
 from koku.database import dbfunc_exists
 from koku.migration_sql_helpers import apply_sql_file
 from koku.migration_sql_helpers import find_db_functions_dir
+
+# from django.conf import settings
 
 
 LOG = logging.getLogger(__name__)
@@ -113,7 +114,7 @@ class Tenant(TenantMixin):
     auto_drop_schema = True
 
     # Schema creation is triggered by source creation
-    auto_create_schema = settings.DEVELOPMENT or False
+    # auto_create_schema = settings.DEVELOPMENT or False
 
     def _check_clone_func(self):
         LOG.info(f'Verify that clone function "{self._CLONE_SCHEMA_FUNC_SIG}" exists')
