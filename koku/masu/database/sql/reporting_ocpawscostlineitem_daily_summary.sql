@@ -328,6 +328,8 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
                 AND aws.usage_start = ocp.usage_start
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND ocp.usage_start >= {{start_date}}::date
+            AND ocp.usage_start <= {{end_date}}::date
             AND ocp.data_source = 'Pod'
             -- aws_where_clause
             {% if bill_ids %}
@@ -414,6 +416,8 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND ocp.usage_start >= {{start_date}}::date
+            AND ocp.usage_start <= {{end_date}}::date
             AND ocp.data_source = 'Pod'
             AND rm.aws_id IS NULL
     ),
@@ -489,6 +493,8 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND ocp.usage_start >= {{start_date}}::date
+            AND ocp.usage_start <= {{end_date}}::date
             AND ocp.data_source = 'Pod'
             AND rm.aws_id IS NULL
     ),
@@ -565,6 +571,8 @@ INSERT INTO reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} (
             ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND ocp.usage_start >= {{start_date}}::date
+            AND ocp.usage_start <= {{end_date}}::date
             AND ocp.data_source = 'Pod'
             AND rm.aws_id IS NULL
     ),
@@ -715,6 +723,8 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} 
             ON ulid.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND ocp.usage_start >= {{start_date}}::date
+            AND ocp.usage_start <= {{end_date}}::date
             AND ocp.data_source = 'Storage'
             AND ulid.aws_id IS NULL
 
@@ -789,6 +799,8 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
             ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND ocp.usage_start >= {{start_date}}::date
+            AND ocp.usage_start <= {{end_date}}::date
             AND ocp.data_source = 'Storage'
             AND ulid.aws_id IS NULL
             AND rm.aws_id IS NULL
@@ -864,6 +876,8 @@ INSERT INTO reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} (
             ON rm.aws_id = aws.id
         WHERE aws.usage_start >= {{start_date}}::date
             AND aws.usage_start <= {{end_date}}::date
+            AND ocp.usage_start >= {{start_date}}::date
+            AND ocp.usage_start <= {{end_date}}::date
             AND ocp.data_source = 'Storage'
             AND ulid.aws_id IS NULL
             AND rm.aws_id IS NULL
@@ -1004,6 +1018,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         max(li.cluster_alias) as cluster_alias,
         array_agg(DISTINCT li.namespace) as namespace,
         max(li.node) as node,
+        'Pod' as data_source,
         max(li.resource_id) as resource_id,
         max(li.usage_start) as usage_start,
         max(li.usage_end) as usage_end,
@@ -1017,6 +1032,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         max(p.region) as region,
         max(pr.unit) as unit,
         li.tags,
+        jsonb_agg(distinct li.pod_labels) as pod_labels,
+        count(distinct li.pod_labels) as pod_label_count,
         max(li.usage_amount) as usage_amount,
         max(li.normalized_usage_amount) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
@@ -1048,6 +1065,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         max(li.cluster_alias) as cluster_alias,
         array_agg(DISTINCT li.namespace) as namespace,
         max(li.node) as node,
+        'Storage' as data_source,
         max(li.resource_id) as resource_id,
         max(li.usage_start) as usage_start,
         max(li.usage_end) as usage_end,
@@ -1061,6 +1079,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         max(p.region) as region,
         max(pr.unit) as unit,
         li.tags,
+        jsonb_agg(distinct li.volume_labels) as pod_labels,
+        count(distinct li.volume_labels) as pod_label_count,
         max(li.usage_amount) as usage_amount,
         max(li.normalized_usage_amount) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
@@ -1101,106 +1121,33 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
     SELECT li.report_period_id,
         li.cluster_id,
         li.cluster_alias,
-        'Pod' as data_source,
-        li.namespace,
+        li.data_source,
+        project as "namespace",
         li.node,
-        li.pod_labels,
-        max(li.resource_id) as resource_id,
-        max(li.usage_start) as usage_start,
-        max(li.usage_end) as usage_end,
-        max(li.product_code) as product_code,
-        max(p.product_family) as product_family,
-        max(p.instance_type) as instance_type,
-        max(li.cost_entry_bill_id) as cost_entry_bill_id,
-        max(li.usage_account_id) as usage_account_id,
-        max(aa.id) as account_alias_id,
-        max(li.availability_zone) as availability_zone,
-        max(p.region) as region,
-        max(pr.unit) as unit,
-        sum(li.usage_amount / li.shared_projects) as usage_amount,
-        sum(li.normalized_usage_amount / li.shared_projects) as normalized_usage_amount,
-        max(li.currency_code) as currency_code,
-        sum(li.unblended_cost / li.shared_projects) as unblended_cost,
-        sum(li.unblended_cost / li.shared_projects) * {{markup}}::numeric as markup_cost,
-        max(li.shared_projects) as shared_projects,
-        li.project_cost,
-        li.project_cost * {{markup}}::numeric as project_markup_cost,
-        ab.provider_id as source_uuid
-    FROM reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} as li
-    JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
-        ON li.cost_entry_product_id = p.id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrypricing as pr
-        ON li.cost_entry_pricing_id = pr.id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
-        ON li.usage_account_id = aa.account_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as ab
-        ON li.cost_entry_bill_id = ab.id
-    WHERE li.usage_start >= {{start_date}}::date
-        AND li.usage_start <= {{end_date}}::date
-    -- Grouping by OCP this time for the by project view
-    GROUP BY li.report_period_id,
-        li.ocp_id,
-        li.cluster_id,
-        li.cluster_alias,
-        li.namespace,
-        li.node,
-        li.pod_labels,
-        li.project_cost,
-        ab.provider_id
-
-    UNION
-
-    SELECT li.report_period_id,
-        li.cluster_id,
-        li.cluster_alias,
-        'Storage' as data_source,
-        li.namespace,
-        li.node,
-        li.volume_labels as pod_labels,
-        NULL as resource_id,
-        max(li.usage_start) as usage_start,
-        max(li.usage_end) as usage_end,
-        max(li.product_code) as product_code,
-        max(p.product_family) as product_family,
-        max(p.instance_type) as instance_type,
-        max(li.cost_entry_bill_id) as cost_entry_bill_id,
-        max(li.usage_account_id) as usage_account_id,
-        max(aa.id) as account_alias_id,
-        max(li.availability_zone) as availability_zone,
-        max(p.region) as region,
-        max(pr.unit) as unit,
-        sum(li.usage_amount / li.shared_projects) as usage_amount,
-        sum(li.normalized_usage_amount / li.shared_projects) as normalized_usage_amount,
-        max(li.currency_code) as currency_code,
-        sum(li.unblended_cost / li.shared_projects) as unblended_cost,
-        sum(li.unblended_cost / li.shared_projects) * {{markup}}::numeric as markup_cost,
-        max(li.shared_projects) as shared_projects,
-        li.project_cost,
-        li.project_cost * {{markup}}::numeric as project_markup_cost,
-        ab.provider_id as source_uuid
-    FROM reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS li
-    JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
-        ON li.cost_entry_product_id = p.id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrypricing as pr
-        ON li.cost_entry_pricing_id = pr.id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
-        ON li.usage_account_id = aa.account_id
-    LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
-        ON ulid.aws_id = li.aws_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as ab
-        ON li.cost_entry_bill_id = ab.id
-    WHERE li.usage_start >= {{start_date}}::date
-        AND li.usage_start <= {{end_date}}::date
-        AND ulid.aws_id IS NULL
-    GROUP BY li.ocp_id,
-        li.report_period_id,
-        li.cluster_id,
-        li.cluster_alias,
-        li.namespace,
-        li.node,
-        li.volume_labels,
-        li.project_cost,
-        ab.provider_id
+        pod_label as pod_labels,
+        li.resource_id,
+        li.usage_start,
+        li.usage_end,
+        li.product_code,
+        li.product_family,
+        li.instance_type,
+        li.cost_entry_bill_id,
+        li.usage_account_id,
+        li.account_alias_id,
+        li.availability_zone,
+        li.region,
+        li.unit,
+        li.currency_code,
+        li.usage_amount / li.pod_label_count / li.shared_projects as usage_amount,
+        li.normalized_usage_amount / li.pod_label_count / li.shared_projects as normalized_usage_amount,
+        li.unblended_cost / li.pod_label_count / li.shared_projects as unblended_cost,
+        li.unblended_cost / li.pod_label_count / li.shared_projects * '0.1'::numeric as markup_cost,
+        project_cost::numeric as project_cost,
+        project_cost::numeric * '0.1'::numeric as project_markup_cost,
+        li.source_uuid
+    FROM reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}} as li,
+        jsonb_array_elements(li.pod_labels) AS pod_labels(pod_label),
+        jsonb_each_text(li.project_costs) AS project_costs(project, project_cost)
 )
 ;
 
@@ -1378,3 +1325,74 @@ DROP INDEX IF EXISTS aws_tags_gin_idx;
 -- no need to wait for commit
 TRUNCATE TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}};
 DROP TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}};
+
+-- Update infra raw costs in OCP table
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+WHERE usage_start >= {{start_date}}::date
+    AND usage_start <= {{end_date}}::date
+    AND cluster_id = {{cluster_id}}
+    AND infrastructure_raw_cost IS NOT NULL
+;
+
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+WHERE usage_start >= {{start_date}}::date
+    AND usage_start <= {{end_date}}::date
+    AND cluster_id = {{cluster_id}}
+    AND infrastructure_raw_cost IS NOT NULL
+;
+
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+    uuid,
+    report_period_id,
+    usage_start,
+    usage_end,
+    cluster_id,
+    cluster_alias,
+    namespace,
+    data_source,
+    node,
+    resource_id,
+    pod_labels,
+    volume_labels,
+    source_uuid,
+    infrastructure_raw_cost,
+    infrastructure_project_raw_cost,
+    infrastructure_usage_cost
+)
+    SELECT uuid_generate_v4() as uuid,
+        ocp_aws.report_period_id,
+        ocp_aws.usage_start,
+        ocp_aws.usage_start,
+        ocp_aws.cluster_id,
+        ocp_aws.cluster_alias,
+        ocp_aws.namespace,
+        ocp_aws.data_source,
+        ocp_aws.node,
+        ocp_aws.resource_id,
+        CASE WHEN ocp_aws.data_source = 'Pod'
+            THEN ocp_aws.pod_labels
+            ELSE '{}'::jsonb
+        END as pod_labels,
+        CASE WHEN ocp_aws.data_source = 'Storage'
+            THEN ocp_aws.pod_labels
+            ELSE '{}'::jsonb
+        END as volume_labels,
+        ocp_aws.source_uuid,
+        sum(ocp_aws.unblended_cost + ocp_aws.markup_cost) AS infrastructure_raw_cost,
+        sum(ocp_aws.pod_cost + ocp_aws.project_markup_cost) AS infrastructure_project_raw_cost,
+        '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost
+    FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
+    WHERE ocp_aws.usage_start >= {{start_date}}::date
+        AND ocp_aws.usage_start <= {{end_date}}::date
+        AND ocp_aws.cluster_id = {{cluster_id}}
+    GROUP BY ocp_aws.report_period_id,
+        ocp_aws.usage_start,
+        ocp_aws.cluster_id,
+        ocp_aws.cluster_alias,
+        ocp_aws.namespace,
+        ocp_aws.data_source,
+        ocp_aws.node,
+        ocp_aws.resource_id,
+        ocp_aws.pod_labels,
+        ocp_aws.source_uuid
+;
