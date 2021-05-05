@@ -26,6 +26,7 @@ from cachetools import TTLCache
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db.utils import OperationalError
+from django.http import JsonResponse
 from django.test.utils import modify_settings
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -37,6 +38,7 @@ from rest_framework.test import APIClient
 from tenant_schemas.middleware import BaseTenantMiddleware
 
 from api.common import RH_IDENTITY_HEADER
+from api.common.pagination import EmptyResultsSetPagination
 from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
@@ -542,8 +544,9 @@ class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
         client = APIClient()
         url = reverse("aws-tags")
         result = client.get(url, **request_context["request"].META)
-        self.assertDictEqual(result.json(), {})
-        # self.assertIsInstance(result, JsonResponse)
+        expected = EmptyResultsSetPagination([], request_context.get("request")).get_paginated_response()
+        self.assertEqual(result.get("data"), expected.get("data"))
+        self.assertIsInstance(result, JsonResponse)
 
     def test_tenant_without_schema_user_access(self):
         test_schema = "acct00000"

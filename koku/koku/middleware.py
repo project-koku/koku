@@ -40,6 +40,7 @@ from django_prometheus.middleware import PrometheusAfterMiddleware
 from django_prometheus.middleware import PrometheusBeforeMiddleware
 from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
 from tenant_schemas.middleware import BaseTenantMiddleware
 from tenant_schemas.utils import schema_exists
 
@@ -118,14 +119,14 @@ class HttpResponseFailedDependency(JsonResponse):
 class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
     """A middleware to check if schema exists for Tenant."""
 
-    def process_request(self, request):
-        if settings.ROOT_URLCONF == "koku.urls":
-            public_list = [reverse("user-access"), reverse("sources-list")]
-            if request.path not in public_list and not schema_exists(request.tenant.schema_name):
-                return JsonResponse(data={})
-
     def process_exception(self, request, exception):
         if isinstance(exception, Tenant.DoesNotExist):
+            if (
+                settings.ROOT_URLCONF == "koku.urls"
+                and request.path in reverse("settings")
+                and not schema_exists(request.tenant.schema_name)
+            ):
+                return Response([{}])
             paginator = EmptyResultsSetPagination([], request)
             return paginator.get_paginated_response()
 
