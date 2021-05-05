@@ -53,10 +53,21 @@ class Command(migrate_schemas.Command):
                 else:
                     tenants = [self.schema_name]
             else:
-                tenants = (
-                    get_tenant_model()
-                    .objects.exclude(schema_name=get_public_schema_name())
+                from django.db.models.expressions import RawSQL
+                tenant_model = get_tenant_model()
+                tenants = list(
+                    tenant_model
+                    .objects.filter(
+                        schema_name__in=RawSQL(
+                            """
+select nspname::text 
+  from pg_catalog.pg_namespace 
+ where nspname = %s 
+    or nspname ~ '^acct'
+""",
+                            (tenant_model._TEMPLATE_SCHEMA,)
+                        )
+                    )
                     .values_list("schema_name", flat=True)
                 )
-                tenants = [tenant for tenant in tenants if schema_exists(tenant[0])]
             executor.run_migrations(tenants=tenants)
