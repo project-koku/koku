@@ -187,25 +187,6 @@ class TestCeleryTasks(MasuTestCase):
             tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
             self.assertIn("Skipping delete_archived_data. Upload feature is disabled.", captured_logs.output[0])
 
-    @patch("masu.celery.tasks.vacuum_schema")
-    def test_vacuum_schemas(self, mock_vacuum):
-        """Test that the vacuum_schemas scheduled task runs for all schemas."""
-        schema_one = "acct123"
-        schema_two = "acct456"
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO api_tenant (schema_name)
-                VALUES (%s), (%s)
-                """,
-                [schema_one, schema_two],
-            )
-
-        tasks.vacuum_schemas()
-
-        for schema_name in [schema_one, schema_two]:
-            mock_vacuum.delay.assert_any_call(schema_name)
-
     @patch("masu.celery.tasks.Config")
     @patch("masu.external.date_accessor.DateAccessor.get_billing_months")
     def test_clean_volume(self, mock_date, mock_config):

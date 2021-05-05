@@ -1069,11 +1069,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         for test in test_matrix:
             self.assertEquals(normalize_table_options(test.get("table_options")), test.get("expected"))
 
-    def test_autovacuum_tune_schedule(self):
-        vh = next(iter(koku_celery.app.conf.beat_schedule["vacuum-schemas"]["schedule"].hour))
-        avh = next(iter(koku_celery.app.conf.beat_schedule["autovacuum-tune-schemas"]["schedule"].hour))
-        self.assertTrue(avh == (23 if vh == 0 else (vh - 1)))
-
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     def test_record_report_status(self, mock_accessor):
         mock_accessor.return_value = True

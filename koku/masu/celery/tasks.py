@@ -42,7 +42,6 @@ from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
-from masu.processor.tasks import vacuum_schema
 from masu.processor.tasks import VACUUM_SCHEMA_QUEUE
 from masu.util.aws.common import get_s3_resource
 
@@ -210,22 +209,6 @@ def sync_data_to_customer(dump_request_uuid):
             return
     dump_request.status = DataExportRequest.COMPLETE
     dump_request.save()
-
-
-@celery_app.task(name="masu.celery.tasks.vacuum_schemas", queue=VACUUM_SCHEMA_QUEUE)
-def vacuum_schemas():
-    """Vacuum all schemas."""
-    tenants = Tenant.objects.values("schema_name")
-    schema_names = [
-        tenant.get("schema_name")
-        for tenant in tenants
-        if (tenant.get("schema_name") and tenant.get("schema_name") != "public")
-    ]
-
-    for schema_name in schema_names:
-        LOG.info("Scheduling VACUUM task for %s", schema_name)
-        # called in celery.py
-        vacuum_schema.delay(schema_name)
 
 
 # This task will process the autovacuum tuning as a background process
