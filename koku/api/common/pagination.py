@@ -17,6 +17,7 @@
 """Common pagination class."""
 import logging
 
+from django.http import JsonResponse
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework.utils.urls import replace_query_param
@@ -227,3 +228,30 @@ class OrgUnitPagination(ReportPagination):
         org_objects = set(org_objects)
         self.count = len(org_objects)
         return dataset
+
+
+class EmptyResultsSetPagination(StandardResultsSetPagination):
+    """A paginator for an empty response."""
+
+    def __init__(self, data_set, request):
+        """Initialize the paginator."""
+        self.data_set = data_set
+        self.request = request
+        self.count = len(data_set)
+        self.limit = 0
+        self.offset = 0
+
+    def get_paginated_response(self):
+        """Override pagination output."""
+        return JsonResponse(
+            {
+                "meta": {"count": self.count},
+                "links": {
+                    "first": self.get_first_link(),
+                    "next": self.get_next_link(),
+                    "previous": self.get_previous_link(),
+                    "last": self.get_last_link(),
+                },
+                "data": self.data_set,
+            }
+        )

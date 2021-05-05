@@ -31,6 +31,7 @@ from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.utils import InterfaceError
 from django.db.utils import OperationalError
+from django.db.utils import ProgrammingError
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.urls import reverse
@@ -41,8 +42,10 @@ from django_prometheus.middleware import PrometheusBeforeMiddleware
 from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.middleware import BaseTenantMiddleware
+from tenant_schemas.utils import schema_exists
 
 from api.common import RH_IDENTITY_HEADER
+from api.common.pagination import EmptyResultsSetPagination
 from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
@@ -113,6 +116,21 @@ class HttpResponseFailedDependency(JsonResponse):
         super().__init__(data)
 
 
+class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
+    """A middleware to check if schema exists for Tenant."""
+
+    def process_exception(self, request, exception):
+        if isinstance(exception, (Tenant.DoesNotExist, ProgrammingError)):
+            if (
+                settings.ROOT_URLCONF == "koku.urls"
+                and request.path in reverse("settings")
+                and not schema_exists(request.tenant.schema_name)
+            ):
+                return JsonResponse([{}], safe=False)
+            paginator = EmptyResultsSetPagination([], request)
+            return paginator.get_paginated_response()
+
+
 class KokuTenantMiddleware(BaseTenantMiddleware):
     """A subclass of the Django-tenant-schemas tenant middleware.
     Determines which schema to use based on the customer's schema
@@ -162,21 +180,22 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
         """Override the tenant selection logic."""
         schema_name = "public"
         tenant_username = request.user.username
-        if tenant_username not in KokuTenantMiddleware.tenant_cache:
+        tenant = KokuTenantMiddleware.tenant_cache.get(tenant_username)
+        if not tenant:
             if not is_no_auth(request):
                 user = User.objects.get(username=tenant_username)
                 customer = user.customer
                 schema_name = customer.schema_name
 
-            tenant, created = model.objects.get_or_create(schema_name=schema_name)
-            if created:
-                msg = f"Created tenant {schema_name}"
-                LOG.info(msg)
+            tenant = model.objects.filter(schema_name=schema_name).first()
+            if tenant and schema_name != "public":
+                with KokuTenantMiddleware.tenant_lock:
+                    KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
+                    LOG.debug(f"Tenant added to cache: {tenant_username}")
+            elif not tenant:
+                tenant, __ = model.objects.get_or_create(schema_name="public")
 
-            with KokuTenantMiddleware.tenant_lock:
-                KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
-            LOG.debug(f"Tenant added to cache: {tenant_username}")
-        return KokuTenantMiddleware.tenant_cache[tenant_username]
+        return tenant
 
 
 class IdentityHeaderMiddleware(MiddlewareMixin):
@@ -201,8 +220,6 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 schema_name = create_schema_name(account)
                 customer = Customer(account_id=account, schema_name=schema_name)
                 customer.save()
-                tenant = Tenant(schema_name=schema_name)
-                tenant.save()
                 UNIQUE_ACCOUNT_COUNTER.inc()
                 LOG.info("Created new customer from account_id %s.", account)
         except IntegrityError:
