@@ -21,6 +21,7 @@ from tenant_schemas.management.commands import migrate_schemas
 from tenant_schemas.migration_executors import get_executor
 from tenant_schemas.utils import get_public_schema_name
 from tenant_schemas.utils import get_tenant_model
+from tenant_schemas.utils import schema_exists
 
 LOG = logging.getLogger(__name__)
 
@@ -54,20 +55,19 @@ class Command(migrate_schemas.Command):
                     tenants = [self.schema_name]
             else:
                 from django.db.models.expressions import RawSQL
+
                 tenant_model = get_tenant_model()
                 tenants = list(
-                    tenant_model
-                    .objects.filter(
+                    tenant_model.objects.filter(
                         schema_name__in=RawSQL(
                             """
-select nspname::text 
-  from pg_catalog.pg_namespace 
- where nspname = %s 
-    or nspname ~ '^acct'
-""",
-                            (tenant_model._TEMPLATE_SCHEMA,)
+                                SELECT nspname::text
+                                FROM pg_catalog.pg_namespace
+                                WHERE nspname = %s
+                                    OR nspname ~ '^acct'
+                            """,
+                            (tenant_model._TEMPLATE_SCHEMA,),
                         )
-                    )
-                    .values_list("schema_name", flat=True)
+                    ).values_list("schema_name", flat=True)
                 )
             executor.run_migrations(tenants=tenants)
