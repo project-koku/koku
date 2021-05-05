@@ -21,7 +21,6 @@ from tenant_schemas.management.commands import migrate_schemas
 from tenant_schemas.migration_executors import get_executor
 from tenant_schemas.utils import get_public_schema_name
 from tenant_schemas.utils import get_tenant_model
-from tenant_schemas.utils import schema_exists
 
 LOG = logging.getLogger(__name__)
 
