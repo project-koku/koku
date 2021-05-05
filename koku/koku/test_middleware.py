@@ -42,6 +42,7 @@ from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
+from api.user_access.view import UserAccessView
 from koku import middleware as MD
 from koku.middleware import EXTENDED_METRICS
 from koku.middleware import HttpResponseUnauthorizedRequest
@@ -546,6 +547,22 @@ class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
         client = APIClient()
         url = reverse("aws-tags")
         result = client.get(url, **request_context["request"].META)
-        print(result.__dict__)
         self.assertDictEqual(result.json(), {})
         self.assertIsInstance(result, JsonResponse)
+
+    def test_tenant_without_schema_user_access(self):
+        test_schema = "acct00000"
+        customer = {"account_id": "00000", "schema_name": test_schema}
+        user_data = self._create_user_data()
+        request_context = self._create_request_context(customer, user_data, create_customer=True, create_tenant=False)
+
+        tenant = Tenant(schema_name=test_schema)
+        tenant.auto_create_schema = False
+        tenant.save()
+
+        # mock_request = Mock(path="/api/v1/user-access/")
+        client = APIClient()
+        url = reverse("user-access")
+        result = client.get(url, **request_context["request"].META)
+        print(result.__dict__)
+        self.assertEqual(len(result.json().get("data")), len(UserAccessView._source_types))

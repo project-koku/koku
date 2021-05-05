@@ -118,7 +118,8 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
     """A middleware to check if schema exists for Tenant."""
 
     def process_request(self, request):
-        if not schema_exists(request.tenant.schema_name):
+        public_list = [reverse("user-access"), reverse("sources-list")]
+        if request.path not in public_list and not schema_exists(request.tenant.schema_name):
             return JsonResponse(data={})
 
 
