@@ -44,6 +44,7 @@ from tenant_schemas.middleware import BaseTenantMiddleware
 from tenant_schemas.utils import schema_exists
 
 from api.common import RH_IDENTITY_HEADER
+from api.common.pagination import EmptyResultsSetPagination
 from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
@@ -122,6 +123,11 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
             public_list = [reverse("user-access"), reverse("sources-list")]
             if request.path not in public_list and not schema_exists(request.tenant.schema_name):
                 return JsonResponse(data={})
+
+    def process_exception(self, request, exception):
+        if isinstance(exception, Tenant.DoesNotExist):
+            paginator = EmptyResultsSetPagination([], request)
+            return paginator.get_paginated_response()
 
 
 class KokuTenantMiddleware(BaseTenantMiddleware):
