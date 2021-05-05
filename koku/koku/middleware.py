@@ -31,6 +31,7 @@ from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.utils import InterfaceError
 from django.db.utils import OperationalError
+from django.db.utils import ProgrammingError
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.urls import reverse
@@ -40,7 +41,6 @@ from django_prometheus.middleware import PrometheusAfterMiddleware
 from django_prometheus.middleware import PrometheusBeforeMiddleware
 from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
-from rest_framework.response import Response
 from tenant_schemas.middleware import BaseTenantMiddleware
 from tenant_schemas.utils import schema_exists
 
@@ -120,13 +120,13 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
     """A middleware to check if schema exists for Tenant."""
 
     def process_exception(self, request, exception):
-        if isinstance(exception, Tenant.DoesNotExist):
+        if isinstance(exception, (Tenant.DoesNotExist, ProgrammingError)):
             if (
                 settings.ROOT_URLCONF == "koku.urls"
                 and request.path in reverse("settings")
                 and not schema_exists(request.tenant.schema_name)
             ):
-                return Response([{}])
+                return JsonResponse([{}], safe=False)
             paginator = EmptyResultsSetPagination([], request)
             return paginator.get_paginated_response()
 
