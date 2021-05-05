@@ -93,22 +93,13 @@ VACUUM_DATA_DAY_OF_WEEK = ENVIRONMENT.get_value("VACUUM_DATA_DAY_OF_WEEK", defau
 VACUUM_DATA_UTC_TIME = ENVIRONMENT.get_value("VACUUM_DATA_UTC_TIME", default="00:00")
 VACUUM_HOUR, VACUUM_MINUTE = VACUUM_DATA_UTC_TIME.split(":")
 
-# Set the autovacuum-tuning task 1 hour prior to the main vacuum task
 av_hour = int(VACUUM_HOUR)
-av_hour = 23 if av_hour == 0 else (av_hour - 1)
 
 if VACUUM_DATA_DAY_OF_WEEK:
-    schedule = crontab(day_of_week=VACUUM_DATA_DAY_OF_WEEK, hour=int(VACUUM_HOUR), minute=int(VACUUM_MINUTE))
     autovacuum_schedule = crontab(day_of_week=VACUUM_DATA_DAY_OF_WEEK, hour=av_hour, minute=int(VACUUM_MINUTE))
 else:
-    schedule = crontab(hour=int(VACUUM_HOUR), minute=int(VACUUM_MINUTE))
     autovacuum_schedule = crontab(hour=av_hour, minute=int(VACUUM_MINUTE))
 
-app.conf.beat_schedule["vacuum-schemas"] = {
-    "task": "masu.celery.tasks.vacuum_schemas",
-    "schedule": schedule,
-    "args": [],
-}
 
 # This will automatically tune the tables (if needed) based on the number of live tuples
 # Based on the latest statistics analysis run
@@ -122,6 +113,17 @@ app.conf.beat_schedule["autovacuum-tune-schemas"] = {
 app.conf.beat_schedule["delete_source_beat"] = {
     "task": "sources.tasks.delete_source_beat",
     "schedule": crontab(minute="0", hour="4"),
+}
+
+# Specify the frequency for pushing source status.
+SOURCE_STATUS_FREQUENCY_MINUTES = ENVIRONMENT.get_value("SOURCE_STATUS_FREQUENCY_MINUTES", default="30")
+source_status_schedule = crontab(minute=f"*/{SOURCE_STATUS_FREQUENCY_MINUTES}")
+LOG.info(f"Source status schedule: {str(source_status_schedule)}")
+
+# task to push source status`
+app.conf.beat_schedule["source_status_beat"] = {
+    "task": "sources.tasks.source_status_beat",
+    "schedule": source_status_schedule,
 }
 
 # Collect prometheus metrics.

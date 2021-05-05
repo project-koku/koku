@@ -64,12 +64,15 @@ BEGIN
       FROM jsonb_object_keys(leaf_migrations) k;
 
     FOR schema_rec IN
-        SELECT t.schema_name
-          FROM public.api_tenant t
+        SELECT nspname::text as schema_name
+        FROM pg_catalog.pg_namespace
+        WHERE nspname = 'public'
+            OR nspname = 'template0'
+            OR nspname LIKE 'acct%'
          ORDER
-            BY case when schema_name = 'public'
+            BY case when nspname::text = 'public'
                          then '0public'
-                    else schema_name
+                    else nspname::text
                END::text
     LOOP
         /* Get the latest recorded migrations by app for this tenant schema */
@@ -88,29 +91,13 @@ BEGIN
                                'AND n.nspname = ' || quote_literal(schema_rec.schema_name) || ' ' ||
                         ')::boolean as "objects_exist", ' ||
                         'EXISTS ( ' ||
-                            'SELECT t.id ' ||
-                              'FROM public.api_tenant t ' ||
-                             'WHERE schema_name = ' || quote_literal(schema_rec.schema_name) || ' ' ||
-                        ')::boolean as "tenant_exists", ' ||
-                        'EXISTS ( ' ||
                             'SELECT n.oid ' ||
                               'FROM pg_namespace n ' ||
                              'WHERE nspname = ' || quote_literal(schema_rec.schema_name) || ' ' ||
                         ')::boolean as "schema_exists" '
           INTO exists_rec;
 
-        IF exists_rec.tenant_exists AND NOT exists_rec.schema_exists
-        THEN
-            RAISE EXCEPTION 'MIGRATION CHECK :: Tenant "%" exists, but there is no database schema.',
-                            schema_rec.schema_name;
-        END IF;
-        IF NOT exists_rec.tenant_exists AND exists_rec.schema_exists
-        THEN
-            RAISE EXCEPTION 'MIGRATION CHECK :: Schema "%" exists, but there is no tenant record.',
-                            schema_rec.schema_name;
-        END IF;
-
-        CONTINUE WHEN (NOT exists_rec.tenant_exists) OR (NOT exists_rec.schema_exists);
+        CONTINUE WHEN (NOT exists_rec.schema_exists);
 
         IF NOT exists_rec.objects_exist
         THEN
