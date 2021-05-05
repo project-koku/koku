@@ -37,7 +37,6 @@ from django.db.models import Min
 from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
 
-import koku.celery as koku_celery
 from api.iam.models import Tenant
 from api.models import Provider
 from api.utils import DateHelper

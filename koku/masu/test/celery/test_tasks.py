@@ -13,7 +13,6 @@ import faker
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from celery.exceptions import Retry
-from django.db import connection
 from django.test import override_settings
 
 from api.dataexport.models import DataExportRequest as APIExportRequest
