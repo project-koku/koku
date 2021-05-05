@@ -85,10 +85,14 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                 )
 
                 try:
+                    tenant, created = Tenant.objects.get_or_create(schema_name=Tenant._TEMPLATE_SCHEMA)
+                    if created:
+                        tenant.save()
+                        tenant.create_schema()
                     tenant, created = Tenant.objects.get_or_create(schema_name=KokuTestRunner.schema)
                     if created:
-                        tenant = Tenant.objects.get_or_create(schema_name=KokuTestRunner.schema)[0]
                         tenant.save()
+                        tenant.create_schema()
                         customer, __ = Customer.objects.get_or_create(
                             account_id=KokuTestRunner.account, schema_name=KokuTestRunner.schema
                         )
@@ -110,6 +114,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         for account in [("10002", "acct10002"), ("12345", "acct12345")]:
                             tenant = Tenant.objects.get_or_create(schema_name=account[1])[0]
                             tenant.save()
+                            tenant.create_schema()
                             Customer.objects.get_or_create(account_id=account[0], schema_name=account[1])
                 except Exception as err:
                     LOG.error(err)
