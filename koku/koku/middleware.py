@@ -47,7 +47,6 @@ from tenant_schemas.utils import schema_exists
 from api.common import RH_IDENTITY_HEADER
 from api.common.pagination import EmptyResultsSetPagination
 from api.iam.models import Customer
-from api.iam.models import Tenant
 from api.iam.models import User
 from api.iam.serializers import create_schema_name
 from api.iam.serializers import extract_header
@@ -180,21 +179,22 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
         """Override the tenant selection logic."""
         schema_name = "public"
         tenant_username = request.user.username
-        if tenant_username not in KokuTenantMiddleware.tenant_cache:
+        tenant = KokuTenantMiddleware.tenant_cache.get(tenant_username)
+        if not tenant:
             if not is_no_auth(request):
                 user = User.objects.get(username=tenant_username)
                 customer = user.customer
                 schema_name = customer.schema_name
 
-            tenant, created = model.objects.get_or_create(schema_name=schema_name)
-            if created:
-                msg = f"Created tenant {schema_name}"
-                LOG.info(msg)
+            tenant = model.objects.filter(schema_name=schema_name).first()
+            if tenant and schema_name != "public":
+                with KokuTenantMiddleware.tenant_lock:
+                    KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
+                    LOG.debug(f"Tenant added to cache: {tenant_username}")
+            elif not tenant:
+                tenant, __ = model.objects.get_or_create(schema_name="public")
 
-            with KokuTenantMiddleware.tenant_lock:
-                KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
-            LOG.debug(f"Tenant added to cache: {tenant_username}")
-        return KokuTenantMiddleware.tenant_cache[tenant_username]
+        return tenant
 
 
 class IdentityHeaderMiddleware(MiddlewareMixin):
@@ -219,10 +219,6 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 schema_name = create_schema_name(account)
                 customer = Customer(account_id=account, schema_name=schema_name)
                 customer.save()
-                tenant = Tenant(schema_name=schema_name)
-                tenant.save()
-                if settings.DEVELOPMENT:
-                    tenant.create_schema()
                 UNIQUE_ACCOUNT_COUNTER.inc()
                 LOG.info("Created new customer from account_id %s.", account)
         except IntegrityError:
