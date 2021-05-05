@@ -110,6 +110,7 @@ class Tenant(TenantMixin):
 
     # Delete all schemas when a tenant is removed
     auto_drop_schema = True
+    auto_create_schema = False
 
     def _check_clone_func(self):
         LOG.info(f'Verify that clone function "{self._CLONE_SCHEMA_FUNC_SIG}" exists')
@@ -134,7 +135,8 @@ class Tenant(TenantMixin):
         # If this becomes unreliable, then the database itself should be the source of truth
         # and extra code must be written to handle the sync of the table data to the state of
         # the database.
-        template_schema = self.__class__.objects.get_or_create(schema_name=self._TEMPLATE_SCHEMA)
+        template_schema, created = self.__class__.objects.get_or_create(schema_name=self._TEMPLATE_SCHEMA)
+        template_schema.create_schema()
 
         # Strict check here! Both the record and the schema *should* exist!
         res = bool(template_schema) and schema_exists(self._TEMPLATE_SCHEMA)
