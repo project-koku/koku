@@ -33,12 +33,14 @@ from django.db.models import Q
 from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
-from django.db.models.functions import Rank
+from django.db.models.functions import DenseRank
 
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
+
+# from django.db.models.functions import Rank
 
 LOG = logging.getLogger(__name__)
 
@@ -737,6 +739,10 @@ class ReportQueryHandler(QueryHandler):
             else:
                 rank_annotations = {self._delta: self.report_annotations[self._delta]}
                 rank_orders.append(getattr(F(self._delta), self.order_direction)())
+        elif self._limit and "offset" in self.parameters.get("filter", {}) and self.parameters.get("order_by"):
+            if self.report_annotations.get(self.order_field):
+                rank_annotations = {self.order_field: self.report_annotations.get(self.order_field)}
+            rank_orders.append(getattr(F(self.order_field), self.order_direction)())
         else:
             for key, val in self.default_ordering.items():
                 order_field, order_direction = key, val
@@ -748,7 +754,7 @@ class ReportQueryHandler(QueryHandler):
 
         # this is a sub-query, but not really.
         # in the future, this could be accomplished using CTEs.
-        rank_by_total = Window(expression=Rank(), order_by=rank_orders)
+        rank_by_total = Window(expression=DenseRank(), order_by=rank_orders)
         if rank_annotations:
             ranks = (
                 query.annotate(**self.annotations)
