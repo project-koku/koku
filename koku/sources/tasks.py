@@ -17,9 +17,13 @@
 """Tasks for sources-client."""
 import logging
 
+from django.core.exceptions import ObjectDoesNotExist
+
+from api.provider.models import Sources
 from koku import celery_app
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
+from sources.api.source_status import SourceStatus
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.storage import load_providers_to_delete
 
@@ -40,3 +44,16 @@ def delete_source_beat():
     for p in providers:
         provider = p.get("provider")
         delete_source.delay(provider.source_id, provider.auth_header, provider.koku_uuid)
+
+
+@celery_app.task(name="sources.tasks.source_status_beat", queue=PRIORITY_QUEUE)
+def source_status_beat():
+    """Source Status push."""
+    sources_query = Sources.objects.filter(source_id__isnull=False).all()
+    for source in sources_query:
+        try:
+            status_pusher = SourceStatus(source.source_id)
+            LOG.info("Delivering source status for Source ID: %s", source.source_id)
+            status_pusher.push_status()
+        except ObjectDoesNotExist:
+            LOG.info(f"Source status not pushed.  Unable to find Source ID: {source.source_id}")
