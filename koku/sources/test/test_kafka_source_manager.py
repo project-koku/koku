@@ -23,6 +23,7 @@ from faker import Faker
 from rest_framework.exceptions import ValidationError
 
 from api.iam.models import Tenant
+from api.iam.models import TENANT_SUPPORT
 from api.models import Provider
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_builder import ProviderBuilderError
@@ -64,6 +65,7 @@ class ProviderBuilderTest(TestCase):
         self.mock_source = MockSourceObject(
             self.name, self.provider_type, self.authentication, self.billing_source, self.source_uuid
         )
+        TENANT_SUPPORT.clear()
 
     def test_create_provider(self):
         """Test to create a provider."""

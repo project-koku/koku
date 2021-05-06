@@ -98,7 +98,7 @@ begin
     return param1;
 end;
 $BODY$ language plpgsql;
-create function public.__eek2(param1 int, param2 text) returns text as $BODY$
+create function public.__eek2(param1 integer, param2 text) returns text as $BODY$
 begin
     return param1;
 end;
@@ -108,7 +108,7 @@ $BODY$ language plpgsql;
             func_map = {
                 "public": {
                     "__eek1": "public.__eek1(param1 text)",
-                    "__eek2": "public.__eek2(param1 int, param2 text)",
+                    "__eek2": "public.__eek2(param1 integer, param2 text)",
                     "__notfound": "public.__notfound(param1 bool)",
                 }
             }
@@ -116,10 +116,10 @@ $BODY$ language plpgsql;
             cur.execute(
                 """
 drop function public.__eek1(param1 text);
-drop function public.__eek2(param1 int, param2 text);
+drop function public.__eek2(param1 integer, param2 text);
 """
             )
         self.assertTrue("public" in res)
-        self.assertTrue("__eek1" not in res)
-        self.assertTrue("__eek2" not in res)
-        self.assertTrue("__notfound" in res)
+        self.assertTrue("__eek1" not in res["public"])
+        self.assertTrue("__eek2" not in res["public"])
+        self.assertTrue("__notfound" in res["public"])
