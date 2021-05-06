@@ -30,6 +30,8 @@ from api.models import User
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from api.provider.serializers import ProviderSerializer
+from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
+from koku.cache import SOURCES_PREFIX
 from koku.middleware import IdentityHeaderMiddleware
 from sources.config import Config
 
@@ -143,6 +145,7 @@ class ProviderBuilder:
         try:
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
+                invalidate_view_cache_for_tenant_and_cache_key(tenant.schema_name, cache_key_prefix=SOURCES_PREFIX)
         except ValidationError as error:
             connection.set_schema_to_public()
             raise error
@@ -166,6 +169,7 @@ class ProviderBuilder:
         serializer = ProviderSerializer(instance=instance, data=json_data, partial=False, context=context)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        invalidate_view_cache_for_tenant_and_cache_key(tenant.schema_name, cache_key_prefix=SOURCES_PREFIX)
         connection.set_schema_to_public()
         return instance
 
@@ -181,4 +185,5 @@ class ProviderBuilder:
             LOG.info("Provider does not exist, skipping Provider delete.")
         else:
             manager.remove(user=user, from_sources=True)
+            invalidate_view_cache_for_tenant_and_cache_key(tenant.schema_name, cache_key_prefix=SOURCES_PREFIX)
         connection.set_schema_to_public()

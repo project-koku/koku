@@ -39,6 +39,8 @@ from api.common.permissions.cost_models_access import CostModelsAccessPermission
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 from cost_models.serializers import CostModelSerializer
+from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
+from koku.cache import SOURCES_PREFIX
 
 LOG = logging.getLogger(__name__)
 
@@ -150,6 +152,7 @@ class CostModelViewSet(viewsets.ModelViewSet):
     @method_decorator(never_cache)
     def create(self, request, *args, **kwargs):
         """Create a rate."""
+        invalidate_view_cache_for_tenant_and_cache_key(request.tenant.schema_name, cache_key_prefix=SOURCES_PREFIX)
         return super().create(request=request, args=args, kwargs=kwargs)
 
     @method_decorator(never_cache)
@@ -171,6 +174,7 @@ class CostModelViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         """Delete a rate."""
         uuidParam = kwargs.get("uuid")
+        invalidate_view_cache_for_tenant_and_cache_key(request.tenant.schema_name, cache_key_prefix=SOURCES_PREFIX)
         try:
             manager = CostModelManager(cost_model_uuid=uuidParam)
         except CostModel.DoesNotExist:
@@ -183,4 +187,5 @@ class CostModelViewSet(viewsets.ModelViewSet):
 
     @method_decorator(never_cache)
     def update(self, request, *args, **kwargs):
+        invalidate_view_cache_for_tenant_and_cache_key(request.tenant.schema_name, cache_key_prefix=SOURCES_PREFIX)
         return super().update(request=request, args=args, kwargs=kwargs)
