@@ -74,7 +74,7 @@ obtainTagKeysProvidersParams = {
     },
     "gcp": {
         "provider": Provider.PROVIDER_GCP,
-        "title": "Google Cloud Plaform tags",
+        "title": "Google Cloud Platform tags",
         "leftLabel": "Available tags",
         "rightLabel": "Tags for reporting",
         "tag_view": GCPTagView,
