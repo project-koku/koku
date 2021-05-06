@@ -64,12 +64,15 @@ BEGIN
       FROM jsonb_object_keys(leaf_migrations) k;
 
     FOR schema_rec IN
-        SELECT t.schema_name
-          FROM public.api_tenant t
+        SELECT nspname::text as schema_name
+        FROM pg_catalog.pg_namespace
+        WHERE nspname = 'public'
+            OR nspname = 'template0'
+            OR nspname LIKE 'acct%'
          ORDER
-            BY case when schema_name = 'public'
+            BY case when nspname::text = 'public'
                          then '0public'
-                    else schema_name
+                    else nspname::text
                END::text
     LOOP
         /* Get the latest recorded migrations by app for this tenant schema */
@@ -87,11 +90,6 @@ BEGIN
                              'WHERE c.relname = ''django_migrations'' ' ||
                                'AND n.nspname = ' || quote_literal(schema_rec.schema_name) || ' ' ||
                         ')::boolean as "objects_exist", ' ||
-                        'EXISTS ( ' ||
-                            'SELECT t.id ' ||
-                              'FROM public.api_tenant t ' ||
-                             'WHERE schema_name = ' || quote_literal(schema_rec.schema_name) || ' ' ||
-                        ')::boolean as "tenant_exists", ' ||
                         'EXISTS ( ' ||
                             'SELECT n.oid ' ||
                               'FROM pg_namespace n ' ||

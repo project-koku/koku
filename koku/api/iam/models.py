@@ -127,8 +127,7 @@ class Tenant(TenantMixin):
 
     # Delete all schemas when a tenant is removed
     auto_drop_schema = True
-    # auto_create_schema = False
-    auto_create_schema = bool(settings.DEVELOPMENT)
+    auto_create_schema = False
 
     # Change this to get schema info from the database catalog (_TEMPLATE_SOURCE_CATALOG)
     # or from a pg_dump output file (_TEMPLATE_SOURCE_FILE)

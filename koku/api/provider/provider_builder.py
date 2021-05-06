@@ -33,7 +33,6 @@ from api.provider.serializers import ProviderSerializer
 from koku.middleware import IdentityHeaderMiddleware
 from sources.config import Config
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -118,7 +117,8 @@ class ProviderBuilder:
     def _tenant_for_schema(self, schema_name):
         """Get or create tenant for schema."""
         tenant, created = Tenant.objects.get_or_create(schema_name=schema_name)
-        if created:
+        if not schema_exists(schema_name):
+            tenant.create_schema()
             msg = f"Created tenant {schema_name}"
             LOG.info(msg)
         return tenant

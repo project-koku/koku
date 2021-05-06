@@ -24,13 +24,11 @@ from tenant_schemas.utils import get_public_schema_name
 from tenant_schemas.utils import get_tenant_model
 from tenant_schemas.utils import schema_exists
 
-
 LOG = logging.getLogger(__name__)
 
 
 class Command(migrate_schemas.Command):
     """Override the migrate_schemas command from django-tenant-schemas.
-
     This override is here to workaround a dead upstream.
     This enables django-tenant_schemas to work with Django 3.1.x
     """
@@ -49,7 +47,6 @@ class Command(migrate_schemas.Command):
         if self.sync_public:
             executor.run_migrations(tenants=[self.schema_name])
         if self.sync_tenant:
-
             if self.schema_name and self.schema_name != self.PUBLIC_SCHEMA_NAME:
                 if not schema_exists(self.schema_name):
                     msg = f"Schema {self.schema_name} does not exist, skipping."
