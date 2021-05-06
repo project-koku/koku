@@ -170,8 +170,10 @@ class ReportPagination(StandardResultsSetPagination):
         filter_limit = data.get("filter", {}).get("limit", 0)
         meta = {"count": self.count}
         if self.others:
-            self.others = self.others - filter_limit
-            meta["others"] = self.others
+            others = 0
+            if self.others > filter_limit:
+                others = self.others - filter_limit
+            meta["others"] = others
         response = {
             "meta": meta,
             "links": {

@@ -587,6 +587,18 @@ class AWSReportViewTest(IamTestCase):
                             previous_delta = current_delta
             self.assertTrue(compared_deltas)
 
+    def test_others_count(self):
+        """Test that the others count works with a small limit."""
+        qs_list = ["?filter[limit]=1"]
+        for qs in qs_list:
+            url = reverse("reports-aws-instance-type") + qs
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            response_data = response.json()
+            meta = response_data.get("meta", {})
+            self.assertNotEqual(meta.get("others"), 0)
+
     def test_order_by_delta_no_delta(self):
         """Test that the order_by delta with no delta passed in triggers 400."""
         qs_list = ["?filter[limit]=5&filter[offset]=0&order_by[delta]=asc", "?order_by[delta]=asc"]
