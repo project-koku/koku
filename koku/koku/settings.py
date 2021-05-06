@@ -122,12 +122,14 @@ if ACCOUNT_ENHANCED_METRICS:
 ### Middleware setup
 MIDDLEWARE = [
     PROMETHEUS_BEFORE_MIDDLEWARE,
+    "koku.middleware.RequestTimingMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "koku.middleware.DisableCSRF",
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
     "koku.middleware.IdentityHeaderMiddleware",
     "koku.middleware.KokuTenantMiddleware",
+    "koku.middleware.KokuTenantSchemaExistsMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     PROMETHEUS_AFTER_MIDDLEWARE,
