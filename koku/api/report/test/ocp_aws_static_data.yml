@@ -6,20 +6,28 @@ generators:
       nodes:
         - node:
           node_name: aws_compute_1
-          cpu_cores: 2
-          memory_gig: 8
+          cpu_cores: 4
+          memory_gig: 16
           resource_id: 55555555
           namespaces:
             install-test:
               pods:
                 - pod:
-                  pod_name: pod_name1
+                  pod_name: pod_name1a
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:dev|label_app:catalog|label_version:prod
+                  labels: label_environment:dev|label_app:install-test|label_version:prod
+                - pod:
+                  pod_name: pod_name1b
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_environment:alpha|label_app:install-test|label_version:prod|label_qa:approved
               volumes:
                 - volume:
                   volume_name: pvc-volume_1
@@ -35,13 +43,21 @@ generators:
             catalog:
               pods:
                 - pod:
-                  pod_name: pod_name2
+                  pod_name: pod_name2a
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
                   labels: label_environment:dev|label_app:catalog|label_version:prod
+                - pod:
+                  pod_name: pod_name2b
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_environment:dev|label_app:catalog|label_version:prod|label_qa:approved
               volumes:
                 - volume:
                   volume_name: pvc-volume_2
@@ -56,20 +72,28 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: aws_compute_2
-          cpu_cores: 2
-          memory_gig: 8
+          cpu_cores: 4
+          memory_gig: 16
           resource_id: 55555556
           namespaces:
             cost-management:
               pods:
                 - pod:
-                  pod_name: pod_name3
+                  pod_name: pod_name3a
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
                   labels: label_environment:qe|label_app:cost|label_version:beta
+                - pod:
+                  pod_name: pod_name3b
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_environment:qe|label_app:cost|label_version:beta|label_qa:approved
               volumes:
                 - volume:
                   volume_name: pvc-volume_3
@@ -84,20 +108,28 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: aws_compute_3
-          cpu_cores: 2
-          memory_gig: 8
+          cpu_cores: 4
+          memory_gig: 16
           resource_id: 55555557
           namespaces:
             analytics:
               pods:
                 - pod:
-                  pod_name: pod_name4
+                  pod_name: pod_name4a
                   cpu_request: 2
                   mem_request_gig: 4
                   cpu_limit: 2
                   mem_limit_gig: 4
                   pod_seconds: 3600
                   labels: label_environment:prod|label_app:analytics|label_version:gamma
+                - pod:
+                  pod_name: pod_name4b
+                  cpu_request: 2
+                  mem_request_gig: 4
+                  cpu_limit: 2
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_environment:prod|label_app:analytics|label_version:gamma|label_qa:approved
               volumes:
                 - volume:
                   volume_name: pvc-volume_4
