@@ -25,6 +25,7 @@ from django.conf import settings
 from django.db import connection as conn
 from django.db import models
 from tenant_schemas.models import TenantMixin
+from tenant_schemas.postgresql_backend.base import _check_schema_name
 from tenant_schemas.signals import post_schema_sync
 from tenant_schemas.utils import schema_exists
 
@@ -179,7 +180,7 @@ class Tenant(TenantMixin):
             # If this becomes unreliable, then the database itself should be the source of truth
             # and extra code must be written to handle the sync of the table data to the state of
             # the database.
-            template_schema = self.__class__.objects.get_or_create(schema_name=self._TEMPLATE_SCHEMA)
+            template_schema, _ = self.__class__.objects.get_or_create(schema_name=self._TEMPLATE_SCHEMA)
             if not template_schema.auto_create_schema:
                 template_schema.create_schema()
 
@@ -293,3 +294,8 @@ select public.create_schema(%s::text, %s::jsonb, %s::text[], copy_data => true) 
         conn.set_schema_to_public()
 
         return True
+
+    # Force validation on schema_name
+    def save(self, *args, **kwargs):
+        _check_schema_name(self.schema_name)
+        super().save(*args, **kwargs)

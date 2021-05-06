@@ -122,25 +122,6 @@ select p.funcname,
     return res
 
 
-def dbfunc_exists(connection, function_schema, function_name, function_signature):
-    """
-    Test that the migration check database function exists by
-    checking the existence of the function signature.
-    """
-    sql = """
-select p.pronamespace::regnamespace::text || '.' || p.proname ||
-       '(' || pg_get_function_arguments(p.oid) || ')' as funcsig
-  from pg_proc p
- where pronamespace = %s::regnamespace
-   and proname = %s;
-"""
-    with connection.cursor() as cur:
-        cur.execute(sql, (function_schema, function_name))
-        res = cur.fetchone()
-
-    return bool(res) and res[0] == function_signature
-
-
 def install_migrations_dbfunc(connection):
     """
     Install the migration check database function

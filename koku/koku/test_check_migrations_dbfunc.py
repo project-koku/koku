@@ -69,8 +69,9 @@ select app,
         """
         Test datbase function not found
         """
-        res = kdb.dbfunc_exists(conn, "public", "___no_func_here___", "public.___no_func_here___(eek text, ook text)")
-        self.assertFalse(res)
+        func_map = {"public": {"___no_func_here___": "public.___no_func_here___(eek text, ook text)"}}
+        res = kdb.dbfunc_not_exists(conn, func_map)
+        self.assertTrue(res)
 
     def test_function_exists(self):
         with conn.cursor() as cur:
@@ -82,7 +83,43 @@ begin
 end;
 $BODY$ language plpgsql;"""
             )
-            res = kdb.dbfunc_exists(conn, "public", "__eek", "public.__eek(param1 text)")
+            func_map = {"public": {"__eek": "public.__eek(param1 text)"}}
+            res = kdb.dbfunc_not_exists(conn, func_map)
             cur.execute("""drop function public.__eek(text);""")
 
-        self.assertTrue(res)
+        self.assertFalse(res)
+
+    def test_dbfunc_not_exists_multi_value(self):
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+create function public.__eek1(param1 text) returns text as $BODY$
+begin
+    return param1;
+end;
+$BODY$ language plpgsql;
+create function public.__eek2(param1 int, param2 text) returns text as $BODY$
+begin
+    return param1;
+end;
+$BODY$ language plpgsql;
+"""
+            )
+            func_map = {
+                "public": {
+                    "__eek1": "public.__eek1(param1 text)",
+                    "__eek2": "public.__eek2(param1 int, param2 text)",
+                    "__notfound": "public.__notfound(param1 bool)",
+                }
+            }
+            res = kdb.dbfunc_not_exists(conn, func_map)
+            cur.execute(
+                """
+drop function public.__eek1(param1 text);
+drop function public.__eek2(param1 int, param2 text);
+"""
+            )
+        self.assertTrue("public" in res)
+        self.assertTrue("__eek1" not in res)
+        self.assertTrue("__eek2" not in res)
+        self.assertTrue("__notfound" in res)

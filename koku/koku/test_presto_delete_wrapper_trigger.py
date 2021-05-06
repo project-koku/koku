@@ -41,7 +41,8 @@ select count(*) as ct
         func_schema = "public"
         func_name = "tr_presto_delete_wrapper_log_action"
         func_sig = f"{func_schema}.{func_name}()"
-        self.assertTrue(kdb.dbfunc_exists(conn, func_schema, func_name, func_sig))
+        func_map = {func_schema: {func_name: func_sig}}
+        self.assertFalse(kdb.dbfunc_not_exists(conn, func_map))
 
     def test_delete_log_action(self):
         """

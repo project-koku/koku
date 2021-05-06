@@ -87,6 +87,7 @@ class IamTestCase(TestCase):
         cls.schema_name = cls.customer_data.get("schema_name")
         cls.tenant = Tenant.objects.get_or_create(schema_name=cls.schema_name)[0]
         cls.tenant.save()
+        cls.tenant.create_schema()
         cls.headers = cls.request_context["request"].META
         cls.provider_uuid = UUID("00000000-0000-0000-0000-000000000001")
         cls.factory = RequestFactory()
@@ -137,6 +138,7 @@ class IamTestCase(TestCase):
         if create_tenant:
             tenant = Tenant.objects.get_or_create(schema_name=schema_name)[0]
             tenant.save()
+            tenant.create_schema()
         return customer
 
     @classmethod

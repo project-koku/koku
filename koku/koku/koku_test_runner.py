@@ -89,6 +89,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                     if created:
                         tenant = Tenant.objects.get_or_create(schema_name=KokuTestRunner.schema)[0]
                         tenant.save()
+                        tenant.create_schema()
                         customer, __ = Customer.objects.get_or_create(
                             account_id=KokuTestRunner.account, schema_name=KokuTestRunner.schema
                         )
