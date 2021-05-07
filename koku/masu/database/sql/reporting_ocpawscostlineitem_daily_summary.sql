@@ -1,3 +1,10 @@
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+WHERE usage_start >= {{start_date}}::date
+    AND usage_start <= {{end_date}}::date
+    AND cluster_id = {{cluster_id}}
+    AND infrastructure_raw_cost IS NOT NULL
+;
+
 -- The Python Jinja string variable subsitutions aws_where_clause and ocp_where_clause
 -- optionally filter AWS and OCP data by provider/source
 -- Ex aws_where_clause: 'AND cost_entry_bill_id IN (1, 2, 3)'
@@ -1342,13 +1349,6 @@ TRUNCATE TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsa
 DROP TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}};
 
 -- Update infra raw costs in OCP table
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-WHERE usage_start >= {{start_date}}::date
-    AND usage_start <= {{end_date}}::date
-    AND cluster_id = {{cluster_id}}
-    AND infrastructure_raw_cost IS NOT NULL
-;
-
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date

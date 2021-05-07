@@ -1,3 +1,10 @@
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+WHERE usage_start >= {{start_date}}::date
+    AND usage_start <= {{end_date}}::date
+    AND cluster_id = {{cluster_id}}
+    AND infrastructure_raw_cost IS NOT NULL
+;
+
 CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
     WITH cte_unnested_azure_tags AS (
         SELECT tags.*,
@@ -1304,13 +1311,6 @@ DROP INDEX IF EXISTS azure_tags_gin_idx;
 -- no need to wait for commit
 TRUNCATE TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uuid | sqlsafe}};
 DROP TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uuid | sqlsafe}};
-
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-WHERE usage_start >= {{start_date}}::date
-    AND usage_start <= {{end_date}}::date
-    AND cluster_id = {{cluster_id}}
-    AND infrastructure_raw_cost IS NOT NULL
-;
 
 -- Update infra raw costs in OCP table
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
