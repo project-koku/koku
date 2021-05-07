@@ -2956,7 +2956,10 @@ CREATE TABLE reporting_ocpawscostlineitem_project_daily_summary (
     account_alias_id integer,
     cost_entry_bill_id integer,
     report_period_id integer,
-    uuid uuid NOT NULL
+    uuid uuid NOT NULL,
+    persistentvolume character varying(253),
+    persistentvolumeclaim character varying(253),
+    storageclass character varying(50)
 );
 
 
@@ -2988,7 +2991,10 @@ CREATE TABLE reporting_ocpazurecostlineitem_project_daily_summary (
     source_uuid uuid,
     cost_entry_bill_id integer NOT NULL,
     report_period_id integer,
-    uuid uuid NOT NULL
+    uuid uuid NOT NULL,
+    persistentvolume character varying(253),
+    persistentvolumeclaim character varying(253),
+    storageclass character varying(50)
 );
 
 
