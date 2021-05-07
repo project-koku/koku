@@ -1356,6 +1356,9 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         ocp_azure.namespace,
         ocp_azure.data_source,
         ocp_azure.node,
+        ocp_azure.persistentvolumeclaim,
+        max(ocp_azure.persistentvolume),
+        max(ocp_azure.storageclass),
         ocp_azure.resource_id,
         CASE WHEN ocp_azure.data_source = 'Pod'
             THEN ocp_azure.pod_labels
@@ -1393,6 +1396,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         ocp_azure.namespace,
         ocp_azure.data_source,
         ocp_azure.node,
+        ocp_azure.persistentvolumeclaim,
         ocp_azure.resource_id,
         ocp_azure.pod_labels,
         ocp_azure.source_uuid
