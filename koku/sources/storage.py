@@ -281,7 +281,7 @@ def enqueue_source_delete(source_id, offset, allow_out_of_order=False):
         raise error
 
 
-def enqueue_source_update(source_id):
+def enqueue_source_create_or_update(source_id):
     """
     Queues a source update event to be processed by the synchronize_sources method.
 
@@ -292,10 +292,15 @@ def enqueue_source_update(source_id):
         None
 
     """
-    source = get_source(source_id, f"[enqueue_source_update] error: source_id: {source_id} does not exist.", LOG.error)
-    if source and source.koku_uuid and not source.pending_delete and not source.pending_update:
-        source.pending_update = True
-        source.save(update_fields=["pending_update"])
+    source = get_source(
+        source_id, f"[enqueue_source_create_or_update] error: source_id: {source_id} does not exist.", LOG.error
+    )
+    if source and not source.pending_delete and not source.pending_update:
+        if not source.koku_uuid:
+            source.status = None
+        else:
+            source.pending_update = True
+        source.save()
 
 
 def clear_update_flag(source_id):

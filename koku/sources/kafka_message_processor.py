@@ -223,7 +223,7 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
                 updated = any((self.save_billing_source(), self.save_credentials()))
                 if updated:
                     LOG.info(f"[ApplicationMsgProcessor] source_id {self.source_id} updated")
-                    storage.enqueue_source_update(self.source_id)
+                    storage.enqueue_source_create_or_update(self.source_id)
                 else:
                     LOG.info(f"[ApplicationMsgProcessor] source_id {self.source_id} not updated. No changes detected.")
 
@@ -249,7 +249,7 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
                 updated = any((self.save_billing_source(), self.save_credentials()))
                 if updated:
                     LOG.info(f"[AuthenticationMsgProcessor] source_id {self.source_id} updated")
-                    storage.enqueue_source_update(self.source_id)
+                    storage.enqueue_source_create_or_update(self.source_id)
                 else:
                     LOG.info(
                         f"[AuthenticationMsgProcessor] source_id {self.source_id} not updated. No changes detected."
@@ -269,7 +269,7 @@ class SourceMsgProcessor(KafkaMessageProcessor):
         #     updated = self.save_sources_details()
         #     if updated:
         #         LOG.info(f"[SourceMsgProcessor] source_id {self.source_id} updated")
-        #         storage.enqueue_source_update(self.source_id)
+        #         storage.enqueue_source_create_or_update(self.source_id)
         #     else:
         #         LOG.info(f"[SourceMsgProcessor] source_id {self.source_id} not updated. No changes detected.")
 

@@ -36,7 +36,6 @@ from django.dispatch import receiver
 from kafka.errors import KafkaError
 from rest_framework.exceptions import ValidationError
 
-from api.provider.models import Provider
 from api.provider.models import Sources
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.prometheus_stats import SOURCES_HTTP_CLIENT_ERROR_COUNTER
@@ -59,31 +58,6 @@ LOG = logging.getLogger(__name__)
 
 PROCESS_QUEUE = queue.PriorityQueue()
 COUNT = itertools.count()  # next(COUNT) returns next sequential number
-KAFKA_APPLICATION_CREATE = "Application.create"
-KAFKA_APPLICATION_UPDATE = "Application.update"
-KAFKA_APPLICATION_DESTROY = "Application.destroy"
-KAFKA_AUTHENTICATION_CREATE = "Authentication.create"
-KAFKA_AUTHENTICATION_UPDATE = "Authentication.update"
-KAFKA_SOURCE_DESTROY = "Source.destroy"
-KAFKA_HDR_RH_IDENTITY = "x-rh-identity"
-KAFKA_HDR_EVENT_TYPE = "event_type"
-SOURCES_OCP_SOURCE_NAME = "openshift"
-SOURCES_AWS_SOURCE_NAME = "amazon"
-SOURCES_AWS_LOCAL_SOURCE_NAME = "amazon-local"
-SOURCES_AZURE_SOURCE_NAME = "azure"
-SOURCES_AZURE_LOCAL_SOURCE_NAME = "azure-local"
-SOURCES_GCP_SOURCE_NAME = "google"
-SOURCES_GCP_LOCAL_SOURCE_NAME = "google-local"
-
-SOURCE_PROVIDER_MAP = {
-    SOURCES_OCP_SOURCE_NAME: Provider.PROVIDER_OCP,
-    SOURCES_AWS_SOURCE_NAME: Provider.PROVIDER_AWS,
-    SOURCES_AWS_LOCAL_SOURCE_NAME: Provider.PROVIDER_AWS_LOCAL,
-    SOURCES_AZURE_SOURCE_NAME: Provider.PROVIDER_AZURE,
-    SOURCES_AZURE_LOCAL_SOURCE_NAME: Provider.PROVIDER_AZURE_LOCAL,
-    SOURCES_GCP_SOURCE_NAME: Provider.PROVIDER_GCP,
-    SOURCES_GCP_LOCAL_SOURCE_NAME: Provider.PROVIDER_GCP_LOCAL,
-}
 
 
 class SourcesIntegrationError(ValidationError):

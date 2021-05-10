@@ -499,7 +499,7 @@ class SourcesStorageTest(TestCase):
         storage.enqueue_source_delete(test_source_id, test_offset, allow_out_of_order=False)
         self.assertFalse(Sources.objects.filter(source_id=test_source_id).exists())
 
-    def test_enqueue_source_update(self):
+    def test_enqueue_source_create_or_update(self):
         """Test for enqueuing source updating."""
         test_matrix = [
             {"koku_uuid": None, "pending_delete": False, "pending_update": False, "expected_pending_update": False},
@@ -538,14 +538,14 @@ class SourcesStorageTest(TestCase):
             )
             aws_obj.save()
 
-            storage.enqueue_source_update(test_source_id)
+            storage.enqueue_source_create_or_update(test_source_id)
             response = Sources.objects.get(source_id=test_source_id)
             self.assertEquals(test.get("expected_pending_update"), response.pending_update)
 
     def test_enqueue_source_update_unknown_source(self):
         """Test to enqueue a source update for an unknown source."""
         self.test_obj.koku_uuid = faker.uuid4()
-        storage.enqueue_source_update(self.test_source_id + 1)
+        storage.enqueue_source_create_or_update(self.test_source_id + 1)
         self.assertFalse(self.test_obj.pending_update)
 
     def test_clear_update_flag(self):
