@@ -155,6 +155,7 @@ class KafkaMessageProcessor:
         except SourcesHTTPClientError as error:
             LOG.info(f"[save_credentials] authentication info not available for source_id: {self.source_id}")
             sources_network.set_source_status(error)
+            raise error
         else:
             if not authentication.get("credentials"):  # TODO: is this check needed?
                 return
@@ -190,12 +191,38 @@ class KafkaMessageProcessor:
         except SourcesHTTPClientError as error:
             LOG.info(f"[save_billing_source] billing info not available for source_id: {self.source_id}")
             sources_network.set_source_status(error)
+            raise error
         else:
             if not data_source.get("data_source"):
                 return
             result = bool(storage.add_provider_sources_billing_info(self.source_id, data_source))
             LOG.info(f"[save_billing_source] completed for source_id: {self.source_id}: {result}")
             return result
+
+    def save_source_info(self, auth=False, bill=False):
+        """
+        Store Sources Authentication information given an source_id.
+        This method is called when a Cost Management application is
+        attached to a given Source as well as when an Authentication
+        is created.  We have to handle both cases since an
+        Authentication.create event can occur before a Source is
+        attached to the Cost Management application.
+        Authentication is stored in the Sources database table.
+        """
+        auth_result = False
+        bill_result = False
+        if auth:
+            try:
+                auth_result = self.save_credentials()
+            except SourcesHTTPClientError:
+                return
+        if bill:
+            try:
+                bill_result = self.save_billing_source()
+            except SourcesHTTPClientError:
+                return
+
+        return auth_result or bill_result
 
 
 class ApplicationMsgProcessor(KafkaMessageProcessor):
@@ -210,17 +237,18 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
         if storage.is_known_source(self.source_id):
             if self.event_type in (KAFKA_APPLICATION_CREATE,):
                 self.save_sources_details()
-                self.save_billing_source()
+                self.save_source_info(bill=True)
                 # _Authentication_ messages are responsible for saving credentials.
                 # However, OCP does not send an Auth message. Therefore, we need
                 # to run the following branch for OCP which completes the source
                 # creation cycle for an OCP source.
                 if storage.get_source_type(self.source_id) == Provider.PROVIDER_OCP:
-                    self.save_credentials()
+                    self.save_source_info(bill=True)
             if self.event_type in (KAFKA_APPLICATION_UPDATE,):
-                # Because azure auth is split in Sources backend, we need to check both
-                # auth and billing when we recieve either auth update or app update event
-                updated = any((self.save_billing_source(), self.save_credentials()))
+                if storage.get_source_type(self.source_id) == Provider.PROVIDER_AZURE:
+                    updated = self.save_source_info(auth=True, bill=True)
+                else:
+                    updated = self.save_source_info(bill=True)
                 if updated:
                     LOG.info(f"[ApplicationMsgProcessor] source_id {self.source_id} updated")
                     storage.enqueue_source_create_or_update(self.source_id)
@@ -242,11 +270,12 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
 
         if storage.is_known_source(self.source_id):
             if self.event_type in (KAFKA_AUTHENTICATION_CREATE):
-                self.save_credentials()
+                self.save_source_info(auth=True)
             if self.event_type in (KAFKA_AUTHENTICATION_UPDATE):
-                # Because azure auth is split in Sources backend, we need to check both
-                # auth and billing when we recieve either auth update or app update event
-                updated = any((self.save_billing_source(), self.save_credentials()))
+                if storage.get_source_type(self.source_id) == Provider.PROVIDER_AZURE:
+                    updated = self.save_source_info(auth=True, bill=True)
+                else:
+                    updated = self.save_source_info(auth=True)
                 if updated:
                     LOG.info(f"[AuthenticationMsgProcessor] source_id {self.source_id} updated")
                     storage.enqueue_source_create_or_update(self.source_id)

@@ -157,7 +157,7 @@ class SourcesHTTPClient:
         if any(k not in app_settings for k in required_extras):
             raise SourcesHTTPClientError(
                 f"missing application data for source: {self._source_id}. "
-                f"expected: {required_extras}, got: {app_settings.keys()}"
+                f"expected: {required_extras}, got: {list(app_settings.keys())}"
             )
         return {k: app_settings.get(k) for k in required_extras}
 
