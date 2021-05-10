@@ -1137,9 +1137,9 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         li.unit_of_measure,
         li.usage_quantity / li.pod_label_count / li.shared_projects as usage_quantity,
         li.pretax_cost / li.pod_label_count / li.shared_projects as pretax_cost,
-        li.pretax_cost / li.pod_label_count / li.shared_projects * '0.1'::numeric as markup_cost,
+        li.pretax_cost / li.pod_label_count / li.shared_projects * {{markup}}::numeric as markup_cost,
         project_cost::numeric as project_cost,
-        project_cost::numeric * '0.1'::numeric as project_markup_cost,
+        project_cost::numeric * {{markup}}::numeric as project_markup_cost,
         li.source_uuid
     FROM reporting_ocpazurecostlineitem_daily_summary_{{uuid | sqlsafe}} as li,
         jsonb_array_elements(li.pod_labels) AS pod_labels(pod_label),
