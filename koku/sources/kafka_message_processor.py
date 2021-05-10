@@ -246,6 +246,8 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
                     self.save_source_info(bill=True)
             if self.event_type in (KAFKA_APPLICATION_UPDATE,):
                 if storage.get_source_type(self.source_id) == Provider.PROVIDER_AZURE:
+                    # Because azure auth is split in Sources backend, we need to check both
+                    # auth and billing when we recieve either auth update or app update event
                     updated = self.save_source_info(auth=True, bill=True)
                 else:
                     updated = self.save_source_info(bill=True)
@@ -273,6 +275,8 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
                 self.save_source_info(auth=True)
             if self.event_type in (KAFKA_AUTHENTICATION_UPDATE):
                 if storage.get_source_type(self.source_id) == Provider.PROVIDER_AZURE:
+                    # Because azure auth is split in Sources backend, we need to check both
+                    # auth and billing when we recieve either auth update or app update event
                     updated = self.save_source_info(auth=True, bill=True)
                 else:
                     updated = self.save_source_info(auth=True)
