@@ -248,7 +248,7 @@ class GCPReportProcessor(ReportProcessorBase):
         data = self._get_data_for_table(row, table_name._meta.db_table)
         data = report_db_accessor.clean_data(data, table_name._meta.db_table)
 
-        key = (data["account_id"], data["project_id"])
+        key = (data["account_id"], data["project_id"], data["project_name"])
         if key in self.processed_report.projects:
             return self.processed_report.projects[key]
 
@@ -256,8 +256,8 @@ class GCPReportProcessor(ReportProcessorBase):
             return self.existing_projects_map[key]
 
         with transaction.atomic():
-            project_id = report_db_accessor.insert_on_conflict_do_nothing(
-                table_name, data, conflict_columns=["project_id"]
+            project_id = report_db_accessor.insert_on_conflict_do_update(
+                table_name, data, conflict_columns=["project_id"], set_columns=list(data.keys())
             )
 
         self.processed_report.projects[key] = project_id
