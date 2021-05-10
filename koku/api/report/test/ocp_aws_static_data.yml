@@ -37,7 +37,7 @@ generators:
                   volume_claims:
                   - volume_claim:
                     volume_claim_name: pod_name1_data
-                    pod_name: pod_name1
+                    pod_name: pod_name1a
                     labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:bravo
                     capacity_gig: 20
             catalog:
@@ -67,7 +67,7 @@ generators:
                   volume_claims:
                   - volume_claim:
                     volume_claim_name: pod_name2_data
-                    pod_name: pod_name2
+                    pod_name: pod_name2a
                     labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:delta
                     capacity_gig: 20
         - node:
@@ -103,7 +103,7 @@ generators:
                   volume_claims:
                   - volume_claim:
                     volume_claim_name: pod_name3_data
-                    pod_name: pod_name3
+                    pod_name: pod_name3a
                     labels: label_environment:qe|label_app:cost|label_version:beta|label_storageclass:epsilon
                     capacity_gig: 20
         - node:
@@ -139,7 +139,7 @@ generators:
                   volume_claims:
                   - volume_claim:
                     volume_claim_name: pod_name4_data
-                    pod_name: pod_name4
+                    pod_name: pod_name4a
                     labels: label_environment:prod|label_app:analytics|label_version:gamma|label_storageclass:charlie
                     capacity_gig: 20
         - node:
