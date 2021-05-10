@@ -1345,7 +1345,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     node_capacity_memory_gigabytes,
     node_capacity_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
-    cluster_capacity_memory_gigabyte_hours
+    cluster_capacity_memory_gigabyte_hours,
+    persistentvolumeclaim_capacity_gigabyte,
+    persistentvolumeclaim_capacity_gigabyte_months,
+    volume_request_storage_gigabyte_months,
+    persistentvolumeclaim_usage_gigabyte_months
 )
     SELECT uuid_generate_v4() as uuid,
         ocp_azure.report_period_id,
@@ -1384,7 +1388,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         0 as node_capacity_memory_gigabytes,
         0 as node_capacity_memory_gigabyte_hours,
         0 as cluster_capacity_cpu_core_hours,
-        0 as cluster_capacity_memory_gigabyte_hours
+        0 as cluster_capacity_memory_gigabyte_hours,
+        0 as persistentvolumeclaim_capacity_gigabyte,
+        0 as persistentvolumeclaim_capacity_gigabyte_months,
+        0 as volume_request_storage_gigabyte_months,
+        0 as persistentvolumeclaim_usage_gigabyte_months
     FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary AS ocp_azure
     WHERE ocp_azure.usage_start >= {{start_date}}::date
         AND ocp_azure.usage_start <= {{end_date}}::date
