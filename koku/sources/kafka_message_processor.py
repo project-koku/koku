@@ -158,7 +158,7 @@ class KafkaMessageProcessor:
         else:
             if not authentication.get("credentials"):  # TODO: is this check needed?
                 return
-            result = storage.add_provider_sources_auth_info(self.source_id, authentication) or False
+            result = bool(storage.add_provider_sources_auth_info(self.source_id, authentication))
             LOG.info(f"[save_credentials] complete for source_id: {self.source_id}: {result}")
             return result
 
@@ -193,7 +193,7 @@ class KafkaMessageProcessor:
         else:
             if not data_source.get("data_source"):
                 return
-            result = storage.add_provider_sources_billing_info(self.source_id, data_source) or False
+            result = bool(storage.add_provider_sources_billing_info(self.source_id, data_source))
             LOG.info(f"[save_billing_source] completed for source_id: {self.source_id}: {result}")
             return result
 
