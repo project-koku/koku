@@ -122,12 +122,14 @@ if ACCOUNT_ENHANCED_METRICS:
 ### Middleware setup
 MIDDLEWARE = [
     PROMETHEUS_BEFORE_MIDDLEWARE,
+    "koku.middleware.RequestTimingMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "koku.middleware.DisableCSRF",
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
     "koku.middleware.IdentityHeaderMiddleware",
     "koku.middleware.KokuTenantMiddleware",
+    "koku.middleware.KokuTenantSchemaExistsMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     PROMETHEUS_AFTER_MIDDLEWARE,
@@ -470,6 +472,9 @@ try:
 except JSONDecodeError:
     pass
 
+# Aids the UI in showing pre-release features in allowed environments.
+# see: koku.api.user_access.view
+ENABLE_PRERELEASE_FEATURES = ENVIRONMENT.bool("ENABLE_PRERELEASE_FEATURES", default=False)
 
 # Celery configuration
 

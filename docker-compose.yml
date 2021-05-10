@@ -273,6 +273,8 @@ services:
         - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
         - PRESTO_HOST=${PRESTO_HOST-presto}
         - PRESTO_PORT=${PRESTO_PORT-8080}
+        - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+        - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
         - DATE_OVERRIDE
         - ENABLE_TRINO_SOURCES
         - ENABLE_TRINO_ACCOUNTS
@@ -426,6 +428,7 @@ services:
         - prometheus_multiproc_dir=/tmp
         - SCHEDULE_REPORT_CHECKS=True
         - SCHEDULE_CHECK_INTERVAL=10000000
+        - SOURCE_STATUS_FREQUENCY_MINUTES
         - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
       privileged: true
       volumes:

@@ -23,7 +23,6 @@ from django.db import DatabaseError
 from tenant_schemas.utils import schema_exists
 
 from ..models import CloneSchemaFuncMissing
-from ..models import CloneSchemaTemplateMissing
 from ..models import Tenant
 from .iam_test_case import IamTestCase
 from koku.database import dbfunc_exists
@@ -75,7 +74,9 @@ class CloneSchemaTest(IamTestCase):
         # Also validate that the template will be created using migrations
         expected = f'INFO:api.iam.models:Using superclass for "{Tenant._TEMPLATE_SCHEMA}" schema creation'
         with self.assertLogs("api.iam.models", level="INFO") as _logger:
-            Tenant(schema_name=Tenant._TEMPLATE_SCHEMA).save()
+            t = Tenant(schema_name=Tenant._TEMPLATE_SCHEMA)
+            t.save()
+            t.create_schema()
             self.assertIn(expected, _logger.output)
         self.assertTrue(schema_exists(Tenant._TEMPLATE_SCHEMA))
 
@@ -84,12 +85,12 @@ class CloneSchemaTest(IamTestCase):
 
         test_schema = "acct90909090"
         # Also validate that the customer tenant schema will be created using the clone function
-        expected1 = (
-            f'INFO:api.iam.models:Cloning template schema "{Tenant._TEMPLATE_SCHEMA}" to "{test_schema}" with data'
-        )
+        expected1 = f'INFO:api.iam.models:Cloning template schema "{Tenant._TEMPLATE_SCHEMA}" to "{test_schema}"'
         expected2 = f'INFO:api.iam.models:Successful clone of "{Tenant._TEMPLATE_SCHEMA}" to "{test_schema}"'
         with self.assertLogs("api.iam.models", level="INFO") as _logger:
-            Tenant(schema_name=test_schema).save()
+            t = Tenant(schema_name=test_schema)
+            t.save()
+            t.create_schema()
             self.assertIn(expected1, _logger.output)
             self.assertIn(expected2, _logger.output)
         self.assertTrue(schema_exists(Tenant._TEMPLATE_SCHEMA))
@@ -104,25 +105,11 @@ class CloneSchemaTest(IamTestCase):
 
         test_schema = "acct90909091"
         self.assertFalse(schema_exists(test_schema))
-        Tenant(schema_name=test_schema).save()
+        t = Tenant(schema_name=test_schema)
+        t.save()
+        t.create_schema()
         self.assertTrue(_verify_clone_func())
         self.assertTrue(schema_exists(test_schema))
-
-    def test_has_template_rec_missing_template_schema(self):
-        """
-        Test that am existing template tenant record with a missing tenant schema will throw an exception
-        """
-        _drop_template_schema()
-        self.assertFalse(schema_exists(Tenant._TEMPLATE_SCHEMA))
-
-        test_schema = "acct90909092"
-        with self.assertRaises(CloneSchemaTemplateMissing):
-            Tenant(schema_name=test_schema).save()
-
-        Tenant.objects.filter(schema_name=Tenant._TEMPLATE_SCHEMA).delete()
-        Tenant(schema_name=test_schema).save()
-        self.assertTrue(schema_exists(test_schema))
-        self.assertTrue(schema_exists(Tenant._TEMPLATE_SCHEMA))
 
     def test_tenant_object_delete_leaves_template(self):
         """
@@ -132,7 +119,9 @@ class CloneSchemaTest(IamTestCase):
         self.assertFalse(schema_exists(cust_tenant))
         self.assertTrue(schema_exists(Tenant._TEMPLATE_SCHEMA))
 
-        Tenant(schema_name=cust_tenant).save()
+        t = Tenant(schema_name=cust_tenant)
+        t.save()
+        t.create_schema()
         self.assertTrue(schema_exists(cust_tenant))
 
         Tenant.objects.filter(schema_name=cust_tenant).delete()
@@ -173,7 +162,9 @@ class CloneSchemaTest(IamTestCase):
         # Verify that the existing schema was detected
         expected = 'WARNING:api.iam.models:Schema "eek01" already exists. Exit with False.'
         with self.assertLogs("api.iam.models", level="INFO") as _logger:
-            Tenant(schema_name="eek01").save()
+            t = Tenant(schema_name="eek01")
+            t.save()
+            t.create_schema()
             self.assertIn(expected, _logger.output)
 
         # Verify that tenant record was created
@@ -197,4 +188,5 @@ class CloneSchemaTest(IamTestCase):
         Test that creating a tenant with a bad name will throw an exception
         """
         with self.assertRaises(ValidationError):
-            Tenant.objects.create(schema_name="bad schema-name")
+            t = Tenant.objects.create(schema_name="bad schema-name")
+            t.create_schema()

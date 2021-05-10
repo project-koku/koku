@@ -17,6 +17,7 @@
 """Models for identity and access management."""
 import logging
 import os
+import pkgutil
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError
@@ -109,6 +110,7 @@ class Tenant(TenantMixin):
 
     # Delete all schemas when a tenant is removed
     auto_drop_schema = True
+    auto_create_schema = False
 
     def _check_clone_func(self):
         LOG.info(f'Verify that clone function "{self._CLONE_SCHEMA_FUNC_SIG}" exists')
@@ -133,7 +135,8 @@ class Tenant(TenantMixin):
         # If this becomes unreliable, then the database itself should be the source of truth
         # and extra code must be written to handle the sync of the table data to the state of
         # the database.
-        template_schema = self.__class__.objects.get_or_create(schema_name=self._TEMPLATE_SCHEMA)
+        template_schema, created = self.__class__.objects.get_or_create(schema_name=self._TEMPLATE_SCHEMA)
+        template_schema.create_schema()
 
         # Strict check here! Both the record and the schema *should* exist!
         res = bool(template_schema) and schema_exists(self._TEMPLATE_SCHEMA)
@@ -141,19 +144,32 @@ class Tenant(TenantMixin):
 
         return res
 
-    def _clone_schema(self):
-        result = None
-        # This db func will clone the schema objects
-        # bypassing the time it takes to run migrations
-        sql = """
-select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
-"""
-        LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}" with data')
-        with conn.cursor() as cur:
-            cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
-            result = cur.fetchone()
+    #     def _clone_schema(self):
+    #         result = None
+    #         # This db func will clone the schema objects
+    #         # bypassing the time it takes to run migrations
+    #         sql = """
+    # select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
+    # """
+    #         LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
 
-        return result[0] if result else False
+    #         with conn.cursor() as cur:
+    #             cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
+    #             result = cur.fetchone()
+    #             cur.execute("SET search_path = public;")
+
+    #         return result[0] if result else False
+
+    def _clone_schema(self):
+        LOG.info("Loading create script from koku_tenant_create.sql file.")
+        create_sql_buff = pkgutil.get_data("api.iam", "sql/koku_tenant_create.sql").decode("utf-8")
+        LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
+        with conn.cursor() as cur:
+            cur.execute(f'CREATE SCHEMA IF NOT EXISTS "{self.schema_name}" AUTHORIZATION current_user ;')
+            cur.execute(f'SET search_path = "{self.schema_name}", public ;')
+            cur.execute(create_sql_buff)
+            cur.execute("SET search_path = public ;")
+        return True
 
     def create_schema(self, check_if_exists=True, sync_schema=True, verbosity=1):
         """
