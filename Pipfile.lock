@@ -2211,11 +2211,10 @@
         },
         "sphinx": {
             "hashes": [
-                "sha256:19010b7b9fa0dc7756a6e105b2aacd3a80f798af3c25c273be64d7beeb482cb1",
-                "sha256:2320d4e994a191f4b4be27da514e46b3d6b420f2ff895d064f52415d342461e8"
+                "sha256:904e02cd0f84bed5d3748358c228ae3df3ad725b9e6cdc2166e17b309ed2e1fa",
+                "sha256:b246ebd74f5fb966d7e90086bbda5ed74ee4d30b4c3cbefddc1fb5210aa317c7"
             ],
-            "index": "pypi",
-            "version": "==3.5.4"
+            "version": "==4.0.0"
         },
         "sphinx-rtd-theme": {
             "hashes": [
