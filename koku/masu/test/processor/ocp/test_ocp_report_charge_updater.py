@@ -431,6 +431,20 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 6,
             )
 
+            # Now we want non-cloud infra line item to check usage cost on
+            pod_line_item = OCPUsageLineItemDailySummary.objects.filter(
+                report_period__provider_id=self.ocp_provider.uuid,
+                usage_start__gte=start_date,
+                infrastructure_raw_cost__isnull=True,
+                data_source="Pod",
+            ).first()
+            volume_line_item = OCPUsageLineItemDailySummary.objects.filter(
+                report_period__provider_id=self.ocp_provider.uuid,
+                usage_start__gte=start_date,
+                infrastructure_raw_cost__isnull=True,
+                data_source="Storage",
+            ).first()
+
             # Usage cost
             self.assertNotEqual(pod_line_item.supplementary_usage_cost.get("cpu"), 0)
             self.assertNotEqual(volume_line_item.supplementary_usage_cost.get("storage"), 0)
