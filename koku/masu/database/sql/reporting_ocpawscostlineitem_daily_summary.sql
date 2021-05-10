@@ -1415,7 +1415,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
             THEN ocp_aws.pod_labels
             ELSE '{}'::jsonb
         END as volume_labels,
-        ocp_aws.source_uuid,
+        rp.provider_id as source_uuid,
         sum(ocp_aws.unblended_cost + ocp_aws.markup_cost) AS infrastructure_raw_cost,
         sum(ocp_aws.pod_cost + ocp_aws.project_markup_cost) AS infrastructure_project_raw_cost,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost,
@@ -1437,6 +1437,9 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         0 as volume_request_storage_gigabyte_months,
         0 as persistentvolumeclaim_usage_gigabyte_months
     FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
+    JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
+        ON ocp_aws.cluster_id = rp.cluster_id
+            AND DATE_TRUNC('month', ocp_aws.usage_start)::date  = date(rp.report_period_start)
     WHERE ocp_aws.usage_start >= {{start_date}}::date
         AND ocp_aws.usage_start <= {{end_date}}::date
         AND ocp_aws.cluster_id = {{cluster_id}}
@@ -1450,5 +1453,5 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         ocp_aws.persistentvolumeclaim,
         ocp_aws.resource_id,
         ocp_aws.pod_labels,
-        ocp_aws.source_uuid
+        rp.provider_id
 ;
