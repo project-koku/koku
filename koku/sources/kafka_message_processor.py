@@ -132,15 +132,7 @@ class KafkaMessageProcessor:
         return result
 
     def save_credentials(self):
-        """
-        Store Sources Authentication information given an source_id.
-        This method is called when a Cost Management application is
-        attached to a given Source as well as when an Authentication
-        is created.  We have to handle both cases since an
-        Authentication.create event can occur before a Source is
-        attached to the Cost Management application.
-        Authentication is stored in the Sources database table.
-        """
+        """Store Sources Authentication information."""
         LOG.info(f"[save_credentials] starting for source_id {self.source_id} ...")
         source_type = storage.get_source_type(self.source_id)
 
@@ -164,15 +156,7 @@ class KafkaMessageProcessor:
             return result
 
     def save_billing_source(self):
-        """
-        Store Sources Authentication information given an source_id.
-        This method is called when a Cost Management application is
-        attached to a given Source as well as when an Authentication
-        is created.  We have to handle both cases since an
-        Authentication.create event can occur before a Source is
-        attached to the Cost Management application.
-        Authentication is stored in the Sources database table.
-        """
+        """Store Sources billing information."""
         LOG.info(f"[save_billing_source] starting for source_id {self.source_id} ...")
         source_type = storage.get_source_type(self.source_id)
 
@@ -200,15 +184,7 @@ class KafkaMessageProcessor:
             return result
 
     def save_source_info(self, auth=False, bill=False):
-        """
-        Store Sources Authentication information given an source_id.
-        This method is called when a Cost Management application is
-        attached to a given Source as well as when an Authentication
-        is created.  We have to handle both cases since an
-        Authentication.create event can occur before a Source is
-        attached to the Cost Management application.
-        Authentication is stored in the Sources database table.
-        """
+        """Store sources authentication or billing information."""
         auth_result = False
         bill_result = False
         if auth:
@@ -226,11 +202,15 @@ class KafkaMessageProcessor:
 
 
 class ApplicationMsgProcessor(KafkaMessageProcessor):
+    """Processor for Application events."""
+
     def __init__(self, msg, event_type, cost_mgmt_id):
+        """Constructor for ApplicationMsgProcessor."""
         super().__init__(msg, event_type, cost_mgmt_id)
         self.source_id = int(self.value.get("source_id"))
 
     def process(self):
+        """Process the message."""
         if self.event_type in (KAFKA_APPLICATION_CREATE,):
             storage.create_source_event(self.source_id, self.auth_header, self.offset)
 
@@ -243,7 +223,7 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
                 # to run the following branch for OCP which completes the source
                 # creation cycle for an OCP source.
                 if storage.get_source_type(self.source_id) == Provider.PROVIDER_OCP:
-                    self.save_source_info(bill=True)
+                    self.save_source_info(auth=True)
             if self.event_type in (KAFKA_APPLICATION_UPDATE,):
                 if storage.get_source_type(self.source_id) == Provider.PROVIDER_AZURE:
                     # Because azure auth is split in Sources backend, we need to check both
@@ -262,11 +242,15 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
 
 
 class AuthenticationMsgProcessor(KafkaMessageProcessor):
+    """Processor for Authentication events."""
+
     def __init__(self, msg, event_type, cost_mgmt_id):
+        """Constructor for AuthenticationMsgProcessor."""
         super().__init__(msg, event_type, cost_mgmt_id)
         self.source_id = int(self.value.get("source_id"))
 
     def process(self):
+        """Process the message."""
         if self.event_type in (KAFKA_AUTHENTICATION_CREATE):
             storage.create_source_event(self.source_id, self.auth_header, self.offset)
 
@@ -290,11 +274,15 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
 
 
 class SourceMsgProcessor(KafkaMessageProcessor):
+    """Processor for Source events."""
+
     def __init__(self, msg, event_type, cost_mgmt_id):
+        """Constructor for SourceMsgProcessor."""
         super().__init__(msg, event_type, cost_mgmt_id)
         self.source_id = int(self.value.get("id"))
 
     def process(self):
+        """Process the message."""
         # if self.event_type in (KAFKA_SOURCE_UPDATE,):  # TODO source.update events are currently ignored
         #     if not storage.is_known_source(self.source_id):
         #         LOG.info("[SourceMsgProcessor] update event for unknown source_id, skipping...")
@@ -326,6 +314,7 @@ def extract_from_header(headers, header_type):
 
 
 def create_msg_processor(msg, cost_mgmt_id):
+    """Create the message processor based on the event_type."""
     if msg.topic() == Config.SOURCES_TOPIC:
         event_type = extract_from_header(msg.headers(), KAFKA_HDR_EVENT_TYPE)
         LOG.debug(f"event_type: {str(event_type)}")
