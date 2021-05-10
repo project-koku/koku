@@ -302,10 +302,11 @@ class KafkaMessageProcessorTest(IamTestCase):
                     with patch("sources.storage.get_source_type", return_value=provider):
                         with patch.object(SourcesHTTPClient, "set_source_status") as mock_set:
                             with patch("sources.storage.add_provider_sources_auth_info") as mock_add:
-                                result = processor.save_credentials()
-                                self.assertIsNone(result)
-                                mock_set.assert_called_once()
-                                mock_add.assert_not_called()
+                                with self.assertRaises(SourcesHTTPClientError):
+                                    result = processor.save_credentials()
+                                    self.assertIsNone(result)
+                                    mock_set.assert_called_once()
+                                    mock_add.assert_not_called()
 
     def test_save_billing_source(self):
         """Test save billing source calls add_provider_sources_billing_info."""
@@ -364,7 +365,8 @@ class KafkaMessageProcessorTest(IamTestCase):
                     with patch("sources.storage.get_source_type", return_value=provider):
                         with patch.object(SourcesHTTPClient, "set_source_status") as mock_set:
                             with patch("sources.storage.add_provider_sources_billing_info") as mock_add:
-                                result = processor.save_billing_source()
-                                self.assertIsNone(result)
-                                mock_set.assert_called_once()
-                                mock_add.assert_not_called()
+                                with self.assertRaises(SourcesHTTPClientError):
+                                    result = processor.save_billing_source()
+                                    self.assertIsNone(result)
+                                    mock_set.assert_called_once()
+                                    mock_add.assert_not_called()
