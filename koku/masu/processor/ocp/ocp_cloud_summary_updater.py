@@ -25,7 +25,6 @@ from api.provider.models import Provider
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
-from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
@@ -112,11 +111,6 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 accessor.populate_ocp_on_aws_cost_daily_summary(start, end, cluster_id, aws_bill_ids, markup_value)
             accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start_date, end_date)
 
-        with OCPReportDBAccessor(self._schema) as accessor:
-            # This call just sends the infrastructure cost to the
-            # OCP usage daily summary table
-            accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)
-
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on Azure."""
         if isinstance(start_date, str):
@@ -150,8 +144,3 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 )
                 accessor.populate_ocp_on_azure_cost_daily_summary(start, end, cluster_id, azure_bill_ids, markup_value)
             accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start_date, end_date)
-
-        with OCPReportDBAccessor(self._schema) as accessor:
-            # This call just sends the infrastructure cost to the
-            # OCP usage daily summary table
-            accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)
