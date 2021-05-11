@@ -2700,7 +2700,7 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
             aws.project_costs,
             aws.source_uuid
         FROM reporting_ocpawscostlineitem_daily_summary AS aws
-        WHERE aws.usage_start >= date_trunc('month'::text, (now() - '1 mon'::interval))::date
+        WHERE aws.usage_start >= date_trunc('month'::text, (now() - '2 month'::interval))::date
         UNION
         SELECT 'Azure'::text AS source_type,
             azure.cluster_id,
@@ -2727,7 +2727,7 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
             azure.project_costs,
             azure.source_uuid
         FROM reporting_ocpazurecostlineitem_daily_summary AS azure
-        WHERE azure.usage_start >= date_trunc('month'::text, (now() - '1 mon'::interval))::date
+        WHERE azure.usage_start >= date_trunc('month'::text, (now() - '2 month'::interval))::date
     ) AS lids
     GROUP BY lids.source_type,
         lids.cluster_id,
