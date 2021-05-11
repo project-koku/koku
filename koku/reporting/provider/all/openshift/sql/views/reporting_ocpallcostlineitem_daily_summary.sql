@@ -9,97 +9,113 @@ DROP INDEX IF EXISTS ocpallcstdlysumm_nsp;
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_daily_summary;
 
 CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
- SELECT row_number() OVER () AS id,
-    lids.source_type,
-    lids.cluster_id,
-    max(lids.cluster_alias) as cluster_alias,
-    lids.namespace,
-    lids.node,
-    lids.resource_id,
-    lids.usage_start,
-    lids.usage_start as usage_end,
-    lids.usage_account_id,
-    max(lids.account_alias_id) as account_alias_id,
-    lids.product_code,
-    lids.product_family,
-    lids.instance_type,
-    lids.region,
-    lids.availability_zone,
-    lids.tags,
-    sum(lids.usage_amount) as usage_amount,
-    max(lids.unit) as unit,
-    sum(lids.unblended_cost) as unblended_cost,
-    sum(lids.markup_cost) as markup_cost,
-    max(lids.currency_code) as currency_code,
-    max(lids.shared_projects) as shared_projects,
-    lids.project_costs as project_costs,
-    max(lids.source_uuid::text)::uuid as source_uuid
-   FROM ( SELECT 'AWS'::text AS source_type,
-            reporting_ocpawscostlineitem_daily_summary.cluster_id,
-            reporting_ocpawscostlineitem_daily_summary.cluster_alias,
-            reporting_ocpawscostlineitem_daily_summary.namespace,
-            (reporting_ocpawscostlineitem_daily_summary.node)::text AS node,
-            reporting_ocpawscostlineitem_daily_summary.resource_id,
-            reporting_ocpawscostlineitem_daily_summary.usage_start,
-            reporting_ocpawscostlineitem_daily_summary.usage_end,
-            reporting_ocpawscostlineitem_daily_summary.usage_account_id,
-            reporting_ocpawscostlineitem_daily_summary.account_alias_id,
-            reporting_ocpawscostlineitem_daily_summary.product_code,
-            reporting_ocpawscostlineitem_daily_summary.product_family,
-            reporting_ocpawscostlineitem_daily_summary.instance_type,
-            reporting_ocpawscostlineitem_daily_summary.region,
-            reporting_ocpawscostlineitem_daily_summary.availability_zone,
-            reporting_ocpawscostlineitem_daily_summary.tags,
-            reporting_ocpawscostlineitem_daily_summary.usage_amount,
-            reporting_ocpawscostlineitem_daily_summary.unit,
-            reporting_ocpawscostlineitem_daily_summary.unblended_cost,
-            reporting_ocpawscostlineitem_daily_summary.markup_cost,
-            reporting_ocpawscostlineitem_daily_summary.currency_code,
-            reporting_ocpawscostlineitem_daily_summary.shared_projects,
-            reporting_ocpawscostlineitem_daily_summary.project_costs,
-            reporting_ocpawscostlineitem_daily_summary.source_uuid
-           FROM reporting_ocpawscostlineitem_daily_summary
-          WHERE reporting_ocpawscostlineitem_daily_summary.usage_start
-                    >= date_trunc('month'::text, (now() - '1 mon'::interval))::date
+    SELECT row_number() OVER () AS id,
+        lids.source_type,
+        lids.cluster_id,
+        max(lids.cluster_alias) as cluster_alias,
+        lids.namespace,
+        lids.node,
+        lids.resource_id,
+        lids.usage_start,
+        lids.usage_start as usage_end,
+        lids.usage_account_id,
+        max(lids.account_alias_id) as account_alias_id,
+        lids.product_code,
+        lids.product_family,
+        lids.instance_type,
+        lids.region,
+        lids.availability_zone,
+        lids.tags,
+        sum(lids.usage_amount) as usage_amount,
+        max(lids.unit) as unit,
+        sum(lids.unblended_cost) as unblended_cost,
+        sum(lids.markup_cost) as markup_cost,
+        max(lids.currency_code) as currency_code,
+        max(lids.shared_projects) as shared_projects,
+        lids.project_costs as project_costs,
+        max(lids.source_uuid::text)::uuid as source_uuid
+    FROM (
+        SELECT 'AWS'::text AS source_type,
+            aws.cluster_id,
+            aws.cluster_alias,
+            aws.namespace,
+            aws.node,
+            aws.resource_id,
+            aws.usage_start,
+            aws.usage_end,
+            aws.usage_account_id,
+            aws.account_alias_id,
+            aws.product_code,
+            aws.product_family,
+            aws.instance_type,
+            aws.region,
+            aws.availability_zone,
+            aws.tags,
+            aws.usage_amount,
+            aws.unit,
+            aws.unblended_cost,
+            aws.markup_cost,
+            aws.currency_code,
+            aws.shared_projects,
+            aws.project_costs,
+            aws.source_uuid
+        FROM reporting_ocpawscostlineitem_daily_summary AS aws
+        WHERE aws.usage_start >= date_trunc('month'::text, (now() - '1 mon'::interval))::date
+
         UNION
-         SELECT 'Azure'::text AS source_type,
-            reporting_ocpazurecostlineitem_daily_summary.cluster_id,
-            reporting_ocpazurecostlineitem_daily_summary.cluster_alias,
-            reporting_ocpazurecostlineitem_daily_summary.namespace,
-            (reporting_ocpazurecostlineitem_daily_summary.node)::text AS node,
-            reporting_ocpazurecostlineitem_daily_summary.resource_id,
-            reporting_ocpazurecostlineitem_daily_summary.usage_start,
-            reporting_ocpazurecostlineitem_daily_summary.usage_end,
-            reporting_ocpazurecostlineitem_daily_summary.subscription_guid AS usage_account_id,
+
+        SELECT 'Azure'::text AS source_type,
+            azure.cluster_id,
+            azure.cluster_alias,
+            azure.namespace,
+            azure.node,
+            azure.resource_id,
+            azure.usage_start,
+            azure.usage_end,
+            azure.subscription_guid AS usage_account_id,
             NULL::integer AS account_alias_id,
-            reporting_ocpazurecostlineitem_daily_summary.service_name AS product_code,
+            azure.service_name AS product_code,
             NULL::character varying AS product_family,
-            reporting_ocpazurecostlineitem_daily_summary.instance_type,
-            reporting_ocpazurecostlineitem_daily_summary.resource_location AS region,
+            azure.instance_type,
+            azure.resource_location AS region,
             NULL::character varying AS availability_zone,
-            reporting_ocpazurecostlineitem_daily_summary.tags,
-            reporting_ocpazurecostlineitem_daily_summary.usage_quantity AS usage_amount,
-            reporting_ocpazurecostlineitem_daily_summary.unit_of_measure AS unit,
-            reporting_ocpazurecostlineitem_daily_summary.pretax_cost AS unblended_cost,
-            reporting_ocpazurecostlineitem_daily_summary.markup_cost,
-            reporting_ocpazurecostlineitem_daily_summary.currency AS currency_code,
-            reporting_ocpazurecostlineitem_daily_summary.shared_projects,
-            reporting_ocpazurecostlineitem_daily_summary.project_costs,
-            reporting_ocpazurecostlineitem_daily_summary.source_uuid
-           FROM reporting_ocpazurecostlineitem_daily_summary
-          WHERE reporting_ocpazurecostlineitem_daily_summary.usage_start
-                    >= date_trunc('month'::text, (now() - '1 mon'::interval))::date) lids
- GROUP BY lids.source_type, lids.usage_start, lids.cluster_id, lids.namespace, lids.node, lids.usage_account_id, lids.resource_id,
-          lids.product_code, lids.product_family, lids.instance_type, lids.region, lids.availability_zone, lids.tags, lids.project_costs,
-          lids.tags
+            azure.tags,
+            azure.usage_quantity AS usage_amount,
+            azure.unit_of_measure AS unit,
+            azure.pretax_cost AS unblended_cost,
+            azure.markup_cost,
+            azure.currency AS currency_code,
+            azure.shared_projects,
+            azure.project_costs,
+            azure.source_uuid
+        FROM reporting_ocpazurecostlineitem_daily_summary AS azure
+        WHERE azure.usage_start >= date_trunc('month'::text, (now() - '1 mon'::interval))::date
+    ) AS lids
+    GROUP BY lids.source_type,
+        lids.cluster_id,
+        lids.cluster_alias,
+        lids.namespace,
+        lids.node,
+        lids.resource_id,
+        lids.usage_start,
+        lids.usage_account_id,
+        lids.account_alias_id,
+        lids.product_code,
+        lids.product_family,
+        lids.instance_type,
+        lids.region,
+        lids.availability_zone,
+        lids.tags,
+        lids.project_costs
 )
+WITH DATA
 ;
 
 /* Once sql and/or data are fixed, add WITH DATA back in */
 
-CREATE UNIQUE INDEX ocpall_cost_daily_summary ON reporting_ocpallcostlineitem_daily_summary USING btree
-                    (source_type, usage_start, cluster_id, namespace, node, usage_account_id, resource_id,
-                     product_code, product_family, instance_type, region, availability_zone, tags);
+CREATE UNIQUE INDEX ocpall_cost_daily_summary ON reporting_ocpallcostlineitem_daily_summary (
+   source_type, cluster_id, node, resource_id, usage_start, usage_account_id, product_code, product_family, instance_type, region, availability_zone, tags, project_costs
+);
 
 CREATE INDEX ocpall_product_code_ilike ON reporting_ocpallcostlineitem_daily_summary USING gin (upper((product_code)::text) gin_trgm_ops);
 CREATE INDEX ocpall_product_family_ilike ON reporting_ocpallcostlineitem_daily_summary USING gin (upper((product_family)::text) gin_trgm_ops);
