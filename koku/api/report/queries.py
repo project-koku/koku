@@ -40,8 +40,6 @@ from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
 
-# from django.db.models.functions import Rank
-
 LOG = logging.getLogger(__name__)
 
 
@@ -769,7 +767,7 @@ class ReportQueryHandler(QueryHandler):
         for rank in ranks:
             rank_value = rank.get(group_by_value[0])
             rank_value = self.check_missing_rank_value(rank_value)
-            rankings.insert((rank.get("rank") - 1), rank_value)
+            rankings.append(rank_value)
 
         for query_return in data:
             query_return = self._apply_group_null_label(query_return, gb)
