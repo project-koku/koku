@@ -189,8 +189,6 @@ class RbacService:
             PROTOCOL: ENVIRONMENT.get_value("RBAC_SERVICE_PROTOCOL", default="http"),
             HOST: CONFIGURATOR.get_endpoint_host("rbac", "service", "localhost"),
             PORT: CONFIGURATOR.get_endpoint_port("rbac", "service", "8111"),
-            # HOST: ENVIRONMENT.get_value("RBAC_SERVICE_HOST", default="localhost"),
-            # PORT: ENVIRONMENT.get_value("RBAC_SERVICE_PORT", default="8111"),
             PATH: ENVIRONMENT.get_value("RBAC_SERVICE_PATH", default="/r/insights/platform/rbac/v1/access/"),
         }
 
