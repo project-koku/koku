@@ -1,7 +1,4 @@
-# FROM registry.access.redhat.com/ubi8/python-36
-
-
-FROM registry.access.redhat.com/ubi8/python-38:latest as base
+FROM registry.access.redhat.com/ubi8/python-38:latest
 
 ENV LC_ALL=en_US.UTF-8 \
     LANG=en_US.UTF-8 \
@@ -10,7 +7,9 @@ ENV LC_ALL=en_US.UTF-8 \
     PIN_PIPENV_VERSION="2018.11.26" \
     APP_HOME="/opt/app-root/src/koku" \
     APP_MODULE="koku.wsgi" \
-    APP_CONFIG="gunicorn.py"
+    APP_CONFIG="gunicorn_conf.py" \
+    DISABLE_MIGRATE=true \
+    DJANGO_READ_DOT_ENV_FILE=false
 
 ENV SUMMARY="Koku is the Cost Management application" \
     DESCRIPTION="Koku is the Cost Management application"
@@ -31,13 +30,7 @@ USER root
 COPY ./.s2i/bin/ $STI_SCRIPTS_PATH
 
 # Copy application files to the image.
-COPY docs/source/specs/openapi.json /tmp/src/docs/source/specs/openapi.json
-COPY scripts /tmp/src/scripts
-COPY db_functions /tmp/src/db_functions
-COPY koku /tmp/src/koku
-COPY Pipfile /tmp/src/Pipfile
-COPY Pipfile.lock /tmp/src/Pipfile.lock
-COPY .git /tmp/src/.git
+COPY . /tmp/src/.
 
 
 RUN /usr/bin/fix-permissions /tmp/src && \

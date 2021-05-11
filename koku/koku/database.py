@@ -146,8 +146,10 @@ def check_migrations():
         with transaction.atomic():
             verify_migrations_dbfunc(connection)
             res = check_migrations_dbfunc(connection, targets)
+        LOG.info(f"migrations are done: {res}")  # TODO: remove this log statement
         return res
-    except OperationalError:
+    except OperationalError as err:
+        LOG.info(f"again, what's going on here: {err}")  # TODO: remove this log statement
         return False
 
 

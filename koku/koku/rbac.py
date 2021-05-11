@@ -24,6 +24,7 @@ from requests.exceptions import ConnectionError
 from rest_framework import status
 
 from api.query_handler import WILDCARD
+from koku.configurator import CONFIGURATOR
 from koku.env import ENVIRONMENT
 
 
@@ -186,8 +187,10 @@ class RbacService:
         """Get RBAC service host and port info from environment."""
         return {
             PROTOCOL: ENVIRONMENT.get_value("RBAC_SERVICE_PROTOCOL", default="http"),
-            HOST: ENVIRONMENT.get_value("RBAC_SERVICE_HOST", default="localhost"),
-            PORT: ENVIRONMENT.get_value("RBAC_SERVICE_PORT", default="8111"),
+            HOST: CONFIGURATOR.get_endpoint_host("rbac", "service", "localhost"),
+            PORT: CONFIGURATOR.get_endpoint_port("rbac", "service", "8111"),
+            # HOST: ENVIRONMENT.get_value("RBAC_SERVICE_HOST", default="localhost"),
+            # PORT: ENVIRONMENT.get_value("RBAC_SERVICE_PORT", default="8111"),
             PATH: ENVIRONMENT.get_value("RBAC_SERVICE_PATH", default="/r/insights/platform/rbac/v1/access/"),
         }
 
