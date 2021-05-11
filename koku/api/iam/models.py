@@ -145,11 +145,6 @@ class Tenant(TenantMixin):
 
         # Strict check here! Both the record and the schema *should* exist!
         res = bool(template_schema) and schema_exists(self._TEMPLATE_SCHEMA)
-        if res:
-            LOG.info(f"Template schema {self._TEMPLATE_SCHEMA} create successful")
-        else:
-            LOG.warning(f"Template schema {self._TEMPLATE_SCHEMA} create FAILED")
-
         return res
 
     def _clone_schema(self):
