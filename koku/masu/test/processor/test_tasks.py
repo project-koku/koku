@@ -682,7 +682,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             cluster_id = usage_period_qry.first().cluster_id
 
             items = self.ocp_accessor._get_db_obj_query(table_name).filter(
-                usage_start__gte=start_date, usage_start__lte=end_date, cluster_id=cluster_id, data_source="Pod"
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                cluster_id=cluster_id,
+                data_source="Pod",
+                infrastructure_raw_cost__isnull=True,
             )
             for item in items:
                 self.assertNotEqual(item.infrastructure_usage_cost.get("cpu"), 0)
@@ -697,7 +701,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
             storage_summary_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
             items = self.ocp_accessor._get_db_obj_query(storage_summary_name).filter(
-                cluster_id=cluster_id, data_source="Storage"
+                cluster_id=cluster_id, data_source="Storage", infrastructure_raw_cost__isnull=True
             )
             for item in items:
                 self.assertIsNotNone(item.volume_request_storage_gigabyte_months)
