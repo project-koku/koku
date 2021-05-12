@@ -19,6 +19,7 @@ import datetime
 import decimal
 from unittest.mock import patch
 
+from django.db import connection
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
@@ -260,9 +261,16 @@ class AzureReportDBAccessorTest(MasuTestCase):
             namespaces = ["kube-system", "openshift", "banking", "mobile", "news-site", "weather"]
             for namespace in namespaces:
                 with self.subTest(namespace=namespace):
-                    sum_cost = summary_table.objects.filter(namespace__contains=[namespace]).aggregate(
-                        Sum("pretax_cost")
-                    )["pretax_cost__sum"]
+                    with connection.cursor() as cursor:
+                        cursor.execute(
+                            f"""
+                            SELECT sum(pretax_cost / cardinality(namespace)) AS pretax_cost
+                            FROM {summary_table._meta.db_table}
+                            WHERE namespace @> array['{namespace}'::varchar]
+                            """
+                        )
+                        sum_cost = cursor.fetchone()[0]
+
                     sum_project_cost = project_table.objects.filter(namespace=namespace).aggregate(Sum("pretax_cost"))[
                         "pretax_cost__sum"
                     ]

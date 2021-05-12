@@ -146,6 +146,17 @@ class OCPTagQueryHandlerTest(IamTestCase):
             tag_keys = list(set(usage_tag_keys + storage_tag_keys))
 
         result = handler.get_tag_keys(filters=True)
+        self.assertNotEqual(sorted(result), sorted(tag_keys))
+        self.assertIn("qa", result)
+        self.assertNotIn("qa", tag_keys)
+
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-2"
+            "&filter[resolution]=monthly&filter[enabled]=true"
+        )
+        query_params = self.mocked_query_params(url, OCPTagView)
+        handler = OCPTagQueryHandler(query_params)
+        result = handler.get_tag_keys(filters=True)
         self.assertEqual(sorted(result), sorted(tag_keys))
 
     def test_get_tag_keys_filter_false(self):
@@ -170,7 +181,9 @@ class OCPTagQueryHandlerTest(IamTestCase):
             tag_keys = list(set(usage_tag_keys + storage_tag_keys))
 
         result = handler.get_tag_keys(filters=False)
-        self.assertEqual(sorted(result), sorted(tag_keys))
+        self.assertNotEqual(sorted(result), sorted(tag_keys))
+        self.assertIn("qa", result)
+        self.assertNotIn("qa", tag_keys)
 
     def test_get_tag_type_filter_pod(self):
         """Test that all usage tags are returned with pod type filter."""
@@ -192,6 +205,11 @@ class OCPTagQueryHandlerTest(IamTestCase):
             tag_keys = usage_tag_keys
 
         result = handler.get_tag_keys(filters=False)
+        self.assertNotEqual(sorted(result), sorted(tag_keys))
+        self.assertIn("qa", result)
+        self.assertNotIn("qa", tag_keys)
+
+        result = handler.get_tag_keys(filters=True)
         self.assertEqual(sorted(result), sorted(tag_keys))
 
     def test_get_tag_type_filter_storage(self):
