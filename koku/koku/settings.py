@@ -414,13 +414,6 @@ DISABLE_LOGGING = ENVIRONMENT.bool("DISABLE_LOGGING", default=False)
 if len(sys.argv) > 1 and sys.argv[1] == "test" and DISABLE_LOGGING:
     logging.disable(logging.CRITICAL)
 
-# Masu API Endpoints
-MASU_SERVICE_HOST = ENVIRONMENT.get_value("MASU_SERVICE_HOST", default="localhost")
-MASU_SERVICE_PORT = ENVIRONMENT.get_value("MASU_SERVICE_PORT", default="8000")
-MASU_BASE_URL = f"http://{MASU_SERVICE_HOST}:{MASU_SERVICE_PORT}"
-
-MASU_API_REPORT_DATA = f"{API_PATH_PREFIX}/v1/report_data/"
-
 # AMQP Message Broker
 RABBITMQ_HOST = ENVIRONMENT.get_value("RABBITMQ_HOST", default="localhost")
 RABBITMQ_PORT = ENVIRONMENT.get_value("RABBITMQ_PORT", default="5672")
@@ -455,8 +448,8 @@ IBM_SERVICE_URL = ENVIRONMENT.get_value("IBM_SERVICE_URL", default="https://ente
 COLD_STORAGE_RETRIVAL_WAIT_TIME = ENVIRONMENT.int("COLD_STORAGE_RETRIVAL_WAIT_TIME", default=10800)
 
 # Sources Client API Endpoints
-KOKU_SOURCES_CLIENT_HOST = ENVIRONMENT.get_value("KOKU_SOURCES_CLIENT_HOST", default="localhost")
-KOKU_SOURCES_CLIENT_PORT = ENVIRONMENT.get_value("KOKU_SOURCES_CLIENT_PORT", default="4000")
+KOKU_SOURCES_CLIENT_HOST = CONFIGURATOR.get_endpoint_host("koku", "sources-client", "localhost")
+KOKU_SOURCES_CLIENT_PORT = CONFIGURATOR.get_endpoint_port("koku", "sources-client", "4000")
 SOURCES_CLIENT_BASE_URL = f"http://{KOKU_SOURCES_CLIENT_HOST}:{KOKU_SOURCES_CLIENT_PORT}/"
 
 # Prometheus pushgateway hostname:port
