@@ -44,7 +44,8 @@ services:
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
         - DEMO_ACCOUNTS
         - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
-        - RUN_GUNICORN=${RUN_GUNICORN}
+        - RUN_GUNICORN=${RUN_GUNICORN-False}
+        - GUNICORN_THREADS=${GUNICORN_THREADS-False}
         - ENABLE_TRINO_SOURCES
         - ENABLE_TRINO_ACCOUNTS
         - ENABLE_TRINO_SOURCE_TYPE
@@ -102,6 +103,8 @@ services:
         - ENABLE_TRINO_SOURCES
         - ENABLE_TRINO_ACCOUNTS
         - ENABLE_TRINO_SOURCE_TYPE
+        - RUN_GUNICORN=${RUN_GUNICORN-False}
+        - GUNICORN_THREADS=${GUNICORN_THREADS-False}
 
       privileged: true
       ports:
@@ -270,6 +273,8 @@ services:
         - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
         - PRESTO_HOST=${PRESTO_HOST-presto}
         - PRESTO_PORT=${PRESTO_PORT-8080}
+        - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+        - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
         - DATE_OVERRIDE
         - ENABLE_TRINO_SOURCES
         - ENABLE_TRINO_ACCOUNTS
@@ -385,6 +390,7 @@ services:
         - prometheus_multiproc_dir=/tmp
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
         - RUN_GUNICORN=${RUN_GUNICORN-False}
+        - GUNICORN_THREADS=${GUNICORN_THREADS-False}
       privileged: true
       ports:
           - 4000:8080
@@ -422,6 +428,7 @@ services:
         - prometheus_multiproc_dir=/tmp
         - SCHEDULE_REPORT_CHECKS=True
         - SCHEDULE_CHECK_INTERVAL=10000000
+        - SOURCE_STATUS_FREQUENCY_MINUTES
         - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
       privileged: true
       volumes:

@@ -15,6 +15,7 @@ WHERE li.usage_start >= {{start_date}}
 WITH cte_enabled_keys AS (
     select coalesce(array_agg(key), '{}'::text[])::text[] as keys
         from {{schema | sqlsafe}}.reporting_awsenabledtagkeys
+     where enabled = true
 )
 INSERT INTO {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary (
     uuid,

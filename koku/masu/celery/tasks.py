@@ -40,24 +40,21 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor import enable_trino_processing
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
-from masu.processor.tasks import GET_REPORT_FILES_QUEUE
-from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
-from masu.processor.tasks import vacuum_schema
-from masu.processor.tasks import VACUUM_SCHEMA_QUEUE
+from masu.processor.tasks import DEFAULT
 from masu.util.aws.common import get_s3_resource
 
 LOG = logging.getLogger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
 
 
-@celery_app.task(name="masu.celery.tasks.check_report_updates", queue=GET_REPORT_FILES_QUEUE)
+@celery_app.task(name="masu.celery.tasks.check_report_updates", queue=DEFAULT)
 def check_report_updates(*args, **kwargs):
     """Scheduled task to initiate scanning process on a regular interval."""
     orchestrator = Orchestrator(*args, **kwargs)
     orchestrator.prepare()
 
 
-@celery_app.task(name="masu.celery.tasks.remove_expired_data", queue=REMOVE_EXPIRED_DATA_QUEUE)
+@celery_app.task(name="masu.celery.tasks.remove_expired_data", queue=DEFAULT)
 def remove_expired_data(simulate=False, line_items_only=False):
     """Scheduled task to initiate a job to remove expired report data."""
     today = DateAccessor().today()
@@ -93,7 +90,7 @@ def deleted_archived_with_prefix(s3_bucket_name, prefix):
 
 @celery_app.task(
     name="masu.celery.tasks.delete_archived_data",
-    queue=REMOVE_EXPIRED_DATA_QUEUE,
+    queue=DEFAULT,
     autoretry_for=(ClientError,),
     max_retries=10,
     retry_backoff=10,
@@ -159,7 +156,7 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
 
 @celery_app.task(
     name="masu.celery.tasks.sync_data_to_customer",
-    queue=GET_REPORT_FILES_QUEUE,
+    queue=DEFAULT,
     retry_kwargs={"max_retries": 5, "countdown": settings.COLD_STORAGE_RETRIVAL_WAIT_TIME},
 )
 def sync_data_to_customer(dump_request_uuid):
@@ -212,24 +209,8 @@ def sync_data_to_customer(dump_request_uuid):
     dump_request.save()
 
 
-@celery_app.task(name="masu.celery.tasks.vacuum_schemas", queue=VACUUM_SCHEMA_QUEUE)
-def vacuum_schemas():
-    """Vacuum all schemas."""
-    tenants = Tenant.objects.values("schema_name")
-    schema_names = [
-        tenant.get("schema_name")
-        for tenant in tenants
-        if (tenant.get("schema_name") and tenant.get("schema_name") != "public")
-    ]
-
-    for schema_name in schema_names:
-        LOG.info("Scheduling VACUUM task for %s", schema_name)
-        # called in celery.py
-        vacuum_schema.delay(schema_name)
-
-
 # This task will process the autovacuum tuning as a background process
-@celery_app.task(name="masu.celery.tasks.autovacuum_tune_schemas", queue=VACUUM_SCHEMA_QUEUE)
+@celery_app.task(name="masu.celery.tasks.autovacuum_tune_schemas", queue=DEFAULT)
 def autovacuum_tune_schemas():
     """Set the autovacuum table settings based on table size for all schemata."""
     tenants = Tenant.objects.values("schema_name")
@@ -245,7 +226,7 @@ def autovacuum_tune_schemas():
         autovacuum_tune_schema.delay(schema_name)
 
 
-@celery_app.task(name="masu.celery.tasks.clean_volume", queue=VACUUM_SCHEMA_QUEUE)
+@celery_app.task(name="masu.celery.tasks.clean_volume", queue=DEFAULT)
 def clean_volume():
     """Clean up the volume in the worker pod."""
     LOG.info("Cleaning up the volume at %s " % Config.PVC_DIR)
@@ -288,7 +269,7 @@ def clean_volume():
     LOG.info("The following files were deleted: %s", deleted_files)
 
 
-@celery_app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue=GET_REPORT_FILES_QUEUE)
+@celery_app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue=DEFAULT)
 def crawl_account_hierarchy(provider_uuid=None):
     """Crawl top level accounts to discover hierarchy."""
     if provider_uuid:

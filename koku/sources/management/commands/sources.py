@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+import importlib
 import logging
 import time
 
@@ -26,6 +27,15 @@ from koku.wsgi import application
 from sources.kafka_listener import initialize_sources_integration
 
 LOG = logging.getLogger(__name__)
+CLOWDER_PORT = 8080
+if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
+    from app_common_python import LoadedConfig
+
+    CLOWDER_PORT = LoadedConfig.publicPort
+
+
+def get_config_from_module_name(module_name):
+    return vars(importlib.import_module(module_name))
 
 
 class SourcesApplication(BaseApplication):
@@ -47,7 +57,7 @@ class SourcesApplication(BaseApplication):
 class Command(BaseCommand):
     help = "Starts koku-sources"
 
-    def handle(self, addrport="0.0.0.0:8080", *args, **options):
+    def handle(self, addrport=f"0.0.0.0:{CLOWDER_PORT}", *args, **options):
         """Sources command customization point."""
 
         timeout = 5
@@ -63,7 +73,8 @@ class Command(BaseCommand):
 
         LOG.info("Starting Sources Client Server")
         if ENVIRONMENT.bool("RUN_GUNICORN", default=True):
-            options = {"bind": addrport, "workers": 1, "timeout": 90, "loglevel": "info"}
+            options = get_config_from_module_name("gunicorn_conf")
+            options["bind"] = addrport
             SourcesApplication(application, options).run()
         else:
             from django.core.management import call_command
