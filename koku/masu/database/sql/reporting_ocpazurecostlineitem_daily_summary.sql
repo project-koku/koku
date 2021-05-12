@@ -3,6 +3,7 @@ WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND cluster_id = {{cluster_id}}
     AND infrastructure_raw_cost IS NOT NULL
+    AND infrastructure_raw_cost != 0
 ;
 
 CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
