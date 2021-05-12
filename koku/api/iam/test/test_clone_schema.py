@@ -84,6 +84,7 @@ class CloneSchemaTest(IamTestCase):
             self.assertIn(expected, _logger.output)
         self.assertFalse(schema_exists(Tenant._TEMPLATE_SCHEMA))
 
+        Tenant.objects.filter(schema_name=Tenant._TEMPLATE_SCHEMA).delete()
         t = Tenant.objects.create(schema_name=Tenant._TEMPLATE_SCHEMA)
         t.save()
         t.create_schema()
