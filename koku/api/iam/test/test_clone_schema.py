@@ -73,7 +73,7 @@ class CloneSchemaTest(IamTestCase):
 
         # Also validate that the template will be created using migrations
         expected = (
-            f"ERROR:api.iam.models:Caught exception DatabaseError during template schema create: Too Many Quatloos"
+            "ERROR:api.iam.models:Caught exception DatabaseError during template schema create: Too Many Quatloos"
         )
         with self.assertLogs("api.iam.models", level="INFO") as _logger:
             t = Tenant(schema_name=Tenant._TEMPLATE_SCHEMA)
