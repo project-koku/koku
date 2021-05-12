@@ -64,6 +64,32 @@ delete
 
 
 class CloneSchemaTest(IamTestCase):
+    def test_create_template_schema_exception(self):
+        """
+        Test that the template schema can be created directly or indirectly
+        """
+        Tenant.objects.filter(schema_name=Tenant._TEMPLATE_SCHEMA).delete()
+        self.assertFalse(schema_exists(Tenant._TEMPLATE_SCHEMA))
+
+        # Also validate that the template will be created using migrations
+        expected = (
+            "ERROR:api.iam.models:Caught exception DatabaseError during template schema create: Too Many Quatloos"
+        )
+        with self.assertLogs("api.iam.models", level="INFO") as _logger:
+            t = Tenant(schema_name=Tenant._TEMPLATE_SCHEMA)
+            t.save()
+            with self.assertRaises(DatabaseError):
+                with patch("api.iam.models.Tenant.create_schema", side_effect=DatabaseError("Too Many Quatloos")):
+                    t._verify_template()
+            self.assertIn(expected, _logger.output)
+        self.assertFalse(schema_exists(Tenant._TEMPLATE_SCHEMA))
+
+        Tenant.objects.filter(schema_name=Tenant._TEMPLATE_SCHEMA).delete()
+        t = Tenant.objects.create(schema_name=Tenant._TEMPLATE_SCHEMA)
+        t.save()
+        t.create_schema()
+        self.assertTrue(schema_exists(Tenant._TEMPLATE_SCHEMA))
+
     def test_create_template_schema(self):
         """
         Test that the template schema can be created directly or indirectly
