@@ -373,18 +373,10 @@ def add_provider_sources_auth_info(source_id, authentication):
     source = get_source(
         source_id, f"[add_provider_sources_auth_info] error: source_id: {source_id} does not exist", LOG.error
     )
-    if source:
-        current_auth_dict = source.authentication
-        subscription_id = None
-        if source.source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            if current_auth_dict.get("credentials", {}):
-                subscription_id = current_auth_dict.get("credentials", {}).get("subscription_id")
-            if subscription_id and authentication.get("credentials"):
-                authentication["credentials"]["subscription_id"] = subscription_id
-        if source.authentication != authentication:
-            source.authentication = authentication
-            source.save()
-            return True
+    if source and source.authentication != authentication:
+        source.authentication = authentication
+        source.save()
+        return True
 
 
 def add_provider_sources_billing_info(source_id, billing_source):

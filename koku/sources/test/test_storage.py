@@ -372,21 +372,23 @@ class SourcesStorageTest(TestCase):
         """Test to add authentication to a source with subscription_id."""
         test_source_id = 3
         test_authentication = {"credentials": {"client_id": "new-client-id"}}
+        orig_authentication = {"credentials": {"subscription_id": "orig-sub-id", "client_id": "test-client-id"}}
         azure_obj = Sources(
             source_id=test_source_id,
             auth_header=self.test_header,
             offset=3,
             source_type=Provider.PROVIDER_AZURE,
             name="Test AZURE Source",
-            authentication={"credentials": {"subscription_id": "orig-sub-id", "client_id": "test-client-id"}},
+            authentication=orig_authentication,
         )
         azure_obj.save()
+        response = Sources.objects.filter(source_id=test_source_id).first()
+        self.assertDictEqual(response.authentication, orig_authentication)
 
         result = storage.add_provider_sources_auth_info(test_source_id, test_authentication)
         self.assertTrue(result)
         response = Sources.objects.filter(source_id=test_source_id).first()
-        self.assertEquals(response.authentication.get("credentials").get("subscription_id"), "orig-sub-id")
-        self.assertEquals(response.authentication.get("credentials").get("client_id"), "new-client-id")
+        self.assertDictEqual(response.authentication, test_authentication)
 
     def test_add_provider_sources_billing_info(self):
         """Test to add billing_source to a source."""
