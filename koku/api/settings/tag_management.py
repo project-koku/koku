@@ -134,29 +134,39 @@ class TagManagementSettings:
         )
         tag_key_text = create_plain_text_with_doc(tag_key_text_name, tag_key_text_context, doc_link)
         components = []
+        avail_objs = []
         for providerName in obtainTagKeysProvidersParams:
             tag_view = obtainTagKeysProvidersParams[providerName]["tag_view"]
             query_handler = obtainTagKeysProvidersParams[providerName]["query_handler"]
             enabled_tag_keys = obtainTagKeysProvidersParams[providerName]["enabled_tag_keys"]
             available, enabled = self._obtain_tag_keys(tag_view, query_handler, enabled_tag_keys)
-            avail_objs = [{"value": tag_key, "label": tag_key} for tag_key in available]
-            dual_list_options = {
-                "options": avail_objs,
-                "leftTitle": obtainTagKeysProvidersParams[providerName]["leftLabel"],
-                "rightTitle": obtainTagKeysProvidersParams[providerName]["rightLabel"],
-                "noValueTitle": "No enabled tag keys",
-                "noOptionsTitle": "No available tag keys",
-                "filterOptionsTitle": "Filter by available tag keys",
-                "filterValueTitle": "Filter by enabled tag keys",
-                "filterValueText": "Remove your filter to see all enabled tag keys",
-                "filterOptionsText": "Remove your filter to see all available tag keys",
-                "initialValue": enabled,
-                "clearedValue": [],
-            }
-            dual_list_name = f"{self._get_tag_management_prefix(providerName)}.enabled"
-            dual_list_title = obtainTagKeysProvidersParams[providerName]["title"]
-            components.append(create_plain_text(f"{SETTINGS_PREFIX}.{providerName}.title", dual_list_title, "h2"))
-            components.append(create_dual_list_select(dual_list_name, **dual_list_options))
+            avail_objs.append(
+                {
+                    "id": providerName,
+                    "label": obtainTagKeysProvidersParams[providerName]["title"],
+                    "hasBadge": "true",
+                    "children": [
+                        {
+                            "id": "".join([providerName, "-", tag_key]),
+                            "value": "".join([providerName, "-", tag_key]),
+                            "label": tag_key,
+                        }
+                        for tag_key in available
+                    ],
+                }
+            )
+
+        dual_list_options = {
+            "isTree": "true",
+            "options": avail_objs,
+            "leftTitle": "Disabled tags/labels",
+            "rightTitle": "Enabled tags/labels",
+            "initialValue": enabled,
+            "clearedValue": [],
+        }
+        dual_list_name = f"{self._get_tag_management_prefix(providerName)}.enabled"
+
+        components.append(create_dual_list_select(dual_list_name, **dual_list_options))
         sub_form_name = f"{SETTINGS_PREFIX}.tag_managment.subform"
         sub_form_title = "Enable tags and labels"
         sub_form_fields = [tag_key_text]
