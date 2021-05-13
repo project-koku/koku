@@ -96,8 +96,8 @@ class SourcesStorageTest(TestCase):
     def test_get_source_db_down(self, mock_objects):
         """Tests creating a source db record with invalid auth_header."""
         mock_objects.get.side_effect = InterfaceError("test_exception")
-        test_source_id = 2
         with self.assertRaises(InterfaceError):
+            test_source_id = 2
             storage.get_source(test_source_id, "error", Mock)
 
     def test_create_source_event(self):
@@ -142,12 +142,12 @@ class SourcesStorageTest(TestCase):
     def test_create_source_event_db_down(self):
         """Tests creating a source db record with invalid auth_header."""
         test_source_id = 2
-        test_offset = 3
         ocp_obj = Sources(source_id=test_source_id, offset=3, out_of_order_delete=True, pending_delete=False)
         ocp_obj.save()
         with patch.object(Sources, "delete") as mock_object:
             mock_object.side_effect = InterfaceError("Error")
             with self.assertRaises(InterfaceError):
+                test_offset = 3
                 storage.create_source_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
 
     def test_destroy_source_event(self):
@@ -171,7 +171,7 @@ class SourcesStorageTest(TestCase):
             with self.assertRaises(InterfaceError):
                 storage.destroy_source_event(self.test_source_id)
 
-    def test_add_provider_network_info(self):
+    def test_add_provider_sources_details(self):
         """Tests that adding information retrieved from the sources network API is successful."""
         test_source = Sources.objects.get(source_id=self.test_source_id)
         self.assertIsNone(test_source.name)
@@ -183,20 +183,20 @@ class SourcesStorageTest(TestCase):
         endpoint_id = 1
         source_uuid = faker.uuid4()
         mock_details = MockDetails(test_name, source_uuid, source_type, endpoint_id)
-        storage.add_provider_sources_network_info(mock_details, self.test_source_id)
+        storage.add_provider_sources_details(mock_details, self.test_source_id)
 
         test_source = Sources.objects.get(source_id=self.test_source_id)
         self.assertEqual(test_source.name, test_name)
         self.assertEqual(test_source.source_type, source_type)
         self.assertEqual(str(test_source.source_uuid), source_uuid)
 
-    def test_add_provider_network_info_not_found(self):
+    def test_add_provider_sources_details_not_found(self):
         """Tests that adding information retrieved from the sources network API is not successful."""
         try:
             test_name = "My Source Name"
             source_type = Provider.PROVIDER_AWS
             mock_details = MockDetails(test_name, faker.uuid4(), source_type, 1)
-            storage.add_provider_sources_network_info(mock_details, self.test_source_id + 1)
+            storage.add_provider_sources_details(mock_details, self.test_source_id + 1)
         except Exception as error:
             self.fail(str(error))
 
@@ -363,7 +363,8 @@ class SourcesStorageTest(TestCase):
         )
         aws_obj.save()
 
-        storage.add_provider_sources_auth_info(test_source_id, test_authentication)
+        result = storage.add_provider_sources_auth_info(test_source_id, test_authentication)
+        self.assertTrue(result)
         response = Sources.objects.filter(source_id=test_source_id).first()
         self.assertEquals(response.authentication, test_authentication)
 
@@ -371,20 +372,50 @@ class SourcesStorageTest(TestCase):
         """Test to add authentication to a source with subscription_id."""
         test_source_id = 3
         test_authentication = {"credentials": {"client_id": "new-client-id"}}
+        orig_authentication = {"credentials": {"subscription_id": "orig-sub-id", "client_id": "test-client-id"}}
         azure_obj = Sources(
             source_id=test_source_id,
             auth_header=self.test_header,
             offset=3,
             source_type=Provider.PROVIDER_AZURE,
             name="Test AZURE Source",
-            authentication={"credentials": {"subscription_id": "orig-sub-id", "client_id": "test-client-id"}},
+            authentication=orig_authentication,
         )
         azure_obj.save()
-
-        storage.add_provider_sources_auth_info(test_source_id, test_authentication)
         response = Sources.objects.filter(source_id=test_source_id).first()
-        self.assertEquals(response.authentication.get("credentials").get("subscription_id"), "orig-sub-id")
-        self.assertEquals(response.authentication.get("credentials").get("client_id"), "new-client-id")
+        self.assertDictEqual(response.authentication, orig_authentication)
+
+        result = storage.add_provider_sources_auth_info(test_source_id, test_authentication)
+        self.assertTrue(result)
+        response = Sources.objects.filter(source_id=test_source_id).first()
+        self.assertDictEqual(response.authentication, test_authentication)
+
+    def test_add_provider_sources_billing_info(self):
+        """Test to add billing_source to a source."""
+        test_source_id = 3
+        test_billing = {"bucket": "bucket"}
+        aws_obj = Sources(
+            source_id=test_source_id,
+            auth_header=self.test_header,
+            offset=3,
+            source_type=Provider.PROVIDER_AWS,
+            name="Test AWS Source",
+            authentication={"role_arn": "arn:test"},
+        )
+        aws_obj.save()
+
+        result = storage.add_provider_sources_billing_info(test_source_id, test_billing)
+        self.assertTrue(result)
+        response = Sources.objects.filter(source_id=test_source_id).first()
+        self.assertEquals(response.billing_source, test_billing)
+
+    def test_add_provider_sources_billing_info_no_source(self):
+        """Test to add billing_source to a non-existent source."""
+        test_source_id = 3
+        test_billing = {"bucket": "bucket"}
+
+        result = storage.add_provider_sources_billing_info(test_source_id, test_billing)
+        self.assertIsNone(result)
 
     def test_enqueue_source_delete(self):
         """Test for enqueuing source delete."""
@@ -426,12 +457,12 @@ class SourcesStorageTest(TestCase):
     def test_enqueue_source_delete_db_down(self):
         """Tests enqueues source_delete with database error."""
         test_source_id = 2
-        test_offset = 3
         ocp_obj = Sources(source_id=test_source_id, offset=3, out_of_order_delete=False, pending_delete=False)
         ocp_obj.save()
         with patch.object(Sources, "save") as mock_object:
             mock_object.side_effect = InterfaceError("Error")
             with self.assertRaises(InterfaceError):
+                test_offset = 3
                 storage.enqueue_source_delete(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
 
     def test_enqueue_source_delete_in_pending(self):
@@ -470,7 +501,7 @@ class SourcesStorageTest(TestCase):
         storage.enqueue_source_delete(test_source_id, test_offset, allow_out_of_order=False)
         self.assertFalse(Sources.objects.filter(source_id=test_source_id).exists())
 
-    def test_enqueue_source_update(self):
+    def test_enqueue_source_create_or_update(self):
         """Test for enqueuing source updating."""
         test_matrix = [
             {"koku_uuid": None, "pending_delete": False, "pending_update": False, "expected_pending_update": False},
@@ -509,15 +540,14 @@ class SourcesStorageTest(TestCase):
             )
             aws_obj.save()
 
-            storage.enqueue_source_update(test_source_id)
+            storage.enqueue_source_create_or_update(test_source_id)
             response = Sources.objects.get(source_id=test_source_id)
             self.assertEquals(test.get("expected_pending_update"), response.pending_update)
-            test_source_id += 1
 
     def test_enqueue_source_update_unknown_source(self):
         """Test to enqueue a source update for an unknown source."""
         self.test_obj.koku_uuid = faker.uuid4()
-        storage.enqueue_source_update(self.test_source_id + 1)
+        storage.enqueue_source_create_or_update(self.test_source_id + 1)
         self.assertFalse(self.test_obj.pending_update)
 
     def test_clear_update_flag(self):
@@ -527,8 +557,7 @@ class SourcesStorageTest(TestCase):
             {"koku_uuid": faker.uuid4(), "pending_update": False, "expected_pending_update": False},
             {"koku_uuid": faker.uuid4(), "pending_update": True, "expected_pending_update": False},
         ]
-        test_source_id = 3
-        for test in test_matrix:
+        for test_source_id, test in enumerate(test_matrix, start=3):
             aws_obj = Sources(
                 source_id=test_source_id,
                 auth_header=self.test_header,
@@ -544,7 +573,6 @@ class SourcesStorageTest(TestCase):
             storage.clear_update_flag(test_source_id)
             response = Sources.objects.get(source_id=test_source_id)
             self.assertEquals(test.get("expected_pending_update"), response.pending_update)
-            test_source_id += 1
 
     def test_clear_update_flag_unknown_id(self):
         """Test to clear update flag for an unknown id."""
@@ -561,8 +589,7 @@ class SourcesStorageTest(TestCase):
             {"koku_uuid": None, "pending_update": True, "pending_delete": False, "expected_list_length": 0},
         ]
 
-        test_source_id = 3
-        for test in test_matrix:
+        for test_source_id, test in enumerate(test_matrix, start=3):
             aws_obj = Sources(
                 source_id=test_source_id,
                 auth_header=self.test_header,
@@ -578,350 +605,7 @@ class SourcesStorageTest(TestCase):
 
             response = storage.load_providers_to_update()
             self.assertEquals(len(response), test.get("expected_list_length"))
-            test_source_id += 1
             aws_obj.delete()
-
-    def test_validate_billing_source(self):
-        """Test to validate that the billing source dictionary is valid."""
-        test_matrix = [
-            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"bucket": "test-bucket"}, "exception": False},
-            {
-                "provider_type": Provider.PROVIDER_AWS,
-                "billing_source": {"data_source": {"bucket": "test-bucket"}},
-                "exception": False,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"resource_group": "foo", "storage_account": "bar"}},
-                "exception": False,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AWS,
-                "billing_source": {"data_source": {"nobucket": "test-bucket"}},
-                "exception": True,
-            },
-            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"nobucket": "test-bucket"}, "exception": True},
-            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {"data_source": {}}, "exception": True},
-            {"provider_type": Provider.PROVIDER_AWS, "billing_source": {}, "exception": True},
-            {"provider_type": Provider.PROVIDER_AZURE, "billing_source": {}, "exception": True},
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"nodata_source": {"resource_group": "foo", "storage_account": "bar"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"noresource_group": "foo", "storage_account": "bar"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"resource_group": "foo", "nostorage_account": "bar"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"resource_group": "foo"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_AZURE,
-                "billing_source": {"data_source": {"storage_account": "bar"}},
-                "exception": True,
-            },
-            {
-                "provider_type": Provider.PROVIDER_GCP,
-                "billing_source": {"data_source": {"dataset": "test_dataset", "table_id": "test_table_id"}},
-                "exception": False,
-            },
-            {
-                "provider_type": Provider.PROVIDER_GCP,
-                "billing_source": {"data_source": {"dataset": "test_dataset"}},
-                "exception": False,
-            },
-            {
-                "provider_type": Provider.PROVIDER_GCP,
-                "billing_source": {"data_source": {"table_id": "test_table_id"}},
-                "exception": True,
-            },
-            {"provider_type": Provider.PROVIDER_GCP, "billing_source": {}, "exception": True},
-        ]
-
-        for test in test_matrix:
-            with self.subTest(test=test):
-                if test.get("exception"):
-                    with self.assertRaises(storage.SourcesStorageError):
-                        storage._validate_billing_source(test.get("provider_type"), test.get("billing_source"))
-                else:
-                    try:
-                        storage._validate_billing_source(test.get("provider_type"), test.get("billing_source"))
-                    except Exception as error:
-                        self.fail(str(error))
-
-    def test_update_aws_billing_source(self):
-        """Test to validate that the billing source dictionary is updated."""
-        aws_instance = Sources(
-            source_id=3,
-            auth_header=self.test_header,
-            offset=3,
-            source_type=Provider.PROVIDER_AWS,
-            name="Test AWS Source",
-            billing_source={"data_source": {"bucket": "my_s3_bucket"}},
-        )
-        aws_instance.save()
-        test_matrix = [
-            {
-                "instance": aws_instance,
-                "billing_source": {"bucket": "test-bucket"},
-                "expected": {"data_source": {"bucket": "test-bucket"}},
-            },
-            {
-                "instance": aws_instance,
-                "billing_source": {"data_source": {"bucket": "test-bucket"}},
-                "expected": {"data_source": {"bucket": "test-bucket"}},
-            },
-        ]
-
-        for test in test_matrix:
-            with self.subTest(test=test):
-                try:
-                    new_billing = storage._update_billing_source(aws_instance, test.get("billing_source"))
-                    self.assertEqual(new_billing, test.get("expected"))
-                except Exception as error:
-                    self.fail(str(error))
-        aws_instance.delete()
-
-    def test_update_azure_billing_source(self):
-        """Test to validate that the billing source dictionary is updated."""
-        azure_instance = Sources(
-            source_id=4,
-            auth_header=self.test_header,
-            offset=3,
-            source_type=Provider.PROVIDER_AZURE,
-            name="Test Azure Source",
-            billing_source={"data_source": {"resource_group": "original-1", "storage_account": "original-2"}},
-        )
-
-        azure_instance.save()
-        test_matrix = [
-            {
-                "instance": azure_instance,
-                "billing_source": {"data_source": {"resource_group": "foo", "storage_account": "bar"}},
-                "expected": {"data_source": {"resource_group": "foo", "storage_account": "bar"}},
-            },
-            {
-                "instance": azure_instance,
-                "billing_source": {"data_source": {"resource_group": "foo"}},
-                "expected": {"data_source": {"resource_group": "foo", "storage_account": "original-2"}},
-            },
-            {
-                "instance": azure_instance,
-                "billing_source": {"data_source": {"storage_account": "bar"}},
-                "expected": {"data_source": {"resource_group": "original-1", "storage_account": "bar"}},
-            },
-        ]
-
-        for test in test_matrix:
-            with self.subTest(test=test):
-                try:
-                    new_billing = storage._update_billing_source(azure_instance, test.get("billing_source"))
-                    self.assertEqual(new_billing, test.get("expected"))
-                except Exception as error:
-                    self.fail(str(error))
-        azure_instance.delete()
-
-    def test_update_application_settings(self):
-        """Test to update application settings."""
-        test_source_id = 3
-        resource_group = "testrg"
-        subscription_id = "testsubid"
-        settings = {
-            "billing_source": {"data_source": {"resource_group": resource_group}},
-            "authentication": {"subscription_id": subscription_id},
-        }
-        azure_obj = Sources(
-            source_id=test_source_id,
-            auth_header=self.test_header,
-            offset=3,
-            source_type=Provider.PROVIDER_AZURE,
-            name="Test AZURE Source",
-        )
-        azure_obj.save()
-
-        storage.update_application_settings(test_source_id, settings)
-        db_obj = Sources.objects.get(source_id=test_source_id)
-
-        self.assertEqual(db_obj.authentication.get("subscription_id"), subscription_id)
-        self.assertEqual(db_obj.billing_source.get("data_source").get("resource_group"), resource_group)
-
-    def test_update_application_settings_only_billing_source(self):
-        """Test to update application settings (only billing_source)."""
-        test_source_id = 3
-        resource_group = "testrg"
-        settings = {"billing_source": {"data_source": {"resource_group": resource_group}}}
-        azure_obj = Sources(
-            source_id=test_source_id,
-            auth_header=self.test_header,
-            offset=3,
-            source_type=Provider.PROVIDER_AZURE,
-            name="Test AZURE Source",
-        )
-        azure_obj.save()
-
-        storage.update_application_settings(test_source_id, settings)
-        db_obj = Sources.objects.get(source_id=test_source_id)
-
-        self.assertIsNone(db_obj.authentication.get("subscription_id"))
-        self.assertEqual(db_obj.billing_source.get("data_source").get("resource_group"), resource_group)
-
-    def test_update_application_settings_only_authentication(self):
-        """Test to update application settings (only authentication)."""
-        test_source_id = 3
-        subscription_id = "testsubid"
-        settings = {"authentication": {"subscription_id": subscription_id}}
-        azure_obj = Sources(
-            source_id=test_source_id,
-            auth_header=self.test_header,
-            offset=3,
-            source_type=Provider.PROVIDER_AZURE,
-            name="Test AZURE Source",
-        )
-        azure_obj.save()
-
-        storage.update_application_settings(test_source_id, settings)
-        db_obj = Sources.objects.get(source_id=test_source_id)
-
-        self.assertEqual(db_obj.authentication.get("subscription_id"), subscription_id)
-        self.assertIsNone(db_obj.billing_source.get("data_source"))
-
-    def test_update_application_settings_billing_and_auth_starting_with_auth(self):
-        """Test to update application settings with both billing and auth where auth already exists."""
-        test_source_id = 3
-        subscription_id = "testsubid"
-        tenant_id = "testtenant"
-        client_id = "myclientid"
-        client_secret = "mysecret"
-        resource_group = "myrg"
-        storage_account = "mysa"
-        settings = {
-            "billing_source": {"data_source": {"resource_group": resource_group, "storage_account": storage_account}},
-            "authentication": {"credentials": {"subscription_id": subscription_id}},
-        }
-
-        azure_obj = Sources(
-            source_id=test_source_id,
-            auth_header=self.test_header,
-            offset=3,
-            authentication={
-                "credentials": {"client_id": client_id, "tenant_id": tenant_id, "client_secret": client_secret}
-            },
-            source_type=Provider.PROVIDER_AZURE,
-            name="Test AZURE Source",
-        )
-        azure_obj.save()
-
-        storage.update_application_settings(test_source_id, settings)
-        db_obj = Sources.objects.get(source_id=test_source_id)
-
-        self.assertEqual(db_obj.authentication.get("credentials").get("subscription_id"), subscription_id)
-        self.assertEqual(db_obj.authentication.get("credentials").get("client_secret"), client_secret)
-        self.assertEqual(db_obj.authentication.get("credentials").get("client_id"), client_id)
-        self.assertEqual(db_obj.authentication.get("credentials").get("tenant_id"), tenant_id)
-        self.assertEqual(db_obj.billing_source.get("data_source").get("resource_group"), resource_group)
-        self.assertEqual(db_obj.billing_source.get("data_source").get("storage_account"), storage_account)
-
-    def test_update_application_settings_billing_and_auth_starting_with_billing(self):
-        """Test to update application settings with both billing and auth where billing already exists."""
-        test_source_id = 3
-        subscription_id = "testsubid"
-        tenant_id = "testtenant"
-        client_id = "myclientid"
-        client_secret = "mysecret"
-        resource_group = "myrg"
-        storage_account = "mysa"
-        settings = {
-            "billing_source": {"data_source": {"storage_account": storage_account}},
-            "authentication": {
-                "credentials": {
-                    "subscription_id": subscription_id,
-                    "client_id": client_id,
-                    "tenant_id": tenant_id,
-                    "client_secret": client_secret,
-                }
-            },
-        }
-
-        azure_obj = Sources(
-            source_id=test_source_id,
-            auth_header=self.test_header,
-            offset=3,
-            billing_source={"data_source": {"resource_group": resource_group}},
-            source_type=Provider.PROVIDER_AZURE,
-            name="Test AZURE Source",
-        )
-        azure_obj.save()
-        storage.update_application_settings(test_source_id, settings)
-        db_obj = Sources.objects.get(source_id=test_source_id)
-
-        self.assertEqual(db_obj.authentication.get("credentials").get("subscription_id"), subscription_id)
-        self.assertEqual(db_obj.authentication.get("credentials").get("client_secret"), client_secret)
-        self.assertEqual(db_obj.authentication.get("credentials").get("client_id"), client_id)
-        self.assertEqual(db_obj.authentication.get("credentials").get("tenant_id"), tenant_id)
-        self.assertEqual(db_obj.billing_source.get("data_source").get("resource_group"), resource_group)
-        self.assertEqual(db_obj.billing_source.get("data_source").get("storage_account"), storage_account)
-
-    def test_update_application_settings_gcp_table_id_present(self):
-        """Test to update application settings for GCP when table ID is known."""
-        test_source_id = 3
-        old_dataset = "olddataset"
-        new_dataset = "newdataset"
-        project_id = "myproject"
-        table_id = "bigquerytableid"
-        settings = {"billing_source": {"data_source": {"dataset": new_dataset}}}
-
-        gcp_obj = Sources(
-            source_id=test_source_id,
-            auth_header=self.test_header,
-            offset=3,
-            authentication={"credentials": {"project_id": project_id}},
-            billing_source={"data_source": {"dataset": old_dataset, "table_id": table_id}},
-            source_type=Provider.PROVIDER_GCP,
-            name="Test GCP Source",
-        )
-        gcp_obj.save()
-
-        storage.update_application_settings(test_source_id, settings)
-        db_obj = Sources.objects.get(source_id=test_source_id)
-
-        self.assertEqual(db_obj.authentication.get("credentials").get("project_id"), project_id)
-        self.assertEqual(db_obj.billing_source.get("data_source").get("dataset"), new_dataset)
-        self.assertEqual(db_obj.billing_source.get("data_source").get("table_id"), table_id)
-
-    def test_update_application_settings_gcp_table_id_not_present(self):
-        """Test to update application settings for GCP when table ID is not known."""
-        test_source_id = 3
-        old_dataset = "olddataset"
-        new_dataset = "newdataset"
-        project_id = "myproject"
-        settings = {"billing_source": {"data_source": {"dataset": new_dataset}}}
-
-        gcp_obj = Sources(
-            source_id=test_source_id,
-            auth_header=self.test_header,
-            offset=3,
-            authentication={"credentials": {"project_id": project_id}},
-            billing_source={"data_source": {"dataset": old_dataset}},
-            source_type=Provider.PROVIDER_GCP,
-            name="Test GCP Source",
-        )
-        gcp_obj.save()
-
-        storage.update_application_settings(test_source_id, settings)
-        db_obj = Sources.objects.get(source_id=test_source_id)
-
-        self.assertEqual(db_obj.authentication.get("credentials").get("project_id"), project_id)
-        self.assertEqual(db_obj.billing_source.get("data_source").get("dataset"), new_dataset)
-        self.assertIsNone(db_obj.billing_source.get("data_source").get("table_id"))
 
     def test_save_status(self):
         """Test to verify source status is saved."""
