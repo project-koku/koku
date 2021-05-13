@@ -72,36 +72,8 @@ class SourcesViewTests(IamTestCase):
         mock_url = PropertyMock(return_value="http://www.sourcesclient.com/api/v1/sources/")
         SourcesViewSet.url = mock_url
 
-    def test_source_update(self):
+    def test_source_patch(self):
         """Test the PATCH endpoint."""
-        credentials = {
-            "subscription_id": "12345678-1234-5678-1234-567812345678",
-            "tenant_id": "12345678-1234-5678-1234-567812345678",
-            "client_id": "12345678-1234-5678-1234-567812345678",
-        }
-
-        with patch("sources.api.serializers.ServerProxy"):
-            with requests_mock.mock() as m:
-                m.patch(
-                    f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",
-                    status_code=200,
-                    json={"credentials": credentials},
-                )
-
-                params = {
-                    "authentication": {"credentials": {"subscription_id": "this-ain't-real"}},
-                    "billing_source": {"data_source": {"resource_group": "group", "storage_account": "storage"}},
-                }
-                url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
-
-                response = self.client.patch(
-                    url, json.dumps(params), content_type="application/json", **self.request_context["request"].META
-                )
-
-                self.assertEqual(response.status_code, 200)
-
-    def test_source_update_exception(self):
-        """Test the PATCH endpoint with error."""
         credentials = {"subscription_id": "subscription-uuid"}
 
         with requests_mock.mock() as m:
@@ -118,7 +90,7 @@ class SourcesViewTests(IamTestCase):
                 url, params, content_type="application/json", **self.request_context["request"].META
             )
 
-            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.status_code, 405)
 
     def test_source_put(self):
         """Test the PUT endpoint."""
