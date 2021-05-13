@@ -15,108 +15,249 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-DROP FUNCTION IF EXISTS public.trfn_manage_date_range_partition();
+-- This **WILL** drop the associated trigger!
+DROP FUNCTION IF EXISTS public.trfn_manage_date_range_partition() CASCADE;
 CREATE OR REPLACE FUNCTION public.trfn_manage_date_range_partition() RETURNS TRIGGER AS $$
 DECLARE
-    alter_stmt text = '';
     action_stmt text = '';
-    alter_msg text = '';
-    action_msg text = '';
-    table_name text = '';
+    action_stmt2 text = '';
+    action_ix integer = 1;
+    total_actions integer = 0;
+    action_stmts text[] = '{}'::text[];
+    messages text[] = '{}'::text[]
+    message_text text = '';
+    col_type_name text = null;
 BEGIN
     IF ( TG_OP = 'DELETE' )
     THEN
         IF ( OLD.active )
         THEN
-            alter_stmt = 'ALTER TABLE ' ||
-                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
-                        ' DETACH PARTITION ' ||
-                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name) ||
-                        ' ;';
+            action_stmts = array_append(
+                action_stmts,
+                format(
+                    'ALTER TABLE %I.%I DETACH PARTITION %I.%I ;',
+                    OLD.schema_name,
+                    OLD.partition_of_table_name,
+                    OLD.schema_name,
+                    OLD.table_name
+                )
+            );
+            messages = array_append(
+                format(
+                    'DETACH PARTITION %I.%I FROM %I.%I',
+                    OLD.schema_name,
+                    OLD.table_name,
+                    OLD.schema_name,
+                    OLD.partition_of_table_name
+                )
+            );
         END IF;
-        action_stmt = 'DROP TABLE IF EXISTS ' || quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name) || ' ;';
-        table_name = quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name);
-        alter_msg = 'DROP PARTITION ' || quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name);
+        action_stmts = array_append(
+            action_stmts,
+            format(
+                'TRUNCATE TABLE %s ;', table_name
+            )
+        );
+        messages = array_append(messages, format('TRUNCATE TABLE %I.%I', OLD.schema_name, OLD.table_name));
+        action_stmts = array_append(
+            action_stmts,
+            format(
+                'DROP TABLE %s ;', table_name
+            )
+        );
+        messages = array_append(messages, format('DROP TABLE %I.%I', OLD.schema_name, OLD.table_name));
     ELSIF ( TG_OP = 'UPDATE' )
     THEN
-        /* If the partition was active, then detach it */
-        if ( OLD.active )
+        IF OLD.partition_of_table_name != NEW.partition_of_table_name
         THEN
-            alter_stmt = 'ALTER TABLE ' ||
-                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
-                        ' DETACH PARTITION ' ||
-                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name)
-                        || ' ;';
+            action_stmts = array_append(
+                action_stmts,
+                foramt(
+                    'ALTER TABLE %I.%I RENAME TO %I.%I ;',
+                    OLD.schema_name,
+                    OLD.partition_of_table_name,
+                    OLD.schema_name,
+                    NEW.partition_of_table_name
+                )
+            );
+            messages = array_append(
+                messages,
+                format(
+                    'RENAME TABLE %I.%I to %I.%I',
+                    OLD.schema_name,
+                    OLD.partition_of_table_name,
+                    OLD.schema_name,
+                    NEW.partition_of_table_name
+                )
+            );
         END IF;
 
-        /* If we are going to active or are still active, then attach the partition */
-        if ( NEW.active )
+        IF OLD.table_name != NEW.table_name
         THEN
-            action_stmt = 'ALTER TABLE ' ||
-                            quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
-                            ' ATTACH PARTITION ' ||
-                            quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name) || ' ';
-            IF ( (NEW.partition_parameters->>'default') = 'true' )
+            action_stmts = array_append(
+                action_stmts,
+                foramt(
+                    'ALTER TABLE %I.%I RENAME TO %I.%I ;',
+                    OLD.schema_name,
+                    OLD.table_name,
+                    OLD.schema_name,
+                    NEW.table_name
+                )
+            );
+            messages = array_append(
+                messages,
+                format(
+                    'RENAME TABLE %I.%I to %I.%I',
+                    OLD.schema_name,
+                    OLD.table_name,
+                    OLD.schema_name,
+                    NEW.table_name
+                )
+            );
+        END IF;
+
+        IF OLD.active AND NOT NEW.active
+        THEN
+            action_stmts = array_append(
+                action_stmts,
+                format(
+                    'ALTER TABLE %I.%I DETACH PARTITION %I.%I ;',
+                    OLD.schema_name,
+                    OLD.partition_of_table_name,
+                    OLD.schema_name,
+                    OLD.table_name
+                )
+            );
+            messages = array_append(
+                messages,
+                format('DETACH PARTITION %I.%I FROM %I.%I',
+                    OLD.schema_name,
+                    OLD.table_name,
+                    OLD.schema_name,
+                    OLD.partition_of_table_name
+                )
+            );
+        ELSE
+            IF NEW.active AND NOT OLD.active
             THEN
-                action_stmt = action_stmt || 'DEFAULT ;';
-                action_msg = 'DEFAULT';
-            ELSE
-                action_stmt = action_stmt || 'FOR VALUES FROM ( ' ||
-                            quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
-                            quote_literal(NEW.partition_parameters->>'to') || '::date ) ;';
-                action_msg = 'FOR VALUES FROM ( ' ||
-                            quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
-                            quote_literal(NEW.partition_parameters->>'to') || '::date )';
+                action_stmt = format(
+                    'ALTER TABLE %I.%I ATTACH PARTITION %I.%I ',
+                    OLD.schema_name,
+                    OLD.partition_of_table_name,
+                    OLD.schema_name,
+                    OLD.table_name
+                );
+                message_text = format(
+                    'ATTACH PARITITION %I.%I TO %I.%I ',
+                    OLD.schema_name,
+                    OLD.table_name,
+                    OLD.schema_name,
+                    OLD.partition_of_table_name
+                );
+                IF ( (NEW.partition_parameters->>'default') = 'true' )
+                THEN
+                    action_stmts = array_append(
+                        action_stmts,
+                        action_stmt || 'DEFAULT ;'
+                    );
+                    messages = array_append(
+                        messages,
+                        message_text || 'AS DEFAULT PARITION'
+                    );
+                ELSE
+                    EXECUTE format(
+                        '
+select format_type(
+    (
+        select atttypid
+          from pg_attribute
+         where attrelid = %L::regclass
+           and attname = %L
+    )
+);
+',
+                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name),
+                        quote_ident(OLD.partition_col)
+                    )
+                    INTO col_type_name;
+                    action_stmt_2 = format(
+                        'FOR VALUES FROM ( %L::%I TO %L::%I )',
+                        NEW.partition_parameters->>'from',
+                        col_type_name,
+                        NEW.partition_parameters->>'to',
+                        col_type_name
+                    );
+                    action_stmts = array_append(action_stmts, action_stmt || action_stmt_2);
+                    messages = array_append(messages, message_text || action_stmt_2);
+                END IF;
             END IF;
         END IF;
-
-        table_name = quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name);
-        action_msg = 'ALTER PARTITION ' || quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.table_name) ||
-                     ' ' || action_msg;
     ELSIF ( TG_OP = 'INSERT' )
     THEN
-        action_stmt = 'CREATE TABLE IF NOT EXISTS ' ||
-                      quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.table_name) || ' ' ||
-                      'PARTITION OF ' ||
-                      quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name) || ' ';
+        action_stmt = format(
+            'CREATE TABLE IF NOT EXISTS %I.%I PARTITION OF %I.%I ',
+            NEW.schema_name,
+            NEW.table_name,
+            NEW.schema_name,
+            NEW.partition_of_table_name
+        );
+        message_text = format(
+            'CREATING NEW PARTITION %I.%I FOR %I.%I ',
+            NEW.schema_name,
+            NEW.table_name,
+            NEW.schema_name,
+            NEW.partition_of_table_name
+        );
         IF ( (NEW.partition_parameters->>'default')::boolean )
         THEN
-            action_stmt = action_stmt || 'DEFAULT ;';
-            action_msg = 'DEFAULT';
+            action_stmts = array_append(
+                action_stmts,
+                action_stmt || 'DEFAULT ;'
+            );
+            messages = array_append(
+                messages,
+                message_text || 'AS DEFAULT PARITION'
+            );
         ELSE
-            action_stmt = action_stmt || 'FOR VALUES FROM ( ' ||
-                          quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
-                          quote_literal(NEW.partition_parameters->>'to') || '::date ) ;';
-            action_msg = 'FOR VALUES FROM ( ' ||
-                         quote_literal(NEW.partition_parameters->>'from') || '::date ) TO (' ||
-                         quote_literal(NEW.partition_parameters->>'to') || '::date )';
+            EXECUTE format(
+                        '
+select format_type(
+    (
+        select atttypid
+          from pg_attribute
+         where attrelid = %L::regclass
+           and attname = %L
+    )
+);
+',
+                quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name),
+                quote_ident(OLD.partition_col)
+            )
+            INTO col_type_name;
+            action_stmt_2 = format(
+                'FOR VALUES FROM ( %L::%I TO %L::%I )',
+                NEW.partition_parameters->>'from',
+                col_type_name,
+                NEW.partition_parameters->>'to',
+                col_type_name
+            );
+            action_stmts = array_append(action_stmts, action_stmt || action_stmt_2);
+            messages = array_append(messages, message_text || action_stmt_2);
         END IF;
-        action_msg = 'CREATE PARTITION ' || quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.table_name) ||
-                     ' ' || action_msg;
-        table_name = quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name);
     ELSE
         RAISE EXCEPTION 'Unhandled trigger operation %', TG_OP;
     END IF;
 
-    IF ( alter_stmt != '' )
-    THEN
-        IF ( alter_msg != '' )
-        THEN
-            RAISE NOTICE 'ALTER TABLE % : %', table_name, alter_msg;
-        END IF;
+    /* Execute the action statements we've queued */
+    total_actions = cardinality(action_stmts);
+    LOOP
+        EXIT WHEN action_ix > total_actions;
 
-        EXECUTE alter_stmt;
-    END IF;
+        RAISE INFO '%', messages[action_ix];
+        EXECUTE action_stmts[action_ix];
 
-    IF ( action_stmt != '' )
-    THEN
-        IF ( action_msg != '' )
-        THEN
-            RAISE NOTICE 'ALTER TABLE % : %', table_name, action_msg;
-        END IF;
-
-        EXECUTE action_stmt;
-    END IF;
+        action_ix = action_ix + 1;
+    END LOOP;
 
     RETURN NULL;
 END;

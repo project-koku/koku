@@ -21,7 +21,7 @@ from datetime import datetime
 from tenant_schemas.utils import schema_context
 
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
-from masu.database.koku_database_access import mini_transaction_delete
+
 
 LOG = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ class AWSReportDBCleaner:
 
                     if not simulate:
                         lineitem_query = accessor.get_lineitem_query_for_billid(bill_id)
-                        del_count, remainder = mini_transaction_delete(lineitem_query)
+                        del_count = lineitem_query.delete()
                         LOG.info("Removing %s cost entry line items for bill id %s", del_count, bill_id)
 
                     LOG.info(
@@ -102,6 +102,16 @@ class AWSReportDBCleaner:
 
         """
         LOG.info("Calling purge_expired_report_data for aws")
+
+        if provider_uuid is not None:
+            return self.purge_expired_report_data_by_provider_id(
+                expired_date=expired_date, provider_uuid=provider_uuid, simulate=simulate
+            )
+        else:
+            return self.purge_expired_report_data_by_date(expired_date=expired_date, simulate=simulate)
+
+    def purge_expired_report_data_by_provider_id(self, expired_date=None, provider_uuid=None, simulate=False):
+        LOG.info(f"Purging report data by provider uuid {provider_uuid}")
 
         with AWSReportDBAccessor(self._schema) as accessor:
             if (expired_date is None and provider_uuid is None) or (  # noqa: W504
@@ -156,3 +166,6 @@ class AWSReportDBCleaner:
                     bill_objects.delete()
 
         return removed_items
+
+    def purge_expired_report_data_by_date(self, expired_date=None, simulate=False):
+        pass

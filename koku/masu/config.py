@@ -54,7 +54,7 @@ class Config:
     MASU_DATE_OVERRIDE = ENVIRONMENT.get_value("DATE_OVERRIDE", default=None)
 
     # Retention policy for the number of months of report data to keep.
-    MASU_RETAIN_NUM_MONTHS = ENVIRONMENT.int("RETAIN_NUM_MONTHS", default=3)
+    MASU_RETAIN_NUM_MONTHS = ENVIRONMENT.int("RETAIN_NUM_MONTHS", default=6)
     MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY = ENVIRONMENT.int("RETAIN_NUM_MONTHS", default=1)
 
     # TODO: Remove this if/when reporting model files are owned by masu

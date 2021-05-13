@@ -442,3 +442,12 @@ class ReportDBAccessorBase(KokuDBAccess):
             count, _ = mini_transaction_delete(select_query)
         msg = f"Deleted {count} records from {self.line_item_daily_summary_table}"
         LOG.info(msg)
+
+    def get_partitions_query(self, partitioned_table):
+        return PartitionedTable.objects.filter(partition_of_table_name=partitioned_table)
+
+    def detach_partitions(self, partitions):
+        partitions.update(active=False)
+
+    def drop_partitions(self, partitions):
+        partitions.delete()

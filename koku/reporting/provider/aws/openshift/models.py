@@ -41,6 +41,7 @@ class OCPAWSCostLineItemDailySummary(models.Model):
         """Meta for OCPAWSCostLineItemDailySummary."""
 
         db_table = "reporting_ocpawscostlineitem_daily_summary"
+        managed = False
 
         indexes = [
             models.Index(fields=["usage_start"], name="cost_summary_ocp_usage_idx"),
@@ -132,6 +133,7 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
         """Meta for OCPAWSCostLineItemProjectDailySummary."""
 
         db_table = "reporting_ocpawscostlineitem_project_daily_summary"
+        managed = False
 
         indexes = [
             models.Index(fields=["usage_start"], name="cost_proj_sum_ocp_usage_idx"),
