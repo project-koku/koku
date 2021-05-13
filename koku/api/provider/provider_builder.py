@@ -31,7 +31,6 @@ from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from api.provider.serializers import ProviderSerializer
 from koku.middleware import IdentityHeaderMiddleware
-from sources.config import Config
 
 LOG = logging.getLogger(__name__)
 
@@ -47,7 +46,6 @@ class ProviderBuilder:
 
     def __init__(self, auth_header):
         """Initialize the client."""
-        self._base_url = Config.KOKU_API_URL
         if isinstance(auth_header, dict) and auth_header.get("x-rh-identity"):
             self._identity_header = auth_header
         else:
