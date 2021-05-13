@@ -29,8 +29,8 @@ class Config:
     SOURCES_KAFKA_PORT = CONFIGURATOR.get_kafka_broker_port()
     SOURCES_KAFKA_ADDRESS = f"{SOURCES_KAFKA_HOST}:{SOURCES_KAFKA_PORT}"
 
-    SOURCES_API_HOST = ENVIRONMENT.get_value("SOURCES_API_HOST", default="localhost")
-    SOURCES_API_PORT = ENVIRONMENT.get_value("SOURCES_API_PORT", default="3000")
+    SOURCES_API_HOST = CONFIGURATOR.get_endpoint_host("sources-api", "svc", "localhost")
+    SOURCES_API_PORT = CONFIGURATOR.get_endpoint_port("sources-api", "svc", "3000")
     SOURCES_API_URL = f"http://{SOURCES_API_HOST}:{SOURCES_API_PORT}"
     SOURCES_API_PREFIX = ENVIRONMENT.get_value("SOURCES_API_PREFIX", default="/api/v1.0")
     SOURCES_INTERNAL_API_PREFIX = ENVIRONMENT.get_value("SOURCES_INTERNAL_API_PREFIX", default="/internal/v1.0")

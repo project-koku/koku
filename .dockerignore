@@ -1,0 +1,12 @@
+# Ignore everything
+**
+
+# ... except for dependencies and source
+!Pipfile
+!Pipfile.lock
+!koku/
+!docs/source/specs/
+!.git/
+!.s2i/
+!db_functions/
+!scripts/run_migrations.sh

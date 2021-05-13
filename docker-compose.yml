@@ -5,7 +5,9 @@ services:
       image: koku_base
       build:
         context: .
-        dockerfile: Dockerfile-env
+        dockerfile: Dockerfile
+      environment:
+        - PIPENV_DEV=True
 
   koku-server:
       container_name: koku_server
@@ -32,13 +34,10 @@ services:
         - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
         - REDIS_HOST=${REDIS_HOST-redis}
         - REDIS_PORT=${REDIS_PORT-6379}
-        - MASU_SERVICE_HOST=${MASU_SERVICE_HOST-masu-server}
-        - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
-        - USE_RABBIT=${USE_RABBIT}
+        - USE_RABBIT=${USE_RABBIT-False}
         - RBAC_CACHE_TTL
-        - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
@@ -87,13 +86,10 @@ services:
         - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
         - REDIS_HOST=${REDIS_HOST-redis}
         - REDIS_PORT=${REDIS_PORT-6379}
-        - MASU_SERVICE_HOST=${MASU_SERVICE_HOST-masu-server}
-        - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
         - USE_RABBIT=${USE_RABBIT}
         - RBAC_CACHE_TTL
-        - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
         - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
@@ -244,13 +240,14 @@ services:
         - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
         - USE_RABBIT=${USE_RABBIT}
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
-        - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
         - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
@@ -270,7 +267,6 @@ services:
         - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
         - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
-        - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
         - PRESTO_HOST=${PRESTO_HOST-presto}
         - PRESTO_PORT=${PRESTO_PORT-8080}
         - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
@@ -323,7 +319,8 @@ services:
         - USE_RABBIT=${USE_RABBIT}
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - MASU_SECRET_KEY=abc
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - INSIGHTS_KAFKA_HOST=kafka
         - INSIGHTS_KAFKA_PORT=29092
         - KAFKA_CONNECT=True
@@ -352,11 +349,11 @@ services:
         - '.:/koku'
       links:
         - db
-        - koku-rabbit
+        - redis
       depends_on:
         - koku-base
         - db
-        - koku-rabbit
+        - redis
 
   sources-client:
       container_name: sources_client
@@ -375,8 +372,8 @@ services:
         - KOKU_API_HOST=${KOKU_API_HOST-koku-server}
         - KOKU_API_PORT=${KOKU_API_PORT-8000}
         - KOKU_API_PATH_PREFIX=${KOKU_API_PATH_PREFIX-/api/cost-management/v1}
-        - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
-        - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
+        - SOURCES_API_SVC_HOST=${SOURCES_API_HOST-sources-server}
+        - SOURCES_API_SVC_PORT=${SOURCES_API_PORT-3000}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
         - REDIS_HOST=${REDIS_HOST-redis}
@@ -418,12 +415,13 @@ services:
         - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
         - USE_RABBIT=${USE_RABBIT}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
-        - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - SCHEDULE_REPORT_CHECKS=True
         - SCHEDULE_CHECK_INTERVAL=10000000
@@ -433,10 +431,10 @@ services:
       volumes:
         - '.:/koku'
       links:
-          - koku-rabbit
+          - redis
       depends_on:
           - koku-base
-          - koku-rabbit
+          - redis
 
   pushgateway:
     container_name: koku-pushgateway
