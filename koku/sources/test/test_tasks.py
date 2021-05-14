@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Sources Kafka Listener handler."""
+from unittest.mock import patch
 from uuid import uuid4
 
 from django.db.models.signals import post_save
@@ -23,10 +24,12 @@ from django.test.utils import override_settings
 
 from api.provider.models import Sources
 from koku.middleware import IdentityHeaderMiddleware
+from sources.api.source_status import SourceStatus
 from sources.config import Config
 from sources.kafka_listener import storage_callback
 from sources.tasks import delete_source
 from sources.tasks import delete_source_beat
+from sources.tasks import source_status_beat
 
 
 class SourcesTasksTest(TestCase):
@@ -58,6 +61,7 @@ class SourcesTasksTest(TestCase):
         self.aws_local_source = {
             "source_id": 11,
             "source_uuid": uuid4(),
+            "koku_uuid": uuid4(),
             "name": "ProviderAWS Local",
             "source_type": "AWS-local",
             "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
@@ -98,3 +102,32 @@ class SourcesTasksTest(TestCase):
 
         self.assertEqual(Sources.objects.filter(source_id=source_id_aws).exists(), False)
         self.assertEqual(Sources.objects.filter(source_id=source_id_local).exists(), True)
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    def test_execute_source_status_beat(self):
+        """Test to execute the beat source status."""
+        source_id_local = self.aws_local_source.get("source_id")
+
+        provider = Sources(**self.aws_local_source)
+        provider.save()
+
+        self.assertEqual(Sources.objects.filter(source_id=source_id_local).exists(), True)
+
+        with patch.object(SourceStatus, "push_status") as mock_push:
+            source_status_beat()
+            mock_push.assert_called()
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    def test_execute_source_status_beat_missing(self):
+        """Test to execute the beat source status when a source is missing."""
+        source_id_local = self.aws_local_source.get("source_id")
+
+        provider = Sources(**self.aws_local_source)
+        provider.save()
+        provider.delete()
+
+        self.assertEqual(Sources.objects.filter(source_id=source_id_local).exists(), False)
+
+        with patch.object(SourceStatus, "push_status") as mock_push:
+            source_status_beat()
+            mock_push.assert_not_called()
