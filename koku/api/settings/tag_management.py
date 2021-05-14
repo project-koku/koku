@@ -142,16 +142,10 @@ class TagManagementSettings:
             available, enabled = self._obtain_tag_keys(tag_view, query_handler, enabled_tag_keys)
             avail_objs.append(
                 {
-                    "id": providerName,
                     "label": obtainTagKeysProvidersParams[providerName]["title"],
                     "hasBadge": "true",
                     "children": [
-                        {
-                            "id": "".join([providerName, "-", tag_key]),
-                            "value": "".join([providerName, "-", tag_key]),
-                            "label": tag_key,
-                        }
-                        for tag_key in available
+                        {"value": "".join([providerName, "-", tag_key]), "label": tag_key} for tag_key in available
                     ],
                 }
             )
