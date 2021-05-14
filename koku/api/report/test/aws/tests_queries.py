@@ -1834,22 +1834,23 @@ class AWSReportQueryTest(IamTestCase):
             self.assertEqual(account_alias, alias_order[i])
 
     def test_limit_offset_order_by_group_by_ranks(self):
-        """Test execute_query with limit/offset/order_by for aws cost."""
+        """Test execute_query with limit/offset/order_by for aws region."""
         # execute query
-        url = "?filter[limit]=2&filter[offset]=0&group_by[account]=*&order_by[cost]=asc"  # noqa: E501
+        url = "?filter[limit]=2&filter[offset]=0&group_by[region]=*&order_by[region]=asc"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
         # test query output
-        actual = OrderedDict()
+        actual = []
         for datum in data:
-            for account in datum.get("accounts"):
+            for account in datum.get("regions"):
                 for value in account.get("values"):
-                    actual[value.get("account_alias")] = value.get("account")
-        cost_order = ["Test Account", "account 004"]
-        for i, (account_alias, account_id) in enumerate(actual.items()):
-            self.assertEqual(account_alias, cost_order[i])
+                    if value.get("region") not in actual:
+                        actual.append(value.get("region"))
+        region_order = ["af-south-1", "ap-east-1"]
+        for i, region in enumerate(actual):
+            self.assertEqual(region, region_order[i])
 
 
 class AWSReportQueryLogicalAndTest(IamTestCase):
