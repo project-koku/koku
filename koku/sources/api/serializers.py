@@ -16,11 +16,7 @@
 #
 """Sources Model Serializers."""
 import logging
-from socket import gaierror
 from uuid import uuid4
-from xmlrpc.client import Fault
-from xmlrpc.client import ProtocolError
-from xmlrpc.client import ServerProxy
 
 from django.db import transaction
 from rest_framework import serializers
@@ -30,14 +26,9 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
-from koku.settings import SOURCES_CLIENT_BASE_URL
 from providers.provider_errors import SkipStatusPush
 from sources.api import get_account_from_header
 from sources.api import get_auth_header
-from sources.storage import _update_authentication
-from sources.storage import _update_billing_source
-from sources.storage import get_source_instance
-from sources.storage import SourcesStorageError
 
 
 LOG = logging.getLogger(__name__)
@@ -92,27 +83,6 @@ class SourcesSerializer(serializers.ModelSerializer):
         """Get the source_uuid."""
         return obj.source_uuid
 
-    def update(self, instance, validated_data):
-        """Update a Provider instance from validated data."""
-        billing_source = validated_data.get("billing_source")
-        authentication = validated_data.get("authentication")
-
-        try:
-            with ServerProxy(SOURCES_CLIENT_BASE_URL) as sources_client:
-                if billing_source:
-                    billing_source = _update_billing_source(instance, billing_source)
-                    sources_client.update_billing_source(instance.source_id, billing_source)
-                if authentication:
-                    authentication = _update_authentication(instance, authentication)
-                    sources_client.update_authentication(instance.source_id, authentication)
-        except Fault as error:
-            LOG.error(f"Sources update error: {error}")
-            raise SourcesStorageError(str(error))
-        except (ConnectionRefusedError, gaierror, ProtocolError) as error:
-            LOG.error(f"Sources update dependency error: {error}")
-            raise SourcesDependencyError(f"Sources-client: {error}")
-        return get_source_instance(instance.source_id)
-
 
 class AdminSourcesSerializer(SourcesSerializer):
     """Source serializer specific to administration."""
@@ -130,19 +100,17 @@ class AdminSourcesSerializer(SourcesSerializer):
 
     def _validate_source_id(self, source_id):
         sources_set = Sources.objects.all()
-        if sources_set:
-            ordered_id = Sources.objects.all().order_by("-source_id").first().source_id
-            return ordered_id + 1
-        else:
+        if not sources_set:
             return 1
+        ordered_id = Sources.objects.all().order_by("-source_id").first().source_id
+        return ordered_id + 1
 
     def _validate_offset(self, offset):
         sources_set = Sources.objects.all()
-        if sources_set:
-            ordered_offset = Sources.objects.all().order_by("-offset").first().offset
-            return ordered_offset + 1
-        else:
+        if not sources_set:
             return 1
+        ordered_offset = Sources.objects.all().order_by("-offset").first().offset
+        return ordered_offset + 1
 
     def _validate_account_id(self, account_id):
         return get_account_from_header(self.context.get("request"))
