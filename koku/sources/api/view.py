@@ -76,14 +76,12 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
 
 
 LOG = logging.getLogger(__name__)
-MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet]
-HTTP_METHOD_LIST = ["get", "head", "patch"]
+MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet]
+HTTP_METHOD_LIST = ["get", "head"]
 
 if settings.DEVELOPMENT:
-    MIXIN_LIST.append(mixins.CreateModelMixin)
-    MIXIN_LIST.append(DestroySourceMixin)
-    HTTP_METHOD_LIST.append("post")
-    HTTP_METHOD_LIST.append("delete")
+    MIXIN_LIST.extend([mixins.CreateModelMixin, mixins.UpdateModelMixin, DestroySourceMixin])
+    HTTP_METHOD_LIST.extend(["post", "patch", "delete"])
 
 
 class SourceFilter(FilterSet):
@@ -133,7 +131,7 @@ class SourcesViewSet(*MIXIN_LIST):
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on the method."""
-        if self.request.method in (permissions.SAFE_METHODS, "PATCH"):
+        if self.request.method in permissions.SAFE_METHODS:
             return SourcesSerializer
         else:
             return AdminSourcesSerializer
@@ -267,7 +265,7 @@ class SourcesViewSet(*MIXIN_LIST):
             response.data["provider_linked"] = True
             response.data["active"] = manager.get_active_status()
             response.data["current_month_data"] = manager.get_current_month_data_exists()
-            response.data["prevous_month_data"] = manager.get_previous_month_data_exists()
+            response.data["previous_month_data"] = manager.get_previous_month_data_exists()
             response.data["has_data"] = manager.get_any_data_exists()
 
             response.data["infrastructure"] = manager.get_infrastructure_name()

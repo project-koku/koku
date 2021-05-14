@@ -18,11 +18,11 @@
 import logging
 from unittest.mock import patch
 
-from django.test import TestCase
 from faker import Faker
 from rest_framework.exceptions import ValidationError
 
 from api.iam.models import Tenant
+from api.iam.test.iam_test_case import IamTestCase
 from api.models import Provider
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_builder import ProviderBuilderError
@@ -43,7 +43,7 @@ class MockSourceObject:
         self.koku_uuid = uuid
 
 
-class ProviderBuilderTest(TestCase):
+class ProviderBuilderTest(IamTestCase):
     """Test cases for ProviderBuilder."""
 
     @classmethod

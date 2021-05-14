@@ -43,7 +43,8 @@ services:
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
         - DEMO_ACCOUNTS
         - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
-        - RUN_GUNICORN=${RUN_GUNICORN-False}
+        - RUN_GUNICORN=${RUN_GUNICORN}
+        - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
         - GUNICORN_THREADS=${GUNICORN_THREADS-False}
         - ENABLE_TRINO_SOURCES
         - ENABLE_TRINO_ACCOUNTS
@@ -99,9 +100,9 @@ services:
         - ENABLE_TRINO_SOURCES
         - ENABLE_TRINO_ACCOUNTS
         - ENABLE_TRINO_SOURCE_TYPE
-        - RUN_GUNICORN=${RUN_GUNICORN-False}
+        - RUN_GUNICORN=${RUN_GUNICORN}
+        - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
         - GUNICORN_THREADS=${GUNICORN_THREADS-False}
-
       privileged: true
       ports:
           - 5000:8000
@@ -360,8 +361,7 @@ services:
       image: koku_base
       restart: on-failure:25
       working_dir: /koku/
-      entrypoint:
-        - /koku/run_sources.sh
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', /koku/run_sources.sh]
       environment:
         - DATABASE_SERVICE_NAME=POSTGRES_SQL
         - DATABASE_ENGINE=postgresql
@@ -386,7 +386,8 @@ services:
         - DEMO_ACCOUNTS
         - prometheus_multiproc_dir=/tmp
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
-        - RUN_GUNICORN=${RUN_GUNICORN-False}
+        - RUN_GUNICORN=${RUN_GUNICORN}
+        - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
         - GUNICORN_THREADS=${GUNICORN_THREADS-False}
       privileged: true
       ports:
