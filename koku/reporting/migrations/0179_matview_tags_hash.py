@@ -24,3 +24,10 @@ def add_views(apps, schema_editor):
         LOG.info(f"""Creating materialized view "{view}"...""")
         with connection.cursor() as cursor:
             cursor.execute(view_sql)
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [("reporting", "0178_auto_20210511_1851")]
+
+    operations = [migrations.RunPython(add_views)]

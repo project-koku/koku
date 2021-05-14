@@ -119,7 +119,7 @@ WITH DATA
 
 CREATE UNIQUE INDEX ocpall_cost_daily_summary ON reporting_ocpallcostlineitem_daily_summary (
    source_type, cluster_id, node, resource_id, usage_start, usage_account_id, product_code,
-   product_family, instance_type, region, availability_zone, tags_hash)
+   product_family, instance_type, region, availability_zone, tags_hash
 );
 
 CREATE INDEX ocpall_product_code_ilike ON reporting_ocpallcostlineitem_daily_summary USING gin (upper((product_code)::text) gin_trgm_ops);
