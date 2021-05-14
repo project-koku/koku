@@ -96,6 +96,9 @@ class ProviderErrors:
     AZURE_INCORRECT_CLIENT_ID_MESSAGE = (
         "The client ID was entered incorrectly for this source. Edit your Azure source and verify the client ID."
     )
+    AZURE_INCORRECT_TENANT_ID_MESSAGE = (
+        "The tenant ID was entered incorrectly for this source. Edit your Azure source and verify the tenant ID."
+    )
     AZURE_INCORRECT_RESOURCE_GROUP_MESSAGE = (
         "The resource group was entered incorrectly for this source. "
         "Edit your Azure source and verify the resource group."
