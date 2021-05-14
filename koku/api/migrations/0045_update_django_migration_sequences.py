@@ -4,7 +4,7 @@ import logging
 from django.db import migrations
 
 
-LOG = logging.getLogger("update_sequences")
+LOG = logging.getLogger(__name__)
 
 
 def update_sequences(apps, schema_editor):
