@@ -1834,23 +1834,36 @@ class AWSReportQueryTest(IamTestCase):
             self.assertEqual(account_alias, alias_order[i])
 
     def test_limit_offset_order_by_group_by_ranks(self):
-        """Test execute_query with limit/offset/order_by for aws region."""
+        """Test execute_query with limit/offset/order_by for aws cost."""
         # execute query
-        url = "?filter[limit]=2&filter[offset]=0&group_by[region]=*&order_by[region]=asc"  # noqa: E501
+        url = "?filter[limit]=2&filter[offset]=0&group_by[account]=*&order_by[cost]=asc"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
         # test query output
         actual = []
+        expected = {}
+        for acc in self.accounts:
+            with tenant_context(self.tenant):
+                expected[acc] = (
+                    AWSCostEntryLineItemDailySummary.objects.filter(usage_account_id=acc)
+                    .aggregate(
+                        cost=Sum(
+                            Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                            + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                        )
+                    )
+                    .get("cost")
+                )
+        expected = dict(sorted(expected.items(), key=lambda x: x[1])[:2])
         for datum in data:
-            for account in datum.get("regions"):
+            for account in datum.get("accounts"):
                 for value in account.get("values"):
-                    if value.get("region") not in actual:
-                        actual.append(value.get("region"))
-        region_order = ["af-south-1", "ap-east-1"]
-        for i, region in enumerate(actual):
-            self.assertEqual(region, region_order[i])
+                    if value.get("account") not in actual:
+                        actual.append(value.get("account"))
+        for acc in actual:
+            self.assertTrue(acc in expected)
 
 
 class AWSReportQueryLogicalAndTest(IamTestCase):

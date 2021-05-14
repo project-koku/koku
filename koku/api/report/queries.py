@@ -740,7 +740,7 @@ class ReportQueryHandler(QueryHandler):
         elif self._limit and "offset" in self.parameters.get("filter", {}) and self.parameters.get("order_by"):
             if self.report_annotations.get(self.order_field):
                 rank_annotations = {self.order_field: self.report_annotations.get(self.order_field)}
-            # AWS is special and account alias is in a FK field so special_rank was annotated on the query
+            # AWS is special and account alias is a foreign key field so special_rank was annotated on the query
             if self.order_field == "account_alias":
                 rank_orders.append(getattr(F("special_rank"), self.order_direction)())
             else:
