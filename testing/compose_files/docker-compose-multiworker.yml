@@ -33,10 +33,7 @@ services:
         - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
         - REDIS_HOST=${REDIS_HOST-redis}
         - REDIS_PORT=${REDIS_PORT-6379}
-        - MASU_SERVICE_HOST=${MASU_SERVICE_HOST-masu-server}
-        - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
         - RBAC_CACHE_TTL
-        - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
@@ -83,10 +80,7 @@ services:
         - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
         - REDIS_HOST=${REDIS_HOST-redis}
         - REDIS_PORT=${REDIS_PORT-6379}
-        - MASU_SERVICE_HOST=${MASU_SERVICE_HOST-masu-server}
-        - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
         - RBAC_CACHE_TTL
-        - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
         - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
@@ -176,7 +170,6 @@ services:
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
-        - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
         - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
@@ -229,7 +222,6 @@ services:
         - DATABASE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - MASU_SECRET_KEY=abc
         - INSIGHTS_KAFKA_HOST=kafka
         - INSIGHTS_KAFKA_PORT=29092
         - KAFKA_CONNECT=True
@@ -320,7 +312,6 @@ services:
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
-        - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
         - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
@@ -378,7 +369,6 @@ services:
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
-        - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
         - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
@@ -451,7 +441,6 @@ services:
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
-        - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
         - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
@@ -509,7 +498,6 @@ services:
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
-        - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
         - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
@@ -567,7 +555,6 @@ services:
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
-        - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
         - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
@@ -626,7 +613,6 @@ services:
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
-        - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
         - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
