@@ -50,13 +50,14 @@ select setval(%s, %s);
                 template_rec = rec
                 break
 
-        LOG.info("Getting last value from the template django_migrations sequence...")
-        cur.execute(template_seq_last_val_sql.format(template_rec["namesp"], template_rec["seqname"]))
-        new_sequence_val = cur.fetchone()[0]
+        if template_rec is not None:
+            LOG.info("Getting last value from the template django_migrations sequence...")
+            cur.execute(template_seq_last_val_sql.format(template_rec["namesp"], template_rec["seqname"]))
+            new_sequence_val = cur.fetchone()[0]
 
-        for rec in res:
-            LOG.info(f"Setting sequence {rec['namesp']}.{rec['seqname']} value to {new_sequence_val}")
-            cur.execute(update_sequence_sql, (rec["seqoid"], new_sequence_val))
+            for rec in res:
+                LOG.info(f"Setting sequence {rec['namesp']}.{rec['seqname']} value to {new_sequence_val}")
+                cur.execute(update_sequence_sql, (rec["seqoid"], new_sequence_val))
 
 
 class Migration(migrations.Migration):
