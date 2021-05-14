@@ -122,6 +122,8 @@ class OCPAllCostLineItemDailySummary(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
+    tags_hash = models.TextField(max_length=512)
+
 
 # Materialized Views for UI Reporting
 class OCPAllCostSummary(models.Model):
