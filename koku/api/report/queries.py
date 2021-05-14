@@ -33,7 +33,7 @@ from django.db.models import Q
 from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
-from django.db.models.functions import DenseRank
+from django.db.models.functions import Rank
 
 from api.models import Provider
 from api.query_filter import QueryFilter
@@ -721,7 +721,7 @@ class ReportQueryHandler(QueryHandler):
             rank_value = f"no-{group_by_value[0]}"
         return rank_value
 
-    def _group_by_ranks(self, query, data):
+    def _group_by_ranks(self, query, data):  # noqa: C901
         """Handle grouping data by filter limit."""
         group_by_value = self._get_group_by()
         gb = group_by_value if group_by_value else ["date"]
@@ -740,7 +740,11 @@ class ReportQueryHandler(QueryHandler):
         elif self._limit and "offset" in self.parameters.get("filter", {}) and self.parameters.get("order_by"):
             if self.report_annotations.get(self.order_field):
                 rank_annotations = {self.order_field: self.report_annotations.get(self.order_field)}
-            rank_orders.append(getattr(F(self.order_field), self.order_direction)())
+            # AWS is special and account alias is in a FK field so special_rank was annotated on the query
+            if self.order_field == "account_alias":
+                rank_orders.append(getattr(F("special_rank"), self.order_direction)())
+            else:
+                rank_orders.append(getattr(F(self.order_field), self.order_direction)())
         else:
             for key, val in self.default_ordering.items():
                 order_field, order_direction = key, val
@@ -752,7 +756,7 @@ class ReportQueryHandler(QueryHandler):
 
         # this is a sub-query, but not really.
         # in the future, this could be accomplished using CTEs.
-        rank_by_total = Window(expression=DenseRank(), order_by=rank_orders)
+        rank_by_total = Window(expression=Rank(), order_by=rank_orders)
         if rank_annotations:
             ranks = (
                 query.annotate(**self.annotations)
@@ -767,7 +771,8 @@ class ReportQueryHandler(QueryHandler):
         for rank in ranks:
             rank_value = rank.get(group_by_value[0])
             rank_value = self.check_missing_rank_value(rank_value)
-            rankings.append(rank_value)
+            if rank_value not in rankings:
+                rankings.append(rank_value)
 
         for query_return in data:
             query_return = self._apply_group_null_label(query_return, gb)
