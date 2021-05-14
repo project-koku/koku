@@ -22,7 +22,7 @@ from .env import ENVIRONMENT
 
 CLOWDER_ENABLED = ENVIRONMENT.bool("CLOWDER_ENABLED", default=False)
 if CLOWDER_ENABLED:
-    from app_common_python import LoadedConfig, KafkaTopics
+    from app_common_python import LoadedConfig, KafkaTopics, DependencyEndpoints
 
 
 class Configurator:
@@ -153,6 +153,16 @@ class Configurator:
         """Obtain metrics path."""
         pass
 
+    @staticmethod
+    def get_endpoint_host(app, name, default):
+        """Obtain endpoint hostname."""
+        pass
+
+    @staticmethod
+    def get_endpoint_port(app, name, default):
+        """Obtain endpoint port."""
+        pass
+
 
 class EnvConfigurator(Configurator):
     """Returns information based on the environment data"""
@@ -278,6 +288,18 @@ class EnvConfigurator(Configurator):
     def get_metrics_path():
         """Obtain metrics path."""
         return "/metrics"
+
+    @staticmethod
+    def get_endpoint_host(app, name, default):
+        """Obtain endpoint hostname."""
+        svc = "_".join((app, name, "HOST")).replace("-", "_").upper()
+        return ENVIRONMENT.get_value(svc, default=default)
+
+    @staticmethod
+    def get_endpoint_port(app, name, default):
+        """Obtain endpoint port."""
+        svc = "_".join((app, name, "PORT")).replace("-", "_").upper()
+        return ENVIRONMENT.get_value(svc, default=default)
 
 
 class ClowderConfigurator(Configurator):
@@ -418,6 +440,26 @@ class ClowderConfigurator(Configurator):
     def get_metrics_path():
         """Obtain metrics path."""
         return LoadedConfig.metricsPath
+
+    @staticmethod
+    def get_endpoint_host(app, name, default):
+        """Obtain endpoint hostname."""
+        endpoint = DependencyEndpoints.get(app, {}).get(name)
+        if endpoint:
+            return endpoint.hostname
+        # if the endpoint is not defined by clowder, fall back to env variable
+        svc = "_".join((app, name, "HOST")).replace("-", "_").upper()
+        return ENVIRONMENT.get_value(svc, default=default)
+
+    @staticmethod
+    def get_endpoint_port(app, name, default):
+        """Obtain endpoint port."""
+        endpoint = DependencyEndpoints.get(app, {}).get(name)
+        if endpoint:
+            return endpoint.port
+        # if the endpoint is not defined by clowder, fall back to env variable
+        svc = "_".join((app, name, "PORT")).replace("-", "_").upper()
+        return ENVIRONMENT.get_value(svc, default=default)
 
 
 class ConfigFactory:

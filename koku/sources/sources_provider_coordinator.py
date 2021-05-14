@@ -22,7 +22,6 @@ from rest_framework.exceptions import ValidationError
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_builder import ProviderBuilderError
 from sources.storage import add_provider_koku_uuid
-from sources.storage import clear_update_flag
 from sources.storage import destroy_source_event
 
 LOG = logging.getLogger(__name__)
@@ -59,7 +58,6 @@ class SourcesProviderCoordinator:
         try:
             LOG.info(f"Updating Provider for Source ID: {str(self._source_id)}")
             provider = self._provider_builder.update_provider_from_source(source)
-            clear_update_flag(self._source_id)
         except ProviderBuilderError as provider_err:
             raise SourcesProviderCoordinatorError(str(provider_err))
         return provider

@@ -51,11 +51,12 @@ class SourcesErrorMessageTest(TestCase):
             },
         ]
         for test in test_matrix:
-            key = test.get("key")
-            message = test.get("internal_message")
-            error = ValidationError(error_obj(key, message))
-            message_obj = SourcesErrorMessage(error)
-            self.assertEquals(message_obj.display(source_id=1), test.get("expected_message"))
+            with self.subTest(test=test):
+                key = test.get("key")
+                message = test.get("internal_message")
+                error = ValidationError(error_obj(key, message))
+                message_obj = SourcesErrorMessage(error)
+                self.assertEquals(message_obj.display(source_id=1), test.get("expected_message"))
 
     def test_azure_errors(self):
         """Test Azure error types."""
@@ -67,7 +68,18 @@ class SourcesErrorMessageTest(TestCase):
             },
             {
                 "key": ProviderErrors.AZURE_CLIENT_ERROR,
-                "internal_message": ", AdalError: Get Token request returned http error: 400 and server response:",
+                "internal_message": (
+                    ", AdalError: Get Token request returned http error: 400 and server response:"
+                    ' {"error":"invalid_request","error_description":"AADSTS90002: Tenant'
+                ),
+                "expected_message": ProviderErrors.AZURE_INCORRECT_TENANT_ID_MESSAGE,
+            },
+            {
+                "key": ProviderErrors.AZURE_CLIENT_ERROR,
+                "internal_message": (
+                    ", AdalError: Get Token request returned http error: 400 and server response:"
+                    ' {"error":"unauthorized_client","error_description":"AADSTS700016:'
+                ),
                 "expected_message": ProviderErrors.AZURE_INCORRECT_CLIENT_ID_MESSAGE,
             },
             {
@@ -102,11 +114,12 @@ class SourcesErrorMessageTest(TestCase):
             },
         ]
         for test in test_matrix:
-            key = test.get("key")
-            message = test.get("internal_message")
-            error = ValidationError(error_obj(key, message))
-            message_obj = SourcesErrorMessage(error)
-            self.assertEquals(message_obj.display(source_id=1), test.get("expected_message"))
+            with self.subTest(test=test):
+                key = test.get("key")
+                message = test.get("internal_message")
+                error = ValidationError(error_obj(key, message))
+                message_obj = SourcesErrorMessage(error)
+                self.assertEquals(message_obj.display(source_id=1), test.get("expected_message"))
 
     def test_general_string_error(self):
         """Test general string error fallback."""

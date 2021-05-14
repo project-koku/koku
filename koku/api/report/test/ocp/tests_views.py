@@ -1160,7 +1160,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
-        url = "?filter[type]=pod&filter[enabled]=false"
+        url = "?filter[type]=pod&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
@@ -1656,7 +1656,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_and_tag_filter(self):
         """Test the filter[and:tag:] param in the view."""
-        url = "?filter[type]=pod&filter[time_scope_value]=-1&filter[enabled]=false"
+        url = "?filter[type]=pod&filter[time_scope_value]=-1&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
@@ -1689,7 +1689,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_and_tag_group_by(self):
         """Test the group_by[and:tag:] param in the view."""
-        url = "?filter[type]=pod&filter[time_scope_value]=-1&filter[enabled]=false"
+        url = "?filter[type]=pod&filter[time_scope_value]=-1&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()

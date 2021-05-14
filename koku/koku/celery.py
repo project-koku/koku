@@ -127,7 +127,7 @@ app.conf.beat_schedule["source_status_beat"] = {
 }
 
 # Collect prometheus metrics.
-# app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(minute="*/15")}
+app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(hour=1, minute=0)}
 
 
 # optionally specify the weekday and time you would like the clean volume task to run
@@ -156,9 +156,6 @@ app.conf.beat_schedule["remove_stale_tenants"] = {
 
 # Celery timeout if broker is unavaiable to avoid blocking indefintely
 app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "interval_step": 0.5, "interval_max": 3}
-
-# Specify task routes
-app.conf.task_routes = {"sources.tasks.*": {"queue": "sources"}}
 
 app.autodiscover_tasks()
 
