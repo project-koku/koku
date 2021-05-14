@@ -1,0 +1,62 @@
+{
+    "AUD": {
+        "name": "Australian Dollar",
+        "symbol": "AU$"
+    },
+    "CAD": {
+        "name": "Canadian Dollar",
+        "symbol": "C$"
+    },
+    "CHF": {
+        "name": "Swiss Franc",
+        "symbol": "CHF"
+    },
+    "CNY": {
+        "name": "Chinese Yuan",
+        "symbol": "CN¥"
+    },
+    "DKK": {
+        "name": "Danish Krone",
+        "symbol": "Dkr"
+    },
+    "EUR": {
+        "name": "Euro",
+        "symbol": "€"
+    },
+    "GBP": {
+        "name": "British Pound",
+        "symbol": "£"
+    },
+    "HKD": {
+        "name": "Hong Kong Dollar",
+        "symbol": "HK$"
+    },
+    "JPY": {
+        "name": "Japanese Yen",
+        "symbol": "¥"
+    },
+    "NOK": {
+        "name": "Norwegian Krone",
+        "symbol": "Nkr"
+    },
+    "NZD": {
+        "name": "New Zealand Dollar",
+        "symbol": "NZ$"
+    },
+    "SEK": {
+        "name": "Swedish Krona",
+        "symbol": "Skr"
+    },
+    "SGD": {
+        "name": "Singapore Dollar",
+        "symbol": "S$"
+    },
+    "USD": {
+        "name": "United States Dollar",
+        "symbol": "$"
+    },
+    "ZAR": {
+        "name": "South African Rand",
+        "symbol": "R"
+    }
+}
