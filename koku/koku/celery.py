@@ -93,22 +93,13 @@ VACUUM_DATA_DAY_OF_WEEK = ENVIRONMENT.get_value("VACUUM_DATA_DAY_OF_WEEK", defau
 VACUUM_DATA_UTC_TIME = ENVIRONMENT.get_value("VACUUM_DATA_UTC_TIME", default="00:00")
 VACUUM_HOUR, VACUUM_MINUTE = VACUUM_DATA_UTC_TIME.split(":")
 
-# Set the autovacuum-tuning task 1 hour prior to the main vacuum task
 av_hour = int(VACUUM_HOUR)
-av_hour = 23 if av_hour == 0 else (av_hour - 1)
 
 if VACUUM_DATA_DAY_OF_WEEK:
-    schedule = crontab(day_of_week=VACUUM_DATA_DAY_OF_WEEK, hour=int(VACUUM_HOUR), minute=int(VACUUM_MINUTE))
     autovacuum_schedule = crontab(day_of_week=VACUUM_DATA_DAY_OF_WEEK, hour=av_hour, minute=int(VACUUM_MINUTE))
 else:
-    schedule = crontab(hour=int(VACUUM_HOUR), minute=int(VACUUM_MINUTE))
     autovacuum_schedule = crontab(hour=av_hour, minute=int(VACUUM_MINUTE))
 
-app.conf.beat_schedule["vacuum-schemas"] = {
-    "task": "masu.celery.tasks.vacuum_schemas",
-    "schedule": schedule,
-    "args": [],
-}
 
 # This will automatically tune the tables (if needed) based on the number of live tuples
 # Based on the latest statistics analysis run
@@ -136,7 +127,7 @@ app.conf.beat_schedule["source_status_beat"] = {
 }
 
 # Collect prometheus metrics.
-app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(minute="*/15")}
+app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(hour=1, minute=0)}
 
 
 # optionally specify the weekday and time you would like the clean volume task to run
@@ -165,9 +156,6 @@ app.conf.beat_schedule["remove_stale_tenants"] = {
 
 # Celery timeout if broker is unavaiable to avoid blocking indefintely
 app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "interval_step": 0.5, "interval_max": 3}
-
-# Specify task routes
-app.conf.task_routes = {"sources.tasks.*": {"queue": "sources"}}
 
 app.autodiscover_tasks()
 

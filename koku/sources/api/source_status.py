@@ -103,10 +103,11 @@ class SourceStatus:
             status_obj = self.status()
             if self.source.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
                 builder = SourcesProviderCoordinator(self.source.source_id, self.source.auth_header)
-                if self.source.koku_uuid:
-                    builder.update_account(self.source)
-                elif self.source.billing_source.get("data_source", {}).get("table_id"):
-                    builder.create_account(self.source)
+                if not status_obj:
+                    if self.source.koku_uuid:
+                        builder.update_account(self.source)
+                    elif self.source.billing_source.get("data_source", {}).get("table_id"):
+                        builder.create_account(self.source)
             self.sources_client.set_source_status(status_obj)
             self.update_source_name()
             LOG.info(f"Source status for Source ID: {str(self.source_id)}: Status: {str(status_obj)}")
@@ -156,6 +157,8 @@ def source_status(request):
                         'availability_status_error': ValidationError-detail}
 
     """
+    LOG.info(f"{{'method': {request.method}, 'path': {request.path}, 'body': {request.data}}}")
+
     source_id = _get_source_id_from_request(request)
 
     if source_id is None:

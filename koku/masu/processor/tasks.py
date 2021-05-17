@@ -64,6 +64,7 @@ from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 
 LOG = logging.getLogger(__name__)
 
+DEFAULT = "celery"
 GET_REPORT_FILES_QUEUE = "download"
 OCP_QUEUE = "ocp"
 PRIORITY_QUEUE = "priority"
@@ -76,6 +77,7 @@ VACUUM_SCHEMA_QUEUE = "summary"
 
 # any additional queues should be added to this list
 QUEUE_LIST = [
+    DEFAULT,
     GET_REPORT_FILES_QUEUE,
     OCP_QUEUE,
     PRIORITY_QUEUE,
@@ -241,7 +243,7 @@ def get_report_files(
         WorkerCache().remove_task_from_cache(cache_key)
 
 
-@celery_app.task(name="masu.processor.tasks.remove_expired_data", queue=REMOVE_EXPIRED_DATA_QUEUE)
+@celery_app.task(name="masu.processor.tasks.remove_expired_data", queue=DEFAULT)
 def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, line_items_only=False, queue_name=None):
     """
     Remove expired report data.
@@ -602,7 +604,7 @@ def refresh_materialized_views(  # noqa: C901
         worker_cache.release_single_task(task_name, cache_args)
 
 
-@celery_app.task(name="masu.processor.tasks.vacuum_schema", queue=VACUUM_SCHEMA_QUEUE)
+@celery_app.task(name="masu.processor.tasks.vacuum_schema", queue=DEFAULT)
 def vacuum_schema(schema_name):
     """Vacuum the reporting tables in the specified schema."""
     table_sql = """
@@ -644,7 +646,7 @@ def normalize_table_options(table_options):
 # At this time, no table parameter will be lowered past the known production engine
 # setting of 0.2 by default. However this function's settings can be overridden via the
 # AUTOVACUUM_TUNING environment variable. See below.
-@celery_app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name=VACUUM_SCHEMA_QUEUE)
+@celery_app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name=DEFAULT)
 def autovacuum_tune_schema(schema_name):  # noqa: C901
     """Set the autovacuum table settings based on table size for the specified schema."""
     table_sql = """
@@ -741,7 +743,7 @@ SELECT s.relname as "table_name",
     LOG.info(f"Altered autovacuum_vacuum_scale_factor on {alter_count} tables")
 
 
-@celery_app.task(name="masu.processor.tasks.remove_stale_tenants", queue=VACUUM_SCHEMA_QUEUE)
+@celery_app.task(name="masu.processor.tasks.remove_stale_tenants", queue=DEFAULT)
 def remove_stale_tenants():
     """ Remove stale tenants from the tenant api """
     table_sql = """

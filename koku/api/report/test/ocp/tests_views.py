@@ -477,6 +477,25 @@ class OCPReportViewTest(IamTestCase):
                 ).get("value")
                 self.assertEqual(usage_total, totals.get(date))
 
+    def test_execute_query_ocp_memory_group_by_limit_large(self):
+        """Test that OCP Mem endpoint works with limits."""
+        url = reverse("reports-openshift-memory")
+        client = APIClient()
+        params = {
+            "group_by[node]": "*",
+            "filter[limit]": "1000",
+            "filter[time_scope_value]": "-10",
+            "filter[time_scope_units]": "day",
+            "filter[resolution]": "daily",
+        }
+        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        data = response.data
+
+        # assert the others count is correct
+        meta = data.get("meta")
+        self.assertEqual(meta.get("others"), 0)
+
     def test_execute_query_ocp_costs_group_by_cluster(self):
         """Test that the costs endpoint is reachable."""
         url = reverse("reports-openshift-costs")
@@ -1141,7 +1160,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
-        url = "?filter[type]=pod&filter[enabled]=false"
+        url = "?filter[type]=pod&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
@@ -1637,7 +1656,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_and_tag_filter(self):
         """Test the filter[and:tag:] param in the view."""
-        url = "?filter[type]=pod&filter[time_scope_value]=-1&filter[enabled]=false"
+        url = "?filter[type]=pod&filter[time_scope_value]=-1&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
@@ -1670,7 +1689,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_and_tag_group_by(self):
         """Test the group_by[and:tag:] param in the view."""
-        url = "?filter[type]=pod&filter[time_scope_value]=-1&filter[enabled]=false"
+        url = "?filter[type]=pod&filter[time_scope_value]=-1&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()

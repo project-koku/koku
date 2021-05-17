@@ -37,7 +37,6 @@ from django.db.models import Min
 from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
 
-import koku.celery as koku_celery
 from api.iam.models import Tenant
 from api.models import Provider
 from api.utils import DateHelper
@@ -683,7 +682,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             cluster_id = usage_period_qry.first().cluster_id
 
             items = self.ocp_accessor._get_db_obj_query(table_name).filter(
-                usage_start__gte=start_date, usage_start__lte=end_date, cluster_id=cluster_id, data_source="Pod"
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                cluster_id=cluster_id,
+                data_source="Pod",
+                infrastructure_raw_cost__isnull=True,
             )
             for item in items:
                 self.assertNotEqual(item.infrastructure_usage_cost.get("cpu"), 0)
@@ -698,7 +701,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
             storage_summary_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
             items = self.ocp_accessor._get_db_obj_query(storage_summary_name).filter(
-                cluster_id=cluster_id, data_source="Storage"
+                cluster_id=cluster_id, data_source="Storage", infrastructure_raw_cost__isnull=True
             )
             for item in items:
                 self.assertIsNotNone(item.volume_request_storage_gigabyte_months)
@@ -1068,11 +1071,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         ]
         for test in test_matrix:
             self.assertEquals(normalize_table_options(test.get("table_options")), test.get("expected"))
-
-    def test_autovacuum_tune_schedule(self):
-        vh = next(iter(koku_celery.app.conf.beat_schedule["vacuum-schemas"]["schedule"].hour))
-        avh = next(iter(koku_celery.app.conf.beat_schedule["autovacuum-tune-schemas"]["schedule"].hour))
-        self.assertTrue(avh == (23 if vh == 0 else (vh - 1)))
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     def test_record_report_status(self, mock_accessor):
