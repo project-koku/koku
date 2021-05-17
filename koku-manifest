@@ -12,8 +12,8 @@ mgmt_services/cost-mgmt:koku/python-azure-mgmt-storage:11.2.0.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-storage-blob:12.8.1.pipfile
 mgmt_services/cost-mgmt:koku/python-beautifulsoup4:4.9.3.pipfile
 mgmt_services/cost-mgmt:koku/python-billiard:3.6.4.0.pipfile
-mgmt_services/cost-mgmt:koku/python-boto3:1.17.68.pipfile
-mgmt_services/cost-mgmt:koku/python-botocore:1.20.68.pipfile
+mgmt_services/cost-mgmt:koku/python-boto3:1.17.70.pipfile
+mgmt_services/cost-mgmt:koku/python-botocore:1.20.70.pipfile
 mgmt_services/cost-mgmt:koku/python-bs4:0.0.1.pipfile
 mgmt_services/cost-mgmt:koku/python-cachetools:4.2.2.pipfile
 mgmt_services/cost-mgmt:koku/python-celery:4.4.7.pipfile
@@ -35,7 +35,7 @@ mgmt_services/cost-mgmt:koku/python-django-redis:4.12.1.pipfile
 mgmt_services/cost-mgmt:koku/python-django-tenant-schemas:1.10.0.pipfile
 mgmt_services/cost-mgmt:koku/python-djangorestframework:3.12.4.pipfile
 mgmt_services/cost-mgmt:koku/python-djangorestframework-csv:2.1.0.pipfile
-mgmt_services/cost-mgmt:koku/python-flake8:3.9.1.pipfile
+mgmt_services/cost-mgmt:koku/python-flake8:3.9.2.pipfile
 mgmt_services/cost-mgmt:koku/python-google-api-core:1.26.3.pipfile
 mgmt_services/cost-mgmt:koku/python-google-api-python-client:2.3.0.pipfile
 mgmt_services/cost-mgmt:koku/python-google-auth:1.30.0.pipfile
@@ -62,7 +62,7 @@ mgmt_services/cost-mgmt:koku/python-markupsafe:1.1.1.pipfile
 mgmt_services/cost-mgmt:koku/python-mccabe:0.6.1.pipfile
 mgmt_services/cost-mgmt:koku/python-msrest:0.6.21.pipfile
 mgmt_services/cost-mgmt:koku/python-msrestazure:0.6.4.pipfile
-mgmt_services/cost-mgmt:koku/python-numpy:1.20.2.pipfile
+mgmt_services/cost-mgmt:koku/python-numpy:1.20.3.pipfile
 mgmt_services/cost-mgmt:koku/python-oauthlib:3.1.0.pipfile
 mgmt_services/cost-mgmt:koku/python-ordered-set:4.0.2.pipfile
 mgmt_services/cost-mgmt:koku/python-packaging:20.9.pipfile

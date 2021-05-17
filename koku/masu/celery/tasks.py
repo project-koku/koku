@@ -41,6 +41,7 @@ from masu.processor import enable_trino_processing
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
+from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.util.aws.common import get_s3_resource
 
 LOG = logging.getLogger(__name__)
@@ -90,7 +91,7 @@ def deleted_archived_with_prefix(s3_bucket_name, prefix):
 
 @celery_app.task(
     name="masu.celery.tasks.delete_archived_data",
-    queue=DEFAULT,
+    queue=REMOVE_EXPIRED_DATA_QUEUE,
     autoretry_for=(ClientError,),
     max_retries=10,
     retry_backoff=10,
