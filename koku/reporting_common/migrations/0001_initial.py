@@ -41,7 +41,6 @@ class Migration(migrations.Migration):
             """
         ),
         ###### end customization ######
-        migrations.RunSQL("""DROP TABLE IF EXISTS "reporting_common_costusagereportmanifest";"""),
         migrations.CreateModel(
             name="CostUsageReportManifest",
             fields=[
