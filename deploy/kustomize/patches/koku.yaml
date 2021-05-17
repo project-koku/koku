@@ -23,7 +23,7 @@
             - /bin/bash
             - -c
             - $HOME/scripts/run_migrations.sh
-          image: ${IMAGE}@${IMAGE_TAG}
+          image: ${IMAGE}:${IMAGE_TAG}
           imagePullPolicy: Always
           name: koku-init
           resources:

@@ -14,6 +14,9 @@ objects:
     # Redis
     inMemoryDb: true
 
+    objectStore:
+    - my-bucket-name
+
     # Creates a database if local mode, or uses RDS in production
     database:
       # Must specify both a name and a major postgres version
@@ -83,18 +86,6 @@ parameters:
 - displayName: Prometheus multiproc dir
   name: PROMETHEUS_DIR
   value: /tmp
-- displayName: Rbac service host
-  name: RBAC_HOST
-  value: rbac
-- displayName: Rbac service port
-  name: RBAC_SERVICE_PORT
-  value: "8080"
-- displayName: Rbac service path
-  name: RBAC_SERVICE_PATH
-  value: /api/rbac/v1/access/
-- displayName: Rbac cache ttl
-  name: RBAC_CACHE_TTL
-  value: "30"
 
 - description: Enable S3 Archiving
   displayName: Enable S3 Archiving
@@ -119,13 +110,6 @@ parameters:
   name: TRINO_DATE_STEP
   required: true
   value: "5"
-
-- displayName: Presto host
-  name: PRESTO_HOST
-  value: "presto"
-- displayName: Presto port
-  name: PRESTO_PORT
-  value: "8080"
 
 - description: Flag to use account enhanced prometheus metrics
   displayName: Account Enhanced Metrics
@@ -227,12 +211,32 @@ parameters:
   name: RABBITMQ_PORT
   value: "5672"
 
+- displayName: Rbac service host
+  name: RBAC_HOST
+  value: rbac
+- displayName: Rbac service port
+  name: RBAC_SERVICE_PORT
+  value: "8080"
+- displayName: Rbac service path
+  name: RBAC_SERVICE_PATH
+  value: /api/rbac/v1/access/
+- displayName: Rbac cache ttl
+  name: RBAC_CACHE_TTL
+  value: "30"
+
+- displayName: Presto host
+  name: PRESTO_HOST
+  value: "presto"
+- displayName: Presto port
+  name: PRESTO_PORT
+  value: "8080"
+
 - displayName: Sources-api service hostname
   name: SOURCES_HOST
-  value: sources-api-svc.default.svc
+  value: sources-api-svc.sources.svc
 - displayName: Sources-api service port number
   name: SOURCES_PORT
-  value: '58238'
+  value: '8000'
 - description: Source API Path prefix
   name: SOURCES_API_PREFIX
   value: /api/sources/v1.0
