@@ -36,8 +36,10 @@ class SourcesErrorMessage:
         scrubbed_message = ProviderErrors.AZURE_GENERAL_CLIENT_ERROR_MESSAGE
         if "http error: 401" in message:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_CLIENT_SECRET_MESSAGE
-        if "http error: 400" in message:
+        if "AADSTS700016" in message:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_CLIENT_ID_MESSAGE
+        if "AADSTS90002" in message:
+            scrubbed_message = ProviderErrors.AZURE_INCORRECT_TENANT_ID_MESSAGE
         if "ResourceGroupNotFound" in message:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_RESOURCE_GROUP_MESSAGE
         if "ResourceNotFound" in message:

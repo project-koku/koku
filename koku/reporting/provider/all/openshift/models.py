@@ -116,11 +116,9 @@ class OCPAllCostLineItemDailySummary(models.Model):
     # It is used to divide cost evenly among projects
     shared_projects = models.IntegerField(null=False, default=1)
 
-    # A JSON dictionary of the project cost, keyed by project/namespace name
-    # See comment on unblended_cost for project cost explanation
-    project_costs = JSONField(null=True)
-
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    tags_hash = models.TextField(max_length=512)
 
 
 # Materialized Views for UI Reporting

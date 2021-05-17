@@ -79,7 +79,6 @@ class ReportProcessor:
             return ParquetReportProcessor(
                 schema_name=self.schema_name,
                 report_path=self.report_path,
-                compression=self.compression,
                 provider_uuid=self.provider_uuid,
                 provider_type=self.provider_type,
                 manifest_id=self.manifest_id,
