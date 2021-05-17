@@ -140,7 +140,7 @@ objects:
             value: ${CLOWDER_ENABLED}
           - name: prometheus_multiproc_dir
             value: ${PROMETHEUS_DIR}
-          image: ${IMAGE}@${IMAGE_TAG}
+          image: ${IMAGE}:${IMAGE_TAG}
           imagePullPolicy: Always
           name: koku-init
           resources:
@@ -2027,6 +2027,8 @@ objects:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
+    objectStore:
+    - my-bucket-name
     optionalDependencies:
     - sources-api
 parameters:
@@ -2079,18 +2081,6 @@ parameters:
 - displayName: Prometheus multiproc dir
   name: PROMETHEUS_DIR
   value: /tmp
-- displayName: Rbac service host
-  name: RBAC_HOST
-  value: rbac
-- displayName: Rbac service port
-  name: RBAC_SERVICE_PORT
-  value: "8080"
-- displayName: Rbac service path
-  name: RBAC_SERVICE_PATH
-  value: /api/rbac/v1/access/
-- displayName: Rbac cache ttl
-  name: RBAC_CACHE_TTL
-  value: "30"
 - description: Enable S3 Archiving
   displayName: Enable S3 Archiving
   name: ENABLE_S3_ARCHIVING
@@ -2114,12 +2104,6 @@ parameters:
   name: TRINO_DATE_STEP
   required: true
   value: "5"
-- displayName: Presto host
-  name: PRESTO_HOST
-  value: presto
-- displayName: Presto port
-  name: PRESTO_PORT
-  value: "8080"
 - description: Flag to use account enhanced prometheus metrics
   displayName: Account Enhanced Metrics
   name: ACCOUNT_ENHANCED_METRICS
@@ -2215,12 +2199,30 @@ parameters:
   displayName: RabbitMQ port
   name: RABBITMQ_PORT
   value: "5672"
+- displayName: Rbac service host
+  name: RBAC_HOST
+  value: rbac
+- displayName: Rbac service port
+  name: RBAC_SERVICE_PORT
+  value: "8080"
+- displayName: Rbac service path
+  name: RBAC_SERVICE_PATH
+  value: /api/rbac/v1/access/
+- displayName: Rbac cache ttl
+  name: RBAC_CACHE_TTL
+  value: "30"
+- displayName: Presto host
+  name: PRESTO_HOST
+  value: presto
+- displayName: Presto port
+  name: PRESTO_PORT
+  value: "8080"
 - displayName: Sources-api service hostname
   name: SOURCES_HOST
-  value: sources-api-svc.default.svc
+  value: sources-api-svc.sources.svc
 - displayName: Sources-api service port number
   name: SOURCES_PORT
-  value: "58238"
+  value: "8000"
 - description: Source API Path prefix
   name: SOURCES_API_PREFIX
   value: /api/sources/v1.0
