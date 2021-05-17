@@ -45,8 +45,8 @@ select setval(%s, %s);
         res = [dict(zip(cols, rec)) for rec in cur.fetchall()]
 
         for rec in res:
-            LOG.info("Getting max pk value from the django_migrations table...")
-            cur.execute(max_pk_val.format(rec["namesp"], rec["seqname"]))
+            LOG.info(f"Getting max pk value from the {rec['namesp']} {rec['tabname']} table...")
+            cur.execute(max_pk_val.format(rec["namesp"], rec["tabname"]))
             new_sequence_val = (cur.fetchone() or [1])[0]
 
             LOG.info(
