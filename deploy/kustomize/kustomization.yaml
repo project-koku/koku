@@ -1,0 +1,56 @@
+resources:
+- base/base.yaml
+
+patches:
+- path: patches/koku.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/listener.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/masu.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/scheduler.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/sources-client.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/sources-listener.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/worker-celery.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/worker-cost-model.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/worker-download.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/worker-ocp.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/worker-priority.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/worker-refresh.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/worker-summary.yaml
+  target:
+    version: v1
+    kind: Template
