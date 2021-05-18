@@ -25,6 +25,9 @@ from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
+from rest_framework.settings import api_settings
+
+from api.common.pagination import ListPaginator
 
 
 CURRENCY_FILE_NAME = "koku/api/currency/specs/currencies.json"
@@ -41,7 +44,7 @@ def load_currencies(path):
 
 @api_view(("GET",))
 @permission_classes((permissions.AllowAny,))
-@renderer_classes((JSONRenderer,))
+@renderer_classes([JSONRenderer] + api_settings.DEFAULT_RENDERER_CLASSES)
 def get_currency(request):
     """Get Currency Data.
 
@@ -56,6 +59,7 @@ def get_currency(request):
     """
     try:
         data = load_currencies(CURRENCY_FILE_NAME)
-        return Response(data)
+        paginator = ListPaginator(data, request)
+        return paginator.paginated_response
     except (FileNotFoundError, json.JSONDecodeError):
         return Response(status=status.HTTP_404_NOT_FOUND)

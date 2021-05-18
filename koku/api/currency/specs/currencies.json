@@ -1,62 +1,77 @@
-{
-    "AUD": {
+[
+    {
+        "code": "AUD",
         "name": "Australian Dollar",
         "symbol": "AU$"
     },
-    "CAD": {
+    {
+        "code": "CAD",
         "name": "Canadian Dollar",
         "symbol": "C$"
     },
-    "CHF": {
+    {
+        "code": "CHF",
         "name": "Swiss Franc",
         "symbol": "CHF"
     },
-    "CNY": {
+    {
+        "code": "CNY",
         "name": "Chinese Yuan",
         "symbol": "CN¥"
     },
-    "DKK": {
+    {
+        "code": "DKK",
         "name": "Danish Krone",
         "symbol": "Dkr"
     },
-    "EUR": {
+    {
+        "code": "EUR",
         "name": "Euro",
         "symbol": "€"
     },
-    "GBP": {
+    {
+        "code": "GBP",
         "name": "British Pound",
         "symbol": "£"
     },
-    "HKD": {
+    {
+        "code": "HKD",
         "name": "Hong Kong Dollar",
         "symbol": "HK$"
     },
-    "JPY": {
+    {
+        "code": "JPY",
         "name": "Japanese Yen",
         "symbol": "¥"
     },
-    "NOK": {
+    {
+        "code": "NOK",
         "name": "Norwegian Krone",
         "symbol": "Nkr"
     },
-    "NZD": {
+    {
+        "code": "NZD",
         "name": "New Zealand Dollar",
         "symbol": "NZ$"
     },
-    "SEK": {
+    {
+        "code": "SEK",
         "name": "Swedish Krona",
         "symbol": "Skr"
     },
-    "SGD": {
+    {
+        "code": "SGD",
         "name": "Singapore Dollar",
         "symbol": "S$"
     },
-    "USD": {
+    {
+        "code": "USD",
         "name": "United States Dollar",
         "symbol": "$"
     },
-    "ZAR": {
+    {
+        "code": "ZAR",
         "name": "South African Rand",
         "symbol": "R"
     }
-}
+]
