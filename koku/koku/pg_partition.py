@@ -587,8 +587,8 @@ select oid
 """
         trgr_sql = f"""
 select oid
-  from pg_triggers
- where tgrelid = "{self.target_schema}"."partitioned_tables"::regclass
+  from pg_trigger
+ where tgrelid = '"{self.target_schema}"."partitioned_tables"'::regclass
    and tgfoid = %s
    and tgname = 'tr_partition_manager' ;
 """
