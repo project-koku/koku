@@ -336,7 +336,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
     def test_message_not_associated_with_cost_mgmt(self):
         """Test that messages not associated with cost-mgmt are not processed."""
         table = [
-            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_CREATE, "called": True},
+            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_CREATE},
             {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_UPDATE},
             {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_DESTROY, "called": True},
             {"processor": AuthenticationMsgProcessor, "event": KAFKA_AUTHENTICATION_CREATE},
