@@ -573,9 +573,38 @@ class ConvertToPartition:
         self.indexes = self.__get_indexes()
         self.constraints = self.__get_constraints()
         self.views = self.__get_views()
+        self.__new_trigger = self.detect_new_manager_trigger()
 
     def __repr__(self):
         return f"""Convert "{self.source_schema}"."{self.source_table_name}" to a partitioned table"""
+
+    def detect_new_manager_trigger(self):
+        func_sql = """
+select oid
+  from pg_proc
+ where pronamespace = 'public'::regnamespace
+   and proname = 'trfn_partition_manager';
+"""
+        trgr_sql = f"""
+select oid
+  from pg_triggers
+ where tgrelid = "{self.target_schema}"."partitioned_tables"::regclass
+   and tgfoid = %s
+   and tgname = 'tr_partition_manager' ;
+"""
+        func_oid = (conn_execute(func_sql).fetchone() or [None])[0]
+        if func_oid:
+            trgr_oid = (conn_execute(trgr_sql, (func_oid,)).fetchone() or [None])[0]
+            res = bool(trgr_oid)
+        else:
+            res = False
+
+        if res:
+            LOG.info(f"{self.__class__.__name__}: Using trfn_partition_manager function")
+        else:
+            LOG.info(f"{self.__class__.__name__}: Using trfn_manage_date_range_partition function")
+
+        return res
 
     def __get_constraints(self):
         LOG.info(f"Getting constraints for table {self.source_schema}.{self.source_table_name}")
@@ -743,6 +772,36 @@ PARTITION BY {self.partition_type} ( "{self.partition_key}" ) ;
 """
         conn_execute(sql)
 
+    def __create_default_partition_new(self):
+        sql = f"""
+INSERT INTO "{self.target_schema}"."partitioned_tables" (
+    schema_name,
+    table_name,
+    partition_of_table_name,
+    partition_type,
+    partition_col,
+    partition_parameters
+)
+VALUES (
+    %s,
+    %s,
+    %s,
+    %s,
+    %s,
+    %s::jsonb
+);
+"""
+        params = (
+            self.target_schema,
+            f"{self.source_table_name}_default",
+            self.partitioned_table_name,
+            self.partition_type.lower(),
+            self.partition_key,
+            '{"default": true}',
+        )
+        LOG.info(f'Creating and recording default partition "{self.target_schema}"."{self.source_table_name}_default"')
+        conn_execute(sql, params)
+
     def __create_default_partition(self):
         LOG.info(f'Creating default partition "{self.target_schema}"."{self.source_table_name}_default"')
         sql = f"""
@@ -816,21 +875,15 @@ VALUES (
             LOG.info(f"Applying index definition from {idef.index_name}")
             conn_execute(idef.create())
 
-    def __create_partitions(self):
-        # Get "requested" partitions
+    def __get_partition_start_values(self, params):
         sql = """
 select partition_start from scan_for_date_partitions(%s::text, %s::text, %s::text, %s::text);
 """
-        params = [
-            f"{self.source_schema}.{self.source_table_name}",  # This will be quoted properly in the proc
-            self.partition_key,
-            self.target_schema,
-            self.partitioned_table_name,
-        ]
         cur = conn_execute(sql, params)
         requested_partitions = fetchall(cur)
+        return requested_partitions
 
-        # Get existing partitions except the default partition
+    def __get_partition_parameters_start_values(self, params):
         sql = f"""
 select (partition_parameters->>'from')::date as existing_partition
   from "{self.target_schema}"."partitioned_tables"
@@ -839,13 +892,87 @@ select (partition_parameters->>'from')::date as existing_partition
    and table_name ~ %s
    and partition_parameters->>'default' = 'false';
 """
-        params = [self.target_schema, self.partitioned_table_name, f"^{self.partitioned_table_name}"]
         cur = conn_execute(sql, params)
         existing_partitions = fetchall(cur)
+        return existing_partitions
 
+    def __get_needed_partitions(self, requested_partitions, existing_partitions):
         needed_partitions = {p["partition_start"] for p in requested_partitions} - {
             ciso8601.parse_datetime(p["partition_parameters"]["from"]).date() for p in existing_partitions
         }
+        return needed_partitions
+
+    def __create_partitions_new(self):
+        created_partitions = []
+        params = [
+            f"{self.source_schema}.{self.source_table_name}",  # This will be quoted properly in the proc
+            self.partition_key,
+            self.target_schema,
+            self.partitioned_table_name,
+        ]
+        requested_partitions = self.__get_partition_start_values(params)
+
+        # Get existing partitions except the default partition
+        params = [self.target_schema, self.partitioned_table_name, f"^{self.partitioned_table_name}"]
+        existing_partitions = self.__get_partition_parameters_start_values(params)
+
+        needed_partitions = self.__get_needed_partitions(requested_partitions, existing_partitions)
+
+        part_rec_sql = f"""
+INSERT INTO "{self.target_schema}"."partitioned_tables" (
+    schema_name,
+    table_name,
+    partition_of_table_name,
+    partition_type,
+    partition_col,
+    partition_parameters
+)
+VALUES (
+    %s,
+    %s,
+    %s,
+    %s,
+    %s,
+    %s::jsonb
+);
+"""
+        params = [
+            self.target_schema,
+            None,
+            self.partitioned_table_name,
+            self.partition_type.lower(),
+            self.partition_key,
+            None,
+        ]
+        part_params = {"default": False, "from": None, "to": None}
+        for newpart in needed_partitions:
+            part_params["from"] = str(newpart)
+            part_params["to"] = str(newpart + relativedelta(months=1))
+            suffix = newpart.strftime("%Y_%m")
+            partition_name = f"{self.partitioned_table_name}_{suffix}"
+            params[1] = partition_name
+            params[-1] = json.dumps(part_params)
+            LOG.info(f'Creating and recording partition "{self.target_schema}"."{partition_name}"')
+            conn_execute(part_rec_sql, params)
+            created_partitions.append([partition_name, suffix])
+
+        self.created_partitions = created_partitions
+
+    def __create_partitions(self):
+        # Get "requested" partitions
+        params = [
+            f"{self.source_schema}.{self.source_table_name}",  # This will be quoted properly in the proc
+            self.partition_key,
+            self.target_schema,
+            self.partitioned_table_name,
+        ]
+        requested_partitions = self.__get_partition_start_values(params)
+
+        # Get existing partitions except the default partition
+        params = [self.target_schema, self.partitioned_table_name, f"^{self.partitioned_table_name}"]
+        existing_partitions = self.__get_partition_parameters_start_values(params)
+
+        needed_partitions = self.__get_needed_partitions(requested_partitions, existing_partitions)
 
         sqltmpl = f"""
 CREATE TABLE IF NOT EXISTS "{self.target_schema}"."{{table_partition}}"
@@ -910,6 +1037,82 @@ SELECT * FROM "{self.source_schema}"."{self.source_table_name}" ;
 """
         with transaction.atomic():
             conn_execute(sql)
+
+    def __rename_objects_new(self):
+        messages = [f'Locking source table "{self.source_schema}"."{self.source_table_name}"']
+        sql_actions = [
+            f"""
+LOCK TABLE "{self.source_schema}"."{self.source_table_name}" ;
+"""
+        ]
+        for vdef in self.views:
+            actions = vdef.rename_original_view_indexes()
+            messages.append(f'Renaming view indexes for "{vdef.view_schema}"."{vdef.view_name}"')
+            messages.extend([None] * (len(actions) - 1))
+            sql_actions.extend(actions)
+            messages.append(f'Renaming view "{vdef.view_schema}"."{vdef.view_name}" to "__{vdef.view_name}"')
+            sql_actions.append(vdef.rename_original_view())
+
+        messages.append(
+            f'Renaming source table "{self.source_schema}"."{self.source_table_name}"'
+            f' to "__{self.source_table_name}"'
+        )
+        sql_actions.append(
+            f"""
+ALTER TABLE "{self.source_schema}"."{self.source_table_name}"
+RENAME TO "__{self.source_table_name}" ;
+"""
+        )
+        messages.append(
+            f'Renaming partitioned table "{self.target_schema}"."{self.partitioned_table_name}"'
+            f' to "{self.source_table_name}"'
+        )
+        sql_actions.append(
+            (
+                f"""
+UPDATE "{self.target_schema}".partitioned_tables
+   SET partition_of_table_name = %s
+ WHERE schema_name = %s
+   AND partition_of_table_name = %s;
+""",
+                (self.source_table_name, self.target_schema, self.partitioned_table_name),
+            )
+        )
+        for partition in self.created_partitions:
+            r_partition_name = f'{self.source_table_name}_{partition["suffix"]}'
+            messages.append(
+                f'''Renaming table partition "{self.target_schema}"."{partition['table_name']}"'''
+                f' to "{r_partition_name}"'
+            )
+            sql_actions.append(
+                (
+                    f"""
+UPDATE "{self.target_schema}".partitioned_tables
+   SET table_name = %s
+ WHERE schema_name = %s
+   AND partition_of_table_name = %s
+   AND table_name = %s;
+""",
+                    (r_partition_name, self.target_schema, self.source_table_name, partition["table_name"]),
+                )
+            )
+
+        for ix in range(len(sql_actions)):
+            msg = messages[ix]
+            if msg:
+                LOG.info(msg)
+
+            sql = sql_actions[ix]
+            if isinstance(sql, tuple):
+                sql, params = sql
+            else:
+                params = None
+
+            LOG.debug(f"SQL = {sql}  PARAMS = {params}")
+            conn_execute(sql, params)
+
+        self.partitioned_table_name = self.source_table_name
+        self.source_table_name = f"__{self.source_table_name}"
 
     def __rename_objects(self):
         LOG.info(f'Locking source table "{self.source_schema}"."{self.source_table_name}"')
@@ -1037,8 +1240,12 @@ select exists (
             self.__set_column_definitions()
             self.__set_constraints()
             self.__create_indexes()
-            self.__create_default_partition()
-            self.__create_partitions()
+            if self.__new_trigger:
+                self.__create_default_partition_new()
+                self.__create_partitions_new()
+            else:
+                self.__create_default_partition()
+                self.__create_partitions()
 
         # Copy all source data
         with transaction.atomic():
@@ -1046,7 +1253,10 @@ select exists (
 
         # Rename objects (acquires lock)
         with transaction.atomic():
-            self.__rename_objects()
+            if self.__new_trigger:
+                self.__rename_objects_new()
+            else:
+                self.__rename_objects()
 
         # Create views
         with transaction.atomic():
