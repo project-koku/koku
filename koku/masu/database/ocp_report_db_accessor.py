@@ -1816,14 +1816,17 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     def get_nodes_presto(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
         sql = f"""
-            SELECT distinct node,
-                resource_id
+            SELECT node,
+                resource_id,
+                max(node_capacity_cpu_cores) as node_capacity_cpu_cores
             FROM hive.{self.schema}.openshift_pod_usage_line_items as ocp
             WHERE ocp.source = '{source_uuid}'
                 AND ocp.year = '{start_date.strftime("%Y")}'
                 AND ocp.month = '{start_date.strftime("%m")}'
                 AND ocp.interval_start >= TIMESTAMP '{start_date}'
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
+            GROUP BY node,
+                resource_id
         """
 
         nodes = self._execute_presto_raw_sql_query(self.schema, sql)
@@ -1864,6 +1867,12 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         return [project[0] for project in projects]
 
+    def get_cluster_for_provider(self, provider_uuid):
+        """Return the cluster entry for a provider UUID."""
+        with schema_context(self.schema):
+            cluster = OCPCluster.objects.filter(provider_id=provider_uuid).first()
+        return cluster
+
     def get_nodes_for_cluster(self, cluster_id):
         """Get all nodes for an OCP cluster."""
         with schema_context(self.schema):
@@ -1885,3 +1894,15 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             projects = OCPProject.objects.filter(cluster_id=cluster_id).values_list("project")
             projects = [project[0] for project in projects]
         return projects
+
+    def get_openshift_topology_for_provider(self, provider_uuid):
+        """Return a dictionary with Cluster topology."""
+        cluster = self.get_cluster_for_provider(provider_uuid)
+        topology = {"cluster_id": cluster.cluster_id, "cluster_alias": cluster.cluster_alias}
+        node_tuples = self.get_nodes_for_cluster(cluster.uuid)
+        topology["nodes"] = [node[0] for node in node_tuples]
+        topology["resource_ids"] = [node[1] for node in node_tuples]
+        topology["pvcs"] = self.get_pvcs_for_cluster(cluster.uuid)
+        topology["projects"] = self.get_projects_for_cluster(cluster.uuid)
+
+        return topology
