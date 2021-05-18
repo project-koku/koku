@@ -102,10 +102,15 @@ class KafkaMessageProcessor:
         """Filter messages not intended for cost management."""
         if self.event_type in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
             return True
-        if self.event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_APPLICATION_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
+        if self.event_type in (
+            KAFKA_APPLICATION_CREATE,
+            KAFKA_AUTHENTICATION_CREATE,
+            KAFKA_APPLICATION_UPDATE,
+            KAFKA_AUTHENTICATION_UPDATE,
+        ):
             sources_network = self.get_sources_client()
             return sources_network.get_application_type_is_cost_management(self.cost_mgmt_id)
-        return True  # TODO: I wonder if this should be false?
+        return False
 
     def get_sources_client(self):
         return SourcesHTTPClient(self.auth_header, self.source_id)
