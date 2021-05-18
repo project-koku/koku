@@ -25,6 +25,7 @@ from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
+from reporting.provider.aws.models import PRESTO_OCP_ON_AWS_DAILY_TABLE
 
 
 class AWSReportParquetProcessor(ReportParquetProcessorBase):
@@ -46,7 +47,9 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
             "bill_billingperiodstartdate",
             "bill_billingperiodenddate",
         ]
-        if "daily" in s3_path:
+        if "openshift" in s3_path:
+            table_name = PRESTO_OCP_ON_AWS_DAILY_TABLE
+        elif "daily" in s3_path:
             table_name = PRESTO_LINE_ITEM_DAILY_TABLE
         else:
             table_name = PRESTO_LINE_ITEM_TABLE
