@@ -562,7 +562,8 @@ class OCPCluster(models.Model):
 
         db_table = "reporting_ocp_clusters"
 
-    cluster_id = models.TextField(primary_key=True)
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    cluster_id = models.TextField()
     cluster_alias = models.TextField(null=True)
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
 
@@ -575,8 +576,10 @@ class OCPNode(models.Model):
 
         db_table = "reporting_ocp_nodes"
 
-    node = models.TextField(primary_key=True)
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    node = models.TextField()
     resource_id = models.TextField(null=True)
+    node_capacity_cpu_cores = models.DecimalField(max_digits=18, decimal_places=2, null=True)
     cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
 
 
@@ -588,7 +591,8 @@ class OCPPVC(models.Model):
 
         db_table = "reporting_ocp_pvcs"
 
-    pvc = models.TextField(primary_key=True)
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    pvc = models.TextField()
     cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
 
 
@@ -600,7 +604,8 @@ class OCPProject(models.Model):
 
         db_table = "reporting_ocp_projects"
 
-    project = models.TextField(primary_key=True)
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    project = models.TextField()
     cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
 
 
