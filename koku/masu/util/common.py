@@ -263,9 +263,13 @@ def get_path_prefix(account, provider_type, provider_uuid, start_date, data_type
     return path
 
 
-def get_hive_table_path(account, provider_type, report_type=None):
+def get_hive_table_path(account, provider_type, report_type=None, daily=False):
     """Get the S3 bucket prefix without partitions for hive table location."""
     path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
+    if daily:
+        path_prefix += "/daily"
+        if report_type is None:
+            report_type = "raw"
     table_path = f"{path_prefix}/{account}/{provider_type}"
     if report_type:
         table_path += f"/{report_type}"
