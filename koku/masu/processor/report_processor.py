@@ -16,6 +16,7 @@
 #
 """Report processor external interface."""
 import logging
+from functools import cached_property
 
 from django.db import InterfaceError as DjangoInterfaceError
 from django.db import OperationalError
@@ -27,6 +28,7 @@ from masu.processor.aws.aws_report_processor import AWSReportProcessor
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
 from masu.processor.gcp.gcp_report_processor import GCPReportProcessor
 from masu.processor.ocp.ocp_report_processor import OCPReportProcessor
+from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 
 LOG = logging.getLogger(__name__)
@@ -62,6 +64,25 @@ class ReportProcessor:
         if not self._processor:
             raise ReportProcessorError("Invalid provider type specified.")
 
+    @cached_property
+    def trino_enabled(self):
+        """Return whether the source is enabled for Trino processing."""
+        return enable_trino_processing(self.provider_uuid, self.provider_type, self.schema_name)
+
+    @property
+    def ocp_on_cloud_processor(self):
+        """Return the OCP on Cloud processor if one is defined."""
+        if self.trino_enabled:
+            return OCPCloudParquetReportProcessor(
+                schema_name=self.schema_name,
+                report_path=self.report_path,
+                provider_uuid=self.provider_uuid,
+                provider_type=self.provider_type,
+                manifest_id=self.manifest_id,
+                context=self.context,
+            )
+        return None
+
     def _set_processor(self):
         """
         Create the report processor object.
@@ -75,7 +96,7 @@ class ReportProcessor:
             (Object) : Provider-specific report processor
 
         """
-        if enable_trino_processing(self.provider_uuid, self.provider_type, self.schema_name):
+        if self.trino_enabled:
             return ParquetReportProcessor(
                 schema_name=self.schema_name,
                 report_path=self.report_path,
@@ -131,6 +152,10 @@ class ReportProcessor:
 
         """
         try:
+            if self.trino_enabled:
+                parquet_base_filename, daily_data_frame = self._processor.process()
+                return self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frame)
+
             return self._processor.process()
         except (InterfaceError, DjangoInterfaceError, OperationalError) as err:
             raise ReportProcessorDBError(str(err))
