@@ -44,6 +44,7 @@ BEGIN
                 )
             );
             messages = array_append(
+                messages,
                 format(
                     'DETACH PARTITION %I.%I FROM %I.%I',
                     OLD.schema_name,
@@ -56,14 +57,14 @@ BEGIN
         action_stmts = array_append(
             action_stmts,
             format(
-                'TRUNCATE TABLE %s ;', table_name
+                'TRUNCATE TABLE %s ;', OLD.table_name
             )
         );
         messages = array_append(messages, format('TRUNCATE TABLE %I.%I', OLD.schema_name, OLD.table_name));
         action_stmts = array_append(
             action_stmts,
             format(
-                'DROP TABLE %s ;', table_name
+                'DROP TABLE %s ;', OLD.table_name
             )
         );
         messages = array_append(messages, format('DROP TABLE %I.%I', OLD.schema_name, OLD.table_name));
@@ -73,21 +74,19 @@ BEGIN
         THEN
             action_stmts = array_append(
                 action_stmts,
-                foramt(
-                    'ALTER TABLE %I.%I RENAME TO %I.%I ;',
+                format(
+                    'ALTER TABLE %I.%I RENAME TO %I ;',
                     OLD.schema_name,
                     OLD.partition_of_table_name,
-                    OLD.schema_name,
                     NEW.partition_of_table_name
                 )
             );
             messages = array_append(
                 messages,
                 format(
-                    'RENAME TABLE %I.%I to %I.%I',
+                    'RENAME TABLE %I.%I to %I',
                     OLD.schema_name,
                     OLD.partition_of_table_name,
-                    OLD.schema_name,
                     NEW.partition_of_table_name
                 )
             );
@@ -97,21 +96,19 @@ BEGIN
         THEN
             action_stmts = array_append(
                 action_stmts,
-                foramt(
-                    'ALTER TABLE %I.%I RENAME TO %I.%I ;',
+                format(
+                    'ALTER TABLE %I.%I RENAME TO %I ;',
                     OLD.schema_name,
                     OLD.table_name,
-                    OLD.schema_name,
                     NEW.table_name
                 )
             );
             messages = array_append(
                 messages,
                 format(
-                    'RENAME TABLE %I.%I to %I.%I',
+                    'RENAME TABLE %I.%I to %I',
                     OLD.schema_name,
                     OLD.table_name,
-                    OLD.schema_name,
                     NEW.table_name
                 )
             );

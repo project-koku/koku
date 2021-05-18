@@ -60,6 +60,7 @@ def conn_execute(sql, params=None, _conn=conn):
         cursor = _conn.cursor()
         LOG.info(f"SQL: {cursor.mogrify(sql, params).decode('utf-8')}")
         # print(cursor.mogrify(sql, params).decode('utf-8') + '\n', file=SQLFILE, flush=True)
+        print(cursor.mogrify(sql, params).decode("utf-8") + "\n", flush=True)
         cursor.execute(sql, params)
         return cursor
     else:
@@ -379,6 +380,8 @@ class ConstraintDefinition:
     def __init__(self, target_schema, target_table, constraintrec):
         self.target_schema = target_schema
         self.target_table = target_table
+        self.constraint_type = constraintrec["constraint_type"]
+        self.constraint_columns = constraintrec["constraint_columns"]
         self.constraint_name = constraintrec["constraint_name"]
         self.definition = constraintrec["definition"]
 
@@ -430,7 +433,10 @@ class IndexDefinition:
         self.target_schema = target_schema
         self.target_table = target_table
         self.schema_name = indexrec["schemaname"]
+        self.table_name = indexrec["tablename"]
         self.index_name = indexrec["indexname"]
+        self.index_columns = indexrec["indexcols"]
+        self.is_unique = indexrec["indisunique"]
         self.definition = indexrec["indexdef"]
 
         if ";" not in self.definition[:-10]:
@@ -441,6 +447,7 @@ class IndexDefinition:
         if index_parts:
             LOG.info(f'Creating index "p_{self.index_name}"')
             index_parts = list(index_parts[0])
+            index_parts[0] += "IF NOT EXISTS "
             index_parts[self.INDEX_NAME_IX] = f"p_{self.index_name}"
             index_parts[self.INDEX_TABLE_IX] = f"{self.target_schema}.{self.target_table}"
             return " ".join(index_parts)
@@ -658,29 +665,32 @@ select c.oid::int as constraint_oid,
     def __get_indexes(self):
         LOG.info(f"Getting indexes for table {self.source_schema}.{self.source_table_name}")
         sql = """
-with pk_indexes as (
-select i.relname
+select n.nspname::text as "schemaname",
+       t.relname::text as "tablename",
+       ix.relname::text as "indexname",
+       i.indisunique,
+       i.indisprimary,
+       (
+           select array_agg(_a.attname)
+             from pg_attribute _a
+            where _a.attrelid = t.oid
+              and _a.attnum = any(i.indkey)
+       )::text[] as "indexcols",
+       pg_get_indexdef(i.indexrelid) as "indexdef"
   from pg_class t
   join pg_namespace n
     on n.oid = t.relnamespace
-  join pg_index x
-    on x.indrelid = t.oid
-   and x.indisprimary = true
-  join pg_class i
-    on i.oid = x.indexrelid
+  join pg_index i
+    on i.indrelid = t.oid
+  join pg_class ix
+    on ix.oid = i.indexrelid
  where n.nspname = %s
    and t.relname = %s
-   and t.relkind = 'r'
-)
-select i.*
-  from pg_indexes i
- where i.schemaname = %s
-   and i.tablename = %s
-   and not exists (select 1 from pk_indexes x where i.indexname = x.relname)
+   and not i.indisprimary
  order
-    by i.tablename;
+    by t.relname;
 """
-        params = [self.source_schema, self.source_table_name, self.source_schema, self.source_table_name]
+        params = [self.source_schema, self.source_table_name]
         cur = conn_execute(sql, params)
         return [IndexDefinition(self.target_schema, self.partitioned_table_name, rec) for rec in fetchall(cur)]
 
@@ -745,9 +755,29 @@ SELECT vd.dependent_schema,
        vd.source_schema,
        vd.source_table,
        (select array_agg(row_to_json(vi))
-          from pg_indexes vi
-         where vi.schemaname = vd.dependent_schema
-           and vi.tablename = vd.dependent_view)::json[] as indexes,
+          from (
+                    select _n.nspname::text as "schemaname",
+                           _t.relname::text as "tablename",
+                           _ix.relname::text as "indexname",
+                           _i.indisunique,
+                           _i.indisprimary,
+                           (
+                               select array_agg(_a.attname)
+                                 from pg_attribute _a
+                                 where _a.attrelid = _t.oid
+                                  and _a.attnum = any(_i.indkey)
+                           )::text[] as "indexcols",
+                           pg_get_indexdef(_i.indexrelid) as "indexdef"
+                      from pg_class _t
+                      join pg_namespace _n
+                        on _n.oid = _t.relnamespace
+                      join pg_index _i
+                        on _i.indrelid = _t.oid
+                      join pg_class _ix
+                        on _ix.oid = _i.indexrelid
+                     where _n.nspname = vd.dependent_schema
+                       and _t.relname = vd.dependent_view
+               ) vi)::json[] as indexes,
        pg_get_viewdef(dependent_view_oid) as definition
   FROM view_deps vd
  ORDER BY source_schema, source_table;
@@ -868,12 +898,23 @@ VALUES (
     def __set_constraints(self):
         LOG.info("Applying any table constratins")
         for cdef in self.constraints:
-            conn_execute(cdef.alter_add_constraint())
+            if cdef.constraint_type.lower() == "unique" and not set(cdef.constraint_columns).isdisjoint(
+                set(self.pk_def.column_names)
+            ):
+                LOG.warning(f"Unique constraint {cdef.constraint_name} overlaps with primary key and will be omitted.")
+                continue
+            else:
+                LOG.info(f"Applying constraint {cdef.constraint_name}")
+                conn_execute(cdef.alter_add_constraint())
 
     def __create_indexes(self):
         for idef in self.indexes:
-            LOG.info(f"Applying index definition from {idef.index_name}")
-            conn_execute(idef.create())
+            if idef.is_unique and not set(idef.index_columns).isdisjoint(set(self.pk_def.column_names)):
+                LOG.warning(f"Unique index {idef.index_name} overlaps with primary key and will be omitted.")
+                continue
+            else:
+                LOG.info(f"Applying index definition for {idef.index_name}")
+                conn_execute(idef.create())
 
     def __get_partition_start_values(self, params):
         sql = """
