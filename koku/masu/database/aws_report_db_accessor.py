@@ -15,11 +15,13 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database accessor for report data."""
+import json
 import logging
 import pkgutil
 import uuid
 
 from dateutil.parser import parse
+from django.db import connection
 from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
@@ -424,3 +426,16 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
+
+    def get_openshift_on_cloud_matched_tags(self, aws_bill_id, ocp_report_period_id):
+        """Return a list of matched tags."""
+        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_matched_tags.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {"bill_id": aws_bill_id, "report_period_id": ocp_report_period_id, "schema": self.schema}
+        sql, bind_params = self.jinja_sql.prepare_query(sql, sql_params)
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(sql, params=bind_params)
+            results = cursor.fetchall()
+
+        return [json.loads(result[0]) for result in results]
