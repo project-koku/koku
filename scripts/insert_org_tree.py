@@ -35,6 +35,7 @@ class UploadAwsTree:
         self.masu_host = masu_host
         self.masu_port = masu_port
         self.schema = schema
+        self.source_name = "aws_org_tree"
 
     def import_yaml(self, yaml_file_path):
         """Imports the yaml file."""
@@ -66,11 +67,21 @@ class UploadAwsTree:
             msg = ("Error: uploading to endpoint", f"post_url: {url}" f"response: {e}")
             raise UploadAwsTreeError(err_msg=msg)
 
+    def source_exists(self, koku_host, koku_port):
+        """Check if the source exists."""
+        source_url = f"http://{koku_host}:{koku_port}/api/cost-management/v1/sources/?type=AWS-local"
+        source_info = requests.get(source_url)
+        source_data = source_info.json()
+        for source in source_data.get("data"):
+            if source.get("name") == self.source_name:
+                return True
+        return False
+
     def create_aws_source(self, koku_host, koku_port):
         """Creates the aws source."""
         source_url = f"http://{koku_host}:{koku_port}/api/cost-management/v1/sources/"
         json_info = {
-            "name": "aws_org_tree",
+            "name": self.source_name,
             "source_type": "AWS-local",
             "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/LocalAWSSource"}},
             "billing_source": {"data_source": {"bucket": "/tmp/local_bucket_1"}},
@@ -120,6 +131,7 @@ if "__main__" in __name__:
         elif arg_key == "start_date" and arg_value != "":
             start_date = arg_value
     upload_obj = UploadAwsTree(tree_yaml, schema, masu_host, masu_port, start_date)
-    source_uuid = upload_obj.create_aws_source(koku_host, koku_port)
-    upload_obj.upload_tree(provider_uuid=source_uuid)
-    upload_obj.run_nise_command(nise_yaml, koku_host, koku_port)
+    if not upload_obj.source_exists(koku_host, koku_port):
+        source_uuid = upload_obj.create_aws_source(koku_host, koku_port)
+        upload_obj.upload_tree(provider_uuid=source_uuid)
+        upload_obj.run_nise_command(nise_yaml, koku_host, koku_port)
