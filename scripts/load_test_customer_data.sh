@@ -108,12 +108,12 @@ for fname in ${YAML_FILES[*]}; do
 done
 
 # OpenShift on AWS
-$NISE report aws --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
 $NISE report ocp --static-report-file "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --insights-upload "$NISE_DATA_PATH/pvc_dir/insights_local"
+$NISE report aws --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
 
 # OpenShift on Azure
-$NISE report azure --static-report-file "$YAML_PATH/ocp_on_azure/rendered_azure_static_data.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report
 $NISE report ocp --static-report-file "$YAML_PATH/ocp_on_azure/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --insights-upload "$NISE_DATA_PATH/pvc_dir/insights_local"
+$NISE report azure --static-report-file "$YAML_PATH/ocp_on_azure/rendered_azure_static_data.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report
 
 # OpenShift on Prem
 $NISE report ocp --ocp-cluster-id my-ocp-cluster-3 --insights-upload "$NISE_DATA_PATH/pvc_dir/insights_local" --start-date "$START_DATE" --end-date "$END_DATE"
