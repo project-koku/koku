@@ -54,18 +54,8 @@ def get_currency(request):
         (Response): The report in a Response object
 
     """
-    print("\n\n\n\nINSIDE OF HERE AT LEASt")
-    # LOG.debug(f"API: {request.path} USER: {request.user.username}")
-
-    # currencies = {
-    #     "Foo": "bar"
-    # }
-    # return Response(currencies)
-    # currency_list = '{}/{}'.format(STATIC_ROOT, CURRENCY_FILE_NAME)
     try:
         data = load_currencies(CURRENCY_FILE_NAME)
-        # paginator = ListPaginator([data], request)
-        # return paginator.paginated_response
         return Response(data)
     except (FileNotFoundError, json.JSONDecodeError):
         return Response(status=status.HTTP_404_NOT_FOUND)
