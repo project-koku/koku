@@ -435,8 +435,49 @@ def aws_generate_daily_data(data_frame):
     )
     columns = daily_data_frame.columns.droplevel(1)
     daily_data_frame.columns = columns
+    daily_data_frame.reset_index(inplace=True)
 
     return daily_data_frame
+
+
+def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_tags):
+    """Filter a dataframe to the subset that matches an OpenShift source."""
+    resource_ids = cluster_topology.get("resource_ids", [])
+    resource_id_df = data_frame["lineitem_resourceid"]
+    resource_id_matched = resource_id_df.apply(lambda row: any([value in row for value in resource_ids]))
+    data_frame["resource_id_matched"] = resource_id_matched
+
+    tags = data_frame["resourcetags"]
+    tag_matched = tags.apply(match_openshift_labels, args=(matched_tags, cluster_topology))
+    data_frame["tag_matched"] = tag_matched
+
+    openshift_matched_data_frame = data_frame[
+        (data_frame["resource_id_matched"] == True) | data_frame["tag_matched"] == True  # noqa: E712
+    ]
+
+    drop_columns = ["resource_id_matched", "tag_matched"]
+    openshift_matched_data_frame = openshift_matched_data_frame.drop(columns=drop_columns)
+
+    return openshift_matched_data_frame
+
+
+def match_openshift_labels(tag_dict, matched_tags, cluster_topology):
+    """Match AWS data by OpenShift label associated with OpenShift cluster."""
+    tag_dict = json.loads(tag_dict)
+    cluster_id = cluster_topology.get("cluster_id").lower()
+    cluster_alias = cluster_topology.get("cluster_alias").lower()
+    nodes = [node.lower() for node in cluster_topology.get("nodes", [])]
+    projects = [project.lower() for project in cluster_topology.get("projects", [])]
+    for key, value in tag_dict.items():
+        if {key.lower(): value.lower()} in matched_tags:
+            return True
+        elif key.lower() == "openshift_cluster" and value.lower() in (cluster_id, cluster_alias):
+            return True
+        elif key.lower() == "openshift_node" and value.lower() in nodes:
+            return True
+        elif key.lower() == "openshift_project" and value.lower() in projects:
+            return True
+    return False
 
 
 def get_column_converters():
