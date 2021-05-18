@@ -15,14 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Metrics views."""
-import json 
+import json
 
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.iam.test.iam_test_case import IamTestCase
 from api.currency.view import CURRENCY_FILE_NAME
+from api.iam.test.iam_test_case import IamTestCase
 
 
 class CurrencyViewTest(IamTestCase):
