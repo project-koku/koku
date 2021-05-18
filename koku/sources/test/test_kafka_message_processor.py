@@ -212,11 +212,14 @@ class KafkaMessageProcessorTest(IamTestCase):
     def test_msg_for_cost_mgmt(self):
         """Test msg_for_cost_mgmt true or false."""
         table = [
+            {"event-type": "Source.create", "expected": False},
             {"event-type": KAFKA_APPLICATION_DESTROY, "expected": True},
             {"event-type": KAFKA_SOURCE_DESTROY, "expected": True},
+            {"event-type": KAFKA_APPLICATION_CREATE, "expected": True, "patch": True},
             {"event-type": KAFKA_AUTHENTICATION_CREATE, "expected": True, "patch": True},
             {"event-type": KAFKA_APPLICATION_UPDATE, "expected": True, "patch": True},
             {"event-type": KAFKA_AUTHENTICATION_UPDATE, "expected": True, "patch": True},
+            {"event-type": KAFKA_APPLICATION_CREATE, "expected": False, "patch": False},
             {"event-type": KAFKA_AUTHENTICATION_CREATE, "expected": False, "patch": False},
             {"event-type": KAFKA_APPLICATION_UPDATE, "expected": False, "patch": False},
             {"event-type": KAFKA_AUTHENTICATION_UPDATE, "expected": False, "patch": False},
