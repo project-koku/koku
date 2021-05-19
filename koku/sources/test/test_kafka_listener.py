@@ -364,15 +364,16 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
     def test_listen_for_messages_exceptions_no_retry(self):
         """Test listen_for_messages exceptions that do not cause a retry."""
         table = [
-            {"event": KAFKA_APPLICATION_CREATE, "value": b'{"this value is messeged up}'},
-            {"event": KAFKA_AUTHENTICATION_CREATE},
+            {"event": KAFKA_APPLICATION_CREATE, "value": b'{"this value is messeged up}', "status": 200},
+            {"event": KAFKA_AUTHENTICATION_CREATE, "status": 404},
+            {"event": KAFKA_AUTHENTICATION_CREATE, "status": 500},
         ]
         for test in table:
             with self.subTest(test=test):
                 with requests_mock.mock() as m:
                     m.get(
                         url=f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]=1",  # noqa: E501
-                        status_code=404,
+                        status_code=test.get("status", 500),
                         json={},
                     )
                     msg = msg_generator(test.get("event"))
