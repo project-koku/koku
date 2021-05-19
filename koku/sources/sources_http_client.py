@@ -55,8 +55,8 @@ class SourcesHTTPClientError(Exception):
     pass
 
 
-class SourcesHTTPClientRequestError(Exception):
-    """Exception raised during SourcesHTTPClient request."""
+class SourcesHTTPClientInternalError(Exception):
+    """Internal error from sources-api."""
 
     pass
 
@@ -95,10 +95,12 @@ class SourcesHTTPClient:
         try:
             resp = requests.get(url, headers=self._identity_header)
         except RequestException as error:
-            raise SourcesHTTPClientRequestError(f"{error_msg}. Reason: {error}")
+            raise SourcesHTTPClientError(f"{error_msg}. Reason: {error}")
 
         if resp.status_code == 404:
             raise SourceNotFoundError(f"Status Code: {resp.status_code}. Response: {resp.text}")
+        if resp.status_code == 500:
+            raise SourcesHTTPClientInternalError(f"Status Code: {resp.status_code}. Response: {resp.text}")
         elif resp.status_code != 200:
             raise SourcesHTTPClientError(f"Status Code: {resp.status_code}. Response: {resp.text}")
 

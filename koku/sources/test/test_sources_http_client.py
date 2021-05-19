@@ -40,7 +40,7 @@ from sources.sources_http_client import ENDPOINT_SOURCES
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
-from sources.sources_http_client import SourcesHTTPClientRequestError
+from sources.sources_http_client import SourcesHTTPClientInternalError
 
 faker = Faker()
 COST_MGMT_APP_TYPE_ID = 2
@@ -81,13 +81,17 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(url=MOCK_URL, exc=RequestException)
-            with self.assertRaises(SourcesHTTPClientRequestError):
+            with self.assertRaises(SourcesHTTPClientError):
                 client._get_network_response(MOCK_URL, "test error")
 
     def test_get_network_response_status_exception(self):
         """Test get network response with invalid status responses."""
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
-        table = [{"status": 404, "expected": SourceNotFoundError}, {"status": 403, "expected": SourcesHTTPClientError}]
+        table = [
+            {"status": 500, "expected": SourcesHTTPClientInternalError},
+            {"status": 404, "expected": SourceNotFoundError},
+            {"status": 403, "expected": SourcesHTTPClientError},
+        ]
         for test in table:
             with self.subTest(test=test):
                 with requests_mock.mock() as m:
