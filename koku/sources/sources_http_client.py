@@ -99,7 +99,7 @@ class SourcesHTTPClient:
 
         if resp.status_code == 404:
             raise SourceNotFoundError(f"Status Code: {resp.status_code}. Response: {resp.text}")
-        if resp.status_code == 500:
+        elif resp.status_code == 500:
             raise SourcesHTTPClientInternalError(f"Status Code: {resp.status_code}. Response: {resp.text}")
         elif resp.status_code != 200:
             raise SourcesHTTPClientError(f"Status Code: {resp.status_code}. Response: {resp.text}")
