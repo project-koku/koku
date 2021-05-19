@@ -37,7 +37,7 @@ PARTITION_RANGE = "RANGE"
 PARTITION_LIST = "LIST"
 
 # This value from pg_class.relkind denotes a materialized view
-VIEW_TYPE_MATERIALIZED = "m"
+VIEW_TYPE_MATERIALIZED = "MVIEW"
 
 LOG = logging.getLogger("pg_partition")
 # SQLFILE = open('/tmp/pg_partition.sql', 'wt')
@@ -60,7 +60,6 @@ def conn_execute(sql, params=None, _conn=conn):
         cursor = _conn.cursor()
         LOG.info(f"SQL: {cursor.mogrify(sql, params).decode('utf-8')}")
         # print(cursor.mogrify(sql, params).decode('utf-8') + '\n', file=SQLFILE, flush=True)
-        print(cursor.mogrify(sql, params).decode("utf-8") + "\n", flush=True)
         cursor.execute(sql, params)
         return cursor
     else:
@@ -467,10 +466,13 @@ class ViewDefinition:
 
     def __init__(self, target_schema, viewrec):
         self.target_schema = target_schema
+        self.level = viewrec["level"]
         self.schema_name = viewrec["source_schema"]
         self.table_name = viewrec["source_table"]
         self.view_schema = viewrec["dependent_schema"]
+        self.view_schema_oid = viewrec["dependent_schema_oid"]
         self.view_name = viewrec["dependent_view"]
+        self.view_oid = viewrec["dependent_view_oid"]
         self.view_type = viewrec["dependent_view_type"]
         self.definition = viewrec["definition"]
         self.view_owner = viewrec["dependent_view_owner"]
@@ -545,6 +547,9 @@ class ConvertToPartition:
     with the same table definition, as well as duplicated constraint, sequence, index, and view definitions.
     """
 
+    VIEW_DESTROY_ORDER = 0
+    VIEW_CREATE_ORDER = 1
+
     def __init__(
         self,
         source_table_name,
@@ -584,6 +589,12 @@ class ConvertToPartition:
 
     def __repr__(self):
         return f"""Convert "{self.source_schema}"."{self.source_table_name}" to a partitioned table"""
+
+    def view_iter(self, order):
+        if order == self.VIEW_DESTROY_ORDER:
+            return iter(self.views)
+        else:
+            return reversed(self.views)
 
     def detect_new_manager_trigger(self):
         func_sql = """
@@ -696,94 +707,218 @@ select n.nspname::text as "schemaname",
 
     def __get_views(self):
         LOG.info(f"Getting views referencing table {self.source_schema}.{self.source_table_name}")
-        sql = """
-WITH RECURSIVE view_deps AS (
-SELECT DISTINCT
-       dependent_ns.nspname as dependent_schema,
-       dependent_view.oid as dependent_view_oid,
-       dependent_view.relname as dependent_view,
-       dependent_view.relkind as dependent_view_type,
-       dependent_view.relowner::regrole::text as dependent_view_owner,
-       source_ns.nspname as source_schema,
-       source_table.relname as source_table
-  FROM pg_depend
-  JOIN pg_rewrite
-    ON pg_depend.objid = pg_rewrite.oid
-  JOIN pg_class as dependent_view
-    ON pg_rewrite.ev_class = dependent_view.oid
-  JOIN pg_class as source_table
-    ON pg_depend.refobjid = source_table.oid
-  JOIN pg_namespace dependent_ns
-    ON dependent_ns.oid = dependent_view.relnamespace
-  JOIN pg_namespace source_ns
-    ON source_ns.oid = source_table.relnamespace
- WHERE NOT (dependent_ns.nspname = source_ns.nspname AND
-            dependent_view.relname = source_table.relname)
-   AND source_table.relnamespace = %s::regnamespace
-   AND source_table.relname = %s
-UNION
-SELECT DISTINCT
-       dependent_ns.nspname as dependent_schema,
-       dependent_view.oid as dependent_view_oid,
-       dependent_view.relname as dependent_view,
-       dependent_view.relkind as dependent_view_type,
-       dependent_view.relowner::regrole::text as dependent_view_owner,
-       source_ns.nspname as source_schema,
-       source_table.relname as source_table
-  FROM pg_depend
-  JOIN pg_rewrite
-    ON pg_depend.objid = pg_rewrite.oid
-  JOIN pg_class as dependent_view
-    ON pg_rewrite.ev_class = dependent_view.oid
-  JOIN pg_class as source_table
-    ON pg_depend.refobjid = source_table.oid
-  JOIN pg_namespace dependent_ns
-    ON dependent_ns.oid = dependent_view.relnamespace
-  JOIN pg_namespace source_ns
-    ON source_ns.oid = source_table.relnamespace
-  JOIN view_deps vd
-    ON vd.dependent_schema = source_ns.nspname
-   AND vd.dependent_view = source_table.relname
-   AND NOT (dependent_ns.nspname = vd.dependent_schema AND
-            dependent_view.relname = vd.dependent_view)
+        hierarchy_sql = """
+WITH RECURSIVE preference AS (
+  SELECT 10 AS max_depth  -- The deeper the recursion goes, the slower it performs.
+    , 16384 AS min_oid -- user objects only
+    , '^(londiste|pgq|pg_toast)'::text AS schema_exclusion
+    , '^pg_(conversion|language|ts_(dict|template))'::text AS class_exclusion
+    , '{"SCHEMA":"00", "TABLE":"01", "CONSTRAINT":"02", "DEFAULT":"03",
+        "INDEX":"05", "SEQUENCE":"06", "TRIGGER":"07", "FUNCTION":"08",
+        "VIEW":"10", "MVIEW":"11", "FOREIGN":"12"}'::json AS type_ranks
 )
-SELECT vd.dependent_schema,
-       vd.dependent_view_oid,
-       vd.dependent_view,
-       vd.dependent_view_type,
-       replace(vd.dependent_view_owner, '"', '') as dependent_view_owner,
-       vd.source_schema,
-       vd.source_table,
-       (select array_agg(row_to_json(vi))
-          from (
-                    select _n.nspname::text as "schemaname",
-                           _t.relname::text as "tablename",
-                           _ix.relname::text as "indexname",
-                           _i.indisunique,
-                           _i.indisprimary,
-                           (
-                               select array_agg(_a.attname)
-                                 from pg_attribute _a
-                                 where _a.attrelid = _t.oid
-                                  and _a.attnum = any(_i.indkey)
-                           )::text[] as "indexcols",
-                           pg_get_indexdef(_i.indexrelid) as "indexdef"
-                      from pg_class _t
-                      join pg_namespace _n
-                        on _n.oid = _t.relnamespace
-                      join pg_index _i
-                        on _i.indrelid = _t.oid
-                      join pg_class _ix
-                        on _ix.oid = _i.indexrelid
-                     where _n.nspname = vd.dependent_schema
-                       and _t.relname = vd.dependent_view
-               ) vi)::json[] as indexes,
-       pg_get_viewdef(dependent_view_oid) as definition
-  FROM view_deps vd
- ORDER BY source_schema, source_table;
-"""
-        cur = conn_execute(sql, [self.source_schema, self.source_table_name])
-        return [ViewDefinition(self.target_schema, rec) for rec in fetchall(cur)]
+, dependency_pair AS (
+    WITH relation_object AS (
+        SELECT oid
+        , oid::regclass::text AS object_name
+        , CASE relkind
+              WHEN 'r' THEN 'TABLE'::text
+              WHEN 'i' THEN 'INDEX'::text
+              WHEN 'S' THEN 'SEQUENCE'::text
+              WHEN 'v' THEN 'VIEW'::text
+              WHEN 'm' THEN 'MVIEW'::text
+              WHEN 'c' THEN 'TYPE'::text      -- COMPOSITE type
+              WHEN 't' THEN 'TOAST'::text
+              WHEN 'f' THEN 'FOREIGN'::text
+          END AS object_type
+        FROM pg_class
+    )
+    select
+        case when classid = 'pg_rewrite'::regclass
+             THEN (SELECT e.ev_class FROM pg_rewrite e WHERE e.oid = objid)
+             else objid
+        end::oid objid,
+        CASE classid
+            WHEN 'pg_amop'::regclass THEN 'ACCESS METHOD OPERATOR'
+            WHEN 'pg_amproc'::regclass THEN 'ACCESS METHOD PROCEDURE'
+            WHEN 'pg_attrdef'::regclass THEN 'DEFAULT'
+            WHEN 'pg_cast'::regclass THEN 'CAST'
+            WHEN 'pg_class'::regclass THEN rel.object_type
+            WHEN 'pg_constraint'::regclass THEN 'CONSTRAINT'
+            WHEN 'pg_extension'::regclass THEN 'EXTENSION'
+            WHEN 'pg_namespace'::regclass THEN 'SCHEMA'
+            WHEN 'pg_opclass'::regclass THEN 'OPERATOR CLASS'
+            WHEN 'pg_operator'::regclass THEN 'OPERATOR'
+            WHEN 'pg_opfamily'::regclass THEN 'OPERATOR FAMILY'
+            WHEN 'pg_proc'::regclass THEN 'FUNCTION'
+            WHEN 'pg_rewrite'::regclass THEN (SELECT concat(object_type,' RULE(' || objid::text || ')') FROM pg_rewrite e JOIN relation_object r ON r.oid = ev_class WHERE e.oid = objid)
+            WHEN 'pg_trigger'::regclass THEN 'TRIGGER'
+            WHEN 'pg_type'::regclass THEN 'TYPE'
+            ELSE classid::regclass::text
+        END AS object_type,
+        CASE classid
+            WHEN 'pg_attrdef'::regclass THEN (SELECT attname FROM pg_attrdef d JOIN pg_attribute c ON (c.attrelid,c.attnum)=(d.adrelid,d.adnum) WHERE d.oid = objid)
+            WHEN 'pg_cast'::regclass THEN (SELECT concat(castsource::regtype::text, ' AS ', casttarget::regtype::text,' WITH ', castfunc::regprocedure::text) FROM pg_cast WHERE oid = objid)
+            WHEN 'pg_class'::regclass THEN rel.object_name
+            WHEN 'pg_constraint'::regclass THEN (SELECT conname FROM pg_constraint WHERE oid = objid)
+            WHEN 'pg_extension'::regclass THEN (SELECT extname FROM pg_extension WHERE oid = objid)
+            WHEN 'pg_namespace'::regclass THEN (SELECT nspname FROM pg_namespace WHERE oid = objid)
+            WHEN 'pg_opclass'::regclass THEN (SELECT opcname FROM pg_opclass WHERE oid = objid)
+            WHEN 'pg_operator'::regclass THEN (SELECT oprname FROM pg_operator WHERE oid = objid)
+            WHEN 'pg_opfamily'::regclass THEN (SELECT opfname FROM pg_opfamily WHERE oid = objid)
+            WHEN 'pg_proc'::regclass THEN objid::regprocedure::text
+            WHEN 'pg_rewrite'::regclass THEN (SELECT ev_class::regclass::text FROM pg_rewrite WHERE oid = objid)
+            WHEN 'pg_trigger'::regclass THEN (SELECT tgname FROM pg_trigger WHERE oid = objid)
+            WHEN 'pg_type'::regclass THEN objid::regtype::text
+            ELSE objid::text
+        END AS object_name,
+        array_agg(objsubid ORDER BY objsubid) AS objsubids,
+        refobjid,
+        CASE refclassid
+            WHEN 'pg_namespace'::regclass THEN 'SCHEMA'
+            WHEN 'pg_class'::regclass THEN rrel.object_type
+            WHEN 'pg_opfamily'::regclass THEN 'OPERATOR FAMILY'
+            WHEN 'pg_proc'::regclass THEN 'FUNCTION'
+            WHEN 'pg_type'::regclass THEN 'TYPE'
+            ELSE refclassid::text
+        END AS refobj_type,
+        CASE refclassid
+            WHEN 'pg_namespace'::regclass THEN (SELECT nspname FROM pg_namespace WHERE oid = refobjid)
+            WHEN 'pg_class'::regclass THEN rrel.object_name
+            WHEN 'pg_opfamily'::regclass THEN (SELECT opfname FROM pg_opfamily WHERE oid = refobjid)
+            WHEN 'pg_proc'::regclass THEN refobjid::regprocedure::text
+            WHEN 'pg_type'::regclass THEN refobjid::regtype::text
+            ELSE refobjid::text
+        END AS refobj_name,
+        array_agg(refobjsubid ORDER BY refobjsubid) AS refobjsubids,
+        CASE deptype
+            WHEN 'n' THEN 'normal'
+            WHEN 'a' THEN 'automatic'
+            WHEN 'i' THEN 'internal'
+            WHEN 'e' THEN 'extension'
+            WHEN 'p' THEN 'pinned'
+        END AS dependency_type
+    FROM pg_depend dep
+    LEFT JOIN relation_object rel ON rel.oid = dep.objid
+    LEFT JOIN relation_object rrel ON rrel.oid = dep.refobjid
+    left join pg_class cls on dep.objid = cls.oid
+    , preference
+    WHERE deptype = ANY('{n,a}')
+    AND objid >= preference.min_oid
+    AND (refobjid >= preference.min_oid OR refobjid = 2200) -- need public schema as root node
+    AND classid::regclass::text !~ preference.class_exclusion
+    AND refclassid::regclass::text !~ preference.class_exclusion
+    AND coalesce(substring(objid::regclass::text, E'^(\\w+)\\.'),'') !~ preference.schema_exclusion
+    AND coalesce(substring(refobjid::regclass::text, E'^(\\w+)\\.'),'') !~ preference.schema_exclusion
+    GROUP BY classid, objid, refclassid, refobjid, deptype, rel.object_name, rel.object_type, rrel.object_name, rrel.object_type
+)
+, dependency_hierarchy AS (
+    SELECT DISTINCT
+        0 AS level,
+        refobjid AS objid,
+        refobj_type AS object_type,
+        refobj_name AS object_name,
+        NULL::text AS dependency_type,
+        ARRAY[refobjid] AS dependency_chain,
+        ARRAY[concat(preference.type_ranks->>refobj_type,refobj_type,' ',refobj_name)] AS dependency_name_chain
+    FROM dependency_pair root
+    , preference
+    WHERE NOT EXISTS
+       (SELECT 'x' FROM dependency_pair branch WHERE branch.objid = root.refobjid)
+    AND refobj_name !~ preference.schema_exclusion
+    UNION ALL
+    SELECT
+        level + 1 AS level,
+        child.objid,
+        child.object_type,
+        child.object_name,
+        child.dependency_type,
+        parent.dependency_chain || child.objid,
+        parent.dependency_name_chain || concat(preference.type_ranks->>child.object_type,child.object_type,' ',child.object_name)
+    FROM dependency_pair child
+    JOIN dependency_hierarchy parent ON (parent.objid = child.refobjid)
+    , preference
+    WHERE level < preference.max_depth
+    AND child.object_name !~ preference.schema_exclusion
+    AND child.refobj_name !~ preference.schema_exclusion
+    AND NOT (child.objid = ANY(parent.dependency_chain)) -- prevent circular referencing
+)
+SELECT level,
+       case when object_type = 'SCHEMA'
+            then objid
+            else cls.relnamespace
+       end::oid nspid,
+       case when object_type = 'SCHEMA'
+            then object_name
+            else cls.relnamespace::regnamespace::text
+       end::text namespace_name,
+       objid,
+       object_type,
+       object_name,
+       cls.relowner::regrole::text object_owner,
+       dependency_chain,
+       dependency_name_chain,
+       case when object_type ~ '^M*VIEW'
+            then (
+                     select array_agg(row_to_json(vi))
+                       from (
+                                select _t.relnamespace::regnamespace::text as "schemaname",
+                                       _t.relname::text as "tablename",
+                                       _ix.relname::text as "indexname",
+                                       _i.indisunique,
+                                       _i.indisprimary,
+                                       (
+                                            select array_agg(_a.attname)
+                                              from pg_attribute _a
+                                             where _a.attrelid = _t.oid
+                                               and _a.attnum = any(_i.indkey)
+                                       )::text[] as "indexcols",
+                                       pg_get_indexdef(_i.indexrelid) as "indexdef"
+                                  from pg_class _t
+                                  join pg_index _i
+                                    on _i.indrelid = _t.oid
+                                  join pg_class _ix
+                                    on _ix.oid = _i.indexrelid
+                                 where _t.oid = dependency_hierarchy.objid
+                            ) vi
+            )
+            else null
+       end::json[] as view_indexes,
+       case when object_type ~ '^M*VIEW'
+            then pg_get_viewdef(dependency_hierarchy.objid)
+            else null
+       end::text as view_definition
+  FROM dependency_hierarchy
+  left
+  join pg_class cls
+    on cls.oid = objid
+ WHERE array_position(dependency_chain, %s::regclass::oid) is not null
+   AND (object_type = ANY('{SCHEMA,TABLE}'::text[]) or
+        object_type ~ '^M*VIEW RULE')
+ ORDER BY level desc, dependency_chain ;
+"""  # noqa:E501
+        hierarchy = fetchall(conn_execute(hierarchy_sql, [f'"{self.source_schema}"."{self.source_table_name}"']))
+        # The hierarchy will be stored with the lowest level first or in destroy-order
+        res = []
+        for entry in hierarchy:
+            if entry["object_type"] == "TABLE":
+                break
+            rec = {
+                "level": entry["level"],
+                "source_schema": self.source_schema,
+                "source_table": self.source_table_name,
+                "dependent_schema_oid": entry["nspid"],
+                "dependent_schema": entry["namespace_name"],
+                "dependent_view_oid": entry["objid"],
+                "dependent_view_type": entry["object_type"].split()[0],
+                "dependent_view": entry["object_name"],
+                "definition": entry["view_definition"],
+                "dependent_view_owner": entry["object_owner"],
+                "indexes": entry["view_indexes"],
+            }
+            res.append(ViewDefinition(self.target_schema, rec))
+
+        return res
 
     def __create_table_like_source(self):
         msg = f'Creating base table structure for "{self.target_schema}"."{self.partitioned_table_name}" from '
@@ -898,7 +1033,7 @@ VALUES (
     def __set_constraints(self):
         LOG.info("Applying any table constratins")
         for cdef in self.constraints:
-            if cdef.constraint_type.lower() == "unique" and not set(cdef.constraint_columns).isdisjoint(
+            if cdef.constraint_type.lower() == "u" and not set(cdef.constraint_columns).isdisjoint(
                 set(self.pk_def.column_names)
             ):
                 LOG.warning(f"Unique constraint {cdef.constraint_name} overlaps with primary key and will be omitted.")
@@ -1225,11 +1360,15 @@ UPDATE "{self.target_schema}"."partitioned_tables"
 
     def __create_views(self):
         LOG.info("Creating any views")
-        for vdef in self.views:
+        for vdef in self.view_iter(self.VIEW_CREATE_ORDER):
+            LOG.info(
+                f"Creating {'MATERLIALIZED ' if vdef.view_type == VIEW_TYPE_MATERIALIZED else ''}VIEW {vdef.view_name}"
+            )
             conn_execute(vdef.create())
             if vdef.indexes:
                 LOG.info("Creating view indexes")
                 for view_ix in vdef.indexes:
+                    LOG.info(f"Creating index {view_ix.index_name}")
                     conn_execute(view_ix.create())
             conn_execute(vdef.alter_owner())
 

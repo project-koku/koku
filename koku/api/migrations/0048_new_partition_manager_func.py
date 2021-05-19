@@ -17,6 +17,6 @@ def apply_public_func_updates(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0044_auto_20210505_1747")]
+    dependencies = [("api", "0047_update_django_migration_sequences")]
 
     operations = [migrations.RunPython(code=apply_public_func_updates)]
