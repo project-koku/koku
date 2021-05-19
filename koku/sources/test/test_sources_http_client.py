@@ -40,6 +40,7 @@ from sources.sources_http_client import ENDPOINT_SOURCES
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
+from sources.sources_http_client import SourcesHTTPClientRequestError
 
 faker = Faker()
 COST_MGMT_APP_TYPE_ID = 2
@@ -80,7 +81,7 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(url=MOCK_URL, exc=RequestException)
-            with self.assertRaises(SourcesHTTPClientError):
+            with self.assertRaises(SourcesHTTPClientRequestError):
                 client._get_network_response(MOCK_URL, "test error")
 
     def test_get_network_response_status_exception(self):

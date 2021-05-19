@@ -55,6 +55,12 @@ class SourcesHTTPClientError(Exception):
     pass
 
 
+class SourcesHTTPClientRequestError(Exception):
+    """Exception raised during SourcesHTTPClient request."""
+
+    pass
+
+
 class SourceNotFoundError(Exception):
     """SourceNotFound Error."""
 
@@ -89,7 +95,7 @@ class SourcesHTTPClient:
         try:
             resp = requests.get(url, headers=self._identity_header)
         except RequestException as error:
-            raise SourcesHTTPClientError(f"{error_msg}. Reason: {error}")
+            raise SourcesHTTPClientRequestError(f"{error_msg}. Reason: {error}")
 
         if resp.status_code == 404:
             raise SourceNotFoundError(f"Status Code: {resp.status_code}. Response: {resp.text}")

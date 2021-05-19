@@ -50,6 +50,7 @@ from sources.kafka_message_processor import SourcesMessageError
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
+from sources.sources_http_client import SourcesHTTPClientRequestError
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.sources_provider_coordinator import SourcesProviderCoordinatorError
 from sources.tasks import delete_source
@@ -314,8 +315,11 @@ def listen_for_messages(kaf_msg, consumer, application_source_id):  # noqa: C901
             LOG.warning(f"[listen_for_messages] {type(err).__name__}: {err}. Retrying...")
             SOURCES_HTTP_CLIENT_ERROR_COUNTER.inc()
             rewind_consumer_to_retry(consumer, tp)
-        except (SourcesMessageError, SourceNotFoundError) as error:
-            LOG.warning(f"[listen_for_messages] {type(error).__name__}: {error}. Skipping msg: {kaf_msg.value()}")
+        except SourcesHTTPClientRequestError as err:
+            LOG.warning(f"[listen_for_messages] {type(err).__name__}: {err}. Skipping msg: {kaf_msg.value()}")
+            consumer.commit()
+        except (SourcesMessageError, SourceNotFoundError) as err:
+            LOG.warning(f"[listen_for_messages] {type(err).__name__}: {err}. Skipping msg: {kaf_msg.value()}")
             consumer.commit()
         else:
             consumer.commit()
