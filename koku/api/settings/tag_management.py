@@ -11,7 +11,6 @@ from api.common import error_obj
 from api.provider.models import Provider
 from api.query_params import QueryParameters
 from api.settings.utils import create_dual_list_select
-from api.settings.utils import create_plain_text
 from api.settings.utils import create_plain_text_with_doc
 from api.settings.utils import create_subform
 from api.settings.utils import generate_doc_link
