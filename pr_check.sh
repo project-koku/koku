@@ -23,3 +23,10 @@ source $APP_ROOT/unit_test.sh
 
 # source $CICD_ROOT/deploy_ephemeral_env.sh
 # source $CICD_ROOT/smoke_test.sh
+
+mkdir -p $WORKSPACE/artifacts
+cat << EOF > $WORKSPACE/artifacts/junit-dummy.xml
+<testsuite tests="1">
+    <testcase classname="dummy" name="dummytest"/>
+</testsuite>
+EOF
