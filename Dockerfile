@@ -1,9 +1,12 @@
 FROM registry.access.redhat.com/ubi8/python-38:latest
 
+ARG PIPENV_DEV=False
+
 ENV LC_ALL=en_US.UTF-8 \
     LANG=en_US.UTF-8 \
     PIP_NO_CACHE_DIR=off \
     ENABLE_PIPENV=true \
+    PIPENV_DEV=$PIPENV_DEV \
     PIN_PIPENV_VERSION="2018.11.26" \
     APP_HOME="/opt/app-root/src/koku" \
     APP_MODULE="koku.wsgi" \
