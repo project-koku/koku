@@ -39,7 +39,7 @@ PARTITION_LIST = "LIST"
 # This value from pg_class.relkind denotes a materialized view
 VIEW_TYPE_MATERIALIZED = "MVIEW"
 
-LOG = logging.getLogger("pg_partition")
+LOG = logging.getLogger(__name__)
 # SQLFILE = open('/tmp/pg_partition.sql', 'wt')
 
 _TEMPLATE_SCHEMA = os.environ.get("TEMPLATE_SCHEMA", "template0")
@@ -58,7 +58,7 @@ def conn_execute(sql, params=None, _conn=conn):
     """
     if sql:
         cursor = _conn.cursor()
-        LOG.info(f"SQL: {cursor.mogrify(sql, params).decode('utf-8')}")
+        LOG.debug(f"SQL: {cursor.mogrify(sql, params).decode('utf-8')}")
         # print(cursor.mogrify(sql, params).decode('utf-8') + '\n', file=SQLFILE, flush=True)
         cursor.execute(sql, params)
         return cursor
@@ -525,8 +525,8 @@ ALTER {view_type} VIEW "{self.target_schema}"."{self.view_name}"
     #         return sql
 
     def create(self):
-        view_type = "MATERIALIZED" if self.view_type == VIEW_TYPE_MATERIALIZED else ""
-        LOG.info(f'Creating {view_type} view "{self.view_name}')
+        view_type = "MATERIALIZED " if self.view_type == VIEW_TYPE_MATERIALIZED else ""
+        LOG.info(f'Creating {view_type}VIEW "{self.view_name}')
         sql = f"""
 CREATE {view_type} VIEW "{self.target_schema}"."{self.view_name}" AS
 {self.definition}
@@ -1361,14 +1361,10 @@ UPDATE "{self.target_schema}"."partitioned_tables"
     def __create_views(self):
         LOG.info("Creating any views")
         for vdef in self.view_iter(self.VIEW_CREATE_ORDER):
-            LOG.info(
-                f"Creating {'MATERLIALIZED ' if vdef.view_type == VIEW_TYPE_MATERIALIZED else ''}VIEW {vdef.view_name}"
-            )
             conn_execute(vdef.create())
             if vdef.indexes:
                 LOG.info("Creating view indexes")
                 for view_ix in vdef.indexes:
-                    LOG.info(f"Creating index {view_ix.index_name}")
                     conn_execute(view_ix.create())
             conn_execute(vdef.alter_owner())
 

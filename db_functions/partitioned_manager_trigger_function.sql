@@ -121,18 +121,18 @@ BEGIN
                 format(
                     'ALTER TABLE %I.%I DETACH PARTITION %I.%I ;',
                     OLD.schema_name,
-                    OLD.partition_of_table_name,
+                    NEW.partition_of_table_name,
                     OLD.schema_name,
-                    OLD.table_name
+                    NEW.table_name
                 )
             );
             messages = array_append(
                 messages,
                 format('DETACH PARTITION %I.%I FROM %I.%I',
                     OLD.schema_name,
-                    OLD.table_name,
+                    NEW.table_name,
                     OLD.schema_name,
-                    OLD.partition_of_table_name
+                    NEW.partition_of_table_name
                 )
             );
         ELSE
@@ -141,16 +141,16 @@ BEGIN
                 action_stmt = format(
                     'ALTER TABLE %I.%I ATTACH PARTITION %I.%I ',
                     OLD.schema_name,
-                    OLD.partition_of_table_name,
+                    NEW.partition_of_table_name,
                     OLD.schema_name,
-                    OLD.table_name
+                    NEW.table_name
                 );
                 message_text = format(
                     'ATTACH PARITITION %I.%I TO %I.%I ',
                     OLD.schema_name,
-                    OLD.table_name,
+                    NEW.table_name,
                     OLD.schema_name,
-                    OLD.partition_of_table_name
+                    NEW.partition_of_table_name
                 );
                 IF ( (NEW.partition_parameters->>'default') = 'true' )
                 THEN
@@ -171,15 +171,16 @@ select format_type(
           from pg_attribute
          where attrelid = %L::regclass
            and attname = %L
-    )
+    ),
+    null
 );
 ',
-                        quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name),
-                        quote_ident(OLD.partition_col)
+                        quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name),
+                        quote_ident(NEW.partition_col)
                     )
                     INTO col_type_name;
                     action_stmt_2 = format(
-                        'FOR VALUES FROM ( %L::%I TO %L::%I )',
+                        'FOR VALUES FROM ( %L::%I ) TO ( %L::%I )',
                         NEW.partition_parameters->>'from',
                         col_type_name,
                         NEW.partition_parameters->>'to',
@@ -225,15 +226,16 @@ select format_type(
           from pg_attribute
          where attrelid = %L::regclass
            and attname = %L
-    )
+    ),
+    null
 );
 ',
-                quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name),
-                quote_ident(OLD.partition_col)
+                quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name),
+                quote_ident(NEW.partition_col)
             )
             INTO col_type_name;
             action_stmt_2 = format(
-                'FOR VALUES FROM ( %L::%I TO %L::%I )',
+                'FOR VALUES FROM ( %L::%I ) TO ( %L::%I )',
                 NEW.partition_parameters->>'from',
                 col_type_name,
                 NEW.partition_parameters->>'to',
