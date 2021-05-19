@@ -2027,8 +2027,6 @@ objects:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
-    objectStore:
-    - my-bucket-name
     optionalDependencies:
     - sources-api
 parameters:

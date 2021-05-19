@@ -14,8 +14,8 @@ objects:
     # Redis
     inMemoryDb: true
 
-    objectStore:
-    - my-bucket-name
+    # objectStore:
+    # - my-bucket-name
 
     # Creates a database if local mode, or uses RDS in production
     database:
