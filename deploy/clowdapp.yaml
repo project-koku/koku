@@ -2028,6 +2028,7 @@ objects:
     - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
     optionalDependencies:
+    - rbac
     - sources-api
 parameters:
 - name: ENV_NAME

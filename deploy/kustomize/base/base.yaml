@@ -30,6 +30,7 @@ objects:
     - topicName: platform.upload.validation
 
     optionalDependencies:
+    - rbac
     - sources-api
 
     # The bulk of your App. This is where your running apps will live
