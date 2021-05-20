@@ -28,7 +28,6 @@ DECLARE
     message_text text = '';
     col_type_name text = null;
 BEGIN
-    RAISE NOTICE 'TG_OP = %', TG_OP;
     IF ( TG_OP = 'DELETE' )
     THEN
         IF ( OLD.active )
@@ -250,12 +249,10 @@ select format_type(
 
     /* Execute the action statements we've queued */
     total_actions = cardinality(action_stmts);
-    RAISE NOTICE 'TOTAL ACTIONS = %', total_actions;
     LOOP
         EXIT WHEN action_ix > total_actions;
 
         RAISE INFO '%', messages[action_ix];
-        RAISE NOTICE 'ACTION: %', action_stmts[action_ix];
         EXECUTE action_stmts[action_ix];
 
         action_ix = action_ix + 1;

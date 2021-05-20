@@ -16,11 +16,13 @@
 #
 """Removes report data from database."""
 import logging
+from datetime import date
 from datetime import datetime
 
 from tenant_schemas.utils import schema_context
 
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from reporting.models import PartitionedTable
 
 
 LOG = logging.getLogger(__name__)
@@ -103,16 +105,6 @@ class AWSReportDBCleaner:
         """
         LOG.info("Calling purge_expired_report_data for aws")
 
-        if provider_uuid is not None:
-            return self.purge_expired_report_data_by_provider_id(
-                expired_date=expired_date, provider_uuid=provider_uuid, simulate=simulate
-            )
-        else:
-            return self.purge_expired_report_data_by_date(expired_date=expired_date, simulate=simulate)
-
-    def purge_expired_report_data_by_provider_id(self, expired_date=None, provider_uuid=None, simulate=False):
-        LOG.info(f"Purging report data by provider uuid {provider_uuid}")
-
         with AWSReportDBAccessor(self._schema) as accessor:
             if (expired_date is None and provider_uuid is None) or (  # noqa: W504
                 expired_date is not None and provider_uuid is not None
@@ -121,7 +113,9 @@ class AWSReportDBCleaner:
                 raise AWSReportDBCleanerError(err)
             removed_items = []
 
-            if expired_date is not None:
+            if expired_date is not None and provider_uuid is None:
+                self.purge_report_data_by_date_only(expired_date, simulate=simulate)
+            elif expired_date is not None:
                 bill_objects = accessor.get_bill_query_before_date(expired_date)
             else:
                 bill_objects = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
@@ -167,5 +161,50 @@ class AWSReportDBCleaner:
 
         return removed_items
 
-    def purge_expired_report_data_by_date(self, expired_date=None, simulate=False):
-        pass
+    def purge_report_data_by_date_only(self, expired_date, simulate=False):
+        paritition_from = str(date(expired_date.year, expired_date.month, 1))
+        with AWSReportDBAccessor(self._schema) as accessor:
+            table_names = [
+                accessor.AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"],
+                accessor.AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"],
+                accessor.AWSCostEntryLineItemDailySummary._meta.db_table,
+            ]
+            base_lineitem_query = accessor._get_db_obj_query(accessor.AWSCostEntryLineItem)
+            base_daily_query = accessor._get_db_obj_query(accessor.AWSCostEntryLineItemDaily)
+            base_costentry_query = accessor._get_db_obj_query(accessor.AWSCostEntry)
+
+        with schema_context(self._schema):
+            all_bill_objects = accessor.get_bill_query_before_date(expired_date).all()
+            removed_items = [
+                {"account_payer_id": bill.payer_account_id, "billing_period_start": bill.billing_period_start}
+                for bill in all_bill_objects
+            ]
+            partition_query = PartitionedTable.objects.filter(
+                schema_name=self._schema,
+                partition_of_table_name__in=table_names,
+                partition_parameters__default=False,
+                partition_parameters__from__lt=paritition_from,
+            )
+            if not simulate:
+                # Will call trigger to detach, truncate, and drop partitions
+                del_count = partition_query.delete()
+                LOG.info(f"Deleted {del_count} table partitions total for the following tables: {table_names}")
+
+                # Iterate over the remainder as they could involve much larger amounts of data
+                for bill in all_bill_objects:
+                    del_count = base_lineitem_query.filter(cost_entry_bill_id=bill.id).delete()
+                    LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
+
+                    del_count = base_daily_query.filter(cost_entry_bill_id=bill.id).delete()
+                    LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
+
+                    del_count = base_costentry_query.filter(cost_entry_bill_id=bill.id).delete()
+                    LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
+
+            for ri in removed_items:
+                LOG.info(
+                    f"Report data deleted for account payer id {ri['account_payer_id']} "
+                    f"and billing period {ri['billing_period_start']}"
+                )
+
+        return removed_items
