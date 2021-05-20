@@ -23,6 +23,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.currency.view import CURRENCY_FILE_NAME
+from api.currency.view import load_currencies
 from api.iam.test.iam_test_case import IamTestCase
 
 
@@ -44,10 +45,22 @@ class CurrencyViewTest(IamTestCase):
         self.assertEqual(data.get("data"), expected)
 
     @patch("api.currency.view.load_currencies")
-    def test_supported_currencies_bad_file(self, currency):
+    def test_supported_currencies_fnf_error(self, currency):
         """Test that a list GET call with a FNF error returns 404."""
         url = reverse("currency")
         client = APIClient()
         currency.side_effect = FileNotFoundError
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_load_currencies(self):
+        """Test load currency function happy path."""
+        data = load_currencies(CURRENCY_FILE_NAME)
+        with open(CURRENCY_FILE_NAME) as api_file:
+            expected = json.load(api_file)
+        self.assertEqual(data, expected)
+
+    def test_load_currencies_fnf(self):
+        """Test file not found load_currencies."""
+        with self.assertRaises(FileNotFoundError):
+            load_currencies("doesnotexist.json")
