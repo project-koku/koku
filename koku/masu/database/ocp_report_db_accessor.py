@@ -423,6 +423,50 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         return db_results
 
+    def get_ocp_infrastructure_map_trino(self, start_date, end_date, **kwargs):
+        """Get the OCP on infrastructure map.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        # kwargs here allows us to optionally pass in a provider UUID based on
+        # the provider type this is run for
+        ocp_provider_uuid = kwargs.get("ocp_provider_uuid")
+        aws_provider_uuid = kwargs.get("aws_provider_uuid")
+        azure_provider_uuid = kwargs.get("azure_provider_uuid")
+
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+        infra_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpinfrastructure_provider_map.sql")
+        infra_sql = infra_sql.decode("utf-8")
+        infra_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
+            "schema": self.schema,
+            "aws_provider_uuid": aws_provider_uuid,
+            "ocp_provider_uuid": ocp_provider_uuid,
+            "azure_provider_uuid": azure_provider_uuid,
+        }
+        infra_sql, infra_sql_params = self.jinja_sql.prepare_query(infra_sql, infra_sql_params)
+        results = self._execute_presto_raw_sql_query(self.schema, infra_sql, bind_params=infra_sql_params)
+
+        db_results = {}
+        for entry in results:
+            # This dictionary is keyed on an OpenShift provider UUID
+            # and the tuple contains
+            # (Infrastructure Provider UUID, Infrastructure Provider Type)
+            db_results[entry[0]] = (entry[1], entry[2])
+
+        return db_results
+
     def populate_storage_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily storage aggregate of line items table.
 
