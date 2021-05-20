@@ -16,6 +16,7 @@
 #
 """Test the Metrics views."""
 import json
+from unittest.mock import patch
 
 from django.urls import reverse
 from rest_framework import status
@@ -30,7 +31,8 @@ class CurrencyViewTest(IamTestCase):
 
     def test_supported_currencies(self):
         """Test that a list GET call returns the supported currencies."""
-        url = reverse("currency")
+        qs = "?limit=20"
+        url = reverse("currency") + qs
         client = APIClient()
 
         response = client.get(url, **self.headers)
@@ -39,4 +41,13 @@ class CurrencyViewTest(IamTestCase):
         data = response.data
         with open(CURRENCY_FILE_NAME) as api_file:
             expected = json.load(api_file)
-        self.assertEqual(data, expected)
+        self.assertEqual(data.get("data"), expected)
+
+    @patch("api.currency.view.load_currencies")
+    def test_supported_currencies_bad_file(self, currency):
+        """Test that a list GET call with a FNF error returns 404."""
+        url = reverse("currency")
+        client = APIClient()
+        currency.side_effect = FileNotFoundError
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
