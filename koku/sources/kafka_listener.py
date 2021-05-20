@@ -394,8 +394,10 @@ def sources_integration_thread():  # pragma: no cover
             count += 1
             LOG.info("Reattempting connection to Sources REST API.")
         except SourceNotFoundError as err:
-            LOG.error(f"Cost Management application not found: {err}. Exiting...")
-            sys.exit(1)
+            LOG.error(f"Cost Management application not found: {err}")
+            backoff(count)
+            count += 1
+            LOG.info("Reattempting connection to Sources REST API.")
         except KeyboardInterrupt:
             sys.exit(0)
 
