@@ -231,6 +231,10 @@ parameters:
   name: PRESTO_PORT
   value: "8080"
 
+- displayName: Prometheus Pushgateway
+  name: PROMETHEUS_PUSHGATEWAY
+  value: prometheus-pushgateway:9091
+
 - displayName: Sources-api service hostname
   name: SOURCES_HOST
   value: sources-api-svc.sources.svc

@@ -148,7 +148,7 @@
         - name: REPORT_PROCESSING_BATCH_SIZE
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
-          value: prometheus-pushgateway:9091
+          value: ${PROMETHEUS_PUSHGATEWAY}
         - name: USE_RABBIT
           value: ${USE_RABBIT}
         - name: RABBITMQ_HOST

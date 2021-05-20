@@ -589,7 +589,7 @@ objects:
         - name: REPORT_PROCESSING_BATCH_SIZE
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
-          value: prometheus-pushgateway:9091
+          value: ${PROMETHEUS_PUSHGATEWAY}
         - name: USE_RABBIT
           value: ${USE_RABBIT}
         - name: RABBITMQ_HOST
@@ -983,7 +983,7 @@ objects:
         - name: REPORT_PROCESSING_BATCH_SIZE
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
-          value: prometheus-pushgateway:9091
+          value: ${PROMETHEUS_PUSHGATEWAY}
         - name: USE_RABBIT
           value: ${USE_RABBIT}
         - name: RABBITMQ_HOST
@@ -1151,7 +1151,7 @@ objects:
         - name: REPORT_PROCESSING_BATCH_SIZE
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
-          value: prometheus-pushgateway:9091
+          value: ${PROMETHEUS_PUSHGATEWAY}
         - name: USE_RABBIT
           value: ${USE_RABBIT}
         - name: RABBITMQ_HOST
@@ -1319,7 +1319,7 @@ objects:
         - name: REPORT_PROCESSING_BATCH_SIZE
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
-          value: prometheus-pushgateway:9091
+          value: ${PROMETHEUS_PUSHGATEWAY}
         - name: USE_RABBIT
           value: ${USE_RABBIT}
         - name: RABBITMQ_HOST
@@ -1487,7 +1487,7 @@ objects:
         - name: REPORT_PROCESSING_BATCH_SIZE
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
-          value: prometheus-pushgateway:9091
+          value: ${PROMETHEUS_PUSHGATEWAY}
         - name: USE_RABBIT
           value: ${USE_RABBIT}
         - name: RABBITMQ_HOST
@@ -1655,7 +1655,7 @@ objects:
         - name: REPORT_PROCESSING_BATCH_SIZE
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
-          value: prometheus-pushgateway:9091
+          value: ${PROMETHEUS_PUSHGATEWAY}
         - name: USE_RABBIT
           value: ${USE_RABBIT}
         - name: RABBITMQ_HOST
@@ -1823,7 +1823,7 @@ objects:
         - name: REPORT_PROCESSING_BATCH_SIZE
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
-          value: prometheus-pushgateway:9091
+          value: ${PROMETHEUS_PUSHGATEWAY}
         - name: USE_RABBIT
           value: ${USE_RABBIT}
         - name: RABBITMQ_HOST
@@ -1991,7 +1991,7 @@ objects:
         - name: REPORT_PROCESSING_BATCH_SIZE
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
-          value: prometheus-pushgateway:9091
+          value: ${PROMETHEUS_PUSHGATEWAY}
         - name: USE_RABBIT
           value: ${USE_RABBIT}
         - name: RABBITMQ_HOST
@@ -2215,6 +2215,9 @@ parameters:
 - displayName: Presto port
   name: PRESTO_PORT
   value: "8080"
+- displayName: Prometheus Pushgateway
+  name: PROMETHEUS_PUSHGATEWAY
+  value: prometheus-pushgateway:9091
 - displayName: Sources-api service hostname
   name: SOURCES_HOST
   value: sources-api-svc.sources.svc
