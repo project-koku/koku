@@ -42,25 +42,14 @@ class TrinoExecutionError(Exception):
 
 
 class ReportParquetProcessorBase:
-    def __init__(
-        self,
-        manifest_id,
-        account,
-        s3_path,
-        provider_uuid,
-        parquet_local_path,
-        numeric_columns,
-        date_columns,
-        table_name,
-    ):
+    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, column_types, table_name):
         self._manifest_id = manifest_id
         self._account = account
         self._schema_name = f"acct{account}"
         self._parquet_path = parquet_local_path
         self._s3_path = s3_path
         self._provider_uuid = provider_uuid
-        self._numeric_columns = numeric_columns
-        self._date_columns = date_columns
+        self._column_types = column_types
         self._table_name = table_name
 
     @property
@@ -130,10 +119,12 @@ class ReportParquetProcessorBase:
 
         for idx, col in enumerate(parquet_columns):
             norm_col = strip_characters_from_column_name(col)
-            if norm_col in self._numeric_columns:
+            if norm_col in self._column_types["numeric_columns"]:
                 col_type = "double"
-            elif norm_col in self._date_columns:
+            elif norm_col in self._column_types["date_columns"]:
                 col_type = "timestamp"
+            elif norm_col in self._column_types["boolean_columns"]:
+                col_type = "boolean"
             else:
                 col_type = "varchar"
 

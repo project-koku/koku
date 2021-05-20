@@ -47,6 +47,14 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
             "bill_billingperiodstartdate",
             "bill_billingperiodenddate",
         ]
+        boolean_columns = ["resource_id_matched"]
+
+        column_types = {
+            "numeric_columns": numeric_columns,
+            "date_columns": date_columns,
+            "boolean_columns": boolean_columns,
+        }
+
         if "openshift" in s3_path:
             table_name = PRESTO_OCP_ON_AWS_DAILY_TABLE
         elif "daily" in s3_path:
@@ -59,8 +67,7 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
             s3_path=s3_path,
             provider_uuid=provider_uuid,
             parquet_local_path=parquet_local_path,
-            numeric_columns=numeric_columns,
-            date_columns=date_columns,
+            column_types=column_types,
             table_name=table_name,
         )
 
