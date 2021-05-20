@@ -423,12 +423,12 @@ class ReportDBAccessorBase(KokuDBAccess):
 
     def add_partition(self, **partition_record):
         with transaction.atomic():
-            connection.set_schema(self.schema)
-            newpart, created = PartitionedTable.objects.get_or_create(
-                defaults=partition_record,
-                schema_name=partition_record["schema_name"],
-                table_name=partition_record["table_name"],
-            )
+            with schema_context(self.schema):
+                newpart, created = PartitionedTable.objects.get_or_create(
+                    defaults=partition_record,
+                    schema_name=partition_record["schema_name"],
+                    table_name=partition_record["table_name"],
+                )
         if created:
             LOG.info(f"Created a new partition for {newpart.partition_of_table_name} : {newpart.table_name}")
 
@@ -451,3 +451,7 @@ class ReportDBAccessorBase(KokuDBAccess):
 
     def drop_partitions(self, partitions):
         partitions.delete()
+
+    def delete_partitions(self, partitions):
+        self.detach_partitions(partitions)
+        self.drop_partitions(partitions)
