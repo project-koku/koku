@@ -439,3 +439,22 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             results = cursor.fetchall()
 
         return [json.loads(result[0]) for result in results]
+
+    def get_openshift_on_cloud_matched_tags_trino(self, aws_source_uuid, ocp_source_uuid, start_date, end_date):
+        """Return a list of matched tags."""
+        sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpaws_matched_tags.sql")
+        sql = sql.decode("utf-8")
+
+        sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "aws_source_uuid": aws_source_uuid,
+            "ocp_source_uuid": ocp_source_uuid,
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
+        }
+        sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
+        results = self._execute_presto_raw_sql_query(self.schema, sql, bind_params=sql_params)
+
+        return [json.loads(result[0]) for result in results]
