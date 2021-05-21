@@ -16,12 +16,14 @@
 #
 """Removes report data from database."""
 import logging
+from datetime import date
 from datetime import datetime
 
 from tenant_schemas.utils import schema_context
 
 from masu.database.koku_database_access import mini_transaction_delete
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from reporting.models import PartitionedTable
 
 LOG = logging.getLogger(__name__)
 
@@ -108,7 +110,7 @@ class OCPReportDBCleaner:
             removed_items = []
 
             if expired_date is not None:
-                usage_period_objs = accessor.get_usage_period_on_or_before_date(expired_date)
+                self.purge_expired_report_data_by_date(expired_date, simulate=simulate)
             else:
                 usage_period_objs = accessor.get_usage_period_query_by_provider(provider_uuid)
             with schema_context(self._schema):
@@ -162,4 +164,80 @@ class OCPReportDBCleaner:
 
                 if not simulate:
                     usage_period_objs.delete()
+        return removed_items
+
+    def purge_expired_report_data_by_date(self, expired_date, simulate=False):
+        paritition_from = str(date(expired_date.year, expired_date.month, 1))
+        with OCPReportDBAccessor(self._schema) as accessor:
+            all_usage_periods = accessor.get_usage_periods_by_date(expired_date)
+            table_names = [
+                accessor.OCP_REPORT_TABLE_MAP["ocp_on_aws_daily_summary"],
+                accessor.OCP_REPORT_TABLE_MAP["ocp_on_aws_project_daily_summary"],
+                accessor.OCP_REPORT_TABLE_MAP["line_item_daily_summary"],
+            ]
+            table_queries = [
+                (
+                    accessor._get_db_obj_query(accessor.OCP_REPORT_TABLE_MAP["line_item"]),
+                    ("report_period_id", "id"),
+                    "line items",
+                ),
+                (
+                    accessor._get_db_obj_query(accessor.OCP_REPORT_TABLE_MAP["line_item_daily"]),
+                    ("cluster_id", "cluster_id"),
+                    "daily items",
+                ),
+                (
+                    accessor._get_db_obj_query(accessor.OCP_REPORT_TABLE_MAP["cost_summary"]),
+                    ("cluster_id", "cluster_id"),
+                    "cost summary",
+                ),
+                (
+                    accessor._get_db_obj_query(accessor.OCP_REPORT_TABLE_MAP["storage_line_item"]),
+                    ("report_period_id", "id"),
+                    "storage line items",
+                ),
+                (
+                    accessor._get_db_obj_query(accessor.OCP_REPORT_TABLE_MAP["node_label_line_item"]),
+                    ("report_period_id", "id"),
+                    "node label line items",
+                ),
+                (
+                    accessor._get_db_obj_query(accessor.OCP_REPORT_TABLE_MAP["storage_line_item_daily"]),
+                    ("cluster_id", "cluster_id"),
+                    "storagedaily items",
+                ),
+                (
+                    accessor._get_db_obj_query(
+                        accessor.OCP_REPORT_TABLE_MAP["report"], ("report_period_id", "id"), "usage period items"
+                    )
+                ),
+            ]
+
+        with schema_context(self._schema):
+            partition_query = PartitionedTable.objects.filter(
+                schema_name=self._schema,
+                partition_of_table_name__in=table_names,
+                partition_parameters__default=False,
+                partition_parameters__from__lt=paritition_from,
+            )
+            removed_items = []
+            if not simulate:
+                # Will call trigger to detach, truncate, and drop partitions
+                del_count = partition_query.delete()
+                LOG.info(f"Deleted {del_count} table partitions total for the following tables: {table_names}")
+
+            # Iterate over the remainder as they could involve much larger amounts of data
+            for period in all_usage_periods:
+                if not simulate:
+                    for query, param_attrs, msg in table_queries:
+                        del_count = query.filter(**{param_attrs[0]: getattr(period, param_attrs[1])}).delete()
+                        LOG.info(f"Deleted {del_count} {msg}")
+
+                LOG.info(
+                    "Report data removed for usage period ID: %s with interval start: %s",
+                    period.id,
+                    period.usage_start,
+                )
+                removed_items.append({"usage_period_id": period.id, "interval_start": str(period.usage_start)})
+
         return removed_items

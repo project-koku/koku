@@ -67,7 +67,7 @@ class AzureReportDBCleaner:
             removed_items = []
 
             if expired_date is not None:
-                bill_objects = accessor.get_bill_query_before_date(expired_date)
+                self.purge_expired_report_data_by_date(expired_date, simulate=simulate)
             else:
                 bill_objects = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
             with schema_context(self._schema):
@@ -105,6 +105,7 @@ class AzureReportDBCleaner:
     def purge_expired_report_data_by_date(self, expired_date, simulate=False):
         paritition_from = str(date(expired_date.year, expired_date.month, 1))
         with AzureReportDBAccessor(self._schema) as accessor:
+            all_bill_objects = accessor.get_bill_query_before_date(expired_date).all()
             table_names = [
                 accessor.AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"],
                 accessor.AZURE_REPORT_TABLE_MAP["ocp_on_azure_project_daily_summary"],
@@ -114,11 +115,7 @@ class AzureReportDBCleaner:
             base_daily_query = accessor._get_db_obj_query(accessor.AzureCostEntryLineItemDaily)
 
         with schema_context(self._schema):
-            all_bill_objects = accessor.get_bill_query_before_date(expired_date).all()
-            removed_items = [
-                {"account_payer_id": bill.payer_account_id, "billing_period_start": bill.billing_period_start}
-                for bill in all_bill_objects
-            ]
+            removed_items = []
             partition_query = PartitionedTable.objects.filter(
                 schema_name=self._schema,
                 partition_of_table_name__in=table_names,
@@ -131,17 +128,20 @@ class AzureReportDBCleaner:
                 LOG.info(f"Deleted {del_count} table partitions total for the following tables: {table_names}")
 
                 # Iterate over the remainder as they could involve much larger amounts of data
-                for bill in all_bill_objects:
+            for bill in all_bill_objects:
+                if not simulate:
                     del_count = base_lineitem_query.filter(cost_entry_bill_id=bill.id).delete()
                     LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
 
                     del_count = base_daily_query.filter(cost_entry_bill_id=bill.id).delete()
                     LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
 
-            for ri in removed_items:
+                removed_items.append(
+                    {"account_payer_id": bill.payer_account_id, "billing_period_start": bill.billing_period_start}
+                )
                 LOG.info(
-                    f"Report data deleted for account payer id {ri['account_payer_id']} "
-                    f"and billing period {ri['billing_period_start']}"
+                    f"Report data deleted for account payer id {bill.payer_account_id} "
+                    f"and billing period {bill.billing_period_start}"
                 )
 
         return removed_items
