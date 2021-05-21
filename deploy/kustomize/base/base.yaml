@@ -47,9 +47,11 @@ parameters:
 - description: Image tag
   name: IMAGE_TAG
   required: true
+  value: latest
 - description: Image
   name: IMAGE
   required: true
+  value: quay.io/cloudservices/koku
 - displayName: App domain
   name: APP_DOMAIN
   value: project-koku.com
