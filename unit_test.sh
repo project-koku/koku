@@ -1,3 +1,5 @@
+export DB_DEPLOYMENT_NAME="${DB_DEPLOYMENT_NAME:-$COMPONENT_NAME-db}"
+
 # This script is used to deploy an ephemeral DB for your unit tests run against
 # This script can be found at:
 # https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd/deploy_ephemeral_db.sh
