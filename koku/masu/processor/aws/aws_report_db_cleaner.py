@@ -161,7 +161,7 @@ class AWSReportDBCleaner:
 
         return removed_items
 
-    def purge_report_data_by_date_only(self, expired_date, simulate=False):
+    def purge_expired_report_data_by_date(self, expired_date, simulate=False):
         paritition_from = str(date(expired_date.year, expired_date.month, 1))
         with AWSReportDBAccessor(self._schema) as accessor:
             table_names = [
