@@ -2030,6 +2030,25 @@ objects:
     optionalDependencies:
     - rbac
     - sources-api
+- apiVersion: v1
+  data:
+    django-secret-key: ${SECRET_KEY}
+  kind: Secret
+  metadata:
+    name: koku-secret
+- apiVersion: v1
+  data:
+    aws-access-key-id: ${SECRET_KEY}
+    aws-secret-access-key: ${SECRET_KEY}
+  kind: Secret
+  metadata:
+    name: koku-aws
+- apiVersion: v1
+  data:
+    gcp-credentials: ""
+  kind: Secret
+  metadata:
+    name: koku-gcp
 parameters:
 - name: ENV_NAME
   required: true
@@ -2230,6 +2249,12 @@ parameters:
 - description: Source API Path prefix
   name: SOURCES_API_PREFIX
   value: /api/sources/v1.0
+- description: Django SECRET_KEY
+  displayName: Secret Key (Ephemeral)
+  from: '[a-f0-9]{128}'
+  generate: expression
+  name: SECRET_KEY
+  required: true
 - displayName: Minimum replicas
   name: KOKU_MIN_REPLICAS
   required: true

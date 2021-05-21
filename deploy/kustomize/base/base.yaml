@@ -36,6 +36,25 @@ objects:
     # The bulk of your App. This is where your running apps will live
     deployments:
     -
+- apiVersion: v1
+  kind: Secret # For ephemeral/local environment only
+  metadata:
+    name: koku-secret
+  data:
+    django-secret-key: "${SECRET_KEY}"
+- apiVersion: v1
+  kind: Secret # For ephemeral/local environment only
+  metadata:
+    name: koku-aws
+  data:
+    aws-access-key-id: "${SECRET_KEY}"
+    aws-secret-access-key: "${SECRET_KEY}"
+- apiVersion: v1
+  kind: Secret # For ephemeral/local environment only
+  metadata:
+    name: koku-gcp
+  data:
+    gcp-credentials: ""
 
 parameters:
 - name: ENV_NAME
@@ -247,3 +266,10 @@ parameters:
 - description: Source API Path prefix
   name: SOURCES_API_PREFIX
   value: /api/sources/v1.0
+
+- name: SECRET_KEY
+  displayName: Secret Key (Ephemeral)
+  required: true
+  description: Django SECRET_KEY
+  from: "[a-f0-9]{128}"
+  generate: expression
