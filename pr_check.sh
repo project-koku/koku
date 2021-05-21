@@ -6,7 +6,7 @@
 # Options that must be configured by app owner
 # --------------------------------------------
 APP_NAME="hccm"  # name of app-sre "application" folder this component lives in
-COMPONENT_NAME="koku"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
+COMPONENT_NAME="hccm"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
 IMAGE="quay.io/cloudservices/koku"
 
 IQE_PLUGINS="cost_management"
