@@ -18,7 +18,7 @@ IQE_FILTER_EXPRESSION=""
 CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
 # curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
-source $APP_ROOT/bootstrap.sh
+curl -s https://raw.githubusercontent.com/project-koku/koku/4a32a9c9d32d7fbd2234a58a3d6d7ed6d7888d8a/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
 source $CICD_ROOT/build.sh
 source $APP_ROOT/unit_test.sh
