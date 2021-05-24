@@ -22,7 +22,7 @@ from .env import ENVIRONMENT
 
 CLOWDER_ENABLED = ENVIRONMENT.bool("CLOWDER_ENABLED", default=False)
 if CLOWDER_ENABLED:
-    from app_common_python import LoadedConfig, KafkaTopics, DependencyEndpoints
+    from app_common_python import ObjectBuckets, LoadedConfig, KafkaTopics, DependencyEndpoints
 
 
 class Configurator:
@@ -94,17 +94,17 @@ class Configurator:
         pass
 
     @staticmethod
-    def get_object_store_access_key():
+    def get_object_store_access_key(requestedName: str = ""):
         """Obtain object store access key."""
         pass
 
     @staticmethod
-    def get_object_store_secret_key():
+    def get_object_store_secret_key(requestedName: str = ""):
         """Obtain object store secret key."""
         pass
 
     @staticmethod
-    def get_object_store_bucket():
+    def get_object_store_bucket(requestedName: str = ""):
         """Obtain object store bucket."""
         pass
 
@@ -215,32 +215,32 @@ class EnvConfigurator(Configurator):
     @staticmethod
     def get_object_store_host():
         """Obtain object store host."""
-        return ENVIRONMENT.get_value("MINIO_ENDPOINT", default=None)
+        return ENVIRONMENT.get_value("S3_HOST", default=None)
 
     @staticmethod
     def get_object_store_port():
         """Obtain object store port."""
-        return ENVIRONMENT.get_value("MINIO_ENDPOINT_PORT", default=443)
+        return ENVIRONMENT.get_value("S3_PORT", default=443)
 
     @staticmethod
     def get_object_store_tls():
         """Obtain object store secret key."""
-        return ENVIRONMENT.bool("MINIO_SECURE", default=True)
+        return ENVIRONMENT.bool("S3_SECURE", default=False)
 
     @staticmethod
-    def get_object_store_access_key():
+    def get_object_store_access_key(requestedName: str = ""):
         """Obtain object store access key."""
-        return ENVIRONMENT.get_value("MINIO_ACCESS_KEY", default=None)
+        return ENVIRONMENT.get_value("S3_ACCESS_KEY", default=None)
 
     @staticmethod
-    def get_object_store_secret_key():
+    def get_object_store_secret_key(requestedName: str = ""):
         """Obtain object store secret key."""
-        return ENVIRONMENT.get_value("MINIO_SECRET_KEY", default=None)
+        return ENVIRONMENT.get_value("S3_SECRET", default=None)
 
     @staticmethod
-    def get_object_store_bucket():
+    def get_object_store_bucket(requestedName: str = ""):
         """Obtain object store bucket."""
-        return ENVIRONMENT.get_value("MINIO_BUCKET", default="open-marketplace")
+        return ENVIRONMENT.get_value("S3_BUCKET", default=requestedName)
 
     @staticmethod
     def get_database_name():
@@ -308,16 +308,12 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_in_memory_db_host():
         """Obtain in memory (redis) db host."""
-        # return LoadedConfig.inMemoryDb.hostname
-        # TODO: if we drop an elasticache instance or clowder supports more
-        # than 1 elasticache instance, we can switch to using the inMemoryDb
-        return ENVIRONMENT.get_value("REDIS_HOST", default="redis")
+        return LoadedConfig.inMemoryDb.hostname
 
     @staticmethod
     def get_in_memory_db_port():
         """Obtain in memory (redis) db port."""
-        # return LoadedConfig.inMemoryDb.port
-        return ENVIRONMENT.get_value("REDIS_PORT", default="6379")
+        return LoadedConfig.inMemoryDb.port
 
     @staticmethod
     def get_kafka_broker_host():
@@ -376,23 +372,27 @@ class ClowderConfigurator(Configurator):
             return False
 
     @staticmethod
-    def get_object_store_access_key():
+    def get_object_store_access_key(requestedName: str = ""):
         """Obtain object store access key."""
+        if requestedName != "":
+            return ObjectBuckets.get(requestedName).accessKey
         if LoadedConfig.objectStore.accessKey:
             return LoadedConfig.objectStore.accessKey
         return LoadedConfig.objectStore.buckets[0].accessKey
 
     @staticmethod
-    def get_object_store_secret_key():
+    def get_object_store_secret_key(requestedName: str = ""):
         """Obtain object store secret key."""
+        if requestedName != "":
+            return ObjectBuckets.get(requestedName).secretKey
         if LoadedConfig.objectStore.secretKey:
             return LoadedConfig.objectStore.secretKey
         return LoadedConfig.objectStore.buckets[0].secretKey
 
     @staticmethod
-    def get_object_store_bucket():
+    def get_object_store_bucket(requestedName: str = ""):
         """Obtain object store bucket."""
-        return LoadedConfig.objectStore.buckets[0].name
+        return ObjectBuckets.get(requestedName).name
 
     @staticmethod
     def get_database_name():
