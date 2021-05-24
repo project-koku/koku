@@ -19,6 +19,7 @@ import datetime
 import json
 import logging
 import re
+import uuid
 
 import boto3
 import ciso8601
@@ -449,14 +450,13 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
 
     tags = data_frame["resourcetags"]
     tag_matched = tags.apply(match_openshift_labels, args=(matched_tags, cluster_topology))
-    data_frame["tag_matched"] = tag_matched
+    data_frame["matched_tag"] = tag_matched
 
     openshift_matched_data_frame = data_frame[
-        (data_frame["resource_id_matched"] == True) | data_frame["tag_matched"] == True  # noqa: E712
+        (data_frame["resource_id_matched"] == True) | data_frame["matched_tag"] == True  # noqa: E712
     ]
 
-    drop_columns = ["resource_id_matched", "tag_matched"]
-    openshift_matched_data_frame = openshift_matched_data_frame.drop(columns=drop_columns)
+    openshift_matched_data_frame["uuid"] = openshift_matched_data_frame.apply(lambda _: str(uuid.uuid4()), axis=1)
 
     return openshift_matched_data_frame
 
@@ -468,16 +468,18 @@ def match_openshift_labels(tag_dict, matched_tags, cluster_topology):
     cluster_alias = cluster_topology.get("cluster_alias").lower()
     nodes = [node.lower() for node in cluster_topology.get("nodes", [])]
     projects = [project.lower() for project in cluster_topology.get("projects", [])]
+    tag_matches = []
     for key, value in tag_dict.items():
+        tag = json.dumps({key.lower(): value.lower()}).replace("{", "").replace("}", "")
         if {key.lower(): value.lower()} in matched_tags:
-            return True
-        elif key.lower() == "openshift_cluster" and value.lower() in (cluster_id, cluster_alias):
-            return True
-        elif key.lower() == "openshift_node" and value.lower() in nodes:
-            return True
+            tag_matches.append(tag)
         elif key.lower() == "openshift_project" and value.lower() in projects:
-            return True
-    return False
+            return tag
+        elif key.lower() == "openshift_node" and value.lower() in nodes:
+            return tag
+        elif key.lower() == "openshift_cluster" and value.lower() in (cluster_id, cluster_alias):
+            return tag
+    return ",".join(tag_matches)
 
 
 def get_column_converters():
