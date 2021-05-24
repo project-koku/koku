@@ -197,10 +197,10 @@ fi
 
 # Trigger downloads individually to ensure OCP is processed before cloud sources for OCP on Cloud
 trigger_download 'Test OCP on AWS'
-trigger_download 'Test AWS Source'
 trigger_download 'Test OCP on Azure'
-trigger_download 'Test Azure Source'
 trigger_download 'Test OCP on Premises'
+trigger_download 'Test AWS Source'
+trigger_download 'Test Azure Source'
 trigger_download 'Test Azure v2 Source'
 trigger_download 'Test GCP Source'
 trigger_download 'Test IBM Source'
