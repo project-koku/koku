@@ -2027,6 +2027,8 @@ objects:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
+    objectStore:
+    - koku-reports
     optionalDependencies:
     - rbac
     - sources-api

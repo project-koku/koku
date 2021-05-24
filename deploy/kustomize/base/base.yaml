@@ -29,6 +29,9 @@ objects:
     - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
 
+    objectStore:
+    - koku-reports
+
     optionalDependencies:
     - rbac
     - sources-api
