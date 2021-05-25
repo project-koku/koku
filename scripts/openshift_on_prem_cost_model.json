@@ -71,7 +71,8 @@
             "usage_start": null,
             "usage_end": null
         }],
-        "cost_type": "Infrastructure"
+        "cost_type": "Infrastructure",
+        "distribution": "cpu"
     },
     {
         "metric": {"name": "cluster_cost_per_month"},
@@ -81,7 +82,8 @@
             "usage_start": null,
             "usage_end": null
         }],
-        "cost_type": "Infrastructure"
+        "cost_type": "Infrastructure",
+        "distribution": "memory"
     }
     ]
 }
