@@ -12,11 +12,7 @@
         enabled: false
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
-      # command:
-      #   - /usr/libexec/s2i/run # remove this
-      # args:
-      #   - ""
-      command:
+      command:  # this `command` overrides haberdasher; when implementing haberdasher, change this to `args`
         - /bin/bash
         - -c
         - python koku/manage.py sources_listener
@@ -30,18 +26,6 @@
             secretKeyRef:
               key: django-secret-key
               name: koku-secret
-              optional: false
-        - name: AWS_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              key: aws-access-key-id
-              name: koku-aws
-              optional: false
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws-secret-access-key
-              name: koku-aws
               optional: false
         - name: APP_POD_NAME
           valueFrom:

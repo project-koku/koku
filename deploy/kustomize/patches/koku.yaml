@@ -10,7 +10,6 @@
         enabled: false
       metrics:
         enabled: true
-    # Give details about your running pod
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
       initContainers:
@@ -19,7 +18,7 @@
             value: ${CLOWDER_ENABLED}
           - name: prometheus_multiproc_dir
             value: ${PROMETHEUS_DIR}
-          command: # use `args` instead of `command` so that haberdasher starts with container ENTRYPOINT
+          command:  # this `command` overrides haberdasher; when implementing haberdasher, change this to `args`
             - /bin/bash
             - -c
             - $HOME/scripts/run_migrations.sh
@@ -33,8 +32,8 @@
             requests:
               cpu: ${KOKU_INIT_CPU_REQUEST}
               memory: ${KOKU_INIT_MEMORY_REQUEST}
-      command:
-        - /usr/libexec/s2i/run # remove this
+      command:  # this `command` overrides haberdasher; `command` can be removed entirely when implementing haberdasher
+        - /usr/libexec/s2i/run
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -43,18 +42,6 @@
             secretKeyRef:
               key: django-secret-key
               name: koku-secret
-              optional: false
-        - name: AWS_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              key: aws-access-key-id
-              name: koku-aws
-              optional: false
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws-secret-access-key
-              name: koku-aws
               optional: false
         - name: APP_POD_NAME
           valueFrom:

@@ -12,7 +12,7 @@
         enabled: true
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
-      command: # this should be args
+      command:  # this `command` overrides haberdasher; when implementing haberdasher, change this to `args`
         - /bin/bash
         - -c
         - >
@@ -21,18 +21,6 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: AWS_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              key: aws-access-key-id
-              name: koku-aws
-              optional: false
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws-secret-access-key
-              name: koku-aws
-              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:

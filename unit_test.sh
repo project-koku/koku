@@ -68,7 +68,7 @@ rm -f $K8S_ARTIFACTS_DIR
 export PGPASSWORD=$DATABASE_ADMIN_PASSWORD
 
 # Run the code needed for unit tests, example below ...
-python3 -m venv app-venv
+python3.8 -m venv app-venv
 . app-venv/bin/activate
 pip install --upgrade pip setuptools wheel pipenv tox psycopg2-binary
 tox -r

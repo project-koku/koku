@@ -48,13 +48,6 @@ objects:
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
   metadata:
-    name: koku-aws
-  data:
-    aws-access-key-id: "${SECRET_KEY}"
-    aws-secret-access-key: "${SECRET_KEY}"
-- apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
-  metadata:
     name: koku-gcp
   data:
     gcp-credentials: ""
