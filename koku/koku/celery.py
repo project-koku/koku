@@ -4,7 +4,6 @@ import logging
 import os
 import time
 
-import django
 from celery import Celery
 from celery import Task
 from celery.schedules import crontab
@@ -16,7 +15,7 @@ from koku import sentry  # noqa: F401
 from koku.env import ENVIRONMENT
 
 
-LOGGER = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 class LogErrorsTask(Task):  # pragma: no cover
@@ -24,7 +23,7 @@ class LogErrorsTask(Task):  # pragma: no cover
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Log exceptions when a celery task fails."""
-        LOGGER.exception("Task failed: %s", exc, exc_info=exc)
+        LOG.exception("Task failed: %s", exc, exc_info=exc)
         super().on_failure(exc, task_id, args, kwargs, einfo)
 
 
@@ -42,10 +41,10 @@ class LoggingCelery(Celery):
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
 
-LOGGER.info("Starting celery.")
+LOG.info("Starting celery.")
 # Setup the database for use in Celery
-django.setup()
-LOGGER.info("Database configured.")
+# django.setup()
+# LOG.info("Database configured.")
 
 # 'app' is the recommended convention from celery docs
 # following this for ease of comparison to reference implementation
@@ -54,12 +53,12 @@ app = LoggingCelery(
 )
 app.config_from_object("django.conf:settings", namespace="CELERY")
 
-LOGGER.info("Celery autodiscover tasks.")
+LOG.info("Celery autodiscover tasks.")
 
 # Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     # The interval to scan for new reports.
-    REPORT_CHECK_INTERVAL = datetime.timedelta(minutes=int(os.getenv("SCHEDULE_CHECK_INTERVAL", "60")))
+    REPORT_CHECK_INTERVAL = datetime.timedelta(minutes=ENVIRONMENT.int("SCHEDULE_CHECK_INTERVAL", default=60))
 
     CHECK_REPORT_UPDATES_DEF = {
         "task": "masu.celery.tasks.check_report_updates",
@@ -70,7 +69,7 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
 
 
 # Specify the day of the month for removal of expired report data.
-REMOVE_EXPIRED_REPORT_DATA_ON_DAY = int(ENVIRONMENT.get_value("REMOVE_EXPIRED_REPORT_DATA_ON_DAY", default="1"))
+REMOVE_EXPIRED_REPORT_DATA_ON_DAY = ENVIRONMENT.int("REMOVE_EXPIRED_REPORT_DATA_ON_DAY", default=1)
 
 # Specify the time of the day for removal of expired report data.
 REMOVE_EXPIRED_REPORT_UTC_TIME = ENVIRONMENT.get_value("REMOVE_EXPIRED_REPORT_UTC_TIME", default="00:00")
@@ -94,22 +93,13 @@ VACUUM_DATA_DAY_OF_WEEK = ENVIRONMENT.get_value("VACUUM_DATA_DAY_OF_WEEK", defau
 VACUUM_DATA_UTC_TIME = ENVIRONMENT.get_value("VACUUM_DATA_UTC_TIME", default="00:00")
 VACUUM_HOUR, VACUUM_MINUTE = VACUUM_DATA_UTC_TIME.split(":")
 
-# Set the autovacuum-tuning task 1 hour prior to the main vacuum task
 av_hour = int(VACUUM_HOUR)
-av_hour = 23 if av_hour == 0 else (av_hour - 1)
 
 if VACUUM_DATA_DAY_OF_WEEK:
-    schedule = crontab(day_of_week=VACUUM_DATA_DAY_OF_WEEK, hour=int(VACUUM_HOUR), minute=int(VACUUM_MINUTE))
     autovacuum_schedule = crontab(day_of_week=VACUUM_DATA_DAY_OF_WEEK, hour=av_hour, minute=int(VACUUM_MINUTE))
 else:
-    schedule = crontab(hour=int(VACUUM_HOUR), minute=int(VACUUM_MINUTE))
     autovacuum_schedule = crontab(hour=av_hour, minute=int(VACUUM_MINUTE))
 
-app.conf.beat_schedule["vacuum-schemas"] = {
-    "task": "masu.celery.tasks.vacuum_schemas",
-    "schedule": schedule,
-    "args": [],
-}
 
 # This will automatically tune the tables (if needed) based on the number of live tuples
 # Based on the latest statistics analysis run
@@ -125,8 +115,19 @@ app.conf.beat_schedule["delete_source_beat"] = {
     "schedule": crontab(minute="0", hour="4"),
 }
 
+# Specify the frequency for pushing source status.
+SOURCE_STATUS_FREQUENCY_MINUTES = ENVIRONMENT.get_value("SOURCE_STATUS_FREQUENCY_MINUTES", default="30")
+source_status_schedule = crontab(minute=f"*/{SOURCE_STATUS_FREQUENCY_MINUTES}")
+LOG.info(f"Source status schedule: {str(source_status_schedule)}")
+
+# task to push source status`
+app.conf.beat_schedule["source_status_beat"] = {
+    "task": "sources.tasks.source_status_beat",
+    "schedule": source_status_schedule,
+}
+
 # Collect prometheus metrics.
-app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(minute="*/15")}
+app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(hour=1, minute=0)}
 
 
 # optionally specify the weekday and time you would like the clean volume task to run
@@ -156,9 +157,6 @@ app.conf.beat_schedule["remove_stale_tenants"] = {
 # Celery timeout if broker is unavaiable to avoid blocking indefintely
 app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "interval_step": 0.5, "interval_max": 3}
 
-# Specify task routes
-app.conf.task_routes = {"sources.tasks.*": {"queue": "sources"}}
-
 app.autodiscover_tasks()
 
 CELERY_INSPECT = app.control.inspect()
@@ -170,7 +168,7 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
     from .database import check_migrations
 
     while not check_migrations():
-        LOGGER.warning("Migrations not done. Sleeping")
+        LOG.warning("Migrations not done. Sleeping")
         time.sleep(5)
 
 
@@ -179,7 +177,7 @@ def is_task_currently_running(task_name, task_id, check_args=None):
     try:
         active_dict = CELERY_INSPECT.active()
     except OperationalError:
-        LOGGER.warning("Cannot connect to RabbitMQ.")
+        LOG.warning("Cannot connect to RabbitMQ.")
         return False
     active_tasks = []
     for task_list in active_dict.values():

@@ -27,24 +27,17 @@ from os import remove
 from tempfile import gettempdir
 from uuid import uuid4
 
-import ciso8601
 from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
 from pytz import UTC
+from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
-from masu.util.azure.common import azure_date_converter
-from masu.util.azure.common import azure_json_converter
-from masu.util.gcp.common import process_gcp_credits
-from masu.util.gcp.common import process_gcp_labels
-from masu.util.ocp.common import process_openshift_datetime
-from masu.util.ocp.common import process_openshift_labels_to_json
-
 
 LOG = logging.getLogger(__name__)
 
@@ -88,6 +81,7 @@ def ingest_method_for_provider(provider):
         Provider.PROVIDER_AZURE_LOCAL: POLL_INGEST,
         Provider.PROVIDER_GCP: POLL_INGEST,
         Provider.PROVIDER_GCP_LOCAL: POLL_INGEST,
+        Provider.PROVIDER_IBM: POLL_INGEST,
         Provider.PROVIDER_OCP: LISTEN_INGEST,
     }
     return ingest_map.get(provider)
@@ -162,92 +156,9 @@ def safe_dict(val):
     return json.dumps(result)
 
 
-def get_column_converters(provider_type, **kwargs):
-    """
-    Get the column data types for a provider.
-
-    Args:
-        provider_type (str): The provider type
-        kwargs (Dict): Additional meta data related to the report
-
-    Returns:
-        (Dict): column_name -> function
-    """
-    converters = {}
-    if provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
-        converters = {
-            "bill/BillingPeriodStartDate": ciso8601.parse_datetime,
-            "bill/BillingPeriodEndDate": ciso8601.parse_datetime,
-            "lineItem/UsageStartDate": ciso8601.parse_datetime,
-            "lineItem/UsageEndDate": ciso8601.parse_datetime,
-            "lineItem/UsageAmount": safe_float,
-            "lineItem/NormalizationFactor": safe_float,
-            "lineItem/NormalizedUsageAmount": safe_float,
-            "lineItem/UnblendedRate": safe_float,
-            "lineItem/UnblendedCost": safe_float,
-            "lineItem/BlendedRate": safe_float,
-            "lineItem/BlendedCost": safe_float,
-            "pricing/publicOnDemandCost": safe_float,
-            "pricing/publicOnDemandRate": safe_float,
-        }
-    elif provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
-        converters = {
-            "UsageDateTime": azure_date_converter,
-            "Date": azure_date_converter,
-            "BillingPeriodStartDate": azure_date_converter,
-            "BillingPeriodEndDate": azure_date_converter,
-            "UsageQuantity": safe_float,
-            "Quantity": safe_float,
-            "ResourceRate": safe_float,
-            "PreTaxCost": safe_float,
-            "CostInBillingCurrency": safe_float,
-            "EffectivePrice": safe_float,
-            "UnitPrice": safe_float,
-            "PayGPrice": safe_float,
-            "Tags": azure_json_converter,
-            "AdditionalInfo": azure_json_converter,
-        }
-    elif provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-        converters = {
-            "usage_start_time": ciso8601.parse_datetime,
-            "usage_end_time": ciso8601.parse_datetime,
-            "project.labels": process_gcp_labels,
-            "labels": process_gcp_labels,
-            "system_labels": process_gcp_labels,
-            "export_time": ciso8601.parse_datetime,
-            "cost": safe_float,
-            "currency_conversion_rate": safe_float,
-            "usage.amount": safe_float,
-            "usage.amount_in_pricing_units": safe_float,
-            "credits": process_gcp_credits,
-        }
-    elif provider_type == Provider.PROVIDER_OCP:
-        converters = {
-            "report_period_start": process_openshift_datetime,
-            "report_period_end": process_openshift_datetime,
-            "interval_start": process_openshift_datetime,
-            "interval_end": process_openshift_datetime,
-            "pod_usage_cpu_core_seconds": safe_float,
-            "pod_request_cpu_core_seconds": safe_float,
-            "pod_limit_cpu_core_seconds": safe_float,
-            "pod_usage_memory_byte_seconds": safe_float,
-            "pod_request_memory_byte_seconds": safe_float,
-            "pod_limit_memory_byte_seconds": safe_float,
-            "node_capacity_cpu_cores": safe_float,
-            "node_capacity_cpu_core_seconds": safe_float,
-            "node_capacity_memory_bytes": safe_float,
-            "node_capacity_memory_byte_seconds": safe_float,
-            "persistentvolumeclaim_capacity_bytes": safe_float,
-            "persistentvolumeclaim_capacity_byte_seconds": safe_float,
-            "volume_request_storage_byte_seconds": safe_float,
-            "persistentvolumeclaim_usage_byte_seconds": safe_float,
-            "pod_labels": process_openshift_labels_to_json,
-            "persistentvolume_labels": process_openshift_labels_to_json,
-            "persistentvolumeclaim_labels": process_openshift_labels_to_json,
-            "node_labels": process_openshift_labels_to_json,
-            "namespace_labels": process_openshift_labels_to_json,
-        }
-    return converters
+def strip_characters_from_column_name(column_name):
+    """Return a valid Hive/Trino column name."""
+    return re.sub(r"\W+", "_", column_name).lower()
 
 
 class NamedTemporaryGZip:
@@ -375,12 +286,90 @@ def determine_if_full_summary_update_needed(bill):
 
     # Do a full month update if this is the first time we've seen the current month's data
     # or if it is from a previous month
-    if is_new_bill or not is_current_month:
-        return True
-
-    return False
+    return is_new_bill or not is_current_month
 
 
 def split_alphanumeric_string(s):
     for k, g in groupby(s, str.isalpha):
         yield "".join(g)
+
+
+def batch(iterable, start=0, stop=None, _slice=1):
+    iterable = list(iterable) if not isinstance(iterable, list) else iterable
+    length = len(iterable)
+    if stop is None:
+        stop = length
+    else:
+        stop = int(stop)
+    if stop < 0:
+        stop = length + stop
+    if stop > length:
+        stop = length
+    if start is None:
+        start = 0
+    else:
+        start = int(start)
+    if start < 0:
+        start = length + start
+
+    while start < stop:
+        end = start + _slice
+        res = iterable[start:end]
+        start = end
+        yield res
+
+
+def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
+    LOG.info("Creating enabled tag key records")
+    changed = False
+
+    if enabled_keys:
+        with schema_context(schema):
+            new_keys = list(set(enabled_keys) - {k.key for k in enabled_keys_model.objects.all()})
+            if new_keys:
+                changed = True
+                # Processing in batches for increased efficiency
+                for batch_num, new_batch in enumerate(batch(new_keys, _slice=500)):
+                    batch_size = len(new_batch)
+                    LOG.info(f"Create batch {batch_num + 1}: batch_size {batch_size}")
+                    for ix in range(batch_size):
+                        new_batch[ix] = enabled_keys_model(key=new_batch[ix])
+                    enabled_keys_model.objects.bulk_create(new_batch, ignore_conflicts=True)
+
+    if not changed:
+        LOG.info("No enabled keys added.")
+
+    return changed
+
+
+def update_enabled_keys(schema, enabled_keys_model, enabled_keys):
+    LOG.info("Updating enabled tag keys records")
+    changed = False
+
+    enabled_keys_set = set(enabled_keys)
+    update_keys_enabled = []
+    update_keys_disabled = []
+
+    with schema_context(schema):
+        for key in enabled_keys_model.objects.all():
+            if key.key in enabled_keys_set:
+                if not key.enabled:
+                    update_keys_enabled.append(key.key)
+            else:
+                update_keys_disabled.append(key.key)
+
+        # When we are in create mode, we do not want to change the state of existing keys
+        if update_keys_enabled or update_keys_disabled:
+            changed = True
+            if update_keys_enabled:
+                LOG.info(f"Updating {len(update_keys_enabled)} keys to ENABLED")
+                enabled_keys_model.objects.filter(key__in=update_keys_enabled).update(enabled=True)
+
+            if update_keys_disabled:
+                LOG.info(f"Updating {len(update_keys_disabled)} keys to DISABLED")
+                enabled_keys_model.objects.filter(key__in=update_keys_disabled).update(enabled=False)
+
+    if not changed:
+        LOG.info("No enabled keys updated.")
+
+    return changed

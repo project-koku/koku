@@ -52,7 +52,7 @@ class DateAccessor:
         """
         Return the current date and time.
 
-        When the environment variable MASU_DEBUG is set to True,
+        When the environment variable DEVELOPMENT is set to True,
         the MASU_DATE_OVERRIDE environment variable can be used to
         override masu's current date and time.
 
@@ -76,7 +76,7 @@ class DateAccessor:
     def today_with_timezone(self, timezone):
         """Return the current datetime at the timezone indictated.
 
-        When the environment variable MASU_DEBUG is set to True,
+        When the environment variable DEVELOPMENT is set to True,
         the MASU_DATE_OVERRIDE environment variable can be used to
         override masu's current date and time.
 
@@ -127,3 +127,14 @@ class DateAccessor:
             calculated_month = current_month + relativedelta(months=-month)
             months.append(calculated_month.date())
         return months
+
+    def get_billing_month_start(self, in_date):
+        """Return the start of the month for the input."""
+
+        if isinstance(in_date, str):
+            out_date = parser.parse(in_date).replace(day=1).date()
+        elif isinstance(in_date, datetime):
+            out_date = in_date.replace(day=1).date()
+        else:
+            out_date = in_date.replace(day=1)
+        return out_date

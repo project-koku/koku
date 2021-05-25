@@ -18,6 +18,7 @@
 import hashlib
 import random
 import string
+from unittest.mock import patch
 
 from masu.exceptions import HasherError
 from masu.test import MasuTestCase
@@ -71,6 +72,16 @@ class HasherUtilTests(MasuTestCase):
     def test_unsupported_algorithm(self):
         """Test that an exception is raised for unsupported algorithms."""
         bad_algorithm = "zuul"
+
+        with self.assertRaises(HasherError):
+            Hasher(hash_function=bad_algorithm)
+
+    @patch("masu.util.hash.hashlib", spec=hashlib)
+    def test_guaranteed_algorithms(self, mock_hashlib):
+        """Test that an exception is raised for a guaranteed algorithm."""
+        bad_algorithm = "test_hash_function"
+        mock_hashlib.algorithms_guaranteed = [bad_algorithm]
+        mock_hashlib.test_hash_function = None
 
         with self.assertRaises(HasherError):
             Hasher(hash_function=bad_algorithm)

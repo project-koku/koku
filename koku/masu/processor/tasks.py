@@ -17,13 +17,13 @@
 """Asynchronous tasks."""
 import datetime
 import json
+import logging
 import os
 from decimal import Decimal
 from decimal import InvalidOperation
 
 import ciso8601
 from celery import chain
-from celery.utils.log import get_task_logger
 from dateutil import parser
 from django.db import connection
 from django.db.utils import IntegrityError
@@ -34,8 +34,8 @@ from api.common import log_json
 from api.iam.models import Tenant
 from api.provider.models import Provider
 from api.utils import DateHelper
+from koku import celery_app
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
-from koku.celery import app
 from koku.middleware import KokuTenantMiddleware
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -52,6 +52,7 @@ from masu.processor.cost_model_cost_updater import CostModelCostUpdater
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
+from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.worker_cache import WorkerCache
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
@@ -61,16 +62,32 @@ from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 
-LOG = get_task_logger(__name__)
+LOG = logging.getLogger(__name__)
 
+DEFAULT = "celery"
 GET_REPORT_FILES_QUEUE = "download"
 OCP_QUEUE = "ocp"
-REFRESH_MATERIALIZED_VIEWS_QUEUE = "reporting"
-REMOVE_EXPIRED_DATA_QUEUE = "remove_expired"
-SUMMARIZE_REPORTS_QUEUE = "process"
-UPDATE_COST_MODEL_COSTS_QUEUE = "reporting"
-UPDATE_SUMMARY_TABLES_QUEUE = "reporting"
 PRIORITY_QUEUE = "priority"
+REFRESH_MATERIALIZED_VIEWS_QUEUE = "refresh"
+REMOVE_EXPIRED_DATA_QUEUE = "summary"
+SUMMARIZE_REPORTS_QUEUE = "summary"
+UPDATE_COST_MODEL_COSTS_QUEUE = "cost_model"
+UPDATE_SUMMARY_TABLES_QUEUE = "summary"
+VACUUM_SCHEMA_QUEUE = "summary"
+
+# any additional queues should be added to this list
+QUEUE_LIST = [
+    DEFAULT,
+    GET_REPORT_FILES_QUEUE,
+    OCP_QUEUE,
+    PRIORITY_QUEUE,
+    REFRESH_MATERIALIZED_VIEWS_QUEUE,
+    REMOVE_EXPIRED_DATA_QUEUE,
+    SUMMARIZE_REPORTS_QUEUE,
+    UPDATE_COST_MODEL_COSTS_QUEUE,
+    UPDATE_SUMMARY_TABLES_QUEUE,
+    VACUUM_SCHEMA_QUEUE,
+]
 
 
 def record_all_manifest_files(manifest_id, report_files):
@@ -119,7 +136,7 @@ def record_report_status(manifest_id, file_name, request_id, context={}):
 
 
 # pylint: disable=too-many-locals
-@app.task(name="masu.processor.tasks.get_report_files", queue_name=GET_REPORT_FILES_QUEUE, bind=True)
+@celery_app.task(name="masu.processor.tasks.get_report_files", queue=GET_REPORT_FILES_QUEUE, bind=True)
 def get_report_files(
     self,
     customer_name,
@@ -226,7 +243,7 @@ def get_report_files(
         WorkerCache().remove_task_from_cache(cache_key)
 
 
-@app.task(name="masu.processor.tasks.remove_expired_data", queue_name=REMOVE_EXPIRED_DATA_QUEUE)
+@celery_app.task(name="masu.processor.tasks.remove_expired_data", queue=DEFAULT)
 def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, line_items_only=False, queue_name=None):
     """
     Remove expired report data.
@@ -256,7 +273,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
         )
 
 
-@app.task(name="masu.processor.tasks.summarize_reports", queue_name=SUMMARIZE_REPORTS_QUEUE)
+@celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SUMMARIZE_REPORTS_QUEUE)
 def summarize_reports(reports_to_summarize, queue_name=None):
     """
     Summarize reports returned from line summary task.
@@ -301,7 +318,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                 ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
 
 
-@app.task(name="masu.processor.tasks.update_summary_tables", queue_name="reporting")
+@celery_app.task(name="masu.processor.tasks.update_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)
 def update_summary_tables(  # noqa: C901
     schema_name,
     provider,
@@ -328,16 +345,22 @@ def update_summary_tables(  # noqa: C901
     """
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
     task_name = "masu.processor.tasks.update_summary_tables"
-    cache_args = [schema_name]
+    cache_args = [schema_name, provider]
 
     if not synchronous:
         worker_cache = WorkerCache()
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             LOG.info(msg)
-            update_summary_tables.delay(
-                schema_name, provider, provider_uuid, start_date, end_date=end_date, manifest_id=manifest_id
-            )
+            update_summary_tables.s(
+                schema_name,
+                provider,
+                provider_uuid,
+                start_date,
+                end_date=end_date,
+                manifest_id=manifest_id,
+                queue_name=queue_name,
+            ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=3600)
 
@@ -355,6 +378,8 @@ def update_summary_tables(  # noqa: C901
         updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
         start_date, end_date = updater.update_daily_tables(start_date, end_date)
         updater.update_summary_tables(start_date, end_date)
+    except ReportSummaryUpdaterCloudError as ex:
+        LOG.info(f"Failed to correlate OpenShift metrics for provider: {str(provider_uuid)}. Error: {str(ex)}")
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
@@ -366,7 +391,7 @@ def update_summary_tables(  # noqa: C901
         ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
         return
 
-    if enable_trino_processing(provider_uuid) and provider in (
+    if enable_trino_processing(provider_uuid, provider, schema_name) and provider in (
         Provider.PROVIDER_AWS,
         Provider.PROVIDER_AWS_LOCAL,
         Provider.PROVIDER_AZURE,
@@ -422,7 +447,7 @@ def update_summary_tables(  # noqa: C901
         worker_cache.release_single_task(task_name, cache_args)
 
 
-@app.task(name="masu.processor.tasks.update_all_summary_tables", queue_name="reporting")
+@celery_app.task(name="masu.processor.tasks.update_all_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)
 def update_all_summary_tables(start_date, end_date=None):
     """Populate all the summary tables for reporting.
 
@@ -451,15 +476,15 @@ def update_all_summary_tables(start_date, end_date=None):
             provider_uuid = account.get("provider_uuid")
             queue_name = OCP_QUEUE if provider and provider.lower() == "ocp" else None
             update_summary_tables.s(
-                schema_name, provider, provider_uuid, str(start_date), end_date, queue_name
+                schema_name, provider, provider_uuid, str(start_date), end_date, queue_name=queue_name
             ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
     except AccountsAccessorError as error:
         LOG.error("Unable to get accounts. Error: %s", str(error))
 
 
-@app.task(name="masu.processor.tasks.update_cost_model_costs", queue_name=UPDATE_COST_MODEL_COSTS_QUEUE)
+@celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=UPDATE_COST_MODEL_COSTS_QUEUE)
 def update_cost_model_costs(
-    schema_name, provider_uuid, start_date=None, end_date=None, provider_type=None, synchronous=False
+    schema_name, provider_uuid, start_date=None, end_date=None, queue_name=None, synchronous=False
 ):
     """Update usage charge information.
 
@@ -480,14 +505,14 @@ def update_cost_model_costs(
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             LOG.info(msg)
-            update_cost_model_costs.delay(
+            update_cost_model_costs.s(
                 schema_name,
                 provider_uuid,
                 start_date=start_date,
                 end_date=end_date,
-                provider_type=provider_uuid,
+                queue_name=queue_name,
                 synchronous=synchronous,
-            )
+            ).apply_async(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=600)
 
@@ -513,25 +538,26 @@ def update_cost_model_costs(
         worker_cache.release_single_task(task_name, cache_args)
 
 
-# fmt: off
-@app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name=REFRESH_MATERIALIZED_VIEWS_QUEUE)
-def refresh_materialized_views(schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False):  # noqa: C901, E501
+@celery_app.task(name="masu.processor.tasks.refresh_materialized_views", queue=REFRESH_MATERIALIZED_VIEWS_QUEUE)
+def refresh_materialized_views(  # noqa: C901
+    schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False, queue_name=None
+):
     """Refresh the database's materialized views for reporting."""
-    # fmt: on
     task_name = "masu.processor.tasks.refresh_materialized_views"
-    cache_args = [schema_name]
+    cache_args = [schema_name, provider_type]
     if not synchronous:
         worker_cache = WorkerCache()
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             LOG.info(msg)
-            refresh_materialized_views.delay(
+            refresh_materialized_views.s(
                 schema_name,
                 provider_type,
                 manifest_id=manifest_id,
                 provider_uuid=provider_uuid,
-                synchronous=synchronous
-            )
+                synchronous=synchronous,
+                queue_name=queue_name,
+            ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=600)
     materialized_views = ()
@@ -552,29 +578,33 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None, pro
         )
     elif provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
         materialized_views = GCP_MATERIALIZED_VIEWS
+    try:
+        with schema_context(schema_name):
+            for view in materialized_views:
+                table_name = view._meta.db_table
+                with connection.cursor() as cursor:
+                    cursor.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}")
+                    LOG.info(f"Refreshed {table_name}.")
 
-    with schema_context(schema_name):
-        for view in materialized_views:
-            table_name = view._meta.db_table
-            with connection.cursor() as cursor:
-                cursor.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}")
-                LOG.info(f"Refreshed {table_name}.")
+        invalidate_view_cache_for_tenant_and_source_type(schema_name, provider_type)
 
-    invalidate_view_cache_for_tenant_and_source_type(schema_name, provider_type)
-
-    if provider_uuid:
-        ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
-    if manifest_id:
-        # Processing for this monifest should be complete after this step
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-            manifest_accessor.mark_manifest_as_completed(manifest)
+        if provider_uuid:
+            ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
+        if manifest_id:
+            # Processing for this monifest should be complete after this step
+            with ReportManifestDBAccessor() as manifest_accessor:
+                manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+                manifest_accessor.mark_manifest_as_completed(manifest)
+    except Exception as ex:
+        if not synchronous:
+            worker_cache.release_single_task(task_name, cache_args)
+        raise ex
 
     if not synchronous:
         worker_cache.release_single_task(task_name, cache_args)
 
 
-@app.task(name="masu.processor.tasks.vacuum_schema", queue_name="reporting")
+@celery_app.task(name="masu.processor.tasks.vacuum_schema", queue=DEFAULT)
 def vacuum_schema(schema_name):
     """Vacuum the reporting tables in the specified schema."""
     table_sql = """
@@ -616,7 +646,7 @@ def normalize_table_options(table_options):
 # At this time, no table parameter will be lowered past the known production engine
 # setting of 0.2 by default. However this function's settings can be overridden via the
 # AUTOVACUUM_TUNING environment variable. See below.
-@app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name="reporting")
+@celery_app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name=DEFAULT)
 def autovacuum_tune_schema(schema_name):  # noqa: C901
     """Set the autovacuum table settings based on table size for the specified schema."""
     table_sql = """
@@ -713,7 +743,7 @@ SELECT s.relname as "table_name",
     LOG.info(f"Altered autovacuum_vacuum_scale_factor on {alter_count} tables")
 
 
-@app.task(name="masu.processor.tasks.remove_stale_tenants", queue_name="remove_stale_tenants")
+@celery_app.task(name="masu.processor.tasks.remove_stale_tenants", queue=DEFAULT)
 def remove_stale_tenants():
     """ Remove stale tenants from the tenant api """
     table_sql = """

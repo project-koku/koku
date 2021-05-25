@@ -1655,7 +1655,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     value_names = list(tag_vals.keys())
                     for val_name in value_names:
                         rate_value = tag_vals[val_name]
-                        key_value_pair = f'{{"{tag_key}": "{val_name}"}}'
+                        key_value_pair = json.dumps({tag_key: val_name})
                         tag_rates_sql = pkgutil.get_data("masu.database", sql_file)
                         tag_rates_sql = tag_rates_sql.decode("utf-8")
                         tag_rates_sql_params = {
@@ -1672,6 +1672,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
                             tag_rates_sql, tag_rates_sql_params
                         )
+                        msg = f"Running populate_tag_usage_costs SQL with params: {tag_rates_sql_params}"
+                        LOG.info(msg)
                         self._execute_raw_sql_query(
                             table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
                         )
@@ -1738,7 +1740,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         continue
                     value_names = tag_vals.get("defined_keys", [])
                     for value_to_skip in value_names:
-                        key_value_pair.append(f'{{"{tag_key}": "{value_to_skip}"}}')
+                        key_value_pair.append(json.dumps({tag_key: value_to_skip}))
                     json.dumps(key_value_pair)
                     tag_rates_sql = pkgutil.get_data("masu.database", sql_file)
                     tag_rates_sql = tag_rates_sql.decode("utf-8")
@@ -1757,6 +1759,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     tag_rates_sql, tag_rates_sql_params = self.jinja_sql.prepare_query(
                         tag_rates_sql, tag_rates_sql_params
                     )
+                    msg = f"Running populate_tag_usage_default_costs SQL with params: {tag_rates_sql_params}"
+                    LOG.info(msg)
                     self._execute_raw_sql_query(
                         table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
                     )

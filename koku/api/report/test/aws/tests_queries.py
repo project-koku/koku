@@ -204,6 +204,28 @@ class AWSReportQueryTest(IamTestCase):
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
 
+    def test_transform_null_group_with_limit(self):
+        """Test transform data with null group value."""
+        url = "?filter[limit]=1"
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        groups = ["region"]
+        group_index = 0
+        data = {None: [{"region": "no-region", "units": "USD"}]}
+        expected = [{"region": "no-region", "values": [{"region": "no-region", "units": "USD"}]}]
+        out_data = handler._transform_data(groups, group_index, data)
+        self.assertEqual(expected, out_data)
+
+        data = {"us-east": [{"region": "us-east", "units": "USD"}]}
+        expected = [{"region": "us-east", "values": [{"region": "us-east", "units": "USD"}]}]
+        out_data = handler._transform_data(groups, group_index, data)
+        self.assertEqual(expected, out_data)
+
+        data = {None: {"region": "no-region", "units": "USD"}}
+        expected = [{"region": "no-region", "values": {"region": "no-region", "units": "USD"}}]
+        out_data = handler._transform_data(groups, group_index, data)
+        self.assertEqual(expected, out_data)
+
     def test_get_group_by_with_group_by_and_limit_params(self):
         """Test the _get_group_by method with limit and group by params."""
         expected = ["account"]
@@ -994,8 +1016,8 @@ class AWSReportQueryTest(IamTestCase):
             {"account": "1", "account_alias": "1", "total": 5, "rank": 1},
             {"account": "2", "account_alias": "2", "total": 4, "rank": 2},
             {
-                "account": "2 Others",
-                "account_alias": "2 Others",
+                "account": "Others",
+                "account_alias": "Others",
                 "total": 5,
                 "rank": 3,
                 "cost_total": 0,
@@ -1020,7 +1042,7 @@ class AWSReportQueryTest(IamTestCase):
         expected = [
             {"service": "1", "total": 5, "rank": 1},
             {"service": "2", "total": 4, "rank": 2},
-            {"service": "2 Others", "total": 5, "rank": 3, "cost_total": 0, "infra_total": 0, "sup_total": 0},
+            {"service": "Others", "total": 5, "rank": 3, "cost_total": 0, "infra_total": 0, "sup_total": 0},
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
@@ -1038,6 +1060,282 @@ class AWSReportQueryTest(IamTestCase):
         ]
         expected = [{"account": "2", "account_alias": "2", "total": 4, "rank": 2}]
         ranked_list = handler._ranked_list(data_list)
+        self.assertEqual(ranked_list, expected)
+
+    def test_rank_list_zerofill_account(self):
+        """Test rank list limit with account alias, ensuring we zero-fill missing ranks and populate account_alias."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&filter[limit]=10&group_by[account]=*&order_by[account_alias]=asc"  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        data_list = [
+            {
+                "date": "2000-01-01",
+                "account": "1",
+                "account_alias": "acct 1",
+                "infra_total": 0.01,
+                "sup_total": 0.02,
+                "cost_total": 0.03,
+            },
+            {
+                "date": "2000-01-01",
+                "account": "2",
+                "account_alias": "acct 2",
+                "infra_total": 0.02,
+                "sup_total": 0.03,
+                "cost_total": 0.05,
+            },
+            {
+                "date": "2000-01-01",
+                "account": "3",
+                "account_alias": "acct 3",
+                "infra_total": 0.03,
+                "sup_total": 0.04,
+                "cost_total": 0.07,
+            },
+            {
+                "date": "2000-01-01",
+                "account": "4",
+                "account_alias": "acct 4",
+                "infra_total": 0.04,
+                "sup_total": 0.05,
+                "cost_total": 0.09,
+            },
+            {"date": "2000-01-01", "account": "5", "infra_total": 0.04, "sup_total": 0.05, "cost_total": 0.09},
+            {
+                "date": "2000-01-02",
+                "account": "1",
+                "account_alias": "acct 1",
+                "infra_total": 0.01,
+                "sup_total": 0.02,
+                "cost_total": 0.03,
+            },
+            {
+                "date": "2000-01-02",
+                "account": "2",
+                "account_alias": "acct 2",
+                "infra_total": 0.02,
+                "sup_total": 0.03,
+                "cost_total": 0.05,
+            },
+            {
+                "date": "2000-01-02",
+                "account": "3",
+                "account_alias": "acct 3",
+                "infra_total": 0.03,
+                "sup_total": 0.04,
+                "cost_total": 0.07,
+            },
+            {
+                "date": "2000-01-03",
+                "account": "2",
+                "account_alias": "acct 2",
+                "infra_total": 0.02,
+                "sup_total": 0.03,
+                "cost_total": 0.05,
+            },
+            {
+                "date": "2000-01-03",
+                "account": "3",
+                "account_alias": "acct 3",
+                "infra_total": 0.03,
+                "sup_total": 0.04,
+                "cost_total": 0.07,
+            },
+            {
+                "date": "2000-01-03",
+                "account": "4",
+                "account_alias": "acct 4",
+                "infra_total": 0.04,
+                "sup_total": 0.05,
+                "cost_total": 0.09,
+            },
+        ]
+        expected = [
+            {
+                "date": "2000-01-01",
+                "account": "1",
+                "account_alias": "acct 1",
+                "infra_total": 0.01,
+                "sup_total": 0.02,
+                "cost_total": 0.03,
+                "rank": 4,
+            },
+            {
+                "date": "2000-01-01",
+                "account": "2",
+                "account_alias": "acct 2",
+                "infra_total": 0.02,
+                "sup_total": 0.03,
+                "cost_total": 0.05,
+                "rank": 3,
+            },
+            {
+                "date": "2000-01-01",
+                "account": "3",
+                "account_alias": "acct 3",
+                "infra_total": 0.03,
+                "sup_total": 0.04,
+                "cost_total": 0.07,
+                "rank": 1,
+            },
+            {
+                "date": "2000-01-01",
+                "account": "4",
+                "account_alias": "acct 4",
+                "infra_total": 0.04,
+                "sup_total": 0.05,
+                "cost_total": 0.09,
+                "rank": 2,
+            },
+            {
+                "date": "2000-01-01",
+                "account": "5",
+                "infra_total": 0.04,
+                "sup_total": 0.05,
+                "cost_total": 0.09,
+                "rank": 5,
+            },
+            {
+                "date": "2000-01-02",
+                "account": "1",
+                "account_alias": "acct 1",
+                "infra_total": 0.01,
+                "sup_total": 0.02,
+                "cost_total": 0.03,
+                "rank": 4,
+            },
+            {
+                "date": "2000-01-02",
+                "account": "2",
+                "account_alias": "acct 2",
+                "infra_total": 0.02,
+                "sup_total": 0.03,
+                "cost_total": 0.05,
+                "rank": 3,
+            },
+            {
+                "date": "2000-01-02",
+                "account": "3",
+                "account_alias": "acct 3",
+                "infra_total": 0.03,
+                "sup_total": 0.04,
+                "cost_total": 0.07,
+                "rank": 1,
+            },
+            {
+                "date": "2000-01-02",
+                "account": "5",
+                "account_alias": "5",
+                "infra_total": 0.0,
+                "sup_total": 0.0,
+                "cost_total": 0.0,
+                "rank": 5,
+            },
+            {
+                "date": "2000-01-02",
+                "account": "4",
+                "account_alias": "acct 4",
+                "infra_total": 0.0,
+                "sup_total": 0.0,
+                "cost_total": 0.0,
+                "rank": 2,
+            },
+            {
+                "date": "2000-01-03",
+                "account": "2",
+                "account_alias": "acct 2",
+                "infra_total": 0.02,
+                "sup_total": 0.03,
+                "cost_total": 0.05,
+                "rank": 3,
+            },
+            {
+                "date": "2000-01-03",
+                "account": "3",
+                "account_alias": "acct 3",
+                "infra_total": 0.03,
+                "sup_total": 0.04,
+                "cost_total": 0.07,
+                "rank": 1,
+            },
+            {
+                "date": "2000-01-03",
+                "account": "4",
+                "account_alias": "acct 4",
+                "infra_total": 0.04,
+                "sup_total": 0.05,
+                "cost_total": 0.09,
+                "rank": 2,
+            },
+            {
+                "date": "2000-01-03",
+                "account": "5",
+                "account_alias": "5",
+                "infra_total": 0.0,
+                "sup_total": 0.0,
+                "cost_total": 0.0,
+                "rank": 5,
+            },
+            {
+                "date": "2000-01-03",
+                "account": "1",
+                "account_alias": "acct 1",
+                "infra_total": 0.0,
+                "sup_total": 0.0,
+                "cost_total": 0.0,
+                "rank": 4,
+            },
+        ]
+        ranked_list = handler._ranked_list(data_list, ranks=["3", "4", "2", "1", "5"])
+        for each in expected:
+            self.assertIn(each, ranked_list)
+
+    def test_rank_list_big_limit(self):
+        """Test rank list limit with account alias, ensuring we return results with limited data."""
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&filter[limit]=3"
+        )  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSInstanceTypeView)
+        handler = AWSReportQueryHandler(query_params)
+        data_list = [
+            {
+                "date": "2000-01-01",
+                "service": "AmazonEC2",
+                "instance_type": "m1.large",
+                "infra_total": 0.01,
+                "sup_total": 0.02,
+                "cost_total": 0.03,
+            },
+            {
+                "date": "2000-01-01",
+                "service": "AmazonEC2",
+                "instance_type": "m2.large",
+                "infra_total": 0.02,
+                "sup_total": 0.03,
+                "cost_total": 0.05,
+            },
+        ]
+        expected = [
+            {
+                "date": "2000-01-01",
+                "service": "AmazonEC2",
+                "instance_type": "m1.large",
+                "infra_total": 0.01,
+                "sup_total": 0.02,
+                "cost_total": 0.03,
+                "rank": 2,
+            },
+            {
+                "date": "2000-01-01",
+                "service": "AmazonEC2",
+                "instance_type": "m2.large",
+                "infra_total": 0.02,
+                "sup_total": 0.03,
+                "cost_total": 0.05,
+                "rank": 1,
+            },
+        ]
+        ranked_list = handler._ranked_list(data_list, ranks=["m2.large", "m1.large"])
         self.assertEqual(ranked_list, expected)
 
     def test_query_costs_with_totals(self):
@@ -1721,7 +2019,7 @@ class AWSQueryHandlerTest(IamTestCase):
 
     def test_query_account_group_no_check_tags_has_tags_base_table(self):
         """Test "tags_exist" is not present if grouping by account as well as
-           another group and has"check_tags" parameter."""
+        another group and has"check_tags" parameter."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[or:account]=*&group_by[or:service]=AmazonEC2&check_tags=true"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)

@@ -395,6 +395,27 @@ class QueryParametersTests(TestCase):
         self.assertEqual(params.get_filter("time_scope_value"), "-10")
         self.assertEqual(params.get_filter("resolution"), "daily")
 
+    def test_has_start_end_dates_filter_no_filter(self):
+        """Test the default filter query parameters with start and end dates."""
+        fake_uri = "start_date=2021-04-01&" "end_date=2021-04-13"
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
+            GET=Mock(urlencode=Mock(return_value=fake_uri)),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=self.FAKE.word(),
+            query_handler=Mock(provider=self.provider),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        params = QueryParameters(fake_request, fake_view)
+        self.assertIsNone(params.get_filter("time_scope_units"))
+        self.assertIsNone(params.get_filter("time_scope_value"))
+        self.assertEqual(params.get_filter("resolution"), "daily")
+
     def test_has_filter_no_value(self):
         """Test the default filter parameters when time_scope_value is undefined."""
         fake_uri = "filter[resolution]=monthly&" "filter[time_scope_units]=month"

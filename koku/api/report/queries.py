@@ -18,6 +18,7 @@
 import copy
 import logging
 import random
+import re
 import string
 from collections import defaultdict
 from collections import OrderedDict
@@ -27,9 +28,12 @@ from decimal import InvalidOperation
 from itertools import groupby
 from urllib.parse import quote_plus
 
+from django.db.models import F
 from django.db.models import Q
+from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
+from django.db.models.functions import Rank
 
 from api.models import Provider
 from api.query_filter import QueryFilter
@@ -42,6 +46,12 @@ LOG = logging.getLogger(__name__)
 def strip_tag_prefix(tag):
     """Remove the query tag prefix from a tag key."""
     return tag.replace("tag:", "").replace("and:", "").replace("or:", "")
+
+
+def is_grouped_by_tag(parameters):
+    """Determine if grouped by tag."""
+    group_by = list(parameters.parameters.get("group_by", {}).keys())
+    return [key for key in group_by if "tag" in key]
 
 
 def is_grouped_by_project(parameters):
@@ -97,6 +107,11 @@ class ReportQueryHandler(QueryHandler):
         excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
         filter_keys = set(self.parameters.get("filter", {}).keys())
         return filter_keys.difference(excluded_filters)
+
+    @property
+    def report_annotations(self):
+        """Return annotations with the correct capacity field."""
+        return self._mapper.report_type_map.get("annotations", {})
 
     @property
     def query_table(self):
@@ -643,7 +658,11 @@ class ReportQueryHandler(QueryHandler):
                 for line_data in sorted_data:
                     if not line_data.get(field):
                         line_data[field] = f"no-{field}"
-                sorted_data = sorted(sorted_data, key=lambda entry: entry[field].lower(), reverse=reverse)
+                sorted_data = sorted(
+                    sorted_data,
+                    key=lambda entry: (bool(re.match(r"other*", entry[field].lower())), entry[field].lower()),
+                    reverse=reverse,
+                )
         return sorted_data
 
     def get_tag_order_by(self, tag):
@@ -674,45 +693,166 @@ class ReportQueryHandler(QueryHandler):
         Returns:
             (Decimal) (a - b) / b * 100
 
-            Returns Decimal(0) if b is zero.
+            Returns Decimal(0) if b is zero or rounds to 0.00.
 
         """
+        if round(b, 2) == 0:
+            return None
         try:
             return Decimal((a - b) / b * 100)
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
             return None
 
-    def _ranked_list(self, data_list):
+    def check_missing_rank_value(self, rank_value):
+        """Check to see ranked values is missing.
+
+        If it is missing, it converts it to no-{group_by}
+
+        rank_value: string or None value
+        """
+        if rank_value:
+            return rank_value
+        group_by_value = self._get_group_by()
+        check_tag_group_by = is_grouped_by_tag(self.parameters)
+        if check_tag_group_by:
+            tag_value = check_tag_group_by[0].split(":")[1]
+            rank_value = f"no-{tag_value}"
+        else:
+            rank_value = f"no-{group_by_value[0]}"
+        return rank_value
+
+    def _group_by_ranks(self, query, data):
+        """Handle grouping data by filter limit."""
+        group_by_value = self._get_group_by()
+        gb = group_by_value if group_by_value else ["date"]
+        tag_column = self._mapper.tag_column
+        rank_orders = []
+
+        rank_annotations = {}
+        if "delta" in self.order:
+            if "__" in self._delta:
+                a, b = self._delta.split("__")
+                rank_annotations = {a: self.report_annotations[a], b: self.report_annotations[b]}
+                rank_orders.append(getattr(F(a) / F(b), self.order_direction)())
+            else:
+                rank_annotations = {self._delta: self.report_annotations[self._delta]}
+                rank_orders.append(getattr(F(self._delta), self.order_direction)())
+        else:
+            for key, val in self.default_ordering.items():
+                order_field, order_direction = key, val
+            rank_annotations = {order_field: self.report_annotations.get(order_field)}
+            rank_orders.append(getattr(F(order_field), order_direction)())
+
+        if tag_column in gb[0]:
+            rank_orders.append(self.get_tag_order_by(gb[0]))
+
+        # this is a sub-query, but not really.
+        # in the future, this could be accomplished using CTEs.
+        rank_by_total = Window(expression=Rank(), order_by=rank_orders)
+        if rank_annotations:
+            ranks = (
+                query.annotate(**self.annotations)
+                .values(*group_by_value)
+                .annotate(**rank_annotations)
+                .annotate(rank=rank_by_total)
+            )
+        else:
+            ranks = query.annotate(**self.annotations).values(*group_by_value).annotate(rank=rank_by_total)
+
+        rankings = []
+        for rank in ranks:
+            rank_value = rank.get(group_by_value[0])
+            rank_value = self.check_missing_rank_value(rank_value)
+            rankings.insert((rank.get("rank") - 1), rank_value)
+
+        for query_return in data:
+            query_return = self._apply_group_null_label(query_return, gb)
+        return self._ranked_list(data, rankings)
+
+    def _ranked_list(self, data_list, ranks=None):
         """Get list of ranked items less than top.
 
         Args:
             data_list (List(Dict)): List of ranked data points from the same bucket
+            ranks (List): list of ranks to use; overrides ranking that may present in data_list.
         Returns:
             List(Dict): List of data points meeting the rank criteria
 
         """
-        rank_limited_data = OrderedDict()
-        date_grouped_data = self.date_group_data(data_list)
-        if data_list:
-            self.max_rank = max(entry.get("rank") for entry in data_list)
-        is_offset = "offset" in self.parameters.get("filter", {})
+        if ranks:
+            self.max_rank = len(ranks)
+        elif data_list:
+            self.max_rank = max(entry.get("rank", 0) for entry in data_list)
 
-        for date in date_grouped_data:
-            ranked_list = self._perform_rank_summation(date_grouped_data[date], is_offset)
+        date_grouped_data, account_alias_map = self.date_group_data(data_list)
+        if ranks:
+            padded_data = OrderedDict()
+            for date in date_grouped_data:
+                padded_data[date] = self._zerofill_ranks(date_grouped_data[date], ranks, account_alias_map)
+        else:
+            padded_data = date_grouped_data
+
+        rank_limited_data = OrderedDict()
+        is_offset = "offset" in self.parameters.get("filter", {})
+        for date in padded_data:
+            ranked_list = self._perform_rank_summation(padded_data[date], is_offset, ranks)
             rank_limited_data[date] = ranked_list
 
         return self.unpack_date_grouped_data(rank_limited_data)
 
-    def _perform_rank_summation(self, entry, is_offset):  # noqa: C901
-        """Do the actual rank limiting for rank_list."""
+    def _zerofill_ranks(self, data, ranks, account_alias_map):
+        """Ensure the data set has at least one entry from every ranked category."""
+        rank_field = self._get_group_by()[0]
+
+        data_ranks = [item[rank_field] for item in data]
+        missing = list(set(ranks) - set(data_ranks))
+
+        row_defaults = {
+            "str": "",
+            "int": 0,
+            "float": 0.0,
+            "dict": {},
+            "list": [],
+            "Decimal": Decimal(0),
+            "NoneType": None,
+        }
+        empty_row = {key: row_defaults[str(type(val).__name__)] for key, val in data[0].items()}
+        missed_data = []
+        for missed in missing:
+            ranked_empty_row = copy.deepcopy(empty_row)
+            ranked_empty_row[rank_field] = missed
+            ranked_empty_row["date"] = data[0].get("date")
+            if rank_field == "account":
+                ranked_empty_row["account_alias"] = account_alias_map.get(missed, missed)
+            missed_data.append(ranked_empty_row)
+        new_data = data + missed_data
+        return new_data
+
+    def _perform_rank_summation(self, entry, is_offset=False, ranks=[]):  # noqa: C901
+        """Do the rank limiting for _ranked_list().
+
+        Args:
+            entry (dict)
+            is_offset (bool)
+            ranks (list)
+        """
         other = None
         ranked_list = []
         others_list = []
         other_sums = {column: 0 for column in self._mapper.sum_columns}
+
         for data in entry:
             if other is None:
                 other = copy.deepcopy(data)
-            rank = data.get("rank")
+
+            if ranks:
+                ranked_value = data.get(self._get_group_by()[0])
+                ranked_value = self.check_missing_rank_value(ranked_value)
+                rank = ranks.index(ranked_value) + 1
+                data["rank"] = rank
+            else:
+                rank = data.get("rank", 1)
+
             if rank > self._offset and rank <= self._limit + self._offset:
                 ranked_list.append(data)
             else:
@@ -722,10 +862,10 @@ class ReportQueryHandler(QueryHandler):
 
         if other is not None and others_list and not is_offset:
             num_others = len(others_list)
-            others_label = f"{num_others} Others"
+            others_label = "Others"
 
             if num_others == 1:
-                others_label = f"{num_others} Other"
+                others_label = "Other"
 
             other.update(other_sums)
             other["rank"] = self._limit + 1
@@ -739,6 +879,10 @@ class ReportQueryHandler(QueryHandler):
 
             if "cluster" in group_by:
                 other["cluster_alias"] = others_label
+                clusters_list = []
+                for entry in others_list:
+                    clusters_list.extend(entry.get("clusters", []))
+                other["clusters"] = list(set(clusters_list))
                 exclusions = []
             else:
                 # delete these labels from the Others category if we're not
@@ -756,11 +900,14 @@ class ReportQueryHandler(QueryHandler):
     def date_group_data(self, data_list):
         """Group data by date."""
         date_grouped_data = defaultdict(list)
-
+        account_alias_map = {}
         for data in data_list:
             key = data.get("date")
+            alias = data.get("account_alias")
+            if alias:
+                account_alias_map[data.get("account")] = alias
             date_grouped_data[key].append(data)
-        return date_grouped_data
+        return date_grouped_data, account_alias_map
 
     def unpack_date_grouped_data(self, date_grouped_data):
         """Return date grouped data to a flatter form."""
@@ -875,6 +1022,6 @@ class ReportQueryHandler(QueryHandler):
         if self.order_field == "delta":
             reverse = True if self.order_direction == "desc" else False
             query_data = sorted(
-                list(query_data), key=lambda x: (x["delta_percent"] is None, x["delta_percent"]), reverse=reverse
+                list(query_data), key=lambda x: (x.get("delta_value", 0), x.get("delta_percent", 0)), reverse=reverse
             )
         return query_data

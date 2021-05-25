@@ -24,10 +24,8 @@ from django.core.exceptions import FieldDoesNotExist
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Value
-from django.db.models import Window
 from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce
-from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
@@ -594,7 +592,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
-            query_order_by.extend([self.order])
+            query_order_by.extend([self.order])  # add implicit ordering
 
             annotations = copy.deepcopy(self._mapper.report_type_map.get("annotations", {}))
             if not self.parameters.parameters.get("compute_count"):
@@ -615,15 +613,10 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query_sum = self._build_sum(query, annotations)
 
             if self._limit and query_data and not org_unit_applied:
-                rank_orders = []
-                if self.order_field == "delta":
-                    rank_orders.append(getattr(F(self._delta), self.order_direction)())
-                else:
-                    rank_orders.append(getattr(F(self.order_field), self.order_direction)())
-                rank_by_total = Window(expression=RowNumber(), partition_by=F("date"), order_by=rank_orders)
-                query_data = query_data.annotate(rank=rank_by_total)
-                query_order_by.insert(1, "rank")
-                query_data = self._ranked_list(query_data)
+                query_data = self._group_by_ranks(query, query_data)
+                if not self.parameters.get("order_by"):
+                    # override implicit ordering when using ranked ordering.
+                    query_order_by[-1] = "rank"
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)

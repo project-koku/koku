@@ -20,11 +20,13 @@ from unittest.mock import Mock
 
 from dateutil.relativedelta import relativedelta
 from rest_framework import serializers
+from rest_framework.serializers import ValidationError
 
 from api.report.aws.serializers import FilterSerializer
 from api.report.aws.serializers import GroupBySerializer
 from api.report.aws.serializers import OrderBySerializer
 from api.report.aws.serializers import QueryParamSerializer
+from api.report.serializers import ParamSerializer
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 
@@ -557,6 +559,27 @@ class QueryParamSerializerTest(TestCase):
             {
                 "start_date": dh.last_month_end.date(),
                 "end_date": dh.this_month_start.date(),
+                "filter": {"resolution": "daily"},
+            },
+            {
+                "start_date": materialized_view_month_start().date(),
+                "end_date": dh.today.date(),
+                "filter": {"resolution": "daily"},
+            },
+        ]
+
+        for params in scenarios:
+            with self.subTest(params=params):
+                serializer = QueryParamSerializer(data=params)
+                self.assertTrue(serializer.is_valid(raise_exception=True))
+
+    def test_parse_filter_dates_invalid_resolution(self):
+        """Test parse of a filter date-based param with monthly presolution should not succeed."""
+        dh = DateHelper()
+        scenarios = [
+            {
+                "start_date": dh.last_month_end.date(),
+                "end_date": dh.this_month_start.date(),
                 "filter": {"resolution": "monthly"},
             },
             {
@@ -568,8 +591,24 @@ class QueryParamSerializerTest(TestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = QueryParamSerializer(data=params)
-                self.assertTrue(serializer.is_valid(raise_exception=True))
+                with self.assertRaises(ValidationError):
+                    serializer = QueryParamSerializer(data=params)
+                    serializer.is_valid(raise_exception=True)
+
+    def test_parse_filter_dates_invalid_delta_pairing(self):
+        """Test parse of a filter date-based param with monthly presolution should not succeed."""
+        dh = DateHelper()
+        scenarios = [
+            {"end_date": dh.this_month_start.date(), "delta": "cost"},
+            {"start_date": materialized_view_month_start().date(), "delta": "cost"},
+            {"start_date": materialized_view_month_start().date(), "end_date": dh.today.date(), "delta": "cost"},
+        ]
+
+        for params in scenarios:
+            with self.subTest(params=params):
+                with self.assertRaises(ValidationError):
+                    serializer = QueryParamSerializer(data=params)
+                    serializer.is_valid(raise_exception=True)
 
     def test_parse_filter_dates_invalid(self):
         """Test parse of invalid data for filter date-based param should not succeed."""
@@ -609,3 +648,16 @@ class QueryParamSerializerTest(TestCase):
             with self.subTest(params=params):
                 serializer = QueryParamSerializer(data=params)
                 self.assertFalse(serializer.is_valid())
+
+
+class ParamSerializerTest(TestCase):
+    """Tests for the handling query parameter parsing serializer."""
+
+    def test_parse_filter_dates_invalid_delta(self):
+        """Test parse of a filter date-based param with monthly presolution should not succeed."""
+        dh = DateHelper()
+        params = {"start_date": dh.last_month_end.date(), "end_date": dh.this_month_start.date(), "delta": "cost"}
+        with self.assertRaises(ValidationError):
+            serializer = ParamSerializer(data=params)
+            self.assertFalse(serializer.is_valid())
+            serializer.is_valid(raise_exception=True)

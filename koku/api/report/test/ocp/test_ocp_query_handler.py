@@ -506,6 +506,23 @@ class OCPReportQueryHandlerTest(IamTestCase):
                     self.assertIsNotNone(cluster_value["cluster"])
                     self.assertIsNotNone(cluster_value["clusters"])
 
+    def test_other_clusters(self):
+        """Test that group by cluster includes cluster and cluster_alias."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&group_by[cluster]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPCpuView)
+        handler = OCPReportQueryHandler(query_params)
+
+        query_data = handler.execute_query()
+        for data in query_data.get("data"):
+            for cluster_data in data.get("clusters"):
+                cluster_name = cluster_data.get("cluster", "")
+                if cluster_name == "Other":
+                    for cluster_value in cluster_data.get("values"):
+                        self.assertTrue(len(cluster_value.get("clusters", [])) == 1)
+                elif cluster_name == "Others":
+                    for cluster_value in cluster_data.get("values"):
+                        self.assertTrue(len(cluster_value.get("clusters", [])) > 1)
+
     def test_subtotals_add_up_to_total(self):
         """Test the apply_group_by handles different grouping scenerios."""
         group_by_list = [
@@ -576,3 +593,20 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertNotEquals(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
+
+    def test_group_by_project_w_limit(self):
+        """COST-1252: Test that grouping by project with limit works as expected."""
+        url = "?group_by[project]=*&order_by[project]=asc&filter[limit]=2"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPCostView)
+        handler = OCPReportQueryHandler(query_params)
+        aggregates = handler._mapper.report_type_map.get("aggregates")
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.ten_day_filter)
+        expected_cost_total = current_totals.get("cost_total")
+        self.assertIsNotNone(expected_cost_total)
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get("data"))
+        self.assertIsNotNone(query_output.get("total"))
+        total = query_output.get("total")
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+        self.assertEqual(result_cost_total, expected_cost_total)

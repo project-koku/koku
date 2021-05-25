@@ -21,15 +21,23 @@ import prestodb
 import pyarrow.parquet as pq
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from prestodb.exceptions import PrestoExternalError
+from prestodb.exceptions import PrestoQueryError
+from prestodb.exceptions import PrestoUserError
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
+from masu.util.common import strip_characters_from_column_name
 from reporting.models import PartitionedTable
 
 LOG = logging.getLogger(__name__)
 
 
 class PostgresSummaryTableError(Exception):
+    """Postgres summary table is not defined."""
+
+
+class TrinoExecutionError(Exception):
     """Postgres summary table is not defined."""
 
 
@@ -62,23 +70,50 @@ class ReportParquetProcessorBase:
 
     def _execute_sql(self, sql, schema_name):  # pragma: no cover
         """Execute presto SQL."""
-        with prestodb.dbapi.connect(
-            host=settings.PRESTO_HOST, port=settings.PRESTO_PORT, user="admin", catalog="hive", schema=schema_name
-        ) as conn:
-            cur = conn.cursor()
-            cur.execute(sql)
-            rows = cur.fetchall()
-            LOG.debug(f"_execute_sql rows: {str(rows)}. Type: {type(rows)}")
+        rows = []
+        try:
+            with prestodb.dbapi.connect(
+                host=settings.PRESTO_HOST, port=settings.PRESTO_PORT, user="admin", catalog="hive", schema=schema_name
+            ) as conn:
+                cur = conn.cursor()
+                cur.execute(sql)
+                rows = cur.fetchall()
+                LOG.debug(f"_execute_sql rows: {str(rows)}. Type: {type(rows)}")
+        except PrestoUserError as err:
+            LOG.error(err)
+        except (PrestoExternalError, PrestoQueryError) as err:
+            LOG.error(err)
+            msg = "There was an error running Trino SQL"
+            raise TrinoExecutionError(msg)
         return rows
 
     def _get_provider(self):
         """Retrieve the postgres provider id."""
         return Provider.objects.get(uuid=self._provider_uuid)
 
-    def _create_schema(self,):
+    def schema_exists(self):
+        """Check if schema exists."""
+        schema_check_sql = f"SHOW SCHEMAS LIKE '{self._schema_name}'"
+        schema = self._execute_sql(schema_check_sql, "default")
+        LOG.info("Checking for schema")
+        if schema:
+            return True
+        return False
+
+    def table_exists(self):
+        """Check if table exists."""
+        table_check_sql = f"SHOW TABLES LIKE '{self._table_name}'"
+        table = self._execute_sql(table_check_sql, self._schema_name)
+        LOG.info("Checking for table")
+        if table:
+            return True
+        return False
+
+    def create_schema(self):
         """Create presto schema."""
         schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {self._schema_name}"
         self._execute_sql(schema_create_sql, "default")
+        LOG.info(f"Create Trino/Hive schema SQL: {schema_create_sql}")
         return self._schema_name
 
     def _generate_column_list(self):
@@ -94,7 +129,7 @@ class ReportParquetProcessorBase:
         sql = f"CREATE TABLE IF NOT EXISTS {self._schema_name}.{self._table_name} ("
 
         for idx, col in enumerate(parquet_columns):
-            norm_col = col.replace("/", "_").replace(":", "_").lower()
+            norm_col = strip_characters_from_column_name(col)
             if norm_col in self._numeric_columns:
                 col_type = "double"
             elif norm_col in self._date_columns:
@@ -116,15 +151,10 @@ class ReportParquetProcessorBase:
 
     def create_table(self):
         """Create presto SQL table."""
-        schema = self._create_schema()
         sql = self._generate_create_table_sql()
-        self._execute_sql(sql, schema)
-
-        sql = f"CALL system.sync_partition_metadata('{self._schema_name}', '{self._table_name}', 'FULL')"
-        LOG.info(sql)
-        self._execute_sql(sql, schema)
-
+        self._execute_sql(sql, self._schema_name)
         LOG.info(f"Presto Table: {self._table_name} created.")
+        self._execute_sql(sql, self._schema_name)
 
     def get_or_create_postgres_partition(self, bill_date, **kwargs):
         """Make sure we have a Postgres partition for a billing period."""
@@ -146,5 +176,14 @@ class ReportParquetProcessorBase:
                 },
                 active=True,
             )
-            if created:
-                LOG.info(f"Created a new partition for {record.partition_of_table_name} : {record.table_name}")
+        if created:
+            LOG.info(f"Created a new partition for {record.partition_of_table_name} : {record.table_name}")
+
+        return created
+
+    def sync_hive_partitions(self):
+        """Sync hive partition metadata for new partitions."""
+        LOG.info("Syncing Trino/Hive partitions.")
+        sql = f"CALL system.sync_partition_metadata('{self._schema_name}', '{self._table_name}', 'FULL')"
+        LOG.info(sql)
+        self._execute_sql(sql, self._schema_name)

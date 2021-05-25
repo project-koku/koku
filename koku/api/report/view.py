@@ -43,12 +43,15 @@ def get_paginator(filter_query_params, count, group_by_params=False):
         "group_by[org_unit_id]" in group_by_params or "group_by[or:org_unit_id]" in group_by_params
     ):
         paginator = OrgUnitPagination(filter_query_params)
+        paginator.others = count
     else:
         if "offset" in filter_query_params:
             paginator = ReportRankedPagination()
             paginator.count = count
+            paginator.others = count
         else:
             paginator = ReportPagination()
+            paginator.others = count
     return paginator
 
 

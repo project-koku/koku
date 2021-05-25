@@ -90,10 +90,13 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         """Make a mapping of projects to project objects."""
         table_name = GCPProject
         with schema_context(self.schema):
-            columns = ["account_id", "project_id", "id"]
+            columns = ["account_id", "project_id", "project_name", "id"]
             projects = self._get_db_obj_query(table_name, columns=columns).all()
 
-            return {(project["account_id"], project["project_id"]): project["id"] for project in projects}
+            return {
+                (project["account_id"], project["project_id"], project["project_name"]): project["id"]
+                for project in projects
+            }
 
     def get_lineitem_query_for_billid(self, bill_id):
         """Get the GCP cost entry line item for a given bill query."""
@@ -223,13 +226,13 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         LOG.info(f"Summary SQL: {str(summary_sql)}")
         self._execute_presto_raw_sql_query(self.schema, summary_sql)
 
-    def populate_tags_summary_table(self, bill_ids):
+    def populate_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
         table_name = GCP_REPORT_TABLE_MAP["tags_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_gcptags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids}
+        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 

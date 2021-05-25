@@ -160,6 +160,12 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     node = models.CharField(max_length=253, null=True)
 
+    persistentvolumeclaim = models.CharField(max_length=253, null=True)
+
+    persistentvolume = models.CharField(max_length=253, null=True)
+
+    storageclass = models.CharField(max_length=50, null=True)
+
     pod_labels = JSONField(null=True)
 
     resource_id = models.CharField(max_length=253, null=True)
@@ -238,7 +244,7 @@ class OCPAWSTagsSummary(models.Model):
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
     key = models.CharField(max_length=253)
-    values = ArrayField(models.CharField(max_length=253))
+    values = ArrayField(models.TextField())
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE)
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
     usage_account_id = models.CharField(max_length=50, null=True)

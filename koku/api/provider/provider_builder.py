@@ -21,6 +21,7 @@ from base64 import b64decode
 
 from django.db import connection
 from rest_framework.exceptions import ValidationError
+from tenant_schemas.utils import schema_exists
 
 from api.models import Customer
 from api.models import Provider
@@ -30,8 +31,6 @@ from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from api.provider.serializers import ProviderSerializer
 from koku.middleware import IdentityHeaderMiddleware
-from sources.config import Config
-
 
 LOG = logging.getLogger(__name__)
 
@@ -47,7 +46,6 @@ class ProviderBuilder:
 
     def __init__(self, auth_header):
         """Initialize the client."""
-        self._base_url = Config.KOKU_API_URL
         if isinstance(auth_header, dict) and auth_header.get("x-rh-identity"):
             self._identity_header = auth_header
         else:
@@ -114,14 +112,20 @@ class ProviderBuilder:
         context = {"user": user, "customer": customer}
         return context, customer, user
 
+    def _tenant_for_schema(self, schema_name):
+        """Get or create tenant for schema."""
+        tenant, created = Tenant.objects.get_or_create(schema_name=schema_name)
+        if not schema_exists(schema_name):
+            tenant.create_schema()
+            msg = f"Created tenant {schema_name}"
+            LOG.info(msg)
+        return tenant
+
     def create_provider_from_source(self, source):
         """Call to create provider."""
         connection.set_schema_to_public()
         context, customer, _ = self._create_context()
-        tenant, created = Tenant.objects.get_or_create(schema_name=customer.schema_name)
-        if created:
-            msg = f"Created tenant {customer.schema_name}"
-            LOG.info(msg)
+        tenant = self._tenant_for_schema(customer.schema_name)
         provider_type = source.source_type
         json_data = {
             "name": source.name,
@@ -147,7 +151,7 @@ class ProviderBuilder:
         """Call to update provider."""
         connection.set_schema_to_public()
         context, customer, _ = self._create_context()
-        tenant = Tenant.objects.get(schema_name=customer.schema_name)
+        tenant = self._tenant_for_schema(customer.schema_name)
         provider_type = source.source_type
         json_data = {
             "name": source.name,
@@ -167,7 +171,7 @@ class ProviderBuilder:
         """Call to destroy provider."""
         connection.set_schema_to_public()
         _, customer, user = self._create_context()
-        tenant = Tenant.objects.get(schema_name=customer.schema_name)
+        tenant = self._tenant_for_schema(customer.schema_name)
         connection.set_tenant(tenant)
         try:
             manager = ProviderManager(provider_uuid)

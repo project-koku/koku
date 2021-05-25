@@ -29,6 +29,7 @@ from api.models import Provider
 from masu.config import Config
 from masu.database.provider_auth_db_accessor import ProviderAuthDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.util.common import safe_float
 
 LOG = logging.getLogger(__name__)
 
@@ -248,15 +249,12 @@ def get_provider_uuid_from_cluster_id(cluster_id):
 
     """
     provider_uuid = None
-    auth_id = None
     credentials = {"cluster_id": cluster_id}
-    with ProviderAuthDBAccessor(credentials=credentials) as auth_accessor:
-        auth_id = auth_accessor.get_auth_id()
-        LOG.info(f"Found Authentication ID {str(auth_id)} for Cluster ID: {str(cluster_id)}")
-        if auth_id:
-            with ProviderDBAccessor(auth_id=auth_id) as provider_accessor:
-                provider_uuid = provider_accessor.get_uuid()
-                LOG.info(f"Found provider: {str(provider_uuid)} for Cluster ID: {str(cluster_id)}")
+    provider = Provider.objects.filter(authentication__credentials=credentials).first()
+    if provider:
+        provider_uuid = str(provider.uuid)
+        LOG.info(f"Found provider: {str(provider_uuid)} for Cluster ID: {str(cluster_id)}")
+
     return provider_uuid
 
 
@@ -337,3 +335,32 @@ def process_openshift_labels(label_string):
 
 def process_openshift_labels_to_json(label_val):
     return json.dumps(process_openshift_labels(label_val))
+
+
+def get_column_converters():
+    """Return source specific parquet column converters."""
+    return {
+        "report_period_start": process_openshift_datetime,
+        "report_period_end": process_openshift_datetime,
+        "interval_start": process_openshift_datetime,
+        "interval_end": process_openshift_datetime,
+        "pod_usage_cpu_core_seconds": safe_float,
+        "pod_request_cpu_core_seconds": safe_float,
+        "pod_limit_cpu_core_seconds": safe_float,
+        "pod_usage_memory_byte_seconds": safe_float,
+        "pod_request_memory_byte_seconds": safe_float,
+        "pod_limit_memory_byte_seconds": safe_float,
+        "node_capacity_cpu_cores": safe_float,
+        "node_capacity_cpu_core_seconds": safe_float,
+        "node_capacity_memory_bytes": safe_float,
+        "node_capacity_memory_byte_seconds": safe_float,
+        "persistentvolumeclaim_capacity_bytes": safe_float,
+        "persistentvolumeclaim_capacity_byte_seconds": safe_float,
+        "volume_request_storage_byte_seconds": safe_float,
+        "persistentvolumeclaim_usage_byte_seconds": safe_float,
+        "pod_labels": process_openshift_labels_to_json,
+        "persistentvolume_labels": process_openshift_labels_to_json,
+        "persistentvolumeclaim_labels": process_openshift_labels_to_json,
+        "node_labels": process_openshift_labels_to_json,
+        "namespace_labels": process_openshift_labels_to_json,
+    }

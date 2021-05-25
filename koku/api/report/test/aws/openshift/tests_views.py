@@ -219,6 +219,10 @@ class OCPAWSReportViewTest(IamTestCase):
 
         self.assertIn("nodes", data.get("data")[0])
 
+        # assert the others count is correct
+        meta = data.get("meta")
+        self.assertEqual(meta.get("others"), 2)
+
         # Check if limit returns the correct number of results, and
         # that the totals add up properly
         for item in data.get("data"):
@@ -227,11 +231,29 @@ class OCPAWSReportViewTest(IamTestCase):
                 projects = item.get("nodes")
                 self.assertTrue(len(projects) <= 2)
                 if len(projects) == 2:
-                    self.assertEqual(projects[1].get("node"), "2 Others")
+                    self.assertEqual(projects[1].get("node"), "Others")
                     usage_total = projects[0].get("values")[0].get("usage", {}).get("value") + projects[1].get(
                         "values"
                     )[0].get("usage", {}).get("value")
                     self.assertAlmostEqual(usage_total, totals.get(date))
+
+    def test_others_count_large_limit(self):
+        """Test that OCP Mem endpoint works with limits."""
+        url = reverse("reports-openshift-aws-storage")
+        client = APIClient()
+        params = {
+            "group_by[node]": "*",
+            "filter[limit]": "100",
+            "filter[time_scope_units]": "day",
+            "filter[time_scope_value]": "-10",
+            "filter[resolution]": "daily",
+        }
+        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        data = response.data
+        # assert the others count is correct
+        meta = data.get("meta")
+        self.assertEqual(meta.get("others"), 0)
 
     def test_execute_query_ocp_aws_storage_with_delta(self):
         """Test that deltas work for OpenShift on AWS storage."""

@@ -26,6 +26,8 @@ from tenant_schemas.utils import schema_context
 from api.models import Provider
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.util.common import safe_float
+from masu.util.common import strip_characters_from_column_name
 from reporting.provider.azure.models import PRESTO_COLUMNS
 
 LOG = logging.getLogger(__name__)
@@ -142,21 +144,39 @@ def azure_json_converter(tag_str):
 
 def azure_post_processor(data_frame):
     """Guarantee column order for Azure parquet files"""
-    columns = set(list(data_frame))
-    columns = set(PRESTO_COLUMNS).union(columns)
-    columns = sorted(list(columns))
-
-    if "MeterSubcategory" in columns:
-        data_frame["MeterSubCategory"] = data_frame["MeterSubcategory"]
-        data_frame = data_frame.drop(columns=["MeterSubcategory"])
-
-    data_frame = data_frame.reindex(columns=columns)
-
+    columns = list(data_frame)
     column_name_map = {}
+
     for column in columns:
-        new_col_name = column.replace("-", "_").replace("/", "_").replace(":", "_").lower()
+        new_col_name = strip_characters_from_column_name(column)
         column_name_map[column] = new_col_name
 
     data_frame = data_frame.rename(columns=column_name_map)
 
+    columns = set(list(data_frame))
+    columns = set(PRESTO_COLUMNS).union(columns)
+    columns = sorted(columns)
+
+    data_frame = data_frame.reindex(columns=columns)
+
     return data_frame
+
+
+def get_column_converters():
+    """Return source specific parquet column converters."""
+    return {
+        "UsageDateTime": azure_date_converter,
+        "Date": azure_date_converter,
+        "BillingPeriodStartDate": azure_date_converter,
+        "BillingPeriodEndDate": azure_date_converter,
+        "UsageQuantity": safe_float,
+        "Quantity": safe_float,
+        "ResourceRate": safe_float,
+        "PreTaxCost": safe_float,
+        "CostInBillingCurrency": safe_float,
+        "EffectivePrice": safe_float,
+        "UnitPrice": safe_float,
+        "PayGPrice": safe_float,
+        "Tags": azure_json_converter,
+        "AdditionalInfo": azure_json_converter,
+    }

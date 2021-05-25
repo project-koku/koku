@@ -82,6 +82,37 @@
                 }
             }
         },
+        "/currency/": {
+            "get": {
+                "tags": [
+                    "Currency"
+                ],
+                "summary": "Obtain the supported currencies",
+                "operationId": "getCurrency",
+                "responses": {
+                    "200": {
+                        "description": "An object describing the supported currencies",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Currency"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Currencies not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/cost-models/": {
             "get": {
                 "tags": [
@@ -366,6 +397,16 @@
                 "responses": {
                     "204": {
                         "description": "Cost Model deleted"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -4342,6 +4383,48 @@
                         }
                     }
                 ]
+            },
+            "Currency": {
+                "allOf": [{
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/Currencies"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            "Currencies": {
+                "required": [
+                    "code",
+                    "symbol",
+                    "name",
+                    "description"
+                ],
+                "properties": {
+                    "code": {
+                        "type": "string"
+                    },
+                    "symbol": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    }
+                }
             },
             "Customer": {
                 "required": [

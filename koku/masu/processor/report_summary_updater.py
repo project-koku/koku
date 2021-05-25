@@ -44,6 +44,12 @@ class ReportSummaryUpdaterError(Exception):
     pass
 
 
+class ReportSummaryUpdaterCloudError(Exception):
+    """Report Summary Updater Cloud Error."""
+
+    pass
+
+
 class ReportSummaryUpdater:
     """Update reporting summary tables."""
 
@@ -94,25 +100,33 @@ class ReportSummaryUpdater:
         if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             report_summary_updater = (
                 AWSReportParquetSummaryUpdater
-                if enable_trino_processing(self._provider_uuid)
+                if enable_trino_processing(
+                    self._provider_uuid, self._provider.type, self._provider.customer.schema_name
+                )
                 else AWSReportSummaryUpdater
             )
         elif self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             report_summary_updater = (
                 AzureReportParquetSummaryUpdater
-                if enable_trino_processing(self._provider_uuid)
+                if enable_trino_processing(
+                    self._provider_uuid, self._provider.type, self._provider.customer.schema_name
+                )
                 else AzureReportSummaryUpdater
             )
         elif self._provider.type in (Provider.PROVIDER_OCP,):
             report_summary_updater = (
                 OCPReportParquetSummaryUpdater
-                if enable_trino_processing(self._provider_uuid)
+                if enable_trino_processing(
+                    self._provider_uuid, self._provider.type, self._provider.customer.schema_name
+                )
                 else OCPReportSummaryUpdater
             )
         elif self._provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             report_summary_updater = (
                 GCPReportParquetSummaryUpdater
-                if enable_trino_processing(self._provider_uuid)
+                if enable_trino_processing(
+                    self._provider_uuid, self._provider.type, self._provider.customer.schema_name
+                )
                 else GCPReportSummaryUpdater
             )
         else:
@@ -120,7 +134,7 @@ class ReportSummaryUpdater:
 
         ocp_cloud_updater = (
             OCPCloudParquetReportSummaryUpdater
-            if enable_trino_processing(self._provider_uuid)
+            if enable_trino_processing(self._provider_uuid, self._provider.type, self._provider.customer.schema_name)
             else OCPCloudReportSummaryUpdater
         )
 
@@ -183,24 +197,9 @@ class ReportSummaryUpdater:
 
         start_date, end_date = self._updater.update_summary_tables(start_date, end_date)
 
-        self._ocp_cloud_updater.update_summary_tables(start_date, end_date)
-
-        invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
-
-    def update_cost_summary_table(self, start_date, end_date):
-        """
-        Update cost summary tables.
-
-        Args:
-            start_date (str, datetime): When to start.
-            end_date (str, datetime): When to end.
-
-        Returns:
-            None
-
-        """
-        start_date, end_date = self._format_dates(start_date, end_date)
-
-        self._ocp_cloud_updater.update_cost_summary_table(start_date, end_date)
+        try:
+            self._ocp_cloud_updater.update_summary_tables(start_date, end_date)
+        except Exception as ex:
+            raise ReportSummaryUpdaterCloudError(str(ex))
 
         invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)

@@ -19,15 +19,19 @@ import logging
 import os
 from uuid import uuid4
 
+from django.core.exceptions import ValidationError
 from django.db import connection as conn
 from django.db import models
+from django.db import transaction
 from tenant_schemas.models import TenantMixin
-from tenant_schemas.postgresql_backend.base import _check_schema_name
+from tenant_schemas.postgresql_backend.base import _is_valid_schema_name
 from tenant_schemas.utils import schema_exists
 
 from koku.database import dbfunc_exists
 from koku.migration_sql_helpers import apply_sql_file
 from koku.migration_sql_helpers import find_db_functions_dir
+
+# import pkgutil
 
 
 LOG = logging.getLogger(__name__)
@@ -78,6 +82,7 @@ class User(models.Model):
         self.admin = False
         self.access = {}
         self.identity_header = None
+        self.beta = False
 
     class Meta:
         ordering = ["username"]
@@ -106,6 +111,7 @@ class Tenant(TenantMixin):
 
     # Delete all schemas when a tenant is removed
     auto_drop_schema = True
+    auto_create_schema = False
 
     def _check_clone_func(self):
         LOG.info(f'Verify that clone function "{self._CLONE_SCHEMA_FUNC_SIG}" exists')
@@ -119,6 +125,9 @@ class Tenant(TenantMixin):
             res = dbfunc_exists(
                 conn, self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG
             )
+        else:
+            LOG.info("Clone function exists")
+
         return res
 
     def _verify_template(self, verbosity=1):
@@ -127,26 +136,44 @@ class Tenant(TenantMixin):
         # If this becomes unreliable, then the database itself should be the source of truth
         # and extra code must be written to handle the sync of the table data to the state of
         # the database.
-        template_schema = self.__class__.objects.get_or_create(schema_name=self._TEMPLATE_SCHEMA)
+        template_schema, _ = self.__class__.objects.get_or_create(schema_name=self._TEMPLATE_SCHEMA)
+        try:
+            template_schema.create_schema()
+        except Exception as ex:
+            LOG.error(f"Caught exception {ex.__class__.__name__} during template schema create: {str(ex)}")
+            raise ex
 
         # Strict check here! Both the record and the schema *should* exist!
-        return template_schema and schema_exists(self._TEMPLATE_SCHEMA)
+        res = bool(template_schema) and schema_exists(self._TEMPLATE_SCHEMA)
+        return res
 
     def _clone_schema(self):
         result = None
-        with conn.cursor() as cur:
-            # This db func will clone the schema objects
-            # bypassing the time it takes to run migrations
-            sql = """
+        # This db func will clone the schema objects
+        # bypassing the time it takes to run migrations
+        sql = """
 select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
 """
-            LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}" with data')
+        LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
+        LOG.info("Reading catalog for template data")
+
+        with conn.cursor() as cur:
             cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
             result = cur.fetchone()
-
-        conn.set_schema_to_public()
+            cur.execute("SET search_path = public;")
 
         return result[0] if result else False
+
+    # def _clone_schema(self):
+    #     LOG.info("Loading create script from koku_tenant_create.sql file.")
+    #     create_sql_buff = pkgutil.get_data("api.iam", "sql/koku_tenant_create.sql").decode("utf-8")
+    #     LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
+    #     with conn.cursor() as cur:
+    #         cur.execute(f'CREATE SCHEMA IF NOT EXISTS "{self.schema_name}" AUTHORIZATION current_user ;')
+    #         cur.execute(f'SET search_path = "{self.schema_name}", public ;')
+    #         cur.execute(create_sql_buff)
+    #         cur.execute("SET search_path = public ;")
+    #     return True
 
     def create_schema(self, check_if_exists=True, sync_schema=True, verbosity=1):
         """
@@ -157,30 +184,54 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
             LOG.info(f'Using superclass for "{self.schema_name}" schema creation')
             return super().create_schema(check_if_exists=True, sync_schema=sync_schema, verbosity=verbosity)
 
+        db_exc = None
         # Verify name structure
-        _check_schema_name(self.schema_name)
+        if not _is_valid_schema_name(self.schema_name):
+            exc = ValidationError(f'Invalid schema name: "{self.schema_name}"')
+            LOG.error(f"{exc.__class__.__name__}:: {''.join(exc)}")
+            raise exc
 
-        # Make sure all of our special pieces are in play
-        ret = self._check_clone_func()
-        if not ret:
-            errmsg = "Missing clone_schema function even after re-applying the function SQL file."
-            LOG.critical(errmsg)
-            raise CloneSchemaFuncMissing(errmsg)
+        with transaction.atomic():
+            # Make sure all of our special pieces are in play
+            ret = self._check_clone_func()
+            if not ret:
+                errmsg = "Missing clone_schema function even after re-applying the function SQL file."
+                LOG.critical(errmsg)
+                raise CloneSchemaFuncMissing(errmsg)
 
-        ret = self._verify_template(verbosity=verbosity)
-        if not ret:
-            errmsg = f'Template schema "{self._TEMPLATE_SCHEMA}" does not exist'
-            LOG.critical(errmsg)
-            raise CloneSchemaTemplateMissing(errmsg)
+            ret = self._verify_template(verbosity=verbosity)
+            if not ret:
+                errmsg = f'Template schema "{self._TEMPLATE_SCHEMA}" does not exist'
+                LOG.critical(errmsg)
+                raise CloneSchemaTemplateMissing(errmsg)
 
-        # Always check to see if the schema exists!
-        if schema_exists(self.schema_name):
-            LOG.warning(f'Schema "{self.schema_name}" already exists.')
-            return False
+            # Always check to see if the schema exists!
+            LOG.info(f"Check if target schema {self.schema_name} already exists")
+            if schema_exists(self.schema_name):
+                LOG.warning(f'Schema "{self.schema_name}" already exists. Exit with False.')
+                return False
 
-        # Clone the schema. The database function will check
-        # that the source schema exists and the destination schema does not.
-        self._clone_schema()
-        LOG.info(f'Successful clone of "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
+            # Clone the schema. The database function will check
+            # that the source schema exists and the destination schema does not.
+            try:
+                self._clone_schema()
+            except Exception as dbe:
+                db_exc = dbe
+                LOG.error(
+                    f"""Exception {dbe.__class__.__name__} cloning"""
+                    + f""" "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}": {str(dbe)}"""
+                )
+                LOG.info("Setting transaction to exit with ROLLBACK")
+                transaction.set_rollback(True)  # Set this transaction context to issue a rollback on exit
+            else:
+                LOG.info(f'Successful clone of "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
+
+        # Set schema to public (even if there was an exception)
+        with transaction.atomic():
+            LOG.info("Reset DB search path to public")
+            conn.set_schema_to_public()
+
+        if db_exc:
+            raise db_exc
 
         return True

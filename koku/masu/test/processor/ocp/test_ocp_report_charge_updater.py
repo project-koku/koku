@@ -215,6 +215,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         """Test that markup is calculated."""
         markup = {"value": 10, "unit": "percent"}
         markup_dec = Decimal(markup.get("value") / 100)
+        dec_zero = Decimal("0")
 
         mock_cost_accessor.return_value.__enter__.return_value.markup = markup
 
@@ -229,16 +230,28 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 cluster_id=self.cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
             ).all()
             for line_item in line_items:
-                self.assertNotEqual(line_item.infrastructure_markup_cost, 0)
-                self.assertNotEqual(line_item.infrastructure_project_markup_cost, 0)
-                self.assertAlmostEqual(
-                    line_item.infrastructure_markup_cost, line_item.infrastructure_raw_cost * markup_dec, 6
-                )
-                self.assertAlmostEqual(
-                    line_item.infrastructure_project_markup_cost,
-                    line_item.infrastructure_project_raw_cost * markup_dec,
-                    6,
-                )
+                if line_item.infrastructure_raw_cost is not None:
+                    li_infra_raw_cost = line_item.infrastructure_raw_cost
+                else:
+                    li_infra_raw_cost = dec_zero
+                # If raw cost is zero, then markup will also be zero
+                if li_infra_raw_cost != dec_zero:
+                    self.assertNotEqual(line_item.infrastructure_markup_cost, dec_zero)
+                    self.assertAlmostEqual(
+                        line_item.infrastructure_markup_cost, line_item.infrastructure_raw_cost * markup_dec, 6
+                    )
+                if line_item.infrastructure_project_raw_cost is not None:
+                    li_infra_proj_cost = line_item.infrastructure_project_raw_cost
+                else:
+                    li_infra_proj_cost = dec_zero
+                # If raw cost is zero, then markup will also be zero
+                if li_infra_proj_cost != dec_zero:
+                    self.assertNotEqual(line_item.infrastructure_project_markup_cost, dec_zero)
+                    self.assertAlmostEqual(
+                        line_item.infrastructure_project_markup_cost,
+                        line_item.infrastructure_project_raw_cost * markup_dec,
+                        6,
+                    )
 
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_markup_cost_no_markup(self, mock_cost_accessor):
@@ -286,7 +299,10 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
         with schema_context(self.schema):
             pod_line_items = OCPUsageLineItemDailySummary.objects.filter(
-                report_period__provider_id=self.ocp_provider.uuid, usage_start__gte=start_date, data_source="Pod"
+                report_period__provider_id=self.ocp_provider.uuid,
+                usage_start__gte=start_date,
+                data_source="Pod",
+                infrastructure_raw_cost__isnull=True,
             ).all()
             for line_item in pod_line_items:
                 self.assertNotEqual(line_item.infrastructure_usage_cost.get("cpu"), 0)
@@ -298,7 +314,10 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 self.assertEqual(line_item.supplementary_usage_cost.get("storage"), 0)
 
             volume_line_items = OCPUsageLineItemDailySummary.objects.filter(
-                report_period__provider_id=self.ocp_provider.uuid, usage_start__gte=start_date, data_source="Storage"
+                report_period__provider_id=self.ocp_provider.uuid,
+                usage_start__gte=start_date,
+                data_source="Storage",
+                infrastructure_raw_cost__isnull=True,
             ).all()
 
             for line_item in volume_line_items:
@@ -411,6 +430,20 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 pod_line_item.infrastructure_project_raw_cost * markup_dec,
                 6,
             )
+
+            # Now we want non-cloud infra line item to check usage cost on
+            pod_line_item = OCPUsageLineItemDailySummary.objects.filter(
+                report_period__provider_id=self.ocp_provider.uuid,
+                usage_start__gte=start_date,
+                infrastructure_raw_cost__isnull=True,
+                data_source="Pod",
+            ).first()
+            volume_line_item = OCPUsageLineItemDailySummary.objects.filter(
+                report_period__provider_id=self.ocp_provider.uuid,
+                usage_start__gte=start_date,
+                infrastructure_raw_cost__isnull=True,
+                data_source="Storage",
+            ).first()
 
             # Usage cost
             self.assertNotEqual(pod_line_item.supplementary_usage_cost.get("cpu"), 0)

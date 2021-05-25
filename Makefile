@@ -16,6 +16,7 @@ KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
 MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
 MASU_SERVER_PORT = $(shell echo "${MASU_SERVICE_PORT:-5000}")
 DOCKER := $(shell which docker 2>/dev/null || which podman 2>/dev/null)
+scale = 1
 
 # Testing directories
 TESTINGDIR = $(TOPDIR)/testing
@@ -322,16 +323,16 @@ _koku-wait:
      done
 
 docker-up:
-	$(DOCKER_COMPOSE) up --build -d
+	$(DOCKER_COMPOSE) up --build -d --scale koku-worker=$(scale)
 
-docker-up-no-build:
-	$(DOCKER_COMPOSE) up -d
+docker-up-no-build: docker-up-db
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 docker-up-min:
-	$(DOCKER_COMPOSE) up --build -d db redis koku-server masu-server koku-worker
+	$(DOCKER_COMPOSE) up --build -d --scale koku-worker=$(scale) db redis koku-server masu-server koku-worker
 
-docker-up-min-no-build:
-	$(DOCKER_COMPOSE) up -d db redis koku-server masu-server koku-worker koku-listener
+docker-up-min-no-build: docker-up-db
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker koku-listener
 
 docker-up-min-presto: docker-up-min docker-presto-up
 
@@ -377,6 +378,13 @@ docker-metastore-setup:
 	@$(SED_IN_PLACE) -e 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's/s3access/$(shell echo $(or $(S3_ACCESS_KEY),localhost))/g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's/s3secret/$(shell echo $(or $(S3_SECRET),localhost))/g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/database_name/$(shell echo $(or $(HIVE_DATABASE_NAME),hive))/g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/database_user/$(shell echo $(or $(HIVE_DATABASE_USER),hive))/g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/database_password/$(shell echo $(or $(HIVE_DATABASE_PASSWORD),hive))/g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/database_port/$(shell echo $(or $(DATABASE_PORT),5432))/g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/database_host/$(shell echo $(or $(DATABASE_HOST),db))/g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/database_sslmode/$(shell echo $(or $(DATABASE_SSLMODE),require))/g' testing/metastore/hive-config/hive-site.xml
+
 
 docker-presto-setup:
 	@cp -fr deploy/presto/ testing/presto/

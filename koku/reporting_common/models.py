@@ -36,6 +36,8 @@ class CostUsageReportManifest(models.Model):
     manifest_modified_datetime = models.DateTimeField(null=True)
     billing_period_start_datetime = models.DateTimeField()
     num_total_files = models.IntegerField()
+    s3_csv_cleared = models.BooleanField(default=False, null=True)
+    s3_parquet_cleared = models.BooleanField(default=False, null=True)
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
 
 
