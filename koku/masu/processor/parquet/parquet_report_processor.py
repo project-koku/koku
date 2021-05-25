@@ -18,6 +18,7 @@
 import datetime
 import logging
 import os
+from functools import partial
 from pathlib import Path
 
 import pandas as pd
@@ -45,8 +46,9 @@ from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
 from masu.util.gcp.common import gcp_post_processor
 from masu.util.gcp.common import get_column_converters as gcp_column_converters
+from masu.util.ocp.common import detect_type
 from masu.util.ocp.common import get_column_converters as ocp_column_converters
-from masu.util.ocp.common import REPORT_TYPES
+from masu.util.ocp.common import ocp_generate_daily_data
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.gcp.models import GCPEnabledTagKeys
@@ -176,9 +178,9 @@ class ParquetReportProcessor:
         """Report type for OpenShift, else None."""
         if self.provider_type == Provider.PROVIDER_OCP:
             for file_name in self.file_list:
-                for report_type in REPORT_TYPES.keys():
-                    if report_type in file_name:
-                        return report_type
+                report_type, _ = detect_type(file_name)
+                if report_type:
+                    return report_type
         return None
 
     @property
@@ -199,6 +201,8 @@ class ParquetReportProcessor:
         daily_data_processor = None
         if self.provider_type == Provider.PROVIDER_AWS:
             daily_data_processor = aws_generate_daily_data
+        if self.provider_type == Provider.PROVIDER_OCP:
+            daily_data_processor = partial(ocp_generate_daily_data, report_type=self.report_type)
 
         return daily_data_processor
 
@@ -334,6 +338,9 @@ class ParquetReportProcessor:
             remove_files_not_in_set_from_s3_bucket(
                 self.request_id, self.parquet_path_s3, self.manifest_id, self.error_context
             )
+            remove_files_not_in_set_from_s3_bucket(
+                self.request_id, self.parquet_daily_path_s3, self.manifest_id, self.error_context
+            )
             manifest_accessor.mark_s3_parquet_cleared(manifest)
 
         failed_conversion = []
@@ -344,10 +351,10 @@ class ParquetReportProcessor:
                 failed_conversion.append(csv_filename)
                 continue
 
-            parquet_base_filename, daily_data_frame = self.convert_csv_to_parquet(csv_filename)
+            parquet_base_filename, daily_data_frame, success = self.convert_csv_to_parquet(csv_filename)
             if not daily_data_frame.empty:
                 self.create_daily_parquet(parquet_base_filename, daily_data_frame)
-            else:
+            if not success:
                 failed_conversion.append(csv_filename)
 
         if failed_conversion:
@@ -398,15 +405,15 @@ class ParquetReportProcessor:
                         data_frame = self.post_processor(data_frame)
                         if isinstance(data_frame, tuple):
                             data_frame, data_frame_tag_keys = data_frame
-                            if self.daily_data_processor is not None:
-                                daily_data_frames.append(self.daily_data_processor(data_frame))
                             LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
                             unique_keys.update(data_frame_tag_keys)
                             LOG.info(f"Total unique keys for file {len(unique_keys)}")
+                    if self.daily_data_processor is not None:
+                        daily_data_frames.append(self.daily_data_processor(data_frame))
 
                     success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
                     if not success:
-                        return parquet_base_filename, pd.DataFrame()
+                        return parquet_base_filename, pd.DataFrame(), False
             if self.create_table and not self.presto_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_file)
             create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
@@ -415,7 +422,7 @@ class ParquetReportProcessor:
                 f"File {csv_filename} could not be written as parquet to temp file {parquet_file}. Reason: {str(err)}"
             )
             LOG.warn(log_json(self.request_id, msg, self.error_context))
-            return parquet_base_filename, pd.DataFrame()
+            return parquet_base_filename, pd.DataFrame(), False
         finally:
             # Delete the local parquet file
             if os.path.exists(parquet_file):
@@ -430,7 +437,7 @@ class ParquetReportProcessor:
         else:
             daily_data_frames = pd.DataFrame()
 
-        return parquet_base_filename, daily_data_frames
+        return parquet_base_filename, daily_data_frames, True
 
     def create_daily_parquet(self, parquet_base_filename, data_frame):
         """Create a parquet file for daily aggregated data."""
