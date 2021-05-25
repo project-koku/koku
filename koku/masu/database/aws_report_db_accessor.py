@@ -322,7 +322,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         )
 
     def populate_ocp_on_aws_cost_daily_summary_presto(
-        self, start_date, end_date, openshift_provider_uuid, aws_provider_uuid, cluster_id, bill_id, markup_value
+        self, start_date, end_date, openshift_provider_uuid, aws_provider_uuid, report_period_id, bill_id, markup_value
     ):
         """Populate the daily cost aggregated summary for OCP on AWS.
 
@@ -337,7 +337,6 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpawscostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
-            "uuid": str(openshift_provider_uuid).replace("-", "_"),
             "schema": self.schema,
             "start_date": start_date,
             "year": start_date.strftime("%Y"),
@@ -345,11 +344,28 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             "end_date": end_date,
             "aws_source_uuid": aws_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
-            "cluster_id": cluster_id,
             "bill_id": bill_id,
+            "report_period_id": report_period_id,
             "markup": markup_value,
         }
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
+
+    def back_populate_ocp_on_aws_daily_summary(self, start_date, end_date, report_period_id):
+        """Populate the OCP on AWS and OCP daily summary tables. after populating the project table via trino."""
+        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
+
+        sql = pkgutil.get_data(
+            "masu.database", "sql/reporting_ocpawscostentrylineitem_daily_summary_back_populate.sql"
+        )
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_id": report_period_id,
+        }
+        sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
+        self._execute_raw_sql_query(table_name, sql, bind_params=list(sql_params))
 
     def populate_ocp_on_aws_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
