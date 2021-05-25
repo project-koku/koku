@@ -28,7 +28,6 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
-from masu.processor.parquet.parquet_report_processor import DAILY_FILE_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 from masu.util.aws.common import match_openshift_resources_and_labels
@@ -69,6 +68,12 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
 
         return ocp_on_cloud_data_processor
 
+    @property
+    def end_date(self):
+        """Return an end date."""
+        dh = DateHelper()
+        return dh.month_end(self.start_date)
+
     @cached_property
     def ocp_infrastructure_map(self):
         provider = Provider.objects.get(uuid=self.provider_uuid)
@@ -82,9 +87,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         if self.provider_type in Provider.CLOUD_PROVIDER_LIST and self.provider_uuid not in infra_provider_uuids:
             # When running for an Infrastructure provider we want all
             # of the matching clusters to run
-            dh = DateHelper()
-            end_date = dh.month_end(self.start_date)
-            infra_map = updater._generate_ocp_infra_map_from_sql(self.start_date, end_date)
+            infra_map = updater._generate_ocp_infra_map_from_sql_trino(self.start_date, self.end_date)
 
         return infra_map
 
@@ -109,10 +112,10 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
     def get_report_period_id(self, ocp_provider_uuid):
         """Return the OpenShift report period ID."""
         report_period_id = None
-        with OCPReportDBAccessor(ocp_provider_uuid) as accessor:
+        with OCPReportDBAccessor(self.schema_name) as accessor:
             with schema_context(self.schema_name):
-                report_periods = accessor.report_periods_for_provider_uuid(ocp_provider_uuid, self.start_date)
-                report_period_id = report_periods.first().id if report_periods else None
+                report_period = accessor.report_periods_for_provider_uuid(ocp_provider_uuid, self.start_date)
+                report_period_id = report_period.id if report_period else None
         return report_period_id
 
     def _determin_s3_path(self, file_type):
@@ -121,23 +124,22 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             return self.parquet_ocp_on_cloud_path_s3
         return None
 
-    def create_ocp_on_cloud_parquet(self, parquet_base_filename, data_frame):
+    def create_ocp_on_cloud_parquet(self, parquet_base_filename, data_frame, ocp_provider_uuid):
         """Create a parquet file for daily aggregated data."""
-        file_name = f"{parquet_base_filename}_{DAILY_FILE_TYPE}_openshift_on_{self.provider_type}{PARQUET_EXT}"
+        file_name = f"{ocp_provider_uuid}{PARQUET_EXT}"
         file_path = f"{self.local_path}/{file_name}"
         self._write_parquet_to_file(file_path, file_name, data_frame, file_type=self.report_type)
         self.create_parquet_table(file_path, daily=True)
 
     def process(self, parquet_base_filename, daily_data_frame):
         """Filter data and convert to parquet."""
-
         for ocp_provider_uuid, infra_tuple in self.ocp_infrastructure_map.items():
             infra_provider_uuid = infra_tuple[0]
             if infra_provider_uuid != self.provider_uuid:
                 continue
             msg = (
                 f"Processing OpenShift on {self.provider_type} to parquet."
-                "\n\tStart date: {str(self.start_date)}\n\tFile: {str(self.report_file)}"
+                f"\n\tStart date: {str(self.start_date)}\n\tFile: {str(self.report_file)}"
             )
             LOG.info(msg)
             # Get OpenShift topology data
@@ -146,9 +148,13 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             # Get matching tags
             report_period_id = self.get_report_period_id(ocp_provider_uuid)
             matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id, report_period_id)
-
+            if not matched_tags:
+                matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
+                    self.provider_uuid, ocp_provider_uuid, self.start_date, self.end_date
+                )
+            LOG.info(matched_tags)
             openshift_filtered_data_frame = self.ocp_on_cloud_data_processor(
                 daily_data_frame, cluster_topology, matched_tags
             )
 
-            self.create_ocp_on_cloud_parquet(parquet_base_filename, openshift_filtered_data_frame)
+            self.create_ocp_on_cloud_parquet(parquet_base_filename, openshift_filtered_data_frame, ocp_provider_uuid)
