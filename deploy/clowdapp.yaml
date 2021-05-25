@@ -26,6 +26,18 @@ objects:
               key: django-secret-key
               name: koku-secret
               optional: false
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -307,6 +319,18 @@ objects:
               key: django-secret-key
               name: koku-secret
               optional: false
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -436,6 +460,18 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -597,6 +633,18 @@ objects:
               key: django-secret-key
               name: koku-secret
               optional: false
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -710,6 +758,18 @@ objects:
               key: django-secret-key
               name: koku-secret
               optional: false
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -796,6 +856,18 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -952,6 +1024,18 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1108,6 +1192,18 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1264,6 +1360,18 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1420,6 +1528,18 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1576,6 +1696,18 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1732,6 +1864,18 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1894,6 +2038,13 @@ objects:
   kind: Secret
   metadata:
     name: koku-secret
+- apiVersion: v1
+  data:
+    aws-access-key-id: ${SECRET_KEY}
+    aws-secret-access-key: ${SECRET_KEY}
+  kind: Secret
+  metadata:
+    name: koku-aws
 - apiVersion: v1
   data:
     gcp-credentials: ""
