@@ -37,8 +37,9 @@ class AWSOrganizationalUnitView(generics.ListAPIView):
     )
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
-    filter_backends = [filters.OrderingFilter]
+    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value"]
+    search_fields = ["$value"]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
