@@ -1844,10 +1844,12 @@ class AWSReportQueryTest(IamTestCase):
         # test query output
         actual = []
         expected = {}
+        start = handler.start_datetime.date()
         for acc in self.accounts:
             with tenant_context(self.tenant):
                 expected[acc] = (
                     AWSCostEntryLineItemDailySummary.objects.filter(usage_account_id=acc)
+                    .filter(usage_start__gte=start)
                     .aggregate(
                         cost=Sum(
                             Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
