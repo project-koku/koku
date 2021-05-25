@@ -23,6 +23,7 @@ from json.decoder import JSONDecodeError
 
 from django.db import InterfaceError
 from django.db import OperationalError
+from django.db import transaction
 
 from api.provider.models import Provider
 from api.provider.models import Sources
@@ -236,10 +237,11 @@ def get_source(source_id, err_msg, logger):
         raise error
 
 
+@transaction.atomic
 def mark_provider_as_inactive(provider_uuid):
     """Mark provider as inactive so we do not continue to ingest data while the source is being deleted."""
     try:
-        provider = Provider.objects.get(uuid=provider_uuid)
+        provider = Provider.objects.select_for_update().get(uuid=provider_uuid)
         provider.active = False
         provider.billing_source = None
         provider.authentication = None
@@ -267,7 +269,7 @@ def enqueue_source_delete(source_id, offset, allow_out_of_order=False):
             source.pending_delete = True
             LOG.info(f"[enqueue_source_delete] source_id: {source_id} marked for deletion")
             source.save()
-            # mark_provider_as_inactive(source.koku_uuid)
+            mark_provider_as_inactive(source.koku_uuid)
     except Sources.DoesNotExist:
         if allow_out_of_order:
             LOG.info(f"[enqueue_source_delete] source_id: {source_id} not known. Marking as out of order delete.")
