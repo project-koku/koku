@@ -20,12 +20,14 @@ from django.views.decorators.cache import cache_page
 from django.views.generic.base import RedirectView
 from rest_framework.routers import DefaultRouter
 
+from api.views import AWSAccountRegionView
 from api.views import AWSAccountView
 from api.views import AWSCostForecastView
 from api.views import AWSCostView
 from api.views import AWSInstanceTypeView
 from api.views import AWSOrganizationalUnitView
 from api.views import AWSOrgView
+from api.views import AWSServiceView
 from api.views import AWSStorageView
 from api.views import AWSTagView
 from api.views import AzureCostForecastView
@@ -314,6 +316,8 @@ urlpatterns = [
         AWSOrganizationalUnitView.as_view(),
         name="aws-organizational-units",
     ),
+    path("resource-types/aws-service/", AWSServiceView.as_view(), name="aws-service"),
+    path("resource-types/aws-region/", AWSAccountRegionView.as_view(), name="aws-region"),
     path(
         "resource-types/azure-subscription-guids/",
         AzureSubscriptionGuidView.as_view(),
