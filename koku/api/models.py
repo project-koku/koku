@@ -24,3 +24,4 @@ from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
 from api.status.models import Status
+from api.currency.models import ExchangeRate

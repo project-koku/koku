@@ -26,6 +26,7 @@ from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 from django.utils import timezone
 
+from api.currency.exchange.exchange import populate_exchange_rates
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer
 from api.dataexport.syncer import SyncedFileInColdStorageError
@@ -303,3 +304,11 @@ def crawl_account_hierarchy(provider_uuid=None):
             )
             skipped += 1
     LOG.info(f"Account hierarchy crawler finished. {processed} processed and {skipped} skipped")
+
+
+@celery_app.task(name="masu.celery.tasks.get_exchange_rates", queue=DEFAULT)
+def get_exchange_rates():
+    """Get the current exchange rates for the supported currencies."""
+    LOG.info("About to query for the supported currencies")
+    populate_exchange_rates()
+    

@@ -17,6 +17,7 @@
 """View for Currency."""
 import json
 import logging
+from api.currency.exchange.exchange import populate_exchange_rates
 
 from rest_framework import permissions
 from rest_framework import status
@@ -58,6 +59,7 @@ def get_currency(request):
 
     """
     try:
+        populate_exchange_rates()
         data = load_currencies(CURRENCY_FILE_NAME)
         paginator = ListPaginator(data, request)
         return paginator.paginated_response
