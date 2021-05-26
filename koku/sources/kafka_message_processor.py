@@ -91,7 +91,7 @@ class KafkaMessageProcessor:
         self.partition = msg.partition()
         self.auth_header = extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
         if self.auth_header is None:
-            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}`: {str(self.value)}"
+            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}`: {msg.headers()}"
             LOG.warning(msg)
             raise SourcesMessageError(msg)
         self.source_id = None
