@@ -89,9 +89,9 @@ class KafkaMessageProcessor:
         self.cost_mgmt_id = cost_mgmt_id
         self.offset = msg.offset()
         self.partition = msg.partition()
-        header = extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
-        if header is None:
-            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}``: {msg.value}"
+        self.auth_header = extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
+        if self.auth_header is None:
+            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}`: {str(self.value)}"
             LOG.warning(msg)
             raise SourcesMessageError(msg)
         self.source_id = None
