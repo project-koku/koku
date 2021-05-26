@@ -17,10 +17,10 @@
         - -c
         - python koku/manage.py sources_listener
       env:
-        - name: SOURCES
-          value: "true"
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SOURCES
+          value: "true"
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
@@ -38,6 +38,12 @@
             secretKeyRef:
               key: aws-secret-access-key
               name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
               optional: false
         - name: APP_POD_NAME
           valueFrom:
@@ -79,24 +85,6 @@
           value: ${RBAC_CACHE_TTL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
-              optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
       resources:

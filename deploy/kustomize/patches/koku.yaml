@@ -55,6 +55,12 @@
               key: aws-secret-access-key
               name: koku-aws
               optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -89,24 +95,6 @@
           value: ${RBAC_CACHE_TTL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
-              optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: S3_BUCKET_NAME
-          valueFrom:
-            secretKeyRef:
-              key: bucket
-              name: hccm-s3
-              optional: true
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -117,12 +105,6 @@
           value: ${ENABLE_TRINO_ACCOUNTS}
         - name: ENABLE_TRINO_SOURCE_TYPE
           value: ${ENABLE_TRINO_SOURCE_TYPE}
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
         - name: KOKU_API_ENABLE_SENTRY
           value: ${ENABLE_API_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT

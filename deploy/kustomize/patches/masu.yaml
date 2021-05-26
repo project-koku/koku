@@ -15,10 +15,10 @@
       command:  # this `command` overrides haberdasher; `command` can be removed entirely when implementing haberdasher
         - /usr/libexec/s2i/run
       env:
-        - name: MASU
-          value: "true"
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: MASU
+          value: "true"
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
@@ -36,6 +36,12 @@
             secretKeyRef:
               key: aws-secret-access-key
               name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
               optional: false
         - name: APP_POD_NAME
           valueFrom:
@@ -71,34 +77,10 @@
           value: ${RBAC_CACHE_TTL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
-              optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: S3_BUCKET_NAME
-          valueFrom:
-            secretKeyRef:
-              key: bucket
-              name: hccm-s3
-              optional: true
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
           value: ${ENABLE_PARQUET_PROCESSING}
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
         - name: POD_CPU_LIMIT # required to spin up appropriate number of gunicorn workers
           valueFrom:
             resourceFieldRef:
