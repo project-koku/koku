@@ -108,7 +108,7 @@
         - name: KOKU_API_ENABLE_SENTRY
           value: ${ENABLE_API_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
-          value: ${KOKU_KOKU_SENTRY_ENV}
+          value: ${KOKU_SENTRY_ENV}
         - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
@@ -219,9 +219,3 @@
     name: KOKU_CPU_LIMIT
     required: true
     value: 300m
-- op: add
-  path: /parameters/-
-  value:
-    displayName: Koku Sentry Env
-    name: KOKU_KOKU_SENTRY_ENV
-    value: "dev"

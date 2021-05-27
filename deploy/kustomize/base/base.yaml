@@ -111,6 +111,18 @@ parameters:
 - displayName: Prometheus multiproc dir
   name: PROMETHEUS_DIR
   value: /tmp
+- description: Koku Sentry Env
+  displayName: Koku Sentry Env
+  name: KOKU_SENTRY_ENV
+  value: "dev"
+- description: Enable API Sentry
+  displayName: Enable API Sentry
+  name: ENABLE_API_SENTRY
+  value: "False"
+- description: Enable Celery Sentry
+  displayName: Enable Celery Sentry
+  name: ENABLE_CELERY_SENTRY
+  value: "False"
 
 - description: Enable S3 Archiving
   displayName: Enable S3 Archiving
@@ -274,5 +286,5 @@ parameters:
   displayName: Secret Key (Ephemeral)
   required: true
   description: Django SECRET_KEY
-  from: "[a-f0-9]{128}"
+  from: "[a-f0-9]{20}"
   generate: expression

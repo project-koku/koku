@@ -68,7 +68,7 @@
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
-          value: ${WORKER_CELERY_KOKU_SENTRY_ENV}
+          value: ${KOKU_SENTRY_ENV}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
@@ -170,12 +170,6 @@
     name: WORKER_CELERY_CPU_LIMIT
     required: true
     value: 200m
-- op: add
-  path: /parameters/-
-  value:
-    displayName: Koku Sentry Env
-    name: WORKER_CELERY_KOKU_SENTRY_ENV
-    value: "dev"
 - op: add
   path: /parameters/-
   value:

@@ -38,6 +38,12 @@ objects:
               key: aws-secret-access-key
               name: koku-aws
               optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -72,24 +78,6 @@ objects:
           value: ${RBAC_CACHE_TTL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
-              optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: S3_BUCKET_NAME
-          valueFrom:
-            secretKeyRef:
-              key: bucket
-              name: hccm-s3
-              optional: true
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -100,16 +88,10 @@ objects:
           value: ${ENABLE_TRINO_ACCOUNTS}
         - name: ENABLE_TRINO_SOURCE_TYPE
           value: ${ENABLE_TRINO_SOURCE_TYPE}
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
         - name: KOKU_API_ENABLE_SENTRY
           value: ${ENABLE_API_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
-          value: ${KOKU_KOKU_SENTRY_ENV}
+          value: ${KOKU_SENTRY_ENV}
         - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
@@ -196,6 +178,24 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -208,42 +208,6 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
-              optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: S3_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws_access_key_id
-              name: hccm-s3
-              optional: true
-        - name: S3_SECRET
-          valueFrom:
-            secretKeyRef:
-              key: aws_secret_access_key
-              name: hccm-s3
-              optional: true
-        - name: S3_BUCKET_NAME
-          valueFrom:
-            secretKeyRef:
-              key: bucket
-              name: hccm-s3
-              optional: true
-        - name: S3_ENDPOINT
-          valueFrom:
-            secretKeyRef:
-              key: endpoint
-              name: hccm-s3
-              optional: true
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -261,7 +225,7 @@ objects:
         - name: KOKU_API_ENABLE_SENTRY
           value: ${ENABLE_API_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
-          value: ${LISTENER_KOKU_SENTRY_ENV}
+          value: ${KOKU_SENTRY_ENV}
         - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
@@ -309,10 +273,10 @@ objects:
         command:
         - /usr/libexec/s2i/run
         env:
-        - name: MASU
-          value: "true"
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: MASU
+          value: "true"
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
@@ -330,6 +294,12 @@ objects:
             secretKeyRef:
               key: aws-secret-access-key
               name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
               optional: false
         - name: APP_POD_NAME
           valueFrom:
@@ -365,34 +335,10 @@ objects:
           value: ${RBAC_CACHE_TTL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
-              optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: S3_BUCKET_NAME
-          valueFrom:
-            secretKeyRef:
-              key: bucket
-              name: hccm-s3
-              optional: true
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
           value: ${ENABLE_PARQUET_PROCESSING}
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
         - name: POD_CPU_LIMIT
           valueFrom:
             resourceFieldRef:
@@ -472,6 +418,12 @@ objects:
               key: aws-secret-access-key
               name: koku-aws
               optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -484,42 +436,6 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
-              optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: S3_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws_access_key_id
-              name: hccm-s3
-              optional: true
-        - name: S3_SECRET
-          valueFrom:
-            secretKeyRef:
-              key: aws_secret_access_key
-              name: hccm-s3
-              optional: true
-        - name: S3_BUCKET_NAME
-          valueFrom:
-            secretKeyRef:
-              key: bucket
-              name: hccm-s3
-              optional: true
-        - name: S3_ENDPOINT
-          valueFrom:
-            secretKeyRef:
-              key: endpoint
-              name: hccm-s3
-              optional: true
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -534,16 +450,10 @@ objects:
           value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
-          value: ${SCHEDULER_KOKU_SENTRY_ENV}
+          value: ${KOKU_SENTRY_ENV}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
@@ -623,10 +533,10 @@ objects:
         command:
         - /usr/libexec/s2i/run
         env:
-        - name: SOURCES
-          value: "true"
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SOURCES
+          value: "true"
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
@@ -644,6 +554,12 @@ objects:
             secretKeyRef:
               key: aws-secret-access-key
               name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
               optional: false
         - name: APP_POD_NAME
           valueFrom:
@@ -685,24 +601,16 @@ objects:
           value: ${RBAC_CACHE_TTL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
+        - name: KOKU_API_ENABLE_SENTRY
+          value: ${ENABLE_API_SENTRY}
+        - name: KOKU_SENTRY_ENVIRONMENT
+          value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
+              key: sources-sentry-dsn
+              name: koku-sentry
               optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -748,10 +656,10 @@ objects:
         - -c
         - python koku/manage.py sources_listener
         env:
-        - name: SOURCES
-          value: "true"
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SOURCES
+          value: "true"
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
@@ -769,6 +677,12 @@ objects:
             secretKeyRef:
               key: aws-secret-access-key
               name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
               optional: false
         - name: APP_POD_NAME
           valueFrom:
@@ -810,24 +724,16 @@ objects:
           value: ${RBAC_CACHE_TTL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
+        - name: KOKU_API_ENABLE_SENTRY
+          value: ${ENABLE_API_SENTRY}
+        - name: KOKU_SENTRY_ENVIRONMENT
+          value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
+              key: sources-sentry-dsn
+              name: koku-sentry
               optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -868,6 +774,12 @@ objects:
               key: aws-secret-access-key
               name: koku-aws
               optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -880,42 +792,6 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
-              optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: S3_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws_access_key_id
-              name: hccm-s3
-              optional: true
-        - name: S3_SECRET
-          valueFrom:
-            secretKeyRef:
-              key: aws_secret_access_key
-              name: hccm-s3
-              optional: true
-        - name: S3_BUCKET_NAME
-          valueFrom:
-            secretKeyRef:
-              key: bucket
-              name: hccm-s3
-              optional: true
-        - name: S3_ENDPOINT
-          valueFrom:
-            secretKeyRef:
-              key: endpoint
-              name: hccm-s3
-              optional: true
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -930,16 +806,10 @@ objects:
           value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
-          value: ${WORKER_CELERY_KOKU_SENTRY_ENV}
+          value: ${KOKU_SENTRY_ENV}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
@@ -1036,6 +906,12 @@ objects:
               key: aws-secret-access-key
               name: koku-aws
               optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1098,16 +974,10 @@ objects:
           value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
-          value: ${WORKER_COST_MODEL_KOKU_SENTRY_ENV}
+          value: ${KOKU_SENTRY_ENV}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
@@ -1204,6 +1074,12 @@ objects:
               key: aws-secret-access-key
               name: koku-aws
               optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1266,16 +1142,10 @@ objects:
           value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
-          value: ${WORKER_DOWNLOAD_KOKU_SENTRY_ENV}
+          value: ${KOKU_SENTRY_ENV}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
@@ -1372,6 +1242,12 @@ objects:
               key: aws-secret-access-key
               name: koku-aws
               optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1434,16 +1310,10 @@ objects:
           value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
-          value: ${WORKER_OCP_KOKU_SENTRY_ENV}
+          value: ${KOKU_SENTRY_ENV}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
@@ -1540,6 +1410,12 @@ objects:
               key: aws-secret-access-key
               name: koku-aws
               optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1602,16 +1478,10 @@ objects:
           value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
-          value: ${WORKER_PRIORITY_KOKU_SENTRY_ENV}
+          value: ${KOKU_SENTRY_ENV}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
@@ -1708,6 +1578,12 @@ objects:
               key: aws-secret-access-key
               name: koku-aws
               optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1770,16 +1646,10 @@ objects:
           value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
-          value: ${WORKER_REFRESH_KOKU_SENTRY_ENV}
+          value: ${KOKU_SENTRY_ENV}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
@@ -1876,6 +1746,12 @@ objects:
               key: aws-secret-access-key
               name: koku-aws
               optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              key: gcp-credentials
+              name: koku-gcp
+              optional: false
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1938,16 +1814,10 @@ objects:
           value: ${ENABLE_TRINO_SOURCE_TYPE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
         - name: KOKU_CELERY_ENABLE_SENTRY
           value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
-          value: ${WORKER_SUMMARY_KOKU_SENTRY_ENV}
+          value: ${KOKU_SENTRY_ENV}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
@@ -2103,6 +1973,18 @@ parameters:
 - displayName: Prometheus multiproc dir
   name: PROMETHEUS_DIR
   value: /tmp
+- description: Koku Sentry Env
+  displayName: Koku Sentry Env
+  name: KOKU_SENTRY_ENV
+  value: dev
+- description: Enable API Sentry
+  displayName: Enable API Sentry
+  name: ENABLE_API_SENTRY
+  value: "False"
+- description: Enable Celery Sentry
+  displayName: Enable Celery Sentry
+  name: ENABLE_CELERY_SENTRY
+  value: "False"
 - description: Enable S3 Archiving
   displayName: Enable S3 Archiving
   name: ENABLE_S3_ARCHIVING
@@ -2253,7 +2135,7 @@ parameters:
   value: /api/sources/v1.0
 - description: Django SECRET_KEY
   displayName: Secret Key (Ephemeral)
-  from: '[a-f0-9]{128}'
+  from: '[a-f0-9]{20}'
   generate: expression
   name: SECRET_KEY
   required: true
@@ -2293,9 +2175,6 @@ parameters:
   name: KOKU_CPU_LIMIT
   required: true
   value: 300m
-- displayName: Koku Sentry Env
-  name: KOKU_KOKU_SENTRY_ENV
-  value: dev
 - displayName: Minimum replicas
   name: LISTENER_MIN_REPLICAS
   required: true
@@ -2316,9 +2195,6 @@ parameters:
   name: LISTENER_CPU_LIMIT
   required: true
   value: 500m
-- displayName: Koku Sentry Env
-  name: LISTENER_KOKU_SENTRY_ENV
-  value: dev
 - displayName: Minimum replicas
   name: MASU_MIN_REPLICAS
   required: true
@@ -2359,9 +2235,6 @@ parameters:
   name: SCHEDULER_CPU_LIMIT
   required: true
   value: 200m
-- displayName: Koku Sentry Env
-  name: SCHEDULER_KOKU_SENTRY_ENV
-  value: dev
 - displayName: Worker Queue
   name: SCHEDULER_WORKER_QUEUE
   required: true
@@ -2429,9 +2302,6 @@ parameters:
   name: WORKER_CELERY_CPU_LIMIT
   required: true
   value: 200m
-- displayName: Koku Sentry Env
-  name: WORKER_CELERY_KOKU_SENTRY_ENV
-  value: dev
 - displayName: Worker Queue
   name: WORKER_CELERY_WORKER_QUEUE
   required: true
@@ -2456,9 +2326,6 @@ parameters:
   name: WORKER_COST_MODEL_CPU_LIMIT
   required: true
   value: 200m
-- displayName: Koku Sentry Env
-  name: WORKER_COST_MODEL_KOKU_SENTRY_ENV
-  value: dev
 - displayName: Worker Queue
   name: WORKER_COST_MODEL_WORKER_QUEUE
   required: true
@@ -2483,9 +2350,6 @@ parameters:
   name: WORKER_DOWNLOAD_CPU_LIMIT
   required: true
   value: 200m
-- displayName: Koku Sentry Env
-  name: WORKER_DOWNLOAD_KOKU_SENTRY_ENV
-  value: dev
 - displayName: Worker Queue
   name: WORKER_DOWNLOAD_WORKER_QUEUE
   required: true
@@ -2510,9 +2374,6 @@ parameters:
   name: WORKER_OCP_CPU_LIMIT
   required: true
   value: 200m
-- displayName: Koku Sentry Env
-  name: WORKER_OCP_KOKU_SENTRY_ENV
-  value: dev
 - displayName: Worker Queue
   name: WORKER_OCP_WORKER_QUEUE
   required: true
@@ -2537,9 +2398,6 @@ parameters:
   name: WORKER_PRIORITY_CPU_LIMIT
   required: true
   value: 200m
-- displayName: Koku Sentry Env
-  name: WORKER_PRIORITY_KOKU_SENTRY_ENV
-  value: dev
 - displayName: Worker Queue
   name: WORKER_PRIORITY_WORKER_QUEUE
   required: true
@@ -2564,9 +2422,6 @@ parameters:
   name: WORKER_REFRESH_CPU_LIMIT
   required: true
   value: 200m
-- displayName: Koku Sentry Env
-  name: WORKER_REFRESH_KOKU_SENTRY_ENV
-  value: dev
 - displayName: Worker Queue
   name: WORKER_REFRESH_WORKER_QUEUE
   required: true
@@ -2591,9 +2446,6 @@ parameters:
   name: WORKER_SUMMARY_CPU_LIMIT
   required: true
   value: 200m
-- displayName: Koku Sentry Env
-  name: WORKER_SUMMARY_KOKU_SENTRY_ENV
-  value: dev
 - displayName: Worker Queue
   name: WORKER_SUMMARY_WORKER_QUEUE
   required: true
