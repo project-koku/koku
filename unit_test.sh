@@ -42,10 +42,8 @@ trap "teardown" EXIT ERR SIGINT SIGTERM
 oc get secret $COMPONENT_NAME -o json -n $NAMESPACE | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json
 
 export DATABASE_NAME=$(jq -r .name < db-creds.json)
-export DATABASE_ADMIN_USERNAME=$(jq -r .adminUsername < db-creds.json)
-export DATABASE_ADMIN_PASSWORD=$(jq -r .adminPassword < db-creds.json)
-export DATABASE_USER=$(jq -r .username < db-creds.json)
-export DATABASE_PASSWORD=$(jq -r .password < db-creds.json)
+export DATABASE_ADMIN=$(jq -r .adminUsername < db-creds.json)
+export DATABASE_PASSWORD=$(jq -r .adminPassword < db-creds.json)
 export DATABASE_HOST=localhost
 export DATABASE_PORT=$LOCAL_DB_PORT
 
@@ -65,7 +63,9 @@ rm -f $K8S_ARTIFACTS_DIR
 # Here we remap env vars set by `deploy_ephemeral_db.sh`.  APPs call the DB ENV VARs
 # different names, if your env vars do not match what the shell script sets,
 # they should be remapped here.
-export PGPASSWORD=$DATABASE_ADMIN_PASSWORD
+# Variables for check_postgres_running.sh
+export POSTGRES_SQL_SERVICE_PORT=$DATABASE_PORT
+export POSTGRES_SQL_SERVICE_HOST=$DATABASE_HOST
 
 # Run the code needed for unit tests, example below ...
 python3.8 -m venv app-venv
