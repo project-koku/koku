@@ -1533,11 +1533,10 @@
         },
         "faker": {
             "hashes": [
-                "sha256:34cb72da6eaeaa6e7d2d651e5e216a50d8dcd141f6ac75c14154d3bee95c1eda",
-                "sha256:b9259dd6153ef035ca9220b8110c402b836f864764d284885cc0841f6495784c"
+                "sha256:5b1c0781c0c2f6b177adf4018feec265bbcd0118b301dbec64a1908c29124ed6",
+                "sha256:c94240c40073400b269c50b14da765fd4d3b4dda8ae25c2753afc809c72f1062"
             ],
-            "index": "pypi",
-            "version": "==8.1.3"
+            "version": "==8.4.0"
         },
         "filelock": {
             "hashes": [
