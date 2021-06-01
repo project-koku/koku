@@ -60,6 +60,7 @@ from reporting.models import GCP_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
+from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 
 LOG = logging.getLogger(__name__)
 
@@ -561,11 +562,20 @@ def refresh_materialized_views(  # noqa: C901
         worker_cache.lock_single_task(task_name, cache_args, timeout=600)
     materialized_views = ()
     if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-        materialized_views = AWS_MATERIALIZED_VIEWS + OCP_ON_AWS_MATERIALIZED_VIEWS
+        materialized_views = (
+            AWS_MATERIALIZED_VIEWS + OCP_ON_AWS_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
+        )
     elif provider_type in (Provider.PROVIDER_OCP):
-        materialized_views = OCP_MATERIALIZED_VIEWS + OCP_ON_AWS_MATERIALIZED_VIEWS + OCP_ON_AZURE_MATERIALIZED_VIEWS
+        materialized_views = (
+            OCP_MATERIALIZED_VIEWS
+            + OCP_ON_AWS_MATERIALIZED_VIEWS
+            + OCP_ON_AZURE_MATERIALIZED_VIEWS
+            + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
+        )
     elif provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-        materialized_views = AZURE_MATERIALIZED_VIEWS + OCP_ON_AZURE_MATERIALIZED_VIEWS
+        materialized_views = (
+            AZURE_MATERIALIZED_VIEWS + OCP_ON_AZURE_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
+        )
     elif provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
         materialized_views = GCP_MATERIALIZED_VIEWS
     try:
