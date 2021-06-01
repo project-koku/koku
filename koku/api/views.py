@@ -17,6 +17,7 @@
 """API views for import organization"""
 # flake8: noqa
 from api.cloud_accounts.views import cloud_accounts
+from api.currency.view import get_currency
 from api.dataexport.views import DataExportRequestViewSet
 from api.forecast.views import AWSCostForecastView
 from api.forecast.views import AzureCostForecastView
