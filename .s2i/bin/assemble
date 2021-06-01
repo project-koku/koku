@@ -78,10 +78,8 @@ if [[ ! -z "$ENABLE_PIPENV" ]]; then
   fi
   install_tool "pipenv" "$PIN_PIPENV_VERSION"
   echo "---> Installing dependencies via pipenv ..."
-  if [[ -f Pipfile && -z "$PIPENV_DEV" ]]; then
-    echo "---> Installing development dependencies ..."
-    pipenv install --deploy --dev
-  elif [[ -f Pipfile ]]; then
+  if [[ -f Pipfile ]]; then
+    echo "---> Installing development dependencies: ${PIPENV_DEV} ..."
     pipenv install --deploy
   elif [[ -f requirements.txt ]]; then
     pipenv install -r requirements.txt

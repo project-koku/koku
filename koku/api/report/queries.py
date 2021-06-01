@@ -879,6 +879,10 @@ class ReportQueryHandler(QueryHandler):
 
             if "cluster" in group_by:
                 other["cluster_alias"] = others_label
+                clusters_list = []
+                for entry in others_list:
+                    clusters_list.extend(entry.get("clusters", []))
+                other["clusters"] = list(set(clusters_list))
                 exclusions = []
             else:
                 # delete these labels from the Others category if we're not
