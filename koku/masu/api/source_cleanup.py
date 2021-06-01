@@ -17,8 +17,6 @@
 """View for Source cleanup."""
 import logging
 
-from koku import celery_app
-from masu.processor.tasks import PRIORITY_QUEUE
 from django.views.decorators.cache import never_cache
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
@@ -26,14 +24,13 @@ from rest_framework.decorators import renderer_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
-from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
 from api.provider.models import Sources
-from masu.processor.tasks import refresh_materialized_views
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
+from masu.celery.tasks import delete_provider_async, out_of_order_source_delete_async
 
 LOG = logging.getLogger(__name__)
 
@@ -73,40 +70,25 @@ def cleanup(request):
             cleanup_out_of_order_deletes(cleaning_list)
         if "missing_sources" in params.keys():
             cleanup_missing_sources(cleaning_list)
+        return Response({})
 
     return Response(response)
 
 
-@celery_app.task(name="masu.api.delete_provider_async", queue=PRIORITY_QUEUE)
-def delete_provider_async(name, provider_uuid, schema_name, provider_type):
-    materialized_views_to_update = []
-    with schema_context(schema_name):
-        LOG.info(f"Removing Provider without Source: {str(name)} ({str(provider_uuid)}")
-        Provider.objects.get(uuid=provider_uuid).delete()
-        mat_view_dict = {"schema": schema_name, "type": provider_type}
-        if mat_view_dict not in materialized_views_to_update:
-            materialized_views_to_update.append(mat_view_dict)
-
-    for mat_view in materialized_views_to_update:
-        LOG.info(f"Refreshing Materialized Views: {str(mat_view)}")
-        refresh_materialized_views(mat_view.get("schema"), mat_view.get("type"))
-
 def cleanup_provider_without_source(cleaning_list):
     provider_without_source = cleaning_list.get("providers_without_sources")
-    LOG.info(f"Deleting List: {str(provider_without_source)}")
     if provider_without_source:
         for provider in provider_without_source:
-            LOG.info("ENQUING DELETE")
-            delete_provider_async.delay(provider.name, provider.uuid, provider.customer.schema_name, provider.type)
+            async_id = delete_provider_async.delay(provider.name, provider.uuid, provider.customer.schema_name)
+            LOG.info(f"Queuing delete for {str(provider.name)}: {str(provider.uuid)}.  Async ID: {str(async_id)}")
 
 
 def cleanup_out_of_order_deletes(cleaning_list):
     out_of_order_deletes = cleaning_list.get("out_of_order_deletes")
-
     if out_of_order_deletes:
         for source in out_of_order_deletes:
-            LOG.info(f"Removing out of order delete Source: {str(source)}")
-            Sources.objects.get(source_id=source.source_id).delete()
+            async_id = out_of_order_source_delete_async.delay(source.source_id)
+            LOG.info(f"Queuing delete for out-of-order Source ID: {str(source.source_id)}.  Async ID: {str(async_id)}")
 
 
 def cleanup_missing_sources(cleaning_list):
