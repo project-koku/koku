@@ -64,8 +64,7 @@ STORAGE_COLUMNS = [
 
 STORAGE_GROUP_BY = [
     "namespace",
-    "node",
-    "resource_id",
+    "pod",
     "persistentvolumeclaim",
     "persistentvolume",
     "storageclass",
@@ -76,7 +75,6 @@ STORAGE_GROUP_BY = [
 STORAGE_AGG = {
     "report_period_start": ["max"],
     "report_period_end": ["max"],
-    "resource_id": ["max"],
     "persistentvolumeclaim_capacity_bytes": ["max"],
     "persistentvolumeclaim_capacity_byte_seconds": ["sum"],
     "volume_request_storage_byte_seconds": ["sum"],
@@ -105,7 +103,7 @@ CPU_MEM_USAGE_COLUMNS = [
     "pod_labels",
 ]
 
-POD_GROUP_BY = ["namespace", "node", "pod_labels"]
+POD_GROUP_BY = ["namespace", "node", "pod", "pod_labels"]
 
 POD_AGG = {
     "report_period_start": ["max"],
