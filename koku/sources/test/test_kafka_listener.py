@@ -336,7 +336,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
     def test_message_not_associated_with_cost_mgmt(self):
         """Test that messages not associated with cost-mgmt are not processed."""
         table = [
-            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_CREATE, "called": True},
+            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_CREATE},
             {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_UPDATE},
             {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_DESTROY, "called": True},
             {"processor": AuthenticationMsgProcessor, "event": KAFKA_AUTHENTICATION_CREATE},
@@ -364,8 +364,9 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
     def test_listen_for_messages_exceptions_no_retry(self):
         """Test listen_for_messages exceptions that do not cause a retry."""
         table = [
-            {"event": KAFKA_APPLICATION_CREATE, "value": b'{"this value is messeged up}'},
-            {"event": KAFKA_AUTHENTICATION_CREATE},
+            {"event": KAFKA_APPLICATION_CREATE, "header": True, "value": b'{"this value is messeged up}'},
+            {"event": KAFKA_APPLICATION_DESTROY, "header": False},
+            {"event": KAFKA_AUTHENTICATION_CREATE, "header": True},
         ]
         for test in table:
             with self.subTest(test=test):
@@ -376,6 +377,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                         json={},
                     )
                     msg = msg_generator(test.get("event"))
+                    if not test.get("header"):
+                        msg = msg_generator(test.get("event"), header=None)
                     if test.get("value"):
                         msg._value = test.get("value")
                     mock_consumer = MockKafkaConsumer([msg])

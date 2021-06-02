@@ -79,7 +79,7 @@ SOURCE_TYPE_IDS_MAP = {
 }
 
 
-def msg_generator(event_type, topic=None, offset=None, value=None):
+def msg_generator(event_type, topic=None, offset=None, value=None, header=Config.SOURCES_FAKE_HEADER):
     test_value = '{"id":1,"source_id":1,"application_type_id":2}'
     if value:
         test_value = json.dumps(value)
@@ -87,7 +87,7 @@ def msg_generator(event_type, topic=None, offset=None, value=None):
         topic=topic or "platform.sources.event-stream",
         offset=offset or 5,
         event_type=event_type,
-        auth_header=Config.SOURCES_FAKE_HEADER,
+        auth_header=header,
         value=bytes(test_value, encoding="utf-8"),
     )
 
@@ -212,11 +212,14 @@ class KafkaMessageProcessorTest(IamTestCase):
     def test_msg_for_cost_mgmt(self):
         """Test msg_for_cost_mgmt true or false."""
         table = [
+            {"event-type": "Source.create", "expected": False},
             {"event-type": KAFKA_APPLICATION_DESTROY, "expected": True},
             {"event-type": KAFKA_SOURCE_DESTROY, "expected": True},
+            {"event-type": KAFKA_APPLICATION_CREATE, "expected": True, "patch": True},
             {"event-type": KAFKA_AUTHENTICATION_CREATE, "expected": True, "patch": True},
             {"event-type": KAFKA_APPLICATION_UPDATE, "expected": True, "patch": True},
             {"event-type": KAFKA_AUTHENTICATION_UPDATE, "expected": True, "patch": True},
+            {"event-type": KAFKA_APPLICATION_CREATE, "expected": False, "patch": False},
             {"event-type": KAFKA_AUTHENTICATION_CREATE, "expected": False, "patch": False},
             {"event-type": KAFKA_APPLICATION_UPDATE, "expected": False, "patch": False},
             {"event-type": KAFKA_AUTHENTICATION_UPDATE, "expected": False, "patch": False},

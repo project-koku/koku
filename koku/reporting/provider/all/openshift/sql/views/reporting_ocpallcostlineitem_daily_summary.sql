@@ -32,8 +32,9 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
         sum(lids.markup_cost) as markup_cost,
         max(lids.currency_code) as currency_code,
         max(lids.shared_projects) as shared_projects,
-        lids.project_costs as project_costs,
-        max(lids.source_uuid::text)::uuid as source_uuid
+        max(lids.source_uuid::text)::uuid as source_uuid,
+        lids.tags_hash,
+        lids.namespace_hash
     FROM (
         SELECT 'AWS'::text AS source_type,
             aws.cluster_id,
@@ -57,8 +58,9 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
             aws.markup_cost,
             aws.currency_code,
             aws.shared_projects,
-            aws.project_costs,
-            aws.source_uuid
+            aws.source_uuid,
+            public.jsonb_sha256_text(aws.tags) as tags_hash,
+            encode(sha256(decode(array_to_string(aws.namespace, '|'), 'escape')), 'hex') as namespace_hash
         FROM reporting_ocpawscostlineitem_daily_summary AS aws
         WHERE aws.usage_start >= date_trunc('month'::text, (now() - '2 month'::interval))::date
 
@@ -86,8 +88,9 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
             azure.markup_cost,
             azure.currency AS currency_code,
             azure.shared_projects,
-            azure.project_costs,
-            azure.source_uuid
+            azure.source_uuid,
+            public.jsonb_sha256_text(azure.tags) as tags_hash,
+            encode(sha256(decode(array_to_string(azure.namespace, '|'), 'escape')), 'hex') as namespace_hash
         FROM reporting_ocpazurecostlineitem_daily_summary AS azure
         WHERE azure.usage_start >= date_trunc('month'::text, (now() - '2 month'::interval))::date
     ) AS lids
@@ -95,6 +98,7 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
         lids.cluster_id,
         lids.cluster_alias,
         lids.namespace,
+        lids.namespace_hash,
         lids.node,
         lids.resource_id,
         lids.usage_start,
@@ -106,7 +110,7 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
         lids.region,
         lids.availability_zone,
         lids.tags,
-        lids.project_costs
+        lids.tags_hash
 )
 WITH DATA
 ;
@@ -114,7 +118,8 @@ WITH DATA
 /* Once sql and/or data are fixed, add WITH DATA back in */
 
 CREATE UNIQUE INDEX ocpall_cost_daily_summary ON reporting_ocpallcostlineitem_daily_summary (
-   source_type, cluster_id, node, resource_id, usage_start, usage_account_id, product_code, product_family, instance_type, region, availability_zone, tags, project_costs
+   source_type, cluster_id, namespace_hash, node, resource_id, usage_start, usage_account_id, product_code,
+   product_family, instance_type, region, availability_zone, tags_hash
 );
 
 CREATE INDEX ocpall_product_code_ilike ON reporting_ocpallcostlineitem_daily_summary USING gin (upper((product_code)::text) gin_trgm_ops);

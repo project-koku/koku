@@ -90,6 +90,10 @@ class KafkaMessageProcessor:
         self.offset = msg.offset()
         self.partition = msg.partition()
         self.auth_header = extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
+        if self.auth_header is None:
+            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}`: {msg.headers()}"
+            LOG.warning(msg)
+            raise SourcesMessageError(msg)
         self.source_id = None
 
     def __repr__(self):
@@ -102,10 +106,15 @@ class KafkaMessageProcessor:
         """Filter messages not intended for cost management."""
         if self.event_type in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
             return True
-        if self.event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_APPLICATION_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
+        if self.event_type in (
+            KAFKA_APPLICATION_CREATE,
+            KAFKA_AUTHENTICATION_CREATE,
+            KAFKA_APPLICATION_UPDATE,
+            KAFKA_AUTHENTICATION_UPDATE,
+        ):
             sources_network = self.get_sources_client()
             return sources_network.get_application_type_is_cost_management(self.cost_mgmt_id)
-        return True  # TODO: I wonder if this should be false?
+        return False
 
     def get_sources_client(self):
         return SourcesHTTPClient(self.auth_header, self.source_id)
@@ -310,7 +319,7 @@ def extract_from_header(headers, header_type):
                     continue
                 else:
                     return item.decode("ascii")
-    return "unknown"
+    return None
 
 
 def create_msg_processor(msg, cost_mgmt_id):
