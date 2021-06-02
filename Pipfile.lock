@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "6ce36981248d007aef558278e49f88b0e65633b85ae26cc3e5906ecbe177fad6"
+            "sha256": "0cf006ccda841fccd012c1f4c6f204127c493adf74fe5b398d0067eca6674a6e"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -114,8 +114,7 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:8352dffe768af9e1471323c8e443cc66a114891572bf832bec3cc2eec47838f6",
-                "sha256:ee82c1a97de02bd4e295b8cad440093d57869892ee5b8941a851758c45944cd5"
+                "sha256:8352dffe768af9e1471323c8e443cc66a114891572bf832bec3cc2eec47838f6"
             ],
             "index": "pypi",
             "version": "==1.17.85"
@@ -577,10 +576,11 @@
         },
         "jinja2": {
             "hashes": [
-                "sha256:1f06f2da51e7b56b8f238affdd6b4e2c61e39598a378cc49345bc1bd42a978a4",
-                "sha256:703f484b47a6af502e743c9122595cc812b0271f661722403114f71a79d0f5a4"
+                "sha256:03e47ad063331dd6a3f04a43eddca8a966a26ba0c5b7207a9a9e4e08f1b29419",
+                "sha256:a6d58433de0ae800347cab1fa3043cebbabe8baa9d29e668f1c768cb87a333c6"
             ],
-            "version": "==3.0.1"
+            "index": "pypi",
+            "version": "==2.11.3"
         },
         "jinjasql": {
             "hashes": [
@@ -1291,8 +1291,7 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:8352dffe768af9e1471323c8e443cc66a114891572bf832bec3cc2eec47838f6",
-                "sha256:ee82c1a97de02bd4e295b8cad440093d57869892ee5b8941a851758c45944cd5"
+                "sha256:8352dffe768af9e1471323c8e443cc66a114891572bf832bec3cc2eec47838f6"
             ],
             "index": "pypi",
             "version": "==1.17.85"
@@ -1761,10 +1760,11 @@
         },
         "jinja2": {
             "hashes": [
-                "sha256:1f06f2da51e7b56b8f238affdd6b4e2c61e39598a378cc49345bc1bd42a978a4",
-                "sha256:703f484b47a6af502e743c9122595cc812b0271f661722403114f71a79d0f5a4"
+                "sha256:03e47ad063331dd6a3f04a43eddca8a966a26ba0c5b7207a9a9e4e08f1b29419",
+                "sha256:a6d58433de0ae800347cab1fa3043cebbabe8baa9d29e668f1c768cb87a333c6"
             ],
-            "version": "==3.0.1"
+            "index": "pypi",
+            "version": "==2.11.3"
         },
         "jmespath": {
             "hashes": [
