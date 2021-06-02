@@ -71,7 +71,8 @@ export POSTGRES_SQL_SERVICE_HOST=$DATABASE_HOST
 python3.8 -m venv app-venv
 . app-venv/bin/activate
 pip install --upgrade pip setuptools wheel pipenv tox psycopg2-binary
-tox -r
+pipenv install --dev --ignore-pipfile
+pipenv run ./koku/manage.py test --noinput --verbosity 2 ./koku/
 result=$?
 
 # Evaluate the test result.
