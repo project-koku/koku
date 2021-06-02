@@ -14,9 +14,6 @@ objects:
     # Redis
     inMemoryDb: true
 
-    # objectStore:
-    # - my-bucket-name
-
     # Creates a database if local mode, or uses RDS in production
     database:
       # Must specify both a name and a major postgres version
@@ -33,6 +30,7 @@ objects:
     - koku-reports
 
     optionalDependencies:
+    - ingress
     - rbac
     - sources-api
 

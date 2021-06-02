@@ -1900,6 +1900,7 @@ objects:
     objectStore:
     - koku-reports
     optionalDependencies:
+    - ingress
     - rbac
     - sources-api
 - apiVersion: v1
