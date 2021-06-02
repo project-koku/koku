@@ -120,8 +120,8 @@ class OCPReportDBCleaner:
                     removed_usage_start_period = usage_period.report_period_start
 
                     if not simulate:
-                        qty = accessor.get_item_query_report_period_id(report_period_id).delete()
-                        LOG.info("Removing %s usage period line items for usage period id %s", qty, report_period_id)
+                        # qty = accessor.get_item_query_report_period_id(report_period_id).delete()
+                        # LOG.info("Removing %s usage period line items for usage period id %s", qty, report_period_id)
 
                         qty = accessor.get_daily_usage_query_for_clusterid(cluster_id).delete()
                         LOG.info("Removing %s usage daily items for cluster id %s", qty, cluster_id)
@@ -176,11 +176,11 @@ class OCPReportDBCleaner:
                 accessor.OCP_REPORT_TABLE_MAP["line_item_daily_summary"],
             ]
             table_queries = [
-                (
-                    accessor._get_db_obj_query(accessor.OCP_REPORT_TABLE_MAP["line_item"]),
-                    ("report_period_id", "id"),
-                    "line items",
-                ),
+                # (
+                #     accessor._get_db_obj_query(accessor.OCP_REPORT_TABLE_MAP["line_item"]),
+                #     ("report_period_id", "id"),
+                #     "line items",
+                # ),
                 (
                     accessor._get_db_obj_query(accessor.OCP_REPORT_TABLE_MAP["line_item_daily"]),
                     ("cluster_id", "cluster_id"),

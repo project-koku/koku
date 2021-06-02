@@ -168,7 +168,7 @@ class AWSReportDBCleaner:
                 accessor.AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"],
                 accessor.AWSCostEntryLineItemDailySummary._meta.db_table,
             ]
-            base_lineitem_query = accessor._get_db_obj_query(accessor.AWSCostEntryLineItem)
+            # base_lineitem_query = accessor._get_db_obj_query(accessor.AWSCostEntryLineItem)
             base_daily_query = accessor._get_db_obj_query(accessor.AWSCostEntryLineItemDaily)
             base_costentry_query = accessor._get_db_obj_query(accessor.AWSCostEntry)
 
@@ -188,8 +188,8 @@ class AWSReportDBCleaner:
             # Iterate over the remainder as they could involve much larger amounts of data
             for bill in all_bill_objects:
                 if not simulate:
-                    del_count = base_lineitem_query.filter(cost_entry_bill_id=bill.id).delete()
-                    LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
+                    # del_count = base_lineitem_query.filter(cost_entry_bill_id=bill.id).delete()
+                    # LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
 
                     del_count = base_daily_query.filter(cost_entry_bill_id=bill.id).delete()
                     LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")

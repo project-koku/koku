@@ -19,8 +19,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 DROP FUNCTION IF EXISTS public.trfn_partition_manager() CASCADE;
 CREATE OR REPLACE FUNCTION public.trfn_partition_manager() RETURNS TRIGGER AS $$
 DECLARE
+    item text = '';
+    n_partition_type text = null;
     action_stmt text = '';
     action_stmt_2 text = '';
+    action_items text[] = '{}'::text[];
     action_ix integer = 1;
     total_actions integer = 0;
     action_stmts text[] = '{}'::text[];
@@ -113,7 +116,8 @@ BEGIN
             );
         END IF;
 
-        IF OLD.active AND NOT NEW.active
+        IF (OLD.active AND NOT NEW.active) OR
+           (OLD.partitioned_parameters != NEW.partitioned_parameters)
         THEN
             action_stmts = array_append(
                 action_stmts,
@@ -134,36 +138,39 @@ BEGIN
                     NEW.partition_of_table_name
                 )
             );
-        ELSE
-            IF NEW.active AND NOT OLD.active
+        END IF;
+
+        IF (NEW.active AND NOT OLD.active) OR
+           (OLD.partitioned_parameters != NEW.partitioned_parameters)
+        THEN
+            action_stmt = format(
+                'ALTER TABLE %I.%I ATTACH PARTITION %I.%I ',
+                OLD.schema_name,
+                NEW.partition_of_table_name,
+                OLD.schema_name,
+                NEW.table_name
+            );
+            message_text = format(
+                'ATTACH PARITITION %I.%I TO %I.%I ',
+                OLD.schema_name,
+                NEW.table_name,
+                OLD.schema_name,
+                NEW.partition_of_table_name
+            );
+
+            IF ( (NEW.partition_parameters->>'default') = 'true' )
             THEN
-                action_stmt = format(
-                    'ALTER TABLE %I.%I ATTACH PARTITION %I.%I ',
-                    OLD.schema_name,
-                    NEW.partition_of_table_name,
-                    OLD.schema_name,
-                    NEW.table_name
+                action_stmts = array_append(
+                    action_stmts,
+                    action_stmt || 'DEFAULT ;'
                 );
-                message_text = format(
-                    'ATTACH PARITITION %I.%I TO %I.%I ',
-                    OLD.schema_name,
-                    NEW.table_name,
-                    OLD.schema_name,
-                    NEW.partition_of_table_name
+                messages = array_append(
+                    messages,
+                    message_text || 'AS DEFAULT PARITION'
                 );
-                IF ( (NEW.partition_parameters->>'default') = 'true' )
-                THEN
-                    action_stmts = array_append(
-                        action_stmts,
-                        action_stmt || 'DEFAULT ;'
-                    );
-                    messages = array_append(
-                        messages,
-                        message_text || 'AS DEFAULT PARITION'
-                    );
-                ELSE
-                    EXECUTE format(
-                        '
+            ELSE
+                EXECUTE format(
+                    '
 select format_type(
     (
         select atttypid
@@ -174,20 +181,41 @@ select format_type(
     null
 );
 ',
-                        quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name),
-                        quote_ident(NEW.partition_col)
-                    )
-                    INTO col_type_name;
+                    quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name),
+                    NEW.partition_col
+                )
+                INTO col_type_name;
+
+                n_partition_type = lower(NEW.partition_type);
+                IF n_partition_type = 'range'
+                THEN
                     action_stmt_2 = format(
-                        'FOR VALUES FROM ( %L::%I ) TO ( %L::%I )',
+                        'FOR VALUES FROM ( %L::%I ) TO ( %L::%I ) ',
                         NEW.partition_parameters->>'from',
                         col_type_name,
                         NEW.partition_parameters->>'to',
                         col_type_name
                     );
-                    action_stmts = array_append(action_stmts, action_stmt || action_stmt_2);
-                    messages = array_append(messages, message_text || action_stmt_2);
+                ELSIF n_partition_type = 'list'
+                THEN
+                    FOREACH item IN ARRAY (string_to_array(NEW.partition_parameters->>'in', ',')::text[])
+                    LOOP
+                        RAISE NOTICE 'ITEM = %', coalesce(item, '{NULL}');
+                        RAISE NOTICE 'COL_TYPE_NAME = %', coalesce(col_type_name, '{NULL}');
+                        action_items = array_append(
+                            action_items,
+                            format('%L::%I', item, col_type_name)
+                        );
+                    END LOOP;
+                    action_stmt_2 = format(
+                        'FOR VALUES IN ( %s ) ',
+                        array_to_string(action_items, ', ')
+                    );
+                ELSE
+                    RAISE EXCEPTION 'Only ''range'' and ''list'' partition types are currently supported';
                 END IF;
+                action_stmts = array_append(action_stmts, action_stmt || action_stmt_2);
+                messages = array_append(messages, message_text || action_stmt_2);
             END IF;
         END IF;
     ELSIF ( TG_OP = 'INSERT' )
@@ -210,7 +238,7 @@ select format_type(
         THEN
             action_stmts = array_append(
                 action_stmts,
-                action_stmt || 'DEFAULT ;'
+                action_stmt || 'DEFAULT '
             );
             messages = array_append(
                 messages,
@@ -219,28 +247,57 @@ select format_type(
         ELSE
             EXECUTE format(
                         '
-select format_type(
-    (
-        select atttypid
-          from pg_attribute
-         where attrelid = %L::regclass
-           and attname = %L
-    ),
-    null
-);
+select format_type(atttypid, null)
+  from pg_attribute
+ where attrelid = %L::regclass
+   and attname = %L ;
 ',
                 quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name),
-                quote_ident(NEW.partition_col)
+                NEW.partition_col
             )
-            INTO col_type_name;
-            action_stmt_2 = format(
-                'FOR VALUES FROM ( %L::%I ) TO ( %L::%I )',
-                NEW.partition_parameters->>'from',
-                col_type_name,
-                NEW.partition_parameters->>'to',
-                col_type_name
-            );
-            action_stmts = array_append(action_stmts, action_stmt || action_stmt_2);
+               INTO col_type_name;
+
+            n_partition_type = lower(NEW.partition_type);
+            IF n_partition_type = 'range'
+            THEN
+                action_stmt_2 = format(
+                    'FOR VALUES FROM ( %L::%I ) TO ( %L::%I ) ',
+                    NEW.partition_parameters->>'from',
+                    col_type_name,
+                    NEW.partition_parameters->>'to',
+                    col_type_name
+                );
+            ELSIF n_partition_type = 'list'
+            THEN
+                FOREACH item IN ARRAY (string_to_array(NEW.partition_parameters->>'in', ',')::text[])
+                LOOP
+                    RAISE NOTICE 'ITEM = %', coalesce(item, '{NULL}');
+                    RAISE NOTICE 'COL_TYPE_NAME = %', coalesce(col_type_name, '{NULL}');
+                    action_items = array_append(
+                        action_items,
+                        format('%L::%I', item, col_type_name)
+                    );
+                END LOOP;
+                action_stmt_2 = format(
+                    'FOR VALUES IN ( %s ) ',
+                    array_to_string(action_items, ', ')
+                );
+            ELSE
+                RAISE EXCEPTION 'Only ''range'' and ''list'' partition types are currently supported';
+            END IF;
+
+            IF nullif(NEW.subpartition_col, '') IS NOT NULL AND
+               nullif(NEW.subpartition_type, '') IS NOT NULL
+            THEN
+                action_stmt_2 = action_stmt_2 ||
+                                format(
+                                    'PARTITION BY %s ( %I ) ',
+                                    NEW.subpartition_type,
+                                    NEW.subpartition_col
+                                );
+            END IF;
+
+            action_stmts = array_append(action_stmts, action_stmt || action_stmt_2 || ' ;');
             messages = array_append(messages, message_text || action_stmt_2);
         END IF;
     ELSE
