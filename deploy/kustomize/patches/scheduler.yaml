@@ -128,12 +128,6 @@
         requests:
           cpu: ${SCHEDULER_CPU_REQUEST}
           memory: ${SCHEDULER_MEMORY_REQUEST}
-      volumeMounts:
-      - mountPath: /var/tmp/masu/
-        name: koku-worker-data
-      volumes:
-      - name: koku-worker-data
-        emptyDir: {}
 
 - op: add
   path: /parameters/-

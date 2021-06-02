@@ -96,7 +96,6 @@
         requests:
           cpu: ${LISTENER_CPU_REQUEST}
           memory: ${LISTENER_MEMORY_REQUEST}
-
       volumeMounts:
       - mountPath: /var/tmp/masu/
         name: koku-listener-data
