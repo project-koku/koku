@@ -44,6 +44,7 @@ from api.views import GCPInstanceTypeView
 from api.views import GCPProjectsView
 from api.views import GCPStorageView
 from api.views import GCPTagView
+from api.views import get_currency
 from api.views import metrics
 from api.views import OCPAllCostForecastView
 from api.views import OCPAllCostView
@@ -89,6 +90,7 @@ ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="datae
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 urlpatterns = [
     path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
+    path("currency/", get_currency, name="currency"),
     path("status/", StatusView.as_view(), name="server-status"),
     path("openapi.json", openapi, name="openapi"),
     path("metrics/", metrics, name="metrics"),

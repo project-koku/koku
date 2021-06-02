@@ -1310,6 +1310,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
         mock_delay.assert_not_called()
         refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
+        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
         mock_delay.assert_called()
         self.assertTrue(self.single_task_is_running(task_name, cache_args))
         # Let the cache entry expire
