@@ -31,6 +31,8 @@ from api.views import AWSTagView
 from api.views import AzureCostForecastView
 from api.views import AzureCostView
 from api.views import AzureInstanceTypeView
+from api.views import AzureRegionView
+from api.views import AzureServiceView
 from api.views import AzureStorageView
 from api.views import AzureSubscriptionGuidView
 from api.views import AzureTagView
@@ -314,6 +316,8 @@ urlpatterns = [
         AWSOrganizationalUnitView.as_view(),
         name="aws-organizational-units",
     ),
+    path("resource-types/azure-region/", AzureRegionView.as_view(), name="azure-region"),
+    path("resource-types/azure-service/", AzureServiceView.as_view(), name="azure-service"),
     path(
         "resource-types/azure-subscription-guids/",
         AzureSubscriptionGuidView.as_view(),
