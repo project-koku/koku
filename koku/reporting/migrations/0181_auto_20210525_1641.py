@@ -5,7 +5,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0179_ocpcluster_ocpnode_ocpproject_ocppvc")]
+    dependencies = [("reporting", "0180_ocpcluster_ocpnode_ocpproject_ocppvc")]
 
     operations = [
         migrations.AddField(

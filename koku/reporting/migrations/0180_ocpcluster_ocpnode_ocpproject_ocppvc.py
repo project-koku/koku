@@ -8,7 +8,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0045_update_django_migration_sequences"), ("reporting", "0178_auto_20210511_1851")]
+    dependencies = [("api", "0045_update_django_migration_sequences"), ("reporting", "0179_matview_tags_hash")]
 
     operations = [
         migrations.CreateModel(
