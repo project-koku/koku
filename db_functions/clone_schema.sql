@@ -144,12 +144,7 @@ BEGIN
                    'partitioned_table', p.relname,
                    'partition_expr', pg_get_expr(t.relpartbound, t.oid)
               )
-              ORDER BY CASE WHEN t.relkind = 'p' and t.relispartition = false
-                                 THEN 0
-                            WHEN t.relkind = 'p' and t.relispartition = false
-                                 THEN 1
-                            ELSE 2
-                       END::int, t.relispartition
+              t.relkind, t.relispartition
            ), '{}'::jsonb[])
       INTO table_objects
       FROM pg_class t

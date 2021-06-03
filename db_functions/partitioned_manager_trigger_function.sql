@@ -184,7 +184,11 @@ select format_type(
                     quote_ident(NEW.schema_name) || '.' || quote_ident(NEW.partition_of_table_name),
                     NEW.partition_col
                 )
-                INTO col_type_name;
+                   INTO col_type_name;
+                IF col_type_name != 'char' AND col_type_name ~ '^char'
+                THEN
+                    col_type_name = 'text';
+                END IF;
 
                 n_partition_type = lower(NEW.partition_type);
                 IF n_partition_type = 'range'
@@ -200,8 +204,6 @@ select format_type(
                 THEN
                     FOREACH item IN ARRAY (string_to_array(NEW.partition_parameters->>'in', ',')::text[])
                     LOOP
-                        RAISE NOTICE 'ITEM = %', coalesce(item, '{NULL}');
-                        RAISE NOTICE 'COL_TYPE_NAME = %', coalesce(col_type_name, '{NULL}');
                         action_items = array_append(
                             action_items,
                             format('%L::%I', item, col_type_name)
@@ -256,6 +258,10 @@ select format_type(atttypid, null)
                 NEW.partition_col
             )
                INTO col_type_name;
+            IF col_type_name != 'char' AND col_type_name ~ '^char'
+            THEN
+                col_type_name = 'text';
+            END IF;
 
             n_partition_type = lower(NEW.partition_type);
             IF n_partition_type = 'range'
@@ -271,8 +277,6 @@ select format_type(atttypid, null)
             THEN
                 FOREACH item IN ARRAY (string_to_array(NEW.partition_parameters->>'in', ',')::text[])
                 LOOP
-                    RAISE NOTICE 'ITEM = %', coalesce(item, '{NULL}');
-                    RAISE NOTICE 'COL_TYPE_NAME = %', coalesce(col_type_name, '{NULL}');
                     action_items = array_append(
                         action_items,
                         format('%L::%I', item, col_type_name)
