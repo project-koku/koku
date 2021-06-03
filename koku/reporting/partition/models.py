@@ -40,3 +40,7 @@ class PartitionedTable(models.Model):
     partition_parameters = JSONField(null=False, validators=[validate_not_empty])
     # active flag will attach/detach partition
     active = models.BooleanField(null=False, default=True)
+    # Sub-partition type
+    subpartition_type = models.TextField(null=True)
+    # Sub-partition key
+    subpartition_col = models.TextField(null=True)
