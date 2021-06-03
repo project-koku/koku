@@ -144,7 +144,7 @@ BEGIN
                    'partitioned_table', p.relname,
                    'partition_expr', pg_get_expr(t.relpartbound, t.oid)
               )
-              t.relkind, t.relispartition
+              ORDER BY t.relkind, t.relispartition
            ), '{}'::jsonb[])
       INTO table_objects
       FROM pg_class t

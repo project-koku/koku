@@ -111,7 +111,7 @@ class AzureReportDBCleaner:
                 accessor.AZURE_REPORT_TABLE_MAP["ocp_on_azure_project_daily_summary"],
                 accessor.AzureCostEntryLineItemDailySummary._meta.db_table,
             ]
-            # base_lineitem_query = accessor._get_db_obj_query(accessor.AzureCostEntryLineItem)
+            base_lineitem_query = accessor._get_db_obj_query(accessor.AzureCostEntryLineItem)
             base_daily_query = accessor._get_db_obj_query(accessor.AzureCostEntryLineItemDaily)
 
         with schema_context(self._schema):
@@ -130,8 +130,8 @@ class AzureReportDBCleaner:
                 # Iterate over the remainder as they could involve much larger amounts of data
             for bill in all_bill_objects:
                 if not simulate:
-                    # del_count = base_lineitem_query.filter(cost_entry_bill_id=bill.id).delete()
-                    # LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
+                    del_count = base_lineitem_query.filter(cost_entry_bill_id=bill.id).delete()
+                    LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
 
                     del_count = base_daily_query.filter(cost_entry_bill_id=bill.id).delete()
                     LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
