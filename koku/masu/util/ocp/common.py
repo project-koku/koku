@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP utility functions."""
+import copy
 import json
 import logging
 import os
@@ -436,10 +437,12 @@ def ocp_generate_daily_data(data_frame, report_type):
     # usage_start = data_frame["lineitem_usagestartdate"]
     # usage_start_dates = usage_start.apply(lambda row: row.date())
     # data_frame["usage_start"] = usage_start_dates
-    group_bys = REPORT_TYPES.get(report_type, {}).get("group_by", [])
+    group_bys = copy.deepcopy(REPORT_TYPES.get(report_type, {}).get("group_by", []))
     group_bys.append(pd.Grouper(key="interval_start", freq="D"))
-    aggs = REPORT_TYPES.get(report_type, {}).get("agg", {})
+    aggs = copy.deepcopy(REPORT_TYPES.get(report_type, {}).get("agg", {}))
+
     daily_data_frame = data_frame.groupby(group_bys, dropna=False).agg(aggs)
+
     columns = daily_data_frame.columns.droplevel(1)
     daily_data_frame.columns = columns
 

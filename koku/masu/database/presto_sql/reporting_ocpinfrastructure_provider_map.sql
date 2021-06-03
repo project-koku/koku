@@ -3,7 +3,7 @@
         aws.source as infra_uuid,
         'AWS' as type
     FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS aws
-    JOIN hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items AS ocp
+    JOIN hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
         ON aws.lineitem_usagestartdate = ocp.interval_start
             AND ocp.resource_id = aws.lineitem_resourceid
     WHERE aws.lineitem_usagestartdate >= TIMESTAMP '{{start_date | sqlsafe}}'
@@ -31,7 +31,7 @@
         azure.source as infra_uuid,
         'Azure' as type
     FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
-    JOIN hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items AS ocp
+    JOIN hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
         ON coalesce(azure.date, azure.usagedatetime) = ocp.interval_start
             AND ocp.node = split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9)
     WHERE coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'

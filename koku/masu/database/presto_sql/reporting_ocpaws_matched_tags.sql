@@ -14,7 +14,7 @@ WITH cte_unnested_aws_tags AS (
 cte_unnested_ocp_node_tags AS (
     SELECT DISTINCT key,
         value
-    FROM hive.{{schema | sqlsafe}}.openshift_node_labels_line_items AS ocp
+    FROM hive.{{schema | sqlsafe}}.openshift_node_labels_line_items_daily AS ocp
     CROSS JOIN UNNEST(cast(json_parse(node_labels) as map(varchar, varchar))) AS tags(key, value)
     WHERE source = '{{ocp_source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
@@ -25,7 +25,7 @@ cte_unnested_ocp_node_tags AS (
 cte_unnested_ocp_namespace_tags AS (
     SELECT DISTINCT key,
         value
-    FROM hive.{{schema | sqlsafe}}.openshift_namespace_labels_line_items AS ocp
+    FROM hive.{{schema | sqlsafe}}.openshift_namespace_labels_line_items_daily AS ocp
     CROSS JOIN UNNEST(cast(json_parse(namespace_labels) as map(varchar, varchar))) AS tags(key, value)
     WHERE source = '{{ocp_source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
@@ -36,7 +36,7 @@ cte_unnested_ocp_namespace_tags AS (
 cte_unnested_ocp_pod_tags AS (
     SELECT DISTINCT key,
         value
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items AS ocp
+    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
     CROSS JOIN UNNEST(cast(json_parse(pod_labels) as map(varchar, varchar))) AS tags(key, value)
     WHERE source = '{{ocp_source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
@@ -47,7 +47,7 @@ cte_unnested_ocp_pod_tags AS (
 cte_unnested_ocp_volume_tags AS (
     SELECT DISTINCT key,
         value
-    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items AS ocp
+    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily AS ocp
     CROSS JOIN UNNEST(cast(json_parse(persistentvolumeclaim_labels) as map(varchar, varchar))) AS tags(key, value)
     WHERE source = '{{ocp_source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
