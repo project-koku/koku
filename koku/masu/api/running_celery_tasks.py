@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for update_cost_model_costs endpoint."""
-import base64
-import json
 import logging
 
 from django.views.decorators.cache import never_cache
@@ -27,8 +25,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from koku import celery_app
 from koku import CELERY_INSPECT
+from masu.celery.tasks import collect_queue_metrics
 
 LOG = logging.getLogger(__name__)
 
@@ -55,17 +53,10 @@ def running_celery_tasks(request):
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def scheduled_celery_tasks(request):
     """Get the task ids of running celery tasks."""
-    # active_dict = CELERY_INSPECT.scheduled()
-    # active_tasks = []
-    # if active_dict:
-    #     for task_list in active_dict.values():
-    #         active_tasks.extend(task_list)
-    # if active_tasks:
-    #     active_tasks = [dikt.get("id", "") for dikt in active_tasks]
-    # return Response({"scheduled_tasks": active_tasks})
-    queues = ["download", "summary", "priority", "refresh", "cost_model"]
-    queue_len = {}
-    with celery_app.pool.acquire(block=True) as conn:
-        for queue in queues:
-            queue_len[queue] = conn.default_channel.client.llen(queue)
+    # queues = ["download", "summary", "priority", "refresh", "cost_model", "celery"]
+    # queue_len = {}
+    # with celery_app.pool.acquire(block=True) as conn:
+    #     for queue in queues:
+    #         queue_len[queue] = conn.default_channel.client.llen(queue)
+    queue_len = collect_queue_metrics()
     return Response(queue_len)

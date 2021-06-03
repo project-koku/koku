@@ -40,7 +40,6 @@ from masu.api import API_VERSION
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
 from masu.prometheus_stats import CELERY_ERRORS_COUNTER
-from masu.prometheus_stats import CELERY_TASKS_BACKLOG
 
 LOG = logging.getLogger(__name__)
 
@@ -149,7 +148,6 @@ class ApplicationStatus:
                 for task_list in reserved.values():
                     reserved_count += len(task_list)
             tasks["reserved_count"] = reserved_count
-            CELERY_TASKS_BACKLOG.set(reserved_count)
             active = inspector.active()
             active_count = 0
             if active:

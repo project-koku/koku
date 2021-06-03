@@ -50,7 +50,6 @@ from masu.prometheus_stats import DOWNLOAD_BACKLOG
 from masu.prometheus_stats import PRIORITY_BACKLOG
 from masu.prometheus_stats import REFRESH_BACKLOG
 from masu.prometheus_stats import SUMMARY_BACKLOG
-from masu.prometheus_stats import WORKER_REGISTRY
 from masu.util.aws.common import get_s3_resource
 
 LOG = logging.getLogger(__name__)
@@ -317,14 +316,13 @@ def crawl_account_hierarchy(provider_uuid=None):
 @celery_app.task(name="masu.celery.tasks.collect_queue_metrics", bind=True, queue=DEFAULT)
 def collect_queue_metrics(self):
     """Collect queue metrics with scheduled celery task."""
-    print("\n\n\n\n\n\n\nHERE IS THIS!!!!!")
     queues = {
         "download": DOWNLOAD_BACKLOG,
         "summary": SUMMARY_BACKLOG,
         "priority": PRIORITY_BACKLOG,
         "refresh": REFRESH_BACKLOG,
         "cost_model": COST_MODEL_BACKLOG,
-        "default": DEFAULT_BACKLOG,
+        "celery": DEFAULT_BACKLOG,
     }
     queue_len = {}
     with celery_app.pool.acquire(block=True) as conn:
@@ -332,8 +330,7 @@ def collect_queue_metrics(self):
             length = conn.default_channel.client.llen(queue)
             queue_len[queue] = length
             gauge.set(length)
-    print(queue_len)
-    LOG.info("HERE!")
+    LOG.info("Celery queue backlog info: ")
     LOG.info(queue_len)
     LOG.debug("Pushing stats to gateway: %s", settings.PROMETHEUS_PUSHGATEWAY)
     try:
@@ -343,3 +340,4 @@ def collect_queue_metrics(self):
     except OSError as exc:
         LOG.error("Problem reaching pushgateway: %s", exc)
         self.update_state(state="FAILURE", meta={"result": str(exc), "traceback": str(exc.__traceback__)})
+    return queue_len
