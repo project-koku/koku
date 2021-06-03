@@ -117,7 +117,7 @@ BEGIN
         END IF;
 
         IF (OLD.active AND NOT NEW.active) OR
-           (OLD.partitioned_parameters != NEW.partitioned_parameters)
+           (OLD.partition_parameters != NEW.partition_parameters)
         THEN
             action_stmts = array_append(
                 action_stmts,
@@ -141,7 +141,7 @@ BEGIN
         END IF;
 
         IF (NEW.active AND NOT OLD.active) OR
-           (OLD.partitioned_parameters != NEW.partitioned_parameters)
+           (OLD.partition_parameters != NEW.partition_parameters)
         THEN
             action_stmt = format(
                 'ALTER TABLE %I.%I ATTACH PARTITION %I.%I ',
