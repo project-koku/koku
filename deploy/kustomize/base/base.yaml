@@ -10,6 +10,8 @@ objects:
   spec:
     # The name of the ClowdEnvironment providing the services
     envName: ${ENV_NAME}
+    testing:
+      iqePlugin: cost_management
 
     # Redis
     inMemoryDb: true
