@@ -1910,9 +1910,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         return topology
 
-    def delete_infrastructure_raw_cost_from_daily_summary(self, report_period_id, start_date, end_date):
+    def delete_infrastructure_raw_cost_from_daily_summary(self, provider_uuid, report_period_id, start_date, end_date):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-        msg = f"Removing infrastructure_raw_cost for {report_period_id} from {start_date} to {end_date}."
+        msg = f"Removing infrastructure_raw_cost for {provider_uuid} from {start_date} to {end_date}."
         LOG.info(msg)
         sql = f"""
             DELETE FROM {self.schema}.reporting_ocpusagelineitem_daily_summary
