@@ -63,13 +63,16 @@ def cleanup(request):
     params = request.query_params
 
     if request.method == "DELETE":
+        response = {}
         if "providers_without_sources" in params.keys():
-            LOG.info("DELETING PROVIDERS")
-            cleanup_provider_without_source(cleaning_list)
+            response["providers_without_sources"] = _providers_without_sources()
+            cleanup_provider_without_source(response)
         if "out_of_order_deletes" in params.keys():
-            cleanup_out_of_order_deletes(cleaning_list)
+            response["out_of_order_deletes"] = _sources_out_of_order_deletes()
+            cleanup_out_of_order_deletes(response)
         if "missing_sources" in params.keys():
-            cleanup_missing_sources(cleaning_list)
+            response["missing_sources"] = _missing_sources()
+            cleanup_missing_sources(response)
         return Response({})
 
     return Response(response)
