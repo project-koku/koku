@@ -44,12 +44,7 @@ from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
-from masu.prometheus_stats import COST_MODEL_BACKLOG
-from masu.prometheus_stats import DEFAULT_BACKLOG
-from masu.prometheus_stats import DOWNLOAD_BACKLOG
-from masu.prometheus_stats import PRIORITY_BACKLOG
-from masu.prometheus_stats import REFRESH_BACKLOG
-from masu.prometheus_stats import SUMMARY_BACKLOG
+from masu.prometheus_stats import QUEUES
 from masu.util.aws.common import get_s3_resource
 
 LOG = logging.getLogger(__name__)
@@ -316,17 +311,9 @@ def crawl_account_hierarchy(provider_uuid=None):
 @celery_app.task(name="masu.celery.tasks.collect_queue_metrics", bind=True, queue=DEFAULT)
 def collect_queue_metrics(self):
     """Collect queue metrics with scheduled celery task."""
-    queues = {
-        "download": DOWNLOAD_BACKLOG,
-        "summary": SUMMARY_BACKLOG,
-        "priority": PRIORITY_BACKLOG,
-        "refresh": REFRESH_BACKLOG,
-        "cost_model": COST_MODEL_BACKLOG,
-        "celery": DEFAULT_BACKLOG,
-    }
     queue_len = {}
     with celery_app.pool.acquire(block=True) as conn:
-        for queue, gauge in queues.items():
+        for queue, gauge in QUEUES.items():
             length = conn.default_channel.client.llen(queue)
             queue_len[queue] = length
             gauge.set(length)

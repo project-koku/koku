@@ -52,11 +52,6 @@ def running_celery_tasks(request):
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def scheduled_celery_tasks(request):
-    """Get the task ids of running celery tasks."""
-    # queues = ["download", "summary", "priority", "refresh", "cost_model", "celery"]
-    # queue_len = {}
-    # with celery_app.pool.acquire(block=True) as conn:
-    #     for queue in queues:
-    #         queue_len[queue] = conn.default_channel.client.llen(queue)
+    """Get the length of the celery queues."""
     queue_len = collect_queue_metrics()
     return Response(queue_len)

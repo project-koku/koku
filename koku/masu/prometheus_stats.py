@@ -70,6 +70,14 @@ COST_MODEL_BACKLOG = Gauge(
     "cost_model_backlog", "Number of celery tasks in the cost model queue", registry=WORKER_REGISTRY
 )
 DEFAULT_BACKLOG = Gauge("default_backlog", "Number of celery tasks in the default queue", registry=WORKER_REGISTRY)
+QUEUES = {
+    "download": DOWNLOAD_BACKLOG,
+    "summary": SUMMARY_BACKLOG,
+    "priority": PRIORITY_BACKLOG,
+    "refresh": REFRESH_BACKLOG,
+    "cost_model": COST_MODEL_BACKLOG,
+    "celery": DEFAULT_BACKLOG,
+}
 
 SOURCES_KAFKA_LOOP_RETRY = Counter(
     "sources_kafka_retry_errors", "Number of sources kafka retry errors", registry=WORKER_REGISTRY
