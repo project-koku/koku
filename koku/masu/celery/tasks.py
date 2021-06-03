@@ -25,6 +25,7 @@ from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 from django.utils import timezone
+from prometheus_client import push_to_gateway
 
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer
@@ -33,6 +34,7 @@ from api.iam.models import Tenant
 from api.models import Provider
 from api.utils import DateHelper
 from koku import celery_app
+from koku.metrics import REGISTRY
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
@@ -42,6 +44,13 @@ from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
+from masu.prometheus_stats import COST_MODEL_BACKLOG
+from masu.prometheus_stats import DEFAULT_BACKLOG
+from masu.prometheus_stats import DOWNLOAD_BACKLOG
+from masu.prometheus_stats import PRIORITY_BACKLOG
+from masu.prometheus_stats import REFRESH_BACKLOG
+from masu.prometheus_stats import SUMMARY_BACKLOG
+from masu.prometheus_stats import WORKER_REGISTRY
 from masu.util.aws.common import get_s3_resource
 
 LOG = logging.getLogger(__name__)
@@ -303,3 +312,34 @@ def crawl_account_hierarchy(provider_uuid=None):
             )
             skipped += 1
     LOG.info(f"Account hierarchy crawler finished. {processed} processed and {skipped} skipped")
+
+
+@celery_app.task(name="masu.celery.tasks.collect_queue_metrics", bind=True, queue=DEFAULT)
+def collect_queue_metrics(self):
+    """Collect queue metrics with scheduled celery task."""
+    print("\n\n\n\n\n\n\nHERE IS THIS!!!!!")
+    queues = {
+        "download": DOWNLOAD_BACKLOG,
+        "summary": SUMMARY_BACKLOG,
+        "priority": PRIORITY_BACKLOG,
+        "refresh": REFRESH_BACKLOG,
+        "cost_model": COST_MODEL_BACKLOG,
+        "default": DEFAULT_BACKLOG,
+    }
+    queue_len = {}
+    with celery_app.pool.acquire(block=True) as conn:
+        for queue, gauge in queues.items():
+            length = conn.default_channel.client.llen(queue)
+            queue_len[queue] = length
+            gauge.set(length)
+    print(queue_len)
+    LOG.info("HERE!")
+    LOG.info(queue_len)
+    LOG.debug("Pushing stats to gateway: %s", settings.PROMETHEUS_PUSHGATEWAY)
+    try:
+        push_to_gateway(
+            settings.PROMETHEUS_PUSHGATEWAY, job="masu.celery.tasks.collect_queue_metrics", registry=REGISTRY
+        )
+    except OSError as exc:
+        LOG.error("Problem reaching pushgateway: %s", exc)
+        self.update_state(state="FAILURE", meta={"result": str(exc), "traceback": str(exc.__traceback__)})

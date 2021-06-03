@@ -230,7 +230,7 @@ services:
       hostname: koku-worker-1
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,ocp,priority,summary,cost_model,refresh']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,ocp,priority,summary,cost_model,refresh', '-E']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
@@ -403,7 +403,7 @@ services:
       hostname: koku_beat
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['celery', '--pidfile=/opt/celeryd.pid', '-A', 'koku', 'beat', '-l', 'info']
+      entrypoint: ['celery', '-A', 'koku', 'beat', '-l', 'info']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY

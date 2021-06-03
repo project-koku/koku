@@ -5,7 +5,9 @@ services:
       image: koku_base
       build:
         context: ./../..
-        dockerfile: Dockerfile-env
+        dockerfile: Dockerfile
+        args:
+          PIPENV_DEV: "True"
 
   koku-server:
       container_name: koku_server
