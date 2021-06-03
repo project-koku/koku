@@ -66,6 +66,8 @@ rm -f $K8S_ARTIFACTS_DIR
 # Variables for check_postgres_running.sh
 export POSTGRES_SQL_SERVICE_PORT=$DATABASE_PORT
 export POSTGRES_SQL_SERVICE_HOST=$DATABASE_HOST
+export PROMETHEUS_MULTIPROC_DIR=/tmp
+export ACCOUNT_ENHANCED_METRICS=True
 
 # Run the code needed for unit tests, example below ...
 python3.8 -m venv app-venv
