@@ -18,6 +18,7 @@
 import logging
 
 from django.views.decorators.cache import never_cache
+from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
@@ -27,10 +28,12 @@ from rest_framework.settings import api_settings
 
 from api.provider.models import Provider
 from api.provider.models import Sources
+from masu.celery.tasks import delete_provider_async
+from masu.celery.tasks import missing_source_delete_async
+from masu.celery.tasks import out_of_order_source_delete_async
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
-from masu.celery.tasks import delete_provider_async, out_of_order_source_delete_async
 
 LOG = logging.getLogger(__name__)
 
@@ -41,41 +44,47 @@ LOG = logging.getLogger(__name__)
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def cleanup(request):
     """Return download file async task ID."""
-    cleaning_list = build_list()
-    response = {}
-
-    providers_without_sources = []
-    for provider in cleaning_list.get("providers_without_sources"):
-        providers_without_sources.append(f"{provider.name} ({provider.uuid})")
-
-    out_of_order_delete = []
-    for source in cleaning_list.get("out_of_order_deletes"):
-        out_of_order_delete.append(f"Source ID: {source.source_id})")
-
-    missing_sources = []
-    for source in cleaning_list.get("missing_sources"):
-        missing_sources.append(f"Source ID: {source.source_id})")
-
-    response["providers_without_sources"] = providers_without_sources
-    response["out_of_order_deletes"] = out_of_order_delete
-    response["missing_sources"] = missing_sources
-
     params = request.query_params
+    if not params:
+        errmsg = "Parameter missing. Options: providers_without_sources, out_of_order_deletes, or missing_sources"
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-    if request.method == "DELETE":
-        response = {}
-        if "providers_without_sources" in params.keys():
-            response["providers_without_sources"] = _providers_without_sources()
+    response = {}
+    if "providers_without_sources" in params.keys():
+        response["providers_without_sources"] = _providers_without_sources()
+        if request.method == "DELETE":
             cleanup_provider_without_source(response)
-        if "out_of_order_deletes" in params.keys():
-            response["out_of_order_deletes"] = _sources_out_of_order_deletes()
-            cleanup_out_of_order_deletes(response)
-        if "missing_sources" in params.keys():
-            response["missing_sources"] = _missing_sources()
-            cleanup_missing_sources(response)
-        return Response({})
+            return Response({})
+        else:
+            providers_without_sources = []
+            for provider in response["providers_without_sources"]:
+                providers_without_sources.append(f"{provider.name} ({provider.uuid})")
+                response["providers_without_sources"] = providers_without_sources
+            return Response(response)
 
-    return Response(response)
+    if "out_of_order_deletes" in params.keys():
+        response["out_of_order_deletes"] = _sources_out_of_order_deletes()
+        if request.method == "DELETE":
+            cleanup_out_of_order_deletes(response)
+            return Response({})
+        else:
+            out_of_order_delete = []
+            for source in response["out_of_order_deletes"]:
+                out_of_order_delete.append(f"Source ID: {source.source_id})")
+                response["out_of_order_deletes"] = out_of_order_delete
+            return Response(response)
+
+    if "missing_sources" in params.keys():
+        response["missing_sources"] = _missing_sources()
+        if request.method == "DELETE":
+            cleanup_missing_sources(response)
+            return Response({})
+        else:
+            missing_sources = []
+            for source in response["missing_sources"]:
+                missing_sources.append(f"Source ID: {source.source_id})")
+                response["missing_sources"] = missing_sources
+            return Response(response)
 
 
 def cleanup_provider_without_source(cleaning_list):
@@ -96,11 +105,10 @@ def cleanup_out_of_order_deletes(cleaning_list):
 
 def cleanup_missing_sources(cleaning_list):
     missing_sources = cleaning_list.get("missing_sources")
-
     if missing_sources:
         for source in missing_sources:
-            LOG.info(f"Removing missing Source: {str(source)}")
-            Sources.objects.get(source_id=source.source_id).delete()
+            async_id = missing_source_delete_async(source.id)
+            LOG.info(f"Queuing missing source delete Source ID: {str(source.source_id)}.  Async ID: {str(async_id)}")
 
 
 def _providers_without_sources():
@@ -144,15 +152,3 @@ def _missing_sources():
         except SourcesHTTPClientError:
             LOG.info("Unable to reach platform sources")
     return missing_sources
-
-
-def build_list():
-    providers_without_sources = _providers_without_sources()
-    sources_out_of_order_delete = _sources_out_of_order_deletes()
-    missing_sources = _missing_sources()
-
-    response = {}
-    response["providers_without_sources"] = providers_without_sources
-    response["out_of_order_deletes"] = sources_out_of_order_delete
-    response["missing_sources"] = missing_sources
-    return response

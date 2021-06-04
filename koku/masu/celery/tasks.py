@@ -26,13 +26,13 @@ from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 from django.utils import timezone
 from tenant_schemas.utils import schema_context
-from api.provider.models import Sources
 
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer
 from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.iam.models import Tenant
 from api.models import Provider
+from api.provider.models import Sources
 from api.utils import DateHelper
 from koku import celery_app
 from masu.config import Config
@@ -42,10 +42,11 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor import enable_trino_processing
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
-from masu.processor.tasks import DEFAULT, PRIORITY_QUEUE
+from masu.processor.tasks import DEFAULT
+from masu.processor.tasks import PRIORITY_QUEUE
+from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.util.aws.common import get_s3_resource
-from masu.processor.tasks import refresh_materialized_views
 
 LOG = logging.getLogger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
@@ -318,4 +319,10 @@ def delete_provider_async(name, provider_uuid, schema_name):
 @celery_app.task(name="masu.celery.tasks.out_of_order_source_delete_async", queue=PRIORITY_QUEUE)
 def out_of_order_source_delete_async(source_id):
     LOG.info(f"Removing out of order delete Source (ID): {str(source_id)}")
+    Sources.objects.get(source_id=source_id).delete()
+
+
+@celery_app.task(name="masu.celery.tasks.missing_source_delete_async", queue=PRIORITY_QUEUE)
+def missing_source_delete_async(source_id):
+    LOG.info(f"Removing missing Source: {str(source_id)}")
     Sources.objects.get(source_id=source_id).delete()
