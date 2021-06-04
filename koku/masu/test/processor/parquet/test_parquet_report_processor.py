@@ -21,6 +21,7 @@ import shutil
 from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
+from unittest.mock import PropertyMock
 
 import faker
 import pandas as pd
@@ -281,7 +282,7 @@ class TestParquetReportProcessor(MasuTestCase):
             with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
                 with patch(
                     "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet",
-                    return_value=False,
+                    return_value=("", pd.DataFrame(), False),
                 ):
                     with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
                         self.report_processor.convert_to_parquet()
@@ -290,14 +291,16 @@ class TestParquetReportProcessor(MasuTestCase):
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
             with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
                 with patch(
-                    "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet"
+                    "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet",
+                    return_value=("", pd.DataFrame(), False),
                 ):
                     self.report_processor.convert_to_parquet()
 
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
             with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
                 with patch(
-                    "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet"
+                    "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet",
+                    return_value=("", pd.DataFrame(), False),
                 ):
                     self.report_processor.convert_to_parquet()
 
@@ -416,6 +419,7 @@ class TestParquetReportProcessor(MasuTestCase):
                                     self.assertTrue(result)
                                     mock_create_table.assert_not_called()
 
+    @patch.object(ParquetReportProcessor, "report_type", new_callable=PropertyMock)
     @patch.object(ReportParquetProcessorBase, "sync_hive_partitions")
     @patch.object(ReportParquetProcessorBase, "get_or_create_postgres_partition")
     @patch.object(ReportParquetProcessorBase, "table_exists")
@@ -423,7 +427,14 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch.object(ReportParquetProcessorBase, "create_schema")
     @patch.object(ReportParquetProcessorBase, "create_table")
     def test_create_parquet_table(
-        self, mock_create_table, mock_create_schema, mock_schema_exists, mock_table_exists, mock_partition, mock_sync
+        self,
+        mock_create_table,
+        mock_create_schema,
+        mock_schema_exists,
+        mock_table_exists,
+        mock_partition,
+        mock_sync,
+        mock_report_type,
     ):
         """Test create_parquet_table function."""
         test_matrix = [
@@ -455,6 +466,10 @@ class TestParquetReportProcessor(MasuTestCase):
         mock_table_exists.return_value = False
 
         for test in test_matrix:
+            if test.get("provider_type") == Provider.PROVIDER_OCP:
+                mock_report_type.return_value = "pod_usage"
+            else:
+                mock_report_type.return_value = None
             provider_uuid = test.get("provider_uuid")
             provider_type = test.get("provider_type")
             patch_class, patch_method = test.get("patch")
@@ -475,6 +490,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 mock_create_bill.assert_called()
                 mock_partition.assert_called()
                 mock_sync.assert_called()
+            mock_report_type.reset_mock()
             mock_schema_exists.reset_mock()
             mock_table_exists.reset_mock()
             mock_create_schema.reset_mock()
