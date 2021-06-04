@@ -23,6 +23,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import faker
+import pandas as pd
 from django.test import override_settings
 
 from api.models import Provider
@@ -259,7 +260,7 @@ class TestParquetReportProcessor(MasuTestCase):
                     with patch(
                         "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
                         "convert_csv_to_parquet"
-                    ):
+                    ) as mock_convert:
                         with patch(
                             "masu.processor.parquet.parquet_report_processor."
                             "ReportManifestDBAccessor.get_s3_parquet_cleared",
@@ -269,6 +270,7 @@ class TestParquetReportProcessor(MasuTestCase):
                                 "masu.processor.parquet.parquet_report_processor."
                                 "ReportManifestDBAccessor.mark_s3_parquet_cleared"
                             ) as mock_mark_cleared:
+                                mock_convert.return_value = "", pd.DataFrame(), True
                                 self.report_processor.convert_to_parquet()
                                 mock_get_cleared.assert_called()
                                 mock_remove.assert_called()
@@ -304,14 +306,14 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
     def test_convert_csv_to_parquet(self, mock_remove, mock_exists):
         """Test convert_csv_to_parquet."""
-        result = self.report_processor.convert_csv_to_parquet("file.csv")
+        _, __, result = self.report_processor.convert_csv_to_parquet("file.csv")
         self.assertFalse(result)
 
         with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.processor.parquet.parquet_report_processor.Path"):
                 with patch("masu.processor.parquet.parquet_report_processor.os") as mock_os:
                     mock_os.path.split.return_value = ("path", "file.csv.gz")
-                    result = self.report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
+                    _, __, result = self.report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
                     self.assertFalse(result)
 
         with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
@@ -322,7 +324,7 @@ class TestParquetReportProcessor(MasuTestCase):
                             mock_os.path.split.return_value = ("path", "file.csv.gz")
                             mock_pd.read_csv.return_value.__enter__.return_value = [1, 2, 3]
                             mock_open.side_effect = ValueError()
-                            result = self.report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
+                            _, __, result = self.report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
                             self.assertFalse(result)
 
         with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
@@ -338,7 +340,7 @@ class TestParquetReportProcessor(MasuTestCase):
                                     mock_os.path.split.return_value = ("path", "file.csv.gz")
                                     mock_pd.read_csv.return_value.__enter__.return_value = [1, 2, 3]
                                     # mock_copy.side_effect = Exception
-                                    result = self.report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
+                                    _, __, result = self.report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
                                     self.assertFalse(result)
 
         with patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True):
@@ -352,7 +354,7 @@ class TestParquetReportProcessor(MasuTestCase):
                             ):
                                 with patch("masu.processor.parquet.parquet_report_processor.os") as mock_os:
                                     mock_os.path.split.return_value = ("path", "file.csv.gz")
-                                    result = self.report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
+                                    _, __, result = self.report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
                                     self.assertTrue(result)
 
         with patch("masu.processor.parquet.parquet_report_processor.Path"):
@@ -380,7 +382,7 @@ class TestParquetReportProcessor(MasuTestCase):
                                 "create_table": True,
                             },
                         )
-                        result = report_processor.convert_csv_to_parquet(test_report)
+                        _, __, result = report_processor.convert_csv_to_parquet(test_report)
                         self.assertTrue(result)
                         shutil.rmtree(local_path, ignore_errors=True)
 
@@ -517,6 +519,7 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_to_parquet")
     def test_process(self, mock_convert):
         """Test that the process method starts parquet conversion."""
+        mock_convert.return_value = "", pd.DataFrame()
         self.report_processor.process()
         mock_convert.assert_called()
         mock_convert.reset_mock()
@@ -561,6 +564,7 @@ class TestParquetReportProcessor(MasuTestCase):
         with patch(
             "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_to_parquet"
         ) as mock_convert:
+            mock_convert.return_value = "", pd.DataFrame()
             gcp_processor.process()
             mock_convert.assert_called()
 

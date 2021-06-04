@@ -229,12 +229,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         provider_uuid = self.ocp_provider_uuid
         start_date = str(self.reporting_period.report_period_start)
 
-        periods = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
+        period = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
         with schema_context(self.schema):
-            self.assertGreater(len(periods), 0)
-
-            period = periods[0]
-
             self.assertEqual(period.provider_id, provider_uuid)
 
     def test_get_lineitem_query_for_reportid(self):
@@ -2110,14 +2106,14 @@ select * from eek where val1 in {{report_period_ids}} ;
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
 
-        report_periods = self.accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, start_date)
+        report_period = self.accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, start_date)
 
         with schema_context(self.schema):
             OCPUsagePodLabelSummary.objects.all().delete()
             OCPStorageVolumeLabelSummary.objects.all().delete()
             key_to_keep = OCPEnabledTagKeys.objects.first()
             OCPEnabledTagKeys.objects.exclude(key=key_to_keep.key).delete()
-            report_period_ids = [report_period.id for report_period in report_periods]
+            report_period_ids = [report_period.id]
             self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
             tags = (
                 OCPUsageLineItemDailySummary.objects.filter(
