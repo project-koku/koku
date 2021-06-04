@@ -40,8 +40,11 @@ from api.views import DataExportRequestViewSet
 from api.views import GCPAccountView
 from api.views import GCPCostView
 from api.views import GCPForecastCostView
+from api.views import GCPInstanceTypesView
 from api.views import GCPInstanceTypeView
 from api.views import GCPProjectsView
+from api.views import GCPRegionView
+from api.views import GCPServiceView
 from api.views import GCPStorageView
 from api.views import GCPTagView
 from api.views import get_currency
@@ -309,6 +312,9 @@ urlpatterns = [
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
     path("resource-types/gcp-accounts/", GCPAccountView.as_view(), name="gcp-accounts"),
     path("resource-types/gcp-projects/", GCPProjectsView.as_view(), name="gcp-projects"),
+    path("resource-types/gcp-region/", GCPRegionView.as_view(), name="gcp-region"),
+    path("resource-types/gcp-service/", GCPServiceView.as_view(), name="gcp-service"),
+    path("resource-types/gcp-instance-types/", GCPInstanceTypesView.as_view(), name="gcp-instance-types"),
     path(
         "resource-types/aws-organizational-units/",
         AWSOrganizationalUnitView.as_view(),
