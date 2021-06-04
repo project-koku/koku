@@ -15,6 +15,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Updates report summary tables in the database."""
+import datetime
 import logging
 from decimal import Decimal
 
@@ -81,6 +82,11 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 )
 
     def __handle_partitions(self, table_names, start_date, end_date):
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+        if isinstance(end_date, datetime.datetime):
+            end_date = end_date.date()
+
         for table_name in table_names:
             tmplpart = PartitionedTable.objects.filter(
                 schema_name=self._schema, partition_of_table_name=table_name, partition_type=PartitionedTable.RANGE
@@ -107,8 +113,8 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
 
                     partition_name = f"{table_name}_{needed_partition.strftime('%Y_%m')}"
                     newpart_vals["table_name"] = partition_name
-                    newpart_vals["partition_parameters"]["from"] = needed_partition
-                    newpart_vals["partition_parameters"]["to"] = needed_partition + month_interval
+                    newpart_vals["partition_parameters"]["from"] = str(needed_partition)
+                    newpart_vals["partition_parameters"]["to"] = str(needed_partition + month_interval)
                     # Successfully creating a new record will also create the partition
                     res = PartitionedTable.objects.get_or_create(
                         defaults=newpart_vals,
