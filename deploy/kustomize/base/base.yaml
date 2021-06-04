@@ -11,7 +11,7 @@ objects:
     # The name of the ClowdEnvironment providing the services
     envName: ${ENV_NAME}
     testing:
-      iqePlugin: cost_management
+      iqePlugin: cost-management
 
     # Redis
     inMemoryDb: true

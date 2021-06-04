@@ -1898,7 +1898,7 @@ objects:
     - rbac
     - sources-api
     testing:
-      iqePlugin: cost_management
+      iqePlugin: cost-management
 - apiVersion: v1
   data:
     django-secret-key: ${SECRET_KEY}
