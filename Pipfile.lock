@@ -270,11 +270,10 @@
         },
         "django": {
             "hashes": [
-                "sha256:973c968e63518859732f018975364785dd96f0581b1e4b12e2a4b749415ac43a",
-                "sha256:cd6ec37db950a384dba3341b135394fdc776ede4d149fc7abde1e45a21ec4f22"
+                "sha256:66c9d8db8cc6fe938a28b7887c1596e42d522e27618562517cc8929eb7e7f296",
+                "sha256:ea735cbbbb3b2fba6d4da4784a0043d84c67c92f1fdf15ad6db69900e792c10f"
             ],
-            "index": "pypi",
-            "version": "==3.1.10"
+            "version": "==3.2.4"
         },
         "django-cors-headers": {
             "hashes": [
@@ -1521,11 +1520,10 @@
         },
         "django": {
             "hashes": [
-                "sha256:973c968e63518859732f018975364785dd96f0581b1e4b12e2a4b749415ac43a",
-                "sha256:cd6ec37db950a384dba3341b135394fdc776ede4d149fc7abde1e45a21ec4f22"
+                "sha256:66c9d8db8cc6fe938a28b7887c1596e42d522e27618562517cc8929eb7e7f296",
+                "sha256:ea735cbbbb3b2fba6d4da4784a0043d84c67c92f1fdf15ad6db69900e792c10f"
             ],
-            "index": "pypi",
-            "version": "==3.1.10"
+            "version": "==3.2.4"
         },
         "docopt": {
             "hashes": [
