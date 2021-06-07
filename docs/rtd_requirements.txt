@@ -8,7 +8,7 @@ azure-core==1.13.0
 azure-mgmt-core==1.2.2
 azure-mgmt-costmanagement==0.2.0
 azure-mgmt-resource==16.1.0
-azure-mgmt-storage==11.2.0
+azure-mgmt-storage==18.0.0
 azure-storage-blob==12.8.1
 beautifulsoup4==4.9.3
 billiard==3.6.4.0
