@@ -80,6 +80,7 @@ class AWSProviderMap(ProviderMap):
                     "product_family": {"field": "product_family", "operation": "icontains"},
                     "org_unit_id": {"field": "organizational_unit__org_unit_path", "operation": "icontains"},
                     "org_unit_single_level": {"field": "organizational_unit__org_unit_id", "operation": "icontains"},
+                    "instance_type": {"field": "instance_type", "operation": "icontains"},
                 },
                 "group_by_options": ["service", "account", "region", "az", "product_family", "org_unit_id"],
                 "tag_column": "tags",

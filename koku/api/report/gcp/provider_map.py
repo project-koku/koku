@@ -73,6 +73,7 @@ class GCPProviderMap(ProviderMap):
                         {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},
                         {"field": "project_id", "operation": "icontains", "composition_key": "project_filter"},
                     ],
+                    "instance_type": {"field": "instance_type", "operation": "icontains"},
                 },
                 "group_by_options": ["account", "region", "service", "project"],
                 "tag_column": "tags",
