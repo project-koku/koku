@@ -49,9 +49,11 @@ def cleanup(request):
         errmsg = "Parameter missing. Options: providers_without_sources, out_of_order_deletes, or missing_sources"
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
+    source_uuid = params.get("uuid")
+    LOG.info(f"Source Cleanup for UUID: {source_uuid}")
     response = {}
     if "providers_without_sources" in params.keys():
-        response["providers_without_sources"] = _providers_without_sources()
+        response["providers_without_sources"] = _providers_without_sources(source_uuid)
         if request.method == "DELETE":
             cleanup_provider_without_source(response)
             return Response({"job_queued": "providers_without_sources"})
@@ -75,7 +77,7 @@ def cleanup(request):
             return Response(response)
 
     if "missing_sources" in params.keys():
-        response["missing_sources"] = _missing_sources()
+        response["missing_sources"] = _missing_sources(source_uuid)
         if request.method == "DELETE":
             cleanup_missing_sources(response)
             return Response({"job_queued": "missing_sources"})
@@ -111,8 +113,11 @@ def cleanup_missing_sources(cleaning_list):
             LOG.info(f"Queuing missing source delete Source ID: {str(source.source_id)}.  Async ID: {str(async_id)}")
 
 
-def _providers_without_sources():
-    providers = Provider.objects.all()
+def _providers_without_sources(provider_uuid=None):
+    if provider_uuid:
+        providers = Provider.objects.get(uuid=provider_uuid)
+    else:
+        providers = Provider.objects.all()
 
     providers_without_sources = []
     for provider in providers:
@@ -136,8 +141,11 @@ def _sources_out_of_order_deletes():
     return sources_out_of_order_delete
 
 
-def _missing_sources():
-    sources = Sources.objects.all()
+def _missing_sources(source_uuid):
+    if source_uuid:
+        sources = Sources.objects.get(source_uuid=source_uuid)
+    else:
+        sources = Sources.objects.all()
 
     missing_sources = []
     for source in sources:
