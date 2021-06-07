@@ -23,7 +23,6 @@ from json.decoder import JSONDecodeError
 
 from django.db import InterfaceError
 from django.db import OperationalError
-from django.db import transaction
 
 from api.provider.models import Provider
 from api.provider.models import Sources
