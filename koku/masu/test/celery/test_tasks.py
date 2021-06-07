@@ -268,9 +268,11 @@ class TestCeleryTasks(MasuTestCase):
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.celery_app")
-    def test_collect_queue_len(self, mock_celery_app):
+    @patch("masu.celery.tasks.push_to_gateway")
+    def test_collect_queue_len(self, mock_celery_app, mock_push):
         """Test that the collect queue len function runs correctly."""
         mock_celery_app.pool.acquire(block=True).default_channel.client.llen.return_value = 2
+        mock_push.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.collect_queue_metrics()
             expected_log_msg = "Celery queue backlog info: "
