@@ -18,7 +18,7 @@ bs4==0.0.1
 cachetools==4.2.2
 celery-prometheus-exporter==1.7.0
 celery==4.4.7
-certifi==2020.12.5
+certifi==2021.5.30
 cffi==1.14.5
 chardet==4.0.0
 ciso8601==2.1.3
