@@ -18,6 +18,7 @@
 import logging
 import math
 import os
+import urllib
 from datetime import datetime
 from datetime import timedelta
 
@@ -324,7 +325,10 @@ def collect_queue_metrics(self):
         push_to_gateway(
             settings.PROMETHEUS_PUSHGATEWAY, job="masu.celery.tasks.collect_queue_metrics", registry=REGISTRY
         )
-    except OSError as exc:
+    except (OSError, urllib.error.URLError) as exc:
         LOG.error("Problem reaching pushgateway: %s", exc)
-        self.update_state(state="FAILURE", meta={"result": str(exc), "traceback": str(exc.__traceback__)})
+        try:
+            self.update_state(state="FAILURE", meta={"result": str(exc), "traceback": str(exc.__traceback__)})
+        except TypeError as err:
+            LOG.error("The following error occurred: %s " % err)
     return queue_len
