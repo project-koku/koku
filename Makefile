@@ -9,6 +9,9 @@ PGSQL_VERSION   = 9.6
 # Basic environment settings
 PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
+UID     = $(shell id -u)
+GID     = $(shell id -g)
+OSTYPE  = $(shell uname)
 PYDIR	= koku
 APIDOC  = apidoc
 KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost}")
@@ -105,6 +108,7 @@ help:
 	@echo "  local-upload-data                     upload data to Ingress if it is up and running locally"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
+	@echo "  build                                build the base `koku-base` service"
 	@echo "  docker-up                            run docker-compose up --build -d"
 	@echo "  docker-up-no-build                   run docker-compose up -d"
 	@echo "  docker-up-koku                       run docker-compose up -d koku-server"
@@ -126,7 +130,6 @@ help:
 
 	@echo "  docker-shell                         run Django and database containers with shell access to server (for pdb)"
 	@echo "  docker-logs                          connect to console logs for all services"
-	@echo "  docker-test-all                      run unittests"
 	@echo "  docker-iqe-local-hccm                create container based off local hccm plugin. Requires env 'HCCM_PLUGIN_PATH'"
 	@echo "                                          @param iqe_cmd - (optional) Command to run. Defaults to 'bash'."
 	@echo "  docker-iqe-smokes-tests              run smoke tests"
@@ -267,6 +270,12 @@ oc-delete-e2e:
 ### Docker-compose Commands ###
 ###############################
 
+build:
+	$(DOCKER_COMPOSE) build \
+	--build-arg uid=${UID} \
+	--build-arg gid=${GID} \
+	--build-arg ostype=${OSTYPE} koku-base
+
 docker-down:
 	$(DOCKER_COMPOSE) down -v
 	$(PREFIX) make clear-testing
@@ -295,9 +304,6 @@ docker-reinitdb-with-sources-lite: docker-down-db remove-db docker-up-db run-mig
 docker-shell:
 	$(DOCKER_COMPOSE) run --service-ports koku-server
 
-docker-test-all:
-	docker-compose -f koku-test.yml up --build
-
 docker-restart-koku:
 	@if [ -n "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
          $(DOCKER_COMPOSE) restart koku-server masu-server koku-worker koku-beat koku-listener ; \
@@ -322,14 +328,14 @@ _koku-wait:
          sleep 1 ; \
      done
 
-docker-up:
-	$(DOCKER_COMPOSE) up --build -d --scale koku-worker=$(scale)
+docker-up: build
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 docker-up-no-build: docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
-docker-up-min:
-	$(DOCKER_COMPOSE) up --build -d --scale koku-worker=$(scale) db redis koku-server masu-server koku-worker
+docker-up-min: build
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) db redis koku-server masu-server koku-worker
 
 docker-up-min-no-build: docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker koku-listener
