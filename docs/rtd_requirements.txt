@@ -51,7 +51,7 @@ httplib2==0.19.1
 ibm-cloud-sdk-core==3.9.0
 ibm-platform-services==0.18.9
 idna==2.10
-importlib-metadata==4.0.1
+importlib-metadata==4.5.0
 isodate==0.6.0
 jinja2==2.11.3
 jinjasql==0.1.8
