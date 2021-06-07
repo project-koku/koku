@@ -54,7 +54,7 @@ def cleanup(request):
         response["providers_without_sources"] = _providers_without_sources()
         if request.method == "DELETE":
             cleanup_provider_without_source(response)
-            return Response({})
+            return Response({"job_queued": "providers_without_sources"})
         else:
             providers_without_sources = []
             for provider in response["providers_without_sources"]:
@@ -66,7 +66,7 @@ def cleanup(request):
         response["out_of_order_deletes"] = _sources_out_of_order_deletes()
         if request.method == "DELETE":
             cleanup_out_of_order_deletes(response)
-            return Response({})
+            return Response({"job_queued": "out_of_order_deletes"})
         else:
             out_of_order_delete = []
             for source in response["out_of_order_deletes"]:
@@ -78,7 +78,7 @@ def cleanup(request):
         response["missing_sources"] = _missing_sources()
         if request.method == "DELETE":
             cleanup_missing_sources(response)
-            return Response({})
+            return Response({"job_queued": "missing_sources"})
         else:
             missing_sources = []
             for source in response["missing_sources"]:
@@ -107,7 +107,7 @@ def cleanup_missing_sources(cleaning_list):
     missing_sources = cleaning_list.get("missing_sources")
     if missing_sources:
         for source in missing_sources:
-            async_id = missing_source_delete_async(source.id)
+            async_id = missing_source_delete_async(source.source_id)
             LOG.info(f"Queuing missing source delete Source ID: {str(source.source_id)}.  Async ID: {str(async_id)}")
 
 
