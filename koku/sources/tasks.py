@@ -19,7 +19,6 @@ import logging
 
 from django.core.exceptions import ObjectDoesNotExist
 
-from api.provider.models import Provider
 from api.provider.models import Sources
 from koku import celery_app
 from masu.processor.tasks import PRIORITY_QUEUE
