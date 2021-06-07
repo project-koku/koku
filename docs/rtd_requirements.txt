@@ -4,7 +4,7 @@ amqp==2.6.1
 app-common-python==0.1.8
 asgiref==3.3.4
 azure-common==1.1.27
-azure-core==1.13.0
+azure-core==1.15.0
 azure-mgmt-core==1.2.2
 azure-mgmt-costmanagement==0.2.0
 azure-mgmt-resource==16.1.0
