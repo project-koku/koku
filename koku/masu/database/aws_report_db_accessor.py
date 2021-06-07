@@ -54,6 +54,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
+        self._table_map = AWS_CUR_TABLE_MAP
 
     @property
     def line_item_daily_summary_table(self):
@@ -131,14 +132,14 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
 
     def get_ocp_aws_summary_query_for_billid(self, bill_id):
         """Get the OCP-on-AWS report summary item for a given bill query."""
-        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
+        table_name = self._table_map["ocp_on_aws_daily_summary"]
         base_query = self._get_db_obj_query(table_name)
         summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
         return summary_item_query
 
     def get_ocp_aws_project_summary_query_for_billid(self, bill_id):
         """Get the OCP-on-AWS report project summary item for a given bill query."""
-        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
+        table_name = self._table_map["ocp_on_aws_project_daily_summary"]
         base_query = self._get_db_obj_query(table_name)
         summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
         return summary_item_query
@@ -199,7 +200,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = AWS_CUR_TABLE_MAP["line_item_daily"]
+        table_name = self._table_map["line_item_daily"]
 
         daily_sql = pkgutil.get_data("masu.database", "sql/reporting_awscostentrylineitem_daily.sql")
         daily_sql = daily_sql.decode("utf-8")
@@ -224,7 +225,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_awscostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -282,7 +283,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
-        table_name = AWS_CUR_TABLE_MAP["tags_summary"]
+        table_name = self._table_map["tags_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_awstags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
@@ -301,7 +302,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
+        table_name = self._table_map["ocp_on_aws_daily_summary"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpawscostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -351,7 +352,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
 
     def populate_ocp_on_aws_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
-        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_tags_summary"]
+        table_name = self._table_map["ocp_on_aws_tags_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpawstags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
@@ -384,7 +385,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = AWS_CUR_TABLE_MAP["enabled_tag_keys"]
+        table_name = self._table_map["enabled_tag_keys"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_awsenabledtagkeys.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -409,7 +410,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
         summary_sql = pkgutil.get_data(
             "masu.database", "sql/reporting_awscostentryline_item_daily_summary_update_enabled_tags.sql"
         )

@@ -156,9 +156,9 @@ class GCPReportDBCleaner:
         with GCPReportDBAccessor(self._schema) as accessor:
             all_bill_objects = accessor.get_bill_query_before_date(expired_date).all()
             table_names = [
-                # accessor.GCP_REPORT_TABLE_MAP["ocp_on_gcp_daily_summary"],
-                # accessor.GCP_REPORT_TABLE_MAP["ocp_on_gcp_project_daily_summary"],
-                accessor.GCPCostEntryLineItemDailySummary._meta.db_table
+                accessor._table_map["ocp_on_gcp_daily_summary"],
+                accessor._table_map["ocp_on_gcp_project_daily_summary"],
+                accessor.GCPCostEntryLineItemDailySummary._meta.db_table,
             ]
             base_lineitem_query = accessor._get_db_obj_query(accessor.GCPCostEntryLineItem)
             base_daily_query = accessor._get_db_obj_query(accessor.GCPCostEntryLineItemDaily)

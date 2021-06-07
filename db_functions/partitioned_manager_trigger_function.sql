@@ -30,6 +30,7 @@ DECLARE
     messages text[] = '{}'::text[];
     message_text text = '';
     col_type_name text = null;
+    partition_attached boolean = null;
 BEGIN
     IF ( TG_OP = 'DELETE' )
     THEN
@@ -72,6 +73,18 @@ BEGIN
         messages = array_append(messages, format('DROP TABLE %I.%I', OLD.schema_name, OLD.table_name));
     ELSIF ( TG_OP = 'UPDATE' )
     THEN
+        EXECUTE
+         format(
+'
+SELECT relispartition
+  FROM pg_class
+ WHERE oid = ''%I.%I''::regclass ;
+',
+            OLD.schema_name,
+            OLD.table_name
+         )
+           INTO partition_attached;
+
         IF OLD.partition_of_table_name != NEW.partition_of_table_name
         THEN
             action_stmts = array_append(
@@ -116,9 +129,12 @@ BEGIN
             );
         END IF;
 
-        IF (OLD.active AND NOT NEW.active) OR
-           (OLD.partition_parameters != NEW.partition_parameters)
+        IF ((OLD.active AND NOT NEW.active) OR
+            (OLD.partition_parameters != NEW.partition_parameters)) AND
+           partition_attached IS DISTINCT FROM true
         THEN
+            partition_attached = false;
+
             action_stmts = array_append(
                 action_stmts,
                 format(
@@ -140,9 +156,12 @@ BEGIN
             );
         END IF;
 
-        IF (NEW.active AND NOT OLD.active) OR
-           (OLD.partition_parameters != NEW.partition_parameters)
+        IF ((NEW.active AND NOT OLD.active) OR
+            (OLD.partition_parameters != NEW.partition_parameters)) AND
+           partition_attached IS DISTINCT FROM false
         THEN
+            partition_attached = true;
+
             action_stmt = format(
                 'ALTER TABLE %I.%I ATTACH PARTITION %I.%I ',
                 OLD.schema_name,

@@ -164,8 +164,8 @@ class AWSReportDBCleaner:
         with AWSReportDBAccessor(self._schema) as accessor:
             all_bill_objects = accessor.get_bill_query_before_date(expired_date).all()
             table_names = [
-                accessor.AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"],
-                accessor.AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"],
+                accessor._table_map["ocp_on_aws_daily_summary"],
+                accessor._table_map["ocp_on_aws_project_daily_summary"],
                 accessor.AWSCostEntryLineItemDailySummary._meta.db_table,
             ]
             base_lineitem_query = accessor._get_db_obj_query(accessor.AWSCostEntryLineItem)

@@ -52,6 +52,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         super().__init__(schema)
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
+        self._table_map = GCP_REPORT_TABLE_MAP
 
     @property
     def line_item_daily_summary_table(self):
@@ -134,7 +135,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = GCP_REPORT_TABLE_MAP["line_item_daily"]
+        table_name = self._table_map["line_item_daily"]
 
         daily_sql = pkgutil.get_data("masu.database", "sql/reporting_gcpcostentrylineitem_daily.sql")
         daily_sql = daily_sql.decode("utf-8")
@@ -180,7 +181,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = GCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_gcpcostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -228,7 +229,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
-        table_name = GCP_REPORT_TABLE_MAP["tags_summary"]
+        table_name = self._table_map["tags_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_gcptags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
@@ -299,7 +300,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = GCP_REPORT_TABLE_MAP["enabled_tag_keys"]
+        table_name = self._table_map["enabled_tag_keys"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_gcpenabledtagkeys.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -324,7 +325,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = GCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
         summary_sql = pkgutil.get_data(
             "masu.database", "sql/reporting_gcpcostentryline_item_daily_summary_update_enabled_tags.sql"
         )

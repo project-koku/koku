@@ -52,6 +52,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         self._datetime_format = Config.AZURE_DATETIME_STR_FORMAT
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
+        self._table_map = AZURE_REPORT_TABLE_MAP
 
     @property
     def line_item_daily_summary_table(self):
@@ -122,7 +123,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         _start_date = start_date.date() if isinstance(start_date, datetime) else start_date
         _end_date = end_date.date() if isinstance(end_date, datetime) else end_date
 
-        table_name = AZURE_REPORT_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_azurecostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -172,7 +173,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
-        table_name = AZURE_REPORT_TABLE_MAP["tags_summary"]
+        table_name = self._table_map["tags_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_azuretags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
@@ -238,7 +239,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
+        table_name = self._table_map["ocp_on_azure_daily_summary"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazurecostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -258,7 +259,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
 
     def populate_ocp_on_azure_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
-        table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_tags_summary"]
+        table_name = self._table_map["ocp_on_azure_tags_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazuretags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
@@ -296,7 +297,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = AZURE_REPORT_TABLE_MAP["enabled_tag_keys"]
+        table_name = self._table_map["enabled_tag_keys"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_azureenabledtagkeys.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -319,7 +320,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = AZURE_REPORT_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
         summary_sql = pkgutil.get_data(
             "masu.database", "sql/reporting_azurecostentryline_item_daily_summary_update_enabled_tags.sql"
         )
