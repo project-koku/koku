@@ -721,7 +721,7 @@ class ReportQueryHandler(QueryHandler):
             rank_value = f"no-{group_by_value[0]}"
         return rank_value
 
-    def _group_by_ranks(self, query, data):
+    def _group_by_ranks(self, query, data):  # noqa: C901
         """Handle grouping data by filter limit."""
         group_by_value = self._get_group_by()
         gb = group_by_value if group_by_value else ["date"]
@@ -737,6 +737,14 @@ class ReportQueryHandler(QueryHandler):
             else:
                 rank_annotations = {self._delta: self.report_annotations[self._delta]}
                 rank_orders.append(getattr(F(self._delta), self.order_direction)())
+        elif self._limit and "offset" in self.parameters.get("filter", {}) and self.parameters.get("order_by"):
+            if self.report_annotations.get(self.order_field):
+                rank_annotations = {self.order_field: self.report_annotations.get(self.order_field)}
+            # AWS is special and account alias is a foreign key field so special_rank was annotated on the query
+            if self.order_field == "account_alias":
+                rank_orders.append(getattr(F("special_rank"), self.order_direction)())
+            else:
+                rank_orders.append(getattr(F(self.order_field), self.order_direction)())
         else:
             for key, val in self.default_ordering.items():
                 order_field, order_direction = key, val
@@ -763,7 +771,8 @@ class ReportQueryHandler(QueryHandler):
         for rank in ranks:
             rank_value = rank.get(group_by_value[0])
             rank_value = self.check_missing_rank_value(rank_value)
-            rankings.insert((rank.get("rank") - 1), rank_value)
+            if rank_value not in rankings:
+                rankings.append(rank_value)
 
         for query_return in data:
             query_return = self._apply_group_null_label(query_return, gb)
