@@ -1,6 +1,6 @@
 -i https://pypi.python.org/simple
 adal==1.2.7
-amqp==2.6.1
+amqp==5.0.6
 app-common-python==0.1.8
 asgiref==3.3.4
 azure-common==1.1.27
