@@ -115,7 +115,7 @@ class GCPReportDBCleaner:
             removed_items = []
 
             if expired_date is not None:
-                self.purge_expired_report_data_by_date(expired_date, simulate=simulate)
+                return self.purge_expired_report_data_by_date(expired_date, simulate=simulate)
             else:
                 bill_objects = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
             with schema_context(self._schema):
@@ -156,9 +156,9 @@ class GCPReportDBCleaner:
         with GCPReportDBAccessor(self._schema) as accessor:
             all_bill_objects = accessor.get_bill_query_before_date(expired_date).all()
             table_names = [
-                accessor._table_map["ocp_on_gcp_daily_summary"],
-                accessor._table_map["ocp_on_gcp_project_daily_summary"],
-                accessor.GCPCostEntryLineItemDailySummary._meta.db_table,
+                # accessor._table_map["ocp_on_gcp_daily_summary"],
+                # accessor._table_map["ocp_on_gcp_project_daily_summary"],
+                accessor.line_item_daily_summary_table._meta.db_table
             ]
             base_lineitem_query = accessor._get_db_obj_query(accessor.GCPCostEntryLineItem)
             base_daily_query = accessor._get_db_obj_query(accessor.GCPCostEntryLineItemDaily)

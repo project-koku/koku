@@ -81,7 +81,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                     start_date, end_date
                 )
 
-    def __handle_partitions(self, table_names, start_date, end_date):
+    def _handle_partitions(self, table_names, start_date, end_date):
         if isinstance(start_date, datetime.datetime):
             start_date = start_date.date()
         if isinstance(end_date, datetime.datetime):
@@ -133,7 +133,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             end_date = parser.parse(end_date)
 
         with schema_context(self._schema):
-            self.__handle_partitions(
+            self._handle_partitions(
                 ("reporting_ocpawscostlineitem_daily_summary", "reporting_ocpawscostlineitem_project_daily_summary"),
                 start_date,
                 end_date,
@@ -173,7 +173,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             end_date = parser.parse(end_date)
 
         with schema_context(self._schema):
-            self.__handle_partitions(
+            self._handle_partitions(
                 (
                     "reporting_ocpazurecostlineitem_daily_summary",
                     "reporting_ocpazurecostlineitem_project_daily_summary",

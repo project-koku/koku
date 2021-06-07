@@ -114,9 +114,10 @@ class AWSReportDBCleaner:
             removed_items = []
 
             if expired_date is not None:
-                self.purge_expired_report_data_by_date(expired_date, simulate=simulate)
+                return self.purge_expired_report_data_by_date(expired_date, simulate=simulate)
             else:
                 bill_objects = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
+
             with schema_context(self._schema):
                 for bill in bill_objects.all():
                     bill_id = bill.id
@@ -166,11 +167,11 @@ class AWSReportDBCleaner:
             table_names = [
                 accessor._table_map["ocp_on_aws_daily_summary"],
                 accessor._table_map["ocp_on_aws_project_daily_summary"],
-                accessor.AWSCostEntryLineItemDailySummary._meta.db_table,
+                accessor.line_item_daily_summary_table._meta.db_table,
             ]
-            base_lineitem_query = accessor._get_db_obj_query(accessor.AWSCostEntryLineItem)
-            base_daily_query = accessor._get_db_obj_query(accessor.AWSCostEntryLineItemDaily)
-            base_costentry_query = accessor._get_db_obj_query(accessor.AWSCostEntry)
+            base_lineitem_query = accessor._get_db_obj_query(accessor.line_item_table)
+            base_daily_query = accessor._get_db_obj_query(accessor.line_item_daily_table)
+            base_costentry_query = accessor._get_db_obj_query(accessor.cost_entry_table)
 
         with schema_context(self._schema):
             removed_items = []

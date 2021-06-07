@@ -903,6 +903,8 @@ SELECT level,
         for entry in hierarchy:
             if entry["object_type"] == "TABLE":
                 break
+            if "." in entry["object_name"]:
+                _, entry["object_name"] = entry["object_name"].split(".", 1)
             rec = {
                 "level": entry["level"],
                 "source_schema": self.source_schema,
@@ -1130,7 +1132,7 @@ VALUES (
             params[-1] = json.dumps(part_params)
             LOG.info(f'Creating and recording partition "{self.target_schema}"."{partition_name}"')
             conn_execute(part_rec_sql, params)
-            created_partitions.append([partition_name, suffix])
+            created_partitions.append({"table_name": partition_name, "suffix": suffix})
 
         self.created_partitions = created_partitions
 

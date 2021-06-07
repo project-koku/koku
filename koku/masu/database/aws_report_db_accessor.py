@@ -60,6 +60,18 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
     def line_item_daily_summary_table(self):
         return AWSCostEntryLineItemDailySummary
 
+    @property
+    def line_item_table(self):
+        return AWSCostEntryLineItem
+
+    @property
+    def cost_entry_table(self):
+        return AWSCostEntry
+
+    @property
+    def line_item_daily_table(self):
+        return AWSCostEntryLineItemDaily
+
     def get_cost_entry_bills(self):
         """Get all cost entry bill objects."""
         table_name = AWSCostEntryBill

@@ -45,7 +45,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
         if isinstance(end_date, str):
             end_date = parser.parse(end_date).date()
 
-        self.__handle_partitions(
+        self._handle_partitions(
             ("reporting_ocpawscostlineitem_daily_summary", "reporting_ocpawscostlineitem_project_daily_summary"),
             start_date,
             end_date,
@@ -98,7 +98,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
         if isinstance(end_date, str):
             end_date = parser.parse(end_date).date()
 
-        self.__handle_partitions(
+        self._handle_partitions(
             ("reporting_ocpazurecostlineitem_daily_summary", "reporting_ocpazurecostlineitem_project_daily_summary"),
             start_date,
             end_date,

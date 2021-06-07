@@ -90,7 +90,7 @@ SELECT relispartition
             action_stmts = array_append(
                 action_stmts,
                 format(
-                    'ALTER TABLE %I.%I RENAME TO %I ;',
+                    'ALTER TABLE IF EXISTS %I.%I RENAME TO %I ;',
                     OLD.schema_name,
                     OLD.partition_of_table_name,
                     NEW.partition_of_table_name
@@ -112,7 +112,7 @@ SELECT relispartition
             action_stmts = array_append(
                 action_stmts,
                 format(
-                    'ALTER TABLE %I.%I RENAME TO %I ;',
+                    'ALTER TABLE IF EXISTS %I.%I RENAME TO %I ;',
                     OLD.schema_name,
                     OLD.table_name,
                     NEW.table_name
@@ -138,7 +138,7 @@ SELECT relispartition
             action_stmts = array_append(
                 action_stmts,
                 format(
-                    'ALTER TABLE %I.%I DETACH PARTITION %I.%I ;',
+                    'ALTER TABLE IF EXISTS %I.%I DETACH PARTITION %I.%I ;',
                     OLD.schema_name,
                     NEW.partition_of_table_name,
                     OLD.schema_name,
@@ -163,7 +163,7 @@ SELECT relispartition
             partition_attached = true;
 
             action_stmt = format(
-                'ALTER TABLE %I.%I ATTACH PARTITION %I.%I ',
+                'ALTER TABLE IF EXISTS %I.%I ATTACH PARTITION %I.%I ',
                 OLD.schema_name,
                 NEW.partition_of_table_name,
                 OLD.schema_name,

@@ -110,7 +110,7 @@ class OCPReportDBCleaner:
             removed_items = []
 
             if expired_date is not None:
-                self.purge_expired_report_data_by_date(expired_date, simulate=simulate)
+                return self.purge_expired_report_data_by_date(expired_date, simulate=simulate)
             else:
                 usage_period_objs = accessor.get_usage_period_query_by_provider(provider_uuid)
             with schema_context(self._schema):
@@ -171,44 +171,44 @@ class OCPReportDBCleaner:
         with OCPReportDBAccessor(self._schema) as accessor:
             all_usage_periods = accessor.get_usage_periods_by_date(expired_date)
             table_names = [
-                accessor.OCP_REPORT_TABLE_MAP["ocp_on_aws_daily_summary"],
-                accessor.OCP_REPORT_TABLE_MAP["ocp_on_aws_project_daily_summary"],
-                accessor.OCP_REPORT_TABLE_MAP["line_item_daily_summary"],
+                accessor._table_map["ocp_on_aws_daily_summary"],
+                accessor._table_map["ocp_on_aws_project_daily_summary"],
+                accessor._table_map["line_item_daily_summary"],
             ]
             table_queries = [
                 (
-                    accessor._get_db_obj_query(accessor.OCP_REPORT_TABLE_MAP["line_item"]),
+                    accessor._get_db_obj_query(accessor._table_map["line_item"]),
                     ("report_period_id", "id"),
                     "line items",
                 ),
                 (
-                    accessor._get_db_obj_query(accessor.OCP_REPORT_TABLE_MAP["line_item_daily"]),
+                    accessor._get_db_obj_query(accessor._table_map["line_item_daily"]),
                     ("cluster_id", "cluster_id"),
                     "daily items",
                 ),
                 (
-                    accessor._get_db_obj_query(accessor.OCP_REPORT_TABLE_MAP["cost_summary"]),
+                    accessor._get_db_obj_query(accessor._table_map["cost_summary"]),
                     ("cluster_id", "cluster_id"),
                     "cost summary",
                 ),
                 (
-                    accessor._get_db_obj_query(accessor.OCP_REPORT_TABLE_MAP["storage_line_item"]),
+                    accessor._get_db_obj_query(accessor._table_map["storage_line_item"]),
                     ("report_period_id", "id"),
                     "storage line items",
                 ),
                 (
-                    accessor._get_db_obj_query(accessor.OCP_REPORT_TABLE_MAP["node_label_line_item"]),
+                    accessor._get_db_obj_query(accessor._table_map["node_label_line_item"]),
                     ("report_period_id", "id"),
                     "node label line items",
                 ),
                 (
-                    accessor._get_db_obj_query(accessor.OCP_REPORT_TABLE_MAP["storage_line_item_daily"]),
+                    accessor._get_db_obj_query(accessor._table_map["storage_line_item_daily"]),
                     ("cluster_id", "cluster_id"),
                     "storagedaily items",
                 ),
                 (
                     accessor._get_db_obj_query(
-                        accessor.OCP_REPORT_TABLE_MAP["report"], ("report_period_id", "id"), "usage period items"
+                        accessor._table_map["report"], ("report_period_id", "id"), "usage period items"
                     )
                 ),
             ]

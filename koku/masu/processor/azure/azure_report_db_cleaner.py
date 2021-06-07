@@ -67,7 +67,7 @@ class AzureReportDBCleaner:
             removed_items = []
 
             if expired_date is not None:
-                self.purge_expired_report_data_by_date(expired_date, simulate=simulate)
+                return self.purge_expired_report_data_by_date(expired_date, simulate=simulate)
             else:
                 bill_objects = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
             with schema_context(self._schema):
@@ -109,7 +109,7 @@ class AzureReportDBCleaner:
             table_names = [
                 accessor._table_map["ocp_on_azure_daily_summary"],
                 accessor._table_map["ocp_on_azure_project_daily_summary"],
-                accessor.AzureCostEntryLineItemDailySummary._meta.db_table,
+                accessor.line_item_daily_summary_table._meta.db_table,
             ]
             base_lineitem_query = accessor._get_db_obj_query(accessor.AzureCostEntryLineItem)
             base_daily_query = accessor._get_db_obj_query(accessor.AzureCostEntryLineItemDaily)
