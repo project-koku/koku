@@ -131,7 +131,7 @@ SELECT relispartition
 
         IF ((OLD.active AND NOT NEW.active) OR
             (OLD.partition_parameters != NEW.partition_parameters)) AND
-           partition_attached IS DISTINCT FROM true
+           partition_attached IS DISTINCT FROM false
         THEN
             partition_attached = false;
 
@@ -158,7 +158,7 @@ SELECT relispartition
 
         IF ((NEW.active AND NOT OLD.active) OR
             (OLD.partition_parameters != NEW.partition_parameters)) AND
-           partition_attached IS DISTINCT FROM false
+           partition_attached IS DISTINCT FROM true
         THEN
             partition_attached = true;
 

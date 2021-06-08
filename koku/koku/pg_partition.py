@@ -1473,6 +1473,8 @@ class PartitionDefaultData:
         partitioned_table (str) : Default partition table name
     """
 
+    # NOTE: This needs to be updated to support subpartitions
+
     def __init__(self, schema_name, partitioned_table, default_partition=None):
         self.conn = transaction.get_connection()
         self.schema_name = schema_name
@@ -1480,7 +1482,6 @@ class PartitionDefaultData:
         self.default_partition = default_partition or self._get_default_partition()
         self.partition_name = ""
         self.tracking_rec = None
-        self.partition_parameters = {}
         self.tx_id = str(uuid.uuid4()).replace("-", "_")
         self._get_default_partition_tracker_info()
 
@@ -1513,66 +1514,59 @@ SELECT *
 """
         LOG.info(f"Getting default tracker record for {self.default_partition} of {self.partitioned_table}")
         cur = conn_execute(sql, (self.schema_name, self.partitioned_table, self.default_partition), _conn=self.conn)
-        default_tracker = fetchone(cur)
-        self.partition_type = default_tracker["partition_type"]
-        self.partition_key = default_tracker["partition_col"]
+        self.tracking_rec = fetchone(cur)
+        self.tracking_rec["partition_parameters"] = json.loads(self.tracking_rec["partition_parameters"])
+        self.partition_type = self.tracking_rec["partition_type"]
+        self.partition_key = self.tracking_rec["partition_col"]
 
-    def _update_partition_tracking_record(self, set_col):
-        LOG.debug(f"Execute SQL to update partition_parameters.{set_col}")
-        if set_col == "partition_parameters":
-            partition_parameters = self.partition_parameters.copy()
-            partition_parameters["from"] = str(partition_parameters["from"])
-            partition_parameters["to"] = str(partition_parameters["to"])
-            partition_parameters["default"] = False
-            self.tracking_rec["partition_parameters"] = json.dumps(partition_parameters)
-
+    def _update_partition_tracking_record(self):
+        LOG.debug("Execute SQL to update partition tracking record")
         update_sql = f"""
 UPDATE "{self.schema_name}"."partitioned_tables"
-   SET {set_col} = %s{'::boolean' if set_col == 'active' else '::jsonb'}
- WHERE "id" = %s;
+   SET "schema_name" = %(schema_name)s ,
+       "table_name" = %(table_name)s ,
+       "partition_of_table_name" = %(partition_of_table_name)s ,
+       "partition_type" = %(partition_type)s ,
+       "partition_col" = %(partition_col)s ,
+       "partition_parameters" = %(partition_parameters_str)s ,
+       "active" = %(active)s
+ WHERE "id" = %(id)s;
 """
-        vals = [self.tracking_rec[set_col], self.tracking_rec["id"]]
-
-        conn_execute(update_sql, vals, _conn=self.conn)
+        self.tracking_rec["partition_parameters"]["from"] = str(self.tracking_rec["partition_parameters"]["from"])
+        self.tracking_rec["partition_parameters"]["to"] = str(self.tracking_rec["partition_parameters"]["to"])
+        self.tracking_rec["partition_parameters_str"] = json.dumps(self.tracking_rec["partition_parameters"])
+        conn_execute(update_sql, self.tracking_rec, _conn=self.conn)
 
     def _create_partititon_tracking_record(self):
         LOG.debug(f"Creating tracking record for new partition {self.partition_name}")
-        partition_parameters = self.partition_parameters.copy()
-        partition_parameters["from"] = str(partition_parameters["from"])
-        partition_parameters["to"] = str(partition_parameters["to"])
-        partition_parameters["default"] = False
+        self.tracking_rec["partition_parameters"]["from"] = str(self.tracking_rec["partition_parameters"]["from"])
+        self.tracking_rec["partition_parameters"]["to"] = str(self.tracking_rec["partition_parameters"]["to"])
+        self.tracking_rec["partition_parameters"]["default"] = False
+        self.tracking_rec["partition_parameters_str"] = json.dumps(self.tracking_rec["partition_parameters"])
         part_track_insert_sql = f"""
 INSERT INTO "{self.schema_name}"."partitioned_tables"
        (schema_name, table_name, partition_of_table_name, partition_type, partition_col, partition_parameters, active)
-VALUES (%s, %s, %s, %s, %s, %s::jsonb, true)
+VALUES (%(schema_name)s, %(table_name)s, %(partition_of_table_name)s, %(partition_type)s, %(partition_col)s,
+        %(partition_parameters_str)s::jsonb, true)
 RETURNING *;
 """
-        vals = (
-            self.schema_name,
-            self.partition_name,
-            self.partitioned_table,
-            self.partition_type,
-            self.partition_key,
-            json.dumps(partition_parameters),
-        )
-        cur = conn_execute(part_track_insert_sql, vals, _conn=self.conn)
+        cur = conn_execute(part_track_insert_sql, self.tracking_rec, _conn=self.conn)
         self.tracking_rec = fetchone(cur)
+        self.tracking_rec["partition_parameters_str"] = None
+        self.tracking_rec["partition_parameters"] = json.loads(self.tracking_rec["partition_parameters"])
 
     def _create_partition(self):
         self._create_partititon_tracking_record()
 
     def _attach_partition(self):
         self.tracking_rec["active"] = True
-
-        # This is necessary to prevent two triggers from firing and getting a race condition
-        LOG.debug("Updating tracking partition parameters")
-        self._update_partition_tracking_record(set_col="partition_parameters")
         LOG.debug("Updating tracking active state")
-        self._update_partition_tracking_record(set_col="active")
+        self._update_partition_tracking_record()
 
     def _detach_partition(self):
         self.tracking_rec["active"] = False
-        self._update_partition_tracking_record(set_col="active")
+        LOG.debug("Updating tracking active state")
+        self._update_partition_tracking_record()
 
     def _get_new_partitions_from_default(self):
         partition_start_sql = f"""
@@ -1593,6 +1587,7 @@ SELECT DISTINCT
         return res
 
     def repartition_default_data(self):
+        # NOTE: This needs to be updated to be more generic
         new_partitions = self._get_new_partitions_from_default()
         if new_partitions:
             mv_recs_sql = f"""
@@ -1609,18 +1604,16 @@ SELECT * FROM __mv_recs_{self.tx_id} ;
 
             for bounds in new_partitions:
                 p_from, p_to = bounds
-                self.partition_name = f"{self.partitioned_table}_{p_from.strftime('%Y_%m')}"
-                full_partition_name = f'"{self.schema_name}"."{self.partition_name}"'
+                self.tracking_rec["table_name"] = f"{self.partitioned_table}_{p_from.strftime('%Y_%m')}"
+                full_partition_name = f'''"{self.schema_name}"."{self.tracking_rec['table_name']}"'''
 
                 # A little jiggery-pokery here to increase efficiency.
                 # The partition is named properly, but it set as a partition for 100 years in the future
                 # This will allow us to create the partition with all of the structure that is required.
                 # Before the data move, we will detach the partition, then move the data,
                 # then reattach with the proper bounds.
-                self.partition_parameters = {
-                    "from": p_from.replace(year=p_from.year + 100),
-                    "to": p_to.replace(year=p_to.year + 100),
-                }
+                self.tracking_rec["partition_parameters"]["from"] = p_from.replace(year=p_from.year + 100)
+                self.tracking_rec["partition_parameters"]["to"] = p_to.replace(year=p_to.year + 100)
 
                 LOG.info(
                     f"Re-partitioning {self.schema_name}.{self.default_partition} into {full_partition_name} "
@@ -1636,8 +1629,8 @@ SELECT * FROM __mv_recs_{self.tx_id} ;
                     conn_execute(mv_recs_sql.format(full_partition_name), (p_from, p_to), _conn=self.conn)
 
                     # Re-attach partition with actual bounds
-                    self.partition_parameters["from"] = p_from
-                    self.partition_parameters["to"] = p_to
+                    self.tracking_rec["partition_parameters"]["from"] = p_from
+                    self.tracking_rec["partition_parameters"]["to"] = p_to
                     self._attach_partition()
 
 
