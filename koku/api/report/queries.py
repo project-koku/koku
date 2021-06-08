@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Query Handling for Reports."""
 import copy
@@ -889,9 +877,12 @@ class ReportQueryHandler(QueryHandler):
             if "cluster" in group_by:
                 other["cluster_alias"] = others_label
                 clusters_list = []
+                source_uuids_list = []
                 for entry in others_list:
                     clusters_list.extend(entry.get("clusters", []))
+                    source_uuids_list.extend(entry.get("source_uuid", []))
                 other["clusters"] = list(set(clusters_list))
+                other["source_uuid"] = list(set(source_uuids_list))
                 exclusions = []
             else:
                 # delete these labels from the Others category if we're not
