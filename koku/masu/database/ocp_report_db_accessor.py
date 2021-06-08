@@ -1788,9 +1788,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def populate_cluster_table(self, provider, cluster_id, cluster_alias):
         """Get or create an entry in the OCP cluster table."""
-        cluster, created = OCPCluster.objects.get_or_create(
-            cluster_id=cluster_id, cluster_alias=cluster_id, provider=provider
-        )
+        with schema_context(self.schema):
+            cluster, created = OCPCluster.objects.get_or_create(
+                cluster_id=cluster_id, cluster_alias=cluster_id, provider=provider
+            )
 
         if created:
             msg = f"Add entry in reporting_ocp_clusters for {cluster_id}/{cluster_alias}"
@@ -1801,20 +1802,25 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     def populate_node_table(self, cluster, nodes):
         """Get or create an entry in the OCP cluster table."""
         LOG.info("Populating reporting_ocp_nodes table.")
-        for node in nodes:
-            OCPNode.objects.get_or_create(node=node[0], resource_id=node[1], cluster=cluster)
+        with schema_context(self.schema):
+            for node in nodes:
+                OCPNode.objects.get_or_create(
+                    node=node[0], resource_id=node[1], node_capacity_cpu_cores=node[2], cluster=cluster
+                )
 
     def populate_pvc_table(self, cluster, pvcs):
         """Get or create an entry in the OCP cluster table."""
         LOG.info("Populating reporting_ocp_pvcs table.")
-        for pvc in pvcs:
-            OCPPVC.objects.get_or_create(pvc=pvc, cluster=cluster)
+        with schema_context(self.schema):
+            for pvc in pvcs:
+                OCPPVC.objects.get_or_create(pvc=pvc, cluster=cluster)
 
     def populate_project_table(self, cluster, projects):
         """Get or create an entry in the OCP cluster table."""
         LOG.info("Populating reporting_ocp_projects table.")
-        for project in projects:
-            OCPProject.objects.get_or_create(project=project, cluster=cluster)
+        with schema_context(self.schema):
+            for project in projects:
+                OCPProject.objects.get_or_create(project=project, cluster=cluster)
 
     def get_nodes_presto(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
@@ -1879,7 +1885,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     def get_nodes_for_cluster(self, cluster_id):
         """Get all nodes for an OCP cluster."""
         with schema_context(self.schema):
-
             nodes = OCPNode.objects.filter(cluster_id=cluster_id).values_list("node", "resource_id")
             nodes = [(node[0], node[1]) for node in nodes]
         return nodes
