@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Provider Mapper for AWS Reports."""
 from django.contrib.postgres.aggregates import ArrayAgg
@@ -20,6 +8,7 @@ from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
+from django.db.models import Q
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.expressions import ExpressionWrapper
@@ -126,7 +115,9 @@ class AWSProviderMap(ProviderMap):
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
-                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
+                            "source_uuid": ArrayAgg(
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                            ),
                         },
                         "delta_key": {
                             # cost goes to cost_total
@@ -188,7 +179,9 @@ class AWSProviderMap(ProviderMap):
                             "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("Hrs")),
-                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
+                            "source_uuid": ArrayAgg(
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                            ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{"field": "instance_type", "operation": "isnull", "parameter": False}],
@@ -246,7 +239,9 @@ class AWSProviderMap(ProviderMap):
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
-                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
+                            "source_uuid": ArrayAgg(
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                            ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [
