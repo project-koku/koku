@@ -1,7 +1,7 @@
-#
-# Copyright 2021 Red Hat Inc.
-# SPDX-License-Identifier: Apache-2.0
-#
+--
+-- Copyright 2021 Red Hat Inc.
+-- SPDX-License-Identifier: Apache-2.0
+--
 
 create or replace function public.jsonb_sha256_text(j_param jsonb, out hash_val text)
 returns text

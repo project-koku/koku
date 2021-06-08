@@ -1,7 +1,7 @@
-#
-# Copyright 2021 Red Hat Inc.
-# SPDX-License-Identifier: Apache-2.0
-#
+--
+-- Copyright 2021 Red Hat Inc.
+-- SPDX-License-Identifier: Apache-2.0
+--
 
 DROP FUNCTION IF EXISTS public.clone_schema(text, text, boolean, boolean);
 CREATE OR REPLACE FUNCTION public.clone_schema(

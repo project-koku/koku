@@ -1,7 +1,7 @@
-#
-# Copyright 2021 Red Hat Inc.
-# SPDX-License-Identifier: Apache-2.0
-#
+--
+-- Copyright 2021 Red Hat Inc.
+-- SPDX-License-Identifier: Apache-2.0
+--
 -- Procedure to create table partitions.
 -- Depends on the partitioned_tables table being defined in each schema
 -- Args:

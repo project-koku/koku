@@ -1,7 +1,7 @@
-#
-# Copyright 2021 Red Hat Inc.
-# SPDX-License-Identifier: Apache-2.0
-#
+--
+-- Copyright 2021 Red Hat Inc.
+-- SPDX-License-Identifier: Apache-2.0
+--
 create or replace function public.array_subtract(
     minuend anyarray, subtrahend anyarray, out difference anyarray
 )

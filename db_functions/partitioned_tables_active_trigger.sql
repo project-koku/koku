@@ -1,7 +1,7 @@
-#
-# Copyright 2021 Red Hat Inc.
-# SPDX-License-Identifier: Apache-2.0
-#
+--
+-- Copyright 2021 Red Hat Inc.
+-- SPDX-License-Identifier: Apache-2.0
+--
 
 DROP TRIGGER IF EXISTS tr_attach_date_range_partition ON partitioned_tables;
 CREATE TRIGGER tr_attach_date_range_partition

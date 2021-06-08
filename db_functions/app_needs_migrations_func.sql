@@ -1,7 +1,7 @@
-#
-# Copyright 2021 Red Hat Inc.
-# SPDX-License-Identifier: Apache-2.0
-#
+--
+-- Copyright 2021 Red Hat Inc.
+-- SPDX-License-Identifier: Apache-2.0
+--
 -- Function public.app_needs_migrations(leaf_migrations, _verbose)
 -- Returns bool: true = run migrations; false = migrations up-to-date
 -- leaf_migrations (jsonb) = leaf migration names by app from the django code

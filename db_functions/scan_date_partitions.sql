@@ -1,7 +1,7 @@
-#
-# Copyright 2021 Red Hat Inc.
-# SPDX-License-Identifier: Apache-2.0
-#
+--
+-- Copyright 2021 Red Hat Inc.
+-- SPDX-License-Identifier: Apache-2.0
+--
 -- Function to return table partition start bounds from scanning another table for partition key values.
 -- Args:
 --   check_table (text)      : Name of the table to check for partition start bounds
