@@ -42,7 +42,7 @@ def cleanup(request):
     response = {}
     if "providers_without_sources" in params.keys():
         response["providers_without_sources"] = _providers_without_sources(source_uuid)
-        return handle_providers_without_sources_response(request, response, source_uuid)
+        return handle_providers_without_sources_response(request, response)
 
     if "out_of_order_deletes" in params.keys():
         response["out_of_order_deletes"] = _sources_out_of_order_deletes()
@@ -50,10 +50,10 @@ def cleanup(request):
 
     if "missing_sources" in params.keys():
         response["missing_sources"] = _missing_sources(source_uuid)
-        return handle_missing_sources_response(request, response, source_uuid)
+        return handle_missing_sources_response(request, response)
 
 
-def handle_providers_without_sources_response(request, response, source_uuid):
+def handle_providers_without_sources_response(request, response):
     if request.method == "DELETE":
         cleanup_provider_without_source(response)
         return Response({"job_queued": "providers_without_sources"})
@@ -77,14 +77,14 @@ def handle_out_of_order_deletes_response(request, response):
         return Response(response)
 
 
-def handle_missing_sources_response(request, response, source_uuid):
+def handle_missing_sources_response(request, response):
     if request.method == "DELETE":
         cleanup_missing_sources(response)
         return Response({"job_queued": "missing_sources"})
     else:
         missing_sources = []
         for source in response["missing_sources"]:
-            missing_sources.append(f"Source ID: {source.source_id})")
+            missing_sources.append(f"Source ID: {source.source_id} Source UUID: {source.source_uuid}")
             response["missing_sources"] = missing_sources
         return Response(response)
 
@@ -109,7 +109,7 @@ def cleanup_missing_sources(cleaning_list):
     missing_sources = cleaning_list.get("missing_sources")
     if missing_sources:
         for source in missing_sources:
-            async_id = missing_source_delete_async(source.source_id)
+            async_id = missing_source_delete_async.delay(source.source_id)
             LOG.info(f"Queuing missing source delete Source ID: {str(source.source_id)}.  Async ID: {str(async_id)}")
 
 
