@@ -1,19 +1,7 @@
-/*
-Copyright 2020 Red Hat, Inc.
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as
-published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+--
+-- Copyright 2021 Red Hat Inc.
+-- SPDX-License-Identifier: Apache-2.0
+--
 -- Function public.app_needs_migrations(leaf_migrations, _verbose)
 -- Returns bool: true = run migrations; false = migrations up-to-date
 -- leaf_migrations (jsonb) = leaf migration names by app from the django code
