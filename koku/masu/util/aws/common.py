@@ -38,6 +38,7 @@ from masu.processor import enable_trino_processing
 from masu.util import common as utils
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
+from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
 
 LOG = logging.getLogger(__name__)
@@ -451,35 +452,13 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
     tags = data_frame["resourcetags"]
     tag_matched = tags.apply(match_openshift_labels, args=(matched_tags, cluster_topology))
     data_frame["matched_tag"] = tag_matched
-
     openshift_matched_data_frame = data_frame[
-        (data_frame["resource_id_matched"] == True) | data_frame["matched_tag"] == True  # noqa: E712
+        (data_frame["resource_id_matched"] == True) | (data_frame["matched_tag"] != "")  # noqa: E712
     ]
 
     openshift_matched_data_frame["uuid"] = openshift_matched_data_frame.apply(lambda _: str(uuid.uuid4()), axis=1)
 
     return openshift_matched_data_frame
-
-
-def match_openshift_labels(tag_dict, matched_tags, cluster_topology):
-    """Match AWS data by OpenShift label associated with OpenShift cluster."""
-    tag_dict = json.loads(tag_dict)
-    cluster_id = cluster_topology.get("cluster_id").lower()
-    cluster_alias = cluster_topology.get("cluster_alias").lower()
-    nodes = [node.lower() for node in cluster_topology.get("nodes", [])]
-    projects = [project.lower() for project in cluster_topology.get("projects", [])]
-    tag_matches = []
-    for key, value in tag_dict.items():
-        tag = json.dumps({key.lower(): value.lower()}).replace("{", "").replace("}", "")
-        if {key.lower(): value.lower()} in matched_tags:
-            tag_matches.append(tag)
-        elif key.lower() == "openshift_project" and value.lower() in projects:
-            return tag
-        elif key.lower() == "openshift_node" and value.lower() in nodes:
-            return tag
-        elif key.lower() == "openshift_cluster" and value.lower() in (cluster_id, cluster_alias):
-            return tag
-    return ",".join(tag_matches)
 
 
 def get_column_converters():
