@@ -135,7 +135,10 @@ class ProviderDBAccessor(KokuDBAccess):
                     example: {"bucket": "my-s3-cur-bucket"}
 
         """
-        return self.provider.billing_source.data_source
+        data_source = None
+        if self.provider and self.provider.billing_source:
+            data_source = self.provider.billing_source.data_source
+        return data_source
 
     def get_setup_complete(self):
         """
