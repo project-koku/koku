@@ -72,7 +72,7 @@ pint==0.17
 presto-python-client==0.7.0
 prometheus-client==0.10.1
 proto-plus==1.18.1
-protobuf==3.16.0
+protobuf==3.17.2
 psutil==5.8.0
 psycopg2-binary==2.8.6
 pyarrow==4.0.0
