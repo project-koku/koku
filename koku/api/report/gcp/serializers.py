@@ -69,7 +69,7 @@ class GCPQueryParamSerializer(ParamSerializer):
     """Serializer for handling GCP query parameters."""
 
     # Tuples are (key, display_name)
-    DELTA_CHOICES = (("cost", "cost"),)
+    DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"))
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     units = serializers.CharField(required=False)
@@ -147,7 +147,13 @@ class GCPQueryParamSerializer(ParamSerializer):
 
     def validate_delta(self, value):
         """Validate incoming delta value based on path."""
-        valid_delta = "cost_total"
-        if value == "cost":
-            return valid_delta
+        valid_delta = "usage"
+        request = self.context.get("request")
+        if request and "costs" in request.path:
+            valid_delta = "cost_total"
+            if value == "cost":
+                return valid_delta
+        if value != valid_delta:
+            error = {"delta": f'"{value}" is not a valid choice.'}
+            raise serializers.ValidationError(error)
         return value
