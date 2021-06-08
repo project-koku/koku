@@ -1117,7 +1117,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         matched_tags = self.accessor.get_openshift_on_cloud_matched_tags(bill_id, report_period_id)
 
-        print(matched_tags)
         self.assertGreater(len(matched_tags), 0)
         self.assertIsInstance(matched_tags[0], dict)
 
