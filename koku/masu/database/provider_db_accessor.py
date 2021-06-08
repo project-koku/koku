@@ -119,7 +119,10 @@ class ProviderDBAccessor(KokuDBAccess):
                     example: {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}
 
         """
-        return self.provider.authentication.credentials
+        credentials = None
+        if self.provider and self.provider.authentication:
+            credentials = self.provider.authentication.credentials
+        return credentials
 
     def get_data_source(self):
         """
