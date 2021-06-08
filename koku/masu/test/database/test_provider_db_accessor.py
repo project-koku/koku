@@ -79,7 +79,7 @@ class ProviderDBAccessorTest(MasuTestCase):
 
     def test_get_data_source_no_data_source(self):
         """Test provider data_source getter."""
-        uuid = self.gcp_provider_uuid
+        uuid = self.unkown_test_provider_uuid
         with ProviderDBAccessor(uuid) as accessor:
             self.assertIsNone(accessor.get_data_source())
 
