@@ -519,9 +519,11 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 if cluster_name == "Other":
                     for cluster_value in cluster_data.get("values"):
                         self.assertTrue(len(cluster_value.get("clusters", [])) == 1)
+                        self.assertTrue(len(cluster_value.get("source_uuid", [])) == 1)
                 elif cluster_name == "Others":
                     for cluster_value in cluster_data.get("values"):
                         self.assertTrue(len(cluster_value.get("clusters", [])) > 1)
+                        self.assertTrue(len(cluster_value.get("source_uuid", [])) > 1)
 
     def test_subtotals_add_up_to_total(self):
         """Test the apply_group_by handles different grouping scenerios."""
