@@ -689,3 +689,14 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
 
         return total_query
+
+    def _group_by_ranks(self, query, data):
+        """
+        AWS is special because account alias is a foreign key
+        and the query needs that for rankings to work.
+        """
+        if "account" in self._get_group_by():
+            query = query.annotate(
+                special_rank=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
+            )
+        return super()._group_by_ranks(query, data)
