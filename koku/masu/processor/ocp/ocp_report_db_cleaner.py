@@ -171,8 +171,8 @@ class OCPReportDBCleaner:
         with OCPReportDBAccessor(self._schema) as accessor:
             all_usage_periods = accessor.get_usage_periods_by_date(expired_date)
             table_names = [
-                accessor._table_map["ocp_on_aws_daily_summary"],
-                accessor._table_map["ocp_on_aws_project_daily_summary"],
+                accessor._aws_table_map["ocp_on_aws_daily_summary"],
+                accessor._aws_table_map["ocp_on_aws_project_daily_summary"],
                 accessor._table_map["line_item_daily_summary"],
             ]
             table_queries = [
@@ -207,9 +207,9 @@ class OCPReportDBCleaner:
                     "storagedaily items",
                 ),
                 (
-                    accessor._get_db_obj_query(
-                        accessor._table_map["report"], ("report_period_id", "id"), "usage period items"
-                    )
+                    accessor._get_db_obj_query(accessor._table_map["report"]),
+                    ("report_period_id", "id"),
+                    "usage period items",
                 ),
             ]
 

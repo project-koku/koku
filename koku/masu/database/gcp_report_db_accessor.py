@@ -58,6 +58,14 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
     def line_item_daily_summary_table(self):
         return GCPCostEntryLineItemDailySummary
 
+    @property
+    def line_item_daily_table(self):
+        return GCPCostEntryLineItemDaily
+
+    @property
+    def line_item_table(self):
+        return GCPCostEntryLineItem
+
     def get_cost_entry_bills(self):
         """Get all cost entry bill objects."""
         table_name = GCPCostEntryBill

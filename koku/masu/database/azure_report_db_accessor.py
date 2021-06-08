@@ -58,6 +58,10 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
     def line_item_daily_summary_table(self):
         return AzureCostEntryLineItemDailySummary
 
+    @property
+    def line_item_daily_table(self):
+        return AzureCostEntryLineItemDaily
+
     def get_cost_entry_bills(self):
         """Get all cost entry bill objects."""
         table_name = AzureCostEntryBill

@@ -111,8 +111,7 @@ class AzureReportDBCleaner:
                 accessor._table_map["ocp_on_azure_project_daily_summary"],
                 accessor.line_item_daily_summary_table._meta.db_table,
             ]
-            base_lineitem_query = accessor._get_db_obj_query(accessor.AzureCostEntryLineItem)
-            base_daily_query = accessor._get_db_obj_query(accessor.AzureCostEntryLineItemDaily)
+            base_lineitem_query = accessor._get_db_obj_query(accessor.line_item_daily_table)
 
         with schema_context(self._schema):
             removed_items = []
@@ -133,14 +132,11 @@ class AzureReportDBCleaner:
                     del_count = base_lineitem_query.filter(cost_entry_bill_id=bill.id).delete()
                     LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
 
-                    del_count = base_daily_query.filter(cost_entry_bill_id=bill.id).delete()
-                    LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
-
                 removed_items.append(
-                    {"account_payer_id": bill.payer_account_id, "billing_period_start": str(bill.billing_period_start)}
+                    {"provider_uuid": bill.provider_id, "billing_period_start": str(bill.billing_period_start)}
                 )
                 LOG.info(
-                    f"Report data deleted for account payer id {bill.payer_account_id} "
+                    f"Report data deleted for account payer id {bill.provider_id} "
                     f"and billing period {bill.billing_period_start}"
                 )
 

@@ -77,6 +77,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self.jinja_sql = JinjaSql()
         self.date_helper = DateHelper()
         self._table_map = OCP_REPORT_TABLE_MAP
+        self._aws_table_map = AWS_CUR_TABLE_MAP
 
     @property
     def line_item_daily_summary_table(self):
@@ -209,7 +210,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_ocp_aws_summary_query_for_cluster_id(self, cluster_identifier):
         """Get the OCP-on-AWS report summary item for a given cluster id query."""
-        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
+        table_name = self._aws_table_map["ocp_on_aws_daily_summary"]
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
             summary_item_query = base_query.filter(cluster_id=cluster_identifier)
@@ -217,7 +218,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_ocp_aws_project_summary_query_for_cluster_id(self, cluster_identifier):
         """Get the OCP-on-AWS report project summary item for a given cluster id query."""
-        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
+        table_name = self._aws_table_map["ocp_on_aws_project_daily_summary"]
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
             summary_item_query = base_query.filter(cluster_id=cluster_identifier)
