@@ -1,4 +1,3 @@
-License, or (at your option) any later version.
 #
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
