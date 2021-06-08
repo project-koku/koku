@@ -8,6 +8,7 @@ from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
+from django.db.models import Q
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
@@ -331,7 +332,9 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "cost_units": Value("USD", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
+                            "source_uuid": ArrayAgg(
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                            ),
                         },
                         "capacity_aggregate": {},
                         "delta_key": {
@@ -667,7 +670,9 @@ class OCPProviderMap(ProviderMap):
                             "cost_units": Value("USD", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "cost": Value(0, output_field=DecimalField()),
-                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
+                            "source_uuid": ArrayAgg(
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                            ),
                         },
                         "capacity_aggregate": {},
                         "delta_key": {
@@ -848,7 +853,9 @@ class OCPProviderMap(ProviderMap):
                             "limit": Sum("pod_limit_cpu_core_hours"),
                             "capacity": Max("cluster_capacity_cpu_core_hours"),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
+                            "source_uuid": ArrayAgg(
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                            ),
                         },
                         "delta_key": {
                             "usage": Sum("pod_usage_cpu_core_hours"),
@@ -1011,7 +1018,9 @@ class OCPProviderMap(ProviderMap):
                             "capacity": Max("cluster_capacity_memory_gigabyte_hours"),
                             "usage_units": Value("GB-Hours", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
+                            "source_uuid": ArrayAgg(
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                            ),
                         },
                         "delta_key": {
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
@@ -1173,7 +1182,9 @@ class OCPProviderMap(ProviderMap):
                             "cost_units": Value("USD", output_field=CharField()),
                             "usage_units": Value("GB-Mo", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
+                            "source_uuid": ArrayAgg(
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                            ),
                         },
                         "delta_key": {
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),

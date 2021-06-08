@@ -7,6 +7,7 @@ from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
+from django.db.models import Q
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.expressions import ExpressionWrapper
@@ -107,7 +108,9 @@ class GCPProviderMap(ProviderMap):
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
-                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
+                            "source_uuid": ArrayAgg(
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                            ),
                         },
                         "delta_key": {
                             # cost goes to cost_total
@@ -166,7 +169,9 @@ class GCPProviderMap(ProviderMap):
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("hour")),
-                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
+                            "source_uuid": ArrayAgg(
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                            ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [
@@ -227,7 +232,9 @@ class GCPProviderMap(ProviderMap):
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("gibibyte month")),
-                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
+                            "source_uuid": ArrayAgg(
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                            ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         # Most of the storage cost was gibibyte month, however one was gibibyte.
