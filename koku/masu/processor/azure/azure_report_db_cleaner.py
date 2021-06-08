@@ -120,7 +120,7 @@ class AzureReportDBCleaner:
                 schema_name=self._schema,
                 partition_of_table_name__in=table_names,
                 partition_parameters__default=False,
-                partition_parameters__from__lt=paritition_from,
+                partition_parameters__from__lte=paritition_from,
             )
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions
@@ -137,7 +137,7 @@ class AzureReportDBCleaner:
                     LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
 
                 removed_items.append(
-                    {"account_payer_id": bill.payer_account_id, "billing_period_start": bill.billing_period_start}
+                    {"account_payer_id": bill.payer_account_id, "billing_period_start": str(bill.billing_period_start)}
                 )
                 LOG.info(
                     f"Report data deleted for account payer id {bill.payer_account_id} "

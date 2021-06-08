@@ -179,7 +179,7 @@ class AWSReportDBCleaner:
                 schema_name=self._schema,
                 partition_of_table_name__in=table_names,
                 partition_parameters__default=False,
-                partition_parameters__from__lt=paritition_from,
+                partition_parameters__from__lte=paritition_from,
             )
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions
@@ -195,15 +195,15 @@ class AWSReportDBCleaner:
                     del_count = base_daily_query.filter(cost_entry_bill_id=bill.id).delete()
                     LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
 
-                    del_count = base_costentry_query.filter(cost_entry_bill_id=bill.id).delete()
+                    del_count = base_costentry_query.filter(bill_id=bill.id).delete()
                     LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
 
                 removed_items.append(
-                    {"account_payer_id": bill.payer_account_id, "billing_period_start": bill.billing_period_start}
+                    {"account_payer_id": bill.payer_account_id, "billing_period_start": str(bill.billing_period_start)}
                 )
                 LOG.info(
                     f"Report data deleted for account payer id {bill.payer_account_id} "
-                    f"and billing period {bill.billing_period_start}"
+                    f"and billing period {str(bill.billing_period_start)}"
                 )
 
         return removed_items
