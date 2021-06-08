@@ -85,7 +85,7 @@ class SourceCleanupTests(IamTestCase):
         sources = Sources.objects.all()
         expected_missing_list = []
         for source in sources:
-            expected_missing_list.append(f"Source ID: {source.source_id})")
+            expected_missing_list.append(f"Source ID: {source.source_id} Source UUID: {source.source_uuid}")
 
         self._create_source_for_providers()
         with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
