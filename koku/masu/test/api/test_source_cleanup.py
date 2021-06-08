@@ -49,6 +49,7 @@ class SourceCleanupTests(IamTestCase):
             source_def = {
                 "source_id": source_id,
                 "koku_uuid": provider.uuid,
+                "source_uuid": provider.uuid,
                 "name": provider.name,
                 "source_type": provider.type,
                 "auth_header": Config.SOURCES_FAKE_HEADER,
@@ -137,6 +138,24 @@ class SourceCleanupTests(IamTestCase):
 
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     @patch("koku.middleware.MASU", return_value=True)
+    def test_delete_specific_provider_without_sources(self, _):
+        """Test to remove a specific provider without sources."""
+
+        providers = Provider.objects.all()
+        expected_missing_list = []
+        for provider in providers:
+            expected_missing_list.append(f"{provider.name} ({provider.uuid})")
+        initial_count = len(Provider.objects.all())
+        provider_uuid = str(Provider.objects.first().uuid)
+
+        url_w_params = reverse("cleanup") + f"?providers_without_sources&uuid={provider_uuid}"
+        response = self.client.delete(url_w_params)
+        body = response.json()
+        self.assertEqual(body.get("job_queued"), "providers_without_sources")
+        self.assertEqual(len(Provider.objects.all()), initial_count - 1)
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    @patch("koku.middleware.MASU", return_value=True)
     def test_delete_missing_sources(self, _):
         """Test cleanup API when deleting sources that are missing on the platform."""
         params = {"missing_sources": ""}
@@ -166,6 +185,27 @@ class SourceCleanupTests(IamTestCase):
             response = self.client.delete(f"{reverse('cleanup')}?providers_without_sources", params)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(len(Provider.objects.all()), 0)
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_delete_specific_missing_source(self, _):
+        """Test cleanup API when deleting a specific source that is missing on the platform."""
+        self._create_source_for_providers()
+
+        sources = Sources.objects.all()
+        expected_missing_list = []
+        for source in sources:
+            expected_missing_list.append(f"Source ID: {source.source_id})")
+
+        self._create_source_for_providers()
+        with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
+            initial_count = len(Sources.objects.all())
+            source_uuid = str(Sources.objects.first().source_uuid)
+            url_w_params = reverse("cleanup") + f"?missing_sources&uuid={source_uuid}"
+            response = self.client.delete(url_w_params)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(Sources.objects.all()), initial_count - 1)
 
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     @patch("koku.middleware.MASU", return_value=True)

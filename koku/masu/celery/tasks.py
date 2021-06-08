@@ -44,7 +44,6 @@ from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
 from masu.processor.tasks import PRIORITY_QUEUE
-from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.util.aws.common import get_s3_resource
 
