@@ -102,6 +102,8 @@
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
+        - name: PROMETHEUS_PUSHGATEWAY
+          value: ${PROMETHEUS_PUSHGATEWAY}
       livenessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/?liveness

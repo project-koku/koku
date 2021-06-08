@@ -360,6 +360,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
+        - name: PROMETHEUS_PUSHGATEWAY
+          value: ${PROMETHEUS_PUSHGATEWAY}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
