@@ -146,7 +146,7 @@ class SourceCleanupTests(IamTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_delete_invalid_uuid(self, _):
         """Test to remove a an invalid source_uuid."""
-        url_w_params = reverse("cleanup") + f"?providers_without_sources&uuid=abc"
+        url_w_params = reverse("cleanup") + "?providers_without_sources&uuid=abc"
         response = self.client.delete(url_w_params)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
