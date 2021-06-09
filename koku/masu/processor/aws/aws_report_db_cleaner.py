@@ -206,4 +206,7 @@ class AWSReportDBCleaner:
                     f"and billing period {str(bill.billing_period_start)}"
                 )
 
+            if not simulate:
+                all_bill_objects.delete()
+
         return removed_items

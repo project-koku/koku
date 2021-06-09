@@ -140,4 +140,7 @@ class AzureReportDBCleaner:
                     f"and billing period {bill.billing_period_start}"
                 )
 
+            if not simulate:
+                all_bill_objects.delete()
+
         return removed_items

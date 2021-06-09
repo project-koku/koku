@@ -169,7 +169,10 @@ class OCPReportDBCleaner:
     def purge_expired_report_data_by_date(self, expired_date, simulate=False):
         paritition_from = str(date(expired_date.year, expired_date.month, 1))
         with OCPReportDBAccessor(self._schema) as accessor:
-            all_usage_periods = accessor.get_usage_periods_by_date(expired_date)
+            # all_usage_periods = accessor.get_usage_periods_by_date(expired_date)
+            all_usage_periods = accessor._get_db_obj_query(accessor._table_map["report_period"]).filter(
+                report_period_start__lte=expired_date
+            )
             table_names = [
                 accessor._aws_table_map["ocp_on_aws_daily_summary"],
                 accessor._aws_table_map["ocp_on_aws_project_daily_summary"],
@@ -218,7 +221,7 @@ class OCPReportDBCleaner:
                 schema_name=self._schema,
                 partition_of_table_name__in=table_names,
                 partition_parameters__default=False,
-                partition_parameters__from__lt=paritition_from,
+                partition_parameters__from__lte=paritition_from,
             )
             removed_items = []
             if not simulate:
@@ -236,8 +239,11 @@ class OCPReportDBCleaner:
                 LOG.info(
                     "Report data removed for usage period ID: %s with interval start: %s",
                     period.id,
-                    period.usage_start,
+                    period.report_period_start,
                 )
-                removed_items.append({"usage_period_id": period.id, "interval_start": str(period.usage_start)})
+                removed_items.append({"usage_period_id": period.id, "interval_start": str(period.report_period_start)})
+
+                if not simulate:
+                    all_usage_periods.delete()
 
         return removed_items

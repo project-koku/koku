@@ -139,8 +139,10 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 end_date,
             )
 
-            cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
-            aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
+        cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
+        aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
+
+        with schema_context(self._schema):
             aws_bill_ids = []
             aws_bill_ids = [str(bill.id) for bill in aws_bills]
 
@@ -182,21 +184,12 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 end_date,
             )
 
+        cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
+        azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
+
         with schema_context(self._schema):
-            from django.db import connection
-
-            with connection.cursor() as cur:
-                cur.execute("""select current_schema;""")
-                current_schema = cur.fetchone()[0]
-
-            cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
-            azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
             azure_bill_ids = []
-            try:
-                azure_bill_ids = [str(bill.id) for bill in azure_bills]
-            except Exception as exc:
-                exc.args += (f"Current schema is {current_schema}",)
-                raise exc
+            azure_bill_ids = [str(bill.id) for bill in azure_bills]
 
         with CostModelDBAccessor(self._schema, azure_provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
