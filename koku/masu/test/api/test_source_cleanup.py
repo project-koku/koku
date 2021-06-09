@@ -144,6 +144,14 @@ class SourceCleanupTests(IamTestCase):
 
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     @patch("koku.middleware.MASU", return_value=True)
+    def test_delete_invalid_uuid(self, _):
+        """Test to remove a an invalid source_uuid."""
+        url_w_params = reverse("cleanup") + f"?providers_without_sources&uuid=abc"
+        response = self.client.delete(url_w_params)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    @patch("koku.middleware.MASU", return_value=True)
     def test_delete_missing_sources(self, _):
         """Test cleanup API when deleting sources that are missing on the platform."""
         params = {"missing_sources": ""}

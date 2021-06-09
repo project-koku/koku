@@ -4,6 +4,7 @@
 #
 """View for Source cleanup."""
 import logging
+from uuid import UUID
 
 from django.views.decorators.cache import never_cache
 from rest_framework import status
@@ -38,6 +39,14 @@ def cleanup(request):
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     source_uuid = params.get("uuid")
+    if source_uuid:
+        try:
+            UUID(source_uuid)
+        except ValueError as error:
+            LOG.info(str(error))
+            errmsg = "Invalid uuid."
+            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+
     LOG.info(f"Source Cleanup for UUID: {source_uuid}")
     response = {}
     if "providers_without_sources" in params.keys():
