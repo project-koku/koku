@@ -260,13 +260,6 @@ class ParquetReportProcessor:
             return GCPEnabledTagKeys
         return None
 
-    @property
-    def has_linked_openshift_cluster(self):
-        """Return whether the cloud source has a linked OpenShift source."""
-        if self._context.get("linked_openshift_cluster"):
-            return True
-        return False
-
     def _get_column_converters(self):
         """Return column converters based on provider type."""
         return COLUMN_CONVERTERS.get(self.provider_type)()
@@ -365,7 +358,6 @@ class ParquetReportProcessor:
     def create_parquet_table(self, parquet_file, daily=False):
         """Create parquet table."""
         processor = self._set_report_processor(parquet_file, daily=daily)
-
         bill_date = self.start_date.replace(day=1)
         if not processor.schema_exists():
             processor.create_schema()

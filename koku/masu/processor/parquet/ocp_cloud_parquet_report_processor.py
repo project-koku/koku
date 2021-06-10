@@ -124,7 +124,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             return self.parquet_ocp_on_cloud_path_s3
         return None
 
-    def create_ocp_on_cloud_parquet(self, parquet_base_filename, data_frame, ocp_provider_uuid):
+    def create_ocp_on_cloud_parquet(self, data_frame, ocp_provider_uuid):
         """Create a parquet file for daily aggregated data."""
         file_name = f"{ocp_provider_uuid}{PARQUET_EXT}"
         file_path = f"{self.local_path}/{file_name}"
