@@ -13,8 +13,7 @@
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
       initContainers:
-        - name: koku-init-migrations
-          command:  # this `command` overrides haberdasher; when implementing haberdasher, change this to `args`
+        - command:  # this `command` overrides haberdasher; when implementing haberdasher, change this to `args`
             - /bin/bash
             - -c
             - $HOME/scripts/run_migrations.sh

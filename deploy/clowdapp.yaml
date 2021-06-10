@@ -119,7 +119,6 @@ objects:
           - $HOME/scripts/run_migrations.sh
           image: ${IMAGE}:${IMAGE_TAG}
           inheritEnv: true
-          name: koku-init-migrations
         livenessProbe:
           failureThreshold: 5
           httpGet:
