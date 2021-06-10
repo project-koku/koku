@@ -19,6 +19,7 @@ import logging
 import os
 import shutil
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
 from unittest.mock import patch
 from unittest.mock import PropertyMock
@@ -40,9 +41,11 @@ from masu.processor.parquet.parquet_report_processor import ParquetReportProcess
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.test import MasuTestCase
+from masu.util.aws.common import aws_generate_daily_data
 from masu.util.aws.common import aws_post_processor
 from masu.util.azure.common import azure_post_processor
 from masu.util.gcp.common import gcp_post_processor
+from masu.util.ocp.common import ocp_generate_daily_data
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.gcp.models import GCPEnabledTagKeys
@@ -219,39 +222,17 @@ class TestParquetReportProcessor(MasuTestCase):
     def test_convert_to_parquet(self, mock_remove, mock_exists):
         """Test the convert_to_parquet task."""
         logging.disable(logging.NOTSET)
-        # expected_logs = [
-        #     "missing required argument: request_id",
-        #     "missing required argument: account",
-        #     "missing required argument: provider_uuid",
-        # ]
-        # with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
-        #     with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-        #         self.report_processor.convert_to_parquet()
-        #         for expected in expected_logs:
-        #             self.assertIn(expected, " ".join(logger.output))
 
         expected = "Skipping convert_to_parquet. Parquet processing is disabled."
         with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
             self.report_processor.convert_to_parquet()
             self.assertIn(expected, " ".join(logger.output))
 
-        # expected = "Parquet processing is enabled, but no start_date was given for processing."
-        # with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-        #     with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
-        #         self.report_processor.convert_to_parquet()
-        #         self.assertIn(expected, " ".join(logger.output))
-
-        # expected = "Parquet processing is enabled, but the start_date was not a valid date string ISO 8601 format."
-        # with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-        #     with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
-        #         self.report_processor.convert_to_parquet()
-        #         self.assertIn(expected, " ".join(logger.output))
-
-        # expected = "Could not establish report type"
-        # with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-        #     with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
-        #         self.report_processor.convert_to_parquet()
-        #         self.assertIn(expected, " ".join(logger.output))
+        with patch.object(ParquetReportProcessor, "csv_path_s3", new_callable=PropertyMock) as mock_csv_path:
+            mock_csv_path.return_value = None
+            file_name, data_frame = self.report_processor.convert_to_parquet()
+            self.assertEqual(file_name, "")
+            self.assertTrue(data_frame.empty)
 
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
             with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
@@ -303,6 +284,17 @@ class TestParquetReportProcessor(MasuTestCase):
                     return_value=("", pd.DataFrame(), False),
                 ):
                     self.report_processor.convert_to_parquet()
+
+        # Daily data exists
+        with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
+            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
+                with patch(
+                    "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet",
+                    return_value=("", pd.DataFrame([{"key": "value"}]), True),
+                ):
+                    with patch.object(ParquetReportProcessor, "create_daily_parquet") as mock_create_daily:
+                        file_name, data_frame = self.report_processor.convert_to_parquet()
+                        mock_create_daily.assert_called_with(file_name, data_frame)
 
     @override_settings(ENABLE_PARQUET_PROCESSING=True)
     @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
@@ -442,12 +434,27 @@ class TestParquetReportProcessor(MasuTestCase):
                 "provider_uuid": str(self.aws_provider_uuid),
                 "provider_type": Provider.PROVIDER_AWS,
                 "patch": (AWSReportParquetProcessor, "create_bill"),
+                "daily": False,
+            },
+            {
+                "provider_uuid": str(self.aws_provider_uuid),
+                "provider_type": Provider.PROVIDER_AWS,
+                "patch": (AWSReportParquetProcessor, "create_bill"),
+                "daily": True,
             },
             {
                 "provider_uuid": str(self.ocp_provider_uuid),
                 "provider_type": Provider.PROVIDER_OCP,
                 "report_file": "pod_usage.csv",
                 "patch": (OCPReportParquetProcessor, "create_bill"),
+                "daily": True,
+            },
+            {
+                "provider_uuid": str(self.ocp_provider_uuid),
+                "provider_type": Provider.PROVIDER_OCP,
+                "report_file": "pod_usage.csv",
+                "patch": (OCPReportParquetProcessor, "create_bill"),
+                "daily": False,
             },
             {
                 "provider_uuid": str(self.azure_provider_uuid),
@@ -482,12 +489,15 @@ class TestParquetReportProcessor(MasuTestCase):
                     manifest_id=self.manifest_id,
                     context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
                 )
-                report_processor.create_parquet_table(output_file)
+                report_processor.create_parquet_table(output_file, daily=test.get("daily"))
+                if test.get("daily"):
+                    mock_create_bill.assert_not_called()
+                else:
+                    mock_create_bill.assert_called()
                 mock_schema_exists.assert_called()
                 mock_table_exists.assert_called()
                 mock_create_schema.assert_called()
                 mock_create_table.assert_called()
-                mock_create_bill.assert_called()
                 mock_partition.assert_called()
                 mock_sync.assert_called()
             mock_report_type.reset_mock()
@@ -589,3 +599,39 @@ class TestParquetReportProcessor(MasuTestCase):
         self.assertFalse(os.path.exists(report_path))
         for path in file_list:
             self.assertFalse(os.path.exists(report_path))
+
+    def test_daily_data_processor(self):
+        """Test that the daily data processor is returned."""
+        processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.aws_provider_uuid,
+            provider_type=Provider.PROVIDER_AWS_LOCAL,
+            manifest_id=self.manifest_id,
+            context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+        )
+        daily_data_processor = processor.daily_data_processor
+        self.assertEqual(daily_data_processor, aws_generate_daily_data)
+
+        with patch.object(ParquetReportProcessor, "report_type", new_callable=PropertyMock) as mock_report_type:
+            report_type = "pod_usage"
+            mock_report_type.return_value = report_type
+            processor = ParquetReportProcessor(
+                schema_name=self.schema,
+                report_path=self.report_path,
+                provider_uuid=self.ocp_provider_uuid,
+                provider_type=Provider.PROVIDER_OCP,
+                manifest_id=self.manifest_id,
+                context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+            )
+            daily_data_processor = processor.daily_data_processor
+            expected = partial(ocp_generate_daily_data, report_type=report_type)
+            self.assertEqual(daily_data_processor.func, expected.func)
+
+    @patch.object(ParquetReportProcessor, "create_parquet_table")
+    @patch.object(ParquetReportProcessor, "_write_parquet_to_file")
+    def test_create_daily_parquet(self, mock_write, mock_create_table):
+        """Test the daily parquet method."""
+        self.report_processor.create_daily_parquet("", pd.DataFrame())
+        mock_write.assert_called()
+        mock_create_table.assert_called()
