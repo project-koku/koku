@@ -117,21 +117,9 @@ objects:
           - /bin/bash
           - -c
           - $HOME/scripts/run_migrations.sh
-          env:
-          - name: CLOWDER_ENABLED
-            value: ${CLOWDER_ENABLED}
-          - name: prometheus_multiproc_dir
-            value: ${PROMETHEUS_DIR}
           image: ${IMAGE}:${IMAGE_TAG}
-          imagePullPolicy: Always
-          name: koku-init
-          resources:
-            limits:
-              cpu: ${KOKU_INIT_CPU_LIMIT}
-              memory: ${KOKU_INIT_MEMORY_LIMIT}
-            requests:
-              cpu: ${KOKU_INIT_CPU_REQUEST}
-              memory: ${KOKU_INIT_MEMORY_REQUEST}
+          inheritEnv: true
+          name: koku-init-migrations
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -2142,22 +2130,6 @@ parameters:
   name: KOKU_MIN_REPLICAS
   required: true
   value: "3"
-- displayName: INIT Memory Request
-  name: KOKU_INIT_MEMORY_REQUEST
-  required: true
-  value: 256Mi
-- displayName: INIT Memory Limit
-  name: KOKU_INIT_MEMORY_LIMIT
-  required: true
-  value: 1Gi
-- displayName: INIT CPU Request
-  name: KOKU_INIT_CPU_REQUEST
-  required: true
-  value: 100m
-- displayName: INIT CPU Limit
-  name: KOKU_INIT_CPU_LIMIT
-  required: true
-  value: 250m
 - displayName: Memory Request
   name: KOKU_MEMORY_REQUEST
   required: true

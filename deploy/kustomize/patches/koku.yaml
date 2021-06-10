@@ -13,25 +13,13 @@
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
       initContainers:
-        - env:
-          - name: CLOWDER_ENABLED
-            value: ${CLOWDER_ENABLED}
-          - name: prometheus_multiproc_dir
-            value: ${PROMETHEUS_DIR}
+        - name: koku-init-migrations
           command:  # this `command` overrides haberdasher; when implementing haberdasher, change this to `args`
             - /bin/bash
             - -c
             - $HOME/scripts/run_migrations.sh
           image: ${IMAGE}:${IMAGE_TAG}
-          imagePullPolicy: Always
-          name: koku-init
-          resources:
-            limits:
-              cpu: ${KOKU_INIT_CPU_LIMIT}
-              memory: ${KOKU_INIT_MEMORY_LIMIT}
-            requests:
-              cpu: ${KOKU_INIT_CPU_REQUEST}
-              memory: ${KOKU_INIT_MEMORY_REQUEST}
+          inheritEnv: true
       command:  # this `command` overrides haberdasher; `command` can be removed entirely when implementing haberdasher
         - /usr/libexec/s2i/run
       env:
@@ -163,34 +151,6 @@
     name: KOKU_MIN_REPLICAS
     required: true
     value: '3'
-- op: add
-  path: /parameters/-
-  value:
-    displayName: INIT Memory Request
-    name: KOKU_INIT_MEMORY_REQUEST
-    required: true
-    value: 256Mi
-- op: add
-  path: /parameters/-
-  value:
-    displayName: INIT Memory Limit
-    name: KOKU_INIT_MEMORY_LIMIT
-    required: true
-    value: 1Gi
-- op: add
-  path: /parameters/-
-  value:
-    displayName: INIT CPU Request
-    name: KOKU_INIT_CPU_REQUEST
-    required: true
-    value: 100m
-- op: add
-  path: /parameters/-
-  value:
-    displayName: INIT CPU Limit
-    name: KOKU_INIT_CPU_LIMIT
-    required: true
-    value: 250m
 - op: add
   path: /parameters/-
   value:
