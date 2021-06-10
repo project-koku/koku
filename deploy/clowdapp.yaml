@@ -1896,8 +1896,8 @@ objects:
     name: koku-secret
 - apiVersion: v1
   data:
-    aws-access-key-id: ${SECRET_KEY}
-    aws-secret-access-key: ${SECRET_KEY}
+    aws-access-key-id: ${AWS_ACCESS_KEY_ID_EPH}
+    aws-secret-access-key: ${AWS_SECRET_ACCESS_KEY_EPH}
   kind: Secret
   metadata:
     name: koku-aws
@@ -2119,11 +2119,20 @@ parameters:
 - description: Source API Path prefix
   name: SOURCES_API_PREFIX
   value: /api/sources/v1.0
-- description: Django SECRET_KEY
-  displayName: Secret Key (Ephemeral)
+- displayName: Secret Key (Ephemeral)
   from: '[a-f0-9]{20}'
   generate: expression
   name: SECRET_KEY
+  required: true
+- displayName: AWS Access Key ID (Ephemeral)
+  from: '[a-f0-9]{20}'
+  generate: expression
+  name: AWS_ACCESS_KEY_ID_EPH
+  required: true
+- displayName: AWS Secret Access Key (Ephemeral)
+  from: '[a-f0-9]{40}'
+  generate: expression
+  name: AWS_SECRET_ACCESS_KEY_EPH
   required: true
 - displayName: Minimum replicas
   name: KOKU_MIN_REPLICAS
