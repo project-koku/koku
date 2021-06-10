@@ -62,8 +62,8 @@ class RunningCeleryTasksTests(TestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.running_celery_tasks.collect_queue_metrics")
-    def test_scheduled_celery_tasks(self, mock_collect, _):
-        """Test the GET of scheduled_celery_tasks endpoint."""
+    def test_celery_queue_lengths(self, mock_collect, _):
+        """Test the GET of celery_queue_lengths endpoint."""
         mock_collect.return_value = {}
-        response = self.client.get(reverse("scheduled_celery_tasks"))
+        response = self.client.get(reverse("celery_queue_lengths"))
         self.assertEqual(response.status_code, 200)

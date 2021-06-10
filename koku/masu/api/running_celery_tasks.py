@@ -51,7 +51,7 @@ def running_celery_tasks(request):
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def scheduled_celery_tasks(request):
+def celery_queue_lengths(request):
     """Get the length of the celery queues."""
     queue_len = collect_queue_metrics()
     return Response(queue_len)

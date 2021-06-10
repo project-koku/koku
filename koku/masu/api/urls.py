@@ -16,6 +16,7 @@
 """Describes the urls and patterns for the API application."""
 from django.urls import path
 
+from masu.api.views import celery_queue_lengths
 from masu.api.views import cleanup
 from masu.api.views import crawl_account_hierarchy
 from masu.api.views import download_report
@@ -24,7 +25,6 @@ from masu.api.views import expired_data
 from masu.api.views import get_status
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
-from masu.api.views import scheduled_celery_tasks
 from masu.api.views import update_cost_model_costs
 
 urlpatterns = [
@@ -37,5 +37,5 @@ urlpatterns = [
     path("update_cost_model_costs/", update_cost_model_costs, name="update_cost_model_costs"),
     path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
     path("running_celery_tasks/", running_celery_tasks, name="running_celery_tasks"),
-    path("scheduled_celery_tasks/", scheduled_celery_tasks, name="scheduled_celery_tasks"),
+    path("celery_queue_lengths/", celery_queue_lengths, name="celery_queue_lengths"),
 ]
