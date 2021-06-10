@@ -10,9 +10,10 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytz
-from dateutil import relativedelta
+from dateutil.relativedelta import relativedelta
 
 from api.provider.models import Provider
+from masu.config import Config
 from masu.external.date_accessor import DateAccessor
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.expired_data_remover import ExpiredDataRemoverError
@@ -27,8 +28,8 @@ class ExpiredDataRemoverTest(MasuTestCase):
     def test_initializer(self):
         """Test to init."""
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
-        self.assertEqual(remover._months_to_keep, 3)
-        self.assertEqual(remover._line_items_months, 1)
+        self.assertEqual(remover._months_to_keep, Config.MASU_RETAIN_NUM_MONTHS)
+        self.assertEqual(remover._line_items_months, Config.MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY)
         remover2 = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS, 2, 2)
         self.assertEqual(remover2._months_to_keep, 2)
         self.assertEqual(remover2._line_items_months, 2)
@@ -36,14 +37,14 @@ class ExpiredDataRemoverTest(MasuTestCase):
     def test_initializer_ocp(self):
         """Test to init for OCP."""
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_OCP)
-        self.assertEqual(remover._months_to_keep, 3)
-        self.assertEqual(remover._line_items_months, 1)
+        self.assertEqual(remover._months_to_keep, Config.MASU_RETAIN_NUM_MONTHS)
+        self.assertEqual(remover._line_items_months, Config.MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY)
 
     def test_initializer_azure(self):
         """Test to init for Azure."""
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AZURE)
-        self.assertEqual(remover._months_to_keep, 3)
-        self.assertEqual(remover._line_items_months, 1)
+        self.assertEqual(remover._months_to_keep, Config.MASU_RETAIN_NUM_MONTHS)
+        self.assertEqual(remover._line_items_months, Config.MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY)
 
     def test_initializer_invalid_provider(self):
         """Test to init with unknown provider."""
@@ -61,32 +62,35 @@ class ExpiredDataRemoverTest(MasuTestCase):
         date_matrix = [
             {
                 "current_date": datetime(year=2018, month=7, day=1),
-                "expected_expire": datetime(year=2018, month=4, day=1, tzinfo=pytz.UTC),
+                "expected_expire": datetime(year=2018, month=7, day=1, tzinfo=pytz.UTC)
+                - relativedelta(months=Config.MASU_RETAIN_NUM_MONTHS),
                 "months_to_keep": None,
             },
             {
                 "current_date": datetime(year=2018, month=7, day=31),
-                "expected_expire": datetime(year=2018, month=4, day=1, tzinfo=pytz.UTC),
+                "expected_expire": datetime(year=2018, month=7, day=1, tzinfo=pytz.UTC)
+                - relativedelta(months=Config.MASU_RETAIN_NUM_MONTHS),
                 "months_to_keep": None,
             },
             {
                 "current_date": datetime(year=2018, month=3, day=20),
-                "expected_expire": datetime(year=2017, month=12, day=1, tzinfo=pytz.UTC),
+                "expected_expire": datetime(year=2018, month=3, day=1, tzinfo=pytz.UTC)
+                - relativedelta(months=Config.MASU_RETAIN_NUM_MONTHS),
                 "months_to_keep": None,
             },
             {
                 "current_date": datetime(year=2018, month=7, day=1),
-                "expected_expire": datetime(year=2017, month=7, day=1, tzinfo=pytz.UTC),
+                "expected_expire": datetime(year=2018, month=7, day=1, tzinfo=pytz.UTC) - relativedelta(months=12),
                 "months_to_keep": 12,
             },
             {
                 "current_date": datetime(year=2018, month=7, day=31),
-                "expected_expire": datetime(year=2017, month=7, day=1, tzinfo=pytz.UTC),
+                "expected_expire": datetime(year=2018, month=7, day=1, tzinfo=pytz.UTC) - relativedelta(months=12),
                 "months_to_keep": 12,
             },
             {
                 "current_date": datetime(year=2018, month=3, day=20),
-                "expected_expire": datetime(year=2016, month=3, day=1, tzinfo=pytz.UTC),
+                "expected_expire": datetime(year=2018, month=3, day=1, tzinfo=pytz.UTC) - relativedelta(months=24),
                 "months_to_keep": 24,
             },
         ]
@@ -149,13 +153,13 @@ class ExpiredDataRemoverTest(MasuTestCase):
             remover = ExpiredDataRemover(self.schema, provider_type)
             expiration_date = remover._calculate_expiration_date()
             current_month = datetime.today().replace(day=1)
-            day_before_cutoff = expiration_date - relativedelta.relativedelta(days=1)
+            day_before_cutoff = expiration_date - relativedelta(days=1)
             dates = [current_month, day_before_cutoff, expiration_date]
             uuids = []
             uuids_to_be_deleted = []
             for date in dates:
                 manifest_creation_datetime = current_month
-                manifest_updated_datetime = manifest_creation_datetime + relativedelta.relativedelta(days=2)
+                manifest_updated_datetime = manifest_creation_datetime + relativedelta(days=2)
                 uuid = uuid4()
                 data = {
                     "assembly_id": uuid,
@@ -188,7 +192,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
 
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
         expiration_date = remover._calculate_expiration_date()
-        day_before_cutoff = expiration_date - relativedelta.relativedelta(days=1)
+        day_before_cutoff = expiration_date - relativedelta(days=1)
         day_before_cutoff_data = {
             "assembly_id": uuid4(),
             "manifest_creation_datetime": None,
@@ -224,7 +228,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS_LOCAL)
         expiration_date = remover._calculate_expiration_date()
         current_month = datetime.today().replace(day=1)
-        day_before_cutoff = expiration_date - relativedelta.relativedelta(days=1)
+        day_before_cutoff = expiration_date - relativedelta(days=1)
         fixture_records = [
             (self.aws_provider_uuid, expiration_date),  # not expired, should not delete
             (self.aws_provider_uuid, day_before_cutoff),  # expired, should delete
@@ -233,7 +237,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         manifest_uuids = []
         manifest_uuids_to_be_deleted = []
         manifest_creation_datetime = current_month
-        manifest_updated_datetime = manifest_creation_datetime + relativedelta.relativedelta(days=2)
+        manifest_updated_datetime = manifest_creation_datetime + relativedelta(days=2)
         for fixture_record in fixture_records:
             manifest_uuid = uuid4()
             data = {
@@ -265,7 +269,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         """
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
         expiration_date = remover._calculate_expiration_date()
-        day_before_cutoff = expiration_date - relativedelta.relativedelta(days=1)
+        day_before_cutoff = expiration_date - relativedelta(days=1)
         manifest_id = 7766
         day_before_cutoff_data = {
             "id": manifest_id,
