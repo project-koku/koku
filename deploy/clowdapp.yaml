@@ -2127,11 +2127,11 @@ parameters:
 - displayName: AWS Access Key ID (Ephemeral)
   name: AWS_ACCESS_KEY_ID_EPH
   required: true
-  value: <insert-baes64-encoded-value>
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
 - displayName: AWS Secret Access Key (Ephemeral)
   name: AWS_SECRET_ACCESS_KEY_EPH
   required: true
-  value: <insert-baes64-encoded-value>
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
 - displayName: Minimum replicas
   name: KOKU_MIN_REPLICAS
   required: true

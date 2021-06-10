@@ -290,8 +290,8 @@ parameters:
 - name: AWS_ACCESS_KEY_ID_EPH
   displayName: AWS Access Key ID (Ephemeral)
   required: true
-  value: <insert-baes64-encoded-value>
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
 - name: AWS_SECRET_ACCESS_KEY_EPH
   displayName: AWS Secret Access Key (Ephemeral)
   required: true
-  value: <insert-baes64-encoded-value>
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
