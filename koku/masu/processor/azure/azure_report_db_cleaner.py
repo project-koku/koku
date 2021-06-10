@@ -103,15 +103,14 @@ class AzureReportDBCleaner:
 
         with schema_context(self._schema):
             removed_items = []
-            partition_query = PartitionedTable.objects.filter(
-                schema_name=self._schema,
-                partition_of_table_name__in=table_names,
-                partition_parameters__default=False,
-                partition_parameters__from__lte=paritition_from,
-            )
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions
-                del_count = partition_query.delete()
+                del_count = PartitionedTable.objects.filter(
+                    schema_name=self._schema,
+                    partition_of_table_name__in=table_names,
+                    partition_parameters__default=False,
+                    partition_parameters__from__lte=paritition_from,
+                ).delete()
                 LOG.info(f"Deleted {del_count} table partitions total for the following tables: {table_names}")
 
                 # Iterate over the remainder as they could involve much larger amounts of data

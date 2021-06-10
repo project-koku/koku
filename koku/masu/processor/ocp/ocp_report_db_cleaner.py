@@ -155,6 +155,7 @@ class OCPReportDBCleaner:
         return removed_items
 
     def purge_expired_report_data_by_date(self, expired_date, simulate=False):
+        LOG.info("Executing purge_expired_report_data_by_date")
         paritition_from = str(date(expired_date.year, expired_date.month, 1))
         with OCPReportDBAccessor(self._schema) as accessor:
             # all_usage_periods = accessor.get_usage_periods_by_date(expired_date)
@@ -205,19 +206,18 @@ class OCPReportDBCleaner:
             ]
 
         with schema_context(self._schema):
-            partition_query = PartitionedTable.objects.filter(
-                schema_name=self._schema,
-                partition_of_table_name__in=table_names,
-                partition_parameters__default=False,
-                partition_parameters__from__lte=paritition_from,
-            )
-            removed_items = []
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions
-                del_count = partition_query.delete()
+                del_count = PartitionedTable.objects.filter(
+                    schema_name=self._schema,
+                    partition_of_table_name__in=table_names,
+                    partition_parameters__default=False,
+                    partition_parameters__from__lte=paritition_from,
+                ).delete()
                 LOG.info(f"Deleted {del_count} table partitions total for the following tables: {table_names}")
 
             # Iterate over the remainder as they could involve much larger amounts of data
+            removed_items = []
             for period in all_usage_periods:
                 if not simulate:
                     for query, param_attrs, msg in table_queries:

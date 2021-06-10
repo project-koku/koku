@@ -32,6 +32,9 @@ DECLARE
     col_type_name text = null;
     partition_attached boolean = null;
 BEGIN
+    /* Force any pending constraint work during the current transaction to fire immediately */
+    SET CONSTRAINTS ALL IMMEDIATE;
+
     IF ( TG_OP = 'DELETE' )
     THEN
         IF ( OLD.active )
@@ -57,6 +60,7 @@ BEGIN
                 )
             );
         END IF;
+
         action_stmts = array_append(
             action_stmts,
             format(
