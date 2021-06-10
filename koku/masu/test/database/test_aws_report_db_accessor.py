@@ -1112,7 +1112,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         with OCPReportDBAccessor(self.schema_name) as accessor:
             with schema_context(self.schema_name):
-                report_period = accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, start_date)
+                report_period = accessor.report_periods_for_provider_uuid(
+                    self.ocp_on_aws_ocp_provider.uuid, start_date
+                )
                 report_period_id = report_period.id
 
         matched_tags = self.accessor.get_openshift_on_cloud_matched_tags(bill_id, report_period_id)
@@ -1128,6 +1130,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
 
         self.accessor.get_openshift_on_cloud_matched_tags_trino(
-            self.aws_provider_uuid, self.ocp_provider_uuid, start_date, end_date
+            self.aws_provider_uuid, self.ocp_on_aws_ocp_provider.uuid, start_date, end_date
         )
         mock_presto.assert_called()

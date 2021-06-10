@@ -80,8 +80,8 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     def test_ocp_infrastructure_map(self):
         """Test that the infra map is returned."""
         infra_map = self.report_processor.ocp_infrastructure_map
-        infra_tuple = infra_map.get(self.ocp_provider_uuid)
-        self.assertIn(self.ocp_provider_uuid, infra_map)
+        infra_tuple = infra_map.get(str(self.ocp_on_aws_ocp_provider.uuid))
+        self.assertIn(str(self.ocp_on_aws_ocp_provider.uuid), infra_map)
         self.assertEqual(self.aws_provider_uuid, infra_tuple[0])
 
         with patch.object(
