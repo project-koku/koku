@@ -290,10 +290,8 @@ parameters:
 - name: AWS_ACCESS_KEY_ID_EPH
   displayName: AWS Access Key ID (Ephemeral)
   required: true
-  from: "[a-f0-9]{20}"
-  generate: expression
+  value: <insert-baes64-encoded-value>
 - name: AWS_SECRET_ACCESS_KEY_EPH
   displayName: AWS Secret Access Key (Ephemeral)
   required: true
-  from: "[a-f0-9]{40}"
-  generate: expression
+  value: <insert-baes64-encoded-value>
