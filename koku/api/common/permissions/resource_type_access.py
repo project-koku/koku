@@ -21,11 +21,20 @@ from rest_framework import permissions
 class ResourceTypeAccessPermission(permissions.BasePermission):
     """Determines if a user can view resource-type data."""
 
-    resource_type = "resource_type"
+    resource_type = "aws.account"
 
     def has_permission(self, request, view):
         """Check permission to view resource-type data."""
-        if request.user.admin:
-            return True
+        #        if request.user.admin:
+        #            return True
+        resource_access = request.user.access
+        if resource_access is None or not isinstance(resource_access, dict):
+            return False
+
+        res_type_access = resource_access.get(ResourceTypeAccessPermission.resource_type, {})
+        if request.method in permissions.SAFE_METHODS:
+            # Check permissions for read-only request
+            read_access = res_type_access.get("read", [])
+            return len(read_access) > 0
 
         return False

@@ -38,4 +38,13 @@ class AWSAccountView(generics.ListAPIView):
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
+        # q = AWSCostSummaryByAccount.objects.get(**request.user.access.get("aws.account"))
+        # fo = request.user
+        foo = request.user.access.get("aws.account").get("read")
+        boo = self.filter_queryset(self.queryset)
+        boo = boo.filter(usage_account_id__icontains=foo[1])
+        # bar = self.queryset.get(usage_account_id__icontains=foo[1])
+        print(foo)
+        print(boo)
+        # self.queryset.filter(usage_account_id=foo)
         return super().list(request)
