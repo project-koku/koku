@@ -2458,6 +2458,74 @@
                 }
             }
         },
+        "/resource-types/aws-region/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List AWS Region For RBAC",
+                "operationId": "listResourcesAwsRegion",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/aws-service/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List AWS Service For RBAC",
+                "operationId": "listResourcesAwsService",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/resource-types/gcp-accounts/": {
             "get": {
                 "tags": [
@@ -2526,6 +2594,74 @@
                 }
             }
         },
+        "/resource-types/gcp-region/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List GCP Regions For RBAC",
+                "operationId": "listResourcesAwsRegion",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/gcp-service/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List GCP Service For RBAC",
+                "operationId": "listResourcesAwsRegion",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/resource-types/aws-organizational-units/": {
             "get": {
                 "tags": [
@@ -2566,6 +2702,74 @@
                     "Resource Type"
                 ],
                 "summary": "List Azure Subscription Guids For RBAC",
+                "operationId": "listResourcesAzureSubGuids",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/azure-region/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Azure Region For RBAC",
+                "operationId": "listResourcesAzureSubGuids",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/azure-service/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Azure Service For RBAC",
                 "operationId": "listResourcesAzureSubGuids",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryOffset"
