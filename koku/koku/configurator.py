@@ -296,16 +296,16 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_in_memory_db_host():
         """Obtain in memory (redis) db host."""
-        # return LoadedConfig.inMemoryDb.hostname
+        return LoadedConfig.inMemoryDb.hostname
         # TODO: if we drop an elasticache instance or clowder supports more
         # than 1 elasticache instance, we can switch to using the inMemoryDb
-        return ENVIRONMENT.get_value("REDIS_HOST", default="redis")
+        # return ENVIRONMENT.get_value("REDIS_HOST", default="redis")
 
     @staticmethod
     def get_in_memory_db_port():
         """Obtain in memory (redis) db port."""
-        # return LoadedConfig.inMemoryDb.port
-        return ENVIRONMENT.get_value("REDIS_PORT", default="6379")
+        return LoadedConfig.inMemoryDb.port
+        # return ENVIRONMENT.get_value("REDIS_PORT", default="6379")
 
     @staticmethod
     def get_kafka_broker_host():

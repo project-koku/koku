@@ -277,6 +277,7 @@ services:
         - ENABLE_TRINO_ACCOUNTS
         - ENABLE_TRINO_SOURCE_TYPE
         - TRINO_DATE_STEP=${TRINO_DATE_STEP-31}
+        - MAX_CELERY_TASKS_PER_WORKER=${MAX_CELERY_TASKS_PER_WORKER-10}
       privileged: true
       volumes:
         - '.:/koku'
