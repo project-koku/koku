@@ -39,4 +39,6 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
+        foo = request.user.access.get("subscription_guid").get("read")
+        self.queryset = self.queryset.values("value").filter(subscription_guid__in=foo)
         return super().list(request)
