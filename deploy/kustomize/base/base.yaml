@@ -1,0 +1,297 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: koku
+objects:
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdApp
+  metadata:
+    name: koku
+  spec:
+    # The name of the ClowdEnvironment providing the services
+    envName: ${ENV_NAME}
+    testing:
+      iqePlugin: cost-management
+
+    # Redis
+    inMemoryDb: true
+
+    # Creates a database if local mode, or uses RDS in production
+    database:
+      # Must specify both a name and a major postgres version
+      name: koku
+      version: 12
+
+    # Request kafka topics for your application here
+    kafkaTopics:
+    - topicName: platform.sources.event-stream
+    - topicName: platform.upload.hccm
+    - topicName: platform.upload.validation
+
+    objectStore:
+    - koku-reports
+
+    optionalDependencies:
+    - ingress
+    - rbac
+    - sources-api
+
+    # The bulk of your App. This is where your running apps will live
+    deployments:
+    -
+- apiVersion: v1
+  kind: Secret # For ephemeral/local environment only
+  metadata:
+    name: koku-secret
+  data:
+    django-secret-key: "${SECRET_KEY}"
+- apiVersion: v1
+  kind: Secret # For ephemeral/local environment only
+  metadata:
+    name: koku-aws
+  data:
+    aws-access-key-id: "${AWS_ACCESS_KEY_ID_EPH}"
+    aws-secret-access-key: "${AWS_SECRET_ACCESS_KEY_EPH}"
+- apiVersion: v1
+  kind: Secret # For ephemeral/local environment only
+  metadata:
+    name: koku-gcp
+  data:
+    gcp-credentials: ""
+
+parameters:
+- name: ENV_NAME
+  required: true
+  value: koku-env
+- name: CLOWDER_ENABLED
+  required: true
+  value: "True"
+- description: Image tag
+  name: IMAGE_TAG
+  required: true
+  value: latest
+- description: Image
+  name: IMAGE
+  required: true
+  value: quay.io/cloudservices/koku
+- displayName: App domain
+  name: APP_DOMAIN
+  value: project-koku.com
+- displayName: API path prefix
+  name: API_PATH_PREFIX
+  required: true
+  value: /api/cost-management
+- displayName: Development
+  name: DEVELOPMENT
+  value: "False"
+- displayName: Enable threads in Gunicorn
+  name: GUNICORN_THREADS
+  value: "True"
+- displayName: Gunicorn log level
+  name: LOG_LEVEL
+  value: INFO
+- displayName: Koku log level
+  name: KOKU_LOG_LEVEL
+  value: INFO
+- displayName: Django log level
+  name: DJANGO_LOG_LEVEL
+  value: INFO
+- displayName: Django log formatter
+  name: DJANGO_LOG_FORMATTER
+  value: simple
+- displayName: Django log handlers
+  name: DJANGO_LOG_HANDLERS
+  value: console
+- displayName: Django log dir
+  name: DJANGO_LOG_DIRECTORY
+  required: false
+- displayName: Django logging file
+  name: DJANGO_LOG_FILE
+  required: false
+- displayName: Prometheus multiproc dir
+  name: PROMETHEUS_DIR
+  value: /tmp
+- description: Koku Sentry Env
+  displayName: Koku Sentry Env
+  name: KOKU_SENTRY_ENV
+  value: "dev"
+- description: Enable API Sentry
+  displayName: Enable API Sentry
+  name: ENABLE_API_SENTRY
+  value: "False"
+- description: Enable Celery Sentry
+  displayName: Enable Celery Sentry
+  name: ENABLE_CELERY_SENTRY
+  value: "False"
+
+- description: Enable S3 Archiving
+  displayName: Enable S3 Archiving
+  name: ENABLE_S3_ARCHIVING
+  value: "false"
+- description: Enable Parquet Processing
+  displayName: Enable Parquet Processing
+  name: ENABLE_PARQUET_PROCESSING
+  value: "false"
+- description: How many CSV rows to process into a Parquet file
+  displayName: Parquet processing batch size
+  name: PARQUET_PROCESSING_BATCH_SIZE
+  required: true
+  value: "200000"
+- description: Processing batch size
+  displayName: Processing batch size
+  name: REPORT_PROCESSING_BATCH_SIZE
+  required: false
+  value: "100000"
+- description: Number of days at a time we process Trino SQL
+  displayName: Trino date step
+  name: TRINO_DATE_STEP
+  required: true
+  value: "5"
+
+- description: Flag to use account enhanced prometheus metrics
+  displayName: Account Enhanced Metrics
+  name: ACCOUNT_ENHANCED_METRICS
+  value: "True"
+- description: Flag to enable/disable caching
+  displayName: cached views
+  name: CACHED_VIEWS_DISABLED
+  value: "False"
+
+- description: Demo account JSON
+  displayName: Demo account JSON
+  name: DEMO_ACCOUNTS
+  value: ""
+- description: Auto Ingest Flag
+  displayName: AUTO_DATA_INGEST
+  name: AUTO_DATA_INGEST
+  value: "True"
+- description: Sources to be processed with Trino
+  displayName: Sources to be processed with Trino
+  name: ENABLE_TRINO_SOURCES
+  value: ""
+- description: Accounts to be processed with Trino
+  displayName: Accounts to be processed with Trino
+  name: ENABLE_TRINO_ACCOUNTS
+  value: ""
+- description: Source Types to be processed with Trino
+  displayName: Source Types to be processed with Trino
+  name: ENABLE_TRINO_SOURCE_TYPE
+  value: ""
+
+- description: Enable API Sentry
+  displayName: Enable API Sentry
+  name: ENABLE_API_SENTRY
+  value: "false"
+- description: Enable Celery Sentry
+  displayName: Enable Celery Sentry
+  name: ENABLE_CELERY_SENTRY
+  value: "false"
+
+- description: Scheduler check interval
+  displayName: Scheduler check interval
+  name: SCHEDULE_CHECK_INTERVAL
+  value: "60"
+- description: Remove expired data on day
+  displayName: Remove expired data on day
+  name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
+  value: "1"
+- description: Remove expired data report utc time
+  displayName: Remove expired data report utc time
+  name: REMOVE_EXPIRED_REPORT_UTC_TIME
+  value: "00:00"
+- description: Vacuum data on day
+  displayName: Vacuum data on day
+  name: VACUUM_DATA_DAY_OF_WEEK
+  value: ""
+- description: Vacuum data utc time
+  displayName: Vacuum data utc time
+  name: VACUUM_DATA_UTC_TIME
+  value: "00:00"
+- description: Volume file retention length
+  displayName: Volume file retention length
+  name: VOLUME_FILE_RETENTION
+  value: "86400"
+- description: Clean volume on day
+  displayName: Clean volume on day
+  name: CLEAN_VOLUME_DAY_OF_WEEK
+  value: "sunday"
+- description: Clean volume utc time
+  displayName: Clean volume utc time
+  name: CLEAN_VOLUME_UTC_TIME
+  value: "00:00"
+- displayName: Date overrider
+  name: DATE_OVERRIDE
+  required: false
+- displayName: Retain num months
+  name: RETAIN_NUM_MONTHS
+  value: "3"
+- displayName: Initial ingest num months
+  name: INITIAL_INGEST_NUM_MONTHS
+  value: "3"
+- displayName: Initial ingest override
+  name: INITIAL_INGEST_OVERRIDE
+  value: "False"
+- displayName: Kafka connect
+  name: KAFKA_CONNECT
+  value: "True"
+
+- description: Use rabbitmq as message broker
+  displayName: Use rabbitmq as message broker
+  name: USE_RABBIT
+  value: "False"
+- description: RabbitMQ host
+  displayName: RabbitMQ host
+  name: RABBITMQ_HOST
+  value: "rabbitmq"
+- description: RabbitMQ port
+  displayName: RabbitMQ port
+  name: RABBITMQ_PORT
+  value: "5672"
+
+- displayName: Rbac service host
+  name: RBAC_HOST
+  value: rbac
+- displayName: Rbac service port
+  name: RBAC_SERVICE_PORT
+  value: "8080"
+- displayName: Rbac service path
+  name: RBAC_SERVICE_PATH
+  value: /api/rbac/v1/access/
+- displayName: Rbac cache ttl
+  name: RBAC_CACHE_TTL
+  value: "30"
+
+- displayName: Presto host
+  name: PRESTO_HOST
+  value: "presto"
+- displayName: Presto port
+  name: PRESTO_PORT
+  value: "8080"
+
+- displayName: Prometheus Pushgateway
+  name: PROMETHEUS_PUSHGATEWAY
+  value: prometheus-pushgateway:9091
+
+- displayName: Sources-api service hostname
+  name: SOURCES_HOST
+  value: sources-api-svc.sources.svc
+- displayName: Sources-api service port number
+  name: SOURCES_PORT
+  value: '8000'
+- description: Source API Path prefix
+  name: SOURCES_API_PREFIX
+  value: /api/sources/v1.0
+
+- name: SECRET_KEY
+  displayName: Secret Key (Ephemeral)
+  required: true
+  from: "[a-f0-9]{20}"
+  generate: expression
+- name: AWS_ACCESS_KEY_ID_EPH
+  displayName: AWS Access Key ID (Ephemeral)
+  required: true
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- name: AWS_SECRET_ACCESS_KEY_EPH
+  displayName: AWS Secret Access Key (Ephemeral)
+  required: true
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
