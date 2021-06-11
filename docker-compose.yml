@@ -6,8 +6,8 @@ services:
       build:
         context: .
         dockerfile: Dockerfile
-      environment:
-        - PIPENV_DEV=True
+        args:
+          PIPENV_DEV: "True"
 
   koku-server:
       container_name: koku_server
@@ -277,7 +277,6 @@ services:
         - ENABLE_TRINO_ACCOUNTS
         - ENABLE_TRINO_SOURCE_TYPE
         - TRINO_DATE_STEP=${TRINO_DATE_STEP-31}
-
       privileged: true
       volumes:
         - '.:/koku'
@@ -342,7 +341,6 @@ services:
         - ENABLE_TRINO_SOURCES
         - ENABLE_TRINO_ACCOUNTS
         - ENABLE_TRINO_SOURCE_TYPE
-
       privileged: true
       ports:
           - "9988:9999"
@@ -406,7 +404,6 @@ services:
       image: koku_base
       working_dir: /koku/koku
       entrypoint: ['celery', '--pidfile=/opt/celeryd.pid', '-A', 'koku', 'beat', '-l', 'info']
-
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY

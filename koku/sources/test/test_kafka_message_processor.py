@@ -1,18 +1,6 @@
 #
-# Copyright 2021 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 import copy
 import json
@@ -79,7 +67,7 @@ SOURCE_TYPE_IDS_MAP = {
 }
 
 
-def msg_generator(event_type, topic=None, offset=None, value=None):
+def msg_generator(event_type, topic=None, offset=None, value=None, header=Config.SOURCES_FAKE_HEADER):
     test_value = '{"id":1,"source_id":1,"application_type_id":2}'
     if value:
         test_value = json.dumps(value)
@@ -87,7 +75,7 @@ def msg_generator(event_type, topic=None, offset=None, value=None):
         topic=topic or "platform.sources.event-stream",
         offset=offset or 5,
         event_type=event_type,
-        auth_header=Config.SOURCES_FAKE_HEADER,
+        auth_header=header,
         value=bytes(test_value, encoding="utf-8"),
     )
 

@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """AWS Query Handling for Reports."""
 import copy
@@ -689,3 +677,14 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
 
         return total_query
+
+    def _group_by_ranks(self, query, data):
+        """
+        AWS is special because account alias is a foreign key
+        and the query needs that for rankings to work.
+        """
+        if "account" in self._get_group_by():
+            query = query.annotate(
+                special_rank=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
+            )
+        return super()._group_by_ranks(query, data)

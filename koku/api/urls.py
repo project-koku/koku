@@ -1,17 +1,6 @@
-# Copyright 2018 Red Hat, Inc.
 #
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Describes the urls and patterns for the API application."""
 from django.conf import settings
@@ -44,6 +33,7 @@ from api.views import GCPInstanceTypeView
 from api.views import GCPProjectsView
 from api.views import GCPStorageView
 from api.views import GCPTagView
+from api.views import get_currency
 from api.views import metrics
 from api.views import OCPAllCostForecastView
 from api.views import OCPAllCostView
@@ -89,6 +79,7 @@ ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="datae
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 urlpatterns = [
     path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
+    path("currency/", get_currency, name="currency"),
     path("status/", StatusView.as_view(), name="server-status"),
     path("openapi.json", openapi, name="openapi"),
     path("metrics/", metrics, name="metrics"),

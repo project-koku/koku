@@ -1,18 +1,6 @@
 #
-# Copyright 2019 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the Sources Storage access layer."""
 from base64 import b64decode
@@ -450,9 +438,7 @@ class SourcesStorageTest(TestCase):
         self.assertTrue(source_response.pending_delete)
 
         provider_response = Provider.objects.get(uuid=provider_uuid)
-        self.assertFalse(provider_response.active)
-        self.assertIsNone(provider_response.billing_source)
-        self.assertIsNone(provider_response.authentication)
+        self.assertTrue(provider_response.active)
 
     def test_enqueue_source_delete_db_down(self):
         """Tests enqueues source_delete with database error."""

@@ -1,5 +1,7 @@
 FROM registry.access.redhat.com/ubi8/python-38:latest
 
+ARG PIPENV_DEV=False
+
 ENV LC_ALL=en_US.UTF-8 \
     LANG=en_US.UTF-8 \
     PIP_NO_CACHE_DIR=off \
@@ -37,7 +39,11 @@ RUN /usr/bin/fix-permissions /tmp/src && \
 curl -L -o /usr/bin/haberdasher https://github.com/RedHatInsights/haberdasher/releases/latest/download/haberdasher_linux_amd64 && \
 chmod 755 /usr/bin/haberdasher $STI_SCRIPTS_PATH/assemble $STI_SCRIPTS_PATH/run
 
-USER 1001
+RUN groupadd -g 1000 koku \
+    && useradd -m -s /bin/bash -g 1000 -u 1000 -G root koku \
+    && chmod g+rwx /opt
+
+USER 1000
 
 EXPOSE 8080
 
