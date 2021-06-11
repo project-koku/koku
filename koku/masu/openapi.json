@@ -41,6 +41,10 @@
       {
         "name": "Running Celery Tasks",
         "description": "Returns a list of running celery task ids."
+      },
+      {
+        "name": "Celery Queue Lengths",
+        "description": "Returns a list of celery queues with their lengths."
       }
     ],
     "paths": {
@@ -551,6 +555,28 @@
             "Running Celery Tasks"
           ]
         }
+      },
+      "/celery_queue_lengths/": {
+        "get": {
+          "summary": "Returns a list of celery queues with the number of tasks in them.",
+          "operationId": "celeryQueueLength",
+          "description": "Returns a dictionary of queues with queue length.",
+          "responses": {
+            "200": {
+              "description": "Returns a dictionary of queues with their associated lengths.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/celeryQueueLength"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Celery Queue Lengths"
+          ]
+        }
       }
     },
     "components": {
@@ -706,6 +732,35 @@
               "type": "string",
               "format": "list",
               "example": ["a8d39868-dbd3-47ac-9220-82370e35b59c"]
+            }
+          }
+        },
+        "celeryQueueLength": {
+          "type": "object",
+          "properties": {
+            "download": {
+              "type": "integer",
+              "example": 14
+            },
+            "summary": {
+              "type": "integer",
+              "example": 5
+            },
+            "priority": {
+              "type": "integer",
+              "example": 0
+            },
+            "refresh": {
+              "type": "integer",
+              "example": 0
+            },
+            "cost_model": {
+              "type": "integer",
+              "example": 4
+            },
+            "celery": {
+              "type": "integer",
+              "example": 2
             }
           }
         },
