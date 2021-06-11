@@ -43,4 +43,6 @@ class AWSOrganizationalUnitView(generics.ListAPIView):
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
+        foo = request.user.access.get("org_unit_id").get("read")
+        self.queryset = self.queryset.values("value").filter(org_unit_id__in=foo)
         return super().list(request)
