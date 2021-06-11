@@ -438,9 +438,7 @@ class SourcesStorageTest(TestCase):
         self.assertTrue(source_response.pending_delete)
 
         provider_response = Provider.objects.get(uuid=provider_uuid)
-        self.assertFalse(provider_response.active)
-        self.assertIsNone(provider_response.billing_source)
-        self.assertIsNone(provider_response.authentication)
+        self.assertTrue(provider_response.active)
 
     def test_enqueue_source_delete_db_down(self):
         """Tests enqueues source_delete with database error."""
