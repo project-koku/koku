@@ -14,6 +14,7 @@ from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from sources.api.source_status import SourceStatus
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.storage import load_providers_to_delete
+from sources.storage import mark_provider_as_inactive
 
 LOG = logging.getLogger(__name__)
 
@@ -21,6 +22,8 @@ LOG = logging.getLogger(__name__)
 @celery_app.task(name="sources.tasks.delete_source", queue=PRIORITY_QUEUE)
 def delete_source(source_id, auth_header, koku_uuid):
     """Delete Provider and Source."""
+    LOG.info(f"Deactivating Provider {koku_uuid}")
+    mark_provider_as_inactive(koku_uuid)
     LOG.info(f"Deleting Provider {koku_uuid} for Source ID: {source_id}")
     coordinator = SourcesProviderCoordinator(source_id, auth_header)
     coordinator.destroy_account(koku_uuid)
