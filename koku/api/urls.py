@@ -316,8 +316,8 @@ urlpatterns = [
         AWSOrganizationalUnitView.as_view(),
         name="aws-organizational-units",
     ),
-    path("resource-types/aws-service/", AWSServiceView.as_view(), name="aws-service"),
-    path("resource-types/aws-region/", AWSAccountRegionView.as_view(), name="aws-region"),
+    path("resource-types/aws-services/", AWSServiceView.as_view(), name="aws-services"),
+    path("resource-types/aws-regions/", AWSAccountRegionView.as_view(), name="aws-regions"),
     path(
         "resource-types/azure-subscription-guids/",
         AzureSubscriptionGuidView.as_view(),
