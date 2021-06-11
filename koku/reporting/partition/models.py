@@ -15,6 +15,7 @@ class PartitionedTable(models.Model):
     """
 
     RANGE = "range"
+    LIST = "list"
 
     class Meta:
         db_table = "partitioned_tables"

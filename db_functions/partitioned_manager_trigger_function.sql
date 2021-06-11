@@ -37,44 +37,63 @@ BEGIN
 
     IF ( TG_OP = 'DELETE' )
     THEN
-        IF ( OLD.active )
-        THEN
-            action_stmts = array_append(
-                action_stmts,
-                format(
-                    'ALTER TABLE %I.%I DETACH PARTITION %I.%I ;',
-                    OLD.schema_name,
-                    OLD.partition_of_table_name,
+        EXECUTE format(
+'
+select c.oid
+  from pg_class c
+  join pg_namespace n
+    on n.oid = c.relnamespace
+ where n.nspname = %L
+   and c.relname = %L ;
+',
                     OLD.schema_name,
                     OLD.table_name
                 )
-            );
-            messages = array_append(
-                messages,
+           INTO item;
+        IF item IS NOT NULL
+        THEN
+            IF ( OLD.active )
+            THEN
+                action_stmts = array_append(
+                    action_stmts,
+                    format(
+                        'ALTER TABLE %I.%I DETACH PARTITION %I.%I ;',
+                        OLD.schema_name,
+                        OLD.partition_of_table_name,
+                        OLD.schema_name,
+                        OLD.table_name
+                    )
+                );
+                messages = array_append(
+                    messages,
+                    format(
+                        'DETACH PARTITION %I.%I FROM %I.%I',
+                        OLD.schema_name,
+                        OLD.table_name,
+                        OLD.schema_name,
+                        OLD.partition_of_table_name
+                    )
+                );
+            END IF;
+
+            action_stmts = array_append(
+                action_stmts,
                 format(
-                    'DETACH PARTITION %I.%I FROM %I.%I',
-                    OLD.schema_name,
-                    OLD.table_name,
-                    OLD.schema_name,
-                    OLD.partition_of_table_name
+                    'TRUNCATE TABLE %s ;', OLD.table_name
                 )
             );
-        END IF;
+            messages = array_append(messages, format('TRUNCATE TABLE %I.%I', OLD.schema_name, OLD.table_name));
 
-        action_stmts = array_append(
-            action_stmts,
-            format(
-                'TRUNCATE TABLE %s ;', OLD.table_name
-            )
-        );
-        messages = array_append(messages, format('TRUNCATE TABLE %I.%I', OLD.schema_name, OLD.table_name));
-        action_stmts = array_append(
-            action_stmts,
-            format(
-                'DROP TABLE %s ;', OLD.table_name
-            )
-        );
-        messages = array_append(messages, format('DROP TABLE %I.%I', OLD.schema_name, OLD.table_name));
+            action_stmts = array_append(
+                action_stmts,
+                format(
+                    'DROP TABLE IF EXISTS %s ;', OLD.table_name
+                )
+            );
+            messages = array_append(messages, format('DROP TABLE IF EXISTS %I.%I', OLD.schema_name, OLD.table_name));
+        ELSE
+            RAISE NOTICE 'Table %s.%s does not exist. No partition actions taken', OLD.schema_name, OLD.table_name;
+        END IF;
     ELSIF ( TG_OP = 'UPDATE' )
     THEN
         EXECUTE
