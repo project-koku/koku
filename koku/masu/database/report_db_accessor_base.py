@@ -13,6 +13,7 @@ import django.apps
 from dateutil.relativedelta import relativedelta
 from django.db import connection
 from django.db import transaction
+from django.db.models.sql.compiler import SQLDeleteCompiler
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
@@ -430,3 +431,14 @@ class ReportDBAccessorBase(KokuDBAccess):
             count, _ = mini_transaction_delete(select_query)
         msg = f"Deleted {count} records from {self.line_item_daily_summary_table}"
         LOG.info(msg)
+
+    def execute_delete_sql(self, query):
+        """Execute sql directly, returns cursor."""
+        sql, params = SQLDeleteCompiler(query.query, transaction.get_connection(), query.db).as_sql()
+
+        rows_affected = 0
+        with transaction.get_connection().cursor() as cur:
+            cur.execute(sql, (params or None))
+            rows_affected = cur.rowcount
+
+        return rows_affected
