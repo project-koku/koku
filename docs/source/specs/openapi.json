@@ -4278,13 +4278,19 @@
                         "items": {
                             "oneOf": [
                                 {"$ref": "#/components/schemas/TieredRate"},
-                                {"$ref": "#/components/schemas/TagRate"},
-                                {"$ref": "#/components/schemas/DistributionRate"}
+                                {"$ref": "#/components/schemas/TagRate"}
                             ]
                         }
                     },
                     "markup": {
                         "$ref": "#/components/schemas/Markup"
+                    },
+                    "distribution": {
+                        "type": "string",
+                        "enum": [
+                            "memory",
+                            "cpu"
+                        ]
                     }
                 },
                 "required": [
@@ -4325,10 +4331,16 @@
                         "items": {
                             "oneOf": [
                                 {"$ref": "#/components/schemas/TieredRate"},
-                                {"$ref": "#/components/schemas/TagRate"},
-                                {"$ref": "#/components/schemas/DistributionRate"}
+                                {"$ref": "#/components/schemas/TagRate"}
                             ]
                         }
+                    },
+                    "distribution": {
+                        "type": "string",
+                        "enum": [
+                            "memory",
+                            "cpu"
+                        ]
                     }
                 },
                 "required": [
@@ -5174,72 +5186,6 @@
                         }
                     }
                 ]
-            },
-            "DistributionRate":{
-                "required": [
-                    "metric"
-                ],
-                "properties": {
-                    "uuid": {
-                        "type": "string",
-                        "format": "uuid",
-                        "example": "83ee048e-3c1d-43ef-b945-108225ae52f4",
-                        "readOnly": true
-                    },
-                    "metric": {
-                        "type": "object",
-                        "example": {
-                            "name": "cluster_cost_per_month",
-                            "unit": "count",
-                            "display_name": "Clusterr cost per month"
-                        }
-                    },
-                    "cost_type": {
-                        "type": "string",
-                        "enum": [
-                            "Infrastructure",
-                            "Supplementary"
-                        ]
-                    },
-                    "distribution":{
-                        "type": "string",
-                        "enum": [
-                            "memory",
-                            "cpu"
-                        ]
-                    },
-                    "description": {
-                        "type": "string",
-                        "example": "Rate description"
-                    },
-                    "tiered_rates": {
-                        "type": "array",
-                        "items": {
-                            "properties": {
-                                "value": {
-                                    "type": "number"
-                                },
-                                "usage": {
-                                    "type": "object"
-                                },
-                                "unit": {
-                                    "type": "string",
-                                    "enum": [
-                                        "USD"
-                                    ]
-                                }
-                            }
-                        },
-                        "example": [{
-                            "value": 0.22,
-                            "unit": "USD",
-                            "usage": {
-                                "usage_start": 0,
-                                "usage_end": 10
-                            }
-                        }]
-                    }
-                }
             },
             "TieredRate": {
                 "required": [

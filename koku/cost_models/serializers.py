@@ -178,9 +178,6 @@ class RateSerializer(serializers.Serializer):
 
     metric = serializers.DictField(required=True)
     cost_type = serializers.ChoiceField(choices=metric_constants.COST_TYPE_CHOICES)
-    distribution = serializers.ChoiceField(
-        choices=metric_constants.DISTRIBUTION_CHOICES, required=False, allow_blank=True
-    )
     description = serializers.CharField(allow_blank=True, max_length=500, required=False)
     tiered_rates = serializers.ListField(required=False)
     tag_rates = serializers.DictField(required=False)
@@ -286,17 +283,6 @@ class RateSerializer(serializers.Serializer):
         cost_type = choices[cost_type.lower()]
         return cost_type
 
-    def validate_distribution(self, metric_name, distribution_choice):
-        """Force validation of distribution type."""
-        distrib_map = metric_constants.DISTRIBUTION_MAP
-        if metric_name not in distrib_map.keys():
-            error_msg = f"The distribution option is not supported for {metric_name}"
-            raise serializers.ValidationError(error_msg)
-        metric_choices = distrib_map.get(metric_name)
-        if distribution_choice not in metric_choices:
-            error_msg = f"{distribution_choice} is an invaild distribuiton type"
-            raise serializers.ValidationError(error_msg)
-
     def validate(self, data):
         """Validate that a rate must be defined."""
         tiered_rates = self.validate_tiered_rates(data.get("tiered_rates", []))
@@ -312,8 +298,6 @@ class RateSerializer(serializers.Serializer):
             raise serializers.ValidationError(error_msg)
 
         data["cost_type"] = self.validate_cost_type(data.get("metric").get("name"), data.get("cost_type"))
-        if data.get("distribution"):
-            self.validate_distribution(data.get("metric").get("name"), data.get("distribution"))
 
         if any(data.get(rate_key) is not None for rate_key in self.RATE_TYPES):
             if tiered_rates == [] and tag_rates == {}:
@@ -360,8 +344,6 @@ class RateSerializer(serializers.Serializer):
                             "unit": rates.get("unit"),
                         }
             out.update({"tiered_rates": tiered_rates, "cost_type": rate_obj.get("cost_type")})
-            if rate_obj.get("distribution"):
-                out.update({"distribution": rate_obj.get("distribution")})
             return out
 
         tag_rate = rate_obj.get("tag_rates", {})
@@ -407,6 +389,10 @@ class CostModelSerializer(serializers.Serializer):
     rates = RateSerializer(required=False, many=True)
 
     markup = MarkupSerializer(required=False)
+
+    distribution = serializers.ChoiceField(
+        choices=metric_constants.DISTRIBUTION_CHOICES, required=False, allow_blank=True
+    )
 
     @property
     def metric_map(self):
@@ -501,6 +487,14 @@ class CostModelSerializer(serializers.Serializer):
         if tag_rates:
             CostModelSerializer._validate_one_unique_tag_key_per_metric_per_cost_type(tag_rates)
         return validated_rates
+
+    def validate_distribution(self, distribution):
+        """Run validation for distribution choice."""
+        distrib_choice_list = [choice[0] for choice in metric_constants.DISTRIBUTION_CHOICES]
+        if distribution not in distrib_choice_list:
+            error_msg = f"{distribution} is an invaild distribution type"
+            raise serializers.ValidationError(error_msg)
+        return distribution
 
     def create(self, validated_data):
         """Create the cost model object in the database."""

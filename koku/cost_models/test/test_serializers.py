@@ -55,28 +55,6 @@ def format_tag_rate(tag_key="key_one", tag_values=None):
     return {"tag_key": tag_key, "tag_values": final_tag_values}
 
 
-def create_distribution_model(provider_uuid, provider_name):
-    default_model = {
-        "name": "Test Cost Model",
-        "description": "Test",
-        "source_type": Provider.PROVIDER_OCP,
-        "providers": [{"uuid": provider_uuid, "name": provider_name}],
-        "markup": {"value": 10, "unit": "percent"},
-    }
-    rates = []
-    for metric_name, distrib_choices in metric_constants.DISTRIBUTION_MAP.items():
-        rate = {
-            "metric": {"name": metric_name},
-            "tiered_rates": [{"unit": "USD", "value": 10}],
-            "cost_type": "Infrastructure",
-        }
-        for distrib_choice in distrib_choices:
-            rate["distribution"] = distrib_choice
-            rates.append(rate)
-    default_model["rates"] = rates
-    return default_model
-
-
 class CostModelSerializerTest(IamTestCase):
     """Cost Model serializer tests."""
 
@@ -107,7 +85,15 @@ class CostModelSerializerTest(IamTestCase):
             "markup": {"value": 10, "unit": "percent"},
             "rates": [{"metric": {"name": ocp_metric}}],
         }
-        self.distribution_model = create_distribution_model(self.provider.uuid, self.provider.name)
+        self.distribution_model = {
+            "name": "Test Cost Model",
+            "description": "Test",
+            "source_type": Provider.PROVIDER_OCP,
+            "providers": [{"uuid": self.provider.uuid, "name": self.provider.name}],
+            "markup": {"value": 10, "unit": "percent"},
+            "rates": [{"metric": {"name": ocp_metric}, "tiered_rates": tiered_rates}],
+            "distribution": "cpu",
+        }
 
     def tearDown(self):
         """Clean up test cases."""
@@ -711,36 +697,8 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_distribuiton_bad_choice_error(self):
         """Test that source successfully fails if bad distribution type."""
-        bad_rates = []
-        for metric_name in metric_constants.DISTRIBUTION_MAP.keys():
-            rate = [
-                {
-                    "metric": {"name": metric_name},
-                    "tiered_rates": [{"unit": "USD", "value": 10}],
-                    "cost_type": "Infrastructure",
-                    "distribution": "bad_choice",
-                }
-            ]
-            bad_rates.append(rate)
-        for bad_rate in bad_rates:
-            self.distribution_model["rates"] = bad_rate
-            with tenant_context(self.tenant):
-                serializer = CostModelSerializer(data=self.distribution_model)
-                with self.assertRaises(serializers.ValidationError):
-                    self.assertFalse(serializer.is_valid(raise_exception=True))
-
-    def test_distribution_on_non_distribution_metric(self):
-        """Test that we error if distribution is added to a non distribution_metric."""
-        bad_rate = [
-            {
-                "metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR},
-                "tiered_rates": [{"unit": "USD", "value": 0.0090000000}],
-                "cost_type": "Supplementary",
-                "distribution": "memory",
-            }
-        ]
-        self.basic_model["rates"] = bad_rate
+        self.distribution_model["distribution"] = "bad_choice"
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.basic_model)
+            serializer = CostModelSerializer(data=self.distribution_model)
             with self.assertRaises(serializers.ValidationError):
                 self.assertFalse(serializer.is_valid(raise_exception=True))
