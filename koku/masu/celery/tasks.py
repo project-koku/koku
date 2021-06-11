@@ -315,7 +315,7 @@ def collect_queue_metrics(self):
     except OSError as exc:
         LOG.error("Problem reaching pushgateway: %s", exc)
         try:
-            self.update_state(state="FAILURE", meta={"result": "foo", "traceback": "bar"})
+            self.update_state(state="FAILURE", meta={"result": str(exc), "traceback": str(exc.__traceback__)})
         except TypeError as err:
             LOG.error("The following error occurred: %s " % err)
     return queue_len
