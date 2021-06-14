@@ -428,6 +428,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         aws_provider_uuid = kwargs.get("aws_provider_uuid")
         azure_provider_uuid = kwargs.get("azure_provider_uuid")
 
+        if not self.table_exists_trino("openshift_pod_usage_line_items_daily"):
+            return {}
+        if aws_provider_uuid and not self.table_exists_trino("aws_line_items_daily"):
+            return {}
+        if azure_provider_uuid and not self.table_exists_trino("azure_line_items_daily"):
+            return {}
+
         if isinstance(start_date, str):
             start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
             end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()

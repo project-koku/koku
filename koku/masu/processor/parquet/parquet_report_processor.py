@@ -333,7 +333,7 @@ class ParquetReportProcessor:
                 continue
 
             parquet_base_filename, daily_data_frame, success = self.convert_csv_to_parquet(csv_filename)
-            if not daily_data_frame.empty:
+            if self.provider_type not in (Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP):
                 self.create_daily_parquet(parquet_base_filename, daily_data_frame)
             if not success:
                 failed_conversion.append(csv_filename)
@@ -408,10 +408,6 @@ class ParquetReportProcessor:
             if os.path.exists(parquet_file):
                 os.remove(parquet_file)
 
-            # Now we can delete the local CSV
-            if os.path.exists(csv_filename):
-                os.remove(csv_filename)
-
         if daily_data_frames:
             daily_data_frames = pd.concat(daily_data_frames)
         else:
@@ -461,8 +457,9 @@ class ParquetReportProcessor:
         parquet_base_filename, daily_data_frame = self.convert_to_parquet()
 
         # Clean up the original downloaded file
-        if os.path.exists(self._report_file):
-            os.remove(self._report_file)
+        for f in self.file_list:
+            if os.path.exists(f):
+                os.remove(f)
 
         return parquet_base_filename, daily_data_frame
 
