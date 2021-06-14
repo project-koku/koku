@@ -15,6 +15,7 @@ from uuid import UUID
 
 import pandas as pd
 
+from api.provider.models import Provider
 from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -47,6 +48,16 @@ class OCPUtilTests(MasuTestCase):
         """Test that the cluster ID is returned from OCP provider."""
         cluster_id = utils.get_cluster_id_from_provider(self.ocp_test_provider_uuid)
         self.assertIsNotNone(cluster_id)
+
+    def test_get_cluster_id_with_no_authentication(self):
+        """Test that a None is correctly returned if authentication is not present."""
+        # Remove test provider authentication
+        Provider.objects.filter(uuid=self.ocp_test_provider_uuid).update(authentication=None)
+        ocp_provider = Provider.objects.get(uuid=self.ocp_test_provider_uuid)
+        self.assertIsNone(ocp_provider.authentication)
+        # Assert if authentication is empty we return none instead of an error
+        cluster_id = utils.get_cluster_id_from_provider(self.ocp_test_provider_uuid)
+        self.assertIsNone(cluster_id)
 
     def test_get_cluster_id_from_non_ocp_provider(self):
         """Test that None is returned when getting cluster ID on non-OCP provider."""

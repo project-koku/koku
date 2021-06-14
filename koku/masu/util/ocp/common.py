@@ -265,7 +265,9 @@ def get_cluster_id_from_provider(provider_uuid):
         return cluster_id
 
     with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
-        cluster_id = provider_accessor.get_credentials().get("cluster_id")
+        credentials = provider_accessor.get_credentials()
+        if credentials:
+            cluster_id = credentials.get("cluster_id")
 
     return cluster_id
 
