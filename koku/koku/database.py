@@ -16,6 +16,7 @@ from django.db.migrations.loader import MigrationLoader
 from django.db.models import DecimalField
 from django.db.models.aggregates import Func
 from django.db.models.fields.json import KeyTextTransform
+from django.db.models.sql.compiler import SQLDeleteCompiler
 
 from .configurator import CONFIGURATOR
 from .env import ENVIRONMENT
@@ -153,3 +154,19 @@ class KeyDecimalTransform(KeyTextTransform):
     def as_postgresql(self, compiler, connection):
         sqlpart, params = super().as_postgresql(compiler, connection)
         return sqlpart + "::numeric", params
+
+
+def get_delete_sql(query):
+    return SQLDeleteCompiler(query.query, transaction.get_connection(), query.db).as_sql()
+
+
+def execute_delete_sql(query):
+    """Execute sql directly, returns cursor."""
+    sql, params = get_delete_sql(query)
+
+    rows_affected = 0
+    with transaction.get_connection().cursor() as cur:
+        cur.execute(sql, (params or None))
+        rows_affected = cur.rowcount
+
+    return rows_affected

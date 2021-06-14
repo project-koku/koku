@@ -18,6 +18,7 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from api.utils import DateHelper
 from cost_models.models import CostModelMap
+from koku.database import execute_delete_sql
 from masu.processor import enable_trino_processing
 from masu.processor.tasks import refresh_materialized_views
 from reporting.provider.aws.models import AWSCostEntryBill
@@ -205,8 +206,10 @@ class ProviderManager:
             raise ProviderManagerError(err_msg)
 
         if self.is_removable_by_user(current_user):
-            self.model.delete()
+            del_query = self.model.__class__.objects.filter(uuid=self._uuid)
+            execute_delete_sql(del_query)
             LOG.info(f"Provider: {self.model.name} removed by {current_user.username}")
+            post_delete.send(sender=self.model.__class__, instance=self.model, delete_type="single")
         else:
             err_msg = "User {} does not have permission to delete provider {}".format(
                 current_user.username, str(self.model)

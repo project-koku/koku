@@ -13,11 +13,11 @@ import django.apps
 from dateutil.relativedelta import relativedelta
 from django.db import connection
 from django.db import transaction
-from django.db.models.sql.compiler import SQLDeleteCompiler
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 import koku.presto_database as kpdb
+from koku.database import execute_delete_sql as exec_del_sql
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
 from masu.database.koku_database_access import mini_transaction_delete
@@ -433,12 +433,4 @@ class ReportDBAccessorBase(KokuDBAccess):
         LOG.info(msg)
 
     def execute_delete_sql(self, query):
-        """Execute sql directly, returns cursor."""
-        sql, params = SQLDeleteCompiler(query.query, transaction.get_connection(), query.db).as_sql()
-
-        rows_affected = 0
-        with transaction.get_connection().cursor() as cur:
-            cur.execute(sql, (params or None))
-            rows_affected = cur.rowcount
-
-        return rows_affected
+        return exec_del_sql(query)
