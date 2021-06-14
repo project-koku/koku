@@ -92,6 +92,7 @@ help:
 	@echo "  requirements                          generate Pipfile.lock, RTD requirements and manifest for product security"
 	@echo "  manifest                              create/update manifest for product security"
 	@echo "  check-manifest                        check that the manifest is up to date"
+	@echo "  clowdapp                              generates a new clowdapp.yaml"
 	@echo "  remove-db                             remove local directory $(TOPDIR)/pg_data"
 	@echo "  remove-test-db                        remove the django test db"
 	@echo "  reset-db-statistics                   clear the pg_stat_statements statistics"
@@ -262,6 +263,20 @@ oc-stop-forwarding-ports:
 
 oc-delete-e2e:
 	oc delete project/hccm project/buildfactory project/secrets
+
+clowdapp: kustomize
+	$(KUSTOMIZE) build deploy/kustomize > deploy/clowdapp.yaml
+
+kustomize:
+ifeq (, $(shell which kustomize))
+	@{ \
+	set -e ;\
+	bash <(curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh") $(TESTINGDIR);\
+	}
+KUSTOMIZE=$(TESTINGDIR)/kustomize
+else
+KUSTOMIZE=$(shell which kustomize)
+endif
 
 ###############################
 ### Docker-compose Commands ###

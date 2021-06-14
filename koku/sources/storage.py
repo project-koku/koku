@@ -255,7 +255,6 @@ def enqueue_source_delete(source_id, offset, allow_out_of_order=False):
             source.pending_delete = True
             LOG.info(f"[enqueue_source_delete] source_id: {source_id} marked for deletion")
             source.save()
-            mark_provider_as_inactive(source.koku_uuid)
     except Sources.DoesNotExist:
         if allow_out_of_order:
             LOG.info(f"[enqueue_source_delete] source_id: {source_id} not known. Marking as out of order delete.")

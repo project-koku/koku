@@ -136,7 +136,6 @@ class ApplicationStatus:
                 for task_list in reserved.values():
                     reserved_count += len(task_list)
             tasks["reserved_count"] = reserved_count
-
             active = inspector.active()
             active_count = 0
             if active:
