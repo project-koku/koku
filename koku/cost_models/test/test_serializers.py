@@ -85,15 +85,6 @@ class CostModelSerializerTest(IamTestCase):
             "markup": {"value": 10, "unit": "percent"},
             "rates": [{"metric": {"name": ocp_metric}}],
         }
-        self.distribution_model = {
-            "name": "Test Cost Model",
-            "description": "Test",
-            "source_type": Provider.PROVIDER_OCP,
-            "providers": [{"uuid": self.provider.uuid, "name": self.provider.name}],
-            "markup": {"value": 10, "unit": "percent"},
-            "rates": [{"metric": {"name": ocp_metric}, "tiered_rates": tiered_rates}],
-            "distribution": "cpu",
-        }
 
     def tearDown(self):
         """Clean up test cases."""
@@ -687,18 +678,25 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_distribution_choices_added_successfully(self):
         """Test that a source type is valid if it has markup."""
-        with tenant_context(self.tenant):
-            instance = None
-            serializer = CostModelSerializer(data=self.distribution_model)
-            if serializer.is_valid(raise_exception=True):
-                instance = serializer.save()
-            self.assertIsNotNone(instance)
-            self.assertIsNotNone(instance.uuid)
+        valid_choices = ["cpu", "memory"]
+        for good_input in valid_choices:
+            self.ocp_data["distribution"] = good_input
+            self.assertEqual(self.ocp_data["distribution"], good_input)
+            with tenant_context(self.tenant):
+                instance = None
+                serializer = CostModelSerializer(data=self.ocp_data)
+                if serializer.is_valid(raise_exception=True):
+                    instance = serializer.save()
+                self.assertIsNotNone(instance)
+                self.assertIsNotNone(instance.uuid)
 
-    def test_distribuiton_bad_choice_error(self):
+    def test_error_bad_distribution_choice(self):
         """Test that source successfully fails if bad distribution type."""
-        self.distribution_model["distribution"] = "bad_choice"
-        with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.distribution_model)
-            with self.assertRaises(serializers.ValidationError):
-                self.assertFalse(serializer.is_valid(raise_exception=True))
+        bad_choice_list = ["bad1", "bad2", "bad3"]
+        for bad_input in bad_choice_list:
+            self.ocp_data["distribution"] = bad_input
+            self.assertEqual(self.ocp_data["distribution"], bad_input)
+            with tenant_context(self.tenant):
+                serializer = CostModelSerializer(data=self.ocp_data)
+                with self.assertRaises(serializers.ValidationError):
+                    self.assertFalse(serializer.is_valid(raise_exception=True))
