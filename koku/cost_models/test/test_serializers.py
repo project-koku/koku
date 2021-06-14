@@ -699,4 +699,4 @@ class CostModelSerializerTest(IamTestCase):
             with tenant_context(self.tenant):
                 serializer = CostModelSerializer(data=self.ocp_data)
                 with self.assertRaises(serializers.ValidationError):
-                    self.assertFalse(serializer.is_valid(raise_exception=True))
+                    serializer.validate_distribution(bad_input)
