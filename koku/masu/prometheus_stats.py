@@ -5,6 +5,7 @@
 """Prometheus Stats."""
 from prometheus_client import CollectorRegistry
 from prometheus_client import Counter
+from prometheus_client import Gauge
 from prometheus_client import multiprocess
 
 
@@ -48,6 +49,23 @@ KAFKA_CONNECTION_ERRORS_COUNTER = Counter(
 )
 
 CELERY_ERRORS_COUNTER = Counter("celery_errors", "Number of celery errors", registry=WORKER_REGISTRY)
+
+DOWNLOAD_BACKLOG = Gauge("download_backlog", "Number of celery tasks in the download queue", registry=WORKER_REGISTRY)
+SUMMARY_BACKLOG = Gauge("summary_backlog", "Number of celery tasks in the summary queue", registry=WORKER_REGISTRY)
+PRIORITY_BACKLOG = Gauge("priority_backlog", "Number of celery tasks in the priority queue", registry=WORKER_REGISTRY)
+REFRESH_BACKLOG = Gauge("refresh_backlog", "Number of celery tasks in the refresh queue", registry=WORKER_REGISTRY)
+COST_MODEL_BACKLOG = Gauge(
+    "cost_model_backlog", "Number of celery tasks in the cost model queue", registry=WORKER_REGISTRY
+)
+DEFAULT_BACKLOG = Gauge("default_backlog", "Number of celery tasks in the default queue", registry=WORKER_REGISTRY)
+QUEUES = {
+    "download": DOWNLOAD_BACKLOG,
+    "summary": SUMMARY_BACKLOG,
+    "priority": PRIORITY_BACKLOG,
+    "refresh": REFRESH_BACKLOG,
+    "cost_model": COST_MODEL_BACKLOG,
+    "celery": DEFAULT_BACKLOG,
+}
 
 SOURCES_KAFKA_LOOP_RETRY = Counter(
     "sources_kafka_retry_errors", "Number of sources kafka retry errors", registry=WORKER_REGISTRY
