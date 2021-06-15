@@ -21,7 +21,7 @@ from rest_framework import filters
 from rest_framework import generics
 
 from api.common import CACHE_RH_IDENTITY_HEADER
-from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
+from api.common.permissions.gcp_access import GcpAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.gcp.models import GCPCostSummaryByAccount
 
@@ -31,7 +31,7 @@ class GCPAccountView(generics.ListAPIView):
 
     queryset = GCPCostSummaryByAccount.objects.annotate(**{"value": F("account_id")}).values("value").distinct()
     serializer_class = ResourceTypeSerializer
-    permission_classes = [ResourceTypeAccessPermission]
+    permission_classes = [GcpAccessPermission]
     filter_backends = [filters.OrderingFilter]
     ordering = ["value"]
 

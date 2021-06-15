@@ -21,7 +21,7 @@ from rest_framework import filters
 from rest_framework import generics
 
 from api.common import CACHE_RH_IDENTITY_HEADER
-from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
+from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.ocp.models import OCPCostSummary
 
@@ -31,7 +31,7 @@ class OCPClustersView(generics.ListAPIView):
 
     queryset = OCPCostSummary.objects.annotate(**{"value": F("cluster_id")}).values("value").distinct()
     serializer_class = ResourceTypeSerializer
-    permission_classes = [ResourceTypeAccessPermission]
+    permission_classes = [OpenShiftAccessPermission]
     filter_backends = [filters.OrderingFilter]
     ordering = ["value"]
 
