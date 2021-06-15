@@ -29,7 +29,12 @@ from reporting.provider.aws.models import AWSCostSummaryByRegion
 class AWSAccountRegionView(generics.ListAPIView):
     """API GET list view for AWS by region"""
 
-    queryset = AWSCostSummaryByRegion.objects.annotate(**{"value": F("region")}).values("value").distinct()
+    queryset = (
+        AWSCostSummaryByRegion.objects.annotate(**{"value": F("region")})
+        .values("value")
+        .distinct()
+        .filter(region__isnull=False)
+    )
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]

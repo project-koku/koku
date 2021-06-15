@@ -29,7 +29,12 @@ from reporting.provider.aws.models import AWSCostSummaryByService
 class AWSServiceView(generics.ListAPIView):
     """API GET list view for AWS Services."""
 
-    queryset = AWSCostSummaryByService.objects.annotate(**{"value": F("product_code")}).values("value").distinct()
+    queryset = (
+        AWSCostSummaryByService.objects.annotate(**{"value": F("product_code")})
+        .values("value")
+        .distinct()
+        .filter(product_code__isnull=False)
+    )
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
