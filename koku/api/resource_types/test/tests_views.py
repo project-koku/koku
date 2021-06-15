@@ -26,6 +26,7 @@ from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.test.iam_test_case import RbacPermissions
 from api.provider.models import Provider
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
@@ -97,3 +98,14 @@ class ResourceTypesViewTest(IamTestCase):
                 self.assertIsNotNone(json_result.get("data"))
                 self.assertIsInstance(json_result.get("data"), list)
                 self.assertTrue(len(json_result.get("data")) > 0)
+
+    @RbacPermissions({"aws.account": {"read": ["9999999999991"]}})
+    def test_aws_account_view(self):
+        """Test that getting a forecast with limited access returns valid result."""
+        url = reverse("aws-accounts")
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreater(response.data.get("meta").get("count"), 0)
+        self.assertNotEqual(response.data.get("data"), [])
+        self.assertEqual(response.data.get("value", ["9999999999991"]))

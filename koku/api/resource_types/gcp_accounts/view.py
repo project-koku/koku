@@ -37,6 +37,7 @@ class GCPAccountView(generics.ListAPIView):
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
-        foo = request.user.access.get("account_id").get("read")
-        self.queryset = self.queryset.values("value").filter(account_id__in=foo)
+        # Reads the users values for GCP account id and displays values related to what the user has access to
+        user_access = request.user.access.get("gcp.account").get("read")
+        self.queryset = self.queryset.values("value").filter(account_id__in=user_access)
         return super().list(request)

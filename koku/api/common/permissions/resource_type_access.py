@@ -21,12 +21,12 @@ from rest_framework import permissions
 class ResourceTypeAccessPermission(permissions.BasePermission):
     """Determines if a user can view resource-type data."""
 
-    resource_type = "aws.account"
+    resource_type = [("aws.account", "openshift.project")]
 
     def has_permission(self, request, view):
         """Check permission to view resource-type data."""
-        if request.user.admin:
-            return True
+        # if request.user.admin:
+        #    return True
         resource_access = request.user.access
         if resource_access is None or not isinstance(resource_access, dict):
             return False
