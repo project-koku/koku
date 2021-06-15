@@ -17,6 +17,7 @@ from api.provider.models import Provider
 LOG = logging.getLogger(__name__)
 
 DISTRIBUTION_CHOICES = (("memory", "memory"), ("cpu", "cpu"))
+DEFAULT_DISTRIBUTION = "cpu"
 
 
 class CostModel(models.Model):
@@ -49,7 +50,7 @@ class CostModel(models.Model):
 
     markup = JSONField(encoder=DjangoJSONEncoder, default=dict)
 
-    distribution = models.TextField(null=True, choices=DISTRIBUTION_CHOICES)
+    distribution = models.TextField(choices=DISTRIBUTION_CHOICES, default=DEFAULT_DISTRIBUTION)
 
 
 class CostModelAudit(models.Model):
@@ -82,7 +83,7 @@ class CostModelAudit(models.Model):
 
     markup = JSONField(encoder=DjangoJSONEncoder, default=dict)
 
-    distribution = models.TextField(null=True, choices=DISTRIBUTION_CHOICES)
+    distribution = models.TextField(choices=DISTRIBUTION_CHOICES, default=DEFAULT_DISTRIBUTION)
 
 
 class CostModelMap(models.Model):
