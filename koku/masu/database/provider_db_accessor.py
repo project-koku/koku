@@ -119,7 +119,10 @@ class ProviderDBAccessor(KokuDBAccess):
                     example: {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}
 
         """
-        return self.provider.authentication.credentials
+        credentials = None
+        if self.provider and self.provider.authentication:
+            credentials = self.provider.authentication.credentials
+        return credentials
 
     def get_data_source(self):
         """
@@ -132,7 +135,10 @@ class ProviderDBAccessor(KokuDBAccess):
                     example: {"bucket": "my-s3-cur-bucket"}
 
         """
-        return self.provider.billing_source.data_source
+        data_source = None
+        if self.provider and self.provider.billing_source:
+            data_source = self.provider.billing_source.data_source
+        return data_source
 
     def get_setup_complete(self):
         """
