@@ -1,18 +1,6 @@
 #
-# Copyright 2019 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Database accessors for Sources database table."""
 import binascii
@@ -267,7 +255,6 @@ def enqueue_source_delete(source_id, offset, allow_out_of_order=False):
             source.pending_delete = True
             LOG.info(f"[enqueue_source_delete] source_id: {source_id} marked for deletion")
             source.save()
-            mark_provider_as_inactive(source.koku_uuid)
     except Sources.DoesNotExist:
         if allow_out_of_order:
             LOG.info(f"[enqueue_source_delete] source_id: {source_id} not known. Marking as out of order delete.")
