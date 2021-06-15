@@ -403,10 +403,6 @@ class ParquetReportProcessor:
             )
             LOG.warn(log_json(self.request_id, msg, self.error_context))
             return parquet_base_filename, pd.DataFrame(), False
-        finally:
-            # Delete the local parquet file
-            if os.path.exists(parquet_file):
-                os.remove(parquet_file)
 
         if daily_data_frames:
             daily_data_frames = pd.concat(daily_data_frames)
@@ -446,6 +442,10 @@ class ParquetReportProcessor:
             msg = f"File {file_name} could not be written as parquet to S3 {s3_key}. Reason: {str(err)}"
             LOG.warn(log_json(self.request_id, msg, self.error_context))
             return False
+        finally:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
         return True
 
     def process(self):
@@ -460,6 +460,9 @@ class ParquetReportProcessor:
         for f in self.file_list:
             if os.path.exists(f):
                 os.remove(f)
+
+        if os.path.exists(self.report_file):
+            os.remove(self.report_file)
 
         return parquet_base_filename, daily_data_frame
 
