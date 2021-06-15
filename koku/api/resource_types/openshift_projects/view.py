@@ -21,7 +21,7 @@ from rest_framework import filters
 from rest_framework import generics
 
 from api.common import CACHE_RH_IDENTITY_HEADER
-from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
+from api.common.permissions.openshift_access import OpenShiftProjectPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.ocp.models import OCPCostSummaryByProject
 
@@ -31,13 +31,13 @@ class OCPProjectsView(generics.ListAPIView):
 
     queryset = OCPCostSummaryByProject.objects.annotate(**{"value": F("namespace")}).values("value").distinct()
     serializer_class = ResourceTypeSerializer
-    permission_classes = [ResourceTypeAccessPermission]
+    permission_classes = [OpenShiftProjectPermission]
     filter_backends = [filters.OrderingFilter]
     ordering = ["value"]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for Openshift projects namespace,displays values related to the users access"""
-        user_access = request.user.access.get("openshift.projects").get("read")
+        user_access = request.user.access.get("openshift.project", {}).get("read", [])
         self.queryset = self.queryset.values("value").filter(namespace__in=user_access)
         return super().list(request)
