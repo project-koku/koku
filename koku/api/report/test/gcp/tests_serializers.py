@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test GCP Serializer."""
 from unittest import TestCase
@@ -270,20 +258,34 @@ class GCPQueryParamSerializerTest(TestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
-    def test_valid_delta_costs(self):
+    def test_valid_deltas(self):
         """Test successful handling of valid delta for cost requests."""
-        query_params = {"delta": "cost"}
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
-        self.assertTrue(serializer.is_valid())
+        valid_delta_map = {
+            "/api/cost-management/v1/reports/gcp/costs/": ["cost", "cost_total"],
+            "/api/cost-management/v1/reports/gcp/instance-types/": ["usage"],
+            "/api/cost-management/v1/reports/gcp/storage/": ["usage"],
+        }
+        for url, delta_list in valid_delta_map.items():
+            req = Mock(path=url)
+            for valid_delta in delta_list:
+                query_params = {"delta": valid_delta}
+                serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+                self.assertTrue(serializer.is_valid())
 
-    def test_invalid_delta_costs(self):
-        """Test failure while handling invalid delta for cost requests."""
-        query_params = {"delta": "cost_bad"}
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+    def test_invalid_deltas(self):
+        """Test failure while handling invalid delta for gcp endpoints."""
+        bad_delta_map = {
+            "/api/cost-management/v1/reports/gcp/costs/": ["usage", "bad_delta"],
+            "/api/cost-management/v1/reports/gcp/instance-types/": ["cost", "cost_total", "bad_delta"],
+            "/api/cost-management/v1/reports/gcp/storage/": ["cost", "cost_total", "bad_delta"],
+        }
+        for url, delta_list in bad_delta_map.items():
+            req = Mock(path=url)
+            for bad_delta in delta_list:
+                query_params = {"delta": bad_delta}
+                serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+                with self.assertRaises(serializers.ValidationError):
+                    serializer.is_valid(raise_exception=True)
 
     def test_order_by_service_with_groupby(self):
         """Test that order_by[service] works with a matching group-by."""

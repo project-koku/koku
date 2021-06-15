@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """GCP Report Serializers."""
 import logging
@@ -69,7 +57,7 @@ class GCPQueryParamSerializer(ParamSerializer):
     """Serializer for handling GCP query parameters."""
 
     # Tuples are (key, display_name)
-    DELTA_CHOICES = (("cost", "cost"),)
+    DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"))
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     units = serializers.CharField(required=False)
@@ -147,7 +135,13 @@ class GCPQueryParamSerializer(ParamSerializer):
 
     def validate_delta(self, value):
         """Validate incoming delta value based on path."""
-        valid_delta = "cost_total"
-        if value == "cost":
-            return valid_delta
+        valid_delta = "usage"
+        request = self.context.get("request")
+        if request and "costs" in request.path:
+            valid_delta = "cost_total"
+            if value == "cost":
+                return valid_delta
+        if value != valid_delta:
+            error = {"delta": f'"{value}" is not a valid choice.'}
+            raise serializers.ValidationError(error)
         return value
