@@ -13,8 +13,8 @@ from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 from django.utils import timezone
-from tenant_schemas.utils import schema_context
 from prometheus_client import push_to_gateway
+from tenant_schemas.utils import schema_context
 
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer
