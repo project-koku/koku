@@ -77,6 +77,12 @@ class ProviderDBAccessorTest(MasuTestCase):
         with ProviderDBAccessor(uuid) as accessor:
             self.assertEqual(expected_data_source, accessor.get_data_source())
 
+    def test_get_data_source_no_data_source(self):
+        """Test provider data_source getter."""
+        uuid = self.unkown_test_provider_uuid
+        with ProviderDBAccessor(uuid) as accessor:
+            self.assertIsNone(accessor.get_data_source())
+
     def test_get_customer_uuid(self):
         """Test provider billing_source getter."""
         expected_uuid = None
