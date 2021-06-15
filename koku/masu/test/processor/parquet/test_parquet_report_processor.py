@@ -240,11 +240,12 @@ class TestParquetReportProcessor(MasuTestCase):
                                 "masu.processor.parquet.parquet_report_processor."
                                 "ReportManifestDBAccessor.mark_s3_parquet_cleared"
                             ) as mock_mark_cleared:
-                                mock_convert.return_value = "", pd.DataFrame(), True
-                                self.report_processor.convert_to_parquet()
-                                mock_get_cleared.assert_called()
-                                mock_remove.assert_called()
-                                mock_mark_cleared.assert_called()
+                                with patch.object(ParquetReportProcessor, "create_daily_parquet"):
+                                    mock_convert.return_value = "", pd.DataFrame(), True
+                                    self.report_processor.convert_to_parquet()
+                                    mock_get_cleared.assert_called()
+                                    mock_remove.assert_called()
+                                    mock_mark_cleared.assert_called()
 
         expected = "Failed to convert the following files to parquet"
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
@@ -253,9 +254,21 @@ class TestParquetReportProcessor(MasuTestCase):
                     "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet",
                     return_value=("", pd.DataFrame(), False),
                 ):
-                    with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
+                    with patch.object(ParquetReportProcessor, "create_daily_parquet"):
+                        with self.assertLogs(
+                            "masu.processor.parquet.parquet_report_processor", level="INFO"
+                        ) as logger:
+                            self.report_processor.convert_to_parquet()
+                            self.assertIn(expected, " ".join(logger.output))
+
+        with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
+            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
+                with patch(
+                    "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet",
+                    return_value=("", pd.DataFrame(), False),
+                ):
+                    with patch.object(ParquetReportProcessor, "create_daily_parquet"):
                         self.report_processor.convert_to_parquet()
-                        self.assertIn(expected, " ".join(logger.output))
 
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
             with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
@@ -263,15 +276,8 @@ class TestParquetReportProcessor(MasuTestCase):
                     "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet",
                     return_value=("", pd.DataFrame(), False),
                 ):
-                    self.report_processor.convert_to_parquet()
-
-        with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
-                with patch(
-                    "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet",
-                    return_value=("", pd.DataFrame(), False),
-                ):
-                    self.report_processor.convert_to_parquet()
+                    with patch.object(ParquetReportProcessor, "create_daily_parquet"):
+                        self.report_processor.convert_to_parquet()
 
         # Daily data exists
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):

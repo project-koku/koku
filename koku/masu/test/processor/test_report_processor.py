@@ -124,8 +124,8 @@ class ReportProcessorTest(MasuTestCase):
 
     @patch("masu.processor.report_processor.ReportProcessor.trino_enabled", new_callable=PropertyMock)
     @patch("masu.processor.report_processor.ParquetReportProcessor.process", return_value=(1, 1))
-    @patch("masu.processor.report_processor.AWSReportProcessor.process", return_value=1)
     @patch("masu.processor.report_processor.OCPCloudParquetReportProcessor.process", return_value=2)
+    @patch("masu.processor.report_processor.AWSReportProcessor.process", return_value=1)
     def test_aws_process(self, mock_process, mock_ocp_cloud_process, mock_parquet_process, mock_trino_enabled):
         """Test to process for AWS."""
         mock_trino_enabled.return_value = True
@@ -137,10 +137,14 @@ class ReportProcessorTest(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
-
-        self.assertEqual(processor.process(), 2)
+        processor.process()
+        mock_process.assert_not_called()
+        mock_parquet_process.assert_called()
+        mock_ocp_cloud_process.assert_called()
 
         mock_trino_enabled.reset_mock()
+        mock_parquet_process.reset_mock()
+        mock_ocp_cloud_process.reset_mock()
         mock_trino_enabled.return_value = False
         processor = ReportProcessor(
             schema_name=self.schema,
@@ -150,8 +154,10 @@ class ReportProcessorTest(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
-
-        self.assertEqual(processor.process(), 1)
+        processor.process()
+        mock_process.assert_called()
+        mock_parquet_process.assert_not_called()
+        mock_ocp_cloud_process.assert_not_called()
 
     @patch("masu.processor.aws.aws_report_processor.AWSReportProcessor.process", side_effect=MasuProcessingError)
     def test_aws_process_error(self, fake_process):
