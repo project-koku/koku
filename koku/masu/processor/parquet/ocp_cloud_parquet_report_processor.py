@@ -157,4 +157,4 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 daily_data_frame, cluster_topology, matched_tags
             )
 
-            self.create_ocp_on_cloud_parquet(parquet_base_filename, openshift_filtered_data_frame, ocp_provider_uuid)
+            self.create_ocp_on_cloud_parquet(openshift_filtered_data_frame, ocp_provider_uuid)
