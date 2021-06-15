@@ -60,7 +60,7 @@ class ReportProcessor:
     @property
     def ocp_on_cloud_processor(self):
         """Return the OCP on Cloud processor if one is defined."""
-        if self.trino_enabled:
+        if self.trino_enabled and self.provider_type in Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST:
             return OCPCloudParquetReportProcessor(
                 schema_name=self.schema_name,
                 report_path=self.report_path,
@@ -142,7 +142,9 @@ class ReportProcessor:
         try:
             if self.trino_enabled:
                 parquet_base_filename, daily_data_frame = self._processor.process()
-                return self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frame)
+                if self.ocp_on_cloud_processor:
+                    self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frame)
+                return
 
             return self._processor.process()
         except (InterfaceError, DjangoInterfaceError, OperationalError) as err:
