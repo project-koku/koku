@@ -131,7 +131,7 @@ class ExpiredDataRemover:
 
         """
         removed_data = None
-        disable_purge_line_item = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
+        disable_purge_line_item = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL, Provider.PROVIDER_OCP)
         no_data_msg = "%s has no line item data to be be removed."
         if provider_uuid is not None:
             if line_items_only:

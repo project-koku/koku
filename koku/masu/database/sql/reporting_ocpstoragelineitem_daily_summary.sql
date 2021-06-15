@@ -13,16 +13,16 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsa
         li.persistentvolume_labels || li.persistentvolumeclaim_labels as volume_labels,
         max(li.persistentvolumeclaim_capacity_bytes) * POWER(2, -30) as persistentvolumeclaim_capacity_gigabyte,
         sum(li.persistentvolumeclaim_capacity_byte_seconds) /
-            86400 *
-            extract(days FROM date_trunc('month', li.usage_start) + interval '1 month - 1 day')
+            (86400 *
+            extract(days FROM date_trunc('month', li.usage_start) + interval '1 month - 1 day'))
             * POWER(2, -30) as persistentvolumeclaim_capacity_gigabyte_months,
         sum(li.volume_request_storage_byte_seconds) /
-            86400 *
-            extract(days FROM date_trunc('month', li.usage_start) + interval '1 month - 1 day')
+            (86400 *
+            extract(days FROM date_trunc('month', li.usage_start) + interval '1 month - 1 day'))
             * POWER(2, -30) as volume_request_storage_gigabyte_months,
         sum(li.persistentvolumeclaim_usage_byte_seconds) /
-            86400 *
-            extract(days FROM date_trunc('month', li.usage_start) + interval '1 month - 1 day')
+            (86400 *
+            extract(days FROM date_trunc('month', li.usage_start) + interval '1 month - 1 day'))
             * POWER(2, -30) as persistentvolumeclaim_usage_gigabyte_months,
         ab.provider_id as source_uuid
     FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily AS li
