@@ -21,7 +21,7 @@ from rest_framework import filters
 from rest_framework import generics
 
 from api.common import CACHE_RH_IDENTITY_HEADER
-from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
+from api.common.permissions.aws_access import AwsAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.aws.models import AWSCostSummaryByAccount
 
@@ -31,7 +31,7 @@ class AWSAccountView(generics.ListAPIView):
 
     queryset = AWSCostSummaryByAccount.objects.annotate(**{"value": F("usage_account_id")}).values("value").distinct()
     serializer_class = ResourceTypeSerializer
-    permission_classes = [ResourceTypeAccessPermission]
+    permission_classes = [AwsAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value"]
     search_fields = ["$value"]
@@ -39,6 +39,6 @@ class AWSAccountView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for aws account and rand displays values related to what the user has access to
-        user_access = request.user.access.get("aws.account").get("read")
+        user_access = request.user.access.get("aws.account", {}).get("read", [])
         self.queryset = self.queryset.values("value").filter(usage_account_id__in=user_access)
         return super().list(request)

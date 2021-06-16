@@ -1,23 +1,9 @@
 #
-# Copyright 2019 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Defines the OpenShift Access Permissions class."""
 from rest_framework import permissions
-
-from koku.api.common.permissions.openshift_all_access import OpenshiftAllAccessPermission
 
 
 class OpenShiftAccessPermission(permissions.BasePermission):
@@ -27,14 +13,14 @@ class OpenShiftAccessPermission(permissions.BasePermission):
 
     def has_permission(self, request, view):
         """Check permission to view OpenShift data."""
-        # if request.user.admin:
-        #   return True
+        if request.user.admin:
+            return True
 
         resource_access = request.user.access
         if resource_access is None or not isinstance(resource_access, dict):
             return False
 
-        res_type_access = resource_access.get(OpenshiftAllAccessPermission.resource_type, {})
+        res_type_access = resource_access.get(OpenShiftAccessPermission.resource_type, {})
         if request.method in permissions.SAFE_METHODS:
             # Check permissions for read-only request
             read_access = res_type_access.get("read", [])
@@ -43,11 +29,47 @@ class OpenShiftAccessPermission(permissions.BasePermission):
         return False
 
 
-class OpenShiftProjectPermission(OpenShiftAccessPermission):
+class OpenShiftProjectPermission(permissions.BasePermission):
+    """Determines if a user can view OpenShift data."""
 
     resource_type = "openshift.project"
 
+    def has_permission(self, request, view):
+        """Check permission to view OpenShift data."""
+        if request.user.admin:
+            return True
 
-class OpenShiftNodePermission(OpenShiftAccessPermission):
+        resource_access = request.user.access
+        if resource_access is None or not isinstance(resource_access, dict):
+            return False
+
+        res_type_access = resource_access.get(OpenShiftProjectPermission.resource_type, {})
+        if request.method in permissions.SAFE_METHODS:
+            # Check permissions for read-only request
+            read_access = res_type_access.get("read", [])
+            return len(read_access) > 0
+
+        return False
+
+
+class OpenShiftNodePermission(permissions.BasePermission):
+    """Determines if a user can view OpenShift data."""
 
     resource_type = "openshift.node"
+
+    def has_permission(self, request, view):
+        """Check permission to view OpenShift data."""
+        if request.user.admin:
+            return True
+
+        resource_access = request.user.access
+        if resource_access is None or not isinstance(resource_access, dict):
+            return False
+
+        res_type_access = resource_access.get(OpenShiftNodePermission.resource_type, {})
+        if request.method in permissions.SAFE_METHODS:
+            # Check permissions for read-only request
+            read_access = res_type_access.get("read", [])
+            return len(read_access) > 0
+
+        return False

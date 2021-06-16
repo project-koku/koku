@@ -109,3 +109,80 @@ class ResourceTypesViewTest(IamTestCase):
         self.assertGreater(response.data.get("meta").get("count"), 0)
         self.assertNotEqual(response.data.get("data"), [])
         self.assertEqual(response.data.get("value", ["9999999999991"]))
+
+    @RbacPermissions({"aws.organizational_unit": {"read": ["9999999999991"]}})
+    def test_aws_organizational_unit_view(self):
+        """Test that getting a forecast with limited access returns valid result."""
+        url = reverse("aws-accounts")
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreater(response.data.get("meta").get("count"), 0)
+        self.assertNotEqual(response.data.get("data"), [])
+        self.assertEqual(response.data.get("value", ["9999999999991"]))
+
+    @RbacPermissions({"azure.subscription_guid": {"read": ["9999999999991"]}})
+    def test_azure_subscription_guid__view(self):
+        """Test that getting a forecast with limited access returns valid result."""
+        url = reverse("aws-accounts")
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreater(response.data.get("meta").get("count"), 0)
+        self.assertNotEqual(response.data.get("data"), [])
+        self.assertEqual(response.data.get("value", ["9999999999991"]))
+
+    @RbacPermissions({"gcp.account": {"read": ["9999999999991"]}})
+    def test_gcp_account_view(self):
+        """Test that getting a forecast with limited access returns valid result."""
+        url = reverse("aws-accounts")
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreater(response.data.get("meta").get("count"), 0)
+        self.assertNotEqual(response.data.get("data"), [])
+        self.assertEqual(response.data.get("value", ["9999999999991"]))
+
+    @RbacPermissions({"gcp.project": {"read": ["9999999999991"]}})
+    def test_gcp_project_view(self):
+        """Test that getting a forecast with limited access returns valid result."""
+        url = reverse("aws-accounts")
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreater(response.data.get("meta").get("count"), 0)
+        self.assertNotEqual(response.data.get("data"), [])
+        self.assertEqual(response.data.get("value", ["9999999999991"]))
+
+    @RbacPermissions({"openshift.cluster": {"read": ["9999999999991"]}})
+    def test_openshift_cluster_view(self):
+        """Test that getting a forecast with limited access returns valid result."""
+        url = reverse("aws-accounts")
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreater(response.data.get("meta").get("count"), 0)
+        self.assertNotEqual(response.data.get("data"), [])
+        self.assertEqual(response.data.get("value", ["9999999999991"]))
+
+    @RbacPermissions({"openshift.node": {"read": ["9999999999991"]}})
+    def test_openshift_node_view(self):
+        """Test that getting a forecast with limited access returns valid result."""
+        url = reverse("aws-accounts")
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreater(response.data.get("meta").get("count"), 0)
+        self.assertNotEqual(response.data.get("data"), [])
+        self.assertEqual(response.data.get("value", ["9999999999991"]))
+
+    @RbacPermissions({"openshift.project": {"read": ["9999999999991"]}})
+    def test_openshift_project_view(self):
+        """Test that getting a forecast with limited access returns valid result."""
+        url = reverse("aws-accounts")
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreater(response.data.get("meta").get("count"), 0)
+        self.assertNotEqual(response.data.get("data"), [])
+        self.assertEqual(response.data.get("value", ["9999999999991"]))
