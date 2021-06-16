@@ -17,6 +17,8 @@
 """Defines the OpenShift Access Permissions class."""
 from rest_framework import permissions
 
+from koku.api.common.permissions.openshift_all_access import OpenshiftAllAccessPermission
+
 
 class OpenShiftAccessPermission(permissions.BasePermission):
     """Determines if a user can view OpenShift data."""
@@ -32,7 +34,7 @@ class OpenShiftAccessPermission(permissions.BasePermission):
         if resource_access is None or not isinstance(resource_access, dict):
             return False
 
-        res_type_access = resource_access.get(self.resource_type, {})
+        res_type_access = resource_access.get(OpenshiftAllAccessPermission.resource_type, {})
         if request.method in permissions.SAFE_METHODS:
             # Check permissions for read-only request
             read_access = res_type_access.get("read", [])
