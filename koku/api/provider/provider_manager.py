@@ -210,7 +210,6 @@ class ProviderManager:
         if self.is_removable_by_user(current_user):
             self.model.delete()
             LOG.info(f"Provider: {self.model.name} removed by {current_user.username}")
-            post_delete.send(sender=self.model.__class__, instance=self.model)
         else:
             err_msg = "User {} does not have permission to delete provider {}".format(
                 current_user.username, str(self.model)
@@ -232,6 +231,7 @@ def provider_post_delete_callback(*args, **kwargs):
         )
         auth_count = provider_auth_query.count()
         if auth_count == 0:
+            LOG.info("Deleting unreferenced ProviderAuthentication")
             auth_query = ProviderAuthentication.objects.filter(pk=provider.authentication_id)
             execute_delete_sql(auth_query)
     if provider.billing_source_id:
@@ -240,6 +240,7 @@ def provider_post_delete_callback(*args, **kwargs):
         )
         billing_count = provider_billing_query.count()
         if billing_count == 0:
+            LOG.info("Deleting unreferenced ProviderBillingSource")
             billing_source_query = ProviderBillingSource.objects.filter(pk=provider.billing_source_id)
             execute_delete_sql(billing_source_query)
 
@@ -251,6 +252,7 @@ def provider_post_delete_callback(*args, **kwargs):
     customer.date_updated = DateHelper().now_utc
     customer.save()
 
+    LOG.info("Deleting any related CostModelMap records")
     execute_delete_sql(CostModelMap.objects.filter(provider_uuid=provider.uuid))
 
     if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(
@@ -259,6 +261,7 @@ def provider_post_delete_callback(*args, **kwargs):
         # Local import of task function to avoid potential import cycle.
         from masu.celery.tasks import delete_archived_data
 
+        LOG.info("Deleting any archived data")
         delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
         transaction.on_commit(delete_func)
 
