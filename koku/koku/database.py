@@ -207,7 +207,8 @@ def cascade_delete(base_model, from_model, instance_pk_query, level=0):
                 f"    Executing SET NULL constraint action on {related_model.__name__}"
                 f" relation of {from_model.__name__}"
             )
-            execute_update_sql(related_model.objects.filter(**filterspec), **updatespec)
+            rec_count = execute_update_sql(related_model.objects.filter(**filterspec), **updatespec)
+            LOG.info(f"    Updated {rec_count} records in {related_model.__name__}")
         elif model_relation.on_delete.__name__ == "CASCADE":
             filterspec = {f"{model_relation.remote_field.column}__in": models.Subquery(instance_pk_query)}
             related_pk_values = related_model.objects.filter(**filterspec).values_list(related_model._meta.pk.name)
@@ -216,4 +217,5 @@ def cascade_delete(base_model, from_model, instance_pk_query, level=0):
 
     filterspec = {f"{from_model._meta.pk.name}__in": models.Subquery(instance_pk_query)}
     LOG.info(f"Level {level}: delete records from {from_model.__name__}")
-    execute_delete_sql(from_model.objects.filter(**filterspec))
+    rec_count = execute_delete_sql(from_model.objects.filter(**filterspec))
+    LOG.info(f"Deleted {rec_count} records from {from_model.__name__}")
