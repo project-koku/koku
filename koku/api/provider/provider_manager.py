@@ -15,6 +15,8 @@ from django.dispatch import receiver
 from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider
+from api.provider.models import ProviderAuthentication
+from api.provider.models import ProviderBillingSource
 from api.provider.models import Sources
 from api.utils import DateHelper
 from cost_models.models import CostModelMap
@@ -206,10 +208,9 @@ class ProviderManager:
             raise ProviderManagerError(err_msg)
 
         if self.is_removable_by_user(current_user):
-            del_query = self.model.__class__.objects.filter(uuid=self._uuid)
-            execute_delete_sql(del_query)
+            self.model.delete()
             LOG.info(f"Provider: {self.model.name} removed by {current_user.username}")
-            post_delete.send(sender=self.model.__class__, instance=self.model, delete_type="single")
+            post_delete.send(sender=self.model.__class__, instance=self.model)
         else:
             err_msg = "User {} does not have permission to delete provider {}".format(
                 current_user.username, str(self.model)
@@ -225,22 +226,22 @@ def provider_post_delete_callback(*args, **kwargs):
     Note: Signal receivers must accept keyword arguments (**kwargs).
     """
     provider = kwargs["instance"]
-    if provider.authentication:
-        auth_count = (
-            Provider.objects.exclude(uuid=provider.uuid).filter(authentication=provider.authentication).count()
+    if provider.authentication_id:
+        provider_auth_query = Provider.objects.exclude(uuid=provider.uuid).filter(
+            authentication_id=provider.authentication_id
         )
+        auth_count = provider_auth_query.count()
         if auth_count == 0:
-            provider.authentication.delete()
-    if provider.billing_source:
-        billing_count = (
-            Provider.objects.exclude(uuid=provider.uuid).filter(billing_source=provider.billing_source).count()
+            auth_query = ProviderAuthentication.objects.filter(pk=provider.authentication_id)
+            execute_delete_sql(auth_query)
+    if provider.billing_source_id:
+        provider_billing_query = Provider.objects.exclude(uuid=provider.uuid).filter(
+            billing_source_id=provider.billing_source_id
         )
+        billing_count = provider_billing_query.count()
         if billing_count == 0:
-            provider.billing_source.delete()
-
-    provider_rate_objs = CostModelMap.objects.filter(provider_uuid=provider.uuid)
-    if provider_rate_objs:
-        provider_rate_objs.delete()
+            billing_source_query = ProviderBillingSource.objects.filter(pk=provider.billing_source_id)
+            execute_delete_sql(billing_source_query)
 
     if not provider.customer:
         LOG.warning("Provider %s has no Customer; we cannot call delete_archived_data.", provider.uuid)
@@ -249,6 +250,8 @@ def provider_post_delete_callback(*args, **kwargs):
     customer = provider.customer
     customer.date_updated = DateHelper().now_utc
     customer.save()
+
+    execute_delete_sql(CostModelMap.objects.filter(provider_uuid=provider.uuid))
 
     if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(
         provider.uuid, provider.type, provider.customer.schema_name
@@ -259,6 +262,7 @@ def provider_post_delete_callback(*args, **kwargs):
         delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
         transaction.on_commit(delete_func)
 
+    LOG.info("Refreshing materialized views post-provider-delete uuid=%s.", provider.uuid)
     refresh_materialized_views(
         provider.customer.schema_name, provider.type, provider_uuid=provider.uuid, synchronous=True
     )
