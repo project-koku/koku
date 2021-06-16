@@ -3,6 +3,7 @@
 
 set -exv
 
+DOCKERFILE=${DOCKERFILE:="Dockerfile"}
 IMAGE="quay.io/cloudservices/koku"
 IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 
