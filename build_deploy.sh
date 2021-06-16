@@ -23,7 +23,7 @@ mkdir -p $AUTH_CONF_DIR
 export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
 podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
 podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
-podman build -f $APP_ROOT/$DOCKERFILE -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT
+podman build -t "${IMAGE}:${IMAGE_TAG}" .
 podman push "${IMAGE}:${IMAGE_TAG}"
 # Backward compatibility with CI/QA
 podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:latest"
