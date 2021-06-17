@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the Resource Types views."""
 import logging
@@ -75,7 +63,7 @@ class ResourceTypesViewTest(IamTestCase):
     """Tests the resource types views."""
 
     ENDPOINTS_RTYPE = ["resource-types"]
-    ENDPOINTS_AWS = ["aws-accounts", "aws-organizational-units"]
+    ENDPOINTS_AWS = ["aws-accounts", "aws-regions", "aws-services","aws-organizational-units"]
     ENDPOINTS_GCP = ["gcp-accounts", "gcp-projects"]
     ENDPOINTS_AZURE = ["azure-subscription-guids"]
     ENDPOINTS_OPENSHIFT = ["openshift-clusters", "openshift-nodes", "openshift-projects"]

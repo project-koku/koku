@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Removes report data from database."""
 import logging
@@ -21,7 +9,6 @@ from datetime import datetime
 from tenant_schemas.utils import schema_context
 
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
-from masu.database.koku_database_access import mini_transaction_delete
 
 LOG = logging.getLogger(__name__)
 
@@ -73,7 +60,7 @@ class AWSReportDBCleaner:
 
                     if not simulate:
                         lineitem_query = accessor.get_lineitem_query_for_billid(bill_id)
-                        del_count, remainder = mini_transaction_delete(lineitem_query)
+                        del_count = accessor.execute_delete_sql(lineitem_query)
                         LOG.info("Removing %s cost entry line items for bill id %s", del_count, bill_id)
 
                     LOG.info(
@@ -122,22 +109,24 @@ class AWSReportDBCleaner:
                     removed_billing_period_start = bill.billing_period_start
 
                     if not simulate:
-                        del_count = accessor.get_ocp_aws_summary_query_for_billid(bill_id).delete()
+                        del_count = accessor.execute_delete_sql(accessor.get_ocp_aws_summary_query_for_billid(bill_id))
                         LOG.info("Removing %s OCP-on-AWS summary items for bill id %s", del_count, bill_id)
 
-                        del_count = accessor.get_ocp_aws_project_summary_query_for_billid(bill_id).delete()
+                        del_count = accessor.execute_delete_sql(
+                            accessor.get_ocp_aws_project_summary_query_for_billid(bill_id)
+                        )
                         LOG.info("Removing %s OCP-on-AWS project summary items for bill id %s", del_count, bill_id)
 
-                        del_count = accessor.get_lineitem_query_for_billid(bill_id).delete()
+                        del_count = accessor.execute_delete_sql(accessor.get_lineitem_query_for_billid(bill_id))
                         LOG.info("Removing %s cost entry line items for bill id %s", del_count, bill_id)
 
-                        del_count = accessor.get_daily_query_for_billid(bill_id).delete()
+                        del_count = accessor.execute_delete_sql(accessor.get_daily_query_for_billid(bill_id))
                         LOG.info("Removing %s cost entry daily items for bill id %s", del_count, bill_id)
 
-                        del_count = accessor.get_summary_query_for_billid(bill_id).delete()
+                        del_count = accessor.execute_delete_sql(accessor.get_summary_query_for_billid(bill_id))
                         LOG.info("Removing %s cost entry summary items for bill id %s", del_count, bill_id)
 
-                        del_count = accessor.get_cost_entry_query_for_billid(bill_id).delete()
+                        del_count = accessor.execute_delete_sql(accessor.get_cost_entry_query_for_billid(bill_id))
                         LOG.info("Removing %s cost entry items for bill id %s", del_count, bill_id)
 
                     LOG.info(

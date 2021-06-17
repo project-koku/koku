@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Django database settings."""
 import json
@@ -22,12 +10,15 @@ import os
 from django.conf import settings
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
+from django.db import models
 from django.db import OperationalError
 from django.db import transaction
 from django.db.migrations.loader import MigrationLoader
 from django.db.models import DecimalField
 from django.db.models.aggregates import Func
 from django.db.models.fields.json import KeyTextTransform
+from django.db.models.sql.compiler import SQLDeleteCompiler
+from sqlparse import format as format_sql
 
 from .configurator import CONFIGURATOR
 from .env import ENVIRONMENT
@@ -165,3 +156,66 @@ class KeyDecimalTransform(KeyTextTransform):
     def as_postgresql(self, compiler, connection):
         sqlpart, params = super().as_postgresql(compiler, connection)
         return sqlpart + "::numeric", params
+
+
+def get_delete_sql(query):
+    return SQLDeleteCompiler(query.query, transaction.get_connection(), query.db).as_sql()
+
+
+def get_update_sql(query, **updatespec):
+    assert query.query.can_filter()
+    query.for_write = True
+    q = query.query.chain(models.sql.UpdateQuery)
+    q.add_update_values(updatespec)
+    q._annotations = None
+
+    return q.get_compiler(query.db).as_sql()
+
+
+def execute_compiled_sql(sql, params=None):
+    rows_affected = 0
+    with transaction.get_connection().cursor() as cur:
+        params = params or None
+        LOG.debug(format_sql(cur.mogrify(sql, params).decode("utf-8"), reindent_aligned=True))
+        cur.execute(sql, params)
+        rows_affected = cur.rowcount
+
+    return rows_affected
+
+
+def execute_delete_sql(query):
+    """Execute sql directly, returns cursor."""
+    sql, params = get_delete_sql(query)
+    return execute_compiled_sql(sql, params=params)
+
+
+def execute_update_sql(query, **updatespec):
+    """Execute sql directly, returns cursor."""
+    sql, params = get_update_sql(query, **updatespec)
+    return execute_compiled_sql(sql, params=params)
+
+
+def cascade_delete(base_model, from_model, instance_pk_query, level=0):
+    instance_pk_query = instance_pk_query.values_list("pk").order_by()
+    LOG.info(f"Level {level} Delete Cascade for {base_model.__name__}: Checking relations for {from_model.__name__}")
+    for model_relation in from_model._meta.related_objects:
+        related_model = model_relation.related_model
+        if model_relation.on_delete.__name__ == "SET_NULL":
+            filterspec = {f"{model_relation.remote_field.column}__in": models.Subquery(instance_pk_query)}
+            updatespec = {f"{model_relation.remote_field.column}": None}
+            LOG.info(
+                f"    Executing SET NULL constraint action on {related_model.__name__}"
+                f" relation of {from_model.__name__}"
+            )
+            rec_count = execute_update_sql(related_model.objects.filter(**filterspec), **updatespec)
+            LOG.info(f"    Updated {rec_count} records in {related_model.__name__}")
+        elif model_relation.on_delete.__name__ == "CASCADE":
+            filterspec = {f"{model_relation.remote_field.column}__in": models.Subquery(instance_pk_query)}
+            related_pk_values = related_model.objects.filter(**filterspec).values_list(related_model._meta.pk.name)
+            LOG.info(f"    Cascading delete to relations of {related_model.__name__}")
+            cascade_delete(base_model, related_model, related_pk_values, level=level + 1)
+
+    filterspec = {f"{from_model._meta.pk.name}__in": models.Subquery(instance_pk_query)}
+    LOG.info(f"Level {level}: delete records from {from_model.__name__}")
+    rec_count = execute_delete_sql(from_model.objects.filter(**filterspec))
+    LOG.info(f"Deleted {rec_count} records from {from_model.__name__}")
