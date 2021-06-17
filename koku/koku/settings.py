@@ -408,18 +408,12 @@ RABBITMQ_PORT = ENVIRONMENT.get_value("RABBITMQ_PORT", default="5672")
 
 
 # AWS S3 Bucket Settings
-S3_BUCKET_PATH = ENVIRONMENT.get_value("S3_BUCKET_PATH", default="data_archive")
+S3_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
-
-S3_SECURE = CONFIGURATOR.get_object_store_tls()
-S3_PREFIX = "https://" if S3_SECURE else "http://"
-S3_HOST = CONFIGURATOR.get_object_store_host()
-S3_PORT = CONFIGURATOR.get_object_store_port()
-S3_ENDPOINT = f"{S3_PREFIX}{S3_HOST}:{S3_PORT}"
-
+S3_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket("koku-reports")
+S3_BUCKET_PATH = ENVIRONMENT.get_value("S3_BUCKET_PATH", default="data_archive")
 S3_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key()
 S3_SECRET = CONFIGURATOR.get_object_store_secret_key()
-S3_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket("koku-reports")
 
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 ENABLE_PARQUET_PROCESSING = ENVIRONMENT.bool("ENABLE_PARQUET_PROCESSING", default=False)

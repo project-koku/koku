@@ -67,6 +67,11 @@ class Configurator:
         pass
 
     @staticmethod
+    def get_object_store_endpoint():
+        """Obtain object store endpoint."""
+        pass
+
+    @staticmethod
     def get_object_store_host():
         """Obtain object store host."""
         pass
@@ -201,19 +206,30 @@ class EnvConfigurator(Configurator):
         return ENVIRONMENT.get_value("CW_LOG_GROUP", default="platform-dev")
 
     @staticmethod
+    def get_object_store_endpoint():
+        """Obtain object store endpoint."""
+        S3_ENDPOINT = ENVIRONMENT.get_value("S3_ENDPOINT", default="s3.us-east-1.amazonaws.com")
+        if not (S3_ENDPOINT.startswith("https://") or S3_ENDPOINT.startswith("http://")):
+            S3_ENDPOINT = "https://" + S3_ENDPOINT
+        return S3_ENDPOINT
+
+    @staticmethod
     def get_object_store_host():
         """Obtain object store host."""
-        return ENVIRONMENT.get_value("S3_HOST", default=None)
+        # return ENVIRONMENT.get_value("S3_HOST", default=None)
+        pass
 
     @staticmethod
     def get_object_store_port():
         """Obtain object store port."""
-        return ENVIRONMENT.get_value("S3_PORT", default=443)
+        # return ENVIRONMENT.get_value("S3_PORT", default=443)
+        pass
 
     @staticmethod
     def get_object_store_tls():
         """Obtain object store secret key."""
-        return ENVIRONMENT.bool("S3_SECURE", default=False)
+        # return ENVIRONMENT.bool("S3_SECURE", default=False)
+        pass
 
     @staticmethod
     def get_object_store_access_key(requestedName: str = ""):
@@ -341,6 +357,15 @@ class ClowderConfigurator(Configurator):
     def get_cloudwatch_log_group():
         """Obtain cloudwatch log group."""
         return LoadedConfig.logging.cloudwatch.logGroup
+
+    @staticmethod
+    def get_object_store_endpoint():
+        """Obtain object store endpoint."""
+        S3_SECURE = CONFIGURATOR.get_object_store_tls()
+        S3_PREFIX = "https://" if S3_SECURE else "http://"
+        S3_HOST = CONFIGURATOR.get_object_store_host()
+        S3_PORT = CONFIGURATOR.get_object_store_port()
+        return f"{S3_PREFIX}{S3_HOST}:{S3_PORT}"
 
     @staticmethod
     def get_object_store_host():
