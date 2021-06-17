@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Management capabilities for Provider functionality."""
 import logging
@@ -27,9 +15,12 @@ from django.dispatch import receiver
 from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider
+from api.provider.models import ProviderAuthentication
+from api.provider.models import ProviderBillingSource
 from api.provider.models import Sources
 from api.utils import DateHelper
 from cost_models.models import CostModelMap
+from koku.database import execute_delete_sql
 from masu.processor import enable_trino_processing
 from masu.processor.tasks import refresh_materialized_views
 from reporting.provider.aws.models import AWSCostEntryBill
@@ -234,22 +225,24 @@ def provider_post_delete_callback(*args, **kwargs):
     Note: Signal receivers must accept keyword arguments (**kwargs).
     """
     provider = kwargs["instance"]
-    if provider.authentication:
-        auth_count = (
-            Provider.objects.exclude(uuid=provider.uuid).filter(authentication=provider.authentication).count()
+    if provider.authentication_id:
+        provider_auth_query = Provider.objects.exclude(uuid=provider.uuid).filter(
+            authentication_id=provider.authentication_id
         )
+        auth_count = provider_auth_query.count()
         if auth_count == 0:
-            provider.authentication.delete()
-    if provider.billing_source:
-        billing_count = (
-            Provider.objects.exclude(uuid=provider.uuid).filter(billing_source=provider.billing_source).count()
+            LOG.info("Deleting unreferenced ProviderAuthentication")
+            auth_query = ProviderAuthentication.objects.filter(pk=provider.authentication_id)
+            execute_delete_sql(auth_query)
+    if provider.billing_source_id:
+        provider_billing_query = Provider.objects.exclude(uuid=provider.uuid).filter(
+            billing_source_id=provider.billing_source_id
         )
+        billing_count = provider_billing_query.count()
         if billing_count == 0:
-            provider.billing_source.delete()
-
-    provider_rate_objs = CostModelMap.objects.filter(provider_uuid=provider.uuid)
-    if provider_rate_objs:
-        provider_rate_objs.delete()
+            LOG.info("Deleting unreferenced ProviderBillingSource")
+            billing_source_query = ProviderBillingSource.objects.filter(pk=provider.billing_source_id)
+            execute_delete_sql(billing_source_query)
 
     if not provider.customer:
         LOG.warning("Provider %s has no Customer; we cannot call delete_archived_data.", provider.uuid)
@@ -259,15 +252,20 @@ def provider_post_delete_callback(*args, **kwargs):
     customer.date_updated = DateHelper().now_utc
     customer.save()
 
+    LOG.info("Deleting any related CostModelMap records")
+    execute_delete_sql(CostModelMap.objects.filter(provider_uuid=provider.uuid))
+
     if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(
         provider.uuid, provider.type, provider.customer.schema_name
     ):
         # Local import of task function to avoid potential import cycle.
         from masu.celery.tasks import delete_archived_data
 
+        LOG.info("Deleting any archived data")
         delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
         transaction.on_commit(delete_func)
 
+    LOG.info("Refreshing materialized views post-provider-delete uuid=%s.", provider.uuid)
     refresh_materialized_views(
         provider.customer.schema_name, provider.type, provider_uuid=provider.uuid, synchronous=True
     )

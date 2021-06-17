@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for report data."""
 import logging
@@ -29,6 +17,7 @@ from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 import koku.presto_database as kpdb
+from koku.database import execute_delete_sql as exec_del_sql
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
 from masu.database.koku_database_access import mini_transaction_delete
@@ -442,3 +431,6 @@ class ReportDBAccessorBase(KokuDBAccess):
             count, _ = mini_transaction_delete(select_query)
         msg = f"Deleted {count} records from {self.line_item_daily_summary_table}"
         LOG.info(msg)
+
+    def execute_delete_sql(self, query):
+        return exec_del_sql(query)

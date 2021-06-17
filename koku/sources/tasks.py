@@ -1,18 +1,6 @@
 #
-# Copyright 2021 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Tasks for sources-client."""
 import logging
@@ -26,6 +14,7 @@ from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from sources.api.source_status import SourceStatus
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.storage import load_providers_to_delete
+from sources.storage import mark_provider_as_inactive
 
 LOG = logging.getLogger(__name__)
 
@@ -33,6 +22,8 @@ LOG = logging.getLogger(__name__)
 @celery_app.task(name="sources.tasks.delete_source", queue=PRIORITY_QUEUE)
 def delete_source(source_id, auth_header, koku_uuid):
     """Delete Provider and Source."""
+    LOG.info(f"Deactivating Provider {koku_uuid}")
+    mark_provider_as_inactive(koku_uuid)
     LOG.info(f"Deleting Provider {koku_uuid} for Source ID: {source_id}")
     coordinator = SourcesProviderCoordinator(source_id, auth_header)
     coordinator.destroy_account(koku_uuid)

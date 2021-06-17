@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Removes report data from database."""
 import logging
@@ -118,37 +106,45 @@ class OCPReportDBCleaner:
                     removed_usage_start_period = usage_period.report_period_start
 
                     if not simulate:
-                        qty = accessor.get_item_query_report_period_id(report_period_id).delete()
+                        qty = accessor.execute_delete_sql(accessor.get_item_query_report_period_id(report_period_id))
                         LOG.info("Removing %s usage period line items for usage period id %s", qty, report_period_id)
 
-                        qty = accessor.get_daily_usage_query_for_clusterid(cluster_id).delete()
+                        qty = accessor.execute_delete_sql(accessor.get_daily_usage_query_for_clusterid(cluster_id))
                         LOG.info("Removing %s usage daily items for cluster id %s", qty, cluster_id)
 
-                        qty = accessor.get_summary_usage_query_for_clusterid(cluster_id).delete()
+                        qty = accessor.execute_delete_sql(accessor.get_summary_usage_query_for_clusterid(cluster_id))
                         LOG.info("Removing %s usage summary items for cluster id %s", qty, cluster_id)
 
-                        qty = accessor.get_cost_summary_for_clusterid(cluster_id).delete()
+                        qty = accessor.execute_delete_sql(accessor.get_cost_summary_for_clusterid(cluster_id))
                         LOG.info("Removing %s cost summary items for cluster id %s", qty, cluster_id)
 
-                        qty = accessor.get_storage_item_query_report_period_id(report_period_id).delete()
+                        qty = accessor.execute_delete_sql(
+                            accessor.get_storage_item_query_report_period_id(report_period_id)
+                        )
                         LOG.info("Removing %s storage line items for usage period id %s", qty, report_period_id)
 
-                        qty = accessor.get_node_label_item_query_report_period_id(report_period_id).delete()
+                        qty = accessor.execute_delete_sql(
+                            accessor.get_node_label_item_query_report_period_id(report_period_id)
+                        )
                         LOG.info("Removing %s node label line items for usage period id %s", qty, report_period_id)
 
-                        qty = accessor.get_daily_storage_item_query_cluster_id(cluster_id).delete()
+                        qty = accessor.execute_delete_sql(accessor.get_daily_storage_item_query_cluster_id(cluster_id))
                         LOG.info("Removing %s storage dailyitems for cluster id %s", qty, cluster_id)
 
-                        qty = accessor.get_storage_summary_query_cluster_id(cluster_id).delete()
+                        qty = accessor.execute_delete_sql(accessor.get_storage_summary_query_cluster_id(cluster_id))
                         LOG.info("Removing %s storage summary for cluster id %s", qty, cluster_id)
 
-                        qty = accessor.get_report_query_report_period_id(report_period_id).delete()
+                        qty = accessor.execute_delete_sql(accessor.get_report_query_report_period_id(report_period_id))
                         LOG.info("Removing %s usage period items for usage period id %s", qty, report_period_id)
 
-                        qty = accessor.get_ocp_aws_summary_query_for_cluster_id(cluster_id).delete()
+                        qty = accessor.execute_delete_sql(
+                            accessor.get_ocp_aws_summary_query_for_cluster_id(cluster_id)
+                        )
                         LOG.info("Removing %s OCP-on-AWS summary items for cluster id %s", qty, cluster_id)
 
-                        qty = accessor.get_ocp_aws_project_summary_query_for_cluster_id(cluster_id).delete()
+                        qty = accessor.execute_delete_sql(
+                            accessor.get_ocp_aws_project_summary_query_for_cluster_id(cluster_id)
+                        )
                         LOG.info("Removing %s OCP-on-AWS project summary items for cluster id %s", qty, cluster_id)
 
                     LOG.info(
