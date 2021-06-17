@@ -14,6 +14,9 @@ from api.iam.models import Tenant
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from reporting.provider.aws.models import AWSCostEntryBill
+from reporting.provider.azure.models import AzureCostEntryBill
+from reporting.provider.gcp.models import GCPCostEntryBill
+from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 
 class TestDeleteSQL(IamTestCase):
@@ -80,32 +83,89 @@ class TestDeleteSQL(IamTestCase):
         t = Tenant(schema_name=c.schema_name)
         t.save()
         t.create_schema()
-        # Add a bogus provider
-        p = Provider(
+        # Add some bogus providers
+        paws = Provider(
             uuid=uuid.uuid4(),
-            name="eek_provider_3",
+            name="eek_aws_provider_3",
             type=Provider.PROVIDER_AWS,
             setup_complete=False,
             active=True,
             customer=c,
         )
-        p.save()
-        # Create a AWSCostEnrtyBill
-        aceb = AWSCostEntryBill(
-            billing_resource="6846351687354184651",
-            billing_period_start=datetime(2020, 1, 1, tzinfo=UTC),
-            billing_period_end=datetime(2020, 2, 1, tzinfo=UTC),
-            provider=p,
+        paws.save()
+        pazure = Provider(
+            uuid=uuid.uuid4(),
+            name="eek_azure_provider_3",
+            type=Provider.PROVIDER_AZURE,
+            setup_complete=False,
+            active=True,
+            customer=c,
         )
-        expected = "INFO:koku.database:Level 1: delete records from AWSCostEntryBill"
+        pazure.save()
+        pgcp = Provider(
+            uuid=uuid.uuid4(),
+            name="eek_gcp_provider_3",
+            type=Provider.PROVIDER_GCP,
+            setup_complete=False,
+            active=True,
+            customer=c,
+        )
+        pgcp.save()
+        pocp = Provider(
+            uuid=uuid.uuid4(),
+            name="eek_ocp_provider_3",
+            type=Provider.PROVIDER_OCP,
+            setup_complete=False,
+            active=True,
+            customer=c,
+        )
+        pocp.save()
+        # Create billing period stuff for each provider
+        period_start = datetime(2020, 1, 1, tzinfo=UTC)
+        period_end = datetime(2020, 2, 1, tzinfo=UTC)
+        awsceb = AWSCostEntryBill(
+            billing_resource="6846351687354184651",
+            billing_period_start=period_start,
+            billing_period_end=period_end,
+            provider=paws,
+        )
+        azureceb = AzureCostEntryBill(
+            billing_period_start=period_start, billing_period_end=period_end, provider=pazure
+        )
+        gcpceb = GCPCostEntryBill(billing_period_start=period_start, billing_period_end=period_end, provider=pgcp)
+        ocpurp = OCPUsageReportPeriod(
+            cluster_id="584634154687685", report_period_start=period_start, report_period_end=period_end, provider=pocp
+        )
         with schema_context(c.schema_name):
-            aceb.save()
+            awsceb.save()
+            azureceb.save()
+            gcpceb.save()
+            ocpurp.save()
 
+        expected = "INFO:koku.database:Level 1: delete records from AWSCostEntryBill"
         with self.assertLogs("koku.database", level="INFO") as _logger:
-            p.delete()
+            paws.delete()
+            self.assertIn(expected, _logger.output)
+
+        expected = "INFO:koku.database:Level 1: delete records from AzureCostEntryBill"
+        with self.assertLogs("koku.database", level="INFO") as _logger:
+            pazure.delete()
+            self.assertIn(expected, _logger.output)
+
+        expected = "INFO:koku.database:Level 1: delete records from GCPCostEntryBill"
+        with self.assertLogs("koku.database", level="INFO") as _logger:
+            pgcp.delete()
+            self.assertIn(expected, _logger.output)
+
+        expected = "INFO:koku.database:Level 1: delete records from OCPUsageReportPeriod"
+        with self.assertLogs("koku.database", level="INFO") as _logger:
+            pocp.delete()
             self.assertIn(expected, _logger.output)
 
         with schema_context(c.schema_name):
-            self.assertEqual(AWSCostEntryBill.objects.filter(pk=aceb.pk).count(), 0)
+            self.assertEqual(AWSCostEntryBill.objects.filter(pk=awsceb.pk).count(), 0)
+            self.assertEqual(AzureCostEntryBill.objects.filter(pk=azureceb.pk).count(), 0)
+            self.assertEqual(GCPCostEntryBill.objects.filter(pk=gcpceb.pk).count(), 0)
+            self.assertEqual(OCPUsageReportPeriod.objects.filter(pk=ocpurp.pk).count(), 0)
 
-        self.assertEqual(Provider.objects.filter(pk=p.pk).count(), 0)
+        self.assertEqual(Provider.objects.filter(pk__in=(paws.pk, pazure.pk, pgcp.pk, pocp.pk)).count(), 0)
