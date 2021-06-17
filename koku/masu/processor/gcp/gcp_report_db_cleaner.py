@@ -110,13 +110,13 @@ class GCPReportDBCleaner:
                     removed_billing_period_start = bill.billing_period_start
 
                     if not simulate:
-                        del_count = accessor.get_lineitem_query_for_billid(bill_id).delete()
+                        del_count = accessor.execute_delete_sql(accessor.get_lineitem_query_for_billid(bill_id))
                         LOG.info("Removing %s cost entry line items for bill id %s", del_count, bill_id)
 
-                        del_count = accessor.get_daily_query_for_billid(bill_id).delete()
+                        del_count = accessor.execute_delete_sql(accessor.get_daily_query_for_billid(bill_id))
                         LOG.info("Removing %s cost entry daily items for bill id %s", del_count, bill_id)
 
-                        del_count = accessor.get_summary_query_for_billid(bill_id).delete()
+                        del_count = accessor.execute_delete_sql(accessor.get_summary_query_for_billid(bill_id))
                         LOG.info("Removing %s cost entry summary items for bill id %s", del_count, bill_id)
 
                     LOG.info(
