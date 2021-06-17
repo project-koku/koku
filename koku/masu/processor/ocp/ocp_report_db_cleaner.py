@@ -106,37 +106,45 @@ class OCPReportDBCleaner:
                     removed_usage_start_period = usage_period.report_period_start
 
                     if not simulate:
-                        qty = accessor.get_item_query_report_period_id(report_period_id).delete()
+                        qty = accessor.execute_delete_sql(accessor.get_item_query_report_period_id(report_period_id))
                         LOG.info("Removing %s usage period line items for usage period id %s", qty, report_period_id)
 
-                        qty = accessor.get_daily_usage_query_for_clusterid(cluster_id).delete()
+                        qty = accessor.execute_delete_sql(accessor.get_daily_usage_query_for_clusterid(cluster_id))
                         LOG.info("Removing %s usage daily items for cluster id %s", qty, cluster_id)
 
-                        qty = accessor.get_summary_usage_query_for_clusterid(cluster_id).delete()
+                        qty = accessor.execute_delete_sql(accessor.get_summary_usage_query_for_clusterid(cluster_id))
                         LOG.info("Removing %s usage summary items for cluster id %s", qty, cluster_id)
 
-                        qty = accessor.get_cost_summary_for_clusterid(cluster_id).delete()
+                        qty = accessor.execute_delete_sql(accessor.get_cost_summary_for_clusterid(cluster_id))
                         LOG.info("Removing %s cost summary items for cluster id %s", qty, cluster_id)
 
-                        qty = accessor.get_storage_item_query_report_period_id(report_period_id).delete()
+                        qty = accessor.execute_delete_sql(
+                            accessor.get_storage_item_query_report_period_id(report_period_id)
+                        )
                         LOG.info("Removing %s storage line items for usage period id %s", qty, report_period_id)
 
-                        qty = accessor.get_node_label_item_query_report_period_id(report_period_id).delete()
+                        qty = accessor.execute_delete_sql(
+                            accessor.get_node_label_item_query_report_period_id(report_period_id)
+                        )
                         LOG.info("Removing %s node label line items for usage period id %s", qty, report_period_id)
 
-                        qty = accessor.get_daily_storage_item_query_cluster_id(cluster_id).delete()
+                        qty = accessor.execute_delete_sql(accessor.get_daily_storage_item_query_cluster_id(cluster_id))
                         LOG.info("Removing %s storage dailyitems for cluster id %s", qty, cluster_id)
 
-                        qty = accessor.get_storage_summary_query_cluster_id(cluster_id).delete()
+                        qty = accessor.execute_delete_sql(accessor.get_storage_summary_query_cluster_id(cluster_id))
                         LOG.info("Removing %s storage summary for cluster id %s", qty, cluster_id)
 
-                        qty = accessor.get_report_query_report_period_id(report_period_id).delete()
+                        qty = accessor.execute_delete_sql(accessor.get_report_query_report_period_id(report_period_id))
                         LOG.info("Removing %s usage period items for usage period id %s", qty, report_period_id)
 
-                        qty = accessor.get_ocp_aws_summary_query_for_cluster_id(cluster_id).delete()
+                        qty = accessor.execute_delete_sql(
+                            accessor.get_ocp_aws_summary_query_for_cluster_id(cluster_id)
+                        )
                         LOG.info("Removing %s OCP-on-AWS summary items for cluster id %s", qty, cluster_id)
 
-                        qty = accessor.get_ocp_aws_project_summary_query_for_cluster_id(cluster_id).delete()
+                        qty = accessor.execute_delete_sql(
+                            accessor.get_ocp_aws_project_summary_query_for_cluster_id(cluster_id)
+                        )
                         LOG.info("Removing %s OCP-on-AWS project summary items for cluster id %s", qty, cluster_id)
 
                     LOG.info(
