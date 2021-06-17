@@ -29,7 +29,7 @@ objects:
     - topicName: platform.upload.validation
 
     objectStore:
-    - koku-reports
+    - ${S3_BUCKET_NAME}
 
     optionalDependencies:
     - ingress
@@ -74,6 +74,9 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/cloudservices/koku
+- name: S3_BUCKET_NAME
+  value: 'koku-reports'
+
 - displayName: App domain
   name: APP_DOMAIN
   value: project-koku.com
