@@ -39,6 +39,9 @@ class AWSAccountView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for aws account and rand displays values related to what the user has access to
-        user_access = request.user.access.get("aws.account", {}).get("read", [])
+        if request.user.access:
+            user_access = request.user.access.get("aws.account", {}).get("read", [])
+        else:
+            user_access = []
         self.queryset = self.queryset.values("value").filter(usage_account_id__in=user_access)
         return super().list(request)
