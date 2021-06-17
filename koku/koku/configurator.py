@@ -1,18 +1,6 @@
 #
-# Copyright 2021 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """
 Handler module for gathering configuration data.
@@ -309,11 +297,15 @@ class ClowderConfigurator(Configurator):
     def get_in_memory_db_host():
         """Obtain in memory (redis) db host."""
         return LoadedConfig.inMemoryDb.hostname
+        # TODO: if we drop an elasticache instance or clowder supports more
+        # than 1 elasticache instance, we can switch to using the inMemoryDb
+        # return ENVIRONMENT.get_value("REDIS_HOST", default="redis")
 
     @staticmethod
     def get_in_memory_db_port():
         """Obtain in memory (redis) db port."""
         return LoadedConfig.inMemoryDb.port
+        # return ENVIRONMENT.get_value("REDIS_PORT", default="6379")
 
     @staticmethod
     def get_kafka_broker_host():

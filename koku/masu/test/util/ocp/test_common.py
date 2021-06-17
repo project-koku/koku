@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP util."""
 import os
@@ -23,6 +11,7 @@ from uuid import UUID
 
 import pandas as pd
 
+from api.provider.models import Provider
 from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -55,6 +44,16 @@ class OCPUtilTests(MasuTestCase):
         """Test that the cluster ID is returned from OCP provider."""
         cluster_id = utils.get_cluster_id_from_provider(self.ocp_test_provider_uuid)
         self.assertIsNotNone(cluster_id)
+
+    def test_get_cluster_id_with_no_authentication(self):
+        """Test that a None is correctly returned if authentication is not present."""
+        # Remove test provider authentication
+        Provider.objects.filter(uuid=self.ocp_test_provider_uuid).update(authentication=None)
+        ocp_provider = Provider.objects.get(uuid=self.ocp_test_provider_uuid)
+        self.assertIsNone(ocp_provider.authentication)
+        # Assert if authentication is empty we return none instead of an error
+        cluster_id = utils.get_cluster_id_from_provider(self.ocp_test_provider_uuid)
+        self.assertIsNone(cluster_id)
 
     def test_get_cluster_id_from_non_ocp_provider(self):
         """Test that None is returned when getting cluster ID on non-OCP provider."""

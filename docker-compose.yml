@@ -277,6 +277,7 @@ services:
         - ENABLE_TRINO_ACCOUNTS
         - ENABLE_TRINO_SOURCE_TYPE
         - TRINO_DATE_STEP=${TRINO_DATE_STEP-31}
+        - MAX_CELERY_TASKS_PER_WORKER=${MAX_CELERY_TASKS_PER_WORKER-10}
       privileged: true
       volumes:
         - '.:/koku'
@@ -403,7 +404,7 @@ services:
       hostname: koku_beat
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['celery', '--pidfile=/opt/celeryd.pid', '-A', 'koku', 'beat', '-l', 'info']
+      entrypoint: ['celery', '-A', 'koku', 'beat', '-l', 'info']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
