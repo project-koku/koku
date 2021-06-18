@@ -1687,7 +1687,7 @@ objects:
     name: koku-aws
 - apiVersion: v1
   data:
-    gcp-credentials: ""
+    gcp-credentials: ${GCP_CREDENTIALS_EPH}
   kind: Secret
   metadata:
     name: koku-gcp
@@ -1916,6 +1916,10 @@ parameters:
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
 - displayName: AWS Secret Access Key (Ephemeral)
   name: AWS_SECRET_ACCESS_KEY_EPH
+  required: true
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- displayName: GCP Credentials (Ephemeral)
+  name: GCP_CREDENTIALS_EPH
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
 - displayName: Minimum replicas

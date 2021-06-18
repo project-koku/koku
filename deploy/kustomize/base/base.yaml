@@ -57,7 +57,7 @@ objects:
   metadata:
     name: koku-gcp
   data:
-    gcp-credentials: ""
+    gcp-credentials: "${GCP_CREDENTIALS_EPH}"
 
 parameters:
 - name: ENV_NAME
@@ -296,5 +296,9 @@ parameters:
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
 - name: AWS_SECRET_ACCESS_KEY_EPH
   displayName: AWS Secret Access Key (Ephemeral)
+  required: true
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- name: GCP_CREDENTIALS_EPH
+  displayName: GCP Credentials (Ephemeral)
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
