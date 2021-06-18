@@ -39,11 +39,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -189,11 +185,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -303,11 +295,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -439,11 +427,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -581,11 +565,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -715,11 +695,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -822,11 +798,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -963,11 +935,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1104,11 +1072,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1245,11 +1209,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1386,11 +1346,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1527,11 +1483,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1668,11 +1620,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1835,6 +1783,9 @@ parameters:
   value: quay.io/cloudservices/koku
 - name: S3_BUCKET_NAME
   value: koku-reports
+- description: GCP Credentials Location
+  name: GOOGLE_APPLICATION_CREDENTIALS
+  value: /etc/gcp/gcp-credentials.json
 - displayName: App domain
   name: APP_DOMAIN
   value: project-koku.com

@@ -76,6 +76,9 @@ parameters:
   value: quay.io/cloudservices/koku
 - name: S3_BUCKET_NAME
   value: 'koku-reports'
+- name: GOOGLE_APPLICATION_CREDENTIALS
+  description: GCP Credentials Location
+  value: "/etc/gcp/gcp-credentials.json"
 
 - displayName: App domain
   name: APP_DOMAIN
