@@ -104,6 +104,17 @@
         limits:
           cpu: ${SOURCES_LISTENER_CPU_LIMIT}
           memory: ${SOURCES_LISTENER_MEMORY_LIMIT}
+      volumeMounts:
+      - name: gcp-credentials
+        mountPath: /etc/gcp
+        readOnly: true
+      volumes:
+      - name: gcp-credentials
+        secret:
+          secretName: koku-gcp
+          items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
 
 - op: add
   path: /parameters/-

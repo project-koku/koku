@@ -146,6 +146,17 @@ objects:
           requests:
             cpu: ${KOKU_CPU_REQUEST}
             memory: ${KOKU_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        volumes:
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -244,9 +255,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-listener-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-listener-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -377,6 +397,17 @@ objects:
           requests:
             cpu: ${MASU_CPU_REQUEST}
             memory: ${MASU_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        volumes:
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -503,6 +534,17 @@ objects:
           requests:
             cpu: ${SCHEDULER_CPU_REQUEST}
             memory: ${SCHEDULER_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        volumes:
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: false
@@ -624,6 +666,17 @@ objects:
           requests:
             cpu: ${SOURCES_CLIENT_CPU_REQUEST}
             memory: ${SOURCES_CLIENT_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        volumes:
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -727,6 +780,17 @@ objects:
           requests:
             cpu: ${SOURCES_LISTENER_CPU_REQUEST}
             memory: ${SOURCES_LISTENER_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        volumes:
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: false
@@ -856,9 +920,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -988,9 +1061,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -1120,9 +1202,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -1252,9 +1343,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -1384,9 +1484,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -1516,9 +1625,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -1648,9 +1766,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true

@@ -131,9 +131,18 @@
       volumeMounts:
       - mountPath: /var/tmp/masu/
         name: koku-worker-data
+      - name: gcp-credentials
+        mountPath: /etc/gcp
+        readOnly: true
       volumes:
       - name: koku-worker-data
         emptyDir: {}
+      - name: gcp-credentials
+        secret:
+          secretName: koku-gcp
+          items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
 
 - op: add
   path: /parameters/-
