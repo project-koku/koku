@@ -384,6 +384,22 @@ class TestAWSUtils(MasuTestCase):
         for column in PRESTO_REQUIRED_COLUMNS:
             self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), columns)
 
+    def test_aws_post_processor_empty_tags(self):
+        """Test that missing columns in a report end up in the data frame."""
+        column_one = "column_one"
+        column_two = "column_two"
+        column_three = "column-three"
+        column_four = "resourceTags/System:key"
+        data = {column_one: [1, 2], column_two: [3, 4], column_three: [5, 6], column_four: ["value_1", "value_2"]}
+        data_frame = pd.DataFrame.from_dict(data)
+
+        processed_data_frame = utils.aws_post_processor(data_frame)
+        if isinstance(processed_data_frame, tuple):
+            processed_data_frame, df_tag_keys = processed_data_frame
+            self.assertIsInstance(df_tag_keys, set)
+
+        self.assertFalse(processed_data_frame["resourcetags"].isna().values.any())
+
 
 class AwsArnTest(TestCase):
     """AwnArn class test case."""
