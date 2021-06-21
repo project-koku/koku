@@ -432,7 +432,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             return {}
         if aws_provider_uuid and not self.table_exists_trino("aws_line_items_daily"):
             return {}
-        if azure_provider_uuid and not self.table_exists_trino("azure_line_items_daily"):
+        if azure_provider_uuid and not self.table_exists_trino("azure_line_items"):
             return {}
 
         if isinstance(start_date, str):
