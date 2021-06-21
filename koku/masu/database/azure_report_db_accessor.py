@@ -257,7 +257,14 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def populate_ocp_on_azure_cost_daily_summary_presto(
-        self, start_date, end_date, openshift_provider_uuid, azure_provider_uuid, cluster_id, bill_id, markup_value
+        self,
+        start_date,
+        end_date,
+        openshift_provider_uuid,
+        azure_provider_uuid,
+        report_period_id,
+        bill_id,
+        markup_value,
     ):
         """Populate the daily cost aggregated summary for OCP on Azure."""
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpazurecostlineitem_daily_summary.sql")
@@ -271,7 +278,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             "month": start_date.strftime("%m"),
             "azure_source_uuid": azure_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
-            "cluster_id": cluster_id,
+            "report_period_id": report_period_id,
             "bill_id": bill_id,
             "markup": markup_value,
         }
@@ -356,3 +363,20 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         results = self._execute_presto_raw_sql_query(self.schema, sql, bind_params=sql_params)
 
         return [json.loads(result[0]) for result in results]
+
+    def back_populate_ocp_on_azure_daily_summary(self, start_date, end_date, report_period_id):
+        """Populate the OCP on AWS and OCP daily summary tables. after populating the project table via trino."""
+        table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
+
+        sql = pkgutil.get_data(
+            "masu.database", "sql/reporting_ocpazurecostentrylineitem_daily_summary_back_populate.sql"
+        )
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_id": report_period_id,
+        }
+        sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
+        self._execute_raw_sql_query(table_name, sql, bind_params=list(sql_params))
