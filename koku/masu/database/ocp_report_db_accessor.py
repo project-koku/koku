@@ -30,6 +30,8 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.common import month_date_range_tuple
+from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE as AWS_PRESTO_LINE_ITEM_DAILY_TABLE
+from reporting.provider.azure.models import PRESTO_LINE_ITEM_DAILY_TABLE as AZURE_PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
@@ -37,6 +39,7 @@ from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_DAILY_MAP
 
 # from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_MAP
 
@@ -428,11 +431,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         aws_provider_uuid = kwargs.get("aws_provider_uuid")
         azure_provider_uuid = kwargs.get("azure_provider_uuid")
 
-        if not self.table_exists_trino("openshift_pod_usage_line_items_daily"):
+        if not self.table_exists_trino(PRESTO_LINE_ITEM_TABLE_DAILY_MAP.get("pod_usage")):
             return {}
-        if aws_provider_uuid and not self.table_exists_trino("aws_line_items_daily"):
+        if aws_provider_uuid and not self.table_exists_trino(AWS_PRESTO_LINE_ITEM_DAILY_TABLE):
             return {}
-        if azure_provider_uuid and not self.table_exists_trino("azure_line_items"):
+        if azure_provider_uuid and not self.table_exists_trino(AZURE_PRESTO_LINE_ITEM_DAILY_TABLE):
             return {}
 
         if isinstance(start_date, str):
