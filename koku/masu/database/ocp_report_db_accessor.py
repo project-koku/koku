@@ -1923,6 +1923,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 AND usage_start <= '{end_date}'::date
                 AND report_period_id = {report_period_id}
                 AND infrastructure_raw_cost IS NOT NULL
+                AND infrastructure_raw_cost != 0
         """
 
         self._execute_raw_sql_query(table_name, sql, start_date, end_date)
