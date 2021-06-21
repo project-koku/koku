@@ -7,6 +7,7 @@ import datetime
 import json
 import logging
 import re
+import uuid
 
 import ciso8601
 from tenant_schemas.utils import schema_context
@@ -16,6 +17,7 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
+from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.azure.models import PRESTO_COLUMNS
 
 LOG = logging.getLogger(__name__)
@@ -168,3 +170,30 @@ def get_column_converters():
         "Tags": azure_json_converter,
         "AdditionalInfo": azure_json_converter,
     }
+
+
+def azure_generate_daily_data(data_frame):
+    """Return the Azure data frame, as it is already daily."""
+    return data_frame
+
+
+def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_tags):
+    """Filter a dataframe to the subset that matches an OpenShift source."""
+    nodes = cluster_topology.get("nodes", [])
+    resource_id_df = data_frame["resourceid"]
+    if resource_id_df.isna().values.all():
+        resource_id_df = data_frame["instanceid"]
+    resource_id_matched = resource_id_df.apply(lambda row: any([value in row for value in nodes]))
+
+    data_frame["resource_id_matched"] = resource_id_matched
+
+    tags = data_frame["tags"]
+    tag_matched = tags.apply(match_openshift_labels, args=(matched_tags, cluster_topology))
+    data_frame["matched_tag"] = tag_matched
+    openshift_matched_data_frame = data_frame[
+        (data_frame["resource_id_matched"] == True) | (data_frame["matched_tag"] != "")  # noqa: E712
+    ]
+
+    openshift_matched_data_frame["uuid"] = openshift_matched_data_frame.apply(lambda _: str(uuid.uuid4()), axis=1)
+
+    return openshift_matched_data_frame
