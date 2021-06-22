@@ -16,6 +16,9 @@ from api.provider.models import Provider
 
 LOG = logging.getLogger(__name__)
 
+DISTRIBUTION_CHOICES = (("memory", "memory"), ("cpu", "cpu"))
+DEFAULT_DISTRIBUTION = "cpu"
+
 
 class CostModel(models.Model):
     """A collection of rates used to calculate cost against resource usage data."""
@@ -47,6 +50,8 @@ class CostModel(models.Model):
 
     markup = JSONField(encoder=DjangoJSONEncoder, default=dict)
 
+    distribution = models.TextField(choices=DISTRIBUTION_CHOICES, default=DEFAULT_DISTRIBUTION)
+
 
 class CostModelAudit(models.Model):
     """A collection of rates used to calculate cost against resource usage data."""
@@ -77,6 +82,8 @@ class CostModelAudit(models.Model):
     rates = JSONField(default=dict)
 
     markup = JSONField(encoder=DjangoJSONEncoder, default=dict)
+
+    distribution = models.TextField(choices=DISTRIBUTION_CHOICES, default=DEFAULT_DISTRIBUTION)
 
 
 class CostModelMap(models.Model):
