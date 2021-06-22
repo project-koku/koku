@@ -8,6 +8,7 @@ from unittest.mock import patch
 from django.test import RequestFactory
 from django.test.utils import override_settings
 from django.urls import reverse
+from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -36,6 +37,7 @@ class SourceCleanupTests(IamTestCase):
             source_def = {
                 "source_id": source_id,
                 "koku_uuid": provider.uuid,
+                "source_uuid": provider.uuid,
                 "name": provider.name,
                 "source_type": provider.type,
                 "auth_header": Config.SOURCES_FAKE_HEADER,
@@ -72,34 +74,29 @@ class SourceCleanupTests(IamTestCase):
         self._create_source_for_providers()
         with patch.object(SourcesHTTPClient, "get_source_details"):
             response = self.client.get(reverse("cleanup"), params)
-            body = response.json()
-            self.assertEqual(body.get("providers_without_sources"), [])
-            self.assertEqual(body.get("out_of_order_deletes"), [])
-            self.assertEqual(body.get("missing_sources"), [])
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_cleanup_missing_sources(self, _):
         """Test cleanup API when sources are missing on the platform."""
-        params = {}
+        params = {"missing_sources": ""}
         self._create_source_for_providers()
 
         sources = Sources.objects.all()
         expected_missing_list = []
         for source in sources:
-            expected_missing_list.append(f"Source ID: {source.source_id})")
+            expected_missing_list.append(f"Source ID: {source.source_id} Source UUID: {source.source_uuid}")
 
         self._create_source_for_providers()
         with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
             response = self.client.get(reverse("cleanup"), params)
             body = response.json()
-            self.assertEqual(body.get("providers_without_sources"), [])
-            self.assertEqual(body.get("out_of_order_deletes"), [])
             self.assertEqual(body.get("missing_sources"), expected_missing_list)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_cleanup_providers_without_sources(self, _):
         """Test cleanup API when providers are left over."""
-        params = {}
+        params = {"providers_without_sources": ""}
 
         providers = Provider.objects.all()
         expected_missing_list = []
@@ -110,32 +107,54 @@ class SourceCleanupTests(IamTestCase):
         body = response.json()
 
         self.assertEqual(body.get("providers_without_sources"), expected_missing_list)
-        self.assertEqual(body.get("out_of_order_deletes"), [])
-        self.assertEqual(body.get("missing_sources"), [])
 
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     @patch("koku.middleware.MASU", return_value=True)
     def test_delete_providers_without_sources(self, _):
         """Test to remove providers without sources."""
-        params = {}
+        params = {"providers_without_sources": ""}
 
         providers = Provider.objects.all()
         expected_missing_list = []
         for provider in providers:
             expected_missing_list.append(f"{provider.name} ({provider.uuid})")
 
-        with patch("masu.api.source_cleanup.refresh_materialized_views"):
-            response = self.client.delete(f"{reverse('cleanup')}?providers_without_sources", params)
-            body = response.json()
+        response = self.client.delete(f"{reverse('cleanup')}?providers_without_sources", params)
+        body = response.json()
+        self.assertEqual(body.get("job_queued"), "providers_without_sources")
+        self.assertEqual(len(Provider.objects.all()), 0)
 
-            self.assertEqual(body.get("providers_without_sources"), expected_missing_list)
-            self.assertEqual(body.get("out_of_order_deletes"), [])
-            self.assertEqual(body.get("missing_sources"), [])
-            self.assertEqual(len(Provider.objects.all()), 0)
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_delete_specific_provider_without_sources(self, _):
+        """Test to remove a specific provider without sources."""
 
+        providers = Provider.objects.all()
+        expected_missing_list = []
+        for provider in providers:
+            expected_missing_list.append(f"{provider.name} ({provider.uuid})")
+        initial_count = len(Provider.objects.all())
+        provider_uuid = str(Provider.objects.first().uuid)
+
+        url_w_params = reverse("cleanup") + f"?providers_without_sources&uuid={provider_uuid}"
+        response = self.client.delete(url_w_params)
+        body = response.json()
+        self.assertEqual(body.get("job_queued"), "providers_without_sources")
+        self.assertEqual(len(Provider.objects.all()), initial_count - 1)
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_delete_invalid_uuid(self, _):
+        """Test to remove a an invalid source_uuid."""
+        url_w_params = reverse("cleanup") + "?providers_without_sources&uuid=abc"
+        response = self.client.delete(url_w_params)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     @patch("koku.middleware.MASU", return_value=True)
     def test_delete_missing_sources(self, _):
         """Test cleanup API when deleting sources that are missing on the platform."""
-        params = {}
+        params = {"missing_sources": ""}
         self._create_source_for_providers()
 
         sources = Sources.objects.all()
@@ -144,15 +163,10 @@ class SourceCleanupTests(IamTestCase):
             expected_missing_list.append(f"Source ID: {source.source_id})")
 
         self._create_source_for_providers()
-        with patch("masu.api.source_cleanup.refresh_materialized_views"):
-            with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
-                response = self.client.delete(f"{reverse('cleanup')}?missing_sources", params)
+        with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
+            response = self.client.delete(f"{reverse('cleanup')}?missing_sources", params)
 
-        body = response.json()
-
-        self.assertEqual(body.get("providers_without_sources"), [])
-        self.assertEqual(body.get("out_of_order_deletes"), [])
-        self.assertEqual(body.get("missing_sources"), expected_missing_list)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(Sources.objects.all()), 0)
 
         # Now run again with providers_without_sources parameter to remove providers.
@@ -162,15 +176,34 @@ class SourceCleanupTests(IamTestCase):
         for provider in providers:
             expected_provider_missing_list.append(f"{provider.name} ({provider.uuid})")
 
-        with patch("masu.api.source_cleanup.refresh_materialized_views"):
-            with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
-                response = self.client.delete(f"{reverse('cleanup')}?providers_without_sources", params)
-                body = response.json()
-                self.assertEqual(body.get("providers_without_sources"), expected_provider_missing_list)
-                self.assertEqual(body.get("out_of_order_deletes"), [])
-                self.assertEqual(body.get("missing_sources"), [])
-                self.assertEqual(len(Provider.objects.all()), 0)
+        params = {"providers_without_sources": ""}
+        with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
+            response = self.client.delete(f"{reverse('cleanup')}?providers_without_sources", params)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(len(Provider.objects.all()), 0)
 
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_delete_specific_missing_source(self, _):
+        """Test cleanup API when deleting a specific source that is missing on the platform."""
+        self._create_source_for_providers()
+
+        sources = Sources.objects.all()
+        expected_missing_list = []
+        for source in sources:
+            expected_missing_list.append(f"Source ID: {source.source_id})")
+
+        self._create_source_for_providers()
+        with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
+            initial_count = len(Sources.objects.all())
+            source_uuid = str(Sources.objects.first().source_uuid)
+            url_w_params = reverse("cleanup") + f"?missing_sources&uuid={source_uuid}"
+            response = self.client.delete(url_w_params)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(Sources.objects.all()), initial_count - 1)
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     @patch("koku.middleware.MASU", return_value=True)
     def test_delete_out_of_order_delete_sources(self, _):
         """Test to remove out of order delete sources."""
@@ -187,12 +220,8 @@ class SourceCleanupTests(IamTestCase):
         for source in sources:
             expected_missing_list.append(f"Source ID: {source.source_id})")
 
-        with patch("masu.api.source_cleanup.refresh_materialized_views"):
-            with patch.object(SourcesHTTPClient, "get_source_details"):
-                response = self.client.delete(f"{reverse('cleanup')}?out_of_order_deletes", params)
-                body = response.json()
-
-                self.assertEqual(body.get("providers_without_sources"), expected_missing_provider_list)
-                self.assertEqual(body.get("out_of_order_deletes"), expected_missing_list)
-                self.assertEqual(body.get("missing_sources"), [])
-                self.assertEqual(len(Sources.objects.all()), 0)
+        with patch.object(SourcesHTTPClient, "get_source_details"):
+            response = self.client.delete(f"{reverse('cleanup')}?out_of_order_deletes", params)
+            body = response.json()
+            self.assertEqual(body.get("job_queued"), "out_of_order_deletes")
+            self.assertEqual(len(Sources.objects.all()), 0)
