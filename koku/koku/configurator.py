@@ -365,7 +365,10 @@ class ClowderConfigurator(Configurator):
         S3_PREFIX = "https://" if S3_SECURE else "http://"
         S3_HOST = CONFIGURATOR.get_object_store_host()
         S3_PORT = CONFIGURATOR.get_object_store_port()
-        return f"{S3_PREFIX}{S3_HOST}:{S3_PORT}"
+        endpoint = f"{S3_PREFIX}{S3_HOST}"
+        if bool(S3_PORT):
+            endpoint += f":{S3_PORT}"
+        return endpoint
 
     @staticmethod
     def get_object_store_host():
