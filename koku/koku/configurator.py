@@ -362,9 +362,10 @@ class ClowderConfigurator(Configurator):
     def get_object_store_endpoint():
         """Obtain object store endpoint."""
         S3_SECURE = CONFIGURATOR.get_object_store_tls()
-        S3_PREFIX = "https://" if S3_SECURE else "http://"
         S3_HOST = CONFIGURATOR.get_object_store_host()
         S3_PORT = CONFIGURATOR.get_object_store_port()
+
+        S3_PREFIX = "https://" if S3_SECURE else "http://"
         endpoint = f"{S3_PREFIX}{S3_HOST}"
         if bool(S3_PORT):
             endpoint += f":{S3_PORT}"
