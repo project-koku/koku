@@ -94,8 +94,8 @@ services:
         - prometheus_multiproc_dir=/tmp
         - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
         - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
-        - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
-        - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
+        - SOURCES_API_SVC_HOST=${SOURCES_API_HOST-sources-server}
+        - SOURCES_API_SVC_PORT=${SOURCES_API_PORT-3000}
         - MASU_DATE_OVERRIDE
         - ENABLE_TRINO_SOURCES
         - ENABLE_TRINO_ACCOUNTS
