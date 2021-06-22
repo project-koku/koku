@@ -27,7 +27,9 @@ class OCPProjectsView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for Openshift projects namespace,displays values related to the users access"""
-        if request.user.access:
+        if request.user.admin:
+            return super().list(request)
+        elif request.user.access:
             user_access = request.user.access.get("openshift.project", {}).get("read", [])
         else:
             user_access = []

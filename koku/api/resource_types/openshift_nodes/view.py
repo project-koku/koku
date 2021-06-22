@@ -27,7 +27,9 @@ class OCPNodesView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for Openshift nodes and displays values that the user has access too
-        if request.user.access:
+        if request.user.admin:
+            return super().list(request)
+        elif request.user.access:
             user_access = request.user.access.get("openshift.node", {}).get("read", [])
         else:
             user_access = []

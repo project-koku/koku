@@ -27,7 +27,9 @@ class GCPAccountView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for GCP account id and displays values related to what the user has access to
-        if request.user.access:
+        if request.user.admin:
+            return super().list(request)
+        elif request.user.access:
             user_access = request.user.access.get("gcp.account", {}).get("read", [])
         else:
             user_access = []
