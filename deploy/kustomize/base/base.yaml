@@ -19,8 +19,8 @@ objects:
     # Creates a database if local mode, or uses RDS in production
     database:
       # Must specify both a name and a major postgres version
-      name: koku
-      version: 12
+      name: ${DATABASE_NAME}
+      version: ${{DATABASE_VERSION}}
 
     # Request kafka topics for your application here
     kafkaTopics:
@@ -63,6 +63,12 @@ parameters:
 - name: ENV_NAME
   required: true
   value: koku-env
+- name: DATABASE_NAME
+  required: true
+  value: koku
+- name: DATABASE_VERSION
+  required: true
+  value: '12'
 - name: CLOWDER_ENABLED
   required: true
   value: "True"

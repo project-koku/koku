@@ -9,8 +9,8 @@ objects:
     name: koku
   spec:
     database:
-      name: koku
-      version: 12
+      name: ${DATABASE_NAME}
+      version: ${{DATABASE_VERSION}}
     deployments:
     - minReplicas: ${{KOKU_MIN_REPLICAS}}
       name: api
@@ -1770,6 +1770,12 @@ parameters:
 - name: ENV_NAME
   required: true
   value: koku-env
+- name: DATABASE_NAME
+  required: true
+  value: koku
+- name: DATABASE_VERSION
+  required: true
+  value: "12"
 - name: CLOWDER_ENABLED
   required: true
   value: "True"
