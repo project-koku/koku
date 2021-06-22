@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportDBAccessor utility object."""
 import random
@@ -104,7 +92,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
 
         self.accessor.populate_storage_line_item_daily_table(start_date, end_date, cluster_id)
-        self.accessor.populate_storage_line_item_daily_summary_table(start_date, end_date, cluster_id)
+        self.accessor.populate_storage_line_item_daily_summary_table(
+            start_date, end_date, cluster_id, self.provider_uuid
+        )
 
     def _populate_pod_summary(self):
         """Generate pod summary data."""
@@ -126,7 +116,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id)
+        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id, self.ocp_provider_uuid)
         return (start_date, end_date)
 
     def test_initializer(self):
@@ -344,7 +334,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
             self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
             self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-            self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
+            self.accessor.populate_line_item_daily_summary_table(
+                start_date, end_date, self.cluster_id, self.ocp_provider_uuid
+            )
 
             summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
             result_start_date = summary_entry["usage_start__min"]
