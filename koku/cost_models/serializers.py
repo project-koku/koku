@@ -390,6 +390,10 @@ class CostModelSerializer(serializers.Serializer):
 
     markup = MarkupSerializer(required=False)
 
+    distribution = serializers.ChoiceField(
+        choices=metric_constants.DISTRIBUTION_CHOICES, required=False, allow_blank=True
+    )
+
     @property
     def metric_map(self):
         """Map metrics and display names."""
@@ -483,6 +487,14 @@ class CostModelSerializer(serializers.Serializer):
         if tag_rates:
             CostModelSerializer._validate_one_unique_tag_key_per_metric_per_cost_type(tag_rates)
         return validated_rates
+
+    def validate_distribution(self, distribution):
+        """Run validation for distribution choice."""
+        distrib_choice_list = [choice[0] for choice in metric_constants.DISTRIBUTION_CHOICES]
+        if distribution not in distrib_choice_list:
+            error_msg = f"{distribution} is an invaild distribution type"
+            raise serializers.ValidationError(error_msg)
+        return distribution
 
     def create(self, validated_data):
         """Create the cost model object in the database."""
