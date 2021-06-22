@@ -68,7 +68,7 @@ class ResourceTypesViewTest(IamTestCase):
     ENDPOINTS_AZURE = ["azure-subscription-guids"]
     ENDPOINTS_OPENSHIFT = ["openshift-clusters", "openshift-nodes", "openshift-projects"]
     ENDPOINTS = ENDPOINTS_GCP
-    # ENDPOINTS = ENDPOINTS_RTYPE + ENDPOINTS_AWS + ENDPOINTS_AZURE + ENDPOINTS_OPENSHIFT + ENDPOINTS_GCP
+    ENDPOINTS = ENDPOINTS_RTYPE + ENDPOINTS_AWS + ENDPOINTS_AZURE + ENDPOINTS_OPENSHIFT + ENDPOINTS_GCP
 
     def setUp(self):
         """Set up the customer view tests."""
@@ -95,6 +95,20 @@ class ResourceTypesViewTest(IamTestCase):
     def test_aws_organizational_unit_view(self):
         """Test that getting a forecast with limited access returns valid result."""
         url = reverse("aws-organizational-units")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @RbacPermissions({"aws.account": {"read": ["*"]}})
+    def test_aws_service_view(self):
+        """Test that getting a forecast with limited access returns valid result."""
+        url = reverse("aws-services")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @RbacPermissions({"aws.account": {"read": ["*"]}})
+    def test_aws_region_view(self):
+        """Test that getting a forecast with limited access returns valid result."""
+        url = reverse("aws-regions")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -140,9 +154,24 @@ class ResourceTypesViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    @RbacPermissions({"openshift.cluster": {"read": ["*"]}})
-    def test_rbacpermissions_valid_openshift(self):
+    @RbacPermissions({"aws.organizational_unit": {"read": ["OU_001"]}})
+    def test_rbacpermissions_aws_org_unit_data(self):
         """Test that OpenShift endpoints accept valid OpenShift permissions."""
-        url = reverse("openshift-clusters")
+        url = reverse("aws-organizational-units")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertTrue(len(json_result.get("data")) > 0)
+
+    @RbacPermissions({"aws.account": {"read": ["1234", "6789"]}})
+    def test_rbacpermissions_aws_account_data(self):
+        """Test that OpenShift endpoints accept valid OpenShift permissions."""
+        url = reverse("aws-accounts")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(json_result.get("data"), [])
