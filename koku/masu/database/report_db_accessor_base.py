@@ -17,6 +17,7 @@ from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 import koku.presto_database as kpdb
+from koku.database import execute_delete_sql as exec_del_sql
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
 from masu.database.koku_database_access import mini_transaction_delete
@@ -432,14 +433,47 @@ class ReportDBAccessorBase(KokuDBAccess):
         LOG.info(msg)
 
     def get_partitions_query(self, partitioned_table):
-        return PartitionedTable.objects.filter(partition_of_table_name=partitioned_table)
+        """
+        Get all partition tracking records for a partitioned table
+        Schema must be set before this function is called
+        Parameters:
+            partitioned_table (str) : Name of partitioned table (w/o schema name qualifier)
+        """
+        return PartitionedTable.objects.filter(partition_of_table_name=partitioned_table, schema_name=self.schema)
 
     def detach_partitions(self, partitions):
+        """
+        Detach a partition by marking the active columnm as False in the tracking table
+        Schema must be set before this function is called
+        Parameters:
+            partitions (QuerySet) : PartitionedTables queryset
+        """
         partitions.update(active=False)
 
     def drop_partitions(self, partitions):
+        """
+        Delete a partition by deleting the tracking table records
+        Schema must be set before this function is called
+        Parameters:
+            partitions (QuerySet) : PartitionedTables queryset
+        """
         partitions.delete()
 
     def delete_partitions(self, partitions):
+        """
+        Detach and delete partitions by deactivating and deleting the tracking records
+        Schema must be set before this function is called
+        Parameters:
+            partitions (QuerySet) : PartitionedTables queryset
+        """
         self.detach_partitions(partitions)
         self.drop_partitions(partitions)
+
+    def execute_delete_sql(self, query):
+        """
+        Detach a partition by marking the active columnm as False in the tracking table
+        Schema must be set before this function is called
+        Parameters:
+            query (QuerySet) : A valid django queryset
+        """
+        return exec_del_sql(query)
