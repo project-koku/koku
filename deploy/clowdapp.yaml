@@ -753,7 +753,7 @@ objects:
           exec:
             command:
             - /bin/bash
-            - - - -z "$POD_READY"
+            - [[ ! -z "$POD_READY" ]]
           initialDelaySeconds: 5
           periodSeconds: 5
         resources:
