@@ -5,6 +5,7 @@
 """Sources Integration Service."""
 import itertools
 import logging
+import os
 import queue
 import random
 import sys
@@ -50,6 +51,12 @@ COUNT = itertools.count()  # next(COUNT) returns next sequential number
 
 class SourcesIntegrationError(ValidationError):
     """Sources Integration error."""
+
+
+def error_cb(err):
+    """Kafka consumer error callback."""
+    os.unsetenv("POD_READY")
+    raise Exception(err.str())
 
 
 def load_process_queue():
@@ -258,6 +265,7 @@ def get_consumer():
             "group.id": "hccm-sources",
             "queued.max.messages.kbytes": 1024,
             "enable.auto.commit": False,
+            "error_cb": error_cb,
         },
         logger=LOG,
     )
@@ -391,6 +399,8 @@ def sources_integration_thread():  # pragma: no cover
 
     if is_kafka_connected():  # Next, check that Kafka is running
         LOG.info("Kafka is running...")
+
+    os.environ["POD_READY"] = "True"
 
     load_process_queue()
     execute_process_queue()
