@@ -22,11 +22,9 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
         sum(li.node_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as node_capacity_memory_gigabyte_hours,
         max(li.cluster_capacity_cpu_core_seconds) / 3600 as cluster_capacity_cpu_core_hours,
         max(li.cluster_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as cluster_capacity_memory_gigabyte_hours,
-        ab.provider_id as source_uuid,
+        {{source_uuid}} as source_uuid,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily AS li
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-        ON li.cluster_id = ab.cluster_id
     WHERE usage_start >= {{start_date}}
         AND usage_start <= {{end_date}}
         AND li.cluster_id = {{cluster_id}}
@@ -37,8 +35,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
         li.usage_end,
         li.namespace,
         li.node,
-        li.pod_labels,
-        ab.provider_id
+        li.pod_labels
 )
 ;
 
