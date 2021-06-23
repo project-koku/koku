@@ -96,7 +96,9 @@
       readinessProbe:
         exec:
           command:
-          - /bin/bash [[ ! -z "$POD_READY" ]]
+          - bash
+          - -c
+          - 'if [[ ! -z "$POD_READY" ]]; then exit 0; else exit 1; fi'
         initialDelaySeconds: 5
         periodSeconds: 5
       resources:
