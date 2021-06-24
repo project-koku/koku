@@ -9,8 +9,8 @@ objects:
     name: koku
   spec:
     database:
-      name: koku
-      version: 12
+      name: ${DATABASE_NAME}
+      version: ${{DATABASE_VERSION}}
     deployments:
     - minReplicas: ${{KOKU_MIN_REPLICAS}}
       name: api
@@ -39,11 +39,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -146,6 +142,17 @@ objects:
           requests:
             cpu: ${KOKU_CPU_REQUEST}
             memory: ${KOKU_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        volumes:
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -178,11 +185,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -244,9 +247,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-listener-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-listener-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -283,11 +295,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -377,6 +385,17 @@ objects:
           requests:
             cpu: ${MASU_CPU_REQUEST}
             memory: ${MASU_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        volumes:
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -408,11 +427,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -503,6 +518,17 @@ objects:
           requests:
             cpu: ${SCHEDULER_CPU_REQUEST}
             memory: ${SCHEDULER_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        volumes:
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: false
@@ -539,11 +565,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -624,6 +646,17 @@ objects:
           requests:
             cpu: ${SOURCES_CLIENT_CPU_REQUEST}
             memory: ${SOURCES_CLIENT_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        volumes:
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -662,11 +695,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -727,6 +756,17 @@ objects:
           requests:
             cpu: ${SOURCES_LISTENER_CPU_REQUEST}
             memory: ${SOURCES_LISTENER_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        volumes:
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: false
@@ -758,11 +798,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -856,9 +892,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -890,11 +935,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -907,42 +948,6 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
-              optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: S3_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws_access_key_id
-              name: hccm-s3
-              optional: true
-        - name: S3_SECRET
-          valueFrom:
-            secretKeyRef:
-              key: aws_secret_access_key
-              name: hccm-s3
-              optional: true
-        - name: S3_BUCKET_NAME
-          valueFrom:
-            secretKeyRef:
-              key: bucket
-              name: hccm-s3
-              optional: true
-        - name: S3_ENDPOINT
-          valueFrom:
-            secretKeyRef:
-              key: endpoint
-              name: hccm-s3
-              optional: true
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1024,9 +1029,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -1058,11 +1072,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1075,42 +1085,6 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
-              optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: S3_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws_access_key_id
-              name: hccm-s3
-              optional: true
-        - name: S3_SECRET
-          valueFrom:
-            secretKeyRef:
-              key: aws_secret_access_key
-              name: hccm-s3
-              optional: true
-        - name: S3_BUCKET_NAME
-          valueFrom:
-            secretKeyRef:
-              key: bucket
-              name: hccm-s3
-              optional: true
-        - name: S3_ENDPOINT
-          valueFrom:
-            secretKeyRef:
-              key: endpoint
-              name: hccm-s3
-              optional: true
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1192,9 +1166,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -1226,11 +1209,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1243,42 +1222,6 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
-              optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: S3_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws_access_key_id
-              name: hccm-s3
-              optional: true
-        - name: S3_SECRET
-          valueFrom:
-            secretKeyRef:
-              key: aws_secret_access_key
-              name: hccm-s3
-              optional: true
-        - name: S3_BUCKET_NAME
-          valueFrom:
-            secretKeyRef:
-              key: bucket
-              name: hccm-s3
-              optional: true
-        - name: S3_ENDPOINT
-          valueFrom:
-            secretKeyRef:
-              key: endpoint
-              name: hccm-s3
-              optional: true
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1360,9 +1303,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -1394,11 +1346,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1411,42 +1359,6 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
-              optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: S3_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws_access_key_id
-              name: hccm-s3
-              optional: true
-        - name: S3_SECRET
-          valueFrom:
-            secretKeyRef:
-              key: aws_secret_access_key
-              name: hccm-s3
-              optional: true
-        - name: S3_BUCKET_NAME
-          valueFrom:
-            secretKeyRef:
-              key: bucket
-              name: hccm-s3
-              optional: true
-        - name: S3_ENDPOINT
-          valueFrom:
-            secretKeyRef:
-              key: endpoint
-              name: hccm-s3
-              optional: true
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1528,9 +1440,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -1562,11 +1483,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1579,42 +1496,6 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
-              optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: S3_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws_access_key_id
-              name: hccm-s3
-              optional: true
-        - name: S3_SECRET
-          valueFrom:
-            secretKeyRef:
-              key: aws_secret_access_key
-              name: hccm-s3
-              optional: true
-        - name: S3_BUCKET_NAME
-          valueFrom:
-            secretKeyRef:
-              key: bucket
-              name: hccm-s3
-              optional: true
-        - name: S3_ENDPOINT
-          valueFrom:
-            secretKeyRef:
-              key: endpoint
-              name: hccm-s3
-              optional: true
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1696,9 +1577,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -1730,11 +1620,7 @@ objects:
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1747,42 +1633,6 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
-              optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: S3_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws_access_key_id
-              name: hccm-s3
-              optional: true
-        - name: S3_SECRET
-          valueFrom:
-            secretKeyRef:
-              key: aws_secret_access_key
-              name: hccm-s3
-              optional: true
-        - name: S3_BUCKET_NAME
-          valueFrom:
-            secretKeyRef:
-              key: bucket
-              name: hccm-s3
-              optional: true
-        - name: S3_ENDPOINT
-          valueFrom:
-            secretKeyRef:
-              key: endpoint
-              name: hccm-s3
-              optional: true
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1864,9 +1714,18 @@ objects:
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
         volumes:
         - emptyDir: {}
           name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
       webServices:
         metrics:
           enabled: true
@@ -1881,7 +1740,7 @@ objects:
     - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
     objectStore:
-    - koku-reports
+    - ${S3_BUCKET_NAME}
     optionalDependencies:
     - ingress
     - rbac
@@ -1903,7 +1762,7 @@ objects:
     name: koku-aws
 - apiVersion: v1
   data:
-    gcp-credentials: ""
+    gcp-credentials: ${GCP_CREDENTIALS_EPH}
   kind: Secret
   metadata:
     name: koku-gcp
@@ -1911,6 +1770,12 @@ parameters:
 - name: ENV_NAME
   required: true
   value: koku-env
+- name: DATABASE_NAME
+  required: true
+  value: koku
+- name: DATABASE_VERSION
+  required: true
+  value: "12"
 - name: CLOWDER_ENABLED
   required: true
   value: "True"
@@ -1922,6 +1787,11 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/cloudservices/koku
+- name: S3_BUCKET_NAME
+  value: koku-reports
+- description: GCP Credentials Location
+  name: GOOGLE_APPLICATION_CREDENTIALS
+  value: /etc/gcp/gcp-credentials.json
 - displayName: App domain
   name: APP_DOMAIN
   value: project-koku.com
@@ -2130,6 +2000,10 @@ parameters:
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
 - displayName: AWS Secret Access Key (Ephemeral)
   name: AWS_SECRET_ACCESS_KEY_EPH
+  required: true
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- displayName: GCP Credentials (Ephemeral)
+  name: GCP_CREDENTIALS_EPH
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
 - displayName: Minimum replicas
