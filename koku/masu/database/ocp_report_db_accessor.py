@@ -1889,8 +1889,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     def get_pvcs_for_cluster(self, cluster_id):
         """Get all nodes for an OCP cluster."""
         with schema_context(self.schema):
-            pvcs = OCPPVC.objects.filter(cluster_id=cluster_id).values_list("pvc")
-            pvcs = [pvc[0] for pvc in pvcs]
+            pvcs = OCPPVC.objects.filter(cluster_id=cluster_id).values_list(
+                "persistent_volume", "persistent_volume_claim"
+            )
+            pvcs = [(pvc[0], pvc[1]) for pvc in pvcs]
         return pvcs
 
     def get_projects_for_cluster(self, cluster_id):
@@ -1905,9 +1907,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         cluster = self.get_cluster_for_provider(provider_uuid)
         topology = {"cluster_id": cluster.cluster_id, "cluster_alias": cluster.cluster_alias}
         node_tuples = self.get_nodes_for_cluster(cluster.uuid)
+        pvc_tuples = self.get_pvcs_for_cluster(cluster.uuid)
         topology["nodes"] = [node[0] for node in node_tuples]
         topology["resource_ids"] = [node[1] for node in node_tuples]
-        topology["pvcs"] = self.get_pvcs_for_cluster(cluster.uuid)
+        topology["persistent_volumes"] = [pvc[0] for pvc in pvc_tuples]
+        topology["persistent_volume_claims"] = [pvc[1] for pvc in pvc_tuples]
         topology["projects"] = self.get_projects_for_cluster(cluster.uuid)
 
         return topology
