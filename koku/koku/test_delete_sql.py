@@ -240,8 +240,13 @@ class TestLoadModels(IamTestCase):
 
     def test_table_name_lookup(self):
         """Test model lookup by table name"""
-        self.assertEqual(kdb.get_model("api_provider"), kdb.get_model("Provider"))
+        self.assertEqual(kdb.get_model("api_provider"), Provider)
 
     def test_qualified_model_name_lookup(self):
         """Test model lookup by qualified model name (<app>.Model)"""
         self.assertEqual(kdb.get_model("api_provider"), kdb.get_model("api.Provider"))
+
+    def test_model_not_found(self):
+        """Test model lookup by qualified model name (<app>.Model)"""
+        with self.assertRaises(KeyError):
+            kdb.get_model("no_app_here.Eek")
