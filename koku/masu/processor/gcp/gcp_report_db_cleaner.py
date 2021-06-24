@@ -9,6 +9,9 @@ from datetime import datetime
 
 from tenant_schemas.utils import schema_context
 
+from koku.database import cascade_delete
+from koku.database import execute_delete_sql
+from koku.database import get_model
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.koku_database_access import mini_transaction_delete
 from reporting.models import PartitionedTable
@@ -101,41 +104,26 @@ class GCPReportDBCleaner:
                 err = "This method must be called with either expired_date or provider_uuid"
                 raise GCPReportDBCleanerError(err)
             removed_items = []
+            all_providers = set()
+            all_period_starts = set()
 
             if expired_date is not None:
                 return self.purge_expired_report_data_by_date(expired_date, simulate=simulate)
-            else:
-                bill_objects = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
-            with schema_context(self._schema):
-                for bill in bill_objects.all():
-                    bill_id = bill.id
-                    removed_provider_uuid = bill.provider_id
-                    removed_billing_period_start = bill.billing_period_start
 
-                    if not simulate:
-                        del_count = accessor.execute_delete_sql(accessor.get_lineitem_query_for_billid(bill_id))
-                        LOG.info("Removing %s cost entry line items for bill id %s", del_count, bill_id)
+            bill_objects = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
 
-                        del_count = accessor.execute_delete_sql(accessor.get_daily_query_for_billid(bill_id))
-                        LOG.info("Removing %s cost entry daily items for bill id %s", del_count, bill_id)
+        with schema_context(self._schema):
+            for bill in bill_objects.all():
+                removed_items.append(
+                    {"removed_provider_uuid": bill.provider_id, "billing_period_start": str(bill.billing_period_start)}
+                )
+                all_providers.add(bill.provider_id)
+                all_period_starts.add(str(bill.billing_period_start))
 
-                        del_count = accessor.execute_delete_sql(accessor.get_summary_query_for_billid(bill_id))
-                        LOG.info("Removing %s cost entry summary items for bill id %s", del_count, bill_id)
+            LOG.info(f"Deleting data for providers {sorted(all_providers)} and periods {sorted(all_period_starts)}")
 
-                    LOG.info(
-                        "Report data removed for Provider ID: %s with billing period: %s",
-                        removed_provider_uuid,
-                        removed_billing_period_start,
-                    )
-                    removed_items.append(
-                        {
-                            "removed_provider_uuid": removed_provider_uuid,
-                            "billing_period_start": str(removed_billing_period_start),
-                        }
-                    )
-
-                if not simulate:
-                    bill_objects.delete()
+            if not simulate:
+                cascade_delete(bill_objects.query.model, bill_objects)
 
         return removed_items
 
@@ -148,36 +136,36 @@ class GCPReportDBCleaner:
                 # accessor._table_map["ocp_on_gcp_project_daily_summary"],
                 accessor.line_item_daily_summary_table._meta.db_table
             ]
-            base_lineitem_query = accessor._get_db_obj_query(accessor.line_item_table)
-            base_daily_query = accessor._get_db_obj_query(accessor.line_item_daily_table)
+            table_models = [get_model(tn) for tn in table_names]
 
         with schema_context(self._schema):
             removed_items = []
+            all_providers = set()
+            all_period_starts = set()
+
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions
-                del_count = PartitionedTable.objects.filter(
-                    schema_name=self._schema,
-                    partition_of_table_name__in=table_names,
-                    partition_parameters__default=False,
-                    partition_parameters__from__lte=paritition_from,
-                ).delete()
+                del_count = execute_delete_sql(
+                    PartitionedTable.objects.filter(
+                        schema_name=self._schema,
+                        partition_of_table_name__in=table_names,
+                        partition_parameters__default=False,
+                        partition_parameters__from__lte=paritition_from,
+                    )
+                )
                 LOG.info(f"Deleted {del_count} table partitions total for the following tables: {table_names}")
 
                 # Iterate over the remainder as they could involve much larger amounts of data
             for bill in all_bill_objects:
-                if not simulate:
-                    del_count = base_lineitem_query.filter(cost_entry_bill_id=bill.id).delete()
-                    LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
-
-                    del_count = base_daily_query.filter(cost_entry_bill_id=bill.id).delete()
-                    LOG.info(f"Deleted {del_count} cost entry line items for bill_id {bill.id}")
-
                 removed_items.append(
                     {"removed_provider_uuid": bill.provider_id, "billing_period_start": str(bill.billing_period_start)}
                 )
-                LOG.info(
-                    f"Report data deleted for account payer id {bill.provider_id} "
-                    f"and billing period {bill.billing_period_start}"
-                )
+                all_providers.add(bill.provider_id)
+                all_period_starts.add(str(bill.billing_period_start))
+
+            LOG.info(f"Deleting data for providers {sorted(all_providers)} and periods {sorted(all_period_starts)}")
+
+            if not simulate:
+                cascade_delete(all_bill_objects.query.model, all_bill_objects, skip_relations=table_models)
 
         return removed_items

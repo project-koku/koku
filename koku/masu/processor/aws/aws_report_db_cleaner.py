@@ -11,6 +11,7 @@ from tenant_schemas.utils import schema_context
 
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql
+from koku.database import get_model
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from reporting.models import PartitionedTable
 
@@ -96,7 +97,7 @@ class AWSReportDBCleaner:
         LOG.info("Calling purge_expired_report_data for aws")
 
         removed_items = []
-        all_account_ids = []
+        all_account_ids = set()
         all_period_start = set()
 
         with AWSReportDBAccessor(self._schema) as accessor:
@@ -119,22 +120,22 @@ class AWSReportDBCleaner:
                             "billing_period_start": str(bill.billing_period_start),
                         }
                     )
-                    all_account_ids.append(bill.payer_account_id)
+                    all_account_ids.add(bill.payer_account_id)
                     all_period_start.add(str(bill.billing_period_start))
 
                 LOG.info(
-                    f"Deleting data related to billing account ids {all_account_ids} "
+                    f"Deleting data related to billing account ids {sorted(all_account_ids)} "
                     f"for billing periods starting {sorted(all_period_start)}"
                 )
                 if not simulate:
-                    cascade_delete(bill_objects.query.model, bill_objects.query.model, bill_objects)
+                    cascade_delete(bill_objects.query.model, bill_objects)
 
         return removed_items
 
     def purge_expired_report_data_by_date(self, expired_date, simulate=False):
         paritition_from = str(date(expired_date.year, expired_date.month, 1))
         removed_items = []
-        all_account_ids = []
+        all_account_ids = set()
         all_period_start = set()
 
         with AWSReportDBAccessor(self._schema) as accessor:
@@ -143,7 +144,7 @@ class AWSReportDBCleaner:
                 removed_items.append(
                     {"account_payer_id": bill.payer_account_id, "billing_period_start": str(bill.billing_period_start)}
                 )
-                all_account_ids.append(bill.payer_account_id)
+                all_account_ids.add(bill.payer_account_id)
                 all_period_start.add(str(bill.billing_period_start))
 
             table_names = [
@@ -151,6 +152,7 @@ class AWSReportDBCleaner:
                 accessor._table_map["ocp_on_aws_project_daily_summary"],
                 accessor.line_item_daily_summary_table._meta.db_table,
             ]
+            table_models = [get_model(tn) for tn in table_names]
 
         with schema_context(self._schema):
             if not simulate:
@@ -165,10 +167,11 @@ class AWSReportDBCleaner:
                 )
                 LOG.info(f"Deleted {del_count} table partitions total for the following tables: {table_names}")
 
-                cascade_delete(all_bill_objects.query.model, all_bill_objects.query.model, all_bill_objects)
+                # Using skip_relations here as we have already dropped partitions above
+                cascade_delete(all_bill_objects.query.model, all_bill_objects, skip_relations=table_models)
 
             LOG.info(
-                f"Deleting data related to billing account ids {all_account_ids} "
+                f"Deleting data related to billing account ids {sorted(all_account_ids)} "
                 f"for billing periods starting {sorted(all_period_start)}"
             )
 
