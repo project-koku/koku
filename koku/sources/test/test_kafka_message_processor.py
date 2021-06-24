@@ -202,9 +202,9 @@ class KafkaMessageProcessorTest(IamTestCase):
         test_value_is_not_cost = {"id": 1, "source_id": 1, "application_type_id": COST_MGMT_APP_TYPE_ID + 1}
         table = [
             # Source events
-            {"event-type": "Source.create", "expected": False},
-            {"event-type": KAFKA_SOURCE_UPDATE, "expected": False},
-            {"event-type": KAFKA_SOURCE_DESTROY, "expected": False},
+            {"processor": KafkaMessageProcessor, "event-type": "Source.create", "expected": False},
+            {"processor": KafkaMessageProcessor, "event-type": KAFKA_SOURCE_UPDATE, "expected": False},
+            {"processor": KafkaMessageProcessor, "event-type": KAFKA_SOURCE_DESTROY, "expected": False},
             # Application events
             {"event-type": KAFKA_APPLICATION_CREATE, "expected": True, "value": test_value_is_cost},
             {"event-type": KAFKA_APPLICATION_CREATE, "expected": False, "value": test_value_is_not_cost},
@@ -224,12 +224,11 @@ class KafkaMessageProcessorTest(IamTestCase):
                     SourcesHTTPClient, "get_application_type_is_cost_management", return_value=test.get("patch")
                 ):
                     msg = msg_generator(event_type=test.get("event-type"), value=test.get("value"))
-                    processor = create_msg_processor(msg, COST_MGMT_APP_TYPE_ID)
-                    if processor:
-                        self.assertEqual(processor.msg_for_cost_mgmt(), test.get("expected"))
+                    if test.get("processor"):
+                        processor = test.get("processor")(msg, test.get("event-type"), COST_MGMT_APP_TYPE_ID)
                     else:
-                        # if the Processor is None, the message is not for cost-mgmt
-                        self.assertFalse(test.get("expected"))
+                        processor = create_msg_processor(msg, COST_MGMT_APP_TYPE_ID)
+                    self.assertEqual(processor.msg_for_cost_mgmt(), test.get("expected"))
 
     def test_save_sources_details(self):
         """Test save_source_details calls storage method."""
