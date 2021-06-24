@@ -237,9 +237,14 @@ def cascade_delete(from_model, instance_pk_query, skip_relations=[], base_model=
                 related_model, related_pk_values, base_model=base_model, level=level + 1, skip_relations=skip_relations
             )
 
-    filterspec = {f"{from_model._meta.pk.name}__in": models.Subquery(instance_pk_query)}
     LOG.info(f"Level {level}: delete records from {from_model.__name__}")
-    rec_count = execute_delete_sql(from_model.objects.filter(**filterspec))
+    if level == 0:
+        del_query = instance_pk_query
+    else:
+        filterspec = {f"{from_model._meta.pk.name}__in": models.Subquery(instance_pk_query)}
+        del_query = from_model.objects.filter(**filterspec)
+
+    rec_count = execute_delete_sql(del_query)
     LOG.info(f"Deleted {rec_count} records from {from_model.__name__}")
 
 
