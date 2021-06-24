@@ -224,7 +224,7 @@ class KafkaMessageProcessorTest(IamTestCase):
                     SourcesHTTPClient, "get_application_type_is_cost_management", return_value=test.get("patch")
                 ):
                     msg = msg_generator(event_type=test.get("event-type"), value=test.get("value"))
-                    processor = KafkaMessageProcessor(msg, test.get("event-type"), COST_MGMT_APP_TYPE_ID)
+                    processor = create_msg_processor(msg, COST_MGMT_APP_TYPE_ID)
                     self.assertEqual(processor.msg_for_cost_mgmt(), test.get("expected"))
 
     def test_save_sources_details(self):

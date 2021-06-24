@@ -326,10 +326,10 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
         table = [
             {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_CREATE},
             {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_UPDATE},
-            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_DESTROY, "called": True},
+            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_DESTROY},
             {"processor": AuthenticationMsgProcessor, "event": KAFKA_AUTHENTICATION_CREATE},
             {"processor": AuthenticationMsgProcessor, "event": KAFKA_AUTHENTICATION_UPDATE},
-            {"processor": SourceMsgProcessor, "event": KAFKA_SOURCE_DESTROY, "called": True},
+            {"processor": SourceMsgProcessor, "event": KAFKA_SOURCE_DESTROY},
             {"processor": SourceMsgProcessor, "event": "Source.create"},
         ]
         for test in table:
@@ -344,10 +344,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                         msg = msg_generator(event_type=test.get("event"))
                         mock_consumer = MockKafkaConsumer([msg])
                         source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
-                        if test.get("called"):
-                            mock_processor.assert_called()
-                        else:
-                            mock_processor.assert_not_called()
+                        mock_processor.assert_not_called()
 
     def test_listen_for_messages_exceptions_no_retry(self):
         """Test listen_for_messages exceptions that do not cause a retry."""
