@@ -67,6 +67,50 @@ class TestDeleteSQL(IamTestCase):
         self.assertEqual(udt_count, 1)
         self.assertEqual(Provider.objects.get(pk=p.pk).active, False)
 
+    def test_cascade_delete_with_skip(self):
+        """Test that cascade_delete can walk relations abd skip specified relations"""
+        action_ts = datetime.now().replace(tzinfo=UTC)
+        # Add a bogus customer
+        c = Customer(
+            date_created=action_ts,
+            date_updated=action_ts,
+            uuid=uuid.uuid4(),
+            account_id="68461385",
+            schema_name="acct68461385",
+        )
+        c.save()
+        # Create a customer tenant
+        t = Tenant(schema_name=c.schema_name)
+        t.save()
+        t.create_schema()
+        # Add some bogus providers
+        pocp = Provider(
+            uuid=uuid.uuid4(),
+            name="eek_ocp_provider_30",
+            type=Provider.PROVIDER_OCP,
+            setup_complete=False,
+            active=True,
+            customer=c,
+        )
+        pocp.save()
+
+        expected1 = "INFO:koku.database:Level 1: delete records from OCPUsageReportPeriod"
+        expected2 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItemDailySummary from caller directive"
+        expected3 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItem from caller directive"
+        skip_models = [kdb.get_model("OCPUsageLineItemDailySummary"), kdb.get_model("OCPUsageLineItem")]
+        query = Provider.objects.filter(pk=pocp.pk)
+        with self.assertLogs("koku.database", level="INFO") as _logger:
+            with schema_context(c.schema_name):
+                kdb.cascade_delete(Provider, query, skip_relations=skip_models)
+            self.assertIn(expected1, _logger.output)
+            self.assertIn(expected2, _logger.output)
+            self.assertIn(expected3, _logger.output)
+
+        with schema_context(c.schema_name):
+            self.assertEqual(OCPUsageReportPeriod.objects.filter(pk=pocp.pk).count(), 0)
+
+        self.assertEqual(Provider.objects.filter(pk=pocp.pk).count(), 0)
+
     def test_cascade_delete(self):
         """Test that cascade_delete can walk relations to delete FK constraint matched records"""
         action_ts = datetime.now().replace(tzinfo=UTC)
@@ -169,3 +213,35 @@ class TestDeleteSQL(IamTestCase):
             self.assertEqual(OCPUsageReportPeriod.objects.filter(pk=ocpurp.pk).count(), 0)
 
         self.assertEqual(Provider.objects.filter(pk__in=(paws.pk, pazure.pk, pgcp.pk, pocp.pk)).count(), 0)
+
+
+class TestLoadModels(IamTestCase):
+    def test_loader_updates_module_global(self):
+        """Test that the loader will add entries to the module-global dict"""
+        kdb.DB_MODELS.clear()
+        self.assertEqual(kdb.DB_MODELS, {})
+
+        kdb._load_db_models()
+        self.assertNotEqual(kdb.DB_MODELS, {})
+
+    def test_db_models_loaded_on_demand(self):
+        """Test that the DB_MODELS module-global dict is loaded on-demand"""
+        kdb.DB_MODELS.clear()
+        self.assertEqual(kdb.DB_MODELS, {})
+
+        tst_model = kdb.get_model("AWSCostEntryBill")
+        self.assertTrue(len(kdb.DB_MODELS) > 0)
+        self.assertEqual(tst_model, AWSCostEntryBill)
+
+    def test_model_name_lookup_case_insensitive(self):
+        """Test case-insensitive model lookup"""
+        self.assertEqual(kdb.get_model("AWSCostEntryBill"), AWSCostEntryBill)
+        self.assertEqual(kdb.get_model("awscostentrybill"), AWSCostEntryBill)
+
+    def test_table_name_lookup(self):
+        """Test model lookup by table name"""
+        self.assertEqual(kdb.get_model("api_provider"), kdb.get_model("Provider"))
+
+    def test_qualified_model_name_lookup(self):
+        """Test model lookup by qualified model name (<app>.Model)"""
+        self.assertEqual(kdb.get_model("api_provider"), kdb.get_model("api.Provider"))
