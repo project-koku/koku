@@ -180,10 +180,12 @@ def azure_generate_daily_data(data_frame):
 def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_tags):
     """Filter a dataframe to the subset that matches an OpenShift source."""
     nodes = cluster_topology.get("nodes", [])
+    volumes = cluster_topology.get("persistent_volumes", [])
+    matchable_resources = nodes + volumes
     resource_id_df = data_frame["resourceid"]
     if resource_id_df.isna().values.all():
         resource_id_df = data_frame["instanceid"]
-    resource_id_matched = resource_id_df.apply(lambda row: any([value in row for value in nodes]))
+    resource_id_matched = resource_id_df.apply(lambda row: any([value in row for value in matchable_resources]))
 
     data_frame["resource_id_matched"] = resource_id_matched
 
