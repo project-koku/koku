@@ -93,12 +93,12 @@
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
-      readinessProbe:
-        exec:
-          command:
-          - /bin/bash [[ ! -z "$POD_READY" ]]
-        initialDelaySeconds: 5
-        periodSeconds: 5
+      # readinessProbe:
+      #   exec:
+      #     command:
+      #     - /bin/bash [[ ! -z "$POD_READY" ]]
+      #   initialDelaySeconds: 5
+      #   periodSeconds: 5
       resources:
         requests:
           cpu: ${SOURCES_LISTENER_CPU_REQUEST}

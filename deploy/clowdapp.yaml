@@ -749,13 +749,6 @@ objects:
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         image: ${IMAGE}:${IMAGE_TAG}
-        readinessProbe:
-          exec:
-            command:
-            - /bin/bash
-            - [[ ! -z "$POD_READY" ]]
-          initialDelaySeconds: 5
-          periodSeconds: 5
         resources:
           limits:
             cpu: ${SOURCES_LISTENER_CPU_LIMIT}
