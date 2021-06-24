@@ -205,6 +205,7 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
         """Constructor for ApplicationMsgProcessor."""
         super().__init__(msg, event_type, cost_mgmt_id)
         self.source_id = int(self.value.get("source_id"))
+        self.application_type_id = int(self.value.get("application_type_id", -1))
 
     def process(self):
         """Process the message."""
@@ -235,7 +236,10 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
                     LOG.info(f"[ApplicationMsgProcessor] source_id {self.source_id} not updated. No changes detected.")
 
         if self.event_type in (KAFKA_APPLICATION_DESTROY,):
-            storage.enqueue_source_delete(self.source_id, self.offset, allow_out_of_order=True)
+            if self.application_type_id == self.cost_mgmt_id:
+                storage.enqueue_source_delete(self.source_id, self.offset, allow_out_of_order=True)
+            else:
+                LOG.info("[ApplicationMsgProcessor] destroy event not associated with cost-mgmt")
 
 
 class AuthenticationMsgProcessor(KafkaMessageProcessor):
