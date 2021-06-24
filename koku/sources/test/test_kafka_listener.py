@@ -341,7 +341,10 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                         json={"data": []},
                     )
                     with patch.object(test.get("processor"), "process") as mock_processor:
-                        msg = msg_generator(event_type=test.get("event"))
+                        msg = msg_generator(
+                            event_type=test.get("event"),
+                            value={"id": 1, "source_id": 1, "application_type_id": COST_MGMT_APP_TYPE_ID + 1},
+                        )
                         mock_consumer = MockKafkaConsumer([msg])
                         source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
                         mock_processor.assert_not_called()

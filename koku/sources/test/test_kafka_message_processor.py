@@ -66,7 +66,7 @@ SOURCE_TYPE_IDS_MAP = {
 }
 
 
-def msg_generator(event_type, topic=None, offset=None, value=None, header=Config.SOURCES_FAKE_HEADER):
+def msg_generator(event_type, topic=None, offset=None, value: dict = None, header=Config.SOURCES_FAKE_HEADER):
     test_value = '{"id":1,"source_id":1,"application_type_id":2}'
     if value:
         test_value = json.dumps(value)
@@ -198,8 +198,8 @@ class KafkaMessageProcessorTest(IamTestCase):
 
     def test_msg_for_cost_mgmt(self):
         """Test msg_for_cost_mgmt true or false."""
-        test_value_is_cost = f'{{"id":1,"source_id":1,"application_type_id":{COST_MGMT_APP_TYPE_ID}}}'
-        test_value_is_not_cost = f'{{"id":1,"source_id":1,"application_type_id":{COST_MGMT_APP_TYPE_ID+1}}}'
+        test_value_is_cost = {"id": 1, "source_id": 1, "application_type_id": COST_MGMT_APP_TYPE_ID}
+        test_value_is_not_cost = {"id": 1, "source_id": 1, "application_type_id": COST_MGMT_APP_TYPE_ID + 1}
         table = [
             # Source events
             {"event-type": "Source.create", "expected": False},
@@ -225,7 +225,11 @@ class KafkaMessageProcessorTest(IamTestCase):
                 ):
                     msg = msg_generator(event_type=test.get("event-type"), value=test.get("value"))
                     processor = create_msg_processor(msg, COST_MGMT_APP_TYPE_ID)
-                    self.assertEqual(processor.msg_for_cost_mgmt(), test.get("expected"))
+                    if processor:
+                        self.assertEqual(processor.msg_for_cost_mgmt(), test.get("expected"))
+                    else:
+                        # if the Processor is None, the message is not for cost-mgmt
+                        self.assertFalse(test.get("expected"))
 
     def test_save_sources_details(self):
         """Test save_source_details calls storage method."""
