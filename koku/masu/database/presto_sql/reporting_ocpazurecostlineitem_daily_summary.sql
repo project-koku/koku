@@ -89,11 +89,12 @@ WITH cte_ocp_on_azure_joined AS (
         ON coalesce(azure.date, azure.usagedatetime) = ocp.usage_start
             AND (
                 split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.node
+                    OR split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.persistentvolume
                     OR json_extract_scalar(azure.tags, '$.openshift_project') = lower(ocp.namespace)
                     OR json_extract_scalar(azure.tags, '$.openshift_node') = lower(ocp.node)
                     OR json_extract_scalar(azure.tags, '$.openshift_cluster') IN (lower(ocp.cluster_id), lower(ocp.cluster_alias))
-                    OR any_match(split(azure.matched_tag, ','), x->strpos(json_format(ocp.pod_labels), replace(x, ' ')) != 0)
-                    OR any_match(split(azure.matched_tag, ','), x->strpos(json_format(ocp.volume_labels), replace(x, ' ')) != 0)
+                    OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(json_format(ocp.pod_labels), replace(x, ' ')) != 0))
+                    OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(json_format(ocp.volume_labels), replace(x, ' ')) != 0))
             )
     WHERE azure.source = '{{azure_source_uuid | sqlsafe}}'
         AND azure.year = '{{year | sqlsafe}}'
@@ -154,11 +155,11 @@ SELECT uuid(),
     ocp_azure.currency,
     ocp_azure.unit_of_measure,
     CASE WHEN ocp_azure.resource_id_matched = TRUE AND ocp_azure.data_source = 'Pod'
-        THEN (ocp_azure.pod_usage_cpu_core_hours / ocp_azure.cluster_capacity_cpu_core_hours) * ocp_azure.pretax_cost
+        THEN (ocp_azure.pod_usage_cpu_core_hours / ocp_azure.cluster_capacity_cpu_core_hours) * ocp_azure.pretax_cost / dsc.data_source_count
         ELSE ocp_azure.pretax_cost / pc.project_count / dsc.data_source_count
     END as pod_cost,
     CASE WHEN ocp_azure.resource_id_matched = TRUE AND ocp_azure.data_source = 'Pod'
-        THEN (ocp_azure.pod_usage_cpu_core_hours / ocp_azure.cluster_capacity_cpu_core_hours) * ocp_azure.pretax_cost * cast({{markup}} as decimal(24,9))
+        THEN (ocp_azure.pod_usage_cpu_core_hours / ocp_azure.cluster_capacity_cpu_core_hours) * ocp_azure.pretax_cost * cast({{markup}} as decimal(24,9)) / dsc.data_source_count
         ELSE ocp_azure.pretax_cost / pc.project_count / dsc.data_source_count * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
     json_parse(ocp_azure.tags) as tags,
