@@ -1808,7 +1808,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         LOG.info("Populating reporting_ocp_pvcs table.")
         with schema_context(self.schema):
             for pvc in pvcs:
-                OCPPVC.objects.get_or_create(pvc=pvc, cluster=cluster)
+                OCPPVC.objects.get_or_create(persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster)
 
     def populate_project_table(self, cluster, projects):
         """Get or create an entry in the OCP cluster table."""
@@ -1834,14 +1834,14 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
 
         nodes = self._execute_presto_raw_sql_query(self.schema, sql)
-        LOG.info(nodes)
 
         return nodes
 
     def get_pvcs_presto(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
         sql = f"""
-            SELECT distinct persistentvolumeclaim
+            SELECT distinct persistentvolume,
+                persistentvolumeclaim
             FROM hive.{self.schema}.openshift_storage_usage_line_items as ocp
             WHERE ocp.source = '{source_uuid}'
                 AND ocp.year = '{start_date.strftime("%Y")}'
@@ -1851,9 +1851,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
 
         pvcs = self._execute_presto_raw_sql_query(self.schema, sql)
-        LOG.info(pvcs)
 
-        return [pvc[0] for pvc in pvcs]
+        return pvcs
 
     def get_projects_presto(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""

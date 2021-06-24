@@ -587,7 +587,8 @@ class OCPPVC(models.Model):
         db_table = "reporting_ocp_pvcs"
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
-    pvc = models.TextField()
+    persistent_volume_claim = models.TextField()
+    persistent_volume = models.TextField()
     cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
 
 
