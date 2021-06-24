@@ -40,11 +40,7 @@
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -104,6 +100,17 @@
         limits:
           cpu: ${SOURCES_LISTENER_CPU_LIMIT}
           memory: ${SOURCES_LISTENER_MEMORY_LIMIT}
+      volumeMounts:
+      - name: gcp-credentials
+        mountPath: /etc/gcp
+        readOnly: true
+      volumes:
+      - name: gcp-credentials
+        secret:
+          secretName: koku-gcp
+          items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
 
 - op: add
   path: /parameters/-

@@ -19,8 +19,8 @@ objects:
     # Creates a database if local mode, or uses RDS in production
     database:
       # Must specify both a name and a major postgres version
-      name: koku
-      version: 12
+      name: ${DATABASE_NAME}
+      version: ${{DATABASE_VERSION}}
 
     # Request kafka topics for your application here
     kafkaTopics:
@@ -29,7 +29,7 @@ objects:
     - topicName: platform.upload.validation
 
     objectStore:
-    - koku-reports
+    - ${S3_BUCKET_NAME}
 
     optionalDependencies:
     - ingress
@@ -57,12 +57,18 @@ objects:
   metadata:
     name: koku-gcp
   data:
-    gcp-credentials: ""
+    gcp-credentials: "${GCP_CREDENTIALS_EPH}"
 
 parameters:
 - name: ENV_NAME
   required: true
   value: koku-env
+- name: DATABASE_NAME
+  required: true
+  value: koku
+- name: DATABASE_VERSION
+  required: true
+  value: '12'
 - name: CLOWDER_ENABLED
   required: true
   value: "True"
@@ -74,6 +80,12 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/cloudservices/koku
+- name: S3_BUCKET_NAME
+  value: 'koku-reports'
+- name: GOOGLE_APPLICATION_CREDENTIALS
+  description: GCP Credentials Location
+  value: "/etc/gcp/gcp-credentials.json"
+
 - displayName: App domain
   name: APP_DOMAIN
   value: project-koku.com
@@ -293,5 +305,9 @@ parameters:
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
 - name: AWS_SECRET_ACCESS_KEY_EPH
   displayName: AWS Secret Access Key (Ephemeral)
+  required: true
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- name: GCP_CREDENTIALS_EPH
+  displayName: GCP Credentials (Ephemeral)
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
