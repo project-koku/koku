@@ -25,7 +25,8 @@ class Migration(migrations.Migration):
             name="OCPPVC",
             fields=[
                 ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
-                ("pvc", models.TextField()),
+                ("persistent_volume", models.TextField()),
+                ("persistent_volume_claim", models.TextField()),
                 ("cluster", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpcluster")),
             ],
             options={"db_table": "reporting_ocp_pvcs"},
