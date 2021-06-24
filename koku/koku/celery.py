@@ -55,6 +55,10 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 
 LOG.info("Celery autodiscover tasks.")
 
+# Specify the number of celery tasks to run before recycling the celery worker.
+MAX_CELERY_TASKS_PER_WORKER = ENVIRONMENT.int("MAX_CELERY_TASKS_PER_WORKER", default=10)
+app.conf.worker_max_tasks_per_child = MAX_CELERY_TASKS_PER_WORKER
+
 # Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     # The interval to scan for new reports.
@@ -128,6 +132,12 @@ app.conf.beat_schedule["source_status_beat"] = {
 
 # Collect prometheus metrics.
 app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(hour=1, minute=0)}
+
+# Collect queue metrics.
+app.conf.beat_schedule["queue_metrics"] = {
+    "task": "masu.celery.tasks.collect_queue_metrics",
+    "schedule": crontab(hour=1, minute=0),
+}
 
 
 # optionally specify the weekday and time you would like the clean volume task to run

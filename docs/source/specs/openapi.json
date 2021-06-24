@@ -2489,6 +2489,74 @@
                 }
             }
         },
+        "/resource-types/aws-regions/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List AWS Regions For RBAC",
+                "operationId": "listResourcesAwsRegions",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/aws-services/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List AWS Services For RBAC",
+                "operationId": "listResourcesAwsServices",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/resource-types/gcp-accounts/": {
             "get": {
                 "tags": [
@@ -4284,6 +4352,13 @@
                     },
                     "markup": {
                         "$ref": "#/components/schemas/Markup"
+                    },
+                    "distribution": {
+                        "type": "string",
+                        "enum": [
+                            "memory",
+                            "cpu"
+                        ]
                     }
                 },
                 "required": [
@@ -4327,6 +4402,13 @@
                                 {"$ref": "#/components/schemas/TagRate"}
                             ]
                         }
+                    },
+                    "distribution": {
+                        "type": "string",
+                        "enum": [
+                            "memory",
+                            "cpu"
+                        ]
                     }
                 },
                 "required": [

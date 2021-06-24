@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Constants file."""
 from api.models import Provider
@@ -28,6 +16,8 @@ OCP_NODE_MONTH = "node_cost_per_month"
 OCP_CLUSTER_MONTH = "cluster_cost_per_month"
 OCP_PVC_MONTH = "pvc_cost_per_month"
 
+MEMORY_DISTRIBUTION = "memory"
+CPU_DISTRIBUTION = "cpu"
 INFRASTRUCTURE_COST_TYPE = "Infrastructure"
 SUPPLEMENTARY_COST_TYPE = "Supplementary"
 
@@ -48,11 +38,19 @@ COST_TYPE_CHOICES = (
     (SUPPLEMENTARY_COST_TYPE, SUPPLEMENTARY_COST_TYPE),
 )
 
+
+DISTRIBUTION_CHOICES = ((MEMORY_DISTRIBUTION, MEMORY_DISTRIBUTION), (CPU_DISTRIBUTION, CPU_DISTRIBUTION))
+
 SOURCE_TYPE_MAP = {
     Provider.PROVIDER_OCP: "OpenShift Container Platform",
     Provider.PROVIDER_AWS: "Amazon Web Services",
     Provider.PROVIDER_AZURE: "Microsoft Azure",
     Provider.PROVIDER_GCP: "Google Cloud Platform",
+}
+
+DISTRIBUTION_MAP = {
+    OCP_NODE_MONTH: [MEMORY_DISTRIBUTION, CPU_DISTRIBUTION],
+    OCP_CLUSTER_MONTH: [MEMORY_DISTRIBUTION, CPU_DISTRIBUTION],
 }
 
 COST_MODEL_METRIC_MAP = [

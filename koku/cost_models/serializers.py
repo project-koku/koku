@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Rate serializer."""
 import copy
@@ -402,6 +390,10 @@ class CostModelSerializer(serializers.Serializer):
 
     markup = MarkupSerializer(required=False)
 
+    distribution = serializers.ChoiceField(
+        choices=metric_constants.DISTRIBUTION_CHOICES, required=False, allow_blank=True
+    )
+
     @property
     def metric_map(self):
         """Map metrics and display names."""
@@ -495,6 +487,14 @@ class CostModelSerializer(serializers.Serializer):
         if tag_rates:
             CostModelSerializer._validate_one_unique_tag_key_per_metric_per_cost_type(tag_rates)
         return validated_rates
+
+    def validate_distribution(self, distribution):
+        """Run validation for distribution choice."""
+        distrib_choice_list = [choice[0] for choice in metric_constants.DISTRIBUTION_CHOICES]
+        if distribution not in distrib_choice_list:
+            error_msg = f"{distribution} is an invaild distribution type"
+            raise serializers.ValidationError(error_msg)
+        return distribution
 
     def create(self, validated_data):
         """Create the cost model object in the database."""

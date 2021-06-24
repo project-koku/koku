@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Accessor for Provider information from koku database."""
 from django.db import transaction
@@ -131,7 +119,10 @@ class ProviderDBAccessor(KokuDBAccess):
                     example: {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}
 
         """
-        return self.provider.authentication.credentials
+        credentials = None
+        if self.provider and self.provider.authentication:
+            credentials = self.provider.authentication.credentials
+        return credentials
 
     def get_data_source(self):
         """
@@ -144,7 +135,10 @@ class ProviderDBAccessor(KokuDBAccess):
                     example: {"bucket": "my-s3-cur-bucket"}
 
         """
-        return self.provider.billing_source.data_source
+        data_source = None
+        if self.provider and self.provider.billing_source:
+            data_source = self.provider.billing_source.data_source
+        return data_source
 
     def get_setup_complete(self):
         """

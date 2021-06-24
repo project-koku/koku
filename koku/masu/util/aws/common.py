@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """AWS utility functions."""
 import datetime
@@ -381,6 +369,7 @@ def aws_post_processor(data_frame):
     resource_tags_dict = tag_df.apply(
         lambda row: {scrub_resource_col_name(column): value for column, value in row.items() if value}, axis=1
     )
+    resource_tags_dict.where(resource_tags_dict.notna(), lambda _: [{}], inplace=True)
 
     data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
     # Make sure we have entries for our required columns

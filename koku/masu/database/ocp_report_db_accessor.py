@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for OCP report data."""
 import datetime
@@ -489,13 +477,14 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         charge_line_sql, charge_line_sql_params = self.jinja_sql.prepare_query(charge_line_sql, charge_line_sql_params)
         self._execute_raw_sql_query(table_name, charge_line_sql, bind_params=list(charge_line_sql_params))
 
-    def populate_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
+    def populate_line_item_daily_summary_table(self, start_date, end_date, cluster_id, source):
         """Populate the daily aggregate of line items table.
 
         Args:
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
             cluster_id (String) Cluster Identifier
+            source (String) Source UUID
 
         Returns
             (None)
@@ -518,19 +507,22 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "end_date": end_date,
             "cluster_id": cluster_id,
             "schema": self.schema,
+            "source_uuid": source,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
 
-    def populate_storage_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
+    def populate_storage_line_item_daily_summary_table(self, start_date, end_date, cluster_id, source):
         """Populate the daily aggregate of storage line items table.
 
         Args:
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
             cluster_id (String) Cluster Identifier
+            source (String) Source UUID
+
         Returns
             (None)
 
@@ -552,6 +544,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "end_date": end_date,
             "cluster_id": cluster_id,
             "schema": self.schema,
+            "source_uuid": source,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
