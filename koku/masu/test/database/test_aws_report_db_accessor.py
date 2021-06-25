@@ -21,6 +21,7 @@ from django.db.models.query import QuerySet
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
+from koku.database import get_model
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -1088,3 +1089,12 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             self.assertEqual(table_query.count(), 0)
+
+    def test_table_properties(self):
+        self.assertEqual(self.accessor.line_item_daily_summary_table, get_model("AWSCostEntryLineItemDailySummary"))
+        self.assertEqual(self.accessor.line_item_table, get_model("AWSCostEntryLineItem"))
+        self.assertEqual(self.accessor.cost_entry_table, get_model("AWSCostEntry"))
+        self.assertEqual(self.accessor.line_item_daily_table, get_model("AWSCostEntryLineItemDaily"))
+
+    def test_table_map(self):
+        self.assertEqual(self.accessor._table_map, AWS_CUR_TABLE_MAP)
