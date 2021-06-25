@@ -75,11 +75,11 @@ class OCPReportSummaryUpdater:
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
-        report_periods = None
+        report_period = None
         with OCPReportDBAccessor(self._schema) as accessor:
-            report_periods = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+            report_period = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
             with schema_context(self._schema):
-                report_period_ids = [report_period.id for report_period in report_periods]
+                report_period_ids = [report_period.id]
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
                     "Updating OpenShift report summary tables for \n\tSchema: %s "
@@ -98,11 +98,10 @@ class OCPReportSummaryUpdater:
             accessor.populate_volume_label_summary_table(report_period_ids, start_date, end_date)
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
 
-            for period in report_periods:
-                if period.summary_data_creation_datetime is None:
-                    period.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
-                period.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
-                period.save()
+            if report_period.summary_data_creation_datetime is None:
+                report_period.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.save()
 
         return start_date, end_date
 

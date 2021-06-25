@@ -223,6 +223,13 @@ class CommonUtilTests(MasuTestCase):
         path = common_utils.get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet")
         self.assertEqual(path, expected_path)
 
+        expected_path = (
+            f"{expected_path_prefix}/daily/{account}/{provider_type}/"
+            f"source={provider_uuid}/year={year}/month={month}"
+        )
+        path = common_utils.get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet", daily=True)
+        self.assertEqual(path, expected_path)
+
         # Test with report_type
         report_type = "pod_report"
         expected_path = (
@@ -243,6 +250,10 @@ class CommonUtilTests(MasuTestCase):
         expected_path = f"{expected_path_prefix}/{account}/{provider_type}"
 
         path = common_utils.get_hive_table_path(account, provider_type)
+        self.assertEqual(path, expected_path)
+
+        expected_path = f"{expected_path_prefix}/daily/{account}/{provider_type}/raw"
+        path = common_utils.get_hive_table_path(account, provider_type, daily=True)
         self.assertEqual(path, expected_path)
 
         # Test with report_type

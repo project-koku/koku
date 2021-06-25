@@ -5,6 +5,7 @@
 """Test the OCPReportDBAccessor utility object."""
 import random
 import string
+import uuid
 from unittest.mock import patch
 
 from dateutil import relativedelta
@@ -32,6 +33,10 @@ from reporting.models import OCPUsageLineItemDailySummary
 from reporting.models import OCPUsagePodLabelSummary
 from reporting.models import OCPUsageReport
 from reporting.models import OCPUsageReportPeriod
+from reporting.provider.ocp.models import OCPCluster
+from reporting.provider.ocp.models import OCPNode
+from reporting.provider.ocp.models import OCPProject
+from reporting.provider.ocp.models import OCPPVC
 from reporting_common import REPORT_COLUMN_MAP
 
 
@@ -219,12 +224,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         provider_uuid = self.ocp_provider_uuid
         start_date = str(self.reporting_period.report_period_start)
 
-        periods = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
+        period = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
         with schema_context(self.schema):
-            self.assertGreater(len(periods), 0)
-
-            period = periods[0]
-
             self.assertEqual(period.provider_id, provider_uuid)
 
     def test_get_lineitem_query_for_reportid(self):
@@ -2102,14 +2103,14 @@ select * from eek where val1 in {{report_period_ids}} ;
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
 
-        report_periods = self.accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, start_date)
+        report_period = self.accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, start_date)
 
         with schema_context(self.schema):
             OCPUsagePodLabelSummary.objects.all().delete()
             OCPStorageVolumeLabelSummary.objects.all().delete()
             key_to_keep = OCPEnabledTagKeys.objects.first()
             OCPEnabledTagKeys.objects.exclude(key=key_to_keep.key).delete()
-            report_period_ids = [report_period.id for report_period in report_periods]
+            report_period_ids = [report_period.id]
             self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
             tags = (
                 OCPUsageLineItemDailySummary.objects.filter(
@@ -2161,3 +2162,115 @@ select * from eek where val1 in {{report_period_ids}} ;
 
         with schema_context(self.schema):
             self.assertEqual(table_query.count(), 0)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_get_ocp_infrastructure_map_trino(self, mock_presto):
+        """Test that Trino is used to find matched tags."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        self.accessor.get_ocp_infrastructure_map_trino(start_date, end_date)
+        mock_presto.assert_called()
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_presto")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_presto")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_presto")
+    def test_populate_openshift_cluster_information_tables(self, mock_get_nodes, mock_get_pvcs, mock_get_projects):
+        """Test that we populate cluster info."""
+        nodes = ["node_1", "node_2"]
+        resource_ids = ["id_1", "id_2"]
+        capacity = [1, 1]
+        volumes = ["vol_1", "vol_2"]
+        pvcs = ["pvc_1", "pvc_2"]
+        projects = ["project_1", "project_2"]
+        mock_get_nodes.return_value = zip(nodes, resource_ids, capacity)
+        mock_get_pvcs.return_value = zip(volumes, pvcs)
+        mock_get_projects.return_value = projects
+        cluster_id = uuid.uuid4()
+        cluster_alias = "test-cluster-1"
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        self.accessor.populate_openshift_cluster_information_tables(
+            self.ocp_provider, cluster_id, cluster_alias, start_date, end_date
+        )
+
+        with schema_context(self.schema):
+            self.assertIsNotNone(OCPCluster.objects.filter(cluster_id=cluster_id).first())
+            for node in nodes:
+                db_node = OCPNode.objects.filter(node=node).first()
+                self.assertIsNotNone(db_node)
+                self.assertIsNotNone(db_node.node)
+                self.assertIsNotNone(db_node.resource_id)
+                self.assertIsNotNone(db_node.node_capacity_cpu_cores)
+                self.assertIsNotNone(db_node.cluster_id)
+            for pvc in pvcs:
+                self.assertIsNotNone(OCPPVC.objects.filter(persistent_volume_claim=pvc).first())
+            for project in projects:
+                self.assertIsNotNone(OCPProject.objects.filter(project=project).first())
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_presto")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_presto")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_presto")
+    def test_get_openshift_topology_for_provider(self, mock_get_nodes, mock_get_pvcs, mock_get_projects):
+        """Test that OpenShift topology is populated."""
+        nodes = ["node_1", "node_2"]
+        resource_ids = ["id_1", "id_2"]
+        capacity = [1, 1]
+        volumes = ["vol_1", "vol_2"]
+        pvcs = ["pvc_1", "pvc_2"]
+        projects = ["project_1", "project_2"]
+        mock_get_nodes.return_value = zip(nodes, resource_ids, capacity)
+        mock_get_pvcs.return_value = zip(volumes, pvcs)
+        mock_get_projects.return_value = projects
+        cluster_id = str(uuid.uuid4())
+        cluster_alias = "test-cluster-1"
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        self.accessor.populate_openshift_cluster_information_tables(
+            self.ocp_provider, cluster_id, cluster_alias, start_date, end_date
+        )
+
+        with schema_context(self.schema):
+            cluster = OCPCluster.objects.filter(cluster_id=cluster_id).first()
+            nodes = OCPNode.objects.filter(cluster=cluster).all()
+            pvcs = OCPPVC.objects.filter(cluster=cluster).all()
+            projects = OCPProject.objects.filter(cluster=cluster).all()
+            topology = self.accessor.get_openshift_topology_for_provider(self.ocp_provider_uuid)
+
+            self.assertEqual(topology.get("cluster_id"), cluster_id)
+            self.assertEqual(nodes.count(), len(topology.get("nodes")))
+            for node in nodes:
+                self.assertIn(node.node, topology.get("nodes"))
+            for pvc in pvcs:
+                self.assertIn(pvc.persistent_volume_claim, topology.get("persistent_volume_claims"))
+                self.assertIn(pvc.persistent_volume, topology.get("persistent_volumes"))
+            for project in projects:
+                self.assertIn(project.project, topology.get("projects"))
+
+    def test_delete_infrastructure_raw_cost_from_daily_summary(self):
+        """Test that infra raw cost is deleted."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+        report_period = self.accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, start_date)
+        with schema_context(self.schema):
+            report_period_id = report_period.id
+            count = OCPUsageLineItemDailySummary.objects.filter(
+                report_period_id=report_period_id, usage_start__gte=start_date, infrastructure_raw_cost__gt=0
+            ).count()
+        self.assertNotEqual(count, 0)
+
+        self.accessor.delete_infrastructure_raw_cost_from_daily_summary(
+            self.ocp_provider_uuid, report_period_id, start_date, end_date
+        )
+
+        with schema_context(self.schema):
+            count = OCPUsageLineItemDailySummary.objects.filter(
+                report_period_id=report_period_id, usage_start__gte=start_date, infrastructure_raw_cost__gt=0
+            ).count()
+        self.assertEqual(count, 0)

@@ -384,6 +384,142 @@ class TestAWSUtils(MasuTestCase):
         for column in PRESTO_REQUIRED_COLUMNS:
             self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), columns)
 
+    def test_aws_generate_daily_data(self):
+        """Test that we aggregate data at a daily level."""
+        lineitem_usageamount = random.randint(1, 10)
+        lineitem_unblendedcost = random.randint(1, 10)
+        lineitem_unblendedrate = random.randint(1, 10)
+        data = [
+            {
+                "lineitem_resourceid": "id1",
+                "lineitem_usagestartdate": datetime(2021, 6, 7, 11, 24, 0),
+                "lineitem_usageaccountid": 1,
+                "lineitem_productcode": "ec2",
+                "lineitem_availabilityzone": "us-east-1a",
+                "product_productfamily": "compute",
+                "product_instancetype": "t2.micro",
+                "product_region": "us-east-1",
+                "pricing_unit": "hours",
+                "resourcetags": '{"key": "value"}',
+                "lineitem_usageamount": lineitem_usageamount,
+                "lineitem_normalizationfactor": 1,
+                "lineitem_normalizedusageamount": 1,
+                "lineitem_currencycode": "USD",
+                "lineitem_unblendedrate": lineitem_unblendedrate,
+                "lineitem_unblendedcost": lineitem_unblendedcost,
+                "lineitem_blendedrate": 1,
+                "lineitem_blendedcost": 1,
+                "pricing_publicondemandcost": 1,
+                "pricing_publicondemandrate": 1,
+            },
+            {
+                "lineitem_resourceid": "id1",
+                "lineitem_usagestartdate": datetime(2021, 6, 7, 12, 24, 0),  # different hour, same day
+                "lineitem_usageaccountid": 1,
+                "lineitem_productcode": "ec2",
+                "lineitem_availabilityzone": "us-east-1a",
+                "product_productfamily": "compute",
+                "product_instancetype": "t2.micro",
+                "product_region": "us-east-1",
+                "pricing_unit": "hours",
+                "resourcetags": '{"key": "value"}',
+                "lineitem_usageamount": lineitem_usageamount,
+                "lineitem_normalizationfactor": 1,
+                "lineitem_normalizedusageamount": 1,
+                "lineitem_currencycode": "USD",
+                "lineitem_unblendedrate": lineitem_unblendedrate,
+                "lineitem_unblendedcost": lineitem_unblendedcost,
+                "lineitem_blendedrate": 1,
+                "lineitem_blendedcost": 1,
+                "pricing_publicondemandcost": 1,
+                "pricing_publicondemandrate": 1,
+            },
+            {
+                "lineitem_resourceid": "id1",
+                "lineitem_usagestartdate": datetime(2021, 6, 8, 12, 24, 0),  # different day
+                "lineitem_usageaccountid": 1,
+                "lineitem_productcode": "ec2",
+                "lineitem_availabilityzone": "us-east-1a",
+                "product_productfamily": "compute",
+                "product_instancetype": "t2.micro",
+                "product_region": "us-east-1",
+                "pricing_unit": "hours",
+                "resourcetags": '{"key": "value"}',
+                "lineitem_usageamount": lineitem_usageamount,
+                "lineitem_normalizationfactor": 1,
+                "lineitem_normalizedusageamount": 1,
+                "lineitem_currencycode": "USD",
+                "lineitem_unblendedrate": lineitem_unblendedrate,
+                "lineitem_unblendedcost": lineitem_unblendedcost,
+                "lineitem_blendedrate": 1,
+                "lineitem_blendedcost": 1,
+                "pricing_publicondemandcost": 1,
+                "pricing_publicondemandrate": 1,
+            },
+        ]
+
+        df = pd.DataFrame(data)
+
+        daily_df = utils.aws_generate_daily_data(df)
+
+        first_day = daily_df[daily_df["lineitem_usagestartdate"] == "2021-06-07"]
+        second_day = daily_df[daily_df["lineitem_usagestartdate"] == "2021-06-08"]
+
+        # Assert that there is only 1 record per day
+        self.assertEqual(first_day.shape[0], 1)
+        self.assertEqual(second_day.shape[0], 1)
+
+        self.assertTrue((first_day["lineitem_usageamount"] == lineitem_usageamount * 2).bool())
+        self.assertTrue((first_day["lineitem_unblendedcost"] == lineitem_unblendedcost * 2).bool())
+        self.assertTrue((first_day["lineitem_unblendedrate"] == lineitem_unblendedrate).bool())
+
+        self.assertTrue((second_day["lineitem_usageamount"] == lineitem_usageamount).bool())
+        self.assertTrue((second_day["lineitem_unblendedcost"] == lineitem_unblendedcost).bool())
+        self.assertTrue((second_day["lineitem_unblendedrate"] == lineitem_unblendedrate).bool())
+
+    def test_match_openshift_resources_and_labels(self):
+        """Test OCP on AWS data matching."""
+        cluster_topology = {
+            "resource_ids": ["id1", "id2", "id3"],
+            "cluster_id": self.ocp_cluster_id,
+            "cluster_alias": "my-ocp-cluster",
+            "nodes": [],
+            "projects": [],
+        }
+
+        matched_tags = [{"key": "value"}]
+
+        data = [
+            {"lineitem_resourceid": "id1", "lineitem_unblendedcost": 1, "resourcetags": '{"key": "value"}'},
+            {"lineitem_resourceid": "id2", "lineitem_unblendedcost": 1, "resourcetags": '{"key": "other_value"}'},
+            {"lineitem_resourceid": "id4", "lineitem_unblendedcost": 1, "resourcetags": '{"keyz": "value"}'},
+            {"lineitem_resourceid": "id5", "lineitem_unblendedcost": 1, "resourcetags": '{"key": "value"}'},
+        ]
+
+        df = pd.DataFrame(data)
+
+        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+
+        # resource id matching
+        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.bool())
+
+        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.bool())
+
+        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.empty)
+
+        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.empty)
+
+        # tag matching
+        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["matched_tag"] == '"key": "value"'
+        self.assertTrue(result.bool())
+
+        result = matched_df[matched_df["lineitem_resourceid"] == "id5"]["matched_tag"] == '"key": "value"'
+        self.assertTrue(result.bool())
+
     def test_aws_post_processor_empty_tags(self):
         """Test that missing columns in a report end up in the data frame."""
         column_one = "column_one"
