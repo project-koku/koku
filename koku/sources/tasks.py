@@ -16,6 +16,7 @@ from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.storage import load_providers_to_delete
 from sources.storage import mark_provider_as_inactive
 
+
 LOG = logging.getLogger(__name__)
 
 

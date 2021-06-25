@@ -97,7 +97,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
 
         self.accessor.populate_storage_line_item_daily_table(start_date, end_date, cluster_id)
-        self.accessor.populate_storage_line_item_daily_summary_table(start_date, end_date, cluster_id)
+        self.accessor.populate_storage_line_item_daily_summary_table(
+            start_date, end_date, cluster_id, self.provider_uuid
+        )
 
     def _populate_pod_summary(self):
         """Generate pod summary data."""
@@ -119,7 +121,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id)
+        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id, self.ocp_provider_uuid)
         return (start_date, end_date)
 
     def test_initializer(self):
@@ -333,7 +335,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
             self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
             self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-            self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
+            self.accessor.populate_line_item_daily_summary_table(
+                start_date, end_date, self.cluster_id, self.ocp_provider_uuid
+            )
 
             summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
             result_start_date = summary_entry["usage_start__min"]
@@ -2177,10 +2181,11 @@ select * from eek where val1 in {{report_period_ids}} ;
         nodes = ["node_1", "node_2"]
         resource_ids = ["id_1", "id_2"]
         capacity = [1, 1]
+        volumes = ["vol_1", "vol_2"]
         pvcs = ["pvc_1", "pvc_2"]
         projects = ["project_1", "project_2"]
         mock_get_nodes.return_value = zip(nodes, resource_ids, capacity)
-        mock_get_pvcs.return_value = pvcs
+        mock_get_pvcs.return_value = zip(volumes, pvcs)
         mock_get_projects.return_value = projects
         cluster_id = uuid.uuid4()
         cluster_alias = "test-cluster-1"
@@ -2202,7 +2207,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                 self.assertIsNotNone(db_node.node_capacity_cpu_cores)
                 self.assertIsNotNone(db_node.cluster_id)
             for pvc in pvcs:
-                self.assertIsNotNone(OCPPVC.objects.filter(pvc=pvc).first())
+                self.assertIsNotNone(OCPPVC.objects.filter(persistent_volume_claim=pvc).first())
             for project in projects:
                 self.assertIsNotNone(OCPProject.objects.filter(project=project).first())
 
@@ -2214,10 +2219,11 @@ select * from eek where val1 in {{report_period_ids}} ;
         nodes = ["node_1", "node_2"]
         resource_ids = ["id_1", "id_2"]
         capacity = [1, 1]
+        volumes = ["vol_1", "vol_2"]
         pvcs = ["pvc_1", "pvc_2"]
         projects = ["project_1", "project_2"]
         mock_get_nodes.return_value = zip(nodes, resource_ids, capacity)
-        mock_get_pvcs.return_value = pvcs
+        mock_get_pvcs.return_value = zip(volumes, pvcs)
         mock_get_projects.return_value = projects
         cluster_id = str(uuid.uuid4())
         cluster_alias = "test-cluster-1"
@@ -2241,7 +2247,8 @@ select * from eek where val1 in {{report_period_ids}} ;
             for node in nodes:
                 self.assertIn(node.node, topology.get("nodes"))
             for pvc in pvcs:
-                self.assertIn(pvc.pvc, topology.get("pvcs"))
+                self.assertIn(pvc.persistent_volume_claim, topology.get("persistent_volume_claims"))
+                self.assertIn(pvc.persistent_volume, topology.get("persistent_volumes"))
             for project in projects:
                 self.assertIn(project.project, topology.get("projects"))
 

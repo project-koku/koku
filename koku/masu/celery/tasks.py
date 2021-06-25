@@ -14,12 +14,14 @@ from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 from django.utils import timezone
 from prometheus_client import push_to_gateway
+from tenant_schemas.utils import schema_context
 
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer
 from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.iam.models import Tenant
 from api.models import Provider
+from api.provider.models import Sources
 from api.utils import DateHelper
 from koku import celery_app
 from koku.metrics import REGISTRY
@@ -31,6 +33,7 @@ from masu.processor import enable_trino_processing
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
+from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.prometheus_stats import QUEUES
 from masu.util.aws.common import get_s3_resource
@@ -306,6 +309,25 @@ def crawl_account_hierarchy(provider_uuid=None):
             )
             skipped += 1
     LOG.info(f"Account hierarchy crawler finished. {processed} processed and {skipped} skipped")
+
+
+@celery_app.task(name="masu.celery.tasks.delete_provider_async", queue=PRIORITY_QUEUE)
+def delete_provider_async(name, provider_uuid, schema_name):
+    with schema_context(schema_name):
+        LOG.info(f"Removing Provider without Source: {str(name)} ({str(provider_uuid)}")
+        Provider.objects.get(uuid=provider_uuid).delete()
+
+
+@celery_app.task(name="masu.celery.tasks.out_of_order_source_delete_async", queue=PRIORITY_QUEUE)
+def out_of_order_source_delete_async(source_id):
+    LOG.info(f"Removing out of order delete Source (ID): {str(source_id)}")
+    Sources.objects.get(source_id=source_id).delete()
+
+
+@celery_app.task(name="masu.celery.tasks.missing_source_delete_async", queue=PRIORITY_QUEUE)
+def missing_source_delete_async(source_id):
+    LOG.info(f"Removing missing Source: {str(source_id)}")
+    Sources.objects.get(source_id=source_id).delete()
 
 
 @celery_app.task(name="masu.celery.tasks.collect_queue_metrics", bind=True, queue=DEFAULT)

@@ -675,3 +675,28 @@ class CostModelSerializerTest(IamTestCase):
             serializer = CostModelSerializer(data=self.basic_model)
             with self.assertRaises(serializers.ValidationError):
                 serializer.validate_source_uuids([uuid4()])
+
+    def test_distribution_choices_added_successfully(self):
+        """Test that a source type is valid if it has markup."""
+        valid_choices = ["cpu", "memory"]
+        for good_input in valid_choices:
+            self.ocp_data["distribution"] = good_input
+            self.assertEqual(self.ocp_data["distribution"], good_input)
+            with tenant_context(self.tenant):
+                instance = None
+                serializer = CostModelSerializer(data=self.ocp_data)
+                if serializer.is_valid(raise_exception=True):
+                    instance = serializer.save()
+                self.assertIsNotNone(instance)
+                self.assertIsNotNone(instance.uuid)
+
+    def test_error_bad_distribution_choice(self):
+        """Test that source successfully fails if bad distribution type."""
+        bad_choice_list = ["bad1", "bad2", "bad3"]
+        for bad_input in bad_choice_list:
+            self.ocp_data["distribution"] = bad_input
+            self.assertEqual(self.ocp_data["distribution"], bad_input)
+            with tenant_context(self.tenant):
+                serializer = CostModelSerializer(data=self.ocp_data)
+                with self.assertRaises(serializers.ValidationError):
+                    serializer.validate_distribution(bad_input)
