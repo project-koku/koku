@@ -97,7 +97,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
 
         self.accessor.populate_storage_line_item_daily_table(start_date, end_date, cluster_id)
-        self.accessor.populate_storage_line_item_daily_summary_table(start_date, end_date, cluster_id)
+        self.accessor.populate_storage_line_item_daily_summary_table(
+            start_date, end_date, cluster_id, self.provider_uuid
+        )
 
     def _populate_pod_summary(self):
         """Generate pod summary data."""
@@ -119,7 +121,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id)
+        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id, self.ocp_provider_uuid)
         return (start_date, end_date)
 
     def test_initializer(self):
@@ -333,7 +335,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
             self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
             self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-            self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
+            self.accessor.populate_line_item_daily_summary_table(
+                start_date, end_date, self.cluster_id, self.ocp_provider_uuid
+            )
 
             summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
             result_start_date = summary_entry["usage_start__min"]

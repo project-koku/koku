@@ -869,7 +869,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
             ocp_accessor.populate_node_label_line_item_daily_table(start_date, end_date, cluster_id)
             ocp_accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
-            ocp_accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id)
+            ocp_accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id, provider_uuid)
         with schema_context(self.schema):
             query = self.accessor._get_db_obj_query(summary_table_name)
             initial_count = query.count()
