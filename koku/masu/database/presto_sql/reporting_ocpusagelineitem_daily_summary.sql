@@ -43,7 +43,7 @@ WITH cte_ocp_node_label_line_item_daily AS (
     SELECT date(nli.interval_start) as usage_start,
         nli.node,
         nli.node_labels
-    FROM hive.{{schema | sqlsafe}}.openshift_node_labels_line_items AS nli
+    FROM hive.{{schema | sqlsafe}}.openshift_node_labels_line_items_daily AS nli
     WHERE nli.source = {{source}}
        AND nli.year = {{year}}
        AND nli.month = {{month}}
@@ -58,7 +58,7 @@ cte_ocp_namespace_label_line_item_daily AS (
     SELECT date(nli.interval_start) as usage_start,
         nli.namespace,
         nli.namespace_labels
-    FROM hive.{{schema | sqlsafe}}.openshift_namespace_labels_line_items AS nli
+    FROM hive.{{schema | sqlsafe}}.openshift_namespace_labels_line_items_daily AS nli
     WHERE nli.source = {{source}}
        AND nli.year = {{year}}
        AND nli.month = {{month}}
@@ -78,7 +78,7 @@ cte_ocp_cluster_capacity AS (
             li.node,
             max(li.node_capacity_cpu_core_seconds) as max_cluster_capacity_cpu_core_seconds,
             max(li.node_capacity_memory_byte_seconds) as max_cluster_capacity_memory_byte_seconds
-        FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items AS li
+        FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS li
         WHERE li.source = {{source}}
             AND li.year = {{year}}
             AND li.month = {{month}}
@@ -95,8 +95,8 @@ cte_volume_nodes AS (
         sli.persistentvolumeclaim,
         max(uli.node) as node,
         max(uli.resource_id) as resource_id
-    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items as sli
-    JOIN hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items as uli
+    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily as sli
+    JOIN hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily as uli
         ON uli.source = sli.source
             AND uli.namespace = sli.namespace
             AND uli.pod = sli.pod
@@ -173,7 +173,7 @@ FROM (
         sum(li.node_capacity_memory_byte_seconds) / 3600.0 * power(2, -30) as node_capacity_memory_gigabyte_hours,
         max(cc.cluster_capacity_cpu_core_seconds) / 3600.0 as cluster_capacity_cpu_core_hours,
         max(cc.cluster_capacity_memory_byte_seconds) / 3600.0 * power(2, -30) as cluster_capacity_memory_gigabyte_hours
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items as li
+    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily as li
     LEFT JOIN cte_ocp_node_label_line_item_daily as nli
         ON nli.node = li.node
             AND nli.usage_start = date(li.interval_start)
@@ -264,7 +264,7 @@ FROM (
         sum(sli.persistentvolumeclaim_capacity_byte_seconds) as persistentvolumeclaim_capacity_byte_seconds,
         sum(sli.volume_request_storage_byte_seconds) as volume_request_storage_byte_seconds,
         sum(sli.persistentvolumeclaim_usage_byte_seconds) as persistentvolumeclaim_usage_byte_seconds
-      FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items sli
+      FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily sli
       LEFT JOIN cte_volume_nodes as vn
           ON vn.usage_start = date(sli.interval_start)
               AND vn.persistentvolumeclaim = sli.persistentvolumeclaim
