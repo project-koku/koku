@@ -29,6 +29,8 @@ VIEWS = (
 
 
 PRESTO_LINE_ITEM_TABLE = "aws_line_items"
+PRESTO_LINE_ITEM_DAILY_TABLE = "aws_line_items_daily"
+PRESTO_OCP_ON_AWS_DAILY_TABLE = "aws_openshift_daily"
 
 PRESTO_REQUIRED_COLUMNS = (
     "lineItem/UsageStartDate",

@@ -80,8 +80,15 @@ services:
         - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
         - REDIS_HOST=${REDIS_HOST-redis}
         - REDIS_PORT=${REDIS_PORT-6379}
+        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+        - RABBITMQ_PORT=5672
+        - USE_RABBIT=${USE_RABBIT}
+        - MASU_SERVICE_HOST=${MASU_SERVICE_HOST-masu-server}
+        - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
         - RBAC_CACHE_TTL
         - prometheus_multiproc_dir=/tmp
+        - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+        - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
         - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
         - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
         - ENABLE_TRINO_SOURCES

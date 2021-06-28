@@ -233,13 +233,15 @@ def date_range_pair(start_date, end_date, step=5):
         yield start_date.date(), end_date.date()
 
 
-def get_path_prefix(account, provider_type, provider_uuid, start_date, data_type, report_type=None):
+def get_path_prefix(account, provider_type, provider_uuid, start_date, data_type, report_type=None, daily=False):
     """Get the S3 bucket prefix"""
     path = None
     if start_date:
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         path_prefix = f"{Config.WAREHOUSE_PATH}/{data_type}"
+        if daily:
+            path_prefix += "/daily"
         path = f"{path_prefix}/{account}/{provider_type}/source={provider_uuid}/year={year}/month={month}"
         if report_type:
             path = (
@@ -249,9 +251,13 @@ def get_path_prefix(account, provider_type, provider_uuid, start_date, data_type
     return path
 
 
-def get_hive_table_path(account, provider_type, report_type=None):
+def get_hive_table_path(account, provider_type, report_type=None, daily=False):
     """Get the S3 bucket prefix without partitions for hive table location."""
     path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
+    if daily:
+        path_prefix += "/daily"
+        if report_type is None:
+            report_type = "raw"
     table_path = f"{path_prefix}/{account}/{provider_type}"
     if report_type:
         table_path += f"/{report_type}"

@@ -9,10 +9,14 @@ from uuid import uuid4
 from django.conf import settings
 from django.core.validators import MaxLengthValidator
 from django.db import models
+from django.db import router
 from django.db import transaction
 from django.db.models import JSONField
+from django.db.models.signals import post_delete
+from tenant_schemas.utils import schema_context
 
 from api.model_utils import RunTextFieldValidators
+from koku.database import cascade_delete
 
 LOG = logging.getLogger(__name__)
 
@@ -106,6 +110,7 @@ class Provider(models.Model):
     # throughout the codebase
     PROVIDER_LIST = [choice[0] for choice in PROVIDER_CHOICES]
     CLOUD_PROVIDER_LIST = [choice[0] for choice in CLOUD_PROVIDER_CHOICES]
+    OPENSHIFT_ON_CLOUD_PROVIDER_LIST = [PROVIDER_AWS, PROVIDER_AWS_LOCAL, PROVIDER_AZURE, PROVIDER_AZURE_LOCAL]
 
     uuid = models.UUIDField(default=uuid4, primary_key=True)
     name = models.CharField(max_length=256, null=False)
@@ -159,6 +164,16 @@ class Provider(models.Model):
             LOG.info(f"Starting data ingest task for Provider {self.uuid}")
             # Start check_report_updates task after Provider has been committed.
             transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid))
+
+    def delete(self, *args, **kwargs):
+        if self.customer:
+            using = router.db_for_write(self.__class__, isinstance=self)
+            with schema_context(self.customer.schema_name):
+                LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
+                cascade_delete(self.__class__, self.__class__, self.__class__.objects.filter(pk=self.pk))
+                post_delete.send(sender=self.__class__, instance=self, using=using)
+        else:
+            super().delete()
 
 
 class Sources(RunTextFieldValidators, models.Model):
