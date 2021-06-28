@@ -17,6 +17,7 @@ from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 import koku.presto_database as kpdb
+from koku.database import execute_delete_sql as exec_del_sql
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
 from masu.database.koku_database_access import mini_transaction_delete
@@ -430,3 +431,14 @@ class ReportDBAccessorBase(KokuDBAccess):
             count, _ = mini_transaction_delete(select_query)
         msg = f"Deleted {count} records from {self.line_item_daily_summary_table}"
         LOG.info(msg)
+
+    def table_exists_trino(self, table_name):
+        """Check if table exists."""
+        table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
+        table = self._execute_presto_raw_sql_query(self.schema, table_check_sql)
+        if table:
+            return True
+        return False
+
+    def execute_delete_sql(self, query):
+        return exec_del_sql(query)
