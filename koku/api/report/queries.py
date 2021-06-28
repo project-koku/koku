@@ -105,7 +105,7 @@ class ReportQueryHandler(QueryHandler):
     def query_table(self):
         """Return the database table or view to query against."""
         query_table = self._mapper.query_table
-        report_type = self.parameters.report_type
+        report_type = self._report_type
         report_group = "default"
 
         if self.provider in (
@@ -122,7 +122,6 @@ class ReportQueryHandler(QueryHandler):
         )
         if key_tuple:
             report_group = key_tuple
-
         # Special Casess for Network and Database Cards in the UI
         service_filter = set(self.parameters.get("filter", {}).get("service", []))
         if self.provider in (Provider.PROVIDER_AZURE, Provider.OCP_AZURE):
@@ -131,8 +130,7 @@ class ReportQueryHandler(QueryHandler):
             report_type = "network"
         elif report_type == "costs" and service_filter and not service_filter.difference(self.database_services):
             report_type = "database"
-        elif report_type == "costs" and is_grouped_by_project(self.parameters):
-            report_type = report_type + "_by_project"
+
         try:
             query_table = self._mapper.views[report_type][report_group]
         except KeyError:
