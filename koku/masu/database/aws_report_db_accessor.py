@@ -3,11 +3,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for report data."""
+import json
 import logging
 import pkgutil
 import uuid
 
 from dateutil.parser import parse
+from django.db import connection
 from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
@@ -24,7 +26,7 @@ from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSCostEntryPricing
 from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
-from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
+from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE
 
 LOG = logging.getLogger(__name__)
 
@@ -246,7 +248,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "schema": self.schema,
-            "table": PRESTO_LINE_ITEM_TABLE,
+            "table": PRESTO_LINE_ITEM_DAILY_TABLE,
             "source_uuid": source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
@@ -308,7 +310,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         )
 
     def populate_ocp_on_aws_cost_daily_summary_presto(
-        self, start_date, end_date, openshift_provider_uuid, aws_provider_uuid, cluster_id, bill_id, markup_value
+        self, start_date, end_date, openshift_provider_uuid, aws_provider_uuid, report_period_id, bill_id, markup_value
     ):
         """Populate the daily cost aggregated summary for OCP on AWS.
 
@@ -323,7 +325,6 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpawscostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
-            "uuid": str(openshift_provider_uuid).replace("-", "_"),
             "schema": self.schema,
             "start_date": start_date,
             "year": start_date.strftime("%Y"),
@@ -331,11 +332,28 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             "end_date": end_date,
             "aws_source_uuid": aws_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
-            "cluster_id": cluster_id,
             "bill_id": bill_id,
+            "report_period_id": report_period_id,
             "markup": markup_value,
         }
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
+
+    def back_populate_ocp_on_aws_daily_summary(self, start_date, end_date, report_period_id):
+        """Populate the OCP on AWS and OCP daily summary tables. after populating the project table via trino."""
+        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
+
+        sql = pkgutil.get_data(
+            "masu.database", "sql/reporting_ocpawscostentrylineitem_daily_summary_back_populate.sql"
+        )
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_id": report_period_id,
+        }
+        sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
+        self._execute_raw_sql_query(table_name, sql, bind_params=list(sql_params))
 
     def populate_ocp_on_aws_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
@@ -412,3 +430,35 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
+
+    def get_openshift_on_cloud_matched_tags(self, aws_bill_id, ocp_report_period_id):
+        """Return a list of matched tags."""
+        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_matched_tags.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {"bill_id": aws_bill_id, "report_period_id": ocp_report_period_id, "schema": self.schema}
+        sql, bind_params = self.jinja_sql.prepare_query(sql, sql_params)
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(sql, params=bind_params)
+            results = cursor.fetchall()
+
+        return [json.loads(result[0]) for result in results]
+
+    def get_openshift_on_cloud_matched_tags_trino(self, aws_source_uuid, ocp_source_uuid, start_date, end_date):
+        """Return a list of matched tags."""
+        sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpaws_matched_tags.sql")
+        sql = sql.decode("utf-8")
+
+        sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "aws_source_uuid": aws_source_uuid,
+            "ocp_source_uuid": ocp_source_uuid,
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
+        }
+        sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
+        results = self._execute_presto_raw_sql_query(self.schema, sql, bind_params=sql_params)
+
+        return [json.loads(result[0]) for result in results]
