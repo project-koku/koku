@@ -11,7 +11,9 @@ from masu.processor.report_parquet_processor_base import ReportParquetProcessorB
 from masu.util import common as utils
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
+from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
+from reporting.provider.aws.models import PRESTO_OCP_ON_AWS_DAILY_TABLE
 
 
 class AWSReportParquetProcessor(ReportParquetProcessorBase):
@@ -33,15 +35,28 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
             "bill_billingperiodstartdate",
             "bill_billingperiodenddate",
         ]
+        boolean_columns = ["resource_id_matched"]
+
+        column_types = {
+            "numeric_columns": numeric_columns,
+            "date_columns": date_columns,
+            "boolean_columns": boolean_columns,
+        }
+
+        if "openshift" in s3_path:
+            table_name = PRESTO_OCP_ON_AWS_DAILY_TABLE
+        elif "daily" in s3_path:
+            table_name = PRESTO_LINE_ITEM_DAILY_TABLE
+        else:
+            table_name = PRESTO_LINE_ITEM_TABLE
         super().__init__(
             manifest_id=manifest_id,
             account=account,
             s3_path=s3_path,
             provider_uuid=provider_uuid,
             parquet_local_path=parquet_local_path,
-            numeric_columns=numeric_columns,
-            date_columns=date_columns,
-            table_name=PRESTO_LINE_ITEM_TABLE,
+            column_types=column_types,
+            table_name=table_name,
         )
 
     @property
