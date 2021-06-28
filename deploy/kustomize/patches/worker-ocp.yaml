@@ -34,11 +34,7 @@
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -51,42 +47,6 @@
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              key: db.endpoint
-              name: elasticache-redis
-              optional: true
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              key: db.port
-              name: elasticache-redis
-              optional: true
-        - name: S3_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws_access_key_id
-              name: hccm-s3
-              optional: true
-        - name: S3_SECRET
-          valueFrom:
-            secretKeyRef:
-              key: aws_secret_access_key
-              name: hccm-s3
-              optional: true
-        - name: S3_BUCKET_NAME
-          valueFrom:
-            secretKeyRef:
-              key: bucket
-              name: hccm-s3
-              optional: true
-        - name: S3_ENDPOINT
-          valueFrom:
-            secretKeyRef:
-              key: endpoint
-              name: hccm-s3
-              optional: true
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -167,9 +127,18 @@
       volumeMounts:
       - mountPath: /var/tmp/masu/
         name: koku-worker-data
+      - name: gcp-credentials
+        mountPath: /etc/gcp
+        readOnly: true
       volumes:
       - name: koku-worker-data
         emptyDir: {}
+      - name: gcp-credentials
+        secret:
+          secretName: koku-gcp
+          items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
 
 - op: add
   path: /parameters/-

@@ -408,15 +408,13 @@ RABBITMQ_PORT = ENVIRONMENT.get_value("RABBITMQ_PORT", default="5672")
 
 
 # AWS S3 Bucket Settings
-S3_BUCKET_NAME = ENVIRONMENT.get_value("S3_BUCKET_NAME", default="koku-reports")
-S3_BUCKET_PATH = ENVIRONMENT.get_value("S3_BUCKET_PATH", default="data_archive")
+S3_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
-S3_ENDPOINT = ENVIRONMENT.get_value("S3_ENDPOINT", default="s3.us-east-1.amazonaws.com")
-if not (S3_ENDPOINT.startswith("https://") or S3_ENDPOINT.startswith("http://")):
-    S3_ENDPOINT = "https://" + S3_ENDPOINT
+S3_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket("koku-reports")
+S3_BUCKET_PATH = ENVIRONMENT.get_value("S3_BUCKET_PATH", default="data_archive")
+S3_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key()
+S3_SECRET = CONFIGURATOR.get_object_store_secret_key()
 
-S3_ACCESS_KEY = ENVIRONMENT.get_value("S3_ACCESS_KEY", default=None)
-S3_SECRET = ENVIRONMENT.get_value("S3_SECRET", default=None)
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 ENABLE_PARQUET_PROCESSING = ENVIRONMENT.bool("ENABLE_PARQUET_PROCESSING", default=False)
 PARQUET_PROCESSING_BATCH_SIZE = ENVIRONMENT.int("PARQUET_PROCESSING_BATCH_SIZE", default=200000)

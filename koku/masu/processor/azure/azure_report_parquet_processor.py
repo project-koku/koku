@@ -20,23 +20,30 @@ LOG = logging.getLogger(__name__)
 
 class AzureReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
+        numeric_columns = [
+            "usagequantity",
+            "quantity",
+            "resourcerate",
+            "pretaxcost",
+            "costinbillingcurrency",
+            "effectiveprice",
+            "unitprice",
+            "paygprice",
+        ]
+        date_columns = ["usagedatetime", "date", "billingperiodstartdate", "billingperiodenddate"]
+        boolean_columns = ["resource_id_matched"]
+        column_types = {
+            "numeric_columns": numeric_columns,
+            "date_columns": date_columns,
+            "boolean_columns": boolean_columns,
+        }
         super().__init__(
             manifest_id=manifest_id,
             account=account,
             s3_path=s3_path,
             provider_uuid=provider_uuid,
             parquet_local_path=parquet_local_path,
-            numeric_columns=[
-                "usagequantity",
-                "quantity",
-                "resourcerate",
-                "pretaxcost",
-                "costinbillingcurrency",
-                "effectiveprice",
-                "unitprice",
-                "paygprice",
-            ],
-            date_columns=["usagedatetime", "date", "billingperiodstartdate", "billingperiodenddate"],
+            column_types=column_types,
             table_name=PRESTO_LINE_ITEM_TABLE,
         )
 

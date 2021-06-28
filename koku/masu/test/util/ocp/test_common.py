@@ -3,7 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP util."""
+import copy
+import datetime
+import json
 import os
+import random
 import shutil
 import tempfile
 from unittest.mock import patch
@@ -97,3 +101,161 @@ class OCPUtilTests(MasuTestCase):
         expected = pd.to_datetime(expected_dt_str)
         dt = utils.process_openshift_datetime("2020-07-01 00:00:00 +0000 UTC")
         self.assertEqual(expected, dt)
+
+    def test_ocp_generate_daily_data(self):
+        """Test that OCP data is aggregated to daily."""
+        usage = random.randint(1, 10)
+        capacity = random.randint(1, 10)
+        namespace = "project_1"
+        pod = "pod_1"
+        node = "node_1"
+        resource_id = "123"
+        pvc = "pvc_1"
+        label = '{"key": "value"}'
+
+        interval_start = datetime.datetime(2021, 6, 7, 1, 0, 0)
+        next_hour = datetime.datetime(2021, 6, 7, 2, 0, 0)
+        next_day = datetime.datetime(2021, 6, 8, 1, 0, 0)
+
+        base_data = {
+            "report_period_start": datetime.datetime(2021, 6, 1, 0, 0, 0),
+            "report_period_end": datetime.datetime(2021, 6, 1, 0, 0, 0),
+            "interval_start": interval_start,
+            "interval_end": interval_start + datetime.timedelta(hours=1),
+        }
+        base_next_hour = copy.deepcopy(base_data)
+        base_next_hour["interval_start"] = next_hour
+        base_next_hour["interval_end"] = next_hour + datetime.timedelta(hours=1)
+
+        base_next_day = copy.deepcopy(base_data)
+        base_next_day["interval_start"] = next_day
+        base_next_day["interval_end"] = next_day + datetime.timedelta(hours=1)
+
+        base_pod_data = {
+            "pod": pod,
+            "namespace": namespace,
+            "node": node,
+            "resource_id": resource_id,
+            "pod_usage_cpu_core_seconds": usage,
+            "pod_request_cpu_core_seconds": usage,
+            "pod_limit_cpu_core_seconds": usage,
+            "pod_usage_memory_byte_seconds": usage,
+            "pod_request_memory_byte_seconds": usage,
+            "pod_limit_memory_byte_seconds": usage,
+            "node_capacity_cpu_cores": capacity,
+            "node_capacity_cpu_core_seconds": capacity,
+            "node_capacity_memory_bytes": capacity,
+            "node_capacity_memory_byte_seconds": capacity,
+            "pod_labels": label,
+        }
+
+        base_storage_data = {
+            "namespace": namespace,
+            "pod": pod,
+            "persistentvolumeclaim": pvc,
+            "persistentvolume": pvc,
+            "storageclass": "gold",
+            "persistentvolumeclaim_capacity_bytes": capacity,
+            "persistentvolumeclaim_capacity_byte_seconds": capacity,
+            "volume_request_storage_byte_seconds": usage,
+            "persistentvolumeclaim_usage_byte_seconds": usage,
+            "persistentvolume_labels": label,
+            "persistentvolumeclaim_labels": label,
+        }
+
+        base_node_data = {"node": node, "node_labels": label}
+
+        base_namespace_data = {"namespace": namespace, "namespace_labels": label}
+
+        base_data_list = [
+            ("pod_usage", base_pod_data),
+            ("storage_usage", base_storage_data),
+            ("node_labels", base_node_data),
+            ("namespace_labels", base_namespace_data),
+        ]
+
+        for report_type, data in base_data_list:
+            data_list = [copy.deepcopy(base_data), copy.deepcopy(base_next_hour), copy.deepcopy(base_next_day)]
+            for entry in data_list:
+                entry.update(data)
+            df = pd.DataFrame(data_list)
+            daily_df = utils.ocp_generate_daily_data(df, report_type)
+
+            first_day = daily_df[daily_df["interval_start"] == str(interval_start.date())]
+            second_day = daily_df[daily_df["interval_start"] == str(next_day.date())]
+
+            # Assert that there is only 1 record per day
+            self.assertEqual(first_day.shape[0], 1)
+            self.assertEqual(second_day.shape[0], 1)
+
+            if report_type == "pod_usage":
+                self.assertTrue((first_day["pod_usage_cpu_core_seconds"] == usage * 2).bool())
+                self.assertTrue((first_day["pod_usage_memory_byte_seconds"] == usage * 2).bool())
+                self.assertTrue((first_day["node_capacity_cpu_cores"] == capacity).bool())
+
+                self.assertTrue((second_day["pod_usage_cpu_core_seconds"] == usage).bool())
+                self.assertTrue((second_day["pod_usage_memory_byte_seconds"] == usage).bool())
+                self.assertTrue((second_day["node_capacity_cpu_cores"] == capacity).bool())
+            elif report_type == "storage_usage":
+                self.assertTrue((first_day["persistentvolumeclaim_usage_byte_seconds"] == usage * 2).bool())
+                self.assertTrue((first_day["volume_request_storage_byte_seconds"] == usage * 2).bool())
+                self.assertTrue((first_day["persistentvolumeclaim_capacity_byte_seconds"] == capacity * 2).bool())
+                self.assertTrue((first_day["persistentvolumeclaim_capacity_bytes"] == capacity).bool())
+
+                self.assertTrue((second_day["persistentvolumeclaim_usage_byte_seconds"] == usage).bool())
+                self.assertTrue((second_day["volume_request_storage_byte_seconds"] == usage).bool())
+                self.assertTrue((second_day["persistentvolumeclaim_capacity_byte_seconds"] == capacity).bool())
+                self.assertTrue((second_day["persistentvolumeclaim_capacity_bytes"] == capacity).bool())
+            elif report_type == "node_labels":
+                self.assertTrue((first_day["node"] == node).bool())
+                self.assertTrue((first_day["node_labels"] == label).bool())
+
+                self.assertTrue((second_day["node"] == node).bool())
+                self.assertTrue((second_day["node_labels"] == label).bool())
+            elif report_type == "namespace_labels":
+                self.assertTrue((first_day["namespace"] == namespace).bool())
+                self.assertTrue((first_day["namespace_labels"] == label).bool())
+
+                self.assertTrue((second_day["namespace"] == namespace).bool())
+                self.assertTrue((second_day["namespace_labels"] == label).bool())
+
+    def test_match_openshift_labels(self):
+        """Test that a label match returns."""
+        cluster_alias = "my-ocp-cluster"
+        cluster_topology = {
+            "resource_ids": ["id1", "id2", "id3"],
+            "cluster_id": self.ocp_cluster_id,
+            "cluster_alias": cluster_alias,
+            "nodes": ["compute-1"],
+            "projects": ["cost-management"],
+        }
+
+        matched_tags = [{"key": "value"}, {"other_key": "other_value"}]
+
+        tag_dicts = [
+            {"tag": json.dumps({"key": "value"}), "expected": '"key": "value"'},
+            {"tag": json.dumps({"key": "other_value"}), "expected": ""},
+            {
+                "tag": json.dumps({"OpenShift_Project": "Cost-Management"}),
+                "expected": '"openshift_project": "cost-management"',
+            },
+            {"tag": json.dumps({"openshift_node": "COMPUTE-1"}), "expected": '"openshift_node": "compute-1"'},
+            {
+                "tag": json.dumps({"openshift_clusteR": f"{self.ocp_cluster_id}"}),
+                "expected": f'"openshift_cluster": "{self.ocp_cluster_id}"'.lower(),
+            },
+            {
+                "tag": json.dumps({"openshift_cluster": f"{cluster_alias}"}),
+                "expected": f'"openshift_cluster": "{cluster_alias}"'.lower(),
+            },
+            {
+                "tag": json.dumps({"key": "value", "other_key": "other_value"}),
+                "expected": '"key": "value","other_key": "other_value"',
+            },
+        ]
+
+        for tag_dict in tag_dicts:
+            td = tag_dict.get("tag")
+            expected = tag_dict.get("expected")
+            result = utils.match_openshift_labels(td, matched_tags, cluster_topology)
+            self.assertEqual(result, expected)
