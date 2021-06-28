@@ -108,12 +108,12 @@ for fname in ${YAML_FILES[*]}; do
 done
 
 # OpenShift on AWS
-$NISE report aws --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
 $NISE report ocp --static-report-file "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --insights-upload "$NISE_DATA_PATH/pvc_dir/insights_local"
+$NISE report aws --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
 
 # OpenShift on Azure
-$NISE report azure --static-report-file "$YAML_PATH/ocp_on_azure/rendered_azure_static_data.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report
 $NISE report ocp --static-report-file "$YAML_PATH/ocp_on_azure/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --insights-upload "$NISE_DATA_PATH/pvc_dir/insights_local"
+$NISE report azure --static-report-file "$YAML_PATH/ocp_on_azure/rendered_azure_static_data.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report
 
 # OpenShift on Prem
 $NISE report ocp --ocp-cluster-id my-ocp-cluster-3 --insights-upload "$NISE_DATA_PATH/pvc_dir/insights_local" --start-date "$START_DATE" --end-date "$END_DATE"
@@ -149,6 +149,20 @@ function add_cost_models() {
     fi
 }
 
+function trigger_download() {
+    #
+    # Args:
+    #   1 - api_provider.name; this needs to match the source_name in test_customer.yaml
+    #
+    UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = '$1'" | head -1 | sed -e 's/^[ \t]*//')
+    if [[ ! -z $UUID ]]; then
+        debug_echo "Triggering download for, source_name: $1, uuid: $UUID"
+        curl http://$MASU_API$API_PATH_PREFIX/v1/download/?provider_uuid=$UUID
+    else
+        debug_echo "[SKIPPED] download, source_name: $1"
+    fi
+}
+
 add_cost_models 'Test OCP on Premises' openshift_on_prem_cost_model.json
 add_cost_models 'Test OCP on AWS' openshift_on_aws_cost_model.json
 add_cost_models 'Test AWS Source' aws_cost_model.json
@@ -181,5 +195,12 @@ if [[ $USE_OC == 1 ]]; then
     done
 fi
 
-debug_echo "triggering Masu download..."
-curl http://$MASU_API$API_PATH_PREFIX/v1/download/
+# Trigger downloads individually to ensure OCP is processed before cloud sources for OCP on Cloud
+trigger_download 'Test OCP on AWS'
+trigger_download 'Test OCP on Azure'
+trigger_download 'Test OCP on Premises'
+trigger_download 'Test AWS Source'
+trigger_download 'Test Azure Source'
+trigger_download 'Test Azure v2 Source'
+trigger_download 'Test GCP Source'
+trigger_download 'Test IBM Source'

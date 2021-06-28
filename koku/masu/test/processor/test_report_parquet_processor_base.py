@@ -42,16 +42,21 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         self.local_parquet = self.output_file
         self.date_columns = ["date1", "date2"]
         self.numeric_columns = ["numeric1", "numeric2"]
+        self.boolean_columns = ["bool_col"]
         self.other_columns = ["other"]
         self.table_name = "test_table"
+        self.column_types = {
+            "numeric_columns": self.numeric_columns,
+            "date_columns": self.date_columns,
+            "boolean_columns": self.boolean_columns,
+        }
         self.processor = ReportParquetProcessorBase(
             self.manifest_id,
             self.account,
             self.s3_path,
             self.provider_uuid,
             self.local_parquet,
-            self.numeric_columns,
-            self.date_columns,
+            self.column_types,
             self.table_name,
         )
 

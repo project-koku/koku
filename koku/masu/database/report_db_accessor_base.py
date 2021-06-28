@@ -432,5 +432,13 @@ class ReportDBAccessorBase(KokuDBAccess):
         msg = f"Deleted {count} records from {self.line_item_daily_summary_table}"
         LOG.info(msg)
 
+    def table_exists_trino(self, table_name):
+        """Check if table exists."""
+        table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
+        table = self._execute_presto_raw_sql_query(self.schema, table_check_sql)
+        if table:
+            return True
+        return False
+
     def execute_delete_sql(self, query):
         return exec_del_sql(query)

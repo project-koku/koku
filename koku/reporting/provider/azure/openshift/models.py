@@ -176,6 +176,8 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
 
     pod_cost = models.DecimalField(max_digits=24, decimal_places=6, null=True)
 
+    tags = JSONField(null=True)
+
     source_uuid = models.UUIDField(unique=False, null=True)
 
 

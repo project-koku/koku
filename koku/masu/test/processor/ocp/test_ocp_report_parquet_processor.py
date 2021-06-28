@@ -12,6 +12,7 @@ from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProc
 from masu.test import MasuTestCase
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_DAILY_MAP
 from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_MAP
 
 
@@ -35,6 +36,12 @@ class OCPReportProcessorParquetTest(MasuTestCase):
     def test_ocp_table_name(self):
         """Test the OCP table name generation."""
         self.assertEqual(self.processor._table_name, PRESTO_LINE_ITEM_TABLE_MAP[self.report_type])
+
+        s3_path = "/s3/path/daily"
+        processor = OCPReportParquetProcessor(
+            self.manifest_id, self.account, s3_path, self.provider_uuid, self.local_parquet, self.report_type
+        )
+        self.assertEqual(processor._table_name, PRESTO_LINE_ITEM_TABLE_DAILY_MAP[self.report_type])
 
     def test_postgres_summary_table(self):
         """Test that the correct table is returned."""
