@@ -131,7 +131,8 @@ class ReportQueryHandler(QueryHandler):
             report_type = "network"
         elif report_type == "costs" and service_filter and not service_filter.difference(self.database_services):
             report_type = "database"
-
+        elif report_type == "costs" and is_grouped_by_project(self.parameters):
+            report_type = report_type + "_by_project"
         try:
             query_table = self._mapper.views[report_type][report_group]
         except KeyError:
