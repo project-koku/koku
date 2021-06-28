@@ -31,7 +31,6 @@ from sources.kafka_message_processor import KAFKA_SOURCE_DESTROY
 from sources.kafka_message_processor import KAFKA_SOURCE_UPDATE
 from sources.kafka_message_processor import KafkaMessageProcessor
 from sources.kafka_message_processor import SourceDetails
-from sources.kafka_message_processor import SourceMsgProcessor
 from sources.kafka_message_processor import SOURCES_AWS_SOURCE_NAME
 from sources.kafka_message_processor import SOURCES_AZURE_SOURCE_NAME
 from sources.kafka_message_processor import SOURCES_GCP_SOURCE_NAME
@@ -67,7 +66,7 @@ SOURCE_TYPE_IDS_MAP = {
 }
 
 
-def msg_generator(event_type, topic=None, offset=None, value=None, header=Config.SOURCES_FAKE_HEADER):
+def msg_generator(event_type, topic=None, offset=None, value: dict = None, header=Config.SOURCES_FAKE_HEADER):
     test_value = '{"id":1,"source_id":1,"application_type_id":2}'
     if value:
         test_value = json.dumps(value)
@@ -181,9 +180,9 @@ class KafkaMessageProcessorTest(IamTestCase):
                 "event_type": KAFKA_SOURCE_UPDATE,
                 "expected": NoneType,
             },  # maybe someday we will listen to source.update messages
-            {"event_type": KAFKA_SOURCE_DESTROY, "expected": SourceMsgProcessor},
+            {"event_type": KAFKA_SOURCE_DESTROY, "expected": NoneType},
             {"event_type": "Source.create", "expected": NoneType},
-            {"event_type": KAFKA_SOURCE_DESTROY, "test_topic": "unknown", "expected": NoneType},
+            {"event_type": KAFKA_APPLICATION_CREATE, "test_topic": "unknown", "expected": NoneType},
         ]
 
         for test in test_mtx:
@@ -193,23 +192,30 @@ class KafkaMessageProcessorTest(IamTestCase):
 
     def test_create_msg_processor_missing_header(self):
         """Test create_msg_processor on a message missing kafka headers."""
-        msg = msg_generator(event_type=KAFKA_SOURCE_DESTROY)
+        msg = msg_generator(event_type=KAFKA_APPLICATION_CREATE)
         msg._headers = {}  # override the generator headers
         self.assertIsInstance(create_msg_processor(msg, COST_MGMT_APP_TYPE_ID), NoneType)
 
     def test_msg_for_cost_mgmt(self):
         """Test msg_for_cost_mgmt true or false."""
+        test_value_is_cost = {"id": 1, "source_id": 1, "application_type_id": COST_MGMT_APP_TYPE_ID}
+        test_value_is_not_cost = {"id": 1, "source_id": 1, "application_type_id": COST_MGMT_APP_TYPE_ID + 1}
         table = [
-            {"event-type": "Source.create", "expected": False},
-            {"event-type": KAFKA_APPLICATION_DESTROY, "expected": True},
-            {"event-type": KAFKA_SOURCE_DESTROY, "expected": True},
-            {"event-type": KAFKA_APPLICATION_CREATE, "expected": True, "patch": True},
+            # Source events
+            {"processor": KafkaMessageProcessor, "event-type": "Source.create", "expected": False},
+            {"processor": KafkaMessageProcessor, "event-type": KAFKA_SOURCE_UPDATE, "expected": False},
+            {"processor": KafkaMessageProcessor, "event-type": KAFKA_SOURCE_DESTROY, "expected": False},
+            # Application events
+            {"event-type": KAFKA_APPLICATION_CREATE, "expected": True, "value": test_value_is_cost},
+            {"event-type": KAFKA_APPLICATION_CREATE, "expected": False, "value": test_value_is_not_cost},
+            {"event-type": KAFKA_APPLICATION_UPDATE, "expected": True, "value": test_value_is_cost},
+            {"event-type": KAFKA_APPLICATION_UPDATE, "expected": False, "value": test_value_is_not_cost},
+            {"event-type": KAFKA_APPLICATION_DESTROY, "expected": True, "value": test_value_is_cost},
+            {"event-type": KAFKA_APPLICATION_DESTROY, "expected": False, "value": test_value_is_not_cost},
+            # Authentication events
             {"event-type": KAFKA_AUTHENTICATION_CREATE, "expected": True, "patch": True},
-            {"event-type": KAFKA_APPLICATION_UPDATE, "expected": True, "patch": True},
-            {"event-type": KAFKA_AUTHENTICATION_UPDATE, "expected": True, "patch": True},
-            {"event-type": KAFKA_APPLICATION_CREATE, "expected": False, "patch": False},
             {"event-type": KAFKA_AUTHENTICATION_CREATE, "expected": False, "patch": False},
-            {"event-type": KAFKA_APPLICATION_UPDATE, "expected": False, "patch": False},
+            {"event-type": KAFKA_AUTHENTICATION_UPDATE, "expected": True, "patch": True},
             {"event-type": KAFKA_AUTHENTICATION_UPDATE, "expected": False, "patch": False},
         ]
         for test in table:
@@ -217,8 +223,11 @@ class KafkaMessageProcessorTest(IamTestCase):
                 with patch.object(
                     SourcesHTTPClient, "get_application_type_is_cost_management", return_value=test.get("patch")
                 ):
-                    msg = msg_generator(event_type=test.get("event-type"))
-                    processor = KafkaMessageProcessor(msg, test.get("event-type"), COST_MGMT_APP_TYPE_ID)
+                    msg = msg_generator(event_type=test.get("event-type"), value=test.get("value"))
+                    if test.get("processor"):
+                        processor = test.get("processor")(msg, test.get("event-type"), COST_MGMT_APP_TYPE_ID)
+                    else:
+                        processor = create_msg_processor(msg, COST_MGMT_APP_TYPE_ID)
                     self.assertEqual(processor.msg_for_cost_mgmt(), test.get("expected"))
 
     def test_save_sources_details(self):

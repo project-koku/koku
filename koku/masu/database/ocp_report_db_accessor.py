@@ -30,6 +30,10 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.common import month_date_range_tuple
+from reporting.provider.ocp.models import OCPCluster
+from reporting.provider.ocp.models import OCPNode
+from reporting.provider.ocp.models import OCPProject
+from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -125,7 +129,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 if isinstance(start_date, str):
                     start_date = parse(start_date)
                 report_date = start_date.replace(day=1)
-                report_periods = report_periods.filter(report_period_start=report_date).all()
+                report_periods = report_periods.filter(report_period_start=report_date).first()
 
             return report_periods
 
@@ -407,6 +411,57 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         return db_results
 
+    def get_ocp_infrastructure_map_trino(self, start_date, end_date, **kwargs):
+        """Get the OCP on infrastructure map.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        # kwargs here allows us to optionally pass in a provider UUID based on
+        # the provider type this is run for
+        ocp_provider_uuid = kwargs.get("ocp_provider_uuid")
+        aws_provider_uuid = kwargs.get("aws_provider_uuid")
+        azure_provider_uuid = kwargs.get("azure_provider_uuid")
+
+        if not self.table_exists_trino("openshift_pod_usage_line_items_daily"):
+            return {}
+        if aws_provider_uuid and not self.table_exists_trino("aws_line_items_daily"):
+            return {}
+        if azure_provider_uuid and not self.table_exists_trino("azure_line_items_daily"):
+            return {}
+
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+        infra_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpinfrastructure_provider_map.sql")
+        infra_sql = infra_sql.decode("utf-8")
+        infra_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
+            "schema": self.schema,
+            "aws_provider_uuid": aws_provider_uuid,
+            "ocp_provider_uuid": ocp_provider_uuid,
+            "azure_provider_uuid": azure_provider_uuid,
+        }
+        infra_sql, infra_sql_params = self.jinja_sql.prepare_query(infra_sql, infra_sql_params)
+        results = self._execute_presto_raw_sql_query(self.schema, infra_sql, bind_params=infra_sql_params)
+
+        db_results = {}
+        for entry in results:
+            # This dictionary is keyed on an OpenShift provider UUID
+            # and the tuple contains
+            # (Infrastructure Provider UUID, Infrastructure Provider Type)
+            db_results[entry[0]] = (entry[1], entry[2])
+
+        return db_results
+
     def populate_storage_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily storage aggregate of line items table.
 
@@ -666,47 +721,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         finally:
             LOG.info("PRESTO OCP: Close connection")
             presto_conn.close()
-
-    def update_summary_infrastructure_cost(self, cluster_id, start_date, end_date):
-        """Populate the infrastructure costs on the daily usage summary table.
-
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-            cluster_id (String) Cluster Identifier
-        Returns
-            (None)
-
-        """
-        # Cast start_date to date object
-        if isinstance(start_date, str):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
-        if isinstance(start_date, datetime.datetime):
-            start_date = start_date.date()
-            end_date = end_date.date()
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-        if start_date is None:
-            start_date_qry = self._get_db_obj_query(table_name).order_by("usage_start").first()
-            start_date = str(start_date_qry.usage_start) if start_date_qry else None
-        if end_date is None:
-            end_date_qry = self._get_db_obj_query(table_name).order_by("-usage_start").first()
-            end_date = str(end_date_qry.usage_start) if end_date_qry else None
-
-        summary_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpcosts_summary.sql")
-        if start_date and end_date:
-            summary_sql = summary_sql.decode("utf-8")
-            summary_sql_params = {
-                "uuid": str(uuid.uuid4()).replace("-", "_"),
-                "start_date": start_date,
-                "end_date": end_date,
-                "cluster_id": cluster_id,
-                "schema": self.schema,
-            }
-            summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-            self._execute_raw_sql_query(
-                table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
-            )
 
     def get_cost_summary_for_clusterid(self, cluster_identifier):
         """Get the cost summary for a cluster id query."""
@@ -1757,3 +1771,163 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     self._execute_raw_sql_query(
                         table_name, tag_rates_sql, start_date, end_date, bind_params=list(tag_rates_sql_params)
                     )
+
+    def populate_openshift_cluster_information_tables(self, provider, cluster_id, cluster_alias, start_date, end_date):
+        """Populate the cluster, node, PVC, and project tables for the cluster."""
+        cluster = self.populate_cluster_table(provider, cluster_id, cluster_alias)
+
+        nodes = self.get_nodes_presto(str(provider.uuid), start_date, end_date)
+        pvcs = self.get_pvcs_presto(str(provider.uuid), start_date, end_date)
+        projects = self.get_projects_presto(str(provider.uuid), start_date, end_date)
+
+        # pvcs = self.match_node_to_pvc(pvcs, projects)
+
+        self.populate_node_table(cluster, nodes)
+        self.populate_pvc_table(cluster, pvcs)
+        self.populate_project_table(cluster, projects)
+
+    def populate_cluster_table(self, provider, cluster_id, cluster_alias):
+        """Get or create an entry in the OCP cluster table."""
+        with schema_context(self.schema):
+            cluster, created = OCPCluster.objects.get_or_create(
+                cluster_id=cluster_id, cluster_alias=cluster_id, provider=provider
+            )
+
+        if created:
+            msg = f"Add entry in reporting_ocp_clusters for {cluster_id}/{cluster_alias}"
+            LOG.info(msg)
+
+        return cluster
+
+    def populate_node_table(self, cluster, nodes):
+        """Get or create an entry in the OCP cluster table."""
+        LOG.info("Populating reporting_ocp_nodes table.")
+        with schema_context(self.schema):
+            for node in nodes:
+                OCPNode.objects.get_or_create(
+                    node=node[0], resource_id=node[1], node_capacity_cpu_cores=node[2], cluster=cluster
+                )
+
+    def populate_pvc_table(self, cluster, pvcs):
+        """Get or create an entry in the OCP cluster table."""
+        LOG.info("Populating reporting_ocp_pvcs table.")
+        with schema_context(self.schema):
+            for pvc in pvcs:
+                OCPPVC.objects.get_or_create(persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster)
+
+    def populate_project_table(self, cluster, projects):
+        """Get or create an entry in the OCP cluster table."""
+        LOG.info("Populating reporting_ocp_projects table.")
+        with schema_context(self.schema):
+            for project in projects:
+                OCPProject.objects.get_or_create(project=project, cluster=cluster)
+
+    def get_nodes_presto(self, source_uuid, start_date, end_date):
+        """Get the nodes from an OpenShift cluster."""
+        sql = f"""
+            SELECT node,
+                resource_id,
+                max(node_capacity_cpu_cores) as node_capacity_cpu_cores
+            FROM hive.{self.schema}.openshift_pod_usage_line_items as ocp
+            WHERE ocp.source = '{source_uuid}'
+                AND ocp.year = '{start_date.strftime("%Y")}'
+                AND ocp.month = '{start_date.strftime("%m")}'
+                AND ocp.interval_start >= TIMESTAMP '{start_date}'
+                AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
+            GROUP BY node,
+                resource_id
+        """
+
+        nodes = self._execute_presto_raw_sql_query(self.schema, sql)
+
+        return nodes
+
+    def get_pvcs_presto(self, source_uuid, start_date, end_date):
+        """Get the nodes from an OpenShift cluster."""
+        sql = f"""
+            SELECT distinct persistentvolume,
+                persistentvolumeclaim
+            FROM hive.{self.schema}.openshift_storage_usage_line_items as ocp
+            WHERE ocp.source = '{source_uuid}'
+                AND ocp.year = '{start_date.strftime("%Y")}'
+                AND ocp.month = '{start_date.strftime("%m")}'
+                AND ocp.interval_start >= TIMESTAMP '{start_date}'
+                AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
+        """
+
+        pvcs = self._execute_presto_raw_sql_query(self.schema, sql)
+
+        return pvcs
+
+    def get_projects_presto(self, source_uuid, start_date, end_date):
+        """Get the nodes from an OpenShift cluster."""
+        sql = f"""
+            SELECT distinct namespace
+            FROM hive.{self.schema}.openshift_pod_usage_line_items as ocp
+            WHERE ocp.source = '{source_uuid}'
+                AND ocp.year = '{start_date.strftime("%Y")}'
+                AND ocp.month = '{start_date.strftime("%m")}'
+                AND ocp.interval_start >= TIMESTAMP '{start_date}'
+                AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
+        """
+
+        projects = self._execute_presto_raw_sql_query(self.schema, sql)
+
+        return [project[0] for project in projects]
+
+    def get_cluster_for_provider(self, provider_uuid):
+        """Return the cluster entry for a provider UUID."""
+        with schema_context(self.schema):
+            cluster = OCPCluster.objects.filter(provider_id=provider_uuid).first()
+        return cluster
+
+    def get_nodes_for_cluster(self, cluster_id):
+        """Get all nodes for an OCP cluster."""
+        with schema_context(self.schema):
+            nodes = OCPNode.objects.filter(cluster_id=cluster_id).values_list("node", "resource_id")
+            nodes = [(node[0], node[1]) for node in nodes]
+        return nodes
+
+    def get_pvcs_for_cluster(self, cluster_id):
+        """Get all nodes for an OCP cluster."""
+        with schema_context(self.schema):
+            pvcs = OCPPVC.objects.filter(cluster_id=cluster_id).values_list(
+                "persistent_volume", "persistent_volume_claim"
+            )
+            pvcs = [(pvc[0], pvc[1]) for pvc in pvcs]
+        return pvcs
+
+    def get_projects_for_cluster(self, cluster_id):
+        """Get all nodes for an OCP cluster."""
+        with schema_context(self.schema):
+            projects = OCPProject.objects.filter(cluster_id=cluster_id).values_list("project")
+            projects = [project[0] for project in projects]
+        return projects
+
+    def get_openshift_topology_for_provider(self, provider_uuid):
+        """Return a dictionary with Cluster topology."""
+        cluster = self.get_cluster_for_provider(provider_uuid)
+        topology = {"cluster_id": cluster.cluster_id, "cluster_alias": cluster.cluster_alias}
+        node_tuples = self.get_nodes_for_cluster(cluster.uuid)
+        pvc_tuples = self.get_pvcs_for_cluster(cluster.uuid)
+        topology["nodes"] = [node[0] for node in node_tuples]
+        topology["resource_ids"] = [node[1] for node in node_tuples]
+        topology["persistent_volumes"] = [pvc[0] for pvc in pvc_tuples]
+        topology["persistent_volume_claims"] = [pvc[1] for pvc in pvc_tuples]
+        topology["projects"] = self.get_projects_for_cluster(cluster.uuid)
+
+        return topology
+
+    def delete_infrastructure_raw_cost_from_daily_summary(self, provider_uuid, report_period_id, start_date, end_date):
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        msg = f"Removing infrastructure_raw_cost for {provider_uuid} from {start_date} to {end_date}."
+        LOG.info(msg)
+        sql = f"""
+            DELETE FROM {self.schema}.reporting_ocpusagelineitem_daily_summary
+            WHERE usage_start >= '{start_date}'::date
+                AND usage_start <= '{end_date}'::date
+                AND report_period_id = {report_period_id}
+                AND infrastructure_raw_cost IS NOT NULL
+        """
+
+        self._execute_raw_sql_query(table_name, sql, start_date, end_date)

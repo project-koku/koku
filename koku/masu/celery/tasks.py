@@ -37,6 +37,7 @@ from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.prometheus_stats import QUEUES
 from masu.util.aws.common import get_s3_resource
+from masu.util.ocp.common import REPORT_TYPES
 
 LOG = logging.getLogger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
@@ -144,9 +145,20 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
     deleted_archived_with_prefix(settings.S3_BUCKET_NAME, prefix)
 
     path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
-    prefix = f"{path_prefix}/{account}/{source_type}/source={provider_uuid}/"
-    LOG.info("Attempting to delete our archived data in S3 under %s", prefix)
-    deleted_archived_with_prefix(settings.S3_BUCKET_NAME, prefix)
+    if provider_type == Provider.PROVIDER_OCP:
+        prefixes = []
+        for report_type in REPORT_TYPES:
+            prefixes.append(f"{path_prefix}/{account}/{source_type}/{report_type}/source={provider_uuid}/")
+            prefixes.append(f"{path_prefix}/daily/{account}/{source_type}/{report_type}/source={provider_uuid}/")
+    else:
+        prefixes = [
+            f"{path_prefix}/{account}/{source_type}/source={provider_uuid}/",
+            f"{path_prefix}/daily/{account}/{source_type}/raw/source={provider_uuid}/",
+            f"{path_prefix}/daily/{account}/{source_type}/openshift/source={provider_uuid}/",
+        ]
+    for prefix in prefixes:
+        LOG.info("Attempting to delete our archived data in S3 under %s", prefix)
+        deleted_archived_with_prefix(settings.S3_BUCKET_NAME, prefix)
 
 
 @celery_app.task(
