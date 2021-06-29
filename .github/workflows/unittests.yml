@@ -2,13 +2,13 @@ name: Unit Tests
 
 on:
   pull_request:
-  push:
-    branches:
-      - master
     paths:
       - '**/**.py'
       - '!deploy/**'
       - '!docs/**'
+  push:
+    branches:
+      - master
 
 jobs:
   build:
