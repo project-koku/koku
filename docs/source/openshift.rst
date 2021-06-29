@@ -1,9 +1,9 @@
 .. _`OpenShift`: https://docs.okd.io/
-.. _`minishift`: https://github.com/minishift/minishift
 .. _`Kubernetes`: https://kubernetes.io/docs/home/
 .. _`Docker`: https://docs.docker.com/
-.. _`crc`: https://github.com/code-ready/crc
+.. _`crc`: https://code-ready.github.io/crc/
 .. _`Red Hat Registry Authentication`: https://access.redhat.com/RegistryAuthentication
+.. _`Clowder`: https://redhatinsights.github.io/clowder/clowder/dev/index.html
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 Developing using OpenShift
@@ -14,13 +14,45 @@ The recommended development workflow is to develop using the same tools the appl
 Prerequistes
 ============
 
-Developing Koku using OpenShift requires prerequisite knowledge and workstation configuration. Please ensure that you are familiar with the following software and have configured your workstation accordingly.
+Developing Koku using the Ephemeral cluster requires access to the cluster. Refer to these docs to `onboard to the ephemeral cluster <https://clouddot.pages.redhat.com/docs/dev/getting-started/ephemeral/onboarding.html>`.
 
-- `OpenShift`_
-- `Kubernetes`_
-- `Docker`_
+Ephemeral Cluster Development
+=============================
 
-When ready, your workstation should be able to run containers and deploy `OpenShift`_, either using `crc`_ or an alternative installer.
+Running Koku in OpenShift using Clowder in an Ephermal environment
+------------------------------------------------------------------
+Koku is deployed via `Clowder`_.
+
+1. Make sure that you have cloned and followed the setup instructions of the following repos::
+
+    - https://github.com/project-koku/koku
+
+2. Next, make sure that you have the following tools installed::
+
+    - oc
+    - python
+    - crc-bonfire
+    - base64
+
+4. Make of copy of ``dev/config.yaml.local-example`` and save as ``config.yaml``. Update the ``repo`` field to point to the system path of the ``koku`` repo.
+
+5. Reserve an ephemeral environment namespace (default duration is 1 hour. This can be change)::
+
+    NAMESPACE=$(bonfire namespace reserve --duration 12)
+
+6. Checkout that reserved namespace::
+
+    oc project $NAMESPACE
+
+7. Using bonfire, deploy the clowdapp to the cluster:
+
+    $ bonfire process \
+    hccm \
+    --source=appsre \
+    --no-remove-resources \
+    --namespace $NAMESPACE | oc apply -f - -n $NAMESPACE
+
+8. Log into the
 
 Local Development
 =================
@@ -33,62 +65,10 @@ Installing and configuring `crc`_ is outside the scope of this document.  Please
 
 In order to access RHEL images for building Koku, you must configure `Red Hat Registry Authentication`_.
 
-Running locally in OpenShift using e2e-deploy
----------------------------------------------
-The script ``scripts/e2e-deploy.sh`` handles setup and configuration of `crc`_, including `Red Hat Registry Authentication`_. To use the script, complete the following steps.
+Deployment via Clowder
+----------------------
 
-1. First, make sure that you have cloned and followed the setup instructions of the following repos::
-
-    - https://github.com/project-koku/koku
-    - https://github.com/RedHatInsights/e2e-deploy
-    - https://gitlab.cee.redhat.com/insights-qe/iqe-tests.git
-
-2. Next, make sure that you have the following tools installed::
-
-    - oc
-    - ocdeployer
-    - iqe
-    - python
-    - base64
-
-3. Finally, either export the following environment variables or add them to a .env file and enter the IQE virtual environment::
-
-    OPENSHIFT_API_URL=YOUR_OPENSHIFT_API_URL
-    REGISTRY_REDHAT_IO_SECRETS=PATH_TO_RH_REGISTRY_YAML
-    E2E_REPO=PATH_TO_LOCAL_E2E_REPO
-
-If you do not have access to some of the repositories or resources discussed in this document, please contact a member of the Koku development team. Some resources mentioned are internal to Red Hat Associates. If you are unable to access those resources, we will work with you to identify suitable alternatives.
-
-4. Once the IQE virtual environment is activated, change directories to the scripts folder inside of the koku repo (``koku/scripts``). Make sure that you have a running OpenShift cluster before proceeding. The setup script handles all configuration once the cluster is running. With your OpenShift cluster running,  execute the e2e-deploy script. This will set up three projects (``secrets``, ``buildfactory``, & ``hccm``); it will pull the required imagestreams and build the container images for koku; once the container pods are built, the script will deploy the project.
-
-**Note:** If you are getting intermittent deployment failures that don't have an obvious root cause in the pod's runtime logs or in the OpenShift cluster's Event logs, the most common reason is that there are insufficient resources to deploy all pods. Try increasing the memory and CPUs allocated to your openshift cluster or to the individual pods.
-
-5. To delete all of the objects created by running the e2e-deploy script, run ``make oc-delete-e2e``.
-
-If you need to test a specific Koku branch using e2e-deploy, edit the ``buildfactory/hccm/koku.yaml`` template and change the ``SOURCE_REPOSITORY_REF`` in the parameters to have a value that is set to the name of the branch of Koku that you are testing. For example, if you are testing the branch ``issues/123``, the parameter for the ``SOURCE_REPOSITORY_REF`` should look like the following::
-
-    - description: Set this to a branch name, tag or other ref of your repository if you
-        are not using the default branch.
-      displayName: Git Reference
-      name: SOURCE_REPOSITORY_REF
-      required: false
-      value: issues/264
-
-Deploying Services
-------------------
-
-Koku is implemented as a collection of services. During development, it is not required to deploy all services. It is possible to deploy subsets of services based on the focus of the development effort.
-
-The ``Makefile`` in the Koku git repository provides targets intended to assist with development by enabling deployment and management of Koku's services within a local OpenShift installation. See ``make help`` for more information about the available targets.
-
-Service Dependencies
-^^^^^^^^^^^^^^^^^^^^
-
-- PostgreSQL: the database is required for most Koku services.
-
-- RabbitMQ: the message bus is required for report polling and processing.
-
-- Redis: the key-value store is required for caching credentials from an external authentication service.
+TBD
 
 General Platform information
 ============================
