@@ -17,7 +17,9 @@ IQE_FILTER_EXPRESSION=""
 CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
 curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
-if $(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/search/issues\?q\=sha:$GIT_COMMIT | jq '[.items[].labels[].name] | inside(["lgtm", "pr-check-build"])'); then
+if $(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/search/issues\?q\=sha:$GIT_COMMIT |
+    jq '[.items[].labels[].name] | length > 0 and inside(["lgtm", "pr-check-build"])'); then
+
     source $CICD_ROOT/build.sh
     # source $APP_ROOT/unit_test.sh
 
