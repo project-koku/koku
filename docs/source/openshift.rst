@@ -34,9 +34,9 @@ Koku is deployed via `Clowder`_.
     - crc-bonfire
     - base64
 
-4. Make of copy of ``dev/config.yaml.local-example`` and save as ``config.yaml``. Update the ``repo`` field to point to the system path of the ``koku`` repo.
+4. Make a copy of ``dev/config.yaml.local-example`` and save as ``config.yaml``. Update the ``repo`` field to point to the system path of the ``koku`` repo.
 
-5. Reserve an ephemeral environment namespace (default duration is 1 hour. This can be change)::
+5. Reserve an ephemeral environment namespace (default duration is 1 hour. This can be changed)::
 
     NAMESPACE=$(bonfire namespace reserve --duration 12)
 
@@ -52,7 +52,7 @@ Koku is deployed via `Clowder`_.
     --no-remove-resources \
     --namespace $NAMESPACE | oc apply -f - -n $NAMESPACE
 
-8. Log into the
+8. Log into the cluster, select your reserved namespace, and observe the project deploying.
 
 Local Development
 =================
