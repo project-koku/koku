@@ -244,7 +244,7 @@ class EnvConfigurator(Configurator):
     @staticmethod
     def get_object_store_bucket(requestedName: str = ""):
         """Obtain object store bucket."""
-        return ENVIRONMENT.get_value("S3_BUCKET", default=requestedName)
+        return ENVIRONMENT.get_value("S3_BUCKET_NAME", default=requestedName)
 
     @staticmethod
     def get_database_name():
