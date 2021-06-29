@@ -388,8 +388,8 @@ docker-metastore-setup:
 	@cp -fr deploy/hadoop/ testing/hadoop/
 #	@[[ ! -d ./testing/hadoop/hadoop-logs ]] && mkdir -p -m a+rwx ./hadoop/hadoop-logs || chmod a+rwx ./hadoop/hadoop-logs
 	find ./testing/hadoop -type d -exec chmod a+rwx {} \;
-	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
-	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET),koku-reports))/g' testing/hadoop/hadoop-config/core-site.xml
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET),koku-reports))/g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's/s3access/$(shell echo $(or $(S3_ACCESS_KEY),localhost))/g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's/s3secret/$(shell echo $(or $(S3_SECRET),localhost))/g' testing/metastore/hive-config/hive-site.xml
