@@ -6,7 +6,9 @@ on:
     branches:
       - master
     paths:
-      - '**.py'
+      - '**/**.py'
+      - '!deploy/**'
+      - '!docs/**'
 
 jobs:
   build:
