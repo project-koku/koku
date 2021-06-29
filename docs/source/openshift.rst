@@ -44,7 +44,7 @@ Koku is deployed via `Clowder`_.
 
     oc project $NAMESPACE
 
-7. Using bonfire, deploy the clowdapp to the cluster:
+7. Using bonfire, deploy the clowdapp to the cluster::
 
     bonfire process \
     hccm \
