@@ -334,8 +334,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
                 infrastructure_monthly_cost__isnull=False
             ).first()
-            self.assertGreater(monthly_cost_row.infrastructure_monthly_cost, 0)
-            self.assertEquals(monthly_cost_row.infrastructure_monthly_cost, node_cost)
+            self.assertEqual(monthly_cost_row.infrastructure_monthly_cost.get("cpu"), 0)
+            self.assertEqual(monthly_cost_row.infrastructure_monthly_cost.get("memory"), 0)
+            self.assertEqual(monthly_cost_row.infrastructure_monthly_cost.get("pvc"), 0)
 
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_monthly_cost_supplementary(self, mock_cost_accessor):
@@ -353,8 +354,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
                 supplementary_monthly_cost__isnull=False
             ).first()
-            self.assertGreater(monthly_cost_row.supplementary_monthly_cost, 0)
-            self.assertEquals(monthly_cost_row.supplementary_monthly_cost, node_cost)
+            self.assertEqual(monthly_cost_row.supplementary_monthly_cost.get("cpu"), 0)
+            self.assertEqual(monthly_cost_row.supplementary_monthly_cost.get("memory"), 0)
+            self.assertEqual(monthly_cost_row.supplementary_monthly_cost.get("pvc"), 0)
 
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_summary_cost_model_costs(self, mock_cost_accessor):
@@ -446,6 +448,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             "node_cost_per_month": "a tag rate"
         }
         mock_cost_accessor.return_value.__enter__.return_value.tag_supplementary_rates = {}
+        mock_cost_accessor.return_value.__enter__.return_value.distribution = "cpu"
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -456,7 +459,14 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         # assert that the Node call includes relevant information and the call for cluster and pvc
         # do not happen since they did not have a rate included
         mock_update_monthly.assert_called_once_with(
-            "Node", "Infrastructure", "a tag rate", start_date, end_date, self.cluster_id, updater._cluster_alias
+            "Node",
+            "Infrastructure",
+            "a tag rate",
+            start_date,
+            end_date,
+            self.cluster_id,
+            updater._cluster_alias,
+            "cpu",
         )
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_monthly_tag_cost")
@@ -466,6 +476,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         Test that populate_monthly_tag_cost is called with the
         correct cost_type and rate when you pass in both cost types.
         """
+        distribution = "cpu"
         # using a string instead of an actual rate for the purposes of testing that the function is called
         mock_cost_accessor.return_value.__enter__.return_value.tag_infrastructure_rates = {
             "node_cost_per_month": "a tag rate"
@@ -473,6 +484,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mock_cost_accessor.return_value.__enter__.return_value.tag_supplementary_rates = {
             "node_cost_per_month": "a second tag rate"
         }
+        mock_cost_accessor.return_value.__enter__.return_value.distribution = distribution
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -483,10 +495,24 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         # assert that the Node call includes relevant information and was called for both cost types
         # and the call for cluster and pvc do not happen since they did not have a rate included
         mock_update_monthly.assert_any_call(
-            "Node", "Infrastructure", "a tag rate", start_date, end_date, self.cluster_id, updater._cluster_alias
+            "Node",
+            "Infrastructure",
+            "a tag rate",
+            start_date,
+            end_date,
+            self.cluster_id,
+            updater._cluster_alias,
+            distribution,
         )
         mock_update_monthly.assert_any_call(
-            "Node", "Supplementary", "a second tag rate", start_date, end_date, self.cluster_id, updater._cluster_alias
+            "Node",
+            "Supplementary",
+            "a second tag rate",
+            start_date,
+            end_date,
+            self.cluster_id,
+            updater._cluster_alias,
+            distribution,
         )
 
         self.assertEqual(mock_update_monthly.call_count, 2)
@@ -496,10 +522,12 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
     def test_tag_update_monthly_cost_supplementary(self, mock_cost_accessor, mock_update_monthly):
         """Test that _update_monthly_tag_based_cost is called with the correct cost_type and rate."""
         # using a string instead of an actual rate for the purposes of testing that the function is called
+        distribution = "cpu"
         mock_cost_accessor.return_value.__enter__.return_value.tag_infrastructure_rates = {}
         mock_cost_accessor.return_value.__enter__.return_value.tag_supplementary_rates = {
             "cluster_cost_per_month": "a tag rate"
         }
+        mock_cost_accessor.return_value.__enter__.return_value.distribution = distribution
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -510,7 +538,14 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         # assert that the Cluster call includes relevant information and the call for node and pvc
         # do not happen since they did not have a rate included
         mock_update_monthly.assert_called_once_with(
-            "Cluster", "Supplementary", "a tag rate", start_date, end_date, self.cluster_id, updater._cluster_alias
+            "Cluster",
+            "Supplementary",
+            "a tag rate",
+            start_date,
+            end_date,
+            self.cluster_id,
+            updater._cluster_alias,
+            distribution,
         )
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_tag_usage_costs")

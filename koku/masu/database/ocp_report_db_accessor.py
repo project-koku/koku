@@ -8,6 +8,7 @@ import json
 import logging
 import pkgutil
 import uuid
+from decimal import Decimal
 
 import pytz
 from dateutil.parser import parse
@@ -16,6 +17,7 @@ from dateutil.rrule import rrule
 from django.db import connection
 from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from jinjasql import JinjaSql
@@ -37,8 +39,6 @@ from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
-
-# from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -800,18 +800,39 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             )
             return [(pvc[0], pvc[1]) for pvc in unique_pvcs]
 
-    def populate_monthly_cost(self, cost_type, rate_type, rate, start_date, end_date, cluster_id, cluster_alias):
+    def generate_monthly_cost_json_object(self, distribution, distributed_cost):
+        """Generates the default monthly cost dict."""
+        default_cost = Decimal(0)
+        if not isinstance(distributed_cost, Decimal):
+            distributed_cost = Decimal(distributed_cost)
+        cost_mapping = {distribution: distributed_cost}
+        return JSONBBuildObject(
+            Value(metric_constants.CPU_DISTRIBUTION),
+            cost_mapping.get(metric_constants.CPU_DISTRIBUTION, default_cost),
+            Value(metric_constants.MEMORY_DISTRIBUTION),
+            cost_mapping.get(metric_constants.MEMORY_DISTRIBUTION, default_cost),
+            Value(metric_constants.PVC_DISTRIBUTION),
+            cost_mapping.get(metric_constants.PVC_DISTRIBUTION, default_cost),
+        )
+
+    def populate_monthly_cost(
+        self, cost_type, rate_type, rate, start_date, end_date, cluster_id, cluster_alias, distribution
+    ):
         """
         Populate the monthly cost of a customer.
 
-        Right now this is just the node/month cost. Calculated from
-        node_cost * number_unique_nodes.
+        There are three types of monthly rates Node, Cluster & PVC.
 
         args:
+            cost_type (str): Contains the type of monthly cost. ex: "Node"
+            rate_type(str): Contains the metric name. ex: "node_cost_per_month"
+            rate (decimal): Contains the rate amount ex: 100.0
             node_cost (Decimal): The node cost per month
             start_date (datetime, str): The start_date to calculate monthly_cost.
             end_date (datetime, str): The end_date to calculate monthly_cost.
-
+            cluster_id (str): The id of the cluster
+            cluster_alias: The name of the cluster
+            distribution: Choice of monthly distribution ex. memory
         """
         if isinstance(start_date, str):
             start_date = parse(start_date).date()
@@ -831,14 +852,15 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     self.remove_monthly_cost(first_curr_month, first_next_month, cluster_id, cost_type)
                 else:
                     self.upsert_monthly_node_cost_line_item(
-                        first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
+                        first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate, distribution
                     )
             elif cost_type == "Cluster":
                 if rate is None:
                     self.remove_monthly_cost(first_curr_month, first_next_month, cluster_id, cost_type)
                 else:
+                    # start_date, end_date, cluster_id, cluster_alias, rate_type, cluster_cost
                     self.upsert_monthly_cluster_cost_line_item(
-                        first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
+                        first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate, distribution
                     )
             elif cost_type == "PVC":
                 if rate is None:
@@ -849,7 +871,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     )
 
     def populate_monthly_tag_cost(
-        self, cost_type, rate_type, rate_dict, start_date, end_date, cluster_id, cluster_alias
+        self, cost_type, rate_type, rate_dict, start_date, end_date, cluster_id, cluster_alias, distribution
     ):
         """
         Populate the monthly cost of a customer based on tag rates.
@@ -872,11 +894,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             LOG.info("Populating monthly tag based cost from %s to %s.", first_curr_month, first_next_month)
             if cost_type == "Node":
                 self.tag_upsert_monthly_node_cost_line_item(
-                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict, distribution
                 )
             elif cost_type == "Cluster":
                 self.tag_upsert_monthly_cluster_cost_line_item(
-                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict, distribution
                 )
             elif cost_type == "PVC":
                 self.tag_upsert_monthly_pvc_cost_line_item(
@@ -884,7 +906,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 )
 
     def populate_monthly_tag_default_cost(
-        self, cost_type, rate_type, rate_dict, start_date, end_date, cluster_id, cluster_alias
+        self, cost_type, rate_type, rate_dict, start_date, end_date, cluster_id, cluster_alias, distribution
     ):
         """
         Populate the monthly default cost of a customer based on tag rates.
@@ -907,11 +929,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             LOG.info("Populating monthly tag based default cost from %s to %s.", first_curr_month, first_next_month)
             if cost_type == "Node":
                 self.tag_upsert_monthly_default_node_cost_line_item(
-                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict, distribution
                 )
             elif cost_type == "Cluster":
                 self.tag_upsert_monthly_default_cluster_cost_line_item(
-                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict, distribution
                 )
             elif cost_type == "PVC":
                 self.tag_upsert_monthly_default_pvc_cost_line_item(
@@ -919,13 +941,15 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 )
 
     def upsert_monthly_node_cost_line_item(
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, node_cost
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, node_cost, distribution
     ):
         """Update or insert daily summary line item for node cost."""
         unique_nodes = self.get_distinct_nodes(start_date, end_date, cluster_id)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
         with schema_context(self.schema):
             for node in unique_nodes:
+                # TODO: How should we handle existing line items that don't have the
+                # data_source filled in
                 line_item = OCPUsageLineItemDailySummary.objects.filter(
                     usage_start=start_date,
                     usage_end=start_date,
@@ -945,17 +969,21 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         cluster_alias=cluster_alias,
                         monthly_cost_type="Node",
                         node=node,
+                        data_source="Pod",
                     )
+                monthly_cost = self.generate_monthly_cost_json_object(distribution, node_cost)
                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
                     LOG.info("Node (%s) has a monthly infrastructure cost of %s.", node, node_cost)
-                    line_item.infrastructure_monthly_cost = node_cost
+                    line_item.infrastructure_monthly_cost = monthly_cost
                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                     LOG.info("Node (%s) has a monthly supplemenarty cost of %s.", node, node_cost)
-                    line_item.supplementary_monthly_cost = node_cost
+                    line_item.supplementary_monthly_cost = monthly_cost
+                if not line_item.data_source:
+                    line_item.data_source = "Pod"
                 line_item.save()
 
-    def tag_upsert_monthly_node_cost_line_item(
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
+    def tag_upsert_monthly_node_cost_line_item(  # noqa: C901
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution
     ):
         """
         Update or insert daily summary line item for node cost.
@@ -1003,31 +1031,31 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                         cluster_alias=cluster_alias,
                                         monthly_cost_type="Node",
                                         node=node,
+                                        data_source="Pod",
                                     )
+                                node_cost = rate_value
                                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
                                     LOG.info("Node (%s) has a monthly infrastructure cost of %s.", node, rate_value)
-                                    line_item.infrastructure_monthly_cost = (
-                                        Coalesce(
-                                            line_item.infrastructure_monthly_cost,
-                                            Value(0.0),
-                                            output_field=DecimalField(),
+                                    if line_item.infrastructure_monthly_cost:
+                                        node_cost = (
+                                            line_item.infrastructure_monthly_cost.get(distribution, 0) + rate_value
                                         )
-                                        + rate_value
-                                    )
+                                    monthly_cost = self.generate_monthly_cost_json_object(distribution, node_cost)
+                                    line_item.infrastructure_monthly_cost = monthly_cost
                                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                                     LOG.info("Node (%s) has a monthly supplemenarty cost of %s.", node, rate_value)
-                                    line_item.supplementary_monthly_cost = (
-                                        Coalesce(
-                                            line_item.supplementary_monthly_cost,
-                                            Value(0.0),
-                                            output_field=DecimalField(),
+                                    if line_item.supplementary_monthly_cost:
+                                        node_cost = (
+                                            line_item.supplementary_monthly_cost.get(distribution, 0) + rate_value
                                         )
-                                        + rate_value
-                                    )
+                                    monthly_cost = self.generate_monthly_cost_json_object(distribution, node_cost)
+                                    line_item.supplementary_monthly_cost = monthly_cost
+                                if not line_item.data_source:
+                                    line_item.data_source = "Pod"
                                 line_item.save()
 
-    def tag_upsert_monthly_default_node_cost_line_item(
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
+    def tag_upsert_monthly_default_node_cost_line_item(  # noqa: C901
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution
     ):
         """
         Update or insert daily summary line item for node cost.
@@ -1081,30 +1109,32 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                     cluster_alias=cluster_alias,
                                     monthly_cost_type="Node",
                                     node=node,
+                                    data_source="Pod",
                                 )
+                            node_cost = tag_default
                             if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
                                 LOG.info(
                                     "Node (%s) has a default monthly infrastructure cost of %s.", node, tag_default
                                 )
-                                line_item.infrastructure_monthly_cost = (
-                                    Coalesce(
-                                        line_item.infrastructure_monthly_cost, Value(0.0), output_field=DecimalField()
+                                if line_item.infrastructure_monthly_cost:
+                                    node_cost = (
+                                        line_item.infrastructure_monthly_cost.get(distribution, 0) + tag_default
                                     )
-                                    + tag_default
-                                )
+                                monthly_cost = self.generate_monthly_cost_json_object(distribution, node_cost)
+                                line_item.infrastructure_monthly_cost = monthly_cost
                             elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                                 LOG.info(
                                     "Node (%s) has a default monthly supplemenarty cost of %s.", node, tag_default
                                 )
-                                line_item.supplementary_monthly_cost = (
-                                    Coalesce(
-                                        line_item.supplementary_monthly_cost, Value(0.0), output_field=DecimalField()
-                                    )
-                                    + tag_default
-                                )
+                                if line_item.supplementary_monthly_cost:
+                                    node_cost = line_item.supplementary_monthly_cost.get(distribution, 0) + tag_default
+                                monthly_cost = self.generate_monthly_cost_json_object(distribution, node_cost)
+                                line_item.supplementary_monthly_cost = monthly_cost
+                            if not line_item.data_source:
+                                line_item.data_source = "Pod"
                             line_item.save()
 
-    def tag_upsert_monthly_default_pvc_cost_line_item(
+    def tag_upsert_monthly_default_pvc_cost_line_item(  # noqa: C901
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
     ):
         """
@@ -1113,6 +1143,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         that contains the tag key:value pair,
         if it does then the price is added to the monthly cost.
         """
+        distribution = metric_constants.PVC_DISTRIBUTION
         unique_pvcs = self.get_distinct_pvcs(start_date, end_date, cluster_id)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
         with schema_context(self.schema):
@@ -1162,41 +1193,91 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                     monthly_cost_type="PVC",
                                     persistentvolumeclaim=pvc,
                                     node=node,
+                                    data_source="Storage",
                                 )
+                            pvc_cost = tag_default
                             if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
                                 LOG.info("PVC (%s) has a default monthly infrastructure cost of %s.", pvc, tag_default)
-                                line_item.infrastructure_monthly_cost = (
-                                    Coalesce(
-                                        line_item.infrastructure_monthly_cost, Value(0.0), output_field=DecimalField()
-                                    )
-                                    + tag_default
-                                )
+                                if line_item.infrastructure_monthly_cost:
+                                    pvc_cost = line_item.infrastructure_monthly_cost.get(distribution, 0) + tag_default
+                                monthly_cost = self.generate_monthly_cost_json_object(distribution, pvc_cost)
+                                line_item.infrastructure_monthly_cost = monthly_cost
                             elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                                 LOG.info("PVC (%s) has a default monthly supplemenarty cost of %s.", pvc, tag_default)
-                                line_item.supplementary_monthly_cost = (
-                                    Coalesce(
-                                        line_item.supplementary_monthly_cost, Value(0.0), output_field=DecimalField()
-                                    )
-                                    + tag_default
-                                )
+                                if line_item.supplementary_monthly_cost:
+                                    pvc_cost = line_item.supplementary_monthly_cost.get(distribution, 0) + tag_default
+                                monthly_cost = self.generate_monthly_cost_json_object(distribution, pvc_cost)
+                                line_item.supplementary_monthly_cost = monthly_cost
+                            if not line_item.data_source:
+                                line_item.data_source = "Storage"
                             line_item.save()
 
+    def get_cluster_to_node_distribution(self, start_date, end_date, cluster_id, distribution, cluster_cost):
+        """Returns a list of dictionaries containing the distributed cost.
+
+        args:
+            start_date (datetime, str): The start_date to calculate monthly_cost.
+            end_date (datetime, str): The end_date to calculate monthly_cost.
+            cluster_id (str): The id of the cluster
+            cluster_cost (dec): The flat cost of the cluster
+            distribution: Choice of monthly distribution ex. (memory or cpu)
+
+        Memory Distribution:
+            - (node memory capacity/cluster memory capacity) x cluster_cost
+        CPU Distribution:
+            - (node cpu capacity/cluster cpu capacity) x cluster_cost
+
+        Return list of dictionaries: ex [{"node":"aws_compute2", "distributed_cost": 285.71}]
+
+        """
+        # I plan to use this function for memory distribution as well
+        # if "cpu" in distribution:
+        node_column = "node_capacity_cpu_core_hours"
+        cluster_column = "cluster_capacity_cpu_core_hours"
+
+        with schema_context(self.schema):
+            distributed_node_list = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=start_date, usage_start__lt=end_date, cluster_id=cluster_id
+                )
+                .values("node")
+                .annotate(distributed_cost=Sum(node_column) / Sum(cluster_column) * cluster_cost)
+            )
+        # TIP: For debugging add these to the annotation
+        # node_hours=Sum("node_capacity_cpu_core_hours"),
+        # cluster_hours=Sum("cluster_capacity_cpu_core_hours"),
+        # node_to_cluster_ratio=Sum("node_capacity_cpu_core_hours")/Sum("cluster_capacity_cpu_core_hours")
+        return distributed_node_list
+
     def upsert_monthly_cluster_cost_line_item(
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, cluster_cost
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, cluster_cost, distribution
     ):
-        """Update or insert a daily summary line item for cluster cost."""
+        """
+        Update or insert a daily summary line item for cluster cost.
+
+        args:
+            start_date (datetime, str): The start_date to calculate monthly_cost.
+            end_date (datetime, str): The end_date to calculate monthly_cost.
+            cluster_id (str): The id of the cluster
+            cluster_alias: The name of the cluster
+            cost_type (str): Contains the type of monthly cost. ex: "Node"
+            rate_type (str): Contains the metric name. ex: "node_cost_per_month"
+            cluster_cost (dec): The flat cost of the cluster
+            distribution: Choice of monthly distribution ex. (memory or cpu)
+        """
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
+        distribution_list = self.get_cluster_to_node_distribution(
+            start_date, end_date, cluster_id, distribution, cluster_cost
+        )
         if report_period:
             with schema_context(self.schema):
-                line_item = OCPUsageLineItemDailySummary.objects.filter(
-                    usage_start=start_date,
-                    usage_end=start_date,
-                    report_period=report_period,
-                    cluster_id=cluster_id,
-                    cluster_alias=cluster_alias,
-                    monthly_cost_type="Cluster",
-                ).first()
-                if not line_item:
+                # NOTE: I implemented a logic change here, now instead of one entry per cluster cost
+                # We now have multiple cluster cost entries for each node.
+                LOG.info("Cluster (%s) has a monthly cost of %s.", cluster_id, cluster_cost)
+                LOG.info("Distributing the cluster cost to nodes using %s distribution.", distribution)
+                for node_dikt in distribution_list:
+                    node = node_dikt.get("node")
+                    distributed_cost = node_dikt.get("distributed_cost")
                     line_item = OCPUsageLineItemDailySummary(
                         uuid=uuid.uuid4(),
                         usage_start=start_date,
@@ -1205,16 +1286,24 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         cluster_id=cluster_id,
                         cluster_alias=cluster_alias,
                         monthly_cost_type="Cluster",
+                        node=node,
+                        data_source="Pod",
                     )
-                if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                    LOG.info("Cluster (%s) has a monthly infrastructure cost of %s.", cluster_id, cluster_cost)
-                    line_item.infrastructure_monthly_cost = cluster_cost
-                elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                    LOG.info("Cluster (%s) has a monthly supplemenarty cost of %s.", cluster_id, cluster_cost)
-                    line_item.supplementary_monthly_cost = cluster_cost
-                line_item.save()
+                    monthly_cost = self.generate_monthly_cost_json_object(distribution, distributed_cost)
+                    log_statement = (
+                        f"Distributing Cluster Cost to Nodes:\n"
+                        f" cluster ({cluster_id}) cost: {cluster_cost} \n"
+                        f" node ({node}) distributed cost: {distributed_cost}\n"
+                        f" distribution type: {distribution}\n"
+                    )
+                    if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                        line_item.infrastructure_monthly_cost = monthly_cost
+                    elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                        line_item.supplementary_monthly_cost = monthly_cost
+                    LOG.info(log_statement)
+                    line_item.save()
 
-    def tag_upsert_monthly_pvc_cost_line_item(
+    def tag_upsert_monthly_pvc_cost_line_item(  # noqa: C901
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
     ):
         """
@@ -1224,6 +1313,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         that contains the tag key:value pair,
         if it does then the price is added to the monthly cost.
         """
+        distribution = metric_constants.PVC_DISTRIBUTION
         unique_pvcs = self.get_distinct_pvcs(start_date, end_date, cluster_id)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
         with schema_context(self.schema):
@@ -1264,27 +1354,27 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                         monthly_cost_type="PVC",
                                         persistentvolumeclaim=pvc,
                                         node=node,
+                                        data_source="Storage",
                                     )
+                                pvc_cost = rate_value
                                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
                                     LOG.info("PVC (%s) has a monthly infrastructure cost of %s.", pvc, rate_value)
-                                    line_item.infrastructure_monthly_cost = (
-                                        Coalesce(
-                                            line_item.infrastructure_monthly_cost,
-                                            Value(0.0),
-                                            output_field=DecimalField(),
+                                    if line_item.infrastructure_monthly_cost:
+                                        pvc_cost = (
+                                            line_item.infrastructure_monthly_cost.get(distribution, 0) + rate_value
                                         )
-                                        + rate_value
-                                    )
+                                    monthly_cost = self.generate_monthly_cost_json_object(distribution, pvc_cost)
+                                    line_item.infrastructure_monthly_cost = monthly_cost
                                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                                     LOG.info("PVC (%s) has a monthly supplemenarty cost of %s.", pvc, rate_value)
-                                    line_item.supplementary_monthly_cost = (
-                                        Coalesce(
-                                            line_item.supplementary_monthly_cost,
-                                            Value(0.0),
-                                            output_field=DecimalField(),
+                                    if line_item.supplementary_monthly_cost:
+                                        pvc_cost = (
+                                            line_item.supplementary_monthly_cost.get(distribution, 0) + rate_value
                                         )
-                                        + rate_value
-                                    )
+                                    monthly_cost = self.generate_monthly_cost_json_object(distribution, pvc_cost)
+                                    line_item.supplementary_monthly_cost = monthly_cost
+                                if not line_item.data_source:
+                                    line_item.data_source = "Storage"
                                 line_item.save()
 
     def upsert_monthly_pvc_cost_line_item(self, start_date, end_date, cluster_id, cluster_alias, rate_type, pvc_cost):
@@ -1314,17 +1404,21 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         monthly_cost_type="PVC",
                         persistentvolumeclaim=pvc,
                         node=node,
+                        data_source="Storage",
                     )
+                monthly_cost = self.generate_monthly_cost_json_object(metric_constants.PVC_DISTRIBUTION, pvc_cost)
                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
                     LOG.info("PVC (%s) has a monthly infrastructure cost of %s.", pvc, pvc_cost)
-                    line_item.infrastructure_monthly_cost = pvc_cost
+                    line_item.infrastructure_monthly_cost = monthly_cost
                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                     LOG.info("PVC (%s) has a monthly supplemenarty cost of %s.", pvc, pvc_cost)
-                    line_item.supplementary_monthly_cost = pvc_cost
+                    line_item.supplementary_monthly_cost = monthly_cost
+                if not line_item.data_source:
+                    line_item.data_source = "Storage"
                 line_item.save()
 
-    def tag_upsert_monthly_cluster_cost_line_item(
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
+    def tag_upsert_monthly_cluster_cost_line_item(  # noqa: C901
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution
     ):
         """
         Update or insert a daily summary line item for cluster cost based on tag rates.
@@ -1367,39 +1461,39 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                         cluster_id=cluster_id,
                                         cluster_alias=cluster_alias,
                                         monthly_cost_type="Cluster",
+                                        data_source="Pod",
                                     )
+                                cluster_cost = rate_value
                                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
                                     LOG.info(
                                         "Cluster (%s) has a monthly infrastructure cost of %s from tag rates.",
                                         cluster_id,
                                         rate_value,
                                     )
-                                    line_item.infrastructure_monthly_cost = (
-                                        Coalesce(
-                                            line_item.infrastructure_monthly_cost,
-                                            Value(0.0),
-                                            output_field=DecimalField(),
+                                    if line_item.infrastructure_monthly_cost:
+                                        cluster_cost = (
+                                            line_item.infrastructure_monthly_cost.get(distribution, 0) + rate_value
                                         )
-                                        + rate_value
-                                    )
+                                    monthly_cost = self.generate_monthly_cost_json_object(distribution, cluster_cost)
+                                    line_item.infrastructure_monthly_cost = monthly_cost
                                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                                     LOG.info(
                                         "Cluster (%s) has a monthly supplemenarty cost of %s from tag rates.",
                                         cluster_id,
                                         rate_value,
                                     )
-                                    line_item.supplementary_monthly_cost = (
-                                        Coalesce(
-                                            line_item.supplementary_monthly_cost,
-                                            Value(0.0),
-                                            output_field=DecimalField(),
+                                    if line_item.supplementary_monthly_cost:
+                                        cluster_cost = (
+                                            line_item.supplementary_monthly_cost.get(distribution, 0) + rate_value
                                         )
-                                        + rate_value
-                                    )
+                                    monthly_cost = self.generate_monthly_cost_json_object(distribution, cluster_cost)
+                                    line_item.supplementary_monthly_cost = monthly_cost
+                                if not line_item.data_source:
+                                    line_item.data_source = "Pod"
                                 line_item.save()
 
-    def tag_upsert_monthly_default_cluster_cost_line_item(
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
+    def tag_upsert_monthly_default_cluster_cost_line_item(  # noqa: C901
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution
     ):
         """
         Update or insert daily summary line item for cluster cost.
@@ -1449,27 +1543,29 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                 cluster_id=cluster_id,
                                 cluster_alias=cluster_alias,
                                 monthly_cost_type="Cluster",
+                                data_source="Pod",
                             )
+                        cluster_cost = tag_default
                         if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
                             LOG.info(
                                 "Cluster (%s) has a default monthly infrastructure cost of %s.",
                                 cluster_id,
                                 tag_default,
                             )
-                            line_item.infrastructure_monthly_cost = (
-                                Coalesce(
-                                    line_item.infrastructure_monthly_cost, Value(0.0), output_field=DecimalField()
-                                )
-                                + tag_default
-                            )
+                            if line_item.infrastructure_monthly_cost:
+                                cluster_cost = line_item.infrastructure_monthly_cost.get(distribution, 0) + tag_default
+                            monthly_cost = self.generate_monthly_cost_json_object(distribution, cluster_cost)
+                            line_item.infrastructure_monthly_cost = monthly_cost
                         elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                             LOG.info(
                                 "Cluster (%s) has a default monthly supplemenarty cost of %s.", cluster_id, tag_default
                             )
-                            line_item.supplementary_monthly_cost = (
-                                Coalesce(line_item.supplementary_monthly_cost, Value(0.0), output_field=DecimalField())
-                                + tag_default
-                            )
+                            if line_item.supplementary_monthly_cost:
+                                cluster_cost = line_item.supplementary_monthly_cost.get(distribution, 0) + tag_default
+                            monthly_cost = self.generate_monthly_cost_json_object(distribution, cluster_cost)
+                            line_item.supplementary_monthly_cost = monthly_cost
+                        if not line_item.data_source:
+                            line_item.data_source = "Pod"
                         line_item.save()
 
     def remove_monthly_cost(self, start_date, end_date, cluster_id, cost_type):
