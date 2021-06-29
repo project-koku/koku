@@ -1,0 +1,35 @@
+# Bonfire deployment configuration
+
+# Defines where to fetch the file that defines application configs
+appsFile:
+  host: gitlab
+  repo: insights-platform/cicd-common
+  path: bonfire_configs/ephemeral_apps.yaml
+
+# (optional) define any apps locally. An app defined here with <name> will override config for app
+# <name> in above fetched config.
+apps:
+- name: hccm
+  components:
+    - name: koku
+      host: local
+      repo: REPO
+      path: deploy/clowdapp.yaml
+      ref: master
+      parameters:
+        IMAGE_TAG: clowder
+        KOKU_MIN_REPLICAS: 1
+        LISTENER_MIN_REPLICAS: 1
+        MASU_MIN_REPLICAS: 1
+        SCHEDULER_MIN_REPLICAS: 1
+        SOURCES_CLIENT_MIN_REPLICAS: 1
+        SOURCES_LISTENER_MIN_REPLICAS: 1
+        WORKER_CELERY_MIN_REPLICAS: 1
+        WORKER_COST_MODEL_MIN_REPLICAS: 1
+        WORKER_DOWNLOAD_MIN_REPLICAS: 1
+        WORKER_OCP_MIN_REPLICAS: 1
+        WORKER_PRIORITY_MIN_REPLICAS: 1
+        WORKER_REFRESH_MIN_REPLICAS: 1
+        WORKER_SUMMARY_MIN_REPLICAS: 1
+        PRESTO_PORT: 8000
+        PRESTO_HOST: presto-coordinator
