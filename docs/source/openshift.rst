@@ -14,7 +14,7 @@ The recommended development workflow is to develop using the same tools the appl
 Prerequistes
 ============
 
-Developing Koku using the Ephemeral cluster requires access to the cluster. Refer to these docs to `onboard to the ephemeral cluster <https://clouddot.pages.redhat.com/docs/dev/getting-started/ephemeral/onboarding.html>`.
+Developing Koku using the Ephemeral cluster requires access to the cluster. Refer to these docs to `onboard to the ephemeral cluster <https://clouddot.pages.redhat.com/docs/dev/getting-started/ephemeral/onboarding.html>`_.
 
 Ephemeral Cluster Development
 =============================
@@ -46,7 +46,7 @@ Koku is deployed via `Clowder`_.
 
 7. Using bonfire, deploy the clowdapp to the cluster:
 
-    $ bonfire process \
+    bonfire process \
     hccm \
     --source=appsre \
     --no-remove-resources \
