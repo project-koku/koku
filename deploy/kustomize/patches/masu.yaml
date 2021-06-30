@@ -63,10 +63,6 @@
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
-        - name: RBAC_SERVICE_HOST
-          value: ${RBAC_HOST}
-        - name: RBAC_SERVICE_PORT
-          value: ${RBAC_SERVICE_PORT}
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
@@ -152,7 +148,7 @@
     displayName: Memory Request
     name: MASU_MEMORY_REQUEST
     required: true
-    value: 128Mi
+    value: 256Mi
 - op: add
   path: /parameters/-
   value:

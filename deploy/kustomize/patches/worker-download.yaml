@@ -153,28 +153,28 @@
     displayName: Memory Request
     name: WORKER_DOWNLOAD_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 3Gi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: WORKER_DOWNLOAD_MEMORY_LIMIT
     required: true
-    value: 512Mi
+    value: 6Gi
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Request
     name: WORKER_DOWNLOAD_CPU_REQUEST
     required: true
-    value: 100m
+    value: 500m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
     name: WORKER_DOWNLOAD_CPU_LIMIT
     required: true
-    value: 200m
+    value: 1
 - op: add
   path: /parameters/-
   value:

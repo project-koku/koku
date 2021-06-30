@@ -260,12 +260,6 @@ parameters:
   name: RABBITMQ_PORT
   value: "5672"
 
-- displayName: Rbac service host
-  name: RBAC_HOST
-  value: rbac
-- displayName: Rbac service port
-  name: RBAC_SERVICE_PORT
-  value: "8080"
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH
   value: /api/rbac/v1/access/
@@ -284,12 +278,6 @@ parameters:
   name: PROMETHEUS_PUSHGATEWAY
   value: prometheus-pushgateway:9091
 
-- displayName: Sources-api service hostname
-  name: SOURCES_HOST
-  value: sources-api-svc.sources.svc
-- displayName: Sources-api service port number
-  name: SOURCES_PORT
-  value: '8000'
 - description: Source API Path prefix
   name: SOURCES_API_PREFIX
   value: /api/sources/v1.0

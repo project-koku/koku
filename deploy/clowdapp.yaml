@@ -64,10 +64,6 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
-        - name: RBAC_SERVICE_HOST
-          value: ${RBAC_HOST}
-        - name: RBAC_SERVICE_PORT
-          value: ${RBAC_SERVICE_PORT}
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
@@ -320,10 +316,6 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
-        - name: RBAC_SERVICE_HOST
-          value: ${RBAC_HOST}
-        - name: RBAC_SERVICE_PORT
-          value: ${RBAC_SERVICE_PORT}
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
@@ -590,16 +582,8 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
-        - name: SOURCES_API_SVC_HOST
-          value: ${SOURCES_HOST}
-        - name: SOURCES_API_SVC_PORT
-          value: ${SOURCES_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
-        - name: RBAC_SERVICE_HOST
-          value: ${RBAC_HOST}
-        - name: RBAC_SERVICE_PORT
-          value: ${RBAC_SERVICE_PORT}
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
@@ -720,16 +704,8 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
-        - name: SOURCES_API_SVC_HOST
-          value: ${SOURCES_HOST}
-        - name: SOURCES_API_SVC_PORT
-          value: ${SOURCES_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
-        - name: RBAC_SERVICE_HOST
-          value: ${RBAC_HOST}
-        - name: RBAC_SERVICE_PORT
-          value: ${RBAC_SERVICE_PORT}
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
@@ -1959,12 +1935,6 @@ parameters:
   displayName: RabbitMQ port
   name: RABBITMQ_PORT
   value: "5672"
-- displayName: Rbac service host
-  name: RBAC_HOST
-  value: rbac
-- displayName: Rbac service port
-  name: RBAC_SERVICE_PORT
-  value: "8080"
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH
   value: /api/rbac/v1/access/
@@ -1980,12 +1950,6 @@ parameters:
 - displayName: Prometheus Pushgateway
   name: PROMETHEUS_PUSHGATEWAY
   value: prometheus-pushgateway:9091
-- displayName: Sources-api service hostname
-  name: SOURCES_HOST
-  value: sources-api-svc.sources.svc
-- displayName: Sources-api service port number
-  name: SOURCES_PORT
-  value: "8000"
 - description: Source API Path prefix
   name: SOURCES_API_PREFIX
   value: /api/sources/v1.0
@@ -2021,11 +1985,11 @@ parameters:
 - displayName: CPU Request
   name: KOKU_CPU_REQUEST
   required: true
-  value: 100m
+  value: 500m
 - displayName: CPU Limit
   name: KOKU_CPU_LIMIT
   required: true
-  value: 300m
+  value: 1
 - displayName: Minimum replicas
   name: LISTENER_MIN_REPLICAS
   required: true
@@ -2033,15 +1997,15 @@ parameters:
 - displayName: Memory Request
   name: LISTENER_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 512Mi
 - displayName: Memory Limit
   name: LISTENER_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 1Gi
 - displayName: CPU Request
   name: LISTENER_CPU_REQUEST
   required: true
-  value: 100m
+  value: 200m
 - displayName: CPU Limit
   name: LISTENER_CPU_LIMIT
   required: true
@@ -2053,7 +2017,7 @@ parameters:
 - displayName: Memory Request
   name: MASU_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 256Mi
 - displayName: Memory Limit
   name: MASU_MEMORY_LIMIT
   required: true
@@ -2100,11 +2064,11 @@ parameters:
 - displayName: Memory Request
   name: SOURCES_CLIENT_MEMORY_REQUEST
   required: true
-  value: 100Mi
+  value: 256Mi
 - displayName: Memory Limit
   name: SOURCES_CLIENT_MEMORY_LIMIT
   required: true
-  value: 256Mi
+  value: 512Mi
 - displayName: CPU Request
   name: SOURCES_CLIENT_CPU_REQUEST
   required: true
@@ -2112,7 +2076,7 @@ parameters:
 - displayName: CPU Limit
   name: SOURCES_CLIENT_CPU_LIMIT
   required: true
-  value: 200m
+  value: 250m
 - displayName: Minimum replicas
   name: SOURCES_LISTENER_MIN_REPLICAS
   required: true
@@ -2120,7 +2084,7 @@ parameters:
 - displayName: Memory Request
   name: SOURCES_LISTENER_MEMORY_REQUEST
   required: true
-  value: 100Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: SOURCES_LISTENER_MEMORY_LIMIT
   required: true
@@ -2132,7 +2096,7 @@ parameters:
 - displayName: CPU Limit
   name: SOURCES_LISTENER_CPU_LIMIT
   required: true
-  value: 200m
+  value: 250m
 - displayName: Minimum replicas
   name: WORKER_CELERY_MIN_REPLICAS
   required: true
@@ -2140,19 +2104,19 @@ parameters:
 - displayName: Memory Request
   name: WORKER_CELERY_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 512Mi
 - displayName: Memory Limit
   name: WORKER_CELERY_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 1Gi
 - displayName: CPU Request
   name: WORKER_CELERY_CPU_REQUEST
   required: true
-  value: 100m
+  value: 200m
 - displayName: CPU Limit
   name: WORKER_CELERY_CPU_LIMIT
   required: true
-  value: 200m
+  value: 300m
 - displayName: Worker Queue
   name: WORKER_CELERY_WORKER_QUEUE
   required: true
@@ -2188,19 +2152,19 @@ parameters:
 - displayName: Memory Request
   name: WORKER_DOWNLOAD_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 3Gi
 - displayName: Memory Limit
   name: WORKER_DOWNLOAD_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 6Gi
 - displayName: CPU Request
   name: WORKER_DOWNLOAD_CPU_REQUEST
   required: true
-  value: 100m
+  value: 500m
 - displayName: CPU Limit
   name: WORKER_DOWNLOAD_CPU_LIMIT
   required: true
-  value: 200m
+  value: 1
 - displayName: Worker Queue
   name: WORKER_DOWNLOAD_WORKER_QUEUE
   required: true
@@ -2236,19 +2200,19 @@ parameters:
 - displayName: Memory Request
   name: WORKER_PRIORITY_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 1Gi
 - displayName: Memory Limit
   name: WORKER_PRIORITY_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 2Gi
 - displayName: CPU Request
   name: WORKER_PRIORITY_CPU_REQUEST
   required: true
-  value: 100m
+  value: 250m
 - displayName: CPU Limit
   name: WORKER_PRIORITY_CPU_LIMIT
   required: true
-  value: 200m
+  value: 500m
 - displayName: Worker Queue
   name: WORKER_PRIORITY_WORKER_QUEUE
   required: true
