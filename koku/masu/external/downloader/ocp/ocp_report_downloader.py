@@ -15,6 +15,7 @@ from django.conf import settings
 from api.common import log_json
 from api.provider.models import Provider
 from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
@@ -126,6 +127,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         else:
             self.cluster_id = credentials
         self.context["cluster_id"] = self.cluster_id
+        self.manifest = None
 
     def _get_manifest(self, date_time):
         dates = utils.month_date_range(date_time)
@@ -230,6 +232,9 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (String): The path and file name of the saved file
 
         """
+        if not self.manifest:
+            self.manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
+        self.context["version"] = self.manifest.operator_version
         local_filename = utils.get_local_file_name(key)
 
         directory_path = f"{DATA_DIR}/{self.customer_name}/ocp/{self.cluster_id}"
