@@ -63,7 +63,9 @@ class ReportDownloaderBase:
                 manifest_id = manifest.id
         return manifest_id
 
-    def _process_manifest_db_record(self, assembly_id, billing_start, num_of_files, manifest_modified_datetime):
+    def _process_manifest_db_record(
+        self, assembly_id, billing_start, num_of_files, manifest_modified_datetime, **kwargs
+    ):
         """Insert or update the manifest DB record."""
         LOG.info("Inserting/updating manifest in database for assembly_id: %s", assembly_id)
 
@@ -80,6 +82,7 @@ class ReportDownloaderBase:
                     "provider_uuid": self._provider_uuid,
                     "manifest_modified_datetime": manifest_modified_datetime,
                 }
+                manifest_dict.update(kwargs)
                 try:
                     manifest_entry = manifest_accessor.add(**manifest_dict)
                 except IntegrityError as error:
