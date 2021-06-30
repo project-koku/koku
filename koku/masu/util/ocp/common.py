@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP utility functions."""
+import copy
 import json
 import logging
 import os
@@ -50,6 +51,25 @@ STORAGE_COLUMNS = [
     "persistentvolumeclaim_labels",
 ]
 
+STORAGE_GROUP_BY = [
+    "namespace",
+    "pod",
+    "persistentvolumeclaim",
+    "persistentvolume",
+    "storageclass",
+    "persistentvolume_labels",
+    "persistentvolumeclaim_labels",
+]
+
+STORAGE_AGG = {
+    "report_period_start": ["max"],
+    "report_period_end": ["max"],
+    "persistentvolumeclaim_capacity_bytes": ["max"],
+    "persistentvolumeclaim_capacity_byte_seconds": ["sum"],
+    "volume_request_storage_byte_seconds": ["sum"],
+    "persistentvolumeclaim_usage_byte_seconds": ["sum"],
+}
+
 CPU_MEM_USAGE_COLUMNS = [
     "report_period_start",
     "report_period_end",
@@ -72,6 +92,24 @@ CPU_MEM_USAGE_COLUMNS = [
     "pod_labels",
 ]
 
+POD_GROUP_BY = ["namespace", "node", "pod", "pod_labels"]
+
+POD_AGG = {
+    "report_period_start": ["max"],
+    "report_period_end": ["max"],
+    "resource_id": ["max"],
+    "pod_usage_cpu_core_seconds": ["sum"],
+    "pod_request_cpu_core_seconds": ["sum"],
+    "pod_limit_cpu_core_seconds": ["sum"],
+    "pod_usage_memory_byte_seconds": ["sum"],
+    "pod_request_memory_byte_seconds": ["sum"],
+    "pod_limit_memory_byte_seconds": ["sum"],
+    "node_capacity_cpu_cores": ["max"],
+    "node_capacity_cpu_core_seconds": ["sum"],
+    "node_capacity_memory_bytes": ["max"],
+    "node_capacity_memory_byte_seconds": ["sum"],
+}
+
 NODE_LABEL_COLUMNS = [
     "report_period_start",
     "report_period_end",
@@ -80,6 +118,11 @@ NODE_LABEL_COLUMNS = [
     "interval_end",
     "node_labels",
 ]
+
+NODE_GROUP_BY = ["node", "node_labels"]
+
+NODE_AGG = {"report_period_start": ["max"], "report_period_end": ["max"]}
+
 
 NAMESPACE_LABEL_COLUMNS = [
     "report_period_start",
@@ -90,11 +133,35 @@ NAMESPACE_LABEL_COLUMNS = [
     "namespace_labels",
 ]
 
+NAMESPACE_GROUP_BY = ["namespace", "namespace_labels"]
+
+NAMESPACE_AGG = {"report_period_start": ["max"], "report_period_end": ["max"]}
+
 REPORT_TYPES = {
-    "storage_usage": {"columns": STORAGE_COLUMNS, "enum": OCPReportTypes.STORAGE},
-    "pod_usage": {"columns": CPU_MEM_USAGE_COLUMNS, "enum": OCPReportTypes.CPU_MEM_USAGE},
-    "node_labels": {"columns": NODE_LABEL_COLUMNS, "enum": OCPReportTypes.NODE_LABELS},
-    "namespace_labels": {"columns": NAMESPACE_LABEL_COLUMNS, "enum": OCPReportTypes.NAMESPACE_LABELS},
+    "storage_usage": {
+        "columns": STORAGE_COLUMNS,
+        "enum": OCPReportTypes.STORAGE,
+        "group_by": STORAGE_GROUP_BY,
+        "agg": STORAGE_AGG,
+    },
+    "pod_usage": {
+        "columns": CPU_MEM_USAGE_COLUMNS,
+        "enum": OCPReportTypes.CPU_MEM_USAGE,
+        "group_by": POD_GROUP_BY,
+        "agg": POD_AGG,
+    },
+    "node_labels": {
+        "columns": NODE_LABEL_COLUMNS,
+        "enum": OCPReportTypes.NODE_LABELS,
+        "group_by": NODE_GROUP_BY,
+        "agg": NODE_AGG,
+    },
+    "namespace_labels": {
+        "columns": NAMESPACE_LABEL_COLUMNS,
+        "enum": OCPReportTypes.NAMESPACE_LABELS,
+        "group_by": NAMESPACE_GROUP_BY,
+        "agg": NAMESPACE_AGG,
+    },
 }
 
 
@@ -274,11 +341,10 @@ def detect_type(report_path):
     """
     Detects the OCP report type.
     """
-    data_frame = pd.read_csv(report_path)
+    sorted_columns = sorted(pd.read_csv(report_path, nrows=0).columns)
     for report_type, report_def in REPORT_TYPES.items():
         report_columns = sorted(report_def.get("columns"))
         report_enum = report_def.get("enum")
-        sorted_columns = sorted(data_frame.columns)
         if report_columns == sorted_columns:
             return report_type, report_enum
     return None, OCPReportTypes.UNKNOWN
@@ -354,3 +420,44 @@ def get_column_converters():
         "node_labels": process_openshift_labels_to_json,
         "namespace_labels": process_openshift_labels_to_json,
     }
+
+
+def ocp_generate_daily_data(data_frame, report_type):
+    """Given a dataframe, group the data to create daily data."""
+    # usage_start = data_frame["lineitem_usagestartdate"]
+    # usage_start_dates = usage_start.apply(lambda row: row.date())
+    # data_frame["usage_start"] = usage_start_dates
+    if data_frame.empty:
+        return data_frame
+    group_bys = copy.deepcopy(REPORT_TYPES.get(report_type, {}).get("group_by", []))
+    group_bys.append(pd.Grouper(key="interval_start", freq="D"))
+    aggs = copy.deepcopy(REPORT_TYPES.get(report_type, {}).get("agg", {}))
+    daily_data_frame = data_frame.groupby(group_bys, dropna=False).agg(aggs)
+
+    columns = daily_data_frame.columns.droplevel(1)
+    daily_data_frame.columns = columns
+
+    daily_data_frame.reset_index(inplace=True)
+
+    return daily_data_frame
+
+
+def match_openshift_labels(tag_dict, matched_tags, cluster_topology):
+    """Match AWS data by OpenShift label associated with OpenShift cluster."""
+    tag_dict = json.loads(tag_dict)
+    cluster_id = cluster_topology.get("cluster_id").lower()
+    cluster_alias = cluster_topology.get("cluster_alias").lower()
+    nodes = [node.lower() for node in cluster_topology.get("nodes", [])]
+    projects = [project.lower() for project in cluster_topology.get("projects", [])]
+    tag_matches = []
+    for key, value in tag_dict.items():
+        tag = json.dumps({key.lower(): value.lower()}).replace("{", "").replace("}", "")
+        if {key.lower(): value.lower()} in matched_tags:
+            tag_matches.append(tag)
+        elif key.lower() == "openshift_project" and value.lower() in projects:
+            return tag
+        elif key.lower() == "openshift_node" and value.lower() in nodes:
+            return tag
+        elif key.lower() == "openshift_cluster" and value.lower() in (cluster_id, cluster_alias):
+            return tag
+    return ",".join(tag_matches)

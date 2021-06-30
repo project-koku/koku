@@ -75,6 +75,7 @@ help:
 	@echo "                                          @param generator_config_file - (optional, default=default) config file for the generator"
 	@echo "                                          @param generator_template_file - (optional) jinja2 template to render output"
 	@echo "                                          @param generator_flags - (optional) additional cli flags and args"
+	@echo "  delete-test-sources                   Call the source DELETE API for each source in the database"
 	@echo "  large-ocp-source-testing              create a test OCP source "large_ocp_1" with a larger volume of data"
 	@echo "                                          @param nise_config_dir - directory of nise config files to use"
 	@echo "  load-test-customer-data               load test data for the default sources created in create-test-customer"
@@ -171,6 +172,9 @@ create-test-customer: run-migrations docker-up-koku
 
 create-test-customer-no-sources: run-migrations docker-up-koku
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-sources --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
+
+delete-test-sources:
+	$(PYTHON) $(TOPDIR)/scripts/delete_test_sources.py
 
 load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(start) $(end)
@@ -388,8 +392,8 @@ docker-metastore-setup:
 	@cp -fr deploy/hadoop/ testing/hadoop/
 #	@[[ ! -d ./testing/hadoop/hadoop-logs ]] && mkdir -p -m a+rwx ./hadoop/hadoop-logs || chmod a+rwx ./hadoop/hadoop-logs
 	find ./testing/hadoop -type d -exec chmod a+rwx {} \;
-	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
-	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),koku-reports))/g' testing/hadoop/hadoop-config/core-site.xml
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),koku-reports))/g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's/s3access/$(shell echo $(or $(S3_ACCESS_KEY),localhost))/g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's/s3secret/$(shell echo $(or $(S3_SECRET),localhost))/g' testing/metastore/hive-config/hive-site.xml
