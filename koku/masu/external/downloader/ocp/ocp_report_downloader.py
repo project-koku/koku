@@ -77,7 +77,10 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
     daily_file_names = []
 
     if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, Provider.PROVIDER_OCP, account):
-        daily_files = divide_csv_daily(filepath, filename)
+        if context.get("version"):
+            daily_files = [{"filepath": filepath, "filename": filename}]
+        else:
+            daily_files = divide_csv_daily(filepath, filename)
         for daily_file in daily_files:
             # Push to S3
             s3_csv_path = get_path_prefix(
@@ -93,6 +96,7 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
                 context,
             )
             daily_file_names.append(daily_file.get("filepath"))
+    LOG.info(f"\t\tReturning {daily_file_names}")
     return daily_file_names
 
 
@@ -130,6 +134,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         msg = f"Looking for manifest at {directory}"
         LOG.info(log_json(self.request_id, msg, self.context))
         report_meta = utils.get_report_details(directory)
+        self.context["version"] = report_meta.get("version")
         return report_meta
 
     def get_manifest_context_for_date(self, date):
@@ -270,5 +275,8 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         billing_start = datetime.datetime.strptime(billing_str, "%Y%m%d")
         manifest_timestamp = manifest.get("date")
         num_of_files = len(manifest.get("files", []))
+        ocp_kwargs = {"operator_version": manifest.get("version")}
 
-        return self._process_manifest_db_record(assembly_id, billing_start, num_of_files, manifest_timestamp)
+        return self._process_manifest_db_record(
+            assembly_id, billing_start, num_of_files, manifest_timestamp, **ocp_kwargs
+        )
