@@ -1977,19 +1977,19 @@ parameters:
 - displayName: Memory Request
   name: KOKU_MEMORY_REQUEST
   required: true
-  value: 512Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: KOKU_MEMORY_LIMIT
   required: true
-  value: 1Gi
+  value: 512Mi
 - displayName: CPU Request
   name: KOKU_CPU_REQUEST
   required: true
-  value: 500m
+  value: 100m
 - displayName: CPU Limit
   name: KOKU_CPU_LIMIT
   required: true
-  value: 1
+  value: 200m
 - displayName: Minimum replicas
   name: LISTENER_MIN_REPLICAS
   required: true
@@ -1997,19 +1997,19 @@ parameters:
 - displayName: Memory Request
   name: LISTENER_MEMORY_REQUEST
   required: true
-  value: 512Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: LISTENER_MEMORY_LIMIT
   required: true
-  value: 1Gi
+  value: 512Mi
 - displayName: CPU Request
   name: LISTENER_CPU_REQUEST
   required: true
-  value: 200m
+  value: 100m
 - displayName: CPU Limit
   name: LISTENER_CPU_LIMIT
   required: true
-  value: 500m
+  value: 200m
 - displayName: Minimum replicas
   name: MASU_MIN_REPLICAS
   required: true
@@ -2017,7 +2017,7 @@ parameters:
 - displayName: Memory Request
   name: MASU_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: MASU_MEMORY_LIMIT
   required: true
@@ -2037,11 +2037,11 @@ parameters:
 - displayName: Memory Request
   name: SCHEDULER_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 64Mi
 - displayName: Memory Limit
   name: SCHEDULER_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 128Mi
 - displayName: CPU Request
   name: SCHEDULER_CPU_REQUEST
   required: true
@@ -2064,11 +2064,11 @@ parameters:
 - displayName: Memory Request
   name: SOURCES_CLIENT_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: SOURCES_CLIENT_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 256Mi
 - displayName: CPU Request
   name: SOURCES_CLIENT_CPU_REQUEST
   required: true
@@ -2076,7 +2076,7 @@ parameters:
 - displayName: CPU Limit
   name: SOURCES_CLIENT_CPU_LIMIT
   required: true
-  value: 250m
+  value: 200m
 - displayName: Minimum replicas
   name: SOURCES_LISTENER_MIN_REPLICAS
   required: true
@@ -2096,7 +2096,7 @@ parameters:
 - displayName: CPU Limit
   name: SOURCES_LISTENER_CPU_LIMIT
   required: true
-  value: 250m
+  value: 200m
 - displayName: Minimum replicas
   name: WORKER_CELERY_MIN_REPLICAS
   required: true
@@ -2104,19 +2104,19 @@ parameters:
 - displayName: Memory Request
   name: WORKER_CELERY_MEMORY_REQUEST
   required: true
-  value: 512Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_CELERY_MEMORY_LIMIT
   required: true
-  value: 1Gi
+  value: 256Mi
 - displayName: CPU Request
   name: WORKER_CELERY_CPU_REQUEST
   required: true
-  value: 200m
+  value: 100m
 - displayName: CPU Limit
   name: WORKER_CELERY_CPU_LIMIT
   required: true
-  value: 300m
+  value: 200m
 - displayName: Worker Queue
   name: WORKER_CELERY_WORKER_QUEUE
   required: true
@@ -2128,11 +2128,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_COST_MODEL_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_COST_MODEL_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 256Mi
 - displayName: CPU Request
   name: WORKER_COST_MODEL_CPU_REQUEST
   required: true
@@ -2152,19 +2152,19 @@ parameters:
 - displayName: Memory Request
   name: WORKER_DOWNLOAD_MEMORY_REQUEST
   required: true
-  value: 3Gi
+  value: 256Mi
 - displayName: Memory Limit
   name: WORKER_DOWNLOAD_MEMORY_LIMIT
   required: true
-  value: 6Gi
+  value: 1Gi
 - displayName: CPU Request
   name: WORKER_DOWNLOAD_CPU_REQUEST
   required: true
-  value: 500m
+  value: 100m
 - displayName: CPU Limit
   name: WORKER_DOWNLOAD_CPU_LIMIT
   required: true
-  value: 1
+  value: 500m
 - displayName: Worker Queue
   name: WORKER_DOWNLOAD_WORKER_QUEUE
   required: true
@@ -2176,11 +2176,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_OCP_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_OCP_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 256Mi
 - displayName: CPU Request
   name: WORKER_OCP_CPU_REQUEST
   required: true
@@ -2200,19 +2200,19 @@ parameters:
 - displayName: Memory Request
   name: WORKER_PRIORITY_MEMORY_REQUEST
   required: true
-  value: 1Gi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_PRIORITY_MEMORY_LIMIT
   required: true
-  value: 2Gi
+  value: 256Mi
 - displayName: CPU Request
   name: WORKER_PRIORITY_CPU_REQUEST
   required: true
-  value: 250m
+  value: 100m
 - displayName: CPU Limit
   name: WORKER_PRIORITY_CPU_LIMIT
   required: true
-  value: 500m
+  value: 200m
 - displayName: Worker Queue
   name: WORKER_PRIORITY_WORKER_QUEUE
   required: true
@@ -2224,11 +2224,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_REFRESH_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_REFRESH_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 256Mi
 - displayName: CPU Request
   name: WORKER_REFRESH_CPU_REQUEST
   required: true
@@ -2248,11 +2248,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_SUMMARY_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_SUMMARY_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 256Mi
 - displayName: CPU Request
   name: WORKER_SUMMARY_CPU_REQUEST
   required: true

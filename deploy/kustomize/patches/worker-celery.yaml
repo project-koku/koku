@@ -153,28 +153,28 @@
     displayName: Memory Request
     name: WORKER_CELERY_MEMORY_REQUEST
     required: true
-    value: 512Mi
+    value: 128Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: WORKER_CELERY_MEMORY_LIMIT
     required: true
-    value: 1Gi
+    value: 256Mi
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Request
     name: WORKER_CELERY_CPU_REQUEST
     required: true
-    value: 200m
+    value: 100m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
     name: WORKER_CELERY_CPU_LIMIT
     required: true
-    value: 300m
+    value: 200m
 - op: add
   path: /parameters/-
   value:

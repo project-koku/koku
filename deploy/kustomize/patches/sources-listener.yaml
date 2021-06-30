@@ -138,4 +138,4 @@
     displayName: CPU Limit
     name: SOURCES_LISTENER_CPU_LIMIT
     required: true
-    value: 250m
+    value: 200m

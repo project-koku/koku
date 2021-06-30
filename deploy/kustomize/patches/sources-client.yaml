@@ -135,14 +135,14 @@
     displayName: Memory Request
     name: SOURCES_CLIENT_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 128Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: SOURCES_CLIENT_MEMORY_LIMIT
     required: true
-    value: 512Mi
+    value: 256Mi
 - op: add
   path: /parameters/-
   value:
@@ -156,4 +156,4 @@
     displayName: CPU Limit
     name: SOURCES_CLIENT_CPU_LIMIT
     required: true
-    value: 250m
+    value: 200m
