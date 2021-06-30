@@ -417,7 +417,7 @@ docker-presto-cleanup:
 	make clear-testing
 
 docker-presto-up: docker-metastore-setup docker-presto-setup
-	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d
+	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d $(build)
 
 docker-presto-ps:
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml ps
