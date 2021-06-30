@@ -96,7 +96,6 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
                 context,
             )
             daily_file_names.append(daily_file.get("filepath"))
-    LOG.info(f"\t\tReturning {daily_file_names}")
     return daily_file_names
 
 
