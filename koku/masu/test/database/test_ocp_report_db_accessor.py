@@ -774,6 +774,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
 
         cluster_rate = random.randrange(1, 100)
+        cluster_rate = 57
 
         dh = DateHelper()
         start_date = dh.this_month_start
@@ -802,7 +803,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
             sum_row_list = []
             for monthly_cost_row in monthly_cost_rows:
                 sum_row_list.append(monthly_cost_row.infrastructure_monthly_cost.get(distribution))
-            self.assertEquals(sum(sum_row_list), cluster_rate)
+            #  handle small possible imprecision due to division
+            # eg. 56.99999999999999 != 57
+            self.assertTrue((cluster_rate - sum(sum_row_list)) < 0.001)
 
     def test_populate_monthly_cost_cluster_supplementary_cost(self):
         """Test that the monthly infrastructure cost row for clusters in the summary table is populated."""
@@ -810,6 +813,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
 
         cluster_rate = random.randrange(1, 100)
+        cluster_rate = 57
 
         dh = DateHelper()
         start_date = dh.this_month_start
@@ -838,7 +842,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
             sum_row_list = []
             for monthly_cost_row in monthly_cost_rows:
                 sum_row_list.append(monthly_cost_row.supplementary_monthly_cost.get(distribution))
-            self.assertEquals(sum(sum_row_list), cluster_rate)
+            #  handle small possible imprecision due to division
+            # eg. 56.99999999999999 != 57
+            self.assertTrue((cluster_rate - sum(sum_row_list)) < 0.001)
 
     def test_populate_monthly_cost_pvc_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for PVC in the summary table is populated."""
