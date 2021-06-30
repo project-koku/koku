@@ -149,14 +149,14 @@
     displayName: Memory Request
     name: SCHEDULER_MEMORY_REQUEST
     required: true
-    value: 64Mi
+    value: 128Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: SCHEDULER_MEMORY_LIMIT
     required: true
-    value: 128Mi
+    value: 256Mi
 - op: add
   path: /parameters/-
   value:
