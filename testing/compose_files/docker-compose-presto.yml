@@ -8,8 +8,8 @@ services:
         dockerfile: ../../Dockerfile.minio
     container_name: kokuminio
     environment:
-      MINIO_ACCESS_KEY: kokuminioaccess
-      MINIO_SECRET_KEY: kokuminiosecret
+      MINIO_ROOT_USER: kokuminioaccess
+      MINIO_ROOT_PASSWORD: kokuminiosecret
     ports:
       - 9000:9000
     command: server /data
