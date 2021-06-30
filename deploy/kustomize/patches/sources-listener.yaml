@@ -65,16 +65,8 @@
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
-        - name: SOURCES_API_SVC_HOST
-          value: ${SOURCES_HOST}
-        - name: SOURCES_API_SVC_PORT
-          value: ${SOURCES_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
-        - name: RBAC_SERVICE_HOST
-          value: ${RBAC_HOST}
-        - name: RBAC_SERVICE_PORT
-          value: ${RBAC_SERVICE_PORT}
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
