@@ -74,6 +74,7 @@ class ParquetReportProcessor:
         self._manifest_id = manifest_id
         self._context = context
         self.presto_table_exists = {}
+        self.files_to_remove = []
 
     @property
     def schema_name(self):
@@ -443,8 +444,7 @@ class ParquetReportProcessor:
             LOG.warn(log_json(self.request_id, msg, self.error_context))
             return False
         finally:
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            self.files_to_remove.append(file_path)
 
         return True
 
@@ -458,6 +458,10 @@ class ParquetReportProcessor:
 
         # Clean up the original downloaded file
         for f in self.file_list:
+            if os.path.exists(f):
+                os.remove(f)
+
+        for f in self.files_to_remove:
             if os.path.exists(f):
                 os.remove(f)
 
