@@ -345,14 +345,10 @@ Please refer to Contributing_.
 .. _Flake8: http://flake8.pycqa.org
 
 .. |license| image:: https://img.shields.io/github/license/project-koku/koku.svg
-   :target: https://github.com/project-koku/koku/blob/master/LICENSE
+   :target: https://github.com/project-koku/koku/blob/main/LICENSE
 .. |Unittests| image:: https://github.com/project-koku/koku/workflows/Unit%20Tests/badge.svg
    :target: https://github.com/project-koku/koku/actions
-.. |codecov| image:: https://codecov.io/gh/project-koku/koku/branch/master/graph/badge.svg
+.. |codecov| image:: https://codecov.io/gh/project-koku/koku/branch/main/graph/badge.svg
    :target: https://codecov.io/gh/project-koku/koku
-.. |Updates| image:: https://pyup.io/repos/github/project-koku/koku/shield.svg?t=1524249231720
-   :target: https://pyup.io/repos/github/project-koku/koku/
-.. |Python 3| image:: https://pyup.io/repos/github/project-koku/koku/python-3-shield.svg?t=1524249231720
-   :target: https://pyup.io/repos/github/project-koku/koku/
 .. |Docs| image:: https://readthedocs.org/projects/koku/badge/
    :target: https://koku.readthedocs.io/en/latest
