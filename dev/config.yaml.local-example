@@ -15,7 +15,7 @@ apps:
       host: local
       repo: REPO
       path: deploy/clowdapp.yaml
-      ref: master
+      ref: main
       parameters:
         IMAGE_TAG: clowder
         KOKU_MIN_REPLICAS: 1
