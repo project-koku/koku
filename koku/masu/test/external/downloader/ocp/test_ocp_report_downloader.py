@@ -17,6 +17,7 @@ from faker import Faker
 from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
 from masu.external.downloader.ocp.ocp_report_downloader import divide_csv_daily
@@ -205,7 +206,7 @@ class OCPReportDownloaderTest(MasuTestCase):
                         mock_debug.assert_called_once_with(f"File {file_path} could not be parsed. Reason: {errorMsg}")
 
     @patch("masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader._remove_manifest_file")
-    @patch("masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader._get_manifest")
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.utils.get_report_details")
     def test_get_manifest_context_for_date(self, mock_manifest, mock_delete):
         """Test that the manifest is read."""
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
@@ -213,18 +214,25 @@ class OCPReportDownloaderTest(MasuTestCase):
         assembly_id = "1234"
         compression = "PLAIN"
         report_keys = ["file1", "file2"]
+        version = "5678"
         mock_manifest.return_value = {
             "uuid": assembly_id,
             "Compression": compression,
             "reportKeys": report_keys,
             "date": current_month,
             "files": report_keys,
+            "version": version,
         }
-
+        self.assertIsNone(self.ocp_report_downloader.context.get("version"))
         result = self.ocp_report_downloader.get_manifest_context_for_date(current_month)
         self.assertEqual(result.get("assembly_id"), assembly_id)
         self.assertEqual(result.get("compression"), compression)
         self.assertIsNotNone(result.get("files"))
+
+        manifest_id = result.get("manifest_id")
+        manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
+        self.assertEqual(manifest.operator_version, version)
+        self.assertEqual(self.ocp_report_downloader.context.get("version"), version)
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
     @override_settings(ENABLE_PARQUET_PROCESSING=True)
@@ -242,6 +250,15 @@ class OCPReportDownloaderTest(MasuTestCase):
 
         mock_divide.return_value = daily_files
 
-        result = create_daily_archives(1, "10001", self.ocp_provider_uuid, "file", "path", 1, start_date)
+        file_name = "file"
+        file_path = "path"
+        result = create_daily_archives(1, "10001", self.ocp_provider_uuid, file_name, file_path, 1, start_date)
 
         self.assertEqual(result, expected_filenames)
+
+        context = {"version": "1"}
+        expected = [file_path]
+        result = create_daily_archives(
+            1, "10001", self.ocp_provider_uuid, "file", "path", 1, start_date, context=context
+        )
+        self.assertEqual(result, expected)
