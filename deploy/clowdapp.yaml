@@ -1981,7 +1981,7 @@ parameters:
 - displayName: Memory Limit
   name: KOKU_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 768Mi
 - displayName: CPU Request
   name: KOKU_CPU_REQUEST
   required: true
@@ -1989,7 +1989,7 @@ parameters:
 - displayName: CPU Limit
   name: KOKU_CPU_LIMIT
   required: true
-  value: 200m
+  value: 300m
 - displayName: Minimum replicas
   name: LISTENER_MIN_REPLICAS
   required: true
@@ -2108,7 +2108,7 @@ parameters:
 - displayName: Memory Limit
   name: WORKER_CELERY_MEMORY_LIMIT
   required: true
-  value: 256Mi
+  value: 512Mi
 - displayName: CPU Request
   name: WORKER_CELERY_CPU_REQUEST
   required: true
@@ -2204,7 +2204,7 @@ parameters:
 - displayName: Memory Limit
   name: WORKER_PRIORITY_MEMORY_LIMIT
   required: true
-  value: 256Mi
+  value: 512Mi
 - displayName: CPU Request
   name: WORKER_PRIORITY_CPU_REQUEST
   required: true

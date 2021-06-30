@@ -160,7 +160,7 @@
     displayName: Memory Limit
     name: WORKER_PRIORITY_MEMORY_LIMIT
     required: true
-    value: 256Mi
+    value: 512Mi
 - op: add
   path: /parameters/-
   value:
