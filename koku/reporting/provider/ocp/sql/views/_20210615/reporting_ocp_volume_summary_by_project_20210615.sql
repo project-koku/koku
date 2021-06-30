@@ -1,7 +1,3 @@
--- TODO: cody, in order for the supplementary_monthly_cost & infrastructure_monthly_cost
--- to not be empty I would need to set the data_source row on the monthly_cost rows I
--- adding in the ocp_report_db_accessor.py
--- I should talk to Doug & Andrew about this
 DROP INDEX IF EXISTS ocp_volume_summary_by_project;
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_volume_summary_by_project;
 

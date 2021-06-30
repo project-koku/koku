@@ -1,10 +1,6 @@
 DROP INDEX IF EXISTS ocp_cost_summary_by_project;
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_cost_summary_by_project;
 
--- TODO: Currently no data is being stored inside of {cost_type}_project_monthly_cost
--- However, in order to not cause a regression we will populate the project_monthly_cost
--- with the monthly_cost, and switch it over in COST-1450
-
 CREATE MATERIALIZED VIEW reporting_ocp_cost_summary_by_project AS(
     SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, namespace) as id,
         usage_start as usage_start,
