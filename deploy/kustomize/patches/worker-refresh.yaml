@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: worker-refresh
+    name: clowder-worker-refresh
     minReplicas: ${{WORKER_REFRESH_MIN_REPLICAS}}
     webServices:
       public:

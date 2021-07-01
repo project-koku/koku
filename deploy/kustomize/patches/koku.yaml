@@ -1,7 +1,7 @@
 - op: replace  # only koku is replace, all other services are appended to this one
   path: /objects/0/spec/deployments/0
   value:
-    name: api
+    name: clowder-api
     minReplicas: ${{KOKU_MIN_REPLICAS}}
     webServices:
       public:
@@ -99,7 +99,7 @@
         - name: POD_CPU_LIMIT # required to spin up appropriate number of gunicorn workers
           valueFrom:
             resourceFieldRef:
-              containerName: koku-api
+              containerName: koku-clowder-api
               resource: limits.cpu
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
