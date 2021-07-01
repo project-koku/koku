@@ -19,7 +19,10 @@ class AzureRegionView(generics.ListAPIView):
     """API GET list view for Azure Region locations."""
 
     queryset = (
-        AzureCostSummaryByLocation.objects.annotate(**{"value": F("resource_location")}).values("value").distinct()
+        AzureCostSummaryByLocation.objects.annotate(**{"value": F("resource_location")})
+        .values("value")
+        .distinct()
+        .filter(resource_location__isnull=False)
     )
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]

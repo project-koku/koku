@@ -18,7 +18,13 @@ from reporting.provider.azure.models import AzureCostSummaryByService
 class AzureServiceView(generics.ListAPIView):
     """API GET list view for Azure Service types."""
 
-    queryset = AzureCostSummaryByService.objects.annotate(**{"value": F("service_name")}).values("value").distinct()
+    queryset = (
+        AzureCostSummaryByService.objects.annotate(**{"value": F("service_name")})
+        .values("value")
+        .distinct()
+        .filter(service_name__isnull=False)
+    )
+
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
