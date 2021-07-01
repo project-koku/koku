@@ -167,7 +167,8 @@ class SourcesViewSet(*MIXIN_LIST):
         pk = self.kwargs.get("pk")
         try:
             uuid = UUIDField().to_internal_value(data=pk)
-            obj = Sources.objects.get(source_uuid=uuid)
+            account_id = self.request.user.customer.account_id
+            obj = Sources.objects.get(account_id=account_id, source_uuid=uuid)
             if obj:
                 return obj
         except (ValidationError, Sources.DoesNotExist):
@@ -237,6 +238,7 @@ class SourcesViewSet(*MIXIN_LIST):
         """Get a source."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
+
         if response.data.get("authentication", {}).get("credentials", {}).get("client_secret"):
             del response.data["authentication"]["credentials"]["client_secret"]
         try:
