@@ -18,7 +18,12 @@ from reporting.provider.gcp.models import GCPCostSummaryByService
 class GCPServiceView(generics.ListAPIView):
     """API GET list view for GCP Services by ID."""
 
-    queryset = GCPCostSummaryByService.objects.annotate(**{"value": F("service_id")}).values("value").distinct()
+    queryset = (
+        GCPCostSummaryByService.objects.annotate(**{"value": F("service_id")})
+        .values("value")
+        .distinct()
+        .filter(service_id__isnull=False)
+    )
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]

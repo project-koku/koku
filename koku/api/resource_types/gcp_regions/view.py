@@ -18,7 +18,12 @@ from reporting.provider.gcp.models import GCPCostSummaryByRegion
 class GCPRegionView(generics.ListAPIView):
     """API GET list view for GCP Regions."""
 
-    queryset = GCPCostSummaryByRegion.objects.annotate(**{"value": F("region")}).values("value").distinct()
+    queryset = (
+        GCPCostSummaryByRegion.objects.annotate(**{"value": F("region")})
+        .values("value")
+        .distinct()
+        .filter(region__isnull=False)
+    )
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
