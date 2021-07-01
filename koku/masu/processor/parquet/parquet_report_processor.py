@@ -463,9 +463,11 @@ class ParquetReportProcessor:
         for f in self.file_list:
             if os.path.exists(f):
                 os.remove(f)
+
         for f in self.files_to_remove:
             if os.path.exists(f):
                 os.remove(f)
+
         if os.path.exists(self.report_file):
             os.remove(self.report_file)
 
