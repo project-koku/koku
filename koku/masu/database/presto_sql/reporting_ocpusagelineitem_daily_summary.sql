@@ -230,19 +230,25 @@ SELECT uuid() as uuid,
     sua.storageclass,
     cast(sua.volume_labels as json) as volume_labels,
     (sua.persistentvolumeclaim_capacity_bytes *
-          power(2, -30)) as persistentvolumeclaim_capacity_gigabyte,
+        power(2, -30)) as persistentvolumeclaim_capacity_gigabyte,
     (sua.persistentvolumeclaim_capacity_byte_seconds /
-          (86400 *
-          cast(extract(day from last_day_of_month(date(sua.usage_start))) as integer) *
-          power(2, -30))) as persistentvolumeclaim_capacity_gigabyte_months,
+        (
+            86400 *
+            cast(extract(day from last_day_of_month(date(sua.usage_start))) as integer)
+        ) *
+        power(2, -30)) as persistentvolumeclaim_capacity_gigabyte_months,
     (sua.volume_request_storage_byte_seconds /
-          (86400 *
-          cast(extract(day from last_day_of_month(date(sua.usage_start))) as integer) *
-          power(2, -30))) as volume_request_storage_gigabyte_months,
+        (
+            86400 *
+            cast(extract(day from last_day_of_month(date(sua.usage_start))) as integer)
+        ) *
+        power(2, -30)) as volume_request_storage_gigabyte_months,
     (sua.persistentvolumeclaim_usage_byte_seconds /
-          (86400 *
-          cast(extract(day from last_day_of_month(date(sua.usage_start))) as integer) *
-          power(2, -30))) as persistentvolumeclaim_usage_gigabyte_months,
+        (
+            86400 *
+            cast(extract(day from last_day_of_month(date(sua.usage_start))) as integer)
+        ) *
+        power(2, -30)) as persistentvolumeclaim_usage_gigabyte_months,
     cast(sua.source_uuid as UUID) as source_uuid,
     JSON '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost
 FROM (
