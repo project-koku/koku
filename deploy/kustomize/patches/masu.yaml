@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: masu
+    name: clowder-masu
     minReplicas: ${{MASU_MIN_REPLICAS}}
     webServices:
       public:
@@ -76,7 +76,7 @@
         - name: POD_CPU_LIMIT # required to spin up appropriate number of gunicorn workers
           valueFrom:
             resourceFieldRef:
-              containerName: koku-masu
+              containerName: koku-clowder-masu
               resource: limits.cpu
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
