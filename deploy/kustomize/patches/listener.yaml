@@ -142,4 +142,4 @@
     displayName: CPU Limit
     name: LISTENER_CPU_LIMIT
     required: true
-    value: 500m
+    value: 200m
