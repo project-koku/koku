@@ -1,7 +1,7 @@
 FROM registry.access.redhat.com/ubi8/python-38:latest
 
-ARG PIPENV_DEV=False \
-    USER_ID=1000
+ARG PIPENV_DEV=False
+ARG USER_ID=1000
 
 ENV LC_ALL=en_US.UTF-8 \
     LANG=en_US.UTF-8 \
