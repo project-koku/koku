@@ -160,7 +160,7 @@
     displayName: Memory Limit
     name: WORKER_DOWNLOAD_MEMORY_LIMIT
     required: true
-    value: 512Mi
+    value: 1Gi
 - op: add
   path: /parameters/-
   value:
@@ -174,7 +174,7 @@
     displayName: CPU Limit
     name: WORKER_DOWNLOAD_CPU_LIMIT
     required: true
-    value: 200m
+    value: 500m
 - op: add
   path: /parameters/-
   value:
