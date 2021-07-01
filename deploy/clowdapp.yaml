@@ -2252,7 +2252,7 @@ parameters:
 - displayName: Memory Limit
   name: WORKER_SUMMARY_MEMORY_LIMIT
   required: true
-  value: 256Mi
+  value: 512Mi
 - displayName: CPU Request
   name: WORKER_SUMMARY_CPU_REQUEST
   required: true
