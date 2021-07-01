@@ -95,7 +95,7 @@ objects:
         - name: POD_CPU_LIMIT
           valueFrom:
             resourceFieldRef:
-              containerName: koku-api
+              containerName: koku-clowder-api
               resource: limits.cpu
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
@@ -329,7 +329,7 @@ objects:
         - name: POD_CPU_LIMIT
           valueFrom:
             resourceFieldRef:
-              containerName: koku-masu
+              containerName: koku-clowder-masu
               resource: limits.cpu
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
