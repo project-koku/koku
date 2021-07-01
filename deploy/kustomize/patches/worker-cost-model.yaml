@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: worker-cost-model
+    name: clowder-worker-cost-model
     minReplicas: ${{WORKER_COST_MODEL_MIN_REPLICAS}}
     webServices:
       public:

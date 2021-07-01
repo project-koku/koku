@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: worker-summary
+    name: clowder-worker-summary
     minReplicas: ${{WORKER_SUMMARY_MIN_REPLICAS}}
     webServices:
       public:

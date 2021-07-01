@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: scheduler
+    name: clowder-scheduler
     minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
     webServices:
       public:

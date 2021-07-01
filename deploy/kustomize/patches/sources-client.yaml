@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: sources-client
+    name: clowder-sources-client
     minReplicas: ${{SOURCES_CLIENT_MIN_REPLICAS}}
     webServices:
       public:
