@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: worker-celery
+    name: clowder-worker-celery
     minReplicas: ${{WORKER_CELERY_MIN_REPLICAS}}
     webServices:
       public:
@@ -153,7 +153,7 @@
     displayName: Memory Request
     name: WORKER_CELERY_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 128Mi
 - op: add
   path: /parameters/-
   value:

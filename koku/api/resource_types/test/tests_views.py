@@ -65,7 +65,7 @@ class ResourceTypesViewTest(IamTestCase):
     ENDPOINTS_GCP = ["gcp-accounts", "gcp-projects", "gcp-regions", "gcp-services"]
     ENDPOINTS_AWS = ["aws-accounts", "aws-regions", "aws-services"]
     ENDPOINTS_GCP = ["gcp-accounts", "gcp-projects"]
-    ENDPOINTS_AZURE = ["azure-subscription-guids"]
+    ENDPOINTS_AZURE = ["azure-subscription-guids", "azure-services", "azure-regions"]
     ENDPOINTS_OPENSHIFT = ["openshift-clusters", "openshift-nodes", "openshift-projects"]
     ENDPOINTS = ENDPOINTS_RTYPE + ENDPOINTS_AWS + ENDPOINTS_AZURE + ENDPOINTS_OPENSHIFT + ENDPOINTS_GCP
 
