@@ -20,16 +20,16 @@ class AWSAccountView(generics.ListAPIView):
 
     queryset = (
         AWSCostSummaryByAccount.objects.annotate(
-            **{"value": F("usage_account_id"), "account_name": F("account_alias__account_alias")}
+            **{"value": F("usage_account_id"), "alias": F("account_alias__account_alias")}
         )
-        .values("value", "account_name")
+        .values("value", "alias")
         .distinct()
     )
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
-    ordering = ["value", "account_name"]
-    search_fields = ["$value", "$account_name"]
+    ordering = ["value", "alias"]
+    search_fields = ["$value", "$alias"]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
