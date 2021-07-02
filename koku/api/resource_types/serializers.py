@@ -9,5 +9,5 @@ from rest_framework import serializers
 class ResourceTypeSerializer(serializers.Serializer):
     """Serializer for resource-specific resource-type APIs."""
 
-    account_alias = serializers.CharField()
+    account_name = serializers.CharField(required=False)
     value = serializers.CharField()
