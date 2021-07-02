@@ -2625,6 +2625,74 @@
                 }
             }
         },
+        "/resource-types/gcp-services/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List GCP Services For RBAC",
+                "operationId": "listResourcesGcpServices",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/gcp-regions/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List GCP Regions For RBAC",
+                "operationId": "listResourcesGcpRegions",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/resource-types/aws-organizational-units/": {
             "get": {
                 "tags": [
