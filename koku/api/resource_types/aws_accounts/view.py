@@ -18,12 +18,18 @@ from reporting.provider.aws.models import AWSCostSummaryByAccount
 class AWSAccountView(generics.ListAPIView):
     """API GET list view for AWS accounts."""
 
-    queryset = AWSCostSummaryByAccount.objects.annotate(**{"value": F("usage_account_id")}).values("value").distinct()
+    queryset = (
+        AWSCostSummaryByAccount.objects.annotate(
+            **{"value": F("usage_account_id"), "account_alias": F("account_alias__account_alias")}
+        )
+        .values("value", "account_alias")
+        .distinct()
+    )
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
-    ordering = ["value"]
-    search_fields = ["$value"]
+    ordering = ["value", "account_alias"]
+    search_fields = ["$value", "$account_alias"]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
