@@ -397,18 +397,20 @@ class ClowderConfigurator(Configurator):
         """Obtain object store access key."""
         if requestedName != "" and ObjectBuckets.get(requestedName):
             return ObjectBuckets.get(requestedName).accessKey
+        if len(LoadedConfig.objectStore.buckets) > 0:
+            return LoadedConfig.objectStore.buckets[0].accessKey
         if LoadedConfig.objectStore.accessKey:
             return LoadedConfig.objectStore.accessKey
-        return LoadedConfig.objectStore.buckets[0].accessKey
 
     @staticmethod
     def get_object_store_secret_key(requestedName: str = ""):
         """Obtain object store secret key."""
         if requestedName != "" and ObjectBuckets.get(requestedName):
             return ObjectBuckets.get(requestedName).secretKey
+        if len(LoadedConfig.objectStore.buckets) > 0:
+            return LoadedConfig.objectStore.buckets[0].secretKey
         if LoadedConfig.objectStore.secretKey:
             return LoadedConfig.objectStore.secretKey
-        return LoadedConfig.objectStore.buckets[0].secretKey
 
     @staticmethod
     def get_object_store_bucket(requestedName: str = ""):
