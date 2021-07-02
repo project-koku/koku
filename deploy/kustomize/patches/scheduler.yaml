@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: scheduler
+    name: clowder-scheduler
     minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
     webServices:
       public:
@@ -149,14 +149,14 @@
     displayName: Memory Request
     name: SCHEDULER_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 128Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: SCHEDULER_MEMORY_LIMIT
     required: true
-    value: 512Mi
+    value: 256Mi
 - op: add
   path: /parameters/-
   value:

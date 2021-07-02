@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: worker-ocp
+    name: clowder-worker-ocp
     minReplicas: ${{WORKER_OCP_MIN_REPLICAS}}
     webServices:
       public:
@@ -153,14 +153,14 @@
     displayName: Memory Request
     name: WORKER_OCP_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 128Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: WORKER_OCP_MEMORY_LIMIT
     required: true
-    value: 512Mi
+    value: 256Mi
 - op: add
   path: /parameters/-
   value:

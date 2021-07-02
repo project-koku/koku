@@ -3,6 +3,8 @@
 
 set -exv
 
+git checkout 41ae81f70248517d26cad070a64e777a7468663e
+
 DOCKERFILE=${DOCKERFILE:="Dockerfile"}
 IMAGE="quay.io/cloudservices/koku"
 IMAGE_TAG=$(git rev-parse --short=7 HEAD)
@@ -26,9 +28,9 @@ podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
 podman build -t "${IMAGE}:${IMAGE_TAG}" .
 podman push "${IMAGE}:${IMAGE_TAG}"
 # Backward compatibility with CI/QA
-podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:latest"
-podman push "${IMAGE}:latest"
-podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:qa"
-podman push "${IMAGE}:qa"
-podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:clowder"
-podman push "${IMAGE}:clowder"
+# podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:latest"
+# podman push "${IMAGE}:latest"
+# podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:qa"
+# podman push "${IMAGE}:qa"
+# podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:clowder"
+# podman push "${IMAGE}:clowder"
