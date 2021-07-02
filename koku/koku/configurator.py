@@ -395,7 +395,7 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_object_store_access_key(requestedName: str = ""):
         """Obtain object store access key."""
-        if requestedName != "":
+        if requestedName != "" and ObjectBuckets.get(requestedName):
             return ObjectBuckets.get(requestedName).accessKey
         if LoadedConfig.objectStore.accessKey:
             return LoadedConfig.objectStore.accessKey
@@ -404,7 +404,7 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_object_store_secret_key(requestedName: str = ""):
         """Obtain object store secret key."""
-        if requestedName != "":
+        if requestedName != "" and ObjectBuckets.get(requestedName):
             return ObjectBuckets.get(requestedName).secretKey
         if LoadedConfig.objectStore.secretKey:
             return LoadedConfig.objectStore.secretKey
@@ -413,7 +413,9 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_object_store_bucket(requestedName: str = ""):
         """Obtain object store bucket."""
-        return ObjectBuckets.get(requestedName).name
+        if ObjectBuckets.get(requestedName):
+            return ObjectBuckets.get(requestedName).name
+        return requestedName
 
     @staticmethod
     def get_database_name():
