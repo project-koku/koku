@@ -285,3 +285,32 @@ class CostModelManagerTest(IamTestCase):
                 mock_update.s(self.schema_name, provider_uuid, start_date, end_date).set(),
                 mock_refresh.si(self.schema_name, provider.type, provider_uuid=provider_uuid).set(),
             )
+
+    def test_update_distribution_choice(self):
+        """Test creating a cost model."""
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        source_type = Provider.PROVIDER_OCP
+        tiered_rates = [{"unit": "USD", "value": 0.22}]
+        distribution = "memory"
+        update_distribution = "cpu"
+        data = {
+            "name": "Test Cost Model",
+            "description": "Test",
+            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+            "distribution": distribution,
+        }
+
+        with tenant_context(self.tenant):
+            manager = CostModelManager()
+            with patch("cost_models.cost_model_manager.chain"):
+                cost_model_obj = manager.create(**data)
+            self.assertIsNotNone(cost_model_obj.uuid)
+            self.assertEqual(cost_model_obj.distribution, distribution)
+            for rate in cost_model_obj.rates:
+                self.assertEqual(rate.get("metric", {}).get("name"), metric)
+                self.assertEqual(rate.get("tiered_rates"), tiered_rates)
+                self.assertEqual(rate.get("source_type"), source_type)
+            data["distribution"] = update_distribution
+            with patch("cost_models.cost_model_manager.chain"):
+                cost_model_obj = manager.update(**data)
+                self.assertEqual(manager.instance.distribution, update_distribution)

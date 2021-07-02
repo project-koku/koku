@@ -15,4 +15,4 @@ apps:
       host: github
       repo: project-koku/koku
       path: deploy/clowdapp.yaml
-      ref: master
+      ref: main
