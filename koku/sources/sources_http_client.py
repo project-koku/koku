@@ -166,7 +166,7 @@ class SourcesHTTPClient:
 
     def _get_aws_credentials(self):
         """Get the roleARN from Sources Authentication service."""
-        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}"
+        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}&authtype=arn"
         auth_response = self._get_network_response(authentications_url, "Unable to get AWS RoleARN")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:

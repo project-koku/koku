@@ -281,7 +281,7 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             resource_id = 2
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}&authtype=arn",
                 status_code=200,
                 json={"data": [{"id": resource_id, "username": self.authentication}]},
             )
