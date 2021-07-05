@@ -30,6 +30,12 @@ APP_EXTRA_FIELD_MAP = {
     Provider.PROVIDER_GCP: ["dataset"],
     Provider.PROVIDER_GCP_LOCAL: ["dataset"],
 }
+AUTH_TYPES = {
+    Provider.PROVIDER_OCP: "token",
+    Provider.PROVIDER_AWS: "arn",
+    Provider.PROVIDER_AZURE: "tenant_id_client_id_client_secret",
+    Provider.PROVIDER_GCP: "project_id_service_account_json",
+}
 ENDPOINT_APPLICATIONS = "applications"
 ENDPOINT_APPLICATION_TYPES = "application_types"
 ENDPOINT_AUTHENTICATIONS = "authentications"
@@ -166,7 +172,10 @@ class SourcesHTTPClient:
 
     def _get_aws_credentials(self):
         """Get the roleARN from Sources Authentication service."""
-        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}&authtype=arn"
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_AWS)
+        authentications_url = (
+            f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}&authtype={auth_type}"
+        )
         auth_response = self._get_network_response(authentications_url, "Unable to get AWS RoleARN")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:
@@ -191,7 +200,10 @@ class SourcesHTTPClient:
 
     def _get_gcp_credentials(self):
         """Get the GCP credentials from Sources Authentication service."""
-        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}"
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_GCP)
+        authentications_url = (
+            f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}&authtype={auth_type}"
+        )
         auth_response = self._get_network_response(authentications_url, "Unable to get GCP credentials")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:
@@ -213,7 +225,10 @@ class SourcesHTTPClient:
         subscription_id = app_data.get("extra", {}).get("subscription_id")
 
         # get client and tenant ids
-        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}"
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_AZURE)
+        authentications_url = (
+            f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}&authtype={auth_type}"
+        )
         auth_response = self._get_network_response(authentications_url, "Unable to get Azure credentials")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:

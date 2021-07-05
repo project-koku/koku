@@ -20,6 +20,7 @@ from api.provider.models import Sources
 from sources.config import Config
 from sources.kafka_listener import storage_callback
 from sources.sources_http_client import APP_EXTRA_FIELD_MAP
+from sources.sources_http_client import AUTH_TYPES
 from sources.sources_http_client import ENDPOINT_APPLICATION_TYPES
 from sources.sources_http_client import ENDPOINT_APPLICATIONS
 from sources.sources_http_client import ENDPOINT_AUTHENTICATIONS
@@ -277,11 +278,12 @@ class SourcesHTTPClientTest(TestCase):
 
     def test_get_aws_credentials_username(self):
         """Test to get AWS Role ARN from authentication service from username."""
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_AWS)
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             resource_id = 2
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}&authtype=arn",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}&authtype={auth_type}",
                 status_code=200,
                 json={"data": [{"id": resource_id, "username": self.authentication}]},
             )
@@ -290,11 +292,15 @@ class SourcesHTTPClientTest(TestCase):
 
     def test_get_aws_credentials_internal_endpoint(self):
         """Test to get AWS Role ARN from authentication service from internal endpoint."""
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_AWS)
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         resource_id = 2
         responses = [
             {
-                "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                "url": (
+                    f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
+                    f"source_id={self.source_id}&authtype={auth_type}"
+                ),
                 "status": 200,
                 "json": {"data": [{"id": resource_id}]},
             },
@@ -315,13 +321,15 @@ class SourcesHTTPClientTest(TestCase):
 
     def test_get_aws_credentials_errors(self):
         """Test to get AWS Role ARN exceptions."""
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_AWS)
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             json_data = [None, []]
             for test in json_data:
                 with self.subTest(test=test):
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
+                        f"source_id={self.source_id}&authtype={auth_type}",
                         status_code=200,
                         json={"data": test},
                     )
@@ -330,7 +338,7 @@ class SourcesHTTPClientTest(TestCase):
 
             resource_id = 2
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}&authtype={auth_type}",
                 status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
@@ -347,11 +355,12 @@ class SourcesHTTPClientTest(TestCase):
 
     def test_get_gcp_credentials_username(self):
         """Test to get project id from authentication service from username."""
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_GCP)
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             resource_id = 2
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}&authtype={auth_type}",
                 status_code=200,
                 json={"data": [{"id": resource_id, "username": self.authentication}]},
             )
@@ -360,13 +369,15 @@ class SourcesHTTPClientTest(TestCase):
 
     def test_get_gcp_credentials_errors(self):
         """Test to get project id exceptions."""
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_GCP)
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             json_data = [None, [], [{"no-username": "empty"}]]
             for test in json_data:
                 with self.subTest(test=test):
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
+                        f"source_id={self.source_id}&authtype={auth_type}",
                         status_code=200,
                         json={"data": test},
                     )
@@ -395,6 +406,7 @@ class SourcesHTTPClientTest(TestCase):
             "extra": {"azure": {"tenant_id": tenent_id}},
         }
 
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_AZURE)
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(
@@ -403,7 +415,7 @@ class SourcesHTTPClientTest(TestCase):
                 json={"data": [applications_reponse]},
             )
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}&authtype={auth_type}",
                 status_code=200,
                 json={"data": [authentications_response]},
             )
@@ -496,6 +508,7 @@ class SourcesHTTPClientTest(TestCase):
             {"valid": True, "json": {"password": authentication}},
         ]
 
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_AZURE)
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         for app, auth, internal in product(
             applications_reponse_table, authentications_response_table, internal_response_table
@@ -508,7 +521,8 @@ class SourcesHTTPClientTest(TestCase):
                         json={"data": [app.get("json")]},
                     )
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
+                        f"source_id={self.source_id}&authtype={auth_type}",
                         status_code=200,
                         json={"data": [auth.get("json")]},
                     )
