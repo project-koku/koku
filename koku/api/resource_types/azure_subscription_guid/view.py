@@ -32,7 +32,7 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
         # Reads the users values for Azure subscription guid and displays values related to what the user has access to
         if request.user.admin:
             return super().list(request)
-        elif request.user.access:
+        if request.user.access:
             user_access = request.user.access.get("azure.subscription_guid", {}).get("read", [])
         else:
             user_access = []
