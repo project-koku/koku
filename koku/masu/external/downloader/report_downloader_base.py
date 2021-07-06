@@ -67,7 +67,8 @@ class ReportDownloaderBase:
         self, assembly_id, billing_start, num_of_files, manifest_modified_datetime, **kwargs
     ):
         """Insert or update the manifest DB record."""
-        LOG.info("Inserting/updating manifest in database for assembly_id: %s", assembly_id)
+        msg = f"Inserting/updating manifest in database for assembly_id: {assembly_id}"
+        LOG.info(log_json(self.request_id, msg))
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)

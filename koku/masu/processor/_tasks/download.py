@@ -22,7 +22,7 @@ LOG = logging.getLogger(__name__)
 # disabled until the program flow stabilizes a bit more
 # pylint: disable=too-many-arguments,too-many-locals
 def _get_report_files(
-    task,
+    request_id,
     customer_name,
     authentication,
     billing_source,
@@ -52,7 +52,6 @@ def _get_report_files(
                          '/var/tmp/masu/base/aws/professor-hour-industry-television.csv']
 
     """
-    request_id = task.request.id
     context = {"account": customer_name[4:], "provider_uuid": provider_uuid}
     month_string = report_month.strftime("%B %Y")
     report_context["date"] = report_month
@@ -81,7 +80,7 @@ def _get_report_files(
             provider_uuid=provider_uuid,
             report_name=None,
             account=customer_name[4:],
-            request_id=task.request.id,
+            request_id=request_id,
         )
         report = downloader.download_report(report_context)
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:

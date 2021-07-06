@@ -143,7 +143,7 @@ class Orchestrator:
         manifest = downloader.download_manifest(report_month)
 
         if manifest:
-            LOG.info("Saving all manifest file names.")
+            LOG.debug("Saving all manifest file names.")
             record_all_manifest_files(
                 manifest["manifest_id"], [report.get("local_file") for report in manifest.get("files", [])]
             )
@@ -194,7 +194,7 @@ class Orchestrator:
         if report_tasks:
             reports_tasks_queued = True
             async_id = chord(report_tasks, summarize_reports.s().set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE))()
-            LOG.info(f"Manifest Processing Async ID: {async_id}")
+            LOG.debug(f"Manifest Processing Async ID: {async_id}")
         return manifest, reports_tasks_queued
 
     def prepare(self):

@@ -5,6 +5,7 @@
 """Asynchronous tasks."""
 import logging
 from os import path
+from api.common import log_json
 
 import psutil
 
@@ -36,6 +37,7 @@ def _process_report_file(schema_name, provider, report_dict):
     compression = report_dict.get("compression")
     manifest_id = report_dict.get("manifest_id")
     provider_uuid = report_dict.get("provider_uuid")
+    request_id = report_dict.get("request_id")
     log_statement = (
         f"Processing Report:\n"
         f" schema_name: {schema_name}\n"
@@ -45,10 +47,10 @@ def _process_report_file(schema_name, provider, report_dict):
         f" compression: {compression}\n"
         f" start_date: {start_date}"
     )
-    LOG.info(log_statement)
+    LOG.info(log_json(request_id, log_statement))
     mem = psutil.virtual_memory()
     mem_msg = f"Avaiable memory: {mem.free} bytes ({mem.percent}%)"
-    LOG.info(mem_msg)
+    LOG.debug(mem_msg)
 
     file_name = report_path.split("/")[-1]
     with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:

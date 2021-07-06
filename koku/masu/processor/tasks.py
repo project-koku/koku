@@ -135,6 +135,7 @@ def get_report_files(
     provider_uuid,
     report_month,
     report_context,
+    tracing_id=None
 ):
     """
     Task to download a Report and process the report.
@@ -163,10 +164,11 @@ def get_report_files(
 
         report_file = report_context.get("key")
         cache_key = f"{provider_uuid}:{report_file}"
+        tracing_id = f"{provider_uuid}:{report_context.get('manifest_id')}:{report_file.split('/')[-1]}"
         WorkerCache().add_task_to_cache(cache_key)
 
         report_dict = _get_report_files(
-            self,
+            tracing_id,
             customer_name,
             authentication,
             billing_source,
@@ -185,7 +187,7 @@ def get_report_files(
         )
         if report_dict:
             stmt += f" file: {report_dict['file']}"
-            LOG.info(stmt)
+            LOG.info(log_json(tracing_id, stmt))
         else:
             WorkerCache().remove_task_from_cache(cache_key)
             return None
@@ -195,6 +197,7 @@ def get_report_files(
             "provider_type": provider_type,
             "provider_uuid": provider_uuid,
             "manifest_id": report_dict.get("manifest_id"),
+            "request_id": tracing_id,
         }
 
         try:
@@ -205,10 +208,10 @@ def get_report_files(
                 f" provider_uuid: {provider_uuid}\n"
                 f' file: {report_dict.get("file")}'
             )
-            LOG.info(stmt)
+            LOG.info(log_json(tracing_id, stmt))
             worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
 
-            report_dict["request_id"] = self.request.id
+            report_dict["request_id"] = tracing_id
             report_dict["provider_type"] = provider_type
 
             _process_report_file(schema_name, provider_type, report_dict)
@@ -294,7 +297,9 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                     start_date = DateAccessor().today() - datetime.timedelta(days=2)
                     start_date = start_date.strftime("%Y-%m-%d")
                     end_date = DateAccessor().today().strftime("%Y-%m-%d")
-                LOG.info("report to summarize: %s", str(report))
+                msg = f"report to summarize: {str(report)}"
+                tracing_id = report.get("request_id")
+                LOG.info(log_json(tracing_id, msg))
                 update_summary_tables.s(
                     report.get("schema_name"),
                     report.get("provider_type"),
@@ -316,6 +321,7 @@ def update_summary_tables(  # noqa: C901
     manifest_id=None,
     queue_name=None,
     synchronous=False,
+    tracing_id=None,
 ):
     """Populate the summary tables for reporting.
 
@@ -339,7 +345,7 @@ def update_summary_tables(  # noqa: C901
         worker_cache = WorkerCache()
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
-            LOG.info(msg)
+            LOG.info(log_json(tracing_id, msg))
             update_summary_tables.s(
                 schema_name,
                 provider,
@@ -360,10 +366,10 @@ def update_summary_tables(  # noqa: C901
         f" end_date: {end_date},\n"
         f" manifest_id: {manifest_id}"
     )
-    LOG.info(stmt)
+    LOG.info(log_json(tracing_id, stmt))
 
     try:
-        updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
+        updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id, tracing_id)
         start_date, end_date = updater.update_daily_tables(start_date, end_date)
         updater.update_summary_tables(start_date, end_date)
     except ReportSummaryUpdaterCloudError as ex:
@@ -391,7 +397,7 @@ def update_summary_tables(  # noqa: C901
             f" schema_name: {schema_name},\n"
             f" provider_uuid: {provider_uuid}"
         )
-        LOG.info(stmt)
+        LOG.info(log_json(tracing_id, stmt))
     else:
         with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
             cost_model = cost_model_accessor.cost_model
@@ -410,7 +416,7 @@ def update_summary_tables(  # noqa: C901
             f" schema_name: {schema_name},\n"
             f" provider_uuid: {provider_uuid}"
         )
-        LOG.info(stmt)
+        LOG.info(log_json(tracing_id, stmt))
         linked_tasks = refresh_materialized_views.s(
             schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id
         ).set(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)

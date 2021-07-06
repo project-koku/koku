@@ -5,6 +5,7 @@
 """Update reporting summary tables."""
 import datetime
 import logging
+from api.common import log_json
 
 from api.models import Provider
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
@@ -41,7 +42,7 @@ class ReportSummaryUpdaterCloudError(Exception):
 class ReportSummaryUpdater:
     """Update reporting summary tables."""
 
-    def __init__(self, customer_schema, provider_uuid, manifest_id=None):
+    def __init__(self, customer_schema, provider_uuid, manifest_id=None, tracing_id=None):
         """
         Initializer.
 
@@ -53,6 +54,7 @@ class ReportSummaryUpdater:
         self._schema = customer_schema
         self._provider_uuid = provider_uuid
         self._manifest = None
+        self._tracing_id = None
         if manifest_id is not None:
             with ReportManifestDBAccessor() as manifest_accessor:
                 self._manifest = manifest_accessor.get_manifest_by_id(manifest_id)
@@ -70,7 +72,8 @@ class ReportSummaryUpdater:
 
         if not self._updater:
             raise ReportSummaryUpdaterError("Invalid provider type specified.")
-        LOG.info("Starting report data summarization for provider uuid: %s.", self._provider.uuid)
+        msg = f"Starting report data summarization for provider uuid: {self._provider.uuid}."
+        LOG.info(log_json(self._tracing_id, msg))
 
     def _set_updater(self):
         """
@@ -127,7 +130,9 @@ class ReportSummaryUpdater:
         )
 
         LOG.info(f"Set report_summary_updater = {report_summary_updater.__name__}")
-
+        LOG.info("\n\n\nDEBUGGING LOOK HERE: ")
+        LOG.info(self._tracing_id)
+        LOG.info("---")
         return (
             report_summary_updater(self._schema, self._provider, self._manifest),
             ocp_cloud_updater(self._schema, self._provider, self._manifest),
