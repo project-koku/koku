@@ -56,10 +56,10 @@ def _get_report_files(
     month_string = report_month.strftime("%B %Y")
     report_context["date"] = report_month
     log_statement = (
-        f"Downloading report for:\n"
-        f" schema_name: {customer_name}\n"
-        f" provider: {provider_type}\n"
-        f" account (provider uuid): {provider_uuid}\n"
+        f"Downloading report for: "
+        f" schema_name: {customer_name} "
+        f" provider: {provider_type} "
+        f" account (provider uuid): {provider_uuid} "
         f" report_month: {month_string}"
     )
     LOG.info(log_json(request_id, log_statement, context))
@@ -68,7 +68,7 @@ def _get_report_files(
         disk_msg = f"Available disk space: {disk.free} bytes ({100 - disk.percent}%)"
     except OSError:
         disk_msg = f"Unable to find available disk space. {Config.PVC_DIR} does not exist"
-    LOG.info(log_json(request_id, disk_msg, context))
+    LOG.debug(log_json(request_id, disk_msg, context))
 
     report = None
     try:
