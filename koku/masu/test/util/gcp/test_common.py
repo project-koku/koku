@@ -132,15 +132,22 @@ class TestGCPUtils(MasuTestCase):
 
     def test_post_processor(self):
         """Test that data frame post processing succeeds."""
-        data = {"column.one": [1, 2, 3], "column.two": [4, 5, 6], "three": [7, 8, 9]}
-        expected_columns = ["column_one", "column_two", "three"]
+        data = {
+            "column.one": [1, 2, 3],
+            "column.two": [4, 5, 6],
+            "three": [7, 8, 9],
+            "labels": ['{"label_one": "value_one"}', '{"label_one": "value_two"}', '{"label_two": "value_three"}'],
+        }
+        expected_columns = ["column_one", "column_two", "labels", "three"]
 
         df = pd.DataFrame(data)
 
+        expected_tags = {"label_one", "label_two"}
         result_df = utils.gcp_post_processor(df)
-        if isinstance(result_df, tuple):
-            result_df, df_tag_keys = result_df
-            self.assertIsInstance(df_tag_keys, set)
+        self.assertIsInstance(result_df, tuple)
+        result_df, df_tag_keys = result_df
+        self.assertIsInstance(df_tag_keys, set)
+        self.assertEqual(df_tag_keys, expected_tags)
 
         result_columns = list(result_df)
         self.assertEqual(sorted(result_columns), sorted(expected_columns))

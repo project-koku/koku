@@ -26,6 +26,7 @@ class CostUsageReportManifest(models.Model):
     num_total_files = models.IntegerField()
     s3_csv_cleared = models.BooleanField(default=False, null=True)
     s3_parquet_cleared = models.BooleanField(default=False, null=True)
+    operator_version = models.TextField(null=True)
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
 
 

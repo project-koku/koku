@@ -22,6 +22,8 @@ from api.views import AWSTagView
 from api.views import AzureCostForecastView
 from api.views import AzureCostView
 from api.views import AzureInstanceTypeView
+from api.views import AzureRegionView
+from api.views import AzureServiceView
 from api.views import AzureStorageView
 from api.views import AzureSubscriptionGuidView
 from api.views import AzureTagView
@@ -33,6 +35,8 @@ from api.views import GCPCostView
 from api.views import GCPForecastCostView
 from api.views import GCPInstanceTypeView
 from api.views import GCPProjectsView
+from api.views import GCPRegionView
+from api.views import GCPServiceView
 from api.views import GCPStorageView
 from api.views import GCPTagView
 from api.views import get_currency
@@ -300,11 +304,15 @@ urlpatterns = [
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
     path("resource-types/gcp-accounts/", GCPAccountView.as_view(), name="gcp-accounts"),
     path("resource-types/gcp-projects/", GCPProjectsView.as_view(), name="gcp-projects"),
+    path("resource-types/gcp-regions/", GCPRegionView.as_view(), name="gcp-regions"),
+    path("resource-types/gcp-services/", GCPServiceView.as_view(), name="gcp-services"),
     path(
         "resource-types/aws-organizational-units/",
         AWSOrganizationalUnitView.as_view(),
         name="aws-organizational-units",
     ),
+    path("resource-types/azure-regions/", AzureRegionView.as_view(), name="azure-regions"),
+    path("resource-types/azure-services/", AzureServiceView.as_view(), name="azure-services"),
     path("resource-types/aws-services/", AWSServiceView.as_view(), name="aws-services"),
     path("resource-types/aws-regions/", AWSAccountRegionView.as_view(), name="aws-regions"),
     path(

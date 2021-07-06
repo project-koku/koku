@@ -64,10 +64,9 @@ class ResourceTypesViewTest(IamTestCase):
 
     ENDPOINTS_RTYPE = ["resource-types"]
     ENDPOINTS_AWS = ["aws-accounts", "aws-regions", "aws-services", "aws-organizational-units"]
-    ENDPOINTS_GCP = ["gcp-accounts", "gcp-projects"]
-    ENDPOINTS_AZURE = ["azure-subscription-guids"]
+    ENDPOINTS_GCP = ["gcp-accounts", "gcp-projects", "gcp-regions", "gcp-services"]
+    ENDPOINTS_AZURE = ["azure-subscription-guids", "azure-services", "azure-regions"]
     ENDPOINTS_OPENSHIFT = ["openshift-clusters", "openshift-nodes", "openshift-projects"]
-    ENDPOINTS = ENDPOINTS_GCP
     ENDPOINTS = ENDPOINTS_RTYPE + ENDPOINTS_AWS + ENDPOINTS_AZURE + ENDPOINTS_OPENSHIFT + ENDPOINTS_GCP
 
     def setUp(self):
