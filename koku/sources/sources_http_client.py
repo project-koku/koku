@@ -135,13 +135,15 @@ class SourcesHTTPClient:
             raise SourcesHTTPClientError("source type name not found")
         return source_types_data.get("name")
 
-    def get_data_source(self, source_type):
+    def get_data_source(self, source_type, app_type_id):
         """Get the data_source settings from Sources."""
         if source_type not in APP_EXTRA_FIELD_MAP.keys():
             msg = f"[get_data_source] Unexpected source type: {source_type}"
             LOG.error(msg)
             raise SourcesHTTPClientError(msg)
-        application_url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}"
+        application_url = (
+            f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}&application_type_id={app_type_id}"
+        )
         applications_response = self._get_network_response(application_url, "Unable to get application settings")
         applications_data = (applications_response.get("data") or [None])[0]
         if not applications_data:

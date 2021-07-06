@@ -211,7 +211,8 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=test):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                        f"source_id={self.source_id}&application_type_id={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": [test.get("json")]},
                     )
@@ -227,7 +228,8 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=(source_type, json)):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                        f"source_id={self.source_id}&application_type_id={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": json},
                     )
@@ -243,7 +245,8 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=(source_type, json)):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                        f"source_id={self.source_id}&application_type_id={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": json},
                     )
@@ -410,7 +413,8 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_id}",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                f"source_id={self.source_id}&application_type_id={COST_MGMT_APP_TYPE_ID}",
                 status_code=200,
                 json={"data": [applications_reponse]},
             )
@@ -516,7 +520,8 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=(app, auth, internal)):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                        f"source_id={self.source_id}&application_type_id={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": [app.get("json")]},
                     )
