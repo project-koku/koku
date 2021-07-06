@@ -1,6 +1,6 @@
 .. _`tox`: https://tox.readthedocs.io/en/latest/
 .. _`nise`: https://github.com/project-koku/nise
-.. _`.env.example`: https://github.com/project-koku/koku/blob/master/.env.example
+.. _`.env.example`: https://github.com/project-koku/koku/blob/main/.env.example
 
 ~~~~~~~~~~~~
 Testing Koku

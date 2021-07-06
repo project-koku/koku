@@ -13,7 +13,7 @@ objects:
       version: ${{DATABASE_VERSION}}
     deployments:
     - minReplicas: ${{KOKU_MIN_REPLICAS}}
-      name: api
+      name: clowder-api
       podSpec:
         command:
         - /usr/libexec/s2i/run
@@ -64,16 +64,14 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
-        - name: RBAC_SERVICE_HOST
-          value: ${RBAC_HOST}
-        - name: RBAC_SERVICE_PORT
-          value: ${RBAC_SERVICE_PORT}
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
           value: ${RBAC_CACHE_TTL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -99,7 +97,7 @@ objects:
         - name: POD_CPU_LIMIT
           valueFrom:
             resourceFieldRef:
-              containerName: koku-api
+              containerName: koku-clowder-api
               resource: limits.cpu
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
@@ -161,7 +159,7 @@ objects:
         public:
           enabled: true
     - minReplicas: ${{LISTENER_MIN_REPLICAS}}
-      name: listener
+      name: clowder-listener
       podSpec:
         command:
         - /bin/bash
@@ -198,6 +196,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -267,7 +267,7 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{MASU_MIN_REPLICAS}}
-      name: masu
+      name: clowder-masu
       podSpec:
         command:
         - /usr/libexec/s2i/run
@@ -320,16 +320,14 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
-        - name: RBAC_SERVICE_HOST
-          value: ${RBAC_HOST}
-        - name: RBAC_SERVICE_PORT
-          value: ${RBAC_SERVICE_PORT}
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
           value: ${RBAC_CACHE_TTL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -337,7 +335,7 @@ objects:
         - name: POD_CPU_LIMIT
           valueFrom:
             resourceFieldRef:
-              containerName: koku-masu
+              containerName: koku-clowder-masu
               resource: limits.cpu
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -404,7 +402,7 @@ objects:
         public:
           enabled: true
     - minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
-      name: scheduler
+      name: clowder-scheduler
       podSpec:
         command:
         - /bin/bash
@@ -440,6 +438,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -537,7 +537,7 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{SOURCES_CLIENT_MIN_REPLICAS}}
-      name: sources-client
+      name: clowder-sources-client
       podSpec:
         command:
         - /usr/libexec/s2i/run
@@ -590,16 +590,8 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
-        - name: SOURCES_API_SVC_HOST
-          value: ${SOURCES_HOST}
-        - name: SOURCES_API_SVC_PORT
-          value: ${SOURCES_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
-        - name: RBAC_SERVICE_HOST
-          value: ${RBAC_HOST}
-        - name: RBAC_SERVICE_PORT
-          value: ${RBAC_SERVICE_PORT}
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
@@ -665,7 +657,7 @@ objects:
         public:
           enabled: true
     - minReplicas: ${{SOURCES_LISTENER_MIN_REPLICAS}}
-      name: sources-listener
+      name: clowder-sources-listener
       podSpec:
         command:
         - /bin/bash
@@ -720,16 +712,8 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
-        - name: SOURCES_API_SVC_HOST
-          value: ${SOURCES_HOST}
-        - name: SOURCES_API_SVC_PORT
-          value: ${SOURCES_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
-        - name: RBAC_SERVICE_HOST
-          value: ${RBAC_HOST}
-        - name: RBAC_SERVICE_PORT
-          value: ${RBAC_SERVICE_PORT}
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
@@ -775,7 +759,7 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{WORKER_CELERY_MIN_REPLICAS}}
-      name: worker-celery
+      name: clowder-worker-celery
       podSpec:
         command:
         - /bin/bash
@@ -811,6 +795,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -912,7 +898,7 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{WORKER_COST_MODEL_MIN_REPLICAS}}
-      name: worker-cost-model
+      name: clowder-worker-cost-model
       podSpec:
         command:
         - /bin/bash
@@ -948,6 +934,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1049,7 +1037,7 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{WORKER_DOWNLOAD_MIN_REPLICAS}}
-      name: worker-download
+      name: clowder-worker-download
       podSpec:
         command:
         - /bin/bash
@@ -1085,6 +1073,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1186,7 +1176,7 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{WORKER_OCP_MIN_REPLICAS}}
-      name: worker-ocp
+      name: clowder-worker-ocp
       podSpec:
         command:
         - /bin/bash
@@ -1222,6 +1212,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1323,7 +1315,7 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{WORKER_PRIORITY_MIN_REPLICAS}}
-      name: worker-priority
+      name: clowder-worker-priority
       podSpec:
         command:
         - /bin/bash
@@ -1359,6 +1351,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1460,7 +1454,7 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{WORKER_REFRESH_MIN_REPLICAS}}
-      name: worker-refresh
+      name: clowder-worker-refresh
       podSpec:
         command:
         - /bin/bash
@@ -1496,6 +1490,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1597,7 +1593,7 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{WORKER_SUMMARY_MIN_REPLICAS}}
-      name: worker-summary
+      name: clowder-worker-summary
       podSpec:
         command:
         - /bin/bash
@@ -1633,6 +1629,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1788,7 +1786,7 @@ parameters:
   required: true
   value: quay.io/cloudservices/koku
 - name: S3_BUCKET_NAME
-  value: koku-reports
+  value: koku-eph-s3
 - description: GCP Credentials Location
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json
@@ -1959,12 +1957,6 @@ parameters:
   displayName: RabbitMQ port
   name: RABBITMQ_PORT
   value: "5672"
-- displayName: Rbac service host
-  name: RBAC_HOST
-  value: rbac
-- displayName: Rbac service port
-  name: RBAC_SERVICE_PORT
-  value: "8080"
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH
   value: /api/rbac/v1/access/
@@ -1973,19 +1965,13 @@ parameters:
   value: "30"
 - displayName: Presto host
   name: PRESTO_HOST
-  value: presto
+  value: presto-coordinator
 - displayName: Presto port
   name: PRESTO_PORT
-  value: "8080"
+  value: "8000"
 - displayName: Prometheus Pushgateway
   name: PROMETHEUS_PUSHGATEWAY
   value: prometheus-pushgateway:9091
-- displayName: Sources-api service hostname
-  name: SOURCES_HOST
-  value: sources-api-svc.sources.svc
-- displayName: Sources-api service port number
-  name: SOURCES_PORT
-  value: "8000"
 - description: Source API Path prefix
   name: SOURCES_API_PREFIX
   value: /api/sources/v1.0
@@ -2013,11 +1999,11 @@ parameters:
 - displayName: Memory Request
   name: KOKU_MEMORY_REQUEST
   required: true
-  value: 512Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: KOKU_MEMORY_LIMIT
   required: true
-  value: 1Gi
+  value: 768Mi
 - displayName: CPU Request
   name: KOKU_CPU_REQUEST
   required: true
@@ -2045,7 +2031,7 @@ parameters:
 - displayName: CPU Limit
   name: LISTENER_CPU_LIMIT
   required: true
-  value: 500m
+  value: 200m
 - displayName: Minimum replicas
   name: MASU_MIN_REPLICAS
   required: true
@@ -2073,11 +2059,11 @@ parameters:
 - displayName: Memory Request
   name: SCHEDULER_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: SCHEDULER_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 256Mi
 - displayName: CPU Request
   name: SCHEDULER_CPU_REQUEST
   required: true
@@ -2100,7 +2086,7 @@ parameters:
 - displayName: Memory Request
   name: SOURCES_CLIENT_MEMORY_REQUEST
   required: true
-  value: 100Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: SOURCES_CLIENT_MEMORY_LIMIT
   required: true
@@ -2120,7 +2106,7 @@ parameters:
 - displayName: Memory Request
   name: SOURCES_LISTENER_MEMORY_REQUEST
   required: true
-  value: 100Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: SOURCES_LISTENER_MEMORY_LIMIT
   required: true
@@ -2140,7 +2126,7 @@ parameters:
 - displayName: Memory Request
   name: WORKER_CELERY_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_CELERY_MEMORY_LIMIT
   required: true
@@ -2164,11 +2150,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_COST_MODEL_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_COST_MODEL_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 256Mi
 - displayName: CPU Request
   name: WORKER_COST_MODEL_CPU_REQUEST
   required: true
@@ -2192,7 +2178,7 @@ parameters:
 - displayName: Memory Limit
   name: WORKER_DOWNLOAD_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 1Gi
 - displayName: CPU Request
   name: WORKER_DOWNLOAD_CPU_REQUEST
   required: true
@@ -2200,7 +2186,7 @@ parameters:
 - displayName: CPU Limit
   name: WORKER_DOWNLOAD_CPU_LIMIT
   required: true
-  value: 200m
+  value: 500m
 - displayName: Worker Queue
   name: WORKER_DOWNLOAD_WORKER_QUEUE
   required: true
@@ -2212,11 +2198,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_OCP_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_OCP_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 256Mi
 - displayName: CPU Request
   name: WORKER_OCP_CPU_REQUEST
   required: true
@@ -2236,7 +2222,7 @@ parameters:
 - displayName: Memory Request
   name: WORKER_PRIORITY_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_PRIORITY_MEMORY_LIMIT
   required: true
@@ -2260,11 +2246,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_REFRESH_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_REFRESH_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 256Mi
 - displayName: CPU Request
   name: WORKER_REFRESH_CPU_REQUEST
   required: true
@@ -2284,7 +2270,7 @@ parameters:
 - displayName: Memory Request
   name: WORKER_SUMMARY_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_SUMMARY_MEMORY_LIMIT
   required: true

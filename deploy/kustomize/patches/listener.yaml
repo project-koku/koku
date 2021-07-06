@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: listener
+    name: clowder-listener
     minReplicas: ${{LISTENER_MIN_REPLICAS}}
     webServices:
       public:
@@ -47,6 +47,8 @@
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -142,4 +144,4 @@
     displayName: CPU Limit
     name: LISTENER_CPU_LIMIT
     required: true
-    value: 500m
+    value: 200m

@@ -72,7 +72,7 @@ class ReportQueryHandler(QueryHandler):
         super().__init__(parameters)
 
         self._tag_keys = parameters.tag_keys
-
+        self._report_type = parameters.report_type
         self._delta = parameters.delta
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
@@ -105,7 +105,7 @@ class ReportQueryHandler(QueryHandler):
     def query_table(self):
         """Return the database table or view to query against."""
         query_table = self._mapper.query_table
-        report_type = self.parameters.report_type
+        report_type = self._report_type
         report_group = "default"
 
         if self.provider in (
