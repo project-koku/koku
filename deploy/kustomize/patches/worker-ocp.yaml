@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: worker-ocp
+    name: clowder-worker-ocp
     minReplicas: ${{WORKER_OCP_MIN_REPLICAS}}
     webServices:
       public:
