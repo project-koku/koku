@@ -39,13 +39,13 @@ def _process_report_file(schema_name, provider, report_dict):
     provider_uuid = report_dict.get("provider_uuid")
     request_id = report_dict.get("request_id")
     log_statement = (
-        f"Processing Report:\n"
-        f" schema_name: {schema_name}\n"
-        f" provider: {provider}\n"
-        f" provider_uuid: {provider_uuid}\n"
-        f" file: {report_path}\n"
-        f" compression: {compression}\n"
-        f" start_date: {start_date}"
+        f"Processing Report: "
+        f" schema_name: {schema_name} "
+        f" provider: {provider} "
+        f" provider_uuid: {provider_uuid} "
+        f" file: {report_path} "
+        f" compression: {compression} "
+        f" start_date: {start_date} "
     )
     LOG.info(log_json(request_id, log_statement))
     mem = psutil.virtual_memory()

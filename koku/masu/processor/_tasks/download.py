@@ -60,7 +60,7 @@ def _get_report_files(
         f" schema_name: {customer_name} "
         f" provider: {provider_type} "
         f" account (provider uuid): {provider_uuid} "
-        f" report_month: {month_string}"
+        f" report_month: {month_string} "
     )
     LOG.info(log_json(request_id, log_statement, context))
     try:
