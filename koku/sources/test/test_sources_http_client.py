@@ -266,7 +266,7 @@ class SourcesHTTPClientTest(TestCase):
             m.get(
                 f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_id}", status_code=200, json={"source_ref": uuid}
             )
-            creds = client._get_ocp_credentials()
+            creds = client._get_ocp_credentials(COST_MGMT_APP_TYPE_ID)
             self.assertEqual(creds.get("cluster_id"), uuid)
 
     def test__get_ocp_credentials_missing_cluster_id(self):
@@ -277,7 +277,7 @@ class SourcesHTTPClientTest(TestCase):
                 f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_id}", status_code=200, json={"source_ref": None}
             )
             with self.assertRaises(SourcesHTTPClientError):
-                client._get_ocp_credentials()
+                client._get_ocp_credentials(COST_MGMT_APP_TYPE_ID)
 
     def test_get_aws_credentials_username(self):
         """Test to get AWS Role ARN from authentication service from username."""
@@ -290,7 +290,7 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=200,
                 json={"data": [{"id": resource_id, "username": self.authentication}]},
             )
-            creds = client._get_aws_credentials()
+            creds = client._get_aws_credentials(COST_MGMT_APP_TYPE_ID)
             self.assertEqual(creds.get("role_arn"), self.authentication)
 
     def test_get_aws_credentials_internal_endpoint(self):
@@ -319,7 +319,7 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             for resp in responses:
                 m.get(resp.get("url"), status_code=resp.get("status"), json=resp.get("json"))
-            response = client._get_aws_credentials()
+            response = client._get_aws_credentials(COST_MGMT_APP_TYPE_ID)
             self.assertEqual(response.get("role_arn"), self.authentication)
 
     def test_get_aws_credentials_errors(self):
@@ -337,7 +337,7 @@ class SourcesHTTPClientTest(TestCase):
                         json={"data": test},
                     )
                     with self.assertRaises(SourcesHTTPClientError):
-                        client._get_aws_credentials()
+                        client._get_aws_credentials(COST_MGMT_APP_TYPE_ID)
 
             resource_id = 2
             m.get(
@@ -354,7 +354,7 @@ class SourcesHTTPClientTest(TestCase):
                 json={"authtype": "arn"},
             )
             with self.assertRaises(SourcesHTTPClientError):
-                client._get_aws_credentials()
+                client._get_aws_credentials(COST_MGMT_APP_TYPE_ID)
 
     def test_get_gcp_credentials_username(self):
         """Test to get project id from authentication service from username."""
@@ -367,7 +367,7 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=200,
                 json={"data": [{"id": resource_id, "username": self.authentication}]},
             )
-            creds = client._get_gcp_credentials()
+            creds = client._get_gcp_credentials(COST_MGMT_APP_TYPE_ID)
             self.assertEqual(creds.get("project_id"), self.authentication)
 
     def test_get_gcp_credentials_errors(self):
@@ -385,7 +385,7 @@ class SourcesHTTPClientTest(TestCase):
                         json={"data": test},
                     )
                     with self.assertRaises(SourcesHTTPClientError):
-                        client._get_gcp_credentials()
+                        client._get_gcp_credentials(COST_MGMT_APP_TYPE_ID)
 
     def test_get_azure_credentials(self):
         """Test to get Azure credentials from authentication service."""
@@ -431,7 +431,7 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=200,
                 json={"password": authentication},
             )
-            response = client._get_azure_credentials()
+            response = client._get_azure_credentials(COST_MGMT_APP_TYPE_ID)
             self.assertDictEqual(
                 response,
                 {
@@ -540,10 +540,10 @@ class SourcesHTTPClientTest(TestCase):
                         json=internal.get("json"),
                     )
                     if all([app.get("valid"), auth.get("valid"), internal.get("valid")]):
-                        self.assertIsNotNone(client._get_azure_credentials())
+                        self.assertIsNotNone(client._get_azure_credentials(COST_MGMT_APP_TYPE_ID))
                     else:
                         with self.assertRaises(SourcesHTTPClientError):
-                            client._get_azure_credentials()
+                            client._get_azure_credentials(COST_MGMT_APP_TYPE_ID)
 
     def test_build_status_header(self):
         """Test build status header success and failure."""
