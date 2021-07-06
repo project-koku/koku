@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: worker-celery
+    name: clowder-worker-celery
     minReplicas: ${{WORKER_CELERY_MIN_REPLICAS}}
     webServices:
       public:
@@ -34,11 +34,7 @@
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -131,9 +127,18 @@
       volumeMounts:
       - mountPath: /var/tmp/masu/
         name: koku-worker-data
+      - name: gcp-credentials
+        mountPath: /etc/gcp
+        readOnly: true
       volumes:
       - name: koku-worker-data
         emptyDir: {}
+      - name: gcp-credentials
+        secret:
+          secretName: koku-gcp
+          items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
 
 - op: add
   path: /parameters/-
@@ -148,7 +153,7 @@
     displayName: Memory Request
     name: WORKER_CELERY_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 128Mi
 - op: add
   path: /parameters/-
   value:

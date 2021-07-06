@@ -18,6 +18,13 @@ PRESTO_LINE_ITEM_TABLE_MAP = {
     "namespace_labels": "openshift_namespace_labels_line_items",
 }
 
+PRESTO_LINE_ITEM_TABLE_DAILY_MAP = {
+    "pod_usage": "openshift_pod_usage_line_items_daily",
+    "storage_usage": "openshift_storage_usage_line_items_daily",
+    "node_labels": "openshift_node_labels_line_items_daily",
+    "namespace_labels": "openshift_namespace_labels_line_items_daily",
+}
+
 VIEWS = (
     "reporting_ocp_cost_summary",
     "reporting_ocp_cost_summary_by_node",
@@ -540,6 +547,62 @@ class OCPEnabledTagKeys(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     key = models.CharField(max_length=253, unique=True)
+
+
+class OCPCluster(models.Model):
+    """All clusters for a tenant."""
+
+    class Meta:
+        """Meta for OCPCluster."""
+
+        db_table = "reporting_ocp_clusters"
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    cluster_id = models.TextField()
+    cluster_alias = models.TextField(null=True)
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
+
+
+class OCPNode(models.Model):
+    """All nodes for a cluster."""
+
+    class Meta:
+        """Meta for OCPNode."""
+
+        db_table = "reporting_ocp_nodes"
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    node = models.TextField()
+    resource_id = models.TextField(null=True)
+    node_capacity_cpu_cores = models.DecimalField(max_digits=18, decimal_places=2, null=True)
+    cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
+
+
+class OCPPVC(models.Model):
+    """All PVCs for a cluster."""
+
+    class Meta:
+        """Meta for OCPPVC."""
+
+        db_table = "reporting_ocp_pvcs"
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    persistent_volume_claim = models.TextField()
+    persistent_volume = models.TextField()
+    cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
+
+
+class OCPProject(models.Model):
+    """All Projects for a cluster."""
+
+    class Meta:
+        """Meta for OCPProject."""
+
+        db_table = "reporting_ocp_projects"
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    project = models.TextField()
+    cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
 
 
 class OCPCostSummary(models.Model):

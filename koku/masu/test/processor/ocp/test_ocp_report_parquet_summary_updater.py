@@ -59,6 +59,9 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.updater = OCPReportParquetSummaryUpdater(self.schema, self.provider, self.manifest)
 
     @patch(
+        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.populate_openshift_cluster_information_tables"  # noqa: E501
+    )
+    @patch(
         "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range"  # noqa: E501
     )
     @patch(
@@ -72,7 +75,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_report_parquet_summary_updater."
         "OCPReportDBAccessor.populate_line_item_daily_summary_table_presto"
     )
-    def test_update_summary_tables(self, mock_sum, mock_tag_sum, mock_vol_tag_sum, mock_delete):
+    def test_update_summary_tables(self, mock_sum, mock_tag_sum, mock_vol_tag_sum, mock_delete, mock_cluster_populate):
         """Test that summary tables are run for a full month when no report period is found."""
         start_date = self.dh.today
         end_date = start_date

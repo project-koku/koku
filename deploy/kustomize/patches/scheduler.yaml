@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: scheduler
+    name: clowder-scheduler
     minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
     webServices:
       public:
@@ -34,11 +34,7 @@
               name: koku-aws
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              key: gcp-credentials
-              name: koku-gcp
-              optional: false
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -128,6 +124,17 @@
         requests:
           cpu: ${SCHEDULER_CPU_REQUEST}
           memory: ${SCHEDULER_MEMORY_REQUEST}
+      volumeMounts:
+      - name: gcp-credentials
+        mountPath: /etc/gcp
+        readOnly: true
+      volumes:
+      - name: gcp-credentials
+        secret:
+          secretName: koku-gcp
+          items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
 
 - op: add
   path: /parameters/-
@@ -142,14 +149,14 @@
     displayName: Memory Request
     name: SCHEDULER_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 128Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: SCHEDULER_MEMORY_LIMIT
     required: true
-    value: 512Mi
+    value: 256Mi
 - op: add
   path: /parameters/-
   value:
