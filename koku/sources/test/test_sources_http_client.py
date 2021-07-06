@@ -216,7 +216,7 @@ class SourcesHTTPClientTest(TestCase):
                         status_code=200,
                         json={"data": [test.get("json")]},
                     )
-                    response = client.get_data_source(test.get("source-type"))
+                    response = client.get_data_source(test.get("source-type"), COST_MGMT_APP_TYPE_ID)
                     self.assertDictEqual(response, test.get("expected"))
 
     def test_get_data_source_errors(self):
@@ -234,7 +234,7 @@ class SourcesHTTPClientTest(TestCase):
                         json={"data": json},
                     )
                     with self.assertRaises(SourcesHTTPClientError):
-                        client.get_data_source(source_type)
+                        client.get_data_source(source_type, COST_MGMT_APP_TYPE_ID)
 
     def test_get_data_source_errors_invalid_extras(self):
         """Test to get application settings errors. Check last SourcesHTTPClientError in get_data_source"""
@@ -251,10 +251,10 @@ class SourcesHTTPClientTest(TestCase):
                         json={"data": json},
                     )
                     if source_type == Provider.PROVIDER_OCP:  # ocp should always return empty dict
-                        self.assertDictEqual(client.get_data_source(source_type), {})
+                        self.assertDictEqual(client.get_data_source(source_type, COST_MGMT_APP_TYPE_ID), {})
                     else:
                         with self.assertRaises(SourcesHTTPClientError):
-                            client.get_data_source(source_type)
+                            client.get_data_source(source_type, COST_MGMT_APP_TYPE_ID)
 
     # maybe insert get_credentials tests. maybe mock the specific get_creds call and assert they were called
 
