@@ -136,7 +136,7 @@ class KafkaMessageProcessor:
         sources_network = self.get_sources_client()
 
         try:
-            authentication = {"credentials": sources_network.get_credentials(source_type)}
+            authentication = {"credentials": sources_network.get_credentials(source_type, self.cost_mgmt_id)}
         except SourcesHTTPClientError as error:
             LOG.info(f"[save_credentials] authentication info not available for source_id: {self.source_id}")
             sources_network.set_source_status(error)

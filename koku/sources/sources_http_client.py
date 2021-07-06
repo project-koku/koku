@@ -157,22 +157,22 @@ class SourcesHTTPClient:
             )
         return {k: app_settings.get(k) for k in required_extras}
 
-    def get_credentials(self, source_type):
+    def get_credentials(self, source_type, app_type_id):
         """Get the source credentials."""
         if source_type not in self.credential_map.keys():
             msg = f"[get_credentials] unexpected source type: {source_type}"
             LOG.error(msg)
             raise SourcesHTTPClientError(msg)
-        return self.credential_map.get(source_type)()
+        return self.credential_map.get(source_type)(app_type_id)
 
-    def _get_ocp_credentials(self):
+    def _get_ocp_credentials(self, _):
         """Get the OCP cluster_id from the source."""
         source_details = self.get_source_details()
         if source_details.get("source_ref"):
             return {"cluster_id": source_details.get("source_ref")}
         raise SourcesHTTPClientError("Unable to find Cluster ID")
 
-    def _get_aws_credentials(self):
+    def _get_aws_credentials(self, _):
         """Get the roleARN from Sources Authentication service."""
         auth_type = AUTH_TYPES.get(Provider.PROVIDER_AWS)
         authentications_url = (
@@ -200,7 +200,7 @@ class SourcesHTTPClient:
 
         raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
 
-    def _get_gcp_credentials(self):
+    def _get_gcp_credentials(self, _):
         """Get the GCP credentials from Sources Authentication service."""
         auth_type = AUTH_TYPES.get(Provider.PROVIDER_GCP)
         authentications_url = (
@@ -216,10 +216,10 @@ class SourcesHTTPClient:
 
         raise SourcesHTTPClientError(f"Unable to get GCP credentials for Source: {self._source_id}")
 
-    def _get_azure_credentials(self):
+    def _get_azure_credentials(self, app_type_id):
         """Get the Azure Credentials from Sources Authentication service."""
         # get subscription_id from applications extra
-        url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}"
+        url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}&application_type_id={app_type_id}"
         app_response = self._get_network_response(url, "Unable to get Azure credentials")
         app_data = (app_response.get("data") or [None])[0]
         if not app_data:
