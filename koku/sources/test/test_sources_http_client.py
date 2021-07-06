@@ -20,6 +20,7 @@ from api.provider.models import Sources
 from sources.config import Config
 from sources.kafka_listener import storage_callback
 from sources.sources_http_client import APP_EXTRA_FIELD_MAP
+from sources.sources_http_client import AUTH_TYPES
 from sources.sources_http_client import ENDPOINT_APPLICATION_TYPES
 from sources.sources_http_client import ENDPOINT_APPLICATIONS
 from sources.sources_http_client import ENDPOINT_AUTHENTICATIONS
@@ -210,11 +211,12 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=test):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                        f"source_id={self.source_id}&application_type_id={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": [test.get("json")]},
                     )
-                    response = client.get_data_source(test.get("source-type"))
+                    response = client.get_data_source(test.get("source-type"), COST_MGMT_APP_TYPE_ID)
                     self.assertDictEqual(response, test.get("expected"))
 
     def test_get_data_source_errors(self):
@@ -226,12 +228,13 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=(source_type, json)):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                        f"source_id={self.source_id}&application_type_id={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": json},
                     )
                     with self.assertRaises(SourcesHTTPClientError):
-                        client.get_data_source(source_type)
+                        client.get_data_source(source_type, COST_MGMT_APP_TYPE_ID)
 
     def test_get_data_source_errors_invalid_extras(self):
         """Test to get application settings errors. Check last SourcesHTTPClientError in get_data_source"""
@@ -242,15 +245,16 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=(source_type, json)):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                        f"source_id={self.source_id}&application_type_id={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": json},
                     )
                     if source_type == Provider.PROVIDER_OCP:  # ocp should always return empty dict
-                        self.assertDictEqual(client.get_data_source(source_type), {})
+                        self.assertDictEqual(client.get_data_source(source_type, COST_MGMT_APP_TYPE_ID), {})
                     else:
                         with self.assertRaises(SourcesHTTPClientError):
-                            client.get_data_source(source_type)
+                            client.get_data_source(source_type, COST_MGMT_APP_TYPE_ID)
 
     # maybe insert get_credentials tests. maybe mock the specific get_creds call and assert they were called
 
@@ -262,7 +266,7 @@ class SourcesHTTPClientTest(TestCase):
             m.get(
                 f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_id}", status_code=200, json={"source_ref": uuid}
             )
-            creds = client._get_ocp_credentials()
+            creds = client._get_ocp_credentials(COST_MGMT_APP_TYPE_ID)
             self.assertEqual(creds.get("cluster_id"), uuid)
 
     def test__get_ocp_credentials_missing_cluster_id(self):
@@ -273,28 +277,33 @@ class SourcesHTTPClientTest(TestCase):
                 f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_id}", status_code=200, json={"source_ref": None}
             )
             with self.assertRaises(SourcesHTTPClientError):
-                client._get_ocp_credentials()
+                client._get_ocp_credentials(COST_MGMT_APP_TYPE_ID)
 
     def test_get_aws_credentials_username(self):
         """Test to get AWS Role ARN from authentication service from username."""
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_AWS)
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             resource_id = 2
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}&authtype={auth_type}",
                 status_code=200,
                 json={"data": [{"id": resource_id, "username": self.authentication}]},
             )
-            creds = client._get_aws_credentials()
+            creds = client._get_aws_credentials(COST_MGMT_APP_TYPE_ID)
             self.assertEqual(creds.get("role_arn"), self.authentication)
 
     def test_get_aws_credentials_internal_endpoint(self):
         """Test to get AWS Role ARN from authentication service from internal endpoint."""
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_AWS)
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         resource_id = 2
         responses = [
             {
-                "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                "url": (
+                    f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
+                    f"source_id={self.source_id}&authtype={auth_type}"
+                ),
                 "status": 200,
                 "json": {"data": [{"id": resource_id}]},
             },
@@ -310,27 +319,29 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             for resp in responses:
                 m.get(resp.get("url"), status_code=resp.get("status"), json=resp.get("json"))
-            response = client._get_aws_credentials()
+            response = client._get_aws_credentials(COST_MGMT_APP_TYPE_ID)
             self.assertEqual(response.get("role_arn"), self.authentication)
 
     def test_get_aws_credentials_errors(self):
         """Test to get AWS Role ARN exceptions."""
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_AWS)
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             json_data = [None, []]
             for test in json_data:
                 with self.subTest(test=test):
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
+                        f"source_id={self.source_id}&authtype={auth_type}",
                         status_code=200,
                         json={"data": test},
                     )
                     with self.assertRaises(SourcesHTTPClientError):
-                        client._get_aws_credentials()
+                        client._get_aws_credentials(COST_MGMT_APP_TYPE_ID)
 
             resource_id = 2
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}&authtype={auth_type}",
                 status_code=200,
                 json={"data": [{"id": resource_id}]},
             )
@@ -343,35 +354,38 @@ class SourcesHTTPClientTest(TestCase):
                 json={"authtype": "arn"},
             )
             with self.assertRaises(SourcesHTTPClientError):
-                client._get_aws_credentials()
+                client._get_aws_credentials(COST_MGMT_APP_TYPE_ID)
 
     def test_get_gcp_credentials_username(self):
         """Test to get project id from authentication service from username."""
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_GCP)
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             resource_id = 2
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}&authtype={auth_type}",
                 status_code=200,
                 json={"data": [{"id": resource_id, "username": self.authentication}]},
             )
-            creds = client._get_gcp_credentials()
+            creds = client._get_gcp_credentials(COST_MGMT_APP_TYPE_ID)
             self.assertEqual(creds.get("project_id"), self.authentication)
 
     def test_get_gcp_credentials_errors(self):
         """Test to get project id exceptions."""
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_GCP)
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             json_data = [None, [], [{"no-username": "empty"}]]
             for test in json_data:
                 with self.subTest(test=test):
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
+                        f"source_id={self.source_id}&authtype={auth_type}",
                         status_code=200,
                         json={"data": test},
                     )
                     with self.assertRaises(SourcesHTTPClientError):
-                        client._get_gcp_credentials()
+                        client._get_gcp_credentials(COST_MGMT_APP_TYPE_ID)
 
     def test_get_azure_credentials(self):
         """Test to get Azure credentials from authentication service."""
@@ -395,15 +409,17 @@ class SourcesHTTPClientTest(TestCase):
             "extra": {"azure": {"tenant_id": tenent_id}},
         }
 
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_AZURE)
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_id}",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                f"source_id={self.source_id}&application_type_id={COST_MGMT_APP_TYPE_ID}",
                 status_code=200,
                 json={"data": [applications_reponse]},
             )
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}&authtype={auth_type}",
                 status_code=200,
                 json={"data": [authentications_response]},
             )
@@ -415,7 +431,7 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=200,
                 json={"password": authentication},
             )
-            response = client._get_azure_credentials()
+            response = client._get_azure_credentials(COST_MGMT_APP_TYPE_ID)
             self.assertDictEqual(
                 response,
                 {
@@ -496,6 +512,7 @@ class SourcesHTTPClientTest(TestCase):
             {"valid": True, "json": {"password": authentication}},
         ]
 
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_AZURE)
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         for app, auth, internal in product(
             applications_reponse_table, authentications_response_table, internal_response_table
@@ -503,12 +520,14 @@ class SourcesHTTPClientTest(TestCase):
             with self.subTest(test=(app, auth, internal)):
                 with requests_mock.mock() as m:
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
+                        f"source_id={self.source_id}&application_type_id={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": [app.get("json")]},
                     )
                     m.get(
-                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}",
+                        f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
+                        f"source_id={self.source_id}&authtype={auth_type}",
                         status_code=200,
                         json={"data": [auth.get("json")]},
                     )
@@ -521,10 +540,10 @@ class SourcesHTTPClientTest(TestCase):
                         json=internal.get("json"),
                     )
                     if all([app.get("valid"), auth.get("valid"), internal.get("valid")]):
-                        self.assertIsNotNone(client._get_azure_credentials())
+                        self.assertIsNotNone(client._get_azure_credentials(COST_MGMT_APP_TYPE_ID))
                     else:
                         with self.assertRaises(SourcesHTTPClientError):
-                            client._get_azure_credentials()
+                            client._get_azure_credentials(COST_MGMT_APP_TYPE_ID)
 
     def test_build_status_header(self):
         """Test build status header success and failure."""
