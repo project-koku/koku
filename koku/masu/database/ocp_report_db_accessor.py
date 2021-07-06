@@ -1223,10 +1223,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         Return list of dictionaries: ex [{"node":"aws_compute2", "distributed_cost": 285.71}]
 
         """
-        # I plan to use this function for memory distribution as well
-        # if "cpu" in distribution:
         node_column = "node_capacity_cpu_core_hours"
         cluster_column = "cluster_capacity_cpu_core_hours"
+        if "memory" in distribution:
+            node_column = "node_capacity_memory_gigabyte_hours"
+            cluster_column = "cluster_capacity_memory_gigabyte_hours"
 
         with schema_context(self.schema):
             distributed_node_list = (
@@ -1237,9 +1238,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 .annotate(distributed_cost=Sum(node_column) / Sum(cluster_column) * cluster_cost)
             )
         # TIP: For debugging add these to the annotation
-        # node_hours=Sum("node_capacity_cpu_core_hours"),
-        # cluster_hours=Sum("cluster_capacity_cpu_core_hours"),
-        # node_to_cluster_ratio=Sum("node_capacity_cpu_core_hours")/Sum("cluster_capacity_cpu_core_hours")
+        # node_hours=Sum(node_column),
+        # cluster_hours=Sum(cluster_column),
+        # node_to_cluster_ratio=Sum(node_column)/Sum(cluster_column)
         return distributed_node_list
 
     def upsert_monthly_cluster_cost_line_item(

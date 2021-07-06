@@ -71,7 +71,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "supplementary_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                # + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "sup_distributed": Sum(
                                 Coalesce(
