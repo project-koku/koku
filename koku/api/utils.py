@@ -145,7 +145,10 @@ class DateHelper:
     def month_end(self, in_date):
         """Datetime of midnight on the last day of the in_date month."""
         month_end = self.days_in_month(in_date)
-        return in_date.replace(microsecond=0, second=0, minute=0, hour=0, day=month_end)
+        if isinstance(in_date, datetime.datetime):
+            return in_date.replace(microsecond=0, second=0, minute=0, hour=0, day=month_end)
+        elif isinstance(in_date, datetime.date):
+            return in_date.replace(day=month_end)
 
     def next_month(self, in_date):
         """Return the first of the next month from the in_date.

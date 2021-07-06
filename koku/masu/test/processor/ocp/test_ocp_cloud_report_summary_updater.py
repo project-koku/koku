@@ -43,8 +43,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
     @patch("masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.update_summary_infrastructure_cost")
-    def test_update_summary_tables_with_ocp_provider(self, mock_ocp, mock_ocp_on_aws, mock_map):
+    def test_update_summary_tables_with_ocp_provider(self, mock_ocp_on_aws, mock_map):
         """Test that summary tables are properly run for an OCP provider."""
         start_date = self.dh.today
         end_date = start_date + datetime.timedelta(days=1)
@@ -72,9 +71,8 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
     @patch("masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.update_summary_infrastructure_cost")
     @patch("masu.processor.ocp.ocp_cloud_summary_updater.aws_get_bills_from_provider")
-    def test_update_summary_tables_with_aws_provider(self, mock_utility, mock_ocp, mock_ocp_on_aws, mock_map):
+    def test_update_summary_tables_with_aws_provider(self, mock_utility, mock_ocp_on_aws, mock_map):
         """Test that summary tables are properly run for an OCP provider."""
         fake_bills = [Mock(), Mock()]
         fake_bills[0].id = 1
@@ -98,8 +96,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         )
 
     @patch("masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.update_summary_infrastructure_cost")
-    def test_update_summary_tables_no_ocp_on_aws(self, mock_ocp, mock_ocp_on_aws):
+    def test_update_summary_tables_no_ocp_on_aws(self, mock_ocp_on_aws):
         """Test that summary tables do not run when OCP-on-AWS does not exist."""
         new_aws_provider = baker.make("Provider", type="AWS")
         new_ocp_provider = baker.make("Provider", type="OCP")

@@ -1088,3 +1088,36 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             self.assertEqual(table_query.count(), 0)
+
+    def test_get_openshift_on_cloud_matched_tags(self):
+        """Test that matched tags are returned."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+
+        with schema_context(self.schema_name):
+            bills = self.accessor.bills_for_provider_uuid(self.aws_provider_uuid, start_date)
+            bill_id = bills.first().id
+
+        with OCPReportDBAccessor(self.schema_name) as accessor:
+            with schema_context(self.schema_name):
+                report_period = accessor.report_periods_for_provider_uuid(
+                    self.ocp_on_aws_ocp_provider.uuid, start_date
+                )
+                report_period_id = report_period.id
+
+        matched_tags = self.accessor.get_openshift_on_cloud_matched_tags(bill_id, report_period_id)
+
+        self.assertGreater(len(matched_tags), 0)
+        self.assertIsInstance(matched_tags[0], dict)
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
+        """Test that Trino is used to find matched tags."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        self.accessor.get_openshift_on_cloud_matched_tags_trino(
+            self.aws_provider_uuid, self.ocp_on_aws_ocp_provider.uuid, start_date, end_date
+        )
+        mock_presto.assert_called()

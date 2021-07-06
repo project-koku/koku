@@ -100,7 +100,7 @@ def connect(**connect_args):
             connect_args.get("catalog")
             or os.environ.get("TRINO_DEFAULT_CATALOG")
             or os.environ.get("PRESTO_DEFAULT_CATALOG")
-            or "postgres"
+            or "hive"
         ),
         "isolation_level": (
             connect_args.get("isolation_level")
