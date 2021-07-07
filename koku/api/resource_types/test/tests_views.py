@@ -138,10 +138,54 @@ class ResourceTypesViewTest(IamTestCase):
         self.assertIsInstance(json_result.get("data"), list)
         self.assertEqual(json_result.get("data"), [])
 
+    @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
+    def test_azure_service__view(self):
+        """Test that getting a forecast with limited access returns valid result."""
+        url = reverse("azure-services")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(json_result.get("data"), [])
+
+    @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
+    def test_azure_regions__view(self):
+        """Test that getting a forecast with limited access returns valid result."""
+        url = reverse("azure-regions")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(json_result.get("data"), [])
+
     @RbacPermissions({"gcp.account": {"read": ["*"]}})
     def test_gcp_account_view(self):
         """Test that getting a forecast with limited access returns valid result."""
         url = reverse("gcp-accounts")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(json_result.get("data"), [])
+
+    @RbacPermissions({"gcp.account": {"read": ["*"]}})
+    def test_gcp_regions_view(self):
+        """Test that getting a forecast with limited access returns valid result."""
+        url = reverse("gcp-regions")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(json_result.get("data"), [])
+
+    @RbacPermissions({"gcp.account": {"read": ["*"]}})
+    def test_gcp_services_view(self):
+        """Test that getting a forecast with limited access returns valid result."""
+        url = reverse("gcp-services")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
@@ -210,3 +254,10 @@ class ResourceTypesViewTest(IamTestCase):
         self.assertIsNotNone(json_result.get("data"))
         self.assertIsInstance(json_result.get("data"), list)
         self.assertEqual(json_result.get("data"), [])
+
+    @RbacPermissions({"aws.account": {"read": []}})
+    def test_rbacpermissions_aws_account_data_fail(self):
+        """Test that OpenShift endpoints accept valid OpenShift permissions."""
+        url = reverse("aws-accounts")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

@@ -37,7 +37,7 @@ class AzureServiceView(generics.ListAPIView):
         user_access = []
         if request.user.admin:
             return super().list(request)
-        if request.user.access:
+        elif request.user.access:
             user_access = request.user.access.get("azure.subscription_guid", {}).get("read", [])
         self.queryset = self.queryset.values("value").filter(subscription_guid__in=user_access)
         return super().list(request)
