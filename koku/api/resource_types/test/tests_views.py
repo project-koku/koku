@@ -89,6 +89,10 @@ class ResourceTypesViewTest(IamTestCase):
         url = reverse("aws-accounts")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(json_result.get("data"), [])
 
     @RbacPermissions({"aws.organizational_unit": {"read": ["*"]}})
     def test_aws_organizational_unit_view(self):
@@ -96,6 +100,10 @@ class ResourceTypesViewTest(IamTestCase):
         url = reverse("aws-organizational-units")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(json_result.get("data"), [])
 
     @RbacPermissions({"aws.account": {"read": ["*"]}})
     def test_aws_service_view(self):
@@ -103,6 +111,10 @@ class ResourceTypesViewTest(IamTestCase):
         url = reverse("aws-services")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(json_result.get("data"), [])
 
     @RbacPermissions({"aws.account": {"read": ["*"]}})
     def test_aws_region_view(self):
@@ -110,6 +122,10 @@ class ResourceTypesViewTest(IamTestCase):
         url = reverse("aws-regions")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(json_result.get("data"), [])
 
     @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
     def test_azure_subscription_guid__view(self):
@@ -117,6 +133,10 @@ class ResourceTypesViewTest(IamTestCase):
         url = reverse("azure-subscription-guids")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(json_result.get("data"), [])
 
     @RbacPermissions({"gcp.account": {"read": ["*"]}})
     def test_gcp_account_view(self):
@@ -124,6 +144,10 @@ class ResourceTypesViewTest(IamTestCase):
         url = reverse("gcp-accounts")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(json_result.get("data"), [])
 
     @RbacPermissions({"gcp.project": {"read": ["*"]}})
     def test_gcp_project_view(self):
@@ -131,6 +155,10 @@ class ResourceTypesViewTest(IamTestCase):
         url = reverse("gcp-projects")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(json_result.get("data"), [])
 
     @RbacPermissions({"openshift.cluster": {"read": ["*"]}})
     def test_openshift_cluster_view(self):
@@ -138,6 +166,10 @@ class ResourceTypesViewTest(IamTestCase):
         url = reverse("openshift-clusters")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(json_result.get("data"), [])
 
     @RbacPermissions({"openshift.node": {"read": ["*"]}})
     def test_openshift_node_view(self):
@@ -145,6 +177,10 @@ class ResourceTypesViewTest(IamTestCase):
         url = reverse("openshift-nodes")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(json_result.get("data"), [])
 
     @RbacPermissions({"openshift.project": {"read": ["*"]}})
     def test_openshift_project_view(self):
