@@ -32,11 +32,10 @@ class AWSAccountRegionView(generics.ListAPIView):
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
+        user_access = []
         if request.user.admin:
             return super().list(request)
         elif request.user.access:
             user_access = request.user.access.get("aws.account", {}).get("read", [])
-        else:
-            user_access = []
         self.queryset = self.queryset.values("value").filter(usage_account_id__in=user_access)
         return super().list(request)

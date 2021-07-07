@@ -33,11 +33,10 @@ class AWSOrganizationalUnitView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for org unit id and displays values related to what the user has access to
+        user_access = []
         if request.user.admin:
             return super().list(request)
         elif request.user.access:
             user_access = request.user.access.get("aws.organizational_unit", {}).get("read", [])
-        else:
-            user_access = []
         self.queryset = self.queryset.values("value").filter(org_unit_id__in=user_access)
         return super().list(request)
