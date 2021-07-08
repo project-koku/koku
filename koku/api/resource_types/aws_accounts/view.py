@@ -4,7 +4,6 @@
 #
 """View for AWS accounts."""
 from django.db.models import F
-from django.db.models.functions import Coalesce
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import filters
@@ -36,7 +35,6 @@ class AWSAccountView(generics.ListAPIView):
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
-        self.queryset.annotate(account_alias=Coalesce(F("alias"), "usage_account_id"))
         openshift = self.request.query_params.get("openshift")
         if openshift:
             self.queryset = (
