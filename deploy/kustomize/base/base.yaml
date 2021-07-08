@@ -190,15 +190,6 @@ parameters:
   name: ENABLE_TRINO_SOURCE_TYPE
   value: ""
 
-- description: Enable API Sentry
-  displayName: Enable API Sentry
-  name: ENABLE_API_SENTRY
-  value: "false"
-- description: Enable Celery Sentry
-  displayName: Enable Celery Sentry
-  name: ENABLE_CELERY_SENTRY
-  value: "false"
-
 - description: Scheduler check interval
   displayName: Scheduler check interval
   name: SCHEDULE_CHECK_INTERVAL
