@@ -1272,8 +1272,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 for node_dikt in distribution_list:
                     node = node_dikt.get("node")
                     distributed_cost = node_dikt.get("distributed_cost")
-                    line_item = OCPUsageLineItemDailySummary(
-                        uuid=uuid.uuid4(),
+                    line_item = OCPUsageLineItemDailySummary.objects.filter(
                         usage_start=start_date,
                         usage_end=start_date,
                         report_period=report_period,
@@ -1281,8 +1280,18 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         cluster_alias=cluster_alias,
                         monthly_cost_type="Cluster",
                         node=node,
-                        data_source="Pod",
-                    )
+                    ).first()
+                    if not line_item:
+                        line_item = OCPUsageLineItemDailySummary(
+                            uuid=uuid.uuid4(),
+                            usage_start=start_date,
+                            usage_end=start_date,
+                            report_period=report_period,
+                            cluster_id=cluster_id,
+                            cluster_alias=cluster_alias,
+                            monthly_cost_type="Cluster",
+                            node=node,
+                        )
                     monthly_cost = self.generate_monthly_cost_json_object(distribution, distributed_cost)
                     log_statement = (
                         f"Distributing Cluster Cost to Nodes:\n"
@@ -1294,6 +1303,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         line_item.infrastructure_monthly_cost = monthly_cost
                     elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                         line_item.supplementary_monthly_cost = monthly_cost
+                    line_item.data_source = "Pod"
                     LOG.info(log_statement)
                     line_item.save()
 
