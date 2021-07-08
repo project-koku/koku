@@ -232,6 +232,10 @@ class ResourceTypesViewTest(IamTestCase):
         url = reverse("openshift-projects")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(json_result.get("data"), [])
 
     @RbacPermissions({"aws.organizational_unit": {"read": ["OU_001"]}})
     def test_rbacpermissions_aws_org_unit_data(self):
@@ -254,10 +258,3 @@ class ResourceTypesViewTest(IamTestCase):
         self.assertIsNotNone(json_result.get("data"))
         self.assertIsInstance(json_result.get("data"), list)
         self.assertEqual(json_result.get("data"), [])
-
-    @RbacPermissions({"aws.account": {"read": []}})
-    def test_rbacpermissions_aws_account_data_fail(self):
-        """Test that OpenShift endpoints accept valid OpenShift permissions."""
-        url = reverse("aws-accounts")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
