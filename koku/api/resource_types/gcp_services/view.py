@@ -36,7 +36,7 @@ class GCPServiceView(generics.ListAPIView):
         user_access = []
         if request.user.admin:
             return super().list(request)
-        if request.user.access:
+        elif request.user.access:
             user_access = request.user.access.get("gcp.account", {}).get("read", [])
         self.queryset = self.queryset.values("value").filter(account_id__in=user_access)
         return super().list(request)
