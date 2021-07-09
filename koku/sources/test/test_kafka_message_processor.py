@@ -311,7 +311,7 @@ class KafkaMessageProcessorTest(IamTestCase):
     def test_save_billing_source(self):
         """Test save billing source calls add_provider_sources_billing_info."""
 
-        def side_effect_func(arg):
+        def side_effect_func(arg, _):
             """Helper func to mock client.get_data_source call."""
             values = {  # add new sources here
                 Provider.PROVIDER_AWS: self.valid_billing.get(Provider.PROVIDER_AWS),
