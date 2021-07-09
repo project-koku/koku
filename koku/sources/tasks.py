@@ -12,9 +12,10 @@ from koku import celery_app
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from sources.api.source_status import SourceStatus
-from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.storage import load_providers_to_delete
 from sources.storage import mark_provider_as_inactive
+
+# from sources.sources_provider_coordinator import SourcesProviderCoordinator
 
 
 LOG = logging.getLogger(__name__)
