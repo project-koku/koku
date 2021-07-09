@@ -4,6 +4,7 @@
 #
 """View for AWS accounts."""
 from django.db.models import F
+from django.db.models.functions import Coalesce
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import filters
@@ -20,7 +21,12 @@ class AWSAccountView(generics.ListAPIView):
 
     queryset = (
         AWSCostSummaryByAccount.objects.annotate(
-            **{"value": F("usage_account_id"), "alias": F("account_alias__account_alias")}
+            **(
+                {
+                    "value": F("usage_account_id"),
+                    "alias": Coalesce(F("account_alias__account_alias"), "usage_account_id"),
+                }
+            )
         )
         .values("value", "alias")
         .distinct()
