@@ -195,6 +195,12 @@ def execute_update_sql(query, **updatespec):
     return execute_compiled_sql(sql, params=params)
 
 
+def set_constraints_immediate():
+    with transaction.get_connection().cursor() as cur:
+        LOG.debug("Setting constaints to execute immediately")
+        cur.execute("set constraints all immediate;")
+
+
 def cascade_delete(base_model, from_model, instance_pk_query, level=0):
     instance_pk_query = instance_pk_query.values_list("pk").order_by()
     LOG.info(f"Level {level} Delete Cascade for {base_model.__name__}: Checking relations for {from_model.__name__}")
@@ -207,8 +213,10 @@ def cascade_delete(base_model, from_model, instance_pk_query, level=0):
                 f"    Executing SET NULL constraint action on {related_model.__name__}"
                 f" relation of {from_model.__name__}"
             )
-            rec_count = execute_update_sql(related_model.objects.filter(**filterspec), **updatespec)
-            LOG.info(f"    Updated {rec_count} records in {related_model.__name__}")
+            with transaction.atomic():
+                set_constraints_immediate()
+                rec_count = execute_update_sql(related_model.objects.filter(**filterspec), **updatespec)
+                LOG.info(f"    Updated {rec_count} records in {related_model.__name__}")
         elif model_relation.on_delete.__name__ == "CASCADE":
             filterspec = {f"{model_relation.remote_field.column}__in": models.Subquery(instance_pk_query)}
             related_pk_values = related_model.objects.filter(**filterspec).values_list(related_model._meta.pk.name)
@@ -217,5 +225,7 @@ def cascade_delete(base_model, from_model, instance_pk_query, level=0):
 
     filterspec = {f"{from_model._meta.pk.name}__in": models.Subquery(instance_pk_query)}
     LOG.info(f"Level {level}: delete records from {from_model.__name__}")
-    rec_count = execute_delete_sql(from_model.objects.filter(**filterspec))
-    LOG.info(f"Deleted {rec_count} records from {from_model.__name__}")
+    with transaction.atomic():
+        set_constraints_immediate()
+        rec_count = execute_delete_sql(from_model.objects.filter(**filterspec))
+        LOG.info(f"Deleted {rec_count} records from {from_model.__name__}")
