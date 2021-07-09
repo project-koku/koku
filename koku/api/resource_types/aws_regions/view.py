@@ -32,6 +32,7 @@ class AWSAccountRegionView(generics.ListAPIView):
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
+        # Reads the users values for aws.accounts and displays values related to what the user has access to
         user_access = []
         if request.user.admin:
             return super().list(request)
