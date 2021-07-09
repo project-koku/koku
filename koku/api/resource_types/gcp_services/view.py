@@ -19,7 +19,7 @@ class GCPServiceView(generics.ListAPIView):
     """API GET list view for GCP Services by ID."""
 
     queryset = (
-        GCPCostSummaryByService.objects.annotate(**{"value": F("service_id")})
+        GCPCostSummaryByService.objects.annotate(**{"value": F("service_alias")})
         .values("value")
         .distinct()
         .filter(service_id__isnull=False)
