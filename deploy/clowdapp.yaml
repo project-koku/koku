@@ -757,7 +757,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: false
+          enabled: true
     - minReplicas: ${{WORKER_CELERY_MIN_REPLICAS}}
       name: clowder-worker-celery
       podSpec:

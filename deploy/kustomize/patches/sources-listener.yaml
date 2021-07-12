@@ -5,7 +5,7 @@
     minReplicas: ${{SOURCES_LISTENER_MIN_REPLICAS}}
     webServices:
       public:
-        enabled: false
+        enabled: true
       private:
         enabled: false
       metrics:
