@@ -4,6 +4,7 @@
 #
 """View for Openshift clusters."""
 from django.db.models import F
+from django.db.models.functions.comparison import Coalesce
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import filters
@@ -18,12 +19,18 @@ from reporting.provider.ocp.models import OCPCostSummary
 class OCPClustersView(generics.ListAPIView):
     """API GET list view for Openshift clusters."""
 
-    queryset = OCPCostSummary.objects.annotate(**{"value": F("cluster_id")}).values("value").distinct()
+    queryset = (
+        OCPCostSummary.objects.annotate(
+            **{"value": F("cluster_id"), "ocp_cluster_alias": Coalesce(F("cluster_alias"), "cluster_id")}
+        )
+        .values("value", "ocp_cluster_alias")
+        .distinct()
+    )
     serializer_class = ResourceTypeSerializer
     permission_classes = [OpenShiftAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
-    ordering = ["value"]
-    search_fields = ["$value"]
+    ordering = ["value", "ocp_cluster_alias"]
+    search_fields = ["$value", "$ocp_cluster_alias"]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
