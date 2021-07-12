@@ -43,15 +43,15 @@ class AWSAccountView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         openshift = self.request.query_params.get("openshift")
-        if openshift:
+        if openshift == "True":
             self.queryset = (
                 OCPAWSCostSummaryByAccount.objects.annotate(
-                    **{"value": F("usage_account_id"), "alias": F("account_alias__account_alias")}
+                    **{
+                        "value": F("usage_account_id"),
+                        "alias": Coalesce(F("account_alias__account_alias"), "usage_account_id"),
+                    }
                 )
                 .values("value", "alias")
                 .distinct()
             )
         return super().list(request)
-
-
-# filter(usage_account_id__in=user_access)
