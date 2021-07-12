@@ -20,7 +20,7 @@ class GcpAccessPermission(permissions.BasePermission):
         if resource_access is None or not isinstance(resource_access, dict):
             return False
 
-        res_type_access = resource_access.get(GcpAccessPermission.resource_type, {})
+        res_type_access = resource_access.get(self.resource_type, {})
         if request.method in permissions.SAFE_METHODS:
             # Check permissions for read-only request
             read_access = res_type_access.get("read", [])
@@ -29,7 +29,7 @@ class GcpAccessPermission(permissions.BasePermission):
         return False
 
 
-class GcpProjectPermission(permissions.BasePermission):
+class GcpProjectPermission(GcpAccessPermission):
     """Determines if a user can view GCP data."""
 
     resource_type = "gcp.project"

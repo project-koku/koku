@@ -20,7 +20,7 @@ class OpenShiftAccessPermission(permissions.BasePermission):
         if resource_access is None or not isinstance(resource_access, dict):
             return False
 
-        res_type_access = resource_access.get(OpenShiftAccessPermission.resource_type, {})
+        res_type_access = resource_access.get(self.resource_type, {})
         if request.method in permissions.SAFE_METHODS:
             # Check permissions for read-only request
             read_access = res_type_access.get("read", [])
@@ -29,13 +29,13 @@ class OpenShiftAccessPermission(permissions.BasePermission):
         return False
 
 
-class OpenShiftProjectPermission(permissions.BasePermission):
+class OpenShiftProjectPermission(OpenShiftAccessPermission):
     """Determines if a user can view OpenShift data."""
 
     resource_type = "openshift.project"
 
 
-class OpenShiftNodePermission(permissions.BasePermission):
+class OpenShiftNodePermission(OpenShiftAccessPermission):
     """Determines if a user can view OpenShift data."""
 
     resource_type = "openshift.node"
