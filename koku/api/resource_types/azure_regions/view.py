@@ -2,7 +2,7 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""View for GCP accounts."""
+"""View for Azure Region locations."""
 from django.db.models import F
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
@@ -12,13 +12,18 @@ from rest_framework import generics
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.gcp.models import GCPCostSummaryByAccount
+from reporting.provider.azure.models import AzureCostSummaryByLocation
 
 
-class GCPAccountView(generics.ListAPIView):
-    """API GET list view for GCP accounts."""
+class AzureRegionView(generics.ListAPIView):
+    """API GET list view for Azure Region locations."""
 
-    queryset = GCPCostSummaryByAccount.objects.annotate(**{"value": F("account_id")}).values("value").distinct()
+    queryset = (
+        AzureCostSummaryByLocation.objects.annotate(**{"value": F("resource_location")})
+        .values("value")
+        .distinct()
+        .filter(resource_location__isnull=False)
+    )
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]

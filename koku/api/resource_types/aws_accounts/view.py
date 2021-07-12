@@ -4,6 +4,7 @@
 #
 """View for AWS accounts."""
 from django.db.models import F
+from django.db.models.functions import Coalesce
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import filters
@@ -18,12 +19,23 @@ from reporting.provider.aws.models import AWSCostSummaryByAccount
 class AWSAccountView(generics.ListAPIView):
     """API GET list view for AWS accounts."""
 
-    queryset = AWSCostSummaryByAccount.objects.annotate(**{"value": F("usage_account_id")}).values("value").distinct()
+    queryset = (
+        AWSCostSummaryByAccount.objects.annotate(
+            **(
+                {
+                    "value": F("usage_account_id"),
+                    "alias": Coalesce(F("account_alias__account_alias"), "usage_account_id"),
+                }
+            )
+        )
+        .values("value", "alias")
+        .distinct()
+    )
     serializer_class = ResourceTypeSerializer
     permission_classes = [ResourceTypeAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
-    ordering = ["value"]
-    search_fields = ["$value"]
+    ordering = ["value", "alias"]
+    search_fields = ["$value", "$alias"]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
