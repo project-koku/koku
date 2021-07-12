@@ -62,7 +62,7 @@ class SourcesTasksTest(TestCase):
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     def test_execute_source_destroy_beat(self):
         """Test to execute the beat source delete."""
-        # source_id_aws = self.aws_source.get("source_id")
+        source_id_aws = self.aws_source.get("source_id")
         source_id_local = self.aws_local_source.get("source_id")
         for s in (self.aws_source, self.aws_local_source):
             provider = Sources(**s)
@@ -70,7 +70,7 @@ class SourcesTasksTest(TestCase):
 
         delete_source_beat()
 
-        # self.assertEqual(Sources.objects.filter(source_id=source_id_aws).exists(), False)
+        self.assertEqual(Sources.objects.filter(source_id=source_id_aws).exists(), False)
         self.assertEqual(Sources.objects.filter(source_id=source_id_local).exists(), True)
 
     def test_execute_source_destroy_double_delete(self):
@@ -88,7 +88,7 @@ class SourcesTasksTest(TestCase):
         except Exception as error:
             self.fail(f"test_execute_koku_provider_op_destroy test failure: {error}")
 
-        # self.assertEqual(Sources.objects.filter(source_id=source_id_aws).exists(), False)
+        self.assertEqual(Sources.objects.filter(source_id=source_id_aws).exists(), False)
         self.assertEqual(Sources.objects.filter(source_id=source_id_local).exists(), True)
 
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
