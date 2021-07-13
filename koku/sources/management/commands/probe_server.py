@@ -28,7 +28,10 @@ class ProbeServer(BaseHTTPRequestHandler):
     def _write_response(self, response):
         """Write the response to the client."""
         self._set_headers(response.status_code)
-        self.wfile.write(response.json.encode("utf-8"))
+        try:
+            self.wfile.write(response.json.encode("utf-8"))
+        except BrokenPipeError:
+            pass
 
     def do_GET(self):
         """Handle GET requests."""
@@ -53,10 +56,14 @@ class ProbeServer(BaseHTTPRequestHandler):
         msg = "not ready"
         if self.ready:
             if not check_kafka_connection():
-                self._write_response(Response(status, "kafka not ready"))
+                response = Response(status, "kafka connection error")
+                self._write_response(response)
+                LOG.info(response.json)
                 return
             if not check_sources_connection():
-                self._write_response(Response(status, "sources not ready"))
+                response = Response(status, "sources-api not ready")
+                self._write_response(response)
+                LOG.info(response.json)
                 return
             status = 200
             msg = "ok"
