@@ -472,6 +472,8 @@ objects:
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: SCHEDULE_REPORT_CHECKS
           value: ${SCHEDULE_REPORT_CHECKS}
+        - name: SOURCE_STATUS_FREQUENCY_MINUTES
+          value: ${SOURCE_STATUS_FREQUENCY_MINUTES}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
           value: ${REMOVE_EXPIRED_REPORT_DATA_ON_DAY}
         - name: REMOVE_EXPIRED_REPORT_UTC_TIME
@@ -2071,6 +2073,9 @@ parameters:
 - displayName: Scheduler report checks
   name: SCHEDULE_REPORT_CHECKS
   value: "True"
+- displayName: Frequency to check sources availability (minutes)
+  name: SOURCE_STATUS_FREQUENCY_MINUTES
+  value: "60"
 - displayName: Minimum replicas
   name: SOURCES_CLIENT_MIN_REPLICAS
   required: true
