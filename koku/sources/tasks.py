@@ -12,10 +12,9 @@ from koku import celery_app
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from sources.api.source_status import SourceStatus
+from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.storage import load_providers_to_delete
 from sources.storage import mark_provider_as_inactive
-
-# from sources.sources_provider_coordinator import SourcesProviderCoordinator
 
 
 LOG = logging.getLogger(__name__)
@@ -26,10 +25,9 @@ def delete_source(source_id, auth_header, koku_uuid):
     """Delete Provider and Source."""
     LOG.info(f"Deactivating Provider {koku_uuid}")
     mark_provider_as_inactive(koku_uuid)
-    LOG.info(f"Provider delete required for uuid: {koku_uuid} Source ID: {source_id}")
-    # LOG.info(f"Deleting Provider {koku_uuid} for Source ID: {source_id}")
-    # coordinator = SourcesProviderCoordinator(source_id, auth_header)
-    # coordinator.destroy_account(koku_uuid)
+    LOG.info(f"Deleting Provider {koku_uuid} for Source ID: {source_id}")
+    coordinator = SourcesProviderCoordinator(source_id, auth_header)
+    coordinator.destroy_account(koku_uuid)
 
 
 @celery_app.task(name="sources.tasks.delete_source_beat", queue=REMOVE_EXPIRED_DATA_QUEUE)
