@@ -170,9 +170,10 @@ class Provider(models.Model):
             using = router.db_for_write(self.__class__, isinstance=self)
             with schema_context(self.customer.schema_name):
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
-                cascade_delete(self.__class__, self.__class__, self.__class__.objects.filter(pk=self.pk))
+                cascade_delete(self.__class__, self.__class__.objects.filter(pk=self.pk))
                 post_delete.send(sender=self.__class__, instance=self, using=using)
         else:
+            LOG.warning("Cannot customer link cannot be found! Using ORM delete!")
             super().delete()
 
 
