@@ -69,9 +69,9 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):
                 customer=Mock(account_id=identity_header.get("account_number", "10001")),
                 req_id="DEVELOPMENT",
             )
-
             request.user = user
             identity_header["identity"]["user"]["is_org_admin"] = is_admin
+            json_identity = json.dumps(identity_header)
             json_identity = json.dumps(identity_header)
             LOG.info("Identity: %s", json_identity)
             dev_header = b64encode(json_identity.encode("utf-8")).decode("utf-8")
