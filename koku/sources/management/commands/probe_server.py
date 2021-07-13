@@ -63,9 +63,8 @@ class ProbeServer(BaseHTTPRequestHandler):
         self._write_response(Response(status, msg))
 
     def log_message(self, format, *args):
-        msg, status, _ = args
-        log = {"timestamp": self.log_date_time_string(), "probe_server": {"request": msg, "status": status}}
-        LOG.info(json.dumps(log))
+        """Basic log message."""
+        LOG.info("%s", format % args)
 
 
 class Response:
