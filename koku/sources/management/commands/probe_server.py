@@ -32,10 +32,7 @@ class ProbeServer(ABC, BaseHTTPRequestHandler):
     def _write_response(self, response):
         """Write the response to the client."""
         self._set_headers(response.status_code)
-        try:
-            self.wfile.write(response.json.encode("utf-8"))
-        except BrokenPipeError:
-            pass
+        self.wfile.write(response.json.encode("utf-8"))
 
     def do_GET(self):
         """Handle GET requests."""
