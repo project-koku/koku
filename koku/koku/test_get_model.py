@@ -8,7 +8,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 
 
-class TestDeleteSQL(IamTestCase):
+class TestGetModel(IamTestCase):
     def test_loader(self):
         """Test that the loader function populates the module-level dict"""
         kdb.DB_MODELS.clear()
