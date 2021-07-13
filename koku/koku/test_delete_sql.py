@@ -247,14 +247,29 @@ class TestDeleteSQL(IamTestCase):
         # Create billing period stuff for each provider
         period_start = datetime(2020, 1, 1, tzinfo=UTC)
         period_end = datetime(2020, 2, 1, tzinfo=UTC)
-        awsceb = AWSCostEntryBill(
-            billing_resource="6846351687354184651",
-            billing_period_start=period_start,
-            billing_period_end=period_end,
-            provider=paws,
-        )
+        AWSCostEntry = kdb.get_model("AWSCostEntry")
+        AWSCostEntryLineItem = kdb.get_model("AWSCostEntryLineItem")
         with schema_context(c.schema_name):
+            awsceb = AWSCostEntryBill(
+                billing_resource="6846351687354184651",
+                billing_period_start=period_start,
+                billing_period_end=period_end,
+                provider=paws,
+            )
             awsceb.save()
+            awsce = AWSCostEntry(interval_start=period_start, interval_end=period_end, bill=awsceb)
+            awsce.save()
+            awsceli = AWSCostEntryLineItem(
+                line_item_type="test",
+                usage_account_id="test",
+                usage_start=period_start,
+                usage_end=period_start,
+                product_code="test",
+                currency_code="USD",
+                cost_entry=awsce,
+                cost_entry_bill=awsceb,
+            )
+            awsceli.save()
 
         expected = "INFO:koku.database:SKIPPING RELATION AWSCostEntryLineItem by directive"
         expected2 = "INFO:koku.database:SKIPPING RELATION GCPCostEntryLineItem by directive"
@@ -271,5 +286,7 @@ class TestDeleteSQL(IamTestCase):
 
         with schema_context(c.schema_name):
             self.assertEqual(AWSCostEntryBill.objects.filter(pk=awsceb.pk).count(), 0)
+            self.assertEqual(AWSCostEntry.objects.filter(pk=awsce.pk).count(), 0)
+            self.assertNotEqual(AWSCostEntryLineItem.objects.filter(pk=awsceli.pk).count(), 0)
 
         self.assertEqual(Provider.objects.filter(pk=paws.pk).count(), 0)
