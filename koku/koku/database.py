@@ -6,6 +6,7 @@
 import json
 import logging
 import os
+import threading
 
 import django
 from django.conf import settings
@@ -36,6 +37,7 @@ engines = {
 }
 
 
+DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
 
 
@@ -288,6 +290,7 @@ def _load_db_models():
 
 def get_model(model_or_table_name):
     """Get a model class from the model name or table name"""
-    if not DB_MODELS:
-        _load_db_models()
+    with DB_MODELS_LOCK:
+        if not DB_MODELS:
+            _load_db_models()
     return DB_MODELS[model_or_table_name.lower()]
