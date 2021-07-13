@@ -90,21 +90,21 @@
           path: /livez
           port: web
           scheme: HTTP
-        initialDelaySeconds: 30
-        periodSeconds: 20
+        initialDelaySeconds: 10
+        periodSeconds: 10
         successThreshold: 1
         failureThreshold: 5
-        timeoutSeconds: 10
+        timeoutSeconds: 5
       readinessProbe:
           httpGet:
             path: /readyz
             port: web
             scheme: HTTP
-          initialDelaySeconds: 30
-          periodSeconds: 20
+          initialDelaySeconds: 10
+          periodSeconds: 10
           successThreshold: 1
           failureThreshold: 5
-          timeoutSeconds: 10
+          timeoutSeconds: 5
       resources:
         requests:
           cpu: ${SOURCES_LISTENER_CPU_REQUEST}
