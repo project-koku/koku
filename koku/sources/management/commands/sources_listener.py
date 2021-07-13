@@ -13,7 +13,7 @@ from django.core.management.base import BaseCommand
 from koku.database import check_migrations
 from koku.env import ENVIRONMENT
 from sources.kafka_listener import initialize_sources_integration
-from sources.management.commands.probe_server import ProbeServer
+from sources.management.commands.probe_server import SourcesProbeServer
 
 
 LOG = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
 
 def start_probe_server():
     """Start the probe server."""
-    httpd = HTTPServer(("0.0.0.0", CLOWDER_PORT), ProbeServer)
+    httpd = HTTPServer(("0.0.0.0", CLOWDER_PORT), SourcesProbeServer)
 
     def start_server():
         """Start a simple webserver serving path on port"""
