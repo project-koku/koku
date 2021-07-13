@@ -5,19 +5,23 @@
 """HTTP server for liveness/readiness probes."""
 import json
 import logging
+from abc import ABC
+from abc import abstractmethod
 from http.server import BaseHTTPRequestHandler
 
 from sources.api.status import check_kafka_connection
 from sources.api.status import check_sources_connection
 
 
-LOG = logging.getLogger(__name__)
-
-
-class ProbeServer(BaseHTTPRequestHandler):
+class ProbeServer(ABC, BaseHTTPRequestHandler):
     """HTTP server for liveness/readiness probes."""
 
     ready = False
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the server."""
+        self.logger = logging.getLogger(__name__)
+        super().__init__(*args, **kwargs)
 
     def _set_headers(self, status):
         """Set the response headers."""
@@ -50,28 +54,14 @@ class ProbeServer(BaseHTTPRequestHandler):
         """Set the liveness check response."""
         self._write_response(Response(200, "ok"))
 
+    @abstractmethod
     def readiness_check(self):
         """Set the readiness check response."""
-        status = 424
-        msg = "not ready"
-        if self.ready:
-            if not check_kafka_connection():
-                response = Response(status, "kafka connection error")
-                self._write_response(response)
-                LOG.info(response.json)
-                return
-            if not check_sources_connection():
-                response = Response(status, "sources-api not ready")
-                self._write_response(response)
-                LOG.info(response.json)
-                return
-            status = 200
-            msg = "ok"
-        self._write_response(Response(status, msg))
+        pass
 
     def log_message(self, format, *args):
         """Basic log message."""
-        LOG.info("%s", format % args)
+        self.logger.info("%s", format % args)
 
 
 class Response:
@@ -81,3 +71,26 @@ class Response:
         """Initialize the response object."""
         self.status_code = status_code
         self.json = json.dumps({"status": status_code, "msg": msg})
+
+
+class SourcesProbeServer(ProbeServer):
+    """HTTP server for liveness/readiness probes."""
+
+    def readiness_check(self):
+        """Set the readiness check response."""
+        status = 424
+        msg = "not ready"
+        if self.ready:
+            if not check_kafka_connection():
+                response = Response(status, "kafka connection error")
+                self._write_response(response)
+                self.logger.info(response.json)
+                return
+            if not check_sources_connection():
+                response = Response(status, "sources-api not ready")
+                self._write_response(response)
+                self.logger.info(response.json)
+                return
+            status = 200
+            msg = "ok"
+        self._write_response(Response(status, msg))
