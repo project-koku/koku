@@ -5,12 +5,39 @@
 """HTTP server for liveness/readiness probes."""
 import json
 import logging
+import threading
 from abc import ABC
 from abc import abstractmethod
 from http.server import BaseHTTPRequestHandler
+from http.server import HTTPServer
 
-from sources.api.status import check_kafka_connection
-from sources.api.status import check_sources_connection
+from koku.env import ENVIRONMENT
+
+
+LOG = logging.getLogger(__name__)
+CLOWDER_PORT = 8080
+if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
+    from app_common_python import LoadedConfig
+
+    CLOWDER_PORT = LoadedConfig.publicPort
+
+
+def start_probe_server(server_cls):
+    """Start the probe server."""
+    httpd = HTTPServer(("0.0.0.0", CLOWDER_PORT), server_cls)
+
+    def start_server():
+        """Start a simple webserver serving path on port"""
+        httpd.RequestHandlerClass.ready = False
+        httpd.serve_forever()
+
+    LOG.info("starting liveness/readiness probe server")
+    daemon = threading.Thread(name="probe_server", target=start_server)
+    daemon.setDaemon(True)  # Set as a daemon so it will be killed once the main thread is dead.
+    daemon.start()
+    LOG.info("liveness/readiness probe server started")
+
+    return httpd
 
 
 class ProbeServer(ABC, BaseHTTPRequestHandler):
@@ -43,51 +70,28 @@ class ProbeServer(ABC, BaseHTTPRequestHandler):
         else:
             self.default_response()
 
+    def log_message(self, format, *args):
+        """Basic log message."""
+        self.logger.info("%s", format % args)
+
     def default_response(self):
         """Set the default response."""
-        self._write_response(Response(404, "not found"))
+        self._write_response(ProbeResponse(404, "not found"))
 
     def liveness_check(self):
         """Set the liveness check response."""
-        self._write_response(Response(200, "ok"))
+        self._write_response(ProbeResponse(200, "ok"))
 
     @abstractmethod
     def readiness_check(self):
         """Set the readiness check response."""
         pass
 
-    def log_message(self, format, *args):
-        """Basic log message."""
-        self.logger.info("%s", format % args)
 
-
-class Response:
-    """Response object for the probe server."""
+class ProbeResponse:
+    """ProbeResponse object for the probe server."""
 
     def __init__(self, status_code, msg):
         """Initialize the response object."""
         self.status_code = status_code
         self.json = json.dumps({"status": status_code, "msg": msg})
-
-
-class SourcesProbeServer(ProbeServer):
-    """HTTP server for liveness/readiness probes."""
-
-    def readiness_check(self):
-        """Set the readiness check response."""
-        status = 424
-        msg = "not ready"
-        if self.ready:
-            if not check_kafka_connection():
-                response = Response(status, "kafka connection error")
-                self._write_response(response)
-                self.logger.info(response.json)
-                return
-            if not check_sources_connection():
-                response = Response(status, "sources-api not ready")
-                self._write_response(response)
-                self.logger.info(response.json)
-                return
-            status = 200
-            msg = "ok"
-        self._write_response(Response(status, msg))
