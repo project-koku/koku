@@ -163,8 +163,12 @@ class Forecast:
         X = self._enumerate_dates(dates)
         Y = [float(c) for c in costs]
 
+        # difference in days between the first day to be predicted and the last day of data after outlier removal
+        day_gap = (
+            datetime.combine(self.dh.today.date(), self.dh.midnight) - datetime.combine(dates[-1], self.dh.midnight)
+        ).days
         # calculate x-values for the prediction range
-        pred_x = [i for i in range(X[-1] + 1, X[-1] + 1 + self.forecast_days_required)]
+        pred_x = [i for i in range(X[-1] + day_gap, X[-1] + day_gap + self.forecast_days_required)]
 
         # run the forecast
         results = self._run_forecast(X, Y, to_predict=pred_x)
