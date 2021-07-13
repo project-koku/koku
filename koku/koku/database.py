@@ -7,6 +7,7 @@ import json
 import logging
 import os
 
+import django
 from django.conf import settings
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
@@ -33,6 +34,9 @@ engines = {
     "postgresql": "tenant_schemas.postgresql_backend",
     "mysql": "django.db.backends.mysql",
 }
+
+
+DB_MODELS = {}
 
 
 def _cert_config(db_config, database_cert):
@@ -201,11 +205,39 @@ def set_constraints_immediate():
         cur.execute("set constraints all immediate;")
 
 
-def cascade_delete(base_model, from_model, instance_pk_query, level=0):
+def cascade_delete(from_model, instance_pk_query, skip_relations=[], base_model=None, level=0):
+    """
+    Performs a cascading delete by walking the Django model relations and executing compiled SQL
+    to perform the on_delete actions instead or running the collector.
+    Parameters:
+        from_model (models.Model) : A model class that is the relation root
+        instance_pk_query (QuerySet) : A query for the records to delete and cascade from
+        base_model (None; Model) : The root model class, If null, this will be set for you.
+        level (int) : Recursion depth. This is used in logging only. Do not set.
+        skip_relations (Iterable of Models) : Relations to skip over in case they are handled explicitly elsewhere
+    """
+    if base_model is None:
+        base_model = from_model
+
+    # Skip the low-level data.
+    skip_relations.extend(
+        (
+            get_model("reporting_awscostentrylineitem"),
+            get_model("reporting_gcpcostentrylineitem"),
+            get_model("reporting_ocpusagelineitem"),
+            get_model("reporting_ocpnodelabellineitem"),
+            get_model("reporting_ocpstoragelineitem"),
+        )
+    )
+
     instance_pk_query = instance_pk_query.values_list("pk").order_by()
     LOG.info(f"Level {level} Delete Cascade for {base_model.__name__}: Checking relations for {from_model.__name__}")
     for model_relation in from_model._meta.related_objects:
         related_model = model_relation.related_model
+        if related_model in skip_relations:
+            LOG.info(f"SKIPPING RELATION {related_model.__name__} by directive")
+            continue
+
         if model_relation.on_delete.__name__ == "SET_NULL":
             filterspec = {f"{model_relation.remote_field.column}__in": models.Subquery(instance_pk_query)}
             updatespec = {f"{model_relation.remote_field.column}": None}
@@ -221,11 +253,41 @@ def cascade_delete(base_model, from_model, instance_pk_query, level=0):
             filterspec = {f"{model_relation.remote_field.column}__in": models.Subquery(instance_pk_query)}
             related_pk_values = related_model.objects.filter(**filterspec).values_list(related_model._meta.pk.name)
             LOG.info(f"    Cascading delete to relations of {related_model.__name__}")
-            cascade_delete(base_model, related_model, related_pk_values, level=level + 1)
+            cascade_delete(
+                related_model, related_pk_values, base_model=base_model, level=level + 1, skip_relations=skip_relations
+            )
 
-    filterspec = {f"{from_model._meta.pk.name}__in": models.Subquery(instance_pk_query)}
     LOG.info(f"Level {level}: delete records from {from_model.__name__}")
+    if level == 0:
+        del_query = instance_pk_query
+    else:
+        filterspec = {f"{from_model._meta.pk.name}__in": models.Subquery(instance_pk_query)}
+        del_query = from_model.objects.filter(**filterspec)
+
     with transaction.atomic():
         set_constraints_immediate()
-        rec_count = execute_delete_sql(from_model.objects.filter(**filterspec))
+        rec_count = execute_delete_sql(del_query)
         LOG.info(f"Deleted {rec_count} records from {from_model.__name__}")
+
+
+def _load_db_models():
+    """Initialize the global dict that will hold the table_name/model_name -> Model map"""
+    qualified_only = set()
+    for app, _models in django.apps.apps.all_models.items():
+        for lmodel_name, model in _models.items():
+            qualified_model_name = f"{app}.{lmodel_name}"
+            if lmodel_name in DB_MODELS:
+                qualified_only.add(lmodel_name)
+                del DB_MODELS[lmodel_name]
+
+            DB_MODELS[qualified_model_name] = model
+            DB_MODELS[model._meta.db_table] = model
+            if lmodel_name not in qualified_only:
+                DB_MODELS[lmodel_name] = model
+
+
+def get_model(model_or_table_name):
+    """Get a model class from the model name or table name"""
+    if not DB_MODELS:
+        _load_db_models()
+    return DB_MODELS[model_or_table_name.lower()]

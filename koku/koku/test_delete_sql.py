@@ -171,7 +171,7 @@ class TestDeleteSQL(IamTestCase):
         self.assertEqual(Provider.objects.filter(pk__in=(paws.pk, pazure.pk, pgcp.pk, pocp.pk)).count(), 0)
 
     def test_cascade_delete_immediate_constraint(self):
-        """Test that cascade_delete can walk relations to delete FK constraint matched records"""
+        """Test that cascade_delete can set constraints to execute immediately"""
         action_ts = datetime.now().replace(tzinfo=UTC)
         # Add a bogus customer
         c = Customer(
@@ -212,6 +212,62 @@ class TestDeleteSQL(IamTestCase):
         with self.assertLogs("koku.database", level="DEBUG") as _logger:
             paws.delete()
             self.assertIn(expected, _logger.output)
+
+        with schema_context(c.schema_name):
+            self.assertEqual(AWSCostEntryBill.objects.filter(pk=awsceb.pk).count(), 0)
+
+        self.assertEqual(Provider.objects.filter(pk=paws.pk).count(), 0)
+
+    def test_cascade_delete_skip(self):
+        """Test that cascade_delete can skip relations"""
+        action_ts = datetime.now().replace(tzinfo=UTC)
+        # Add a bogus customer
+        c = Customer(
+            date_created=action_ts,
+            date_updated=action_ts,
+            uuid=uuid.uuid4(),
+            account_id="918273",
+            schema_name="acct918273",
+        )
+        c.save()
+        # Create a customer tenant
+        t = Tenant(schema_name=c.schema_name)
+        t.save()
+        t.create_schema()
+        # Add some bogus providers
+        paws = Provider(
+            uuid=uuid.uuid4(),
+            name="eek_aws_provider_4",
+            type=Provider.PROVIDER_AWS,
+            setup_complete=False,
+            active=True,
+            customer=c,
+        )
+        paws.save()
+        # Create billing period stuff for each provider
+        period_start = datetime(2020, 1, 1, tzinfo=UTC)
+        period_end = datetime(2020, 2, 1, tzinfo=UTC)
+        awsceb = AWSCostEntryBill(
+            billing_resource="6846351687354184651",
+            billing_period_start=period_start,
+            billing_period_end=period_end,
+            provider=paws,
+        )
+        with schema_context(c.schema_name):
+            awsceb.save()
+
+        expected = "INFO:koku.database:SKIPPING RELATION AWSCostEntryLineItem by directive"
+        expected2 = "INFO:koku.database:SKIPPING RELATION GCPCostEntryLineItem by directive"
+        expected3 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItem by directive"
+        expected4 = "INFO:koku.database:SKIPPING RELATION OCPStorageLineItem by directive"
+        expected5 = "INFO:koku.database:SKIPPING RELATION OCPNodeLabelLineItem by directive"
+        with self.assertLogs("koku.database", level="INFO") as _logger:
+            paws.delete()
+            self.assertIn(expected, _logger.output)
+            self.assertIn(expected2, _logger.output)
+            self.assertIn(expected3, _logger.output)
+            self.assertIn(expected4, _logger.output)
+            self.assertIn(expected5, _logger.output)
 
         with schema_context(c.schema_name):
             self.assertEqual(AWSCostEntryBill.objects.filter(pk=awsceb.pk).count(), 0)
