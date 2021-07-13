@@ -30,7 +30,8 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
-from masu.util.aws.common import match_openshift_resources_and_labels
+from masu.util.aws.common import match_openshift_resources_and_labels as aws_match_openshift_resources_and_labels
+from masu.util.azure.common import match_openshift_resources_and_labels as azure_match_openshift_resources_and_labels
 from masu.util.common import get_path_prefix
 
 
@@ -64,7 +65,9 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         """Post processor based on provider type."""
         ocp_on_cloud_data_processor = None
         if self.provider_type == Provider.PROVIDER_AWS:
-            ocp_on_cloud_data_processor = match_openshift_resources_and_labels
+            ocp_on_cloud_data_processor = aws_match_openshift_resources_and_labels
+        elif self.provider_type == Provider.PROVIDER_AZURE:
+            ocp_on_cloud_data_processor = azure_match_openshift_resources_and_labels
 
         return ocp_on_cloud_data_processor
 
@@ -152,7 +155,6 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
                     self.provider_uuid, ocp_provider_uuid, self.start_date, self.end_date
                 )
-            LOG.info(matched_tags)
             openshift_filtered_data_frame = self.ocp_on_cloud_data_processor(
                 daily_data_frame, cluster_topology, matched_tags
             )

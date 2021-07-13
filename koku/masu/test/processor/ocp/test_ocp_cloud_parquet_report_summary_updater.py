@@ -97,9 +97,10 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
 
         with ProviderDBAccessor(self.azure_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
-            credentials = provider_accessor.get_credentials()
-        cluster_id = credentials.get("cluster_id")
+        with OCPReportDBAccessor(self.schema_name) as accessor:
+            report_period = accessor.report_periods_for_provider_uuid(self.ocp_test_provider_uuid, start_date)
+        with schema_context(self.schema_name):
+            current_ocp_report_period_id = report_period.id
         mock_map.return_value = {self.ocp_test_provider_uuid: (self.azure_provider_uuid, Provider.PROVIDER_AZURE)}
         updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
         updater.update_azure_summary_tables(
@@ -110,7 +111,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             end_date,
             self.ocp_test_provider_uuid,
             self.azure_test_provider_uuid,
-            cluster_id,
+            current_ocp_report_period_id,
             bill_id,
             decimal.Decimal(0),
         )
@@ -139,9 +140,10 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
 
         with ProviderDBAccessor(self.azure_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
-            credentials = provider_accessor.get_credentials()
-        cluster_id = credentials.get("cluster_id")
+        with OCPReportDBAccessor(self.schema_name) as accessor:
+            report_period = accessor.report_periods_for_provider_uuid(self.ocp_test_provider_uuid, start_date)
+        with schema_context(self.schema_name):
+            current_ocp_report_period_id = report_period.id
         mock_map.return_value = {self.ocp_test_provider_uuid: (self.azure_provider_uuid, Provider.PROVIDER_AZURE)}
         updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
         updater.update_azure_summary_tables(
@@ -152,7 +154,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             end_date,
             self.ocp_test_provider_uuid,
             self.azure_test_provider_uuid,
-            cluster_id,
+            current_ocp_report_period_id,
             bill_id,
             decimal.Decimal(0),
         )
