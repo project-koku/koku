@@ -88,8 +88,8 @@
           path: ${API_PATH_PREFIX}/v1/status/?liveness
           port: web
           scheme: HTTP
-        initialDelaySeconds: 10
-        periodSeconds: 10
+        initialDelaySeconds: 30
+        periodSeconds: 20
         successThreshold: 1
         failureThreshold: 5
         timeoutSeconds: 10
@@ -98,8 +98,8 @@
           path: ${API_PATH_PREFIX}/v1/status/
           port: web
           scheme: HTTP
-        initialDelaySeconds: 10
-        periodSeconds: 10
+        initialDelaySeconds: 30
+        periodSeconds: 20
         successThreshold: 1
         failureThreshold: 5
         timeoutSeconds: 10
