@@ -18,6 +18,7 @@ from api.utils import DateHelper
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
+from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
@@ -401,3 +402,36 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             self.assertEqual(table_query.count(), 0)
+
+    def test_get_openshift_on_cloud_matched_tags(self):
+        """Test that matched tags are returned."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+
+        with schema_context(self.schema_name):
+            bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date)
+            bill_id = bills.first().id
+
+        with OCPReportDBAccessor(self.schema_name) as accessor:
+            with schema_context(self.schema_name):
+                report_period = accessor.report_periods_for_provider_uuid(
+                    self.ocp_on_azure_ocp_provider.uuid, start_date
+                )
+                report_period_id = report_period.id
+
+        matched_tags = self.accessor.get_openshift_on_cloud_matched_tags(bill_id, report_period_id)
+
+        self.assertGreater(len(matched_tags), 0)
+        self.assertIsInstance(matched_tags[0], dict)
+
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
+    def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
+        """Test that Trino is used to find matched tags."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        self.accessor.get_openshift_on_cloud_matched_tags_trino(
+            self.azure_provider_uuid, self.ocp_on_azure_ocp_provider.uuid, start_date, end_date
+        )
+        mock_presto.assert_called()

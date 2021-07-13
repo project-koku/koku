@@ -14,6 +14,7 @@ from masu.util import common as utils
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import PRESTO_LINE_ITEM_TABLE
+from reporting.provider.azure.models import PRESTO_OCP_ON_AZURE_DAILY_TABLE
 
 LOG = logging.getLogger(__name__)
 
@@ -37,6 +38,10 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
             "date_columns": date_columns,
             "boolean_columns": boolean_columns,
         }
+        if "openshift" in s3_path:
+            table_name = PRESTO_OCP_ON_AZURE_DAILY_TABLE
+        else:
+            table_name = PRESTO_LINE_ITEM_TABLE
         super().__init__(
             manifest_id=manifest_id,
             account=account,
@@ -44,7 +49,7 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
             provider_uuid=provider_uuid,
             parquet_local_path=parquet_local_path,
             column_types=column_types,
-            table_name=PRESTO_LINE_ITEM_TABLE,
+            table_name=table_name,
         )
 
     @property

@@ -189,19 +189,22 @@ def get_report_details(report_directory):
 
     """
     manifest_path = "{}/{}".format(report_directory, "manifest.json")
-
     payload_dict = {}
-    try:
-        with open(manifest_path) as file:
-            payload_dict = json.load(file)
-            payload_dict["date"] = parser.parse(payload_dict["date"])
-            payload_dict["manifest_path"] = manifest_path
-            # parse start and end dates if in manifest
-            for field in ["start", "end"]:
-                if payload_dict.get(field):
-                    payload_dict[field] = parser.parse(payload_dict[field])
-    except (OSError, IOError, KeyError) as exc:
-        LOG.error("Unable to extract manifest data: %s", exc)
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path) as file:
+                payload_dict = json.load(file)
+                payload_dict["date"] = parser.parse(payload_dict["date"])
+                payload_dict["manifest_path"] = manifest_path
+                # parse start and end dates if in manifest
+                for field in ["start", "end"]:
+                    if payload_dict.get(field):
+                        payload_dict[field] = parser.parse(payload_dict[field])
+        except (OSError, IOError, KeyError) as exc:
+            LOG.error("Unable to extract manifest data: %s", exc)
+    else:
+        msg = f"No manifest available at {manifest_path}"
+        LOG.info(msg)
 
     return payload_dict
 
