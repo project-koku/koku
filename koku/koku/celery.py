@@ -42,7 +42,7 @@ class LoggingCelery(Celery):
         return super().task(*args, **kwargs)
 
 
-class WorkerProbeServer(ProbeServer):
+class WorkerProbeServer(ProbeServer):  # pragma: no cover
     """HTTP server for liveness/readiness probes."""
 
     def readiness_check(self):
