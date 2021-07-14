@@ -44,11 +44,6 @@ class AWSAccountView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for aws account and rand displays values related to what the user has access to.
         user_access = []
-        if request.user.admin:
-            return super().list(request)
-        elif request.user.access:
-            user_access = request.user.access.get("aws.account", {}).get("read", [])
-        self.queryset = self.queryset.values("value").filter(usage_account_id__in=user_access)
         openshift = self.request.query_params.get("openshift")
         if openshift == "true":
             self.queryset = (
@@ -61,4 +56,10 @@ class AWSAccountView(generics.ListAPIView):
                 .values("value", "alias")
                 .distinct()
             )
+        if request.user.admin:
+            return super().list(request)
+        elif request.user.access:
+            user_access = request.user.access.get("aws.account", {}).get("read", [])
+        self.queryset = self.queryset.values("value").filter(usage_account_id__in=user_access)
+
         return super().list(request)
