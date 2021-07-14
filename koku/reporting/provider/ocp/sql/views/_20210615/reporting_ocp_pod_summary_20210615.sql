@@ -31,15 +31,15 @@ CREATE MATERIALIZED VIEW reporting_ocp_pod_summary AS(
         sum(pod_limit_memory_gigabyte_hours) as pod_limit_memory_gigabyte_hours,
         max(cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
         json_build_object(
-            'cpu', sum(((coalesce(supplementary_monthly_cost, '{"cpu": 0}'::jsonb))->>'cpu')::decimal),
-            'memory', sum(((coalesce(supplementary_monthly_cost, '{"memory": 0}'::jsonb))->>'memory')::decimal),
-            'pvc', sum(((coalesce(supplementary_monthly_cost, '{"pvc": 0}'::jsonb))->>'pvc')::decimal)
-        ) as supplementary_monthly_cost,
+            'cpu', sum(((coalesce(supplementary_monthly_cost_json, '{"cpu": 0}'::jsonb))->>'cpu')::decimal),
+            'memory', sum(((coalesce(supplementary_monthly_cost_json, '{"memory": 0}'::jsonb))->>'memory')::decimal),
+            'pvc', sum(((coalesce(supplementary_monthly_cost_json, '{"pvc": 0}'::jsonb))->>'pvc')::decimal)
+        ) as supplementary_monthly_cost_json,
         json_build_object(
-            'cpu', sum(((coalesce(infrastructure_monthly_cost, '{"cpu": 0}'::jsonb))->>'cpu')::decimal),
-            'memory', sum(((coalesce(infrastructure_monthly_cost, '{"memory": 0}'::jsonb))->>'memory')::decimal),
-            'pvc', sum(((coalesce(infrastructure_monthly_cost, '{"pvc": 0}'::jsonb))->>'pvc')::decimal)
-        ) as infrastructure_monthly_cost,
+            'cpu', sum(((coalesce(infrastructure_monthly_cost_json, '{"cpu": 0}'::jsonb))->>'cpu')::decimal),
+            'memory', sum(((coalesce(infrastructure_monthly_cost_json, '{"memory": 0}'::jsonb))->>'memory')::decimal),
+            'pvc', sum(((coalesce(infrastructure_monthly_cost_json, '{"pvc": 0}'::jsonb))->>'pvc')::decimal)
+        ) as infrastructure_monthly_cost_json,
         source_uuid
     FROM reporting_ocpusagelineitem_daily_summary
     -- Get data for this month or last month
