@@ -136,7 +136,7 @@ app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", 
 # Collect queue metrics.
 app.conf.beat_schedule["queue_metrics"] = {
     "task": "masu.celery.tasks.collect_queue_metrics",
-    "schedule": crontab(hour=1, minute=0),
+    "schedule": crontab(hour="*/1", minute=0),
 }
 
 

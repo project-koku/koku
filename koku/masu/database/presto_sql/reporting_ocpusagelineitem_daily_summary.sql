@@ -93,8 +93,10 @@ cte_ocp_cluster_capacity AS (
 cte_volume_nodes AS (
     SELECT date(sli.interval_start) as usage_start,
         sli.persistentvolumeclaim,
-        max(uli.node) as node,
-        max(uli.resource_id) as resource_id
+        sli.persistentvolume,
+        sli.pod,
+        uli.node,
+        uli.resource_id
     FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily as sli
     JOIN hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily as uli
         ON uli.source = sli.source
@@ -110,7 +112,19 @@ cte_volume_nodes AS (
         AND uli.year = {{year}}
         AND uli.month = {{month}}
      GROUP BY date(sli.interval_start),
-          sli.persistentvolumeclaim
+          sli.persistentvolumeclaim,
+          sli.persistentvolume,
+          sli.pod,
+          uli.node,
+          uli.resource_id
+),
+cte_shared_volume_node_count AS (
+    SELECT usage_start,
+        persistentvolume,
+        count(DISTINCT node) as node_count
+    FROM cte_volume_nodes
+    GROUP BY usage_start,
+        persistentvolume
 )
 /*
  * ====================================
@@ -268,18 +282,23 @@ FROM (
         sli.source as source_uuid,
         max(sli.persistentvolumeclaim_capacity_bytes) as persistentvolumeclaim_capacity_bytes,
         sum(sli.persistentvolumeclaim_capacity_byte_seconds) as persistentvolumeclaim_capacity_byte_seconds,
-        sum(sli.volume_request_storage_byte_seconds) as volume_request_storage_byte_seconds,
-        sum(sli.persistentvolumeclaim_usage_byte_seconds) as persistentvolumeclaim_usage_byte_seconds
-      FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily sli
-      LEFT JOIN cte_volume_nodes as vn
-          ON vn.usage_start = date(sli.interval_start)
-              AND vn.persistentvolumeclaim = sli.persistentvolumeclaim
-      LEFT JOIN cte_ocp_node_label_line_item_daily as nli
-          ON nli.node = vn.node
+        -- Divide volume usage and requests by the number of nodes that volume is mounted on
+        sum(sli.volume_request_storage_byte_seconds) / max(nc.node_count) as volume_request_storage_byte_seconds,
+        sum(sli.persistentvolumeclaim_usage_byte_seconds) / max(nc.node_count) as persistentvolumeclaim_usage_byte_seconds
+    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily sli
+    LEFT JOIN cte_volume_nodes as vn
+        ON vn.usage_start = date(sli.interval_start)
+            AND vn.persistentvolumeclaim = sli.persistentvolumeclaim
+            AND vn.pod = sli.pod
+    LEFT JOIN cte_shared_volume_node_count as nc
+        ON nc.usage_start = date(sli.interval_start)
+            AND nc.persistentvolume = sli.persistentvolume
+    LEFT JOIN cte_ocp_node_label_line_item_daily as nli
+        ON nli.node = vn.node
             AND nli.usage_start = vn.usage_start
-      LEFT JOIN cte_ocp_namespace_label_line_item_daily as nsli
-          ON nsli.namespace = sli.namespace
-              AND nsli.usage_start = date(sli.interval_start)
+    LEFT JOIN cte_ocp_namespace_label_line_item_daily as nsli
+        ON nsli.namespace = sli.namespace
+            AND nsli.usage_start = date(sli.interval_start)
     WHERE sli.source = {{source}}
         AND sli.year = {{year}}
         AND sli.month = {{month}}
