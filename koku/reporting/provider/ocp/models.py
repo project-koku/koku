@@ -90,9 +90,9 @@ class OCPUsageLineItem(models.Model):
 
     id = models.BigAutoField(primary_key=True)
 
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, db_constraint=False)
 
-    report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE)
+    report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE, db_constraint=False)
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
@@ -363,9 +363,9 @@ class OCPStorageLineItem(models.Model):
 
     id = models.BigAutoField(primary_key=True)
 
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, db_constraint=False)
 
-    report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE)
+    report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE, db_constraint=False)
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
@@ -472,9 +472,9 @@ class OCPNodeLabelLineItem(models.Model):
 
     id = models.BigAutoField(primary_key=True)
 
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, db_constraint=False)
 
-    report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE)
+    report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE, db_constraint=False)
 
     # Kubernetes objects by convention have a max name length of 253 chars
     node = models.CharField(max_length=253, null=True)
