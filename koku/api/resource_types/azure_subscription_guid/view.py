@@ -13,6 +13,7 @@ from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.azure.models import AzureCostSummaryByAccount
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByAccount
 
 
 class AzureSubscriptionGuidView(generics.ListAPIView):
@@ -29,4 +30,13 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
+        openshift = self.request.query_params.get("openshift")
+        if openshift == "true":
+            self.queryset = (
+                OCPAzureCostSummaryByAccount.objects.annotate(
+                    **{"value": F("subscription_guid"), "alias": F("cluster_alias")}
+                )
+                .values("value", "alias")
+                .distinct()
+            )
         return super().list(request)
