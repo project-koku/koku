@@ -91,7 +91,7 @@ class ResourceTypesViewTest(IamTestCase):
         """Test endpoint runs with a customer owner."""
         for endpoint in self.ENDPOINTS:
             with self.subTest(endpoint=endpoint):
-                qs = "?openshift=True"
+                qs = "?openshift=true"
                 url = reverse("aws-accounts") + qs
                 response = self.client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -104,7 +104,7 @@ class ResourceTypesViewTest(IamTestCase):
         """Test endpoint runs with a customer owner."""
         for endpoint in self.ENDPOINTS:
             with self.subTest(endpoint=endpoint):
-                qs = "?openshift=True"
+                qs = "?openshift=true"
                 url = reverse("azure-subscription-guids") + qs
                 response = self.client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)

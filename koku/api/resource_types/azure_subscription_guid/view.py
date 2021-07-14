@@ -31,7 +31,7 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         openshift = self.request.query_params.get("openshift")
-        if openshift == "True":
+        if openshift == "true":
             self.queryset = (
                 OCPAzureCostSummaryByAccount.objects.annotate(
                     **{"value": F("subscription_guid"), "alias": F("cluster_alias")}

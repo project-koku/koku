@@ -43,7 +43,7 @@ class AWSAccountView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         openshift = self.request.query_params.get("openshift")
-        if openshift == "True":
+        if openshift == "true":
             self.queryset = (
                 OCPAWSCostSummaryByAccount.objects.annotate(
                     **{
