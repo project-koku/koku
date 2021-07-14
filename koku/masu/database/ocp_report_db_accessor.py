@@ -1610,19 +1610,23 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         }
 
         for rate_type, __ in metric_constants.COST_TYPE_CHOICES:
-            cost_filter = f"{rate_type.lower()}_monthly_cost__isnull"
-            filters.update({cost_filter: False})
-            LOG.info(
-                "Removing %s %s monthly costs \n\tfor %s \n\tfrom %s - %s.",
-                cost_type,
-                rate_type,
-                cluster_id,
-                start_date,
-                end_date,
-            )
-            with schema_context(self.schema):
-                OCPUsageLineItemDailySummary.objects.filter(**filters).all().delete()
-            filters.pop(cost_filter)
+            cost_filters = [
+                f"{rate_type.lower()}_monthly_cost__isnull",
+                f"{rate_type.lower()}_monthly_cost_json__isnull",
+            ]
+            for cost_filter in cost_filters:
+                filters.update({cost_filter: False})
+                LOG.info(
+                    "Removing %s %s monthly costs \n\tfor %s \n\tfrom %s - %s.",
+                    cost_type,
+                    rate_type,
+                    cluster_id,
+                    start_date,
+                    end_date,
+                )
+                with schema_context(self.schema):
+                    OCPUsageLineItemDailySummary.objects.filter(**filters).all().delete()
+                filters.pop(cost_filter)
 
     def populate_node_label_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily node label aggregate of line items table.
