@@ -30,7 +30,7 @@ CREATE MATERIALIZED VIEW reporting_ocp_cost_summary_by_project AS(
             'cpu', sum(((coalesce(infrastructure_project_monthly_cost, '{"cpu": 0}'::jsonb))->>'cpu')::decimal),
             'memory', sum(((coalesce(infrastructure_project_monthly_cost, '{"memory": 0}'::jsonb))->>'memory')::decimal),
             'pvc', sum(((coalesce(infrastructure_project_monthly_cost, '{"pvc": 0}'::jsonb))->>'pvc')::decimal)
-        ) as infrastructure_monthly_cost,
+        ) as infrastructure_monthly_cost_json,
         sum(infrastructure_monthly_cost) as infrastructure_monthly_cost,
         source_uuid
     FROM reporting_ocpusagelineitem_daily_summary
