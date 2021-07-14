@@ -25,7 +25,7 @@ def add_ocp_cost_views(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0181_auto_20210525_1641")]
+    dependencies = [("reporting", "0182_drop_constraints")]
 
     operations = [
         migrations.RunSQL(
