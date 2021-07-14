@@ -1693,7 +1693,6 @@ select * from eek where val1 in {{report_period_ids}} ;
         is populated when given tag based rates.
         """
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
-        # TODO:
         key_value_pairs = {"app": ["banking", "mobile", "weather"]}
         node_tag_rates = {}
         rate_total = 0
