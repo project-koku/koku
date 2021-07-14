@@ -59,19 +59,17 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):
             identity_header = settings.DEVELOPMENT_IDENTITY
 
             user_dict = identity_header.get("identity", {}).get("user")
-            is_admin = user_dict.get("is_org_admin", False) in ("true", "True")
             user = Mock(
                 spec=User,
                 access=user_dict.get("access", {}),
                 username=user_dict.get("username", "user_dev"),
                 email=user_dict.get("email", "user_dev@foo.com"),
-                admin=is_admin,
+                admin=user_dict.get("is_org_admin", False),
                 customer=Mock(account_id=identity_header.get("account_number", "10001")),
                 req_id="DEVELOPMENT",
             )
+
             request.user = user
-            identity_header["identity"]["user"]["is_org_admin"] = is_admin
-            json_identity = json.dumps(identity_header)
             json_identity = json.dumps(identity_header)
             LOG.info("Identity: %s", json_identity)
             dev_header = b64encode(json_identity.encode("utf-8")).decode("utf-8")
