@@ -21,15 +21,17 @@ CREATE MATERIALIZED VIEW reporting_ocp_cost_summary_by_node AS(
         sum(infrastructure_raw_cost) as infrastructure_raw_cost,
         sum(infrastructure_markup_cost) as infrastructure_markup_cost,
         json_build_object(
-            'cpu', sum(((coalesce(supplementary_monthly_cost, '{"cpu": 0}'::jsonb))->>'cpu')::decimal),
-            'memory', sum(((coalesce(supplementary_monthly_cost, '{"memory": 0}'::jsonb))->>'memory')::decimal),
-            'pvc', sum(((coalesce(supplementary_monthly_cost, '{"pvc": 0}'::jsonb))->>'pvc')::decimal)
-        ) as supplementary_monthly_cost,
+            'cpu', sum(((coalesce(supplementary_monthly_cost_json, '{"cpu": 0}'::jsonb))->>'cpu')::decimal),
+            'memory', sum(((coalesce(supplementary_monthly_cost_json, '{"memory": 0}'::jsonb))->>'memory')::decimal),
+            'pvc', sum(((coalesce(supplementary_monthly_cost_json, '{"pvc": 0}'::jsonb))->>'pvc')::decimal)
+        ) as supplementary_monthly_cost_json,
+        sum(supplementary_monthly_cost) as supplementary_monthly_cost,
         json_build_object(
-            'cpu', sum(((coalesce(infrastructure_monthly_cost, '{"cpu": 0}'::jsonb))->>'cpu')::decimal),
-            'memory', sum(((coalesce(infrastructure_monthly_cost, '{"memory": 0}'::jsonb))->>'memory')::decimal),
-            'pvc', sum(((coalesce(infrastructure_monthly_cost, '{"pvc": 0}'::jsonb))->>'pvc')::decimal)
-        ) as infrastructure_monthly_cost,
+            'cpu', sum(((coalesce(infrastructure_monthly_cost_json, '{"cpu": 0}'::jsonb))->>'cpu')::decimal),
+            'memory', sum(((coalesce(infrastructure_monthly_cost_json, '{"memory": 0}'::jsonb))->>'memory')::decimal),
+            'pvc', sum(((coalesce(infrastructure_monthly_cost_json, '{"pvc": 0}'::jsonb))->>'pvc')::decimal)
+        ) as infrastructure_monthly_cost_json,
+        sum(infrastructure_monthly_cost) as infrastructure_monthly_cost,
         sum(infrastructure_project_markup_cost) as infrastructure_project_markup_cost,
         sum(infrastructure_project_raw_cost) as infrastructure_project_raw_cost,
         source_uuid

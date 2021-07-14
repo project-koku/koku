@@ -37,13 +37,8 @@ class Migration(migrations.Migration):
                 DROP INDEX IF EXISTS ocp_cost_summary_by_project;
                 DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_cost_summary_by_project;
 
-                DELETE FROM reporting_ocpusagelineitem_daily_summary WHERE supplementary_monthly_cost IS NOT NULL;
-                DELETE FROM reporting_ocpusagelineitem_daily_summary WHERE infrastructure_monthly_cost IS NOT NULL;
-
-                ALTER TABLE reporting_ocpusagelineitem_daily_summary DROP COLUMN supplementary_monthly_cost;
-                ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD COLUMN supplementary_monthly_cost jsonb;
-                ALTER TABLE reporting_ocpusagelineitem_daily_summary DROP COLUMN infrastructure_monthly_cost;
-                ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD COLUMN infrastructure_monthly_cost jsonb;
+                ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD COLUMN supplementary_monthly_cost_json jsonb;
+                ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD COLUMN infrastructure_monthly_cost_json jsonb;
                 ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD COLUMN infrastructure_project_monthly_cost jsonb;
                 ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD COLUMN supplementary_project_monthly_cost jsonb;
             """

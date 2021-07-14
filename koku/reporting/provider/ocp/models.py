@@ -306,11 +306,17 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     infrastructure_project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    infrastructure_monthly_cost = JSONField(null=True)
+    infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_monthly_cost_json = JSONField(null=True)
 
     supplementary_usage_cost = JSONField(null=True)
 
-    supplementary_monthly_cost = JSONField(null=True)
+    supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    supplementary_monthly_cost_json = JSONField(null=True)
+
+    infrastructure_project_monthly_cost = JSONField(null=True)
+
+    supplementary_project_monthly_cost = JSONField(null=True)
 
     monthly_cost_type = models.TextField(null=True, choices=MONTHLY_COST_TYPES)
 
@@ -635,11 +641,13 @@ class OCPCostSummary(models.Model):
 
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    infrastructure_monthly_cost = JSONField(null=True)
+    infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_monthly_cost_json = JSONField(null=True)
 
     supplementary_usage_cost = JSONField(null=True)
 
-    supplementary_monthly_cost = JSONField(null=True)
+    supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    supplementary_monthly_cost_json = JSONField(null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -680,9 +688,11 @@ class OCPCostSummaryByProject(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
-    infrastructure_monthly_cost = JSONField(null=True)
+    infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_monthly_cost_json = JSONField(null=True)
 
-    supplementary_monthly_cost = JSONField(null=True)
+    supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    supplementary_monthly_cost_json = JSONField(null=True)
 
 
 class OCPCostSummaryByNode(models.Model):
@@ -716,11 +726,13 @@ class OCPCostSummaryByNode(models.Model):
 
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    infrastructure_monthly_cost = JSONField(null=True)
+    infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_monthly_cost_json = JSONField(null=True)
 
     supplementary_usage_cost = JSONField(null=True)
 
-    supplementary_monthly_cost = JSONField(null=True)
+    supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    supplementary_monthly_cost_json = JSONField(null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
