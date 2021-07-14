@@ -11,9 +11,11 @@ from rest_framework import filters
 from rest_framework import generics
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.aws.models import AWSCostSummaryByAccount
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccount
 
 
 class AWSAccountView(generics.ListAPIView):
@@ -31,12 +33,25 @@ class AWSAccountView(generics.ListAPIView):
         .values("value", "alias")
         .distinct()
     )
+
     serializer_class = ResourceTypeSerializer
-    permission_classes = [ResourceTypeAccessPermission]
+    permission_classes = [ResourceTypeAccessPermission, OpenShiftAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value", "alias"]
     search_fields = ["$value", "$alias"]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
+        openshift = self.request.query_params.get("openshift")
+        if openshift == "true":
+            self.queryset = (
+                OCPAWSCostSummaryByAccount.objects.annotate(
+                    **{
+                        "value": F("usage_account_id"),
+                        "alias": Coalesce(F("account_alias__account_alias"), "usage_account_id"),
+                    }
+                )
+                .values("value", "alias")
+                .distinct()
+            )
         return super().list(request)
