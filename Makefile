@@ -132,6 +132,8 @@ help:
 	@echo "  docker-iqe-local-hccm                create container based off local hccm plugin. Requires env 'HCCM_PLUGIN_PATH'"
 	@echo "                                          @param iqe_cmd - (optional) Command to run. Defaults to 'bash'."
 	@echo "  docker-iqe-smokes-tests              run smoke tests"
+	@echo "  docker-iqe-smokes-tests-trino        run smoke tests without reininting the db and clearing testing"
+
 	@echo "  docker-iqe-api-tests                 run api tests"
 	@echo "  docker-iqe-vortex-tests              run vortex tests"
 	@echo ""
@@ -377,6 +379,9 @@ docker-iqe-local-hccm: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_local_hccm.sh $(iqe_cmd)
 
 docker-iqe-smokes-tests: docker-reinitdb _set-test-dir-permissions clear-testing
+	./testing/run_smoke_tests.sh
+
+docker-iqe-smokes-tests-trino:
 	./testing/run_smoke_tests.sh
 
 docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions clear-testing
