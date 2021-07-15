@@ -27,21 +27,47 @@ class Migration(migrations.Migration):
 
     dependencies = [("reporting", "0182_drop_constraints")]
 
+    # https://docs.djangoproject.com/en/3.2/ref/migration-operations/
     operations = [
         migrations.RunSQL(
-            """
-                DROP INDEX IF EXISTS ocp_cost_summary;
-                DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_cost_summary;
-                DROP INDEX IF EXISTS ocp_cost_summary_by_node;
-                DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_cost_summary_by_node;
-                DROP INDEX IF EXISTS ocp_cost_summary_by_project;
-                DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_cost_summary_by_project;
-
-                ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD COLUMN supplementary_monthly_cost_json jsonb;
-                ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD COLUMN infrastructure_monthly_cost_json jsonb;
-                ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD COLUMN infrastructure_project_monthly_cost jsonb;
-                ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD COLUMN supplementary_project_monthly_cost jsonb;
-            """
+            "ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD COLUMN supplementary_monthly_cost_json jsonb;",
+            state_operations=[
+                migrations.AddField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="supplementary_monthly_cost_json",
+                    field=models.JSONField(null=True),
+                )
+            ],
+        ),
+        migrations.RunSQL(
+            "ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD COLUMN infrastructure_monthly_cost_json jsonb;",
+            state_operations=[
+                migrations.AddField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="infrastructure_monthly_cost_json",
+                    field=models.JSONField(null=True),
+                )
+            ],
+        ),
+        migrations.RunSQL(
+            "ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD COLUMN supplementary_project_monthly_cost jsonb;",
+            state_operations=[
+                migrations.AddField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="supplementary_project_monthly_cost",
+                    field=models.JSONField(null=True),
+                )
+            ],
+        ),
+        migrations.RunSQL(
+            "ALTER TABLE reporting_ocpusagelineitem_daily_summary ADD COLUMN infrastructure_project_monthly_cost jsonb;",
+            state_operations=[
+                migrations.AddField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="infrastructure_project_monthly_cost",
+                    field=models.JSONField(null=True),
+                )
+            ],
         ),
         migrations.RunPython(add_ocp_cost_views),
     ]

@@ -794,6 +794,10 @@ class OCPPodSummary(models.Model):
 
     supplementary_monthly_cost = JSONField(null=True)
 
+    infrastructure_monthly_cost_json = JSONField(null=True)
+
+    supplementary_monthly_cost_json = JSONField(null=True)
+
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
@@ -858,6 +862,10 @@ class OCPPodSummaryByProject(models.Model):
 
     supplementary_monthly_cost = JSONField(null=True)
 
+    infrastructure_monthly_cost_json = JSONField(null=True)
+
+    supplementary_monthly_cost_json = JSONField(null=True)
+
 
 class OCPVolumeSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -905,6 +913,10 @@ class OCPVolumeSummary(models.Model):
     infrastructure_monthly_cost = JSONField(null=True)
 
     supplementary_monthly_cost = JSONField(null=True)
+
+    infrastructure_monthly_cost_json = JSONField(null=True)
+
+    supplementary_monthly_cost_json = JSONField(null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -959,3 +971,7 @@ class OCPVolumeSummaryByProject(models.Model):
     infrastructure_monthly_cost = JSONField(null=True)
 
     supplementary_monthly_cost = JSONField(null=True)
+
+    infrastructure_monthly_cost_json = JSONField(null=True)
+
+    supplementary_monthly_cost_json = JSONField(null=True)
