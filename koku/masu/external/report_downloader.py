@@ -250,6 +250,8 @@ class ReportDownloader:
                 LOG.warning(f"Unable to download report file: {report}. Reason: {str(error)}")
                 return {}
 
+        # The create_table flag is used by the ParquetReportProcessor
+        # to create a Hive/Trino table.
         return {
             "file": file_name,
             "split_files": split_files,
