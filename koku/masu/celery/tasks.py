@@ -130,6 +130,9 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
     if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, provider_type, schema_name)):
         LOG.info("Skipping delete_archived_data. Upload feature is disabled.")
         return
+    elif settings.S3_MINIO_IN_USE:
+        LOG.info("Skipping delete_archived_data. MinIO in use.")
+        return
     else:
         message = f"Deleting S3 data for {provider_type} provider {provider_uuid} in account {schema_name}."
         LOG.info(message)
