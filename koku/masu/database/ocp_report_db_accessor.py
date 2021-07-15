@@ -1831,7 +1831,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             SELECT node,
                 resource_id,
                 max(node_capacity_cpu_cores) as node_capacity_cpu_cores
-            FROM hive.{self.schema}.openshift_pod_usage_line_items as ocp
+            FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
             WHERE ocp.source = '{source_uuid}'
                 AND ocp.year = '{start_date.strftime("%Y")}'
                 AND ocp.month = '{start_date.strftime("%m")}'
@@ -1850,7 +1850,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         sql = f"""
             SELECT distinct persistentvolume,
                 persistentvolumeclaim
-            FROM hive.{self.schema}.openshift_storage_usage_line_items as ocp
+            FROM hive.{self.schema}.openshift_storage_usage_line_items_daily as ocp
             WHERE ocp.source = '{source_uuid}'
                 AND ocp.year = '{start_date.strftime("%Y")}'
                 AND ocp.month = '{start_date.strftime("%m")}'
@@ -1866,7 +1866,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """Get the nodes from an OpenShift cluster."""
         sql = f"""
             SELECT distinct namespace
-            FROM hive.{self.schema}.openshift_pod_usage_line_items as ocp
+            FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
             WHERE ocp.source = '{source_uuid}'
                 AND ocp.year = '{start_date.strftime("%Y")}'
                 AND ocp.month = '{start_date.strftime("%m")}'
