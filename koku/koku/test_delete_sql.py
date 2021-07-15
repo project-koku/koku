@@ -95,8 +95,8 @@ class TestDeleteSQL(IamTestCase):
         pocp.save()
 
         expected1 = "INFO:koku.database:Level 1: delete records from OCPUsageReportPeriod"
-        expected2 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItemDailySummary from caller directive"
-        expected3 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItem from caller directive"
+        expected2 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItemDailySummary by directive"
+        expected3 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItem by directive"
         skip_models = [kdb.get_model("OCPUsageLineItemDailySummary"), kdb.get_model("OCPUsageLineItem")]
         query = Provider.objects.filter(pk=pocp.pk)
         with self.assertLogs("koku.database", level="INFO") as _logger:

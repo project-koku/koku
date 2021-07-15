@@ -5,14 +5,12 @@
 """Removes report data from database."""
 import logging
 from datetime import date
-from datetime import datetime
 
 from tenant_schemas.utils import schema_context
 
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql
 from koku.database import get_model
-from masu.database.koku_database_access import mini_transaction_delete
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from reporting.models import PartitionedTable
 
@@ -34,49 +32,6 @@ class OCPReportDBCleaner:
 
         """
         self._schema = schema
-
-    def purge_expired_line_item(self, expired_date, provider_uuid=None, simulate=False):
-        """Remove raw line item report data with a billing start period before specified date.
-
-        Args:
-            expired_date (datetime.datetime): The cutoff date for removing data.
-            provider_uuid (uuid): The DB id of the provider to purge data for.
-            simulate (bool): Whether to simluate the removal.
-
-        Returns:
-            ([{}]) List of dictionaries containing 'usage_period_id' and 'interval_start'
-
-        """
-        LOG.info("Calling purge_expired_line_item for ocp")
-        if not isinstance(expired_date, datetime):
-            err = "Parameter expired_date must be a datetime.datetime object."
-            raise OCPReportDBCleanerError(err)
-
-        with OCPReportDBAccessor(self._schema) as accessor:
-            removed_items = []
-            if provider_uuid is not None:
-                usage_period_objs = accessor.get_usage_period_on_or_before_date(expired_date, provider_uuid)
-            else:
-                usage_period_objs = accessor.get_usage_period_on_or_before_date(expired_date)
-            with schema_context(self._schema):
-                for usage_period in usage_period_objs.all():
-                    report_period_id = usage_period.id
-                    removed_usage_start_period = usage_period.report_period_start
-
-                    if not simulate:
-                        item_query = accessor.get_item_query_report_period_id(report_period_id)
-                        qty, remainder = mini_transaction_delete(item_query)
-                        LOG.info("Removing %s usage period line items for usage period id %s", qty, report_period_id)
-
-                    LOG.info(
-                        "Line item data removed for usage period ID: %s with interval start: %s",
-                        report_period_id,
-                        removed_usage_start_period,
-                    )
-                    removed_items.append(
-                        {"usage_period_id": report_period_id, "interval_start": str(removed_usage_start_period)}
-                    )
-        return removed_items
 
     def purge_expired_report_data(self, expired_date=None, provider_uuid=None, simulate=False):
         """Remove usage data with a report period before specified date.

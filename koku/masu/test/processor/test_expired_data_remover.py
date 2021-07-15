@@ -118,23 +118,6 @@ class ExpiredDataRemoverTest(MasuTestCase):
         remover.remove(provider_uuid=provider_uuid)
         mock_purge.assert_called_with(simulate=False, provider_uuid=provider_uuid)
 
-    @patch("masu.processor.expired_data_remover.AWSReportDBCleaner.purge_expired_line_item")
-    def test_remove_provider_items_only(self, mock_purge):
-        """Test that remove is called with provider_uuid items only."""
-        provider_uuid = self.aws_provider_uuid
-        remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
-        date = remover._calculate_expiration_date(line_items_only=True)
-        remover.remove(provider_uuid=provider_uuid, line_items_only=True)
-        mock_purge.assert_called_with(expired_date=date, simulate=False, provider_uuid=provider_uuid)
-
-    @patch("masu.processor.expired_data_remover.AWSReportDBCleaner.purge_expired_line_item")
-    def test_remove_items_only(self, mock_purge):
-        """Test that remove is called with provider_uuid items only."""
-        remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
-        date = remover._calculate_expiration_date(line_items_only=True)
-        remover.remove(line_items_only=True)
-        mock_purge.assert_called_with(expired_date=date, simulate=False)
-
     def test_delete_expired_cost_usage_report_manifest(self):
         """
         Test that expired CostUsageReportManifests are removed.
@@ -313,6 +296,6 @@ class ExpiredDataRemoverTest(MasuTestCase):
         for az_type in azure_types:
             remover = ExpiredDataRemover(self.schema, az_type)
             result_no_provider = remover.remove(line_items_only=True)
-            self.assertIsNone(result_no_provider)
+            self.assertEqual(result_no_provider, [])
             result_with_provider = remover.remove(line_items_only=True, provider_uuid="1234")
-            self.assertIsNone(result_with_provider)
+            self.assertEqual(result_with_provider, [])
