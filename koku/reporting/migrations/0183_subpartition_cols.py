@@ -5,7 +5,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0181_partition_ocp_on_x_tables")]
+    dependencies = [("reporting", "0182_drop_constraints")]
 
     operations = [
         migrations.AlterModelOptions(name="ocpazurecostlineitemdailysummary", options={"managed": False}),
