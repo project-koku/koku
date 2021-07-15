@@ -11,7 +11,7 @@ from rest_framework import filters
 from rest_framework import generics
 
 from api.common import CACHE_RH_IDENTITY_HEADER
-from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
+from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.ocp.models import OCPCostSummary
 
@@ -27,11 +27,18 @@ class OCPClustersView(generics.ListAPIView):
         .distinct()
     )
     serializer_class = ResourceTypeSerializer
-    permission_classes = [ResourceTypeAccessPermission]
+    permission_classes = [OpenShiftAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value", "ocp_cluster_alias"]
     search_fields = ["$value", "$ocp_cluster_alias"]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
+        # Reads the users values for Openshift cluster id and displays values related to what the user has access to
+        user_access = []
+        if request.user.admin:
+            return super().list(request)
+        elif request.user.access:
+            user_access = request.user.access.get("openshift.cluster", {}).get("read", [])
+        self.queryset = self.queryset.values("value").filter(cluster_id__in=user_access)
         return super().list(request)
