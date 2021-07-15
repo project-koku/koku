@@ -332,11 +332,11 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         updater._update_monthly_cost(start_date, end_date)
         with schema_context(self.schema):
             monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
-                infrastructure_monthly_cost__isnull=False
+                infrastructure_monthly_cost_json__isnull=False
             ).first()
-            self.assertEqual(monthly_cost_row.infrastructure_monthly_cost.get("cpu"), 0)
-            self.assertEqual(monthly_cost_row.infrastructure_monthly_cost.get("memory"), 0)
-            self.assertEqual(monthly_cost_row.infrastructure_monthly_cost.get("pvc"), 0)
+            self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("cpu"), 0)
+            self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("memory"), 0)
+            self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("pvc"), 0)
 
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_monthly_cost_supplementary(self, mock_cost_accessor):
@@ -352,11 +352,11 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         updater._update_monthly_cost(start_date, end_date)
         with schema_context(self.schema):
             monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
-                supplementary_monthly_cost__isnull=False
+                supplementary_monthly_cost_json__isnull=False
             ).first()
-            self.assertEqual(monthly_cost_row.supplementary_monthly_cost.get("cpu"), 0)
-            self.assertEqual(monthly_cost_row.supplementary_monthly_cost.get("memory"), 0)
-            self.assertEqual(monthly_cost_row.supplementary_monthly_cost.get("pvc"), 0)
+            self.assertEqual(monthly_cost_row.supplementary_monthly_cost_json.get("cpu"), 0)
+            self.assertEqual(monthly_cost_row.supplementary_monthly_cost_json.get("memory"), 0)
+            self.assertEqual(monthly_cost_row.supplementary_monthly_cost_json.get("pvc"), 0)
 
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_summary_cost_model_costs(self, mock_cost_accessor):
@@ -394,7 +394,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 .count()
             )
             monthly_cost_rows = OCPUsageLineItemDailySummary.objects.filter(
-                usage_start=start_date, infrastructure_monthly_cost__isnull=False
+                usage_start=start_date, infrastructure_monthly_cost_json__isnull=False
             ).count()
             self.assertEqual(monthly_cost_rows, expected_count)
 

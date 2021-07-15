@@ -721,7 +721,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 )
                 monthly_cost_rows = (
                     self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-                    .filter(usage_start=first_month, infrastructure_monthly_cost__isnull=False)
+                    .filter(usage_start=first_month, infrastructure_monthly_cost_json__isnull=False)
                     .all()
                 )
                 with schema_context(self.schema):
@@ -735,7 +735,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     )
                     self.assertEquals(monthly_cost_rows.count(), expected_count)
                     for monthly_cost_row in monthly_cost_rows:
-                        self.assertEquals(monthly_cost_row.infrastructure_monthly_cost.get(distribution), node_rate)
+                        self.assertEquals(
+                            monthly_cost_row.infrastructure_monthly_cost_json.get(distribution), node_rate
+                        )
 
     def test_populate_monthly_cost_node_supplementary_cost(self):
         """Test that the monthly supplementary cost row for nodes in the summary table is populated."""
@@ -761,7 +763,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 )
                 monthly_cost_rows = (
                     self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-                    .filter(usage_start=first_month, supplementary_monthly_cost__isnull=False)
+                    .filter(usage_start=first_month, supplementary_monthly_cost_json__isnull=False)
                     .all()
                 )
                 with schema_context(self.schema):
@@ -775,7 +777,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     )
                     self.assertEquals(monthly_cost_rows.count(), expected_count)
                     for monthly_cost_row in monthly_cost_rows:
-                        self.assertEquals(monthly_cost_row.supplementary_monthly_cost.get(distribution), node_rate)
+                        self.assertEquals(
+                            monthly_cost_row.supplementary_monthly_cost_json.get(distribution), node_rate
+                        )
 
     def test_populate_monthly_cost_cluster_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for clusters in the summary table is populated."""
@@ -802,13 +806,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
                 monthly_cost_rows = (
                     self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-                    .filter(usage_start=first_month, infrastructure_monthly_cost__isnull=False)
+                    .filter(usage_start=first_month, infrastructure_monthly_cost_json__isnull=False)
                     .all()
                 )
                 with schema_context(self.schema):
                     sum_row_list = []
                     for monthly_cost_row in monthly_cost_rows:
-                        sum_row_list.append(monthly_cost_row.infrastructure_monthly_cost.get(distribution))
+                        sum_row_list.append(monthly_cost_row.infrastructure_monthly_cost_json.get(distribution))
                     #  handle small possible imprecision due to division
                     # eg. 56.99999999999999 != 57
                     self.assertTrue((cluster_rate - sum(sum_row_list)) < 0.001)
@@ -838,13 +842,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 )
                 monthly_cost_rows = (
                     self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-                    .filter(usage_start=first_month, supplementary_monthly_cost__isnull=False)
+                    .filter(usage_start=first_month, supplementary_monthly_cost_json__isnull=False)
                     .all()
                 )
                 with schema_context(self.schema):
                     sum_row_list = []
                     for monthly_cost_row in monthly_cost_rows:
-                        sum_row_list.append(monthly_cost_row.supplementary_monthly_cost.get(distribution))
+                        sum_row_list.append(monthly_cost_row.supplementary_monthly_cost_json.get(distribution))
                     self.assertTrue((cluster_rate - sum(sum_row_list)) < 0.001)
 
     def test_populate_monthly_cost_pvc_infrastructure_cost(self):
@@ -873,7 +877,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         monthly_cost_rows = (
             self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-            .filter(usage_start=first_month, infrastructure_monthly_cost__isnull=False)
+            .filter(usage_start=first_month, infrastructure_monthly_cost_json__isnull=False)
             .all()
         )
         with schema_context(self.schema):
@@ -890,7 +894,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.assertEquals(monthly_cost_rows.count(), expected_count)
             for monthly_cost_row in monthly_cost_rows:
                 self.assertEquals(
-                    monthly_cost_row.infrastructure_monthly_cost.get(metric_constants.PVC_DISTRIBUTION), pvc_rate
+                    monthly_cost_row.infrastructure_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION), pvc_rate
                 )
 
     def test_populate_monthly_cost_pvc_supplementary_cost(self):
@@ -919,7 +923,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         monthly_cost_rows = (
             self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-            .filter(usage_start=first_month, supplementary_monthly_cost__isnull=False)
+            .filter(usage_start=first_month, supplementary_monthly_cost_json__isnull=False)
             .all()
         )
         with schema_context(self.schema):
@@ -936,7 +940,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.assertEquals(monthly_cost_rows.count(), expected_count)
             for monthly_cost_row in monthly_cost_rows:
                 self.assertEquals(
-                    monthly_cost_row.supplementary_monthly_cost.get(metric_constants.PVC_DISTRIBUTION), pvc_rate
+                    monthly_cost_row.supplementary_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION), pvc_rate
                 )
 
     def test_remove_monthly_cost(self):
@@ -959,7 +963,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 )
                 monthly_cost_rows = (
                     self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-                    .filter(usage_start=first_month, supplementary_monthly_cost__isnull=False)
+                    .filter(usage_start=first_month, supplementary_monthly_cost_json__isnull=False)
                     .all()
                 )
                 with schema_context(self.schema):
@@ -1162,7 +1166,9 @@ select * from eek where val1 in {{report_period_ids}} ;
                     c_a = k_v.get("cluster_alias")
 
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id, infrastructure_monthly_cost__isnull=False, monthly_cost_type="Node"
+                        cluster_id=self.cluster_id,
+                        infrastructure_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Node",
                     )
                     # call populate monthly tag_cost with the rates defined above
                     self.accessor.populate_monthly_tag_cost(
@@ -1181,7 +1187,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     self.assertEqual(qset.count(), 3)
                     qset_total = 0
                     for value in qset:
-                        qset_total += value.infrastructure_monthly_cost.get(distribution, 0)
+                        qset_total += value.infrastructure_monthly_cost_json.get(distribution, 0)
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(rate_total, qset_total)
 
@@ -1209,7 +1215,9 @@ select * from eek where val1 in {{report_period_ids}} ;
                     c_a = k_v.get("cluster_alias")
 
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id, infrastructure_monthly_cost__isnull=False, monthly_cost_type="Node"
+                        cluster_id=self.cluster_id,
+                        infrastructure_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Node",
                     )
 
                     # call populate monthly default tag_cost with the rates defined above
@@ -1229,7 +1237,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     self.assertEqual(qset.count(), 2)
                     qset_total = 0
                     for value in qset:
-                        qset_total += value.infrastructure_monthly_cost.get(distribution, 0)
+                        qset_total += value.infrastructure_monthly_cost_json.get(distribution, 0)
                     expected_total = default_val * 2
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(expected_total, qset_total)
@@ -1259,7 +1267,9 @@ select * from eek where val1 in {{report_period_ids}} ;
                     c_a = k_v.get("cluster_alias")
 
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="Node"
+                        cluster_id=self.cluster_id,
+                        supplementary_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Node",
                     )
 
                     # call populate monthly default tag_cost with the rates defined above
@@ -1279,7 +1289,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     self.assertEqual(qset.count(), 2)
                     qset_total = 0
                     for value in qset:
-                        qset_total += value.supplementary_monthly_cost.get(distribution, 0)
+                        qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
                     expected_total = default_val * 2
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(expected_total, qset_total)
@@ -1315,7 +1325,7 @@ select * from eek where val1 in {{report_period_ids}} ;
             c_a = k_v.get("cluster_alias")
 
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, infrastructure_monthly_cost__isnull=False, monthly_cost_type="PVC"
+                cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
             )
             # assert that there are no infrastructure monthly PVC costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
@@ -1336,7 +1346,7 @@ select * from eek where val1 in {{report_period_ids}} ;
             self.assertEqual(qset.count(), 4)
             qset_total = 0
             for value in qset:
-                qset_total += value.infrastructure_monthly_cost.get(metric_constants.PVC_DISTRIBUTION, 0)
+                qset_total += value.infrastructure_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION, 0)
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
             self.assertEqual(rate_total, qset_total)
 
@@ -1375,7 +1385,9 @@ select * from eek where val1 in {{report_period_ids}} ;
                     # create a query set based on the criteria we are looking for
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="Node"
+                        cluster_id=self.cluster_id,
+                        supplementary_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Node",
                     )
                     # call populate monthly tag_cost with the rates defined above
                     self.accessor.populate_monthly_tag_cost(
@@ -1393,7 +1405,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     self.assertEqual(qset.count(), 3)
                     qset_total = 0
                     for value in qset:
-                        qset_total += value.supplementary_monthly_cost.get(distribution, 0)
+                        qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(rate_total, qset_total)
 
@@ -1431,7 +1443,7 @@ select * from eek where val1 in {{report_period_ids}} ;
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="PVC"
+                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
             )
             # assert that there are no infrastructure monthly PVC costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
@@ -1451,7 +1463,7 @@ select * from eek where val1 in {{report_period_ids}} ;
             self.assertEqual(qset.count(), 4)
             qset_total = 0
             for value in qset:
-                qset_total += value.supplementary_monthly_cost.get(metric_constants.PVC_DISTRIBUTION, 0)
+                qset_total += value.supplementary_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION, 0)
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
             self.assertEqual(rate_total, qset_total)
 
@@ -1475,7 +1487,7 @@ select * from eek where val1 in {{report_period_ids}} ;
             c_a = k_v.get("cluster_alias")
 
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, infrastructure_monthly_cost__isnull=False, monthly_cost_type="PVC"
+                cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
             )
 
             # assert that there are no infrastructure monthly PVC costs currently on our cluster id
@@ -1497,7 +1509,7 @@ select * from eek where val1 in {{report_period_ids}} ;
             self.assertEqual(qset.count(), 1)
             qset_total = 0
             for value in qset:
-                qset_total += value.infrastructure_monthly_cost.get(metric_constants.PVC_DISTRIBUTION)
+                qset_total += value.infrastructure_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION)
             # there are three PVC tags and we said two already have defined rates
             expected_total = default_val
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
@@ -1523,7 +1535,7 @@ select * from eek where val1 in {{report_period_ids}} ;
             c_a = k_v.get("cluster_alias")
 
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="PVC"
+                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
             )
 
             # assert that there are no supplementary monthly PVC costs currently on our cluster id
@@ -1546,7 +1558,7 @@ select * from eek where val1 in {{report_period_ids}} ;
             self.assertEqual(qset.count(), 2)
             qset_total = 0
             for value in qset:
-                qset_total += value.supplementary_monthly_cost.get(metric_constants.PVC_DISTRIBUTION)
+                qset_total += value.supplementary_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION)
             expected_total = default_val * 2
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
             self.assertEqual(expected_total, qset_total)
@@ -1577,7 +1589,9 @@ select * from eek where val1 in {{report_period_ids}} ;
                     # create a query set based on the criteria we are looking for
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="Node"
+                        cluster_id=self.cluster_id,
+                        supplementary_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Node",
                     )
                     # assert that there are no infrastructure monthly node costs currently on our cluster id
                     self.assertEqual(qset.count(), 0)
@@ -1596,7 +1610,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     self.assertEqual(qset.count(), 0)
                     qset_total = 0
                     for value in qset:
-                        qset_total += value.supplementary_monthly_cost.get(distribution, 0)
+                        qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(rate_total, qset_total)
 
@@ -1620,7 +1634,7 @@ select * from eek where val1 in {{report_period_ids}} ;
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="PVC"
+                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
             )
             # assert that there are no infrastructure monthly node costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
@@ -1639,7 +1653,7 @@ select * from eek where val1 in {{report_period_ids}} ;
             self.assertEqual(qset.count(), 0)
             qset_total = 0
             for value in qset:
-                qset_total += value.supplementary_monthly_cost.get(metric_constants.PVC_DISTRIBUTION)
+                qset_total += value.supplementary_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION)
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
             self.assertEqual(rate_total, qset_total)
 
@@ -1669,7 +1683,7 @@ select * from eek where val1 in {{report_period_ids}} ;
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="Node"
+                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="Node"
             )
             # assert that there are no infrastructure monthly node costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
@@ -1722,7 +1736,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id,
-                        infrastructure_monthly_cost__isnull=False,
+                        infrastructure_monthly_cost_json__isnull=False,
                         monthly_cost_type="Cluster",
                     )
                     # call populate monthly tag_cost with the rates defined above
@@ -1740,7 +1754,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     self.assertEqual(qset.count(), 1)
                     qset_total = 0
                     for value in qset:
-                        qset_total += value.infrastructure_monthly_cost.get(distribution, 0)
+                        qset_total += value.infrastructure_monthly_cost_json.get(distribution, 0)
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertAlmostEqual(rate_total, qset_total, 7)
                     self.assertEqual(rate_total, qset_total)
@@ -1781,7 +1795,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id,
-                        supplementary_monthly_cost__isnull=False,
+                        supplementary_monthly_cost_json__isnull=False,
                         monthly_cost_type="Cluster",
                     )
                     # call populate monthly tag_cost with the rates defined above
@@ -1799,7 +1813,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     self.assertEqual(qset.count(), 1)
                     qset_total = 0
                     for value in qset:
-                        qset_total += value.supplementary_monthly_cost.get(distribution, 0)
+                        qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(rate_total, qset_total)
 
@@ -1840,7 +1854,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id,
-                        supplementary_monthly_cost__isnull=False,
+                        supplementary_monthly_cost_json__isnull=False,
                         monthly_cost_type="Cluster",
                     )
                     # call populate monthly tag_cost with the rates defined above
@@ -1858,7 +1872,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     self.assertEqual(qset.count(), 1)
                     qset_total = 0
                     for value in qset:
-                        qset_total += value.supplementary_monthly_cost.get(distribution, 0)
+                        qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(rate_total, qset_total)
 
@@ -1886,7 +1900,7 @@ select * from eek where val1 in {{report_period_ids}} ;
 
                     qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id,
-                        infrastructure_monthly_cost__isnull=False,
+                        infrastructure_monthly_cost_json__isnull=False,
                         monthly_cost_type="Cluster",
                     )
 
@@ -1906,7 +1920,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     self.assertEqual(qset.count(), 1)
                     qset_total = 0
                     for value in qset:
-                        qset_total += value.infrastructure_monthly_cost.get(distribution, 0)
+                        qset_total += value.infrastructure_monthly_cost_json.get(distribution, 0)
                     expected_total = default_val * 2
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(expected_total, qset_total)
@@ -1937,7 +1951,7 @@ select * from eek where val1 in {{report_period_ids}} ;
 
                     qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id,
-                        infrastructure_monthly_cost__isnull=False,
+                        infrastructure_monthly_cost_json__isnull=False,
                         monthly_cost_type="Cluster",
                     )
 
@@ -1957,7 +1971,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     self.assertEqual(qset.count(), 1)
                     qset_total = 0
                     for value in qset:
-                        qset_total += value.infrastructure_monthly_cost.get(distribution, 0)
+                        qset_total += value.infrastructure_monthly_cost_json.get(distribution, 0)
                     expected_total = default_val * 2
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(expected_total, qset_total)
@@ -1986,7 +2000,7 @@ select * from eek where val1 in {{report_period_ids}} ;
 
                     qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id,
-                        supplementary_monthly_cost__isnull=False,
+                        supplementary_monthly_cost_json__isnull=False,
                         monthly_cost_type="Cluster",
                     )
 
@@ -2007,7 +2021,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     self.assertEqual(qset.count(), 1)
                     qset_total = 0
                     for value in qset:
-                        qset_total += value.supplementary_monthly_cost.get(distribution, 0)
+                        qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
                     expected_total = default_val * 2
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(expected_total, qset_total)
@@ -2040,7 +2054,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id,
-                        supplementary_monthly_cost__isnull=False,
+                        supplementary_monthly_cost_json__isnull=False,
                         monthly_cost_type="Cluster",
                     )
                     # assert that there are no infrastructure monthly node costs currently on our cluster id
@@ -2060,7 +2074,7 @@ select * from eek where val1 in {{report_period_ids}} ;
                     self.assertEqual(qset.count(), 0)
                     qset_total = 0
                     for value in qset:
-                        qset_total += value.supplementary_monthly_cost.get(distribution)
+                        qset_total += value.supplementary_monthly_cost_json.get(distribution)
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(rate_total, qset_total)
 
@@ -2090,7 +2104,7 @@ select * from eek where val1 in {{report_period_ids}} ;
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="Cluster"
+                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="Cluster"
             )
             # assert that there are no supplementary monthly node costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
