@@ -93,7 +93,7 @@ class SettingsViewTest(IamTestCase):
 
             url = (
                 "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
-                "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
+                "&filter[resolution]=monthly&key_only=True&filter[enabled]=True"
             )
             query_params = self.mocked_query_params(url, test.get("view"))
             handler = test.get("handler")(query_params)
