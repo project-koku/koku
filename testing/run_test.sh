@@ -3,6 +3,9 @@ COMMAND=$@
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 IMAGE="docker-registry.upshift.redhat.com/insights-qe/iqe-tests"
 
+_IQE_USER=${IQE_CONTAINER_UID:-1001}
+_IQE_GROUP=${IQE_CONTAINER_gID:-0}
+
 FLAGS=
 PREFIX=
 HOST=$(uname)
@@ -34,12 +37,16 @@ main() {
         exit 1
     fi
 
+    echo "USER=${_IQE_USER}"
+    echo "GROUP=${_IQE_GROUP}"
+
     $CONTAINER_RUNTIME pull $IMAGE
 
     $CONTAINER_RUNTIME run -it \
                            --rm \
                            --network="host" \
                            --name "iqe" \
+                           --user="${_IQE_USER}:${_IQE_GROUP}" \
                            -e "IQE_TESTS_LOCAL_CONF_PATH=/iqe_conf" \
                            -e "ENV_FOR_DYNACONF=local" \
                            -v $SCRIPTPATH/conf:/iqe_conf${FLAGS} \

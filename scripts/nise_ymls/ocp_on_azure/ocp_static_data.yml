@@ -98,6 +98,17 @@ generators:
                   labels: label_environment:qe|label_app:banking|label_version:MilkyWay|label_qa:approved
               volumes:
                 - volume:
+                  volume_name: pvc-volume_1
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name1_data
+                    pod_name: pod_name3a
+                    labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur
+                    capacity_gig: 20
+                - volume:
                   volume_name: pvc-volume_3
                   storage_class: gp2
                   volume_request_gig: 20
@@ -134,6 +145,17 @@ generators:
                   pod_seconds: 3600
                   labels: label_environment:Mars|label_app:weather|label_version:Andromeda|label_qa:approved
               volumes:
+                - volume:
+                  volume_name: pvc-volume_1
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name1_data
+                    pod_name: pod_name4a
+                    labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur
+                    capacity_gig: 20
                 - volume:
                   volume_name: pvc-volume_4
                   storage_class: gp2

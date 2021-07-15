@@ -1,0 +1,13 @@
+FROM quay.io/cloudservices/ubi-hive:2.3.3-002
+
+ARG USER_ID=1000
+
+USER root
+
+RUN groupadd -g ${USER_ID} hive \
+    && useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root hive \
+    && chmod g+rwx /opt
+
+USER hive
+
+RUN umask u=rwx,g=rwx,o=rx

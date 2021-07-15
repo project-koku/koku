@@ -110,6 +110,7 @@ class Provider(models.Model):
     # throughout the codebase
     PROVIDER_LIST = [choice[0] for choice in PROVIDER_CHOICES]
     CLOUD_PROVIDER_LIST = [choice[0] for choice in CLOUD_PROVIDER_CHOICES]
+    OPENSHIFT_ON_CLOUD_PROVIDER_LIST = [PROVIDER_AWS, PROVIDER_AWS_LOCAL, PROVIDER_AZURE, PROVIDER_AZURE_LOCAL]
 
     uuid = models.UUIDField(default=uuid4, primary_key=True)
     name = models.CharField(max_length=256, null=False)
@@ -172,6 +173,7 @@ class Provider(models.Model):
                 cascade_delete(self.__class__, self.__class__.objects.filter(pk=self.pk))
                 post_delete.send(sender=self.__class__, instance=self, using=using)
         else:
+            LOG.warning("Cannot customer link cannot be found! Using ORM delete!")
             super().delete()
 
 

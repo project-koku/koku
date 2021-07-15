@@ -214,39 +214,123 @@ class TestDeleteSQL(IamTestCase):
 
         self.assertEqual(Provider.objects.filter(pk__in=(paws.pk, pazure.pk, pgcp.pk, pocp.pk)).count(), 0)
 
+    def test_cascade_delete_immediate_constraint(self):
+        """Test that cascade_delete can set constraints to execute immediately"""
+        action_ts = datetime.now().replace(tzinfo=UTC)
+        # Add a bogus customer
+        c = Customer(
+            date_created=action_ts,
+            date_updated=action_ts,
+            uuid=uuid.uuid4(),
+            account_id="918273",
+            schema_name="acct918273",
+        )
+        c.save()
+        # Create a customer tenant
+        t = Tenant(schema_name=c.schema_name)
+        t.save()
+        t.create_schema()
+        # Add some bogus providers
+        paws = Provider(
+            uuid=uuid.uuid4(),
+            name="eek_aws_provider_4",
+            type=Provider.PROVIDER_AWS,
+            setup_complete=False,
+            active=True,
+            customer=c,
+        )
+        paws.save()
+        # Create billing period stuff for each provider
+        period_start = datetime(2020, 1, 1, tzinfo=UTC)
+        period_end = datetime(2020, 2, 1, tzinfo=UTC)
+        awsceb = AWSCostEntryBill(
+            billing_resource="6846351687354184651",
+            billing_period_start=period_start,
+            billing_period_end=period_end,
+            provider=paws,
+        )
+        with schema_context(c.schema_name):
+            awsceb.save()
 
-class TestLoadModels(IamTestCase):
-    def test_loader_updates_module_global(self):
-        """Test that the loader will add entries to the module-global dict"""
-        kdb.DB_MODELS.clear()
-        self.assertEqual(kdb.DB_MODELS, {})
+        expected = "DEBUG:koku.database:Setting constaints to execute immediately"
+        with self.assertLogs("koku.database", level="DEBUG") as _logger:
+            paws.delete()
+            self.assertIn(expected, _logger.output)
 
-        kdb._load_db_models()
-        self.assertNotEqual(kdb.DB_MODELS, {})
+        with schema_context(c.schema_name):
+            self.assertEqual(AWSCostEntryBill.objects.filter(pk=awsceb.pk).count(), 0)
 
-    def test_db_models_loaded_on_demand(self):
-        """Test that the DB_MODELS module-global dict is loaded on-demand"""
-        kdb.DB_MODELS.clear()
-        self.assertEqual(kdb.DB_MODELS, {})
+        self.assertEqual(Provider.objects.filter(pk=paws.pk).count(), 0)
 
-        tst_model = kdb.get_model("AWSCostEntryBill")
-        self.assertTrue(len(kdb.DB_MODELS) > 0)
-        self.assertEqual(tst_model, AWSCostEntryBill)
+    def test_cascade_delete_skip(self):
+        """Test that cascade_delete can skip relations"""
+        action_ts = datetime.now().replace(tzinfo=UTC)
+        # Add a bogus customer
+        c = Customer(
+            date_created=action_ts,
+            date_updated=action_ts,
+            uuid=uuid.uuid4(),
+            account_id="918273",
+            schema_name="acct918273",
+        )
+        c.save()
+        # Create a customer tenant
+        t = Tenant(schema_name=c.schema_name)
+        t.save()
+        t.create_schema()
+        # Add some bogus providers
+        paws = Provider(
+            uuid=uuid.uuid4(),
+            name="eek_aws_provider_4",
+            type=Provider.PROVIDER_AWS,
+            setup_complete=False,
+            active=True,
+            customer=c,
+        )
+        paws.save()
+        # Create billing period stuff for each provider
+        period_start = datetime(2020, 1, 1, tzinfo=UTC)
+        period_end = datetime(2020, 2, 1, tzinfo=UTC)
+        AWSCostEntry = kdb.get_model("AWSCostEntry")
+        AWSCostEntryLineItem = kdb.get_model("AWSCostEntryLineItem")
+        with schema_context(c.schema_name):
+            awsceb = AWSCostEntryBill(
+                billing_resource="6846351687354184651",
+                billing_period_start=period_start,
+                billing_period_end=period_end,
+                provider=paws,
+            )
+            awsceb.save()
+            awsce = AWSCostEntry(interval_start=period_start, interval_end=period_end, bill=awsceb)
+            awsce.save()
+            awsceli = AWSCostEntryLineItem(
+                line_item_type="test",
+                usage_account_id="test",
+                usage_start=period_start,
+                usage_end=period_start,
+                product_code="test",
+                currency_code="USD",
+                cost_entry=awsce,
+                cost_entry_bill=awsceb,
+            )
+            awsceli.save()
 
-    def test_model_name_lookup_case_insensitive(self):
-        """Test case-insensitive model lookup"""
-        self.assertEqual(kdb.get_model("AWSCostEntryBill"), AWSCostEntryBill)
-        self.assertEqual(kdb.get_model("awscostentrybill"), AWSCostEntryBill)
+        expected = "INFO:koku.database:SKIPPING RELATION AWSCostEntryLineItem by directive"
+        expected2 = "INFO:koku.database:SKIPPING RELATION GCPCostEntryLineItem by directive"
+        expected3 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItem by directive"
+        expected4 = "INFO:koku.database:SKIPPING RELATION OCPStorageLineItem by directive"
+        expected5 = "INFO:koku.database:SKIPPING RELATION OCPNodeLabelLineItem by directive"
+        with self.assertLogs("koku.database", level="INFO") as _logger:
+            paws.delete()
+            self.assertIn(expected, _logger.output)
+            self.assertIn(expected2, _logger.output)
+            self.assertIn(expected3, _logger.output)
+            self.assertIn(expected4, _logger.output)
+            self.assertIn(expected5, _logger.output)
 
-    def test_table_name_lookup(self):
-        """Test model lookup by table name"""
-        self.assertEqual(kdb.get_model("api_provider"), Provider)
+        with schema_context(c.schema_name):
+            self.assertEqual(AWSCostEntryBill.objects.filter(pk=awsceb.pk).count(), 0)
+            self.assertEqual(AWSCostEntry.objects.filter(pk=awsce.pk).count(), 0)
+            self.assertNotEqual(AWSCostEntryLineItem.objects.filter(pk=awsceli.pk).count(), 0)
 
-    def test_qualified_model_name_lookup(self):
-        """Test model lookup by qualified model name (<app>.Model)"""
-        self.assertEqual(kdb.get_model("api_provider"), kdb.get_model("api.Provider"))
-
-    def test_model_not_found(self):
-        """Test model lookup by qualified model name (<app>.Model)"""
-        with self.assertRaises(KeyError):
-            kdb.get_model("no_app_here.Eek")
+        self.assertEqual(Provider.objects.filter(pk=paws.pk).count(), 0)

@@ -33,6 +33,13 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
         if isinstance(end_date, str):
             end_date = parser.parse(end_date).date()
 
+        cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
+        with OCPReportDBAccessor(self._schema) as accessor:
+            report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
+            accessor.delete_infrastructure_raw_cost_from_daily_summary(
+                openshift_provider_uuid, report_period.id, start_date, end_date
+            )
+        aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
         with schema_context(self._schema):
             self._handle_partitions(
                 ("reporting_ocpawscostlineitem_daily_summary", "reporting_ocpawscostlineitem_project_daily_summary"),
@@ -44,6 +51,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
             aws_bill_ids = [str(bill.id) for bill in aws_bills]
             current_aws_bill_id = aws_bills.first().id if aws_bills else None
+            current_ocp_report_period_id = report_period.id
 
         with CostModelDBAccessor(self._schema, aws_provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
@@ -68,16 +76,12 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     end,
                     openshift_provider_uuid,
                     aws_provider_uuid,
-                    cluster_id,
+                    current_ocp_report_period_id,
                     current_aws_bill_id,
                     markup_value,
                 )
+            accessor.back_populate_ocp_on_aws_daily_summary(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start_date, end_date)
-
-        with OCPReportDBAccessor(self._schema) as accessor:
-            # This call just sends the infrastructure cost to the
-            # OCP usage daily summary table
-            accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)
 
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on Azure."""
@@ -86,6 +90,13 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
         if isinstance(end_date, str):
             end_date = parser.parse(end_date).date()
 
+        cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
+        with OCPReportDBAccessor(self._schema) as accessor:
+            report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
+            accessor.delete_infrastructure_raw_cost_from_daily_summary(
+                openshift_provider_uuid, report_period.id, start_date, end_date
+            )
+        azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
         with schema_context(self._schema):
             self._handle_partitions(
                 (
@@ -100,6 +111,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
             azure_bill_ids = [str(bill.id) for bill in azure_bills]
             current_azure_bill_id = azure_bills.first().id if azure_bills else None
+            current_ocp_report_period_id = report_period.id
 
         with CostModelDBAccessor(self._schema, azure_provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
@@ -124,13 +136,9 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     end,
                     openshift_provider_uuid,
                     azure_provider_uuid,
-                    cluster_id,
+                    current_ocp_report_period_id,
                     current_azure_bill_id,
                     markup_value,
                 )
+            accessor.back_populate_ocp_on_azure_daily_summary(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start_date, end_date)
-
-        with OCPReportDBAccessor(self._schema) as accessor:
-            # This call just sends the infrastructure cost to the
-            # OCP usage daily summary table
-            accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)

@@ -6,6 +6,7 @@
 import json
 import logging
 import os
+import threading
 
 import django
 from django.conf import settings
@@ -36,6 +37,7 @@ engines = {
 }
 
 
+DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
 
 
@@ -199,6 +201,12 @@ def execute_update_sql(query, **updatespec):
     return execute_compiled_sql(sql, params=params)
 
 
+def set_constraints_immediate():
+    with transaction.get_connection().cursor() as cur:
+        LOG.debug("Setting constaints to execute immediately")
+        cur.execute("set constraints all immediate;")
+
+
 def cascade_delete(from_model, instance_pk_query, skip_relations=[], base_model=None, level=0):
     """
     Performs a cascading delete by walking the Django model relations and executing compiled SQL
@@ -212,12 +220,24 @@ def cascade_delete(from_model, instance_pk_query, skip_relations=[], base_model=
     """
     if base_model is None:
         base_model = from_model
+
+    # Skip the low-level data.
+    skip_relations.extend(
+        (
+            get_model("reporting_awscostentrylineitem"),
+            get_model("reporting_gcpcostentrylineitem"),
+            get_model("reporting_ocpusagelineitem"),
+            get_model("reporting_ocpnodelabellineitem"),
+            get_model("reporting_ocpstoragelineitem"),
+        )
+    )
+
     instance_pk_query = instance_pk_query.values_list("pk").order_by()
     LOG.info(f"Level {level} Delete Cascade for {base_model.__name__}: Checking relations for {from_model.__name__}")
     for model_relation in from_model._meta.related_objects:
         related_model = model_relation.related_model
         if related_model in skip_relations:
-            LOG.info(f"SKIPPING RELATION {related_model.__name__} from caller directive")
+            LOG.info(f"SKIPPING RELATION {related_model.__name__} by directive")
             continue
 
         if model_relation.on_delete.__name__ == "SET_NULL":
@@ -227,8 +247,10 @@ def cascade_delete(from_model, instance_pk_query, skip_relations=[], base_model=
                 f"    Executing SET NULL constraint action on {related_model.__name__}"
                 f" relation of {from_model.__name__}"
             )
-            rec_count = execute_update_sql(related_model.objects.filter(**filterspec), **updatespec)
-            LOG.info(f"    Updated {rec_count} records in {related_model.__name__}")
+            with transaction.atomic():
+                set_constraints_immediate()
+                rec_count = execute_update_sql(related_model.objects.filter(**filterspec), **updatespec)
+                LOG.info(f"    Updated {rec_count} records in {related_model.__name__}")
         elif model_relation.on_delete.__name__ == "CASCADE":
             filterspec = {f"{model_relation.remote_field.column}__in": models.Subquery(instance_pk_query)}
             related_pk_values = related_model.objects.filter(**filterspec).values_list(related_model._meta.pk.name)
@@ -244,8 +266,10 @@ def cascade_delete(from_model, instance_pk_query, skip_relations=[], base_model=
         filterspec = {f"{from_model._meta.pk.name}__in": models.Subquery(instance_pk_query)}
         del_query = from_model.objects.filter(**filterspec)
 
-    rec_count = execute_delete_sql(del_query)
-    LOG.info(f"Deleted {rec_count} records from {from_model.__name__}")
+    with transaction.atomic():
+        set_constraints_immediate()
+        rec_count = execute_delete_sql(del_query)
+        LOG.info(f"Deleted {rec_count} records from {from_model.__name__}")
 
 
 def _load_db_models():
@@ -266,6 +290,7 @@ def _load_db_models():
 
 def get_model(model_or_table_name):
     """Get a model class from the model name or table name"""
-    if not DB_MODELS:
-        _load_db_models()
+    with DB_MODELS_LOCK:
+        if not DB_MODELS:
+            _load_db_models()
     return DB_MODELS[model_or_table_name.lower()]

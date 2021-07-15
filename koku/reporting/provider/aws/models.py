@@ -29,6 +29,8 @@ VIEWS = (
 
 
 PRESTO_LINE_ITEM_TABLE = "aws_line_items"
+PRESTO_LINE_ITEM_DAILY_TABLE = "aws_line_items_daily"
+PRESTO_OCP_ON_AWS_DAILY_TABLE = "aws_openshift_daily"
 
 PRESTO_REQUIRED_COLUMNS = (
     "lineItem/UsageStartDate",
@@ -106,11 +108,17 @@ class AWSCostEntryLineItem(models.Model):
 
     id = models.BigAutoField(primary_key=True)
 
-    cost_entry = models.ForeignKey("AWSCostEntry", on_delete=models.CASCADE)
-    cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE)
-    cost_entry_product = models.ForeignKey("AWSCostEntryProduct", on_delete=models.SET_NULL, null=True)
-    cost_entry_pricing = models.ForeignKey("AWSCostEntryPricing", on_delete=models.SET_NULL, null=True)
-    cost_entry_reservation = models.ForeignKey("AWSCostEntryReservation", on_delete=models.SET_NULL, null=True)
+    cost_entry = models.ForeignKey("AWSCostEntry", on_delete=models.CASCADE, db_constraint=False)
+    cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE, db_constraint=False)
+    cost_entry_product = models.ForeignKey(
+        "AWSCostEntryProduct", on_delete=models.SET_NULL, null=True, db_constraint=False
+    )
+    cost_entry_pricing = models.ForeignKey(
+        "AWSCostEntryPricing", on_delete=models.SET_NULL, null=True, db_constraint=False
+    )
+    cost_entry_reservation = models.ForeignKey(
+        "AWSCostEntryReservation", on_delete=models.SET_NULL, null=True, db_constraint=False
+    )
 
     tags = JSONField(null=True)
 

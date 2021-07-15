@@ -2,11 +2,14 @@ version: '3'
 
 services:
   koku-minio:
-    image: minio/minio:latest
+    image: local-minio:latest
+    build:
+        context: .
+        dockerfile: ../../Dockerfile.minio
     container_name: kokuminio
     environment:
-      MINIO_ACCESS_KEY: kokuminioaccess
-      MINIO_SECRET_KEY: kokuminiosecret
+      MINIO_ROOT_USER: kokuminioaccess
+      MINIO_ROOT_PASSWORD: kokuminiosecret
     ports:
       - 9000:9000
     command: server /data
@@ -32,7 +35,11 @@ services:
 
   hive-metastore:
     container_name: hive-metastore
-    image: quay.io/cloudservices/ubi-hive:2.3.3-002
+    #image: quay.io/cloudservices/ubi-hive:2.3.3-002
+    image: local-ubi-hive:2.3.3-002
+    build:
+        context: .
+        dockerfile: ../../Dockerfile.ubi-hive
     entrypoint:  ["/hive-scripts/entrypoint.sh", "/opt/hive/bin/hive", "--service", "metastore"]
     ports:
       - "9083:9083"
@@ -53,7 +60,11 @@ services:
 
   presto:
     container_name: presto
-    image: quay.io/cloudservices/ubi-trino:348-001
+    #image: quay.io/cloudservices/ubi-trino:348-001
+    image: local-ubi-trino:348-001
+    build:
+        context: .
+        dockerfile: ../../Dockerfile.ubi-trino
     user: root
     # If using trino (presto) release >= 351,
     # change "presto" to "trino" here and below in this stanza
