@@ -83,6 +83,44 @@ class ResourceTypesViewTest(IamTestCase):
                 response = self.client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["*"]}})
+    def test_aws_endpoints_view(self):
+        """Test endpoint runs with a customer owner."""
+        for endpoint in self.ENDPOINTS_AWS:
+            with self.subTest(endpoint=endpoint):
+                url = reverse(endpoint)
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                json_result = response.json()
+                self.assertIsNotNone(json_result.get("data"))
+                self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"gcp.account": {"read": ["*"]}, "gcp.project": {"read": ["*"]}})
+    def test_gcp_endpoints_view(self):
+        """Test endpoint runs with a customer owner."""
+        for endpoint in self.ENDPOINTS_GCP:
+            with self.subTest(endpoint=endpoint):
+                url = reverse(endpoint)
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                json_result = response.json()
+                self.assertIsNotNone(json_result.get("data"))
+                self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions(
+        {"openshift.cluster": {"read": ["*"]}, "openshift.project": {"read": ["*"]}, "openshift.node": {"read": ["*"]}}
+    )
+    def test_openshift_endpoints_view(self):
+        """Test endpoint runs with a customer owner."""
+        for endpoint in self.ENDPOINTS_OPENSHIFT:
+            with self.subTest(endpoint=endpoint):
+                url = reverse(endpoint)
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                json_result = response.json()
+                self.assertIsNotNone(json_result.get("data"))
+                self.assertIsInstance(json_result.get("data"), list)
+
     @RbacPermissions({"aws.account": {"read": ["*"]}})
     def test_aws_accounts_ocp_view(self):
         """Test endpoint runs with a customer owner."""
@@ -104,160 +142,6 @@ class ResourceTypesViewTest(IamTestCase):
         json_result = response.json()
         self.assertIsNotNone(json_result.get("data"))
         self.assertIsInstance(json_result.get("data"), list)
-
-    @RbacPermissions({"aws.account": {"read": ["*"]}})
-    def test_aws_account_view(self):
-        """Test that getting a forecast with limited access returns valid result."""
-        url = reverse("aws-accounts")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(json_result.get("data"), [])
-
-    @RbacPermissions({"aws.organizational_unit": {"read": ["*"]}})
-    def test_aws_organizational_unit_view(self):
-        """Test that getting a forecast with limited access returns valid result."""
-        url = reverse("aws-organizational-units")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(json_result.get("data"), [])
-
-    @RbacPermissions({"aws.account": {"read": ["*"]}})
-    def test_aws_service_view(self):
-        """Test that getting a forecast with limited access returns valid result."""
-        url = reverse("aws-services")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(json_result.get("data"), [])
-
-    @RbacPermissions({"aws.account": {"read": ["*"]}})
-    def test_aws_region_view(self):
-        """Test that getting a forecast with limited access returns valid result."""
-        url = reverse("aws-regions")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(json_result.get("data"), [])
-
-    @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
-    def test_azure_subscription_guid__view(self):
-        """Test that getting a forecast with limited access returns valid result."""
-        url = reverse("azure-subscription-guids")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(json_result.get("data"), [])
-
-    @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
-    def test_azure_service__view(self):
-        """Test that getting a forecast with limited access returns valid result."""
-        url = reverse("azure-services")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(json_result.get("data"), [])
-
-    @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
-    def test_azure_regions__view(self):
-        """Test that getting a forecast with limited access returns valid result."""
-        url = reverse("azure-regions")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(json_result.get("data"), [])
-
-    @RbacPermissions({"gcp.account": {"read": ["*"]}})
-    def test_gcp_account_view(self):
-        """Test that getting a forecast with limited access returns valid result."""
-        url = reverse("gcp-accounts")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(json_result.get("data"), [])
-
-    @RbacPermissions({"gcp.account": {"read": ["*"]}})
-    def test_gcp_regions_view(self):
-        """Test that getting a forecast with limited access returns valid result."""
-        url = reverse("gcp-regions")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(json_result.get("data"), [])
-
-    @RbacPermissions({"gcp.account": {"read": ["*"]}})
-    def test_gcp_services_view(self):
-        """Test that getting a forecast with limited access returns valid result."""
-        url = reverse("gcp-services")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(json_result.get("data"), [])
-
-    @RbacPermissions({"gcp.project": {"read": ["*"]}})
-    def test_gcp_project_view(self):
-        """Test that getting a forecast with limited access returns valid result."""
-        url = reverse("gcp-projects")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(json_result.get("data"), [])
-
-    @RbacPermissions({"openshift.cluster": {"read": ["*"]}})
-    def test_openshift_cluster_view(self):
-        """Test that getting a forecast with limited access returns valid result."""
-        url = reverse("openshift-clusters")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(json_result.get("data"), [])
-
-    @RbacPermissions({"openshift.node": {"read": ["*"]}})
-    def test_openshift_node_view(self):
-        """Test that getting a forecast with limited access returns valid result."""
-        url = reverse("openshift-nodes")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(json_result.get("data"), [])
-
-    @RbacPermissions({"openshift.project": {"read": ["*"]}})
-    def test_openshift_project_view(self):
-        """Test that getting a forecast with limited access returns valid result."""
-        url = reverse("openshift-projects")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(json_result.get("data"), [])
 
     @RbacPermissions({"aws.organizational_unit": {"read": ["OU_001"]}})
     def test_rbacpermissions_aws_org_unit_data(self):
