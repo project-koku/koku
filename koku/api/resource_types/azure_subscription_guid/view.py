@@ -33,13 +33,15 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
         # Reads the users values for Azure subscription guid and displays values related to what the user has access to
         user_access = []
         openshift = self.request.query_params.get("openshift")
-        if openshift == "true":
+        if openshift == "true" and request.user.access:
+            user_access = request.user.access.get("azure.subscription_guid", {}).get("read", [])
             self.queryset = (
                 OCPAzureCostSummaryByAccount.objects.annotate(
                     **{"value": F("subscription_guid"), "alias": F("cluster_alias")}
                 )
                 .values("value", "alias")
                 .distinct()
+                .filter(subscription_guid__in=user_access)
             )
         if request.user.admin:
             return super().list(request)

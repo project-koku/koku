@@ -83,6 +83,7 @@ class ResourceTypesViewTest(IamTestCase):
                 response = self.client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    @RbacPermissions({"aws.account": {"read": ["*"]}})
     def test_aws_accounts_ocp_view(self):
         """Test endpoint runs with a customer owner."""
         for endpoint in self.ENDPOINTS:
@@ -94,8 +95,8 @@ class ResourceTypesViewTest(IamTestCase):
                 json_result = response.json()
                 self.assertIsNotNone(json_result.get("data"))
                 self.assertIsInstance(json_result.get("data"), list)
-                self.assertTrue(len(json_result.get("data")) > 0)
 
+    @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
     def test_azure_subscriptions_guids_ocp_view(self):
         """Test endpoint runs with a customer owner."""
         for endpoint in self.ENDPOINTS:
@@ -107,7 +108,6 @@ class ResourceTypesViewTest(IamTestCase):
                 json_result = response.json()
                 self.assertIsNotNone(json_result.get("data"))
                 self.assertIsInstance(json_result.get("data"), list)
-                self.assertTrue(len(json_result.get("data")) > 0)
 
     @RbacPermissions({"aws.account": {"read": ["*"]}})
     def test_aws_account_view(self):
