@@ -27,6 +27,7 @@ from masu.util.aws.common import aws_post_processor
 from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import get_column_converters as aws_column_converters
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
+from masu.util.azure.common import azure_generate_daily_data
 from masu.util.azure.common import azure_post_processor
 from masu.util.azure.common import get_column_converters as azure_column_converters
 from masu.util.common import create_enabled_keys
@@ -190,6 +191,8 @@ class ParquetReportProcessor:
         daily_data_processor = None
         if self.provider_type == Provider.PROVIDER_AWS:
             daily_data_processor = aws_generate_daily_data
+        if self.provider_type == Provider.PROVIDER_AZURE:
+            daily_data_processor = azure_generate_daily_data
         if self.provider_type == Provider.PROVIDER_OCP:
             daily_data_processor = partial(ocp_generate_daily_data, report_type=self.report_type)
 
