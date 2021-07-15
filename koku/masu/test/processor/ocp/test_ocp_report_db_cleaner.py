@@ -92,8 +92,8 @@ class OCPReportDBCleanerTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertIsNone(self.accessor._get_db_obj_query(report_period_table_name).first())
             self.assertIsNone(self.accessor._get_db_obj_query(report_table_name).first())
-            self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
-            self.assertIsNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
 
     def test_purge_expired_report_data_before_date(self):
         """Test to remove report data before a provided date."""
@@ -169,8 +169,8 @@ class OCPReportDBCleanerTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertIsNone(self.accessor._get_db_obj_query(report_period_table_name).first())
             self.assertIsNone(self.accessor._get_db_obj_query(report_table_name).first())
-            self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
-            self.assertIsNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
 
     def test_purge_expired_report_data_on_date_simulate(self):
         """Test to simulate removing report data on a provided date."""

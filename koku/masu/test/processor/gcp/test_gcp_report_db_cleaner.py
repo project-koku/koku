@@ -185,7 +185,7 @@ class GCPReportDBCleanerTest(MasuTestCase):
 
         with schema_context(self.schema):
             self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
-            self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
 
     def test_purge_expired_report_data_no_args(self):
         """Test that the provider_uuid deletes all data for the provider."""
