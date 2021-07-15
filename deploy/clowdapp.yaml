@@ -70,6 +70,8 @@ objects:
           value: ${RBAC_CACHE_TTL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -194,6 +196,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -322,6 +326,8 @@ objects:
           value: ${RBAC_CACHE_TTL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -432,6 +438,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -464,6 +472,8 @@ objects:
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: SCHEDULE_REPORT_CHECKS
           value: ${SCHEDULE_REPORT_CHECKS}
+        - name: SOURCE_STATUS_FREQUENCY_MINUTES
+          value: ${SOURCE_STATUS_FREQUENCY_MINUTES}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
           value: ${REMOVE_EXPIRED_REPORT_DATA_ON_DAY}
         - name: REMOVE_EXPIRED_REPORT_UTC_TIME
@@ -787,6 +797,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -924,6 +936,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1061,6 +1075,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1198,6 +1214,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1335,6 +1353,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1472,6 +1492,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1609,6 +1631,8 @@ objects:
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1764,7 +1788,7 @@ parameters:
   required: true
   value: quay.io/cloudservices/koku
 - name: S3_BUCKET_NAME
-  value: koku-reports
+  value: koku-eph-s3
 - description: GCP Credentials Location
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json
@@ -1868,14 +1892,6 @@ parameters:
   displayName: Source Types to be processed with Trino
   name: ENABLE_TRINO_SOURCE_TYPE
   value: ""
-- description: Enable API Sentry
-  displayName: Enable API Sentry
-  name: ENABLE_API_SENTRY
-  value: "false"
-- description: Enable Celery Sentry
-  displayName: Enable Celery Sentry
-  name: ENABLE_CELERY_SENTRY
-  value: "false"
 - description: Scheduler check interval
   displayName: Scheduler check interval
   name: SCHEDULE_CHECK_INTERVAL
@@ -2057,6 +2073,9 @@ parameters:
 - displayName: Scheduler report checks
   name: SCHEDULE_REPORT_CHECKS
   value: "True"
+- displayName: Frequency to check sources availability (minutes)
+  name: SOURCE_STATUS_FREQUENCY_MINUTES
+  value: "60"
 - displayName: Minimum replicas
   name: SOURCES_CLIENT_MIN_REPLICAS
   required: true

@@ -82,8 +82,8 @@ WITH cte_ocp_on_aws_joined AS (
                     OR json_extract_scalar(aws.resourcetags, '$.openshift_project') = lower(ocp.namespace)
                     OR json_extract_scalar(aws.resourcetags, '$.openshift_node') = lower(ocp.node)
                     OR json_extract_scalar(aws.resourcetags, '$.openshift_cluster') IN (lower(ocp.cluster_id), lower(ocp.cluster_alias))
-                    OR any_match(split(aws.matched_tag, ','), x->strpos(json_format(ocp.pod_labels), replace(x, ' ')) != 0)
-                    OR any_match(split(aws.matched_tag, ','), x->strpos(json_format(ocp.volume_labels), replace(x, ' ')) != 0)
+                    OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(json_format(ocp.pod_labels), replace(x, ' ')) != 0))
+                    OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(json_format(ocp.volume_labels), replace(x, ' ')) != 0))
             )
     WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
         AND aws.year = '{{year | sqlsafe}}'
@@ -135,11 +135,11 @@ SELECT uuid(),
     ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count as unblended_cost,
     ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count * cast({{markup}} as decimal(24,9)) as markup_cost,
     CASE WHEN ocp_aws.resource_id_matched = TRUE AND ocp_aws.data_source = 'Pod'
-        THEN (ocp_aws.pod_usage_cpu_core_hours / ocp_aws.cluster_capacity_cpu_core_hours) * ocp_aws.unblended_cost
+        THEN (ocp_aws.pod_usage_cpu_core_hours / ocp_aws.cluster_capacity_cpu_core_hours) * ocp_aws.unblended_cost / dsc.data_source_count
         ELSE ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count
     END as pod_cost,
     CASE WHEN ocp_aws.resource_id_matched = TRUE AND ocp_aws.data_source = 'Pod'
-        THEN (ocp_aws.pod_usage_cpu_core_hours / ocp_aws.cluster_capacity_cpu_core_hours) * ocp_aws.unblended_cost * cast({{markup}} as decimal(24,9))
+        THEN (ocp_aws.pod_usage_cpu_core_hours / ocp_aws.cluster_capacity_cpu_core_hours) * ocp_aws.unblended_cost * cast({{markup}} as decimal(24,9)) / dsc.data_source_count
         ELSE ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
     CASE WHEN ocp_aws.pod_labels IS NOT NULL

@@ -12,7 +12,7 @@ from rest_framework import filters
 from rest_framework import generics
 
 from api.common import CACHE_RH_IDENTITY_HEADER
-from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
+from api.common.permissions.cost_models_access import CostModelsAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from cost_models.models import CostModel
 
@@ -26,7 +26,7 @@ class CostModelResourceTypesView(generics.ListAPIView):
         .values("value")
     )
     serializer_class = ResourceTypeSerializer
-    permission_classes = [ResourceTypeAccessPermission]
+    permission_classes = [CostModelsAccessPermission]
     filter_backends = [filters.OrderingFilter]
     ordering = ["value"]
 
