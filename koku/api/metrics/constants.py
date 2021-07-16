@@ -18,6 +18,7 @@ OCP_PVC_MONTH = "pvc_cost_per_month"
 
 MEMORY_DISTRIBUTION = "memory"
 CPU_DISTRIBUTION = "cpu"
+PVC_DISTRIBUTION = "pvc"
 INFRASTRUCTURE_COST_TYPE = "Infrastructure"
 SUPPLEMENTARY_COST_TYPE = "Supplementary"
 
