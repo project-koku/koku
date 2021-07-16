@@ -53,6 +53,7 @@ class GCPTagQueryHandler(TagQueryHandler):
     @property
     def filter_map(self):
         """Establish which filter map to use based on tag API."""
+        enabled_parameter = self._parameters.get_filter("enabled") in (None, True)
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
         if self._parameters.get_filter("value"):
             filter_map.update(
@@ -64,7 +65,7 @@ class GCPTagQueryHandler(TagQueryHandler):
                         {"field": "project_ids", "operation": "icontains", "composition_key": "project_filter"},
                         {"field": "project_names", "operation": "icontains", "composition_key": "project_filter"},
                     ],
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                 }
             )
         else:
@@ -77,7 +78,7 @@ class GCPTagQueryHandler(TagQueryHandler):
                         {"field": "project_id", "operation": "icontains", "composition_key": "project_filter"},
                         {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},
                     ],
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                 }
             )
         return filter_map
