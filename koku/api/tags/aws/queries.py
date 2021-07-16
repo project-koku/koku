@@ -41,6 +41,7 @@ class AWSTagQueryHandler(TagQueryHandler):
         self._parameters = parameters
         if not hasattr(self, "_mapper"):
             self._mapper = AWSProviderMap(provider=self.provider, report_type=parameters.report_type)
+
         if parameters.get_filter("enabled") is None:
             parameters.set_filter(**{"enabled": True})
         # super() needs to be called after _mapper is set
@@ -49,6 +50,7 @@ class AWSTagQueryHandler(TagQueryHandler):
     @property
     def filter_map(self):
         """Establish which filter map to use based on tag API."""
+        enabled_parameter = self._parameters.get_filter("enabled") in (None, True)
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
         if self._parameters.get_filter("value"):
             filter_map.update(
@@ -57,7 +59,7 @@ class AWSTagQueryHandler(TagQueryHandler):
                         {"field": "account_aliases", "operation": "icontains", "composition_key": "account_filter"},
                         {"field": "usage_account_ids", "operation": "icontains", "composition_key": "account_filter"},
                     ],
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                 }
             )
         else:
@@ -71,7 +73,7 @@ class AWSTagQueryHandler(TagQueryHandler):
                         },
                         {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
                     ],
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                 }
             )
         return filter_map
