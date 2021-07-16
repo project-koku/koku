@@ -75,11 +75,12 @@ class OCPTagQueryHandler(TagQueryHandler):
     def filter_map(self):
         """Establish which filter map to use based on tag API."""
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
+        enabled_parameter = self._parameters.get_filter("enabled") in (None, True)
         if self._parameters.get_filter("value"):
             filter_map.update(
                 {
                     "project": {"field": "namespaces", "operation": "contained_by"},
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                     "cluster": [
                         {"field": "cluster_ids", "operation": "contained_by", "composition_key": "cluster_filter"},
                         {"field": "cluster_aliases", "operation": "contained_by", "composition_key": "cluster_filter"},
@@ -91,7 +92,7 @@ class OCPTagQueryHandler(TagQueryHandler):
             filter_map.update(
                 {
                     "project": {"field": "namespace", "operation": "icontains"},
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                     "cluster": [
                         {
                             "field": "report_period__cluster_id",
