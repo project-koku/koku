@@ -698,127 +698,158 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_populate_monthly_cost_node_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for nodes in the summary table is populated."""
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
-
-        node_rate = random.randrange(1, 100)
-
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-
         first_month, _ = month_date_range_tuple(start_date)
-
         cluster_alias = "test_cluster_alias"
-        self.accessor.populate_monthly_cost(
-            "Node", "Infrastructure", node_rate, start_date, end_date, self.cluster_id, cluster_alias
-        )
 
-        monthly_cost_rows = (
-            self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-            .filter(usage_start=first_month, infrastructure_monthly_cost__isnull=False)
-            .all()
-        )
-        with schema_context(self.schema):
-            expected_count = (
-                OCPUsageLineItemDailySummary.objects.filter(
-                    report_period__provider_id=self.ocp_provider.uuid, usage_start__gte=start_date
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+                node_rate = random.randrange(1, 100)
+                self.accessor.populate_monthly_cost(
+                    "Node",
+                    "Infrastructure",
+                    node_rate,
+                    start_date,
+                    end_date,
+                    self.cluster_id,
+                    cluster_alias,
+                    distribution,
                 )
-                .values("node")
-                .distinct()
-                .count()
-            )
-            self.assertEquals(monthly_cost_rows.count(), expected_count)
-            for monthly_cost_row in monthly_cost_rows:
-                self.assertEquals(monthly_cost_row.infrastructure_monthly_cost, node_rate)
+                monthly_cost_rows = (
+                    self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+                    .filter(usage_start=first_month, infrastructure_monthly_cost_json__isnull=False)
+                    .all()
+                )
+                with schema_context(self.schema):
+                    expected_count = (
+                        OCPUsageLineItemDailySummary.objects.filter(
+                            report_period__provider_id=self.ocp_provider.uuid, usage_start__gte=start_date
+                        )
+                        .values("node")
+                        .distinct()
+                        .count()
+                    )
+                    self.assertEquals(monthly_cost_rows.count(), expected_count)
+                    for monthly_cost_row in monthly_cost_rows:
+                        self.assertEquals(
+                            monthly_cost_row.infrastructure_monthly_cost_json.get(distribution), node_rate
+                        )
 
     def test_populate_monthly_cost_node_supplementary_cost(self):
         """Test that the monthly supplementary cost row for nodes in the summary table is populated."""
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
-
-        node_rate = random.randrange(1, 100)
-
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-
         first_month, _ = month_date_range_tuple(start_date)
-
         cluster_alias = "test_cluster_alias"
-        self.accessor.populate_monthly_cost(
-            "Node", "Supplementary", node_rate, start_date, end_date, self.cluster_id, cluster_alias
-        )
-
-        monthly_cost_rows = (
-            self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-            .filter(usage_start=first_month, supplementary_monthly_cost__isnull=False)
-            .all()
-        )
-        with schema_context(self.schema):
-            expected_count = (
-                OCPUsageLineItemDailySummary.objects.filter(
-                    report_period__provider_id=self.ocp_provider.uuid, usage_start__gte=start_date
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+                node_rate = random.randrange(1, 100)
+                self.accessor.populate_monthly_cost(
+                    "Node",
+                    "Supplementary",
+                    node_rate,
+                    start_date,
+                    end_date,
+                    self.cluster_id,
+                    cluster_alias,
+                    distribution,
                 )
-                .values("node")
-                .distinct()
-                .count()
-            )
-            self.assertEquals(monthly_cost_rows.count(), expected_count)
-            for monthly_cost_row in monthly_cost_rows:
-                self.assertEquals(monthly_cost_row.supplementary_monthly_cost, node_rate)
+                monthly_cost_rows = (
+                    self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+                    .filter(usage_start=first_month, supplementary_monthly_cost_json__isnull=False)
+                    .all()
+                )
+                with schema_context(self.schema):
+                    expected_count = (
+                        OCPUsageLineItemDailySummary.objects.filter(
+                            report_period__provider_id=self.ocp_provider.uuid, usage_start__gte=start_date
+                        )
+                        .values("node")
+                        .distinct()
+                        .count()
+                    )
+                    self.assertEquals(monthly_cost_rows.count(), expected_count)
+                    for monthly_cost_row in monthly_cost_rows:
+                        self.assertEquals(
+                            monthly_cost_row.supplementary_monthly_cost_json.get(distribution), node_rate
+                        )
 
     def test_populate_monthly_cost_cluster_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for clusters in the summary table is populated."""
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
-
-        cluster_rate = random.randrange(1, 100)
-
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-
         first_month, _ = month_date_range_tuple(start_date)
-
         cluster_alias = "test_cluster_alias"
-        self.accessor.populate_monthly_cost(
-            "Cluster", "Infrastructure", cluster_rate, start_date, end_date, self.cluster_id, cluster_alias
-        )
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+                cluster_rate = random.randrange(1, 100)
+                self.accessor.populate_monthly_cost(
+                    "Cluster",
+                    "Infrastructure",
+                    cluster_rate,
+                    start_date,
+                    end_date,
+                    self.cluster_id,
+                    cluster_alias,
+                    distribution,
+                )
 
-        monthly_cost_rows = (
-            self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-            .filter(usage_start=first_month, infrastructure_monthly_cost__isnull=False)
-            .all()
-        )
-        with schema_context(self.schema):
-            self.assertEquals(monthly_cost_rows.count(), 1)
-            for monthly_cost_row in monthly_cost_rows:
-                self.assertEquals(monthly_cost_row.infrastructure_monthly_cost, cluster_rate)
+                monthly_cost_rows = (
+                    self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+                    .filter(usage_start=first_month, infrastructure_monthly_cost_json__isnull=False)
+                    .all()
+                )
+                with schema_context(self.schema):
+                    sum_row_list = []
+                    for monthly_cost_row in monthly_cost_rows:
+                        sum_row_list.append(monthly_cost_row.infrastructure_monthly_cost_json.get(distribution))
+                    #  handle small possible imprecision due to division
+                    # eg. 56.99999999999999 != 57
+                    self.assertTrue((cluster_rate - sum(sum_row_list)) < 0.001)
 
     def test_populate_monthly_cost_cluster_supplementary_cost(self):
         """Test that the monthly infrastructure cost row for clusters in the summary table is populated."""
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
-
-        cluster_rate = random.randrange(1, 100)
-
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-
         first_month, _ = month_date_range_tuple(start_date)
-
         cluster_alias = "test_cluster_alias"
-        self.accessor.populate_monthly_cost(
-            "Cluster", "Supplementary", cluster_rate, start_date, end_date, self.cluster_id, cluster_alias
-        )
 
-        monthly_cost_rows = (
-            self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-            .filter(usage_start=first_month, supplementary_monthly_cost__isnull=False)
-            .all()
-        )
-        with schema_context(self.schema):
-            self.assertEquals(monthly_cost_rows.count(), 1)
-            for monthly_cost_row in monthly_cost_rows:
-                self.assertEquals(monthly_cost_row.supplementary_monthly_cost, cluster_rate)
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+                cluster_rate = random.randrange(1, 100)
+                self.accessor.populate_monthly_cost(
+                    "Cluster",
+                    "Supplementary",
+                    cluster_rate,
+                    start_date,
+                    end_date,
+                    self.cluster_id,
+                    cluster_alias,
+                    distribution,
+                )
+                monthly_cost_rows = (
+                    self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+                    .filter(usage_start=first_month, supplementary_monthly_cost_json__isnull=False)
+                    .all()
+                )
+                with schema_context(self.schema):
+                    sum_row_list = []
+                    for monthly_cost_row in monthly_cost_rows:
+                        sum_row_list.append(monthly_cost_row.supplementary_monthly_cost_json.get(distribution))
+                    self.assertTrue((cluster_rate - sum(sum_row_list)) < 0.001)
 
     def test_populate_monthly_cost_pvc_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for PVC in the summary table is populated."""
@@ -834,12 +865,19 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         cluster_alias = "test_cluster_alias"
         self.accessor.populate_monthly_cost(
-            "PVC", "Infrastructure", pvc_rate, start_date, end_date, self.cluster_id, cluster_alias
+            "PVC",
+            "Infrastructure",
+            pvc_rate,
+            start_date,
+            end_date,
+            self.cluster_id,
+            cluster_alias,
+            metric_constants.CPU_DISTRIBUTION,
         )
 
         monthly_cost_rows = (
             self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-            .filter(usage_start=first_month, infrastructure_monthly_cost__isnull=False)
+            .filter(usage_start=first_month, infrastructure_monthly_cost_json__isnull=False)
             .all()
         )
         with schema_context(self.schema):
@@ -855,7 +893,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             self.assertEquals(monthly_cost_rows.count(), expected_count)
             for monthly_cost_row in monthly_cost_rows:
-                self.assertEquals(monthly_cost_row.infrastructure_monthly_cost, pvc_rate)
+                self.assertEquals(
+                    monthly_cost_row.infrastructure_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION), pvc_rate
+                )
 
     def test_populate_monthly_cost_pvc_supplementary_cost(self):
         """Test that the monthly supplementary cost row for PVC in the summary table is populated."""
@@ -871,12 +911,19 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         cluster_alias = "test_cluster_alias"
         self.accessor.populate_monthly_cost(
-            "PVC", "Supplementary", pvc_rate, start_date, end_date, self.cluster_id, cluster_alias
+            "PVC",
+            "Supplementary",
+            pvc_rate,
+            start_date,
+            end_date,
+            self.cluster_id,
+            cluster_alias,
+            metric_constants.CPU_DISTRIBUTION,
         )
 
         monthly_cost_rows = (
             self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-            .filter(usage_start=first_month, supplementary_monthly_cost__isnull=False)
+            .filter(usage_start=first_month, supplementary_monthly_cost_json__isnull=False)
             .all()
         )
         with schema_context(self.schema):
@@ -892,36 +939,38 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             self.assertEquals(monthly_cost_rows.count(), expected_count)
             for monthly_cost_row in monthly_cost_rows:
-                self.assertEquals(monthly_cost_row.supplementary_monthly_cost, pvc_rate)
+                self.assertEquals(
+                    monthly_cost_row.supplementary_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION), pvc_rate
+                )
 
     def test_remove_monthly_cost(self):
         """Test that the monthly cost row in the summary table is removed."""
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
-
-        node_rate = random.randrange(1, 100)
-
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-
         first_month, first_next_month = month_date_range_tuple(start_date)
-
         cluster_alias = "test_cluster_alias"
         cost_type = "Node"
-        rate_type = metric_constants.SUPPLEMENTARY_COST_TYPE
-        self.accessor.populate_monthly_cost(
-            cost_type, rate_type, node_rate, start_date, end_date, self.cluster_id, cluster_alias
-        )
-        monthly_cost_rows = (
-            self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-            .filter(usage_start=first_month, supplementary_monthly_cost__isnull=False)
-            .all()
-        )
-        with schema_context(self.schema):
-            self.assertTrue(monthly_cost_rows.exists())
-        self.accessor.remove_monthly_cost(start_date, first_next_month, self.cluster_id, cost_type)
-        with schema_context(self.schema):
-            self.assertFalse(monthly_cost_rows.exists())
+
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+                node_rate = random.randrange(1, 100)
+                rate_type = metric_constants.SUPPLEMENTARY_COST_TYPE
+                self.accessor.populate_monthly_cost(
+                    cost_type, rate_type, node_rate, start_date, end_date, self.cluster_id, cluster_alias, distribution
+                )
+                monthly_cost_rows = (
+                    self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+                    .filter(usage_start=first_month, supplementary_monthly_cost_json__isnull=False)
+                    .all()
+                )
+                with schema_context(self.schema):
+                    self.assertTrue(monthly_cost_rows.exists())
+                self.accessor.remove_monthly_cost(start_date, first_next_month, self.cluster_id, cost_type)
+                with schema_context(self.schema):
+                    self.assertFalse(monthly_cost_rows.exists())
 
     def test_remove_monthly_cost_no_data(self):
         """Test that an error isn't thrown when the monthly cost row has no data."""
@@ -1057,44 +1106,33 @@ select * from eek where val1 in {{report_period_ids}} ;
             for column in summary_columns:
                 self.assertIsNotNone(getattr(entry, column))
 
-    def test_upsert_monthly_cluster_cost_line_item(self):
-        """Test that the cluster monthly costs are not updated."""
-        report_table_name = OCP_REPORT_TABLE_MAP["report"]
-        report_table = getattr(self.accessor.report_schema, report_table_name)
-        rate = 1000
-        with schema_context(self.schema):
-            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"]
-            end_date = report_entry["interval_start__max"]
-
-            start_date = str(self.reporting_period.report_period_start)
-            end_date = str(self.reporting_period.report_period_end)
-            self.accessor.upsert_monthly_cluster_cost_line_item(
-                start_date, end_date, self.cluster_id, "cluster_alias", metric_constants.SUPPLEMENTARY_COST_TYPE, rate
-            )
-            summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-            query = self.accessor._get_db_obj_query(summary_table_name)
-            self.assertEqual(query.filter(cluster_id=self.cluster_id).first().supplementary_monthly_cost, rate)
-
     def test_upsert_monthly_cluster_cost_line_item_no_report_period(self):
         """Test that the cluster monthly costs are not updated when no report period  is found."""
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         report_table_name = OCP_REPORT_TABLE_MAP["report"]
         report_table = getattr(self.accessor.report_schema, report_table_name)
         rate = 1000
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                with schema_context(self.schema):
+                    report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
+                    start_date = report_entry["interval_start__min"]
+                    end_date = report_entry["interval_start__max"]
 
-        with schema_context(self.schema):
-            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"]
-            end_date = report_entry["interval_start__max"]
-
-            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-            end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-            self.accessor.upsert_monthly_cluster_cost_line_item(
-                start_date, end_date, self.cluster_id, "cluster_alias", metric_constants.SUPPLEMENTARY_COST_TYPE, rate
-            )
-            summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-            query = self.accessor._get_db_obj_query(summary_table_name)
-            self.assertFalse(query.filter(cluster_id=self.cluster_id).exists())
+                    start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    self.accessor.upsert_monthly_cluster_cost_line_item(
+                        start_date,
+                        end_date,
+                        self.cluster_id,
+                        "cluster_alias",
+                        metric_constants.SUPPLEMENTARY_COST_TYPE,
+                        rate,
+                        distribution,
+                    )
+                    summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+                    query = self.accessor._get_db_obj_query(summary_table_name)
+                    self.assertFalse(query.filter(cluster_id=self.cluster_id).exists())
 
     # tag based testing is below
     def test_populate_monthly_tag_cost_node_infrastructure_cost(self):
@@ -1102,6 +1140,7 @@ select * from eek where val1 in {{report_period_ids}} ;
         Test that the monthly infrastructure cost row for nodes in the summary table
         is populated when given tag based rates.
         """
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         key_value_pairs = {"app": ["banking", "mobile", "weather"]}
         node_tag_rates = {}
         rate_total = 0
@@ -1112,107 +1151,148 @@ select * from eek where val1 in {{report_period_ids}} ;
                 values_dict[value] = node_rate
                 rate_total += node_rate
             node_tag_rates[key] = values_dict
-
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
-        with schema_context(self.schema):
-            k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
-            c_a = k_v.get("cluster_alias")
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                self.cluster_id = "OCP-on-Azure"
+                with schema_context(self.schema):
+                    k_v = (
+                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
+                        .values()
+                        .first()
+                    )
+                    c_a = k_v.get("cluster_alias")
 
-            qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, infrastructure_monthly_cost__isnull=False, monthly_cost_type="Node"
-            ).values("infrastructure_monthly_cost")
-            # assert that there are no infrastructure monthly node costs currently on our cluster id
-            self.assertEqual(qset.count(), 0)
-            # call populate monthly tag_cost with the rates defined above
-            self.accessor.populate_monthly_tag_cost(
-                "Node", "Infrastructure", node_tag_rates, start_date, end_date, self.cluster_id, c_a
-            )
+                    qset = OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        infrastructure_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Node",
+                    )
+                    # call populate monthly tag_cost with the rates defined above
+                    self.accessor.populate_monthly_tag_cost(
+                        "Node",
+                        "Infrastructure",
+                        node_tag_rates,
+                        start_date,
+                        end_date,
+                        self.cluster_id,
+                        c_a,
+                        distribution,
+                    )
 
-            # assert that after the update, there are now the monthly values
-            # for the three different nodes that have a value
-            self.assertEqual(qset.count(), 3)
-            qset_total = 0
-            for value in qset:
-                qset_total += value.get("infrastructure_monthly_cost")
-            # assert that the total value of the qset costs is equal to the total costs from the tag rates
-            self.assertEqual(rate_total, qset_total)
+                    # assert that after the update, there are now the monthly values
+                    # for the three different nodes that have a value
+                    self.assertEqual(qset.count(), 3)
+                    qset_total = 0
+                    for value in qset:
+                        qset_total += value.infrastructure_monthly_cost_json.get(distribution, 0)
+                    # assert that the total value of the qset costs is equal to the total costs from the tag rates
+                    self.assertEqual(rate_total, qset_total)
 
     def test_populate_monthly_default_tag_cost_node_infrastructure_cost(self):
         """
         Test that the monthly infrastructure cost row for nodes in the summary table
         is populated when given tag based rates.
         """
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         default_val = random.randrange(1, 100)
         node_tag_rates = {"app": {"default_value": default_val, "defined_keys": ["mobile", "banking"]}}
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
-        with schema_context(self.schema):
-            k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
-            c_a = k_v.get("cluster_alias")
 
-            qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, infrastructure_monthly_cost__isnull=False, monthly_cost_type="Node"
-            ).values("infrastructure_monthly_cost")
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                self.cluster_id = "OCP-on-Azure"
+                with schema_context(self.schema):
+                    k_v = (
+                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
+                        .values()
+                        .first()
+                    )
+                    c_a = k_v.get("cluster_alias")
 
-            # assert that there are no infrastructure monthly node costs currently on our cluster id
-            self.assertEqual(qset.count(), 0)
+                    qset = OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        infrastructure_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Node",
+                    )
 
-            # call populate monthly default tag_cost with the rates defined above
-            self.accessor.populate_monthly_tag_default_cost(
-                "Node", "Infrastructure", node_tag_rates, start_date, end_date, self.cluster_id, c_a
-            )
+                    # call populate monthly default tag_cost with the rates defined above
+                    self.accessor.populate_monthly_tag_default_cost(
+                        "Node",
+                        "Infrastructure",
+                        node_tag_rates,
+                        start_date,
+                        end_date,
+                        self.cluster_id,
+                        c_a,
+                        distribution,
+                    )
 
-            # assert that after the update, there are now the monthly values
-            # for the two different nodes that did not have a value defined
-            self.assertEqual(qset.count(), 2)
-            qset_total = 0
-            for value in qset:
-                qset_total += value.get("infrastructure_monthly_cost")
-            expected_total = default_val * 2
-            # assert that the total value of the qset costs is equal to the total costs from the tag rates
-            self.assertEqual(expected_total, qset_total)
+                    # assert that after the update, there are now the monthly values
+                    # for the two different nodes that did not have a value defined
+                    self.assertEqual(qset.count(), 2)
+                    qset_total = 0
+                    for value in qset:
+                        qset_total += value.infrastructure_monthly_cost_json.get(distribution, 0)
+                    expected_total = default_val * 2
+                    # assert that the total value of the qset costs is equal to the total costs from the tag rates
+                    self.assertEqual(expected_total, qset_total)
 
+    # example
     def test_populate_monthly_default_tag_cost_node_supplementary_cost(self):
         """
         Test that the monthly infrastructure cost row for nodes in the summary table
         is populated when given tag based rates.
         """
-        default_val = random.randrange(1, 100)
-        node_tag_rates = {"app": {"default_value": default_val, "defined_keys": ["mobile", "banking"]}}
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
-        with schema_context(self.schema):
-            k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
-            c_a = k_v.get("cluster_alias")
 
-            qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="Node"
-            ).values("supplementary_monthly_cost")
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                default_val = random.randrange(1, 100)
+                node_tag_rates = {"app": {"default_value": default_val, "defined_keys": ["mobile", "banking"]}}
+                self.cluster_id = "OCP-on-Azure"
+                with schema_context(self.schema):
+                    k_v = (
+                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
+                        .values()
+                        .first()
+                    )
+                    c_a = k_v.get("cluster_alias")
 
-            # assert that there are no supplementary monthly node costs currently on our cluster id
-            self.assertEqual(qset.count(), 0)
+                    qset = OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        supplementary_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Node",
+                    )
 
-            # call populate monthly default tag_cost with the rates defined above
-            self.accessor.populate_monthly_tag_default_cost(
-                "Node", "Supplementary", node_tag_rates, start_date, end_date, self.cluster_id, c_a
-            )
+                    # call populate monthly default tag_cost with the rates defined above
+                    self.accessor.populate_monthly_tag_default_cost(
+                        "Node",
+                        "Supplementary",
+                        node_tag_rates,
+                        start_date,
+                        end_date,
+                        self.cluster_id,
+                        c_a,
+                        distribution,
+                    )
 
-            # assert that after the update, there are now the monthly values
-            # for the two different nodes that did not have a value defined
-            self.assertEqual(qset.count(), 2)
-            qset_total = 0
-            for value in qset:
-                qset_total += value.get("supplementary_monthly_cost")
-            expected_total = default_val * 2
-            # assert that the total value of the qset costs is equal to the total costs from the tag rates
-            self.assertEqual(expected_total, qset_total)
+                    # assert that after the update, there are now the monthly values
+                    # for the two different nodes that did not have a value defined
+                    self.assertEqual(qset.count(), 2)
+                    qset_total = 0
+                    for value in qset:
+                        qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
+                    expected_total = default_val * 2
+                    # assert that the total value of the qset costs is equal to the total costs from the tag rates
+                    self.assertEqual(expected_total, qset_total)
 
     def test_populate_monthly_tag_cost_pvc_infrastructure_cost(self):
         """
@@ -1245,13 +1325,20 @@ select * from eek where val1 in {{report_period_ids}} ;
             c_a = k_v.get("cluster_alias")
 
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, infrastructure_monthly_cost__isnull=False, monthly_cost_type="PVC"
-            ).values("infrastructure_monthly_cost")
+                cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
+            )
             # assert that there are no infrastructure monthly PVC costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
             # call populate monthly tag_cost with the rates defined above
             self.accessor.populate_monthly_tag_cost(
-                "PVC", "Infrastructure", pvc_tag_rates, start_date, end_date, self.cluster_id, c_a
+                "PVC",
+                "Infrastructure",
+                pvc_tag_rates,
+                start_date,
+                end_date,
+                self.cluster_id,
+                c_a,
+                metric_constants.CPU_DISTRIBUTION,
             )
 
             # assert that after the update, there are now the monthly values
@@ -1259,7 +1346,7 @@ select * from eek where val1 in {{report_period_ids}} ;
             self.assertEqual(qset.count(), 4)
             qset_total = 0
             for value in qset:
-                qset_total += value.get("infrastructure_monthly_cost")
+                qset_total += value.infrastructure_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION, 0)
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
             self.assertEqual(rate_total, qset_total)
 
@@ -1268,6 +1355,7 @@ select * from eek where val1 in {{report_period_ids}} ;
         Test that the monthly supplementary cost row for nodes in the summary table
         is populated when given tag based rates.
         """
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         key_value_pairs = {"app": ["banking", "mobile", "weather"]}
         node_tag_rates = {}
         rate_total = 0
@@ -1282,31 +1370,44 @@ select * from eek where val1 in {{report_period_ids}} ;
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
-        with schema_context(self.schema):
-            # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-            k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
-            c_a = k_v.get("cluster_alias")
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                self.cluster_id = "OCP-on-Azure"
+                with schema_context(self.schema):
+                    # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
+                    k_v = (
+                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
+                        .values()
+                        .first()
+                    )
+                    c_a = k_v.get("cluster_alias")
 
-            # create a query set based on the criteria we are looking for
-            # so it can be evaluated before and after the function call
-            qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="Node"
-            ).values("supplementary_monthly_cost")
-            # assert that there are no infrastructure monthly node costs currently on our cluster id
-            self.assertEqual(qset.count(), 0)
-            # call populate monthly tag_cost with the rates defined above
-            self.accessor.populate_monthly_tag_cost(
-                "Node", "Supplementary", node_tag_rates, start_date, end_date, self.cluster_id, c_a
-            )
-            # assert that after the update, there are now the monthly values for
-            # the three different nodes that have a value
-            self.assertEqual(qset.count(), 3)
-            qset_total = 0
-            for value in qset:
-                qset_total += value.get("supplementary_monthly_cost")
-            # assert that the total value of the qset costs is equal to the total costs from the tag rates
-            self.assertEqual(rate_total, qset_total)
+                    # create a query set based on the criteria we are looking for
+                    # so it can be evaluated before and after the function call
+                    qset = OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        supplementary_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Node",
+                    )
+                    # call populate monthly tag_cost with the rates defined above
+                    self.accessor.populate_monthly_tag_cost(
+                        "Node",
+                        "Supplementary",
+                        node_tag_rates,
+                        start_date,
+                        end_date,
+                        self.cluster_id,
+                        c_a,
+                        distribution,
+                    )
+                    # assert that after the update, there are now the monthly values for
+                    # the three different nodes that have a value
+                    self.assertEqual(qset.count(), 3)
+                    qset_total = 0
+                    for value in qset:
+                        qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
+                    # assert that the total value of the qset costs is equal to the total costs from the tag rates
+                    self.assertEqual(rate_total, qset_total)
 
     def test_populate_monthly_tag_cost_pvc_supplementary_cost(self):
         """
@@ -1342,20 +1443,27 @@ select * from eek where val1 in {{report_period_ids}} ;
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="PVC"
-            ).values("supplementary_monthly_cost")
+                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
+            )
             # assert that there are no infrastructure monthly PVC costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
             # call populate monthly tag_cost with the rates defined above
             self.accessor.populate_monthly_tag_cost(
-                "PVC", "Supplementary", pvc_tag_rates, start_date, end_date, self.cluster_id, c_a
+                "PVC",
+                "Supplementary",
+                pvc_tag_rates,
+                start_date,
+                end_date,
+                self.cluster_id,
+                c_a,
+                metric_constants.CPU_DISTRIBUTION,
             )
             # assert that after the update, there are now the monthly values for
             # the three different PVCs that have a value
             self.assertEqual(qset.count(), 4)
             qset_total = 0
             for value in qset:
-                qset_total += value.get("supplementary_monthly_cost")
+                qset_total += value.supplementary_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION, 0)
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
             self.assertEqual(rate_total, qset_total)
 
@@ -1379,22 +1487,29 @@ select * from eek where val1 in {{report_period_ids}} ;
             c_a = k_v.get("cluster_alias")
 
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, infrastructure_monthly_cost__isnull=False, monthly_cost_type="PVC"
-            ).values("infrastructure_monthly_cost")
+                cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
+            )
 
             # assert that there are no infrastructure monthly PVC costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
 
             # call populate monthly default tag_cost with the rates defined above
             self.accessor.populate_monthly_tag_default_cost(
-                "PVC", "Infrastructure", node_tag_rates, start_date, end_date, self.cluster_id, c_a
+                "PVC",
+                "Infrastructure",
+                node_tag_rates,
+                start_date,
+                end_date,
+                self.cluster_id,
+                c_a,
+                metric_constants.CPU_DISTRIBUTION,
             )
 
             # assert that after the update, there is now the cluster cost for the PVC
             self.assertEqual(qset.count(), 1)
             qset_total = 0
             for value in qset:
-                qset_total += value.get("infrastructure_monthly_cost")
+                qset_total += value.infrastructure_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION)
             # there are three PVC tags and we said two already have defined rates
             expected_total = default_val
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
@@ -1420,15 +1535,22 @@ select * from eek where val1 in {{report_period_ids}} ;
             c_a = k_v.get("cluster_alias")
 
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="PVC"
-            ).values("supplementary_monthly_cost")
+                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
+            )
 
             # assert that there are no supplementary monthly PVC costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
 
             # call populate monthly default tag_cost with the rates defined above
             self.accessor.populate_monthly_tag_default_cost(
-                "PVC", "Supplementary", node_tag_rates, start_date, end_date, self.cluster_id, c_a
+                "PVC",
+                "Supplementary",
+                node_tag_rates,
+                start_date,
+                end_date,
+                self.cluster_id,
+                c_a,
+                metric_constants.CPU_DISTRIBUTION,
             )
 
             # assert that after the update, there are now the monthly values
@@ -1436,7 +1558,7 @@ select * from eek where val1 in {{report_period_ids}} ;
             self.assertEqual(qset.count(), 2)
             qset_total = 0
             for value in qset:
-                qset_total += value.get("supplementary_monthly_cost")
+                qset_total += value.supplementary_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION)
             expected_total = default_val * 2
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
             self.assertEqual(expected_total, qset_total)
@@ -1446,36 +1568,51 @@ select * from eek where val1 in {{report_period_ids}} ;
         Test that the monthly supplementary cost row for nodes in the summary table
         is not populated when given no tag rates.
         """
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         node_tag_rates = {}
         rate_total = 0
-
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
-        with schema_context(self.schema):
-            # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-            k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
-            c_a = k_v.get("cluster_alias")
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                self.cluster_id = "OCP-on-Azure"
+                with schema_context(self.schema):
+                    # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
+                    k_v = (
+                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
+                        .values()
+                        .first()
+                    )
+                    c_a = k_v.get("cluster_alias")
 
-            # create a query set based on the criteria we are looking for
-            # so it can be evaluated before and after the function call
-            qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="Node"
-            ).values("supplementary_monthly_cost")
-            # assert that there are no infrastructure monthly node costs currently on our cluster id
-            self.assertEqual(qset.count(), 0)
-            # call populate monthly tag_cost with the rates defined above
-            self.accessor.populate_monthly_tag_cost(
-                "Node", "Supplementary", node_tag_rates, start_date, end_date, self.cluster_id, c_a
-            )
-            # assert that after the update, there are still no monthly costs for nodes in supplementary
-            self.assertEqual(qset.count(), 0)
-            qset_total = 0
-            for value in qset:
-                qset_total += value.get("supplementary_monthly_cost", 0)
-            # assert that the total value of the qset costs is equal to the total costs from the tag rates
-            self.assertEqual(rate_total, qset_total)
+                    # create a query set based on the criteria we are looking for
+                    # so it can be evaluated before and after the function call
+                    qset = OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        supplementary_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Node",
+                    )
+                    # assert that there are no infrastructure monthly node costs currently on our cluster id
+                    self.assertEqual(qset.count(), 0)
+                    # call populate monthly tag_cost with the rates defined above
+                    self.accessor.populate_monthly_tag_cost(
+                        "Node",
+                        "Supplementary",
+                        node_tag_rates,
+                        start_date,
+                        end_date,
+                        self.cluster_id,
+                        c_a,
+                        distribution,
+                    )
+                    # assert that after the update, there are still no monthly costs for nodes in supplementary
+                    self.assertEqual(qset.count(), 0)
+                    qset_total = 0
+                    for value in qset:
+                        qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
+                    # assert that the total value of the qset costs is equal to the total costs from the tag rates
+                    self.assertEqual(rate_total, qset_total)
 
     def test_populate_monthly_tag_cost_pvc_no_rates(self):
         """
@@ -1497,19 +1634,26 @@ select * from eek where val1 in {{report_period_ids}} ;
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="PVC"
-            ).values("supplementary_monthly_cost")
+                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
+            )
             # assert that there are no infrastructure monthly node costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
             # call populate monthly tag_cost with the rates defined above
             self.accessor.populate_monthly_tag_cost(
-                "PVC", "Supplementary", node_tag_rates, start_date, end_date, self.cluster_id, c_a
+                "PVC",
+                "Supplementary",
+                node_tag_rates,
+                start_date,
+                end_date,
+                self.cluster_id,
+                c_a,
+                metric_constants.CPU_DISTRIBUTION,
             )
             # assert that after the update, there are still no monthly costs for nodes in supplementary
             self.assertEqual(qset.count(), 0)
             qset_total = 0
             for value in qset:
-                qset_total += value.get("supplementary_monthly_cost", 0)
+                qset_total += value.supplementary_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION)
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
             self.assertEqual(rate_total, qset_total)
 
@@ -1539,13 +1683,20 @@ select * from eek where val1 in {{report_period_ids}} ;
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="Node"
-            ).values("supplementary_monthly_cost")
+                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="Node"
+            )
             # assert that there are no infrastructure monthly node costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
             # call populate monthly tag_cost with the rates defined above
             self.accessor.populate_monthly_tag_cost(
-                "Node", "Supplementary", node_tag_rates, start_date, end_date, self.cluster_id, c_a
+                "Node",
+                "Supplementary",
+                node_tag_rates,
+                start_date,
+                end_date,
+                self.cluster_id,
+                c_a,
+                metric_constants.CPU_DISTRIBUTION,
             )
             # assert that after the update, there are still no node costs since the key_value pairs did not match
             self.assertEqual(qset.count(), 0)
@@ -1555,6 +1706,7 @@ select * from eek where val1 in {{report_period_ids}} ;
         Test that the monthly infrastructure cost row for cluster in the summary table
         is populated when given tag based rates.
         """
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         key_value_pairs = {"app": ["banking", "mobile", "weather"]}
         node_tag_rates = {}
         rate_total = 0
@@ -1565,40 +1717,54 @@ select * from eek where val1 in {{report_period_ids}} ;
                 values_dict[value] = node_rate
                 rate_total += node_rate
             node_tag_rates[key] = values_dict
-
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
-        with schema_context(self.schema):
-            # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-            k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
-            c_a = k_v.get("cluster_alias")
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                self.cluster_id = "OCP-on-Azure"
+                with schema_context(self.schema):
+                    # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
+                    k_v = (
+                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
+                        .values()
+                        .first()
+                    )
+                    c_a = k_v.get("cluster_alias")
 
-            # create a query set based on the criteria we are looking for
-            # so it can be evaluated before and after the function call
-            qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, infrastructure_monthly_cost__isnull=False, monthly_cost_type="Cluster"
-            ).values("infrastructure_monthly_cost")
-            # assert that there are no infrastructure monthly node costs currently on our cluster id
-            self.assertEqual(qset.count(), 0)
-            # call populate monthly tag_cost with the rates defined above
-            self.accessor.populate_monthly_tag_cost(
-                "Cluster", "Infrastructure", node_tag_rates, start_date, end_date, self.cluster_id, c_a
-            )
-            # assert that after the update, there is now the value for the cluster we specified
-            self.assertEqual(qset.count(), 1)
-            qset_total = 0
-            for value in qset:
-                qset_total += value.get("infrastructure_monthly_cost")
-            # assert that the total value of the qset costs is equal to the total costs from the tag rates
-            self.assertEqual(rate_total, qset_total)
+                    # create a query set based on the criteria we are looking for
+                    # so it can be evaluated before and after the function call
+                    qset = OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        infrastructure_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Cluster",
+                    )
+                    # call populate monthly tag_cost with the rates defined above
+                    self.accessor.populate_monthly_tag_cost(
+                        "Cluster",
+                        "Infrastructure",
+                        node_tag_rates,
+                        start_date,
+                        end_date,
+                        self.cluster_id,
+                        c_a,
+                        distribution,
+                    )
+                    # assert that after the update, there is now the value for the cluster we specified
+                    self.assertEqual(qset.count(), 1)
+                    qset_total = 0
+                    for value in qset:
+                        qset_total += value.infrastructure_monthly_cost_json.get(distribution, 0)
+                    # assert that the total value of the qset costs is equal to the total costs from the tag rates
+                    self.assertAlmostEqual(rate_total, qset_total, 7)
+                    self.assertEqual(rate_total, qset_total)
 
     def test_populate_monthly_tag_cost_cluster_supplementary_cost(self):
         """
         Test that the monthly supplementary cost row for nodes in the summary table
         is populated when given tag based rates.
         """
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         key_value_pairs = {"app": ["banking", "mobile", "weather"]}
         node_tag_rates = {}
         rate_total = 0
@@ -1613,35 +1779,49 @@ select * from eek where val1 in {{report_period_ids}} ;
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
-        with schema_context(self.schema):
-            # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-            k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
-            c_a = k_v.get("cluster_alias")
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                self.cluster_id = "OCP-on-Azure"
+                with schema_context(self.schema):
+                    # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
+                    k_v = (
+                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
+                        .values()
+                        .first()
+                    )
+                    c_a = k_v.get("cluster_alias")
 
-            # create a query set based on the criteria we are looking for
-            # so it can be evaluated before and after the function call
-            qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="Cluster"
-            ).values("supplementary_monthly_cost")
-            # assert that there are no infrastructure monthly node costs currently on our cluster id
-            self.assertEqual(qset.count(), 0)
-            # call populate monthly tag_cost with the rates defined above
-            self.accessor.populate_monthly_tag_cost(
-                "Cluster", "Supplementary", node_tag_rates, start_date, end_date, self.cluster_id, c_a
-            )
-            # assert that after the update, there is now the value for the cluster we specified
-            self.assertEqual(qset.count(), 1)
-            qset_total = 0
-            for value in qset:
-                qset_total += value.get("supplementary_monthly_cost")
-            # assert that the total value of the qset costs is equal to the total costs from the tag rates
-            self.assertEqual(rate_total, qset_total)
+                    # create a query set based on the criteria we are looking for
+                    # so it can be evaluated before and after the function call
+                    qset = OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        supplementary_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Cluster",
+                    )
+                    # call populate monthly tag_cost with the rates defined above
+                    self.accessor.populate_monthly_tag_cost(
+                        "Cluster",
+                        "Supplementary",
+                        node_tag_rates,
+                        start_date,
+                        end_date,
+                        self.cluster_id,
+                        c_a,
+                        distribution,
+                    )
+                    # assert that after the update, there is now the value for the cluster we specified
+                    self.assertEqual(qset.count(), 1)
+                    qset_total = 0
+                    for value in qset:
+                        qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
+                    # assert that the total value of the qset costs is equal to the total costs from the tag rates
+                    self.assertEqual(rate_total, qset_total)
 
     def test_populate_monthly_tag_cost_cluster_supplementary_cost_string_dates(self):
         """
         Test that when strings are given as dates, it handles it correctly
         """
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         key_value_pairs = {"app": ["banking", "mobile", "weather"]}
         node_tag_rates = {}
         rate_total = 0
@@ -1658,72 +1838,99 @@ select * from eek where val1 in {{report_period_ids}} ;
         start_date = start_date.strftime("%Y-%m-%d")
         end_date = dh.this_month_end
         end_date = end_date.strftime("%Y-%m-%d")
-        self.cluster_id = "OCP-on-Azure"
-        with schema_context(self.schema):
-            # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-            k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
-            c_a = k_v.get("cluster_alias")
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                self.cluster_id = "OCP-on-Azure"
+                with schema_context(self.schema):
+                    # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
+                    k_v = (
+                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
+                        .values()
+                        .first()
+                    )
+                    c_a = k_v.get("cluster_alias")
 
-            # create a query set based on the criteria we are looking for
-            # so it can be evaluated before and after the function call
-            qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="Cluster"
-            ).values("supplementary_monthly_cost")
-            # assert that there are no infrastructure monthly node costs currently on our cluster id
-            self.assertEqual(qset.count(), 0)
-            # call populate monthly tag_cost with the rates defined above
-            self.accessor.populate_monthly_tag_cost(
-                "Cluster", "Supplementary", node_tag_rates, start_date, end_date, self.cluster_id, c_a
-            )
-            # assert that after the update, there is now the value for the cluster we specified
-            self.assertEqual(qset.count(), 1)
-            qset_total = 0
-            for value in qset:
-                qset_total += value.get("supplementary_monthly_cost")
-            # assert that the total value of the qset costs is equal to the total costs from the tag rates
-            self.assertEqual(rate_total, qset_total)
+                    # create a query set based on the criteria we are looking for
+                    # so it can be evaluated before and after the function call
+                    qset = OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        supplementary_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Cluster",
+                    )
+                    # call populate monthly tag_cost with the rates defined above
+                    self.accessor.populate_monthly_tag_cost(
+                        "Cluster",
+                        "Supplementary",
+                        node_tag_rates,
+                        start_date,
+                        end_date,
+                        self.cluster_id,
+                        c_a,
+                        distribution,
+                    )
+                    # assert that after the update, there is now the value for the cluster we specified
+                    self.assertEqual(qset.count(), 1)
+                    qset_total = 0
+                    for value in qset:
+                        qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
+                    # assert that the total value of the qset costs is equal to the total costs from the tag rates
+                    self.assertEqual(rate_total, qset_total)
 
     def test_populate_monthly_default_tag_cost_cluster_infrastructure_cost(self):
         """
         Test that the monthly infrastructure cost row for a cluster in the summary table
         is populated when given tag based rates.
         """
-        default_val = random.randrange(1, 100)
-        node_tag_rates = {"app": {"default_value": default_val, "defined_keys": ["mobile", "banking"]}}
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
-        with schema_context(self.schema):
-            k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
-            c_a = k_v.get("cluster_alias")
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                default_val = random.randrange(1, 100)
+                node_tag_rates = {"app": {"default_value": default_val, "defined_keys": ["mobile", "banking"]}}
+                self.cluster_id = "OCP-on-Azure"
+                with schema_context(self.schema):
+                    k_v = (
+                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
+                        .values()
+                        .first()
+                    )
+                    c_a = k_v.get("cluster_alias")
 
-            qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, infrastructure_monthly_cost__isnull=False, monthly_cost_type="Cluster"
-            ).values("infrastructure_monthly_cost")
+                    qset = OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        infrastructure_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Cluster",
+                    )
 
-            # assert that there are no infrastructure monthly cluster costs currently on our cluster id
-            self.assertEqual(qset.count(), 0)
+                    # call populate monthly default tag_cost with the rates defined above
+                    self.accessor.populate_monthly_tag_default_cost(
+                        "Cluster",
+                        "Infrastructure",
+                        node_tag_rates,
+                        start_date,
+                        end_date,
+                        self.cluster_id,
+                        c_a,
+                        distribution,
+                    )
 
-            # call populate monthly default tag_cost with the rates defined above
-            self.accessor.populate_monthly_tag_default_cost(
-                "Cluster", "Infrastructure", node_tag_rates, start_date, end_date, self.cluster_id, c_a
-            )
-
-            # assert that after the update, there is now the cluster cost
-            self.assertEqual(qset.count(), 1)
-            qset_total = 0
-            for value in qset:
-                qset_total += value.get("infrastructure_monthly_cost")
-            expected_total = default_val * 2
-            # assert that the total value of the qset costs is equal to the total costs from the tag rates
-            self.assertEqual(expected_total, qset_total)
+                    # assert that after the update, there is now the cluster cost
+                    self.assertEqual(qset.count(), 1)
+                    qset_total = 0
+                    for value in qset:
+                        qset_total += value.infrastructure_monthly_cost_json.get(distribution, 0)
+                    expected_total = default_val * 2
+                    # assert that the total value of the qset costs is equal to the total costs from the tag rates
+                    self.assertEqual(expected_total, qset_total)
 
     def test_populate_monthly_default_tag_cost_cluster_infrastructure_cost_string_dates(self):
         """
         Test that the monthly infrastructure cost row for a cluster in the summary table
         is populated when given tag based rates.
         """
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         default_val = random.randrange(1, 100)
         node_tag_rates = {"app": {"default_value": default_val, "defined_keys": ["mobile", "banking"]}}
         dh = DateHelper()
@@ -1731,104 +1938,145 @@ select * from eek where val1 in {{report_period_ids}} ;
         start_date = start_date.strftime("%Y-%m-%d")
         end_date = dh.this_month_end
         end_date = end_date.strftime("%Y-%m-%d")
-        self.cluster_id = "OCP-on-Azure"
-        with schema_context(self.schema):
-            k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
-            c_a = k_v.get("cluster_alias")
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                self.cluster_id = "OCP-on-Azure"
+                with schema_context(self.schema):
+                    k_v = (
+                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
+                        .values()
+                        .first()
+                    )
+                    c_a = k_v.get("cluster_alias")
 
-            qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, infrastructure_monthly_cost__isnull=False, monthly_cost_type="Cluster"
-            ).values("infrastructure_monthly_cost")
+                    qset = OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        infrastructure_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Cluster",
+                    )
 
-            # assert that there are no infrastructure monthly cluster costs currently on our cluster id
-            self.assertEqual(qset.count(), 0)
+                    # call populate monthly default tag_cost with the rates defined above
+                    self.accessor.populate_monthly_tag_default_cost(
+                        "Cluster",
+                        "Infrastructure",
+                        node_tag_rates,
+                        start_date,
+                        end_date,
+                        self.cluster_id,
+                        c_a,
+                        distribution,
+                    )
 
-            # call populate monthly default tag_cost with the rates defined above
-            self.accessor.populate_monthly_tag_default_cost(
-                "Cluster", "Infrastructure", node_tag_rates, start_date, end_date, self.cluster_id, c_a
-            )
-
-            # assert that after the update, there is now the cluster cost
-            self.assertEqual(qset.count(), 1)
-            qset_total = 0
-            for value in qset:
-                qset_total += value.get("infrastructure_monthly_cost")
-            expected_total = default_val * 2
-            # assert that the total value of the qset costs is equal to the total costs from the tag rates
-            self.assertEqual(expected_total, qset_total)
+                    # assert that after the update, there is now the cluster cost
+                    self.assertEqual(qset.count(), 1)
+                    qset_total = 0
+                    for value in qset:
+                        qset_total += value.infrastructure_monthly_cost_json.get(distribution, 0)
+                    expected_total = default_val * 2
+                    # assert that the total value of the qset costs is equal to the total costs from the tag rates
+                    self.assertEqual(expected_total, qset_total)
 
     def test_populate_monthly_default_tag_cost_cluster_supplementary_cost(self):
         """
         Test that the monthly infrastructure cost row for a cluster in the summary table
         is populated when given tag based rates.
         """
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         default_val = random.randrange(1, 100)
         node_tag_rates = {"app": {"default_value": default_val, "defined_keys": ["mobile", "banking"]}}
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
-        with schema_context(self.schema):
-            k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
-            c_a = k_v.get("cluster_alias")
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                self.cluster_id = "OCP-on-Azure"
+                with schema_context(self.schema):
+                    k_v = (
+                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
+                        .values()
+                        .first()
+                    )
+                    c_a = k_v.get("cluster_alias")
 
-            qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="Cluster"
-            ).values("supplementary_monthly_cost")
+                    qset = OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        supplementary_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Cluster",
+                    )
 
-            # assert that there are no supplementary monthly cluster costs currently on our cluster id
-            self.assertEqual(qset.count(), 0)
+                    # call populate monthly default tag_cost with the rates defined above
+                    self.accessor.populate_monthly_tag_default_cost(
+                        "Cluster",
+                        "Supplementary",
+                        node_tag_rates,
+                        start_date,
+                        end_date,
+                        self.cluster_id,
+                        c_a,
+                        distribution,
+                    )
 
-            # call populate monthly default tag_cost with the rates defined above
-            self.accessor.populate_monthly_tag_default_cost(
-                "Cluster", "Supplementary", node_tag_rates, start_date, end_date, self.cluster_id, c_a
-            )
-
-            # assert that after the update, there are now the monthly values
-            # for the cluster
-            self.assertEqual(qset.count(), 1)
-            qset_total = 0
-            for value in qset:
-                qset_total += value.get("supplementary_monthly_cost")
-            expected_total = default_val * 2
-            # assert that the total value of the qset costs is equal to the total costs from the tag rates
-            self.assertEqual(expected_total, qset_total)
+                    # assert that after the update, there are now the monthly values
+                    # for the cluster
+                    self.assertEqual(qset.count(), 1)
+                    qset_total = 0
+                    for value in qset:
+                        qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
+                    expected_total = default_val * 2
+                    # assert that the total value of the qset costs is equal to the total costs from the tag rates
+                    self.assertEqual(expected_total, qset_total)
 
     def test_populate_monthly_tag_cost_cluster_no_rates(self):
         """
         Test that the monthly supplementary cost row for nodes in the summary table
         is not populated when given no tag rates.
         """
+        distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         node_tag_rates = {}
         rate_total = 0
 
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
-        with schema_context(self.schema):
-            # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-            k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
-            c_a = k_v.get("cluster_alias")
+        for distribution in distribution_choices:
+            with self.subTest(distribution=distribution):
+                self.cluster_id = "OCP-on-Azure"
+                with schema_context(self.schema):
+                    # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
+                    k_v = (
+                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
+                        .values()
+                        .first()
+                    )
+                    c_a = k_v.get("cluster_alias")
 
-            # create a query set based on the criteria we are looking for
-            # so it can be evaluated before and after the function call
-            qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="Cluster"
-            ).values("supplementary_monthly_cost")
-            # assert that there are no infrastructure monthly node costs currently on our cluster id
-            self.assertEqual(qset.count(), 0)
-            # call populate monthly tag_cost with the rates defined above
-            self.accessor.populate_monthly_tag_cost(
-                "Cluster", "Supplementary", node_tag_rates, start_date, end_date, self.cluster_id, c_a
-            )
-            # assert that after the update, there are still no monthly costs for cluster in supplementary
-            self.assertEqual(qset.count(), 0)
-            qset_total = 0
-            for value in qset:
-                qset_total += value.get("supplementary_monthly_cost", 0)
-            # assert that the total value of the qset costs is equal to the total costs from the tag rates
-            self.assertEqual(rate_total, qset_total)
+                    # create a query set based on the criteria we are looking for
+                    # so it can be evaluated before and after the function call
+                    qset = OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        supplementary_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Cluster",
+                    )
+                    # assert that there are no infrastructure monthly node costs currently on our cluster id
+                    self.assertEqual(qset.count(), 0)
+                    # call populate monthly tag_cost with the rates defined above
+                    self.accessor.populate_monthly_tag_cost(
+                        "Cluster",
+                        "Supplementary",
+                        node_tag_rates,
+                        start_date,
+                        end_date,
+                        self.cluster_id,
+                        c_a,
+                        distribution,
+                    )
+                    # assert that after the update, there are still no monthly costs for cluster in supplementary
+                    self.assertEqual(qset.count(), 0)
+                    qset_total = 0
+                    for value in qset:
+                        qset_total += value.supplementary_monthly_cost_json.get(distribution)
+                    # assert that the total value of the qset costs is equal to the total costs from the tag rates
+                    self.assertEqual(rate_total, qset_total)
 
     def test_populate_monthly_tag_cost_cluster_bad_key_value_pairs(self):
         """
@@ -1856,13 +2104,20 @@ select * from eek where val1 in {{report_period_ids}} ;
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost__isnull=False, monthly_cost_type="Cluster"
-            ).values("supplementary_monthly_cost")
-            # assert that there are no infrastructure monthly node costs currently on our cluster id
+                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="Cluster"
+            )
+            # assert that there are no supplementary monthly node costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
             # call populate monthly tag_cost with the rates defined above
             self.accessor.populate_monthly_tag_cost(
-                "Cluster", "Supplementary", node_tag_rates, start_date, end_date, self.cluster_id, c_a
+                "Cluster",
+                "Supplementary",
+                node_tag_rates,
+                start_date,
+                end_date,
+                self.cluster_id,
+                c_a,
+                metric_constants.CPU_DISTRIBUTION,
             )
             # assert that after the update, there are still no node costs since the key_value pairs did not match
             self.assertEqual(qset.count(), 0)
