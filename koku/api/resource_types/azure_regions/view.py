@@ -13,6 +13,7 @@ from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.azure.models import AzureCostSummaryByLocation
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByLocation
 
 
 class AzureRegionView(generics.ListAPIView):
@@ -34,6 +35,15 @@ class AzureRegionView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for Azure subscription guid and displays values related to what the user has access to
         user_access = []
+        openshift = self.request.query_params.get("openshift")
+        if openshift == "true":
+            user_access = request.user.access.get("azure.subscription_guid", {}).get("read", [])
+            self.queryset = (
+                OCPAzureCostSummaryByLocation.objects.annotate(**{"value": F("resource_location")})
+                .values("value")
+                .distinct()
+                .filter(resource_location__isnull=False)
+            )
         if request.user.admin:
             return super().list(request)
         elif request.user.access:
