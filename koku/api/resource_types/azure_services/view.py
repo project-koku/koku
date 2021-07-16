@@ -38,7 +38,6 @@ class AzureServiceView(generics.ListAPIView):
         user_access = []
         openshift = self.request.query_params.get("openshift")
         if openshift == "true":
-            user_access = request.user.access.get("azure.subscription_guid", {}).get("read", [])
             self.queryset = (
                 OCPAzureCostSummaryByService.objects.annotate(**{"value": F("service_name")})
                 .values("value")

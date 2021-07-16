@@ -37,7 +37,6 @@ class AzureRegionView(generics.ListAPIView):
         user_access = []
         openshift = self.request.query_params.get("openshift")
         if openshift == "true":
-            user_access = request.user.access.get("azure.subscription_guid", {}).get("read", [])
             self.queryset = (
                 OCPAzureCostSummaryByLocation.objects.annotate(**{"value": F("resource_location")})
                 .values("value")
