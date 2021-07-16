@@ -1,0 +1,369 @@
+---
+generators:
+  - OCPGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      nodes:
+        - node:
+          node_name: compute_1
+          cpu_cores: 4
+          memory_gig: 16
+          namespaces:
+            Toronto:
+              pods:
+                - pod:
+                  pod_name: pod_name1
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:OpenCart|label_stage:Production|label_group:Marketing
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_1
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:Production|label_app:OpenCart|label_version:Production|label_storageclass:gold
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name1_data
+                    pod_name: pod_name1
+                    labels: label_environment:Production|label_app:OpenCart|label_version:Production|label_storageclass:gold
+                    capacity_gig: 20
+            Raleigh:
+              pods:
+                - pod:
+                  pod_name: pod_name2
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:Phoenix|label_stage:Development|label_group:Engineering
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_2
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:Development|label_app:Phoenix|label_version:Development|label_storageclass:silver
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name2_data
+                    pod_name: pod_name2
+                    labels: label_environment:Development|label_app:Phoenix|label_version:Development|label_storageclass:silver
+                    capacity_gig: 20
+        - node:
+          node_name: compute_2
+          cpu_cores: 4
+          memory_gig: 16
+          namespaces:
+            Madrid:
+              pods:
+                - pod:
+                  pod_name: pod_name3
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:Candlepin|label_stage:Development|label_group:Marketing
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_3
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:Development|label_app:Candlepin|label_version:Development|label_storageclass:bronze
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name3_data
+                    pod_name: pod_name3
+                    labels: label_environment:Development|label_app:Candlepin|label_version:Development|label_storageclass:bronze
+                    capacity_gig: 20
+            Boston:
+              pods:
+                - pod:
+                  pod_name: pod_name4
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:Candlepin|label_stage:Production|label_group:Sales
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_4
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:Production|label_app:Candlepin|label_version:Production|label_storageclass:gold
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name4_data
+                    pod_name: pod_name4
+                    labels: label_environment:Production|label_app:Candlepin|label_version:Production|label_storageclass:gold
+                    capacity_gig: 20
+        - node:
+          node_name: compute_3
+          cpu_cores: 4
+          memory_gig: 16
+          namespaces:
+            SanFrancisco:
+              pods:
+                - pod:
+                  pod_name: pod_name5
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:Cygwin|label_stage:Production|label_group:Marketing
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_5
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:Production|label_app:Cygwin|label_version:Production|label_storageclass:gold
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name5_data
+                    pod_name: pod_name5
+                    labels: label_environment:Production|label_app:Cygwin|label_version:Production|label_storageclass:gold
+                    capacity_gig: 20
+            LosAngeles:
+              pods:
+                - pod:
+                  pod_name: pod_name6
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:Phoenix|label_stage:QA|label_group:Engineering
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_6
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:QA|label_app:Phoenix|label_version:QA|label_storageclass:silver
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name6_data
+                    pod_name: pod_name6
+                    labels: label_environment:QA|label_app:Phoenix|label_version:QA|label_storageclass:silver
+                    capacity_gig: 20
+        - node:
+          node_name: compute_4
+          cpu_cores: 4
+          memory_gig: 16
+          namespaces:
+            London:
+              pods:
+                - pod:
+                  pod_name: pod_name7
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:CMSapp|label_stage:Production|label_group:Marketing
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_7
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:Production|label_app:CMSapp|label_version:Production|label_storageclass:gold
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name7_data
+                    pod_name: pod_name7
+                    labels: label_environment:Production|label_app:CMSapp|label_version:Production|label_storageclass:gold
+                    capacity_gig: 20
+            Paris:
+              pods:
+                - pod:
+                  pod_name: pod_name8
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:Atomic|label_stage:Test|label_group:Support
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_8
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:Test|label_app:Atomic|label_version:Test|label_storageclass:bronze
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name8_data
+                    pod_name: pod_name8
+                    labels: label_environment:Test|label_app:Atomic|label_version:Test|label_storageclass:bronze
+                    capacity_gig: 20
+        - node:
+          node_name: compute_5
+          cpu_cores: 4
+          memory_gig: 16
+          namespaces:
+            Berlin:
+              pods:
+                - pod:
+                  pod_name: pod_name9
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:Wordpress|label_stage:Production|label_group:Marketing
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_9
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:Production|label_app:Wordpress|label_version:Production|label_storageclass:gold
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name9_data
+                    pod_name: pod_name9
+                    labels: label_environment:Production|label_app:Wordpress|label_version:Production|label_storageclass:gold
+                    capacity_gig: 20
+            HongKong:
+              pods:
+                - pod:
+                  pod_name: pod_name10
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:Wordpress|label_stage:QA|label_group:Support
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_10
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:QA|label_app:Wordpress|label_version:QA|label_storageclass:silver
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name10_data
+                    pod_name: pod_name10
+                    labels: label_environment:QA|label_app:Wordpress|label_version:QA|label_storageclass:silver
+                    capacity_gig: 20
+        - node:
+          node_name: compute_6
+          cpu_cores: 4
+          memory_gig: 16
+          namespaces:
+            Dubai:
+              pods:
+                - pod:
+                  pod_name: pod_name11
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:MongoDB|label_stage:Production|label_group:Sales
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_11
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:Production|label_app:MongoDB|label_version:Production|label_storageclass:gold
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name11_data
+                    pod_name: pod_name11
+                    labels: label_environment:Production|label_app:MongoDB|label_version:Production|label_storageclass:gold
+                    capacity_gig: 20
+            NewDelhi:
+              pods:
+                - pod:
+                  pod_name: pod_name12
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:Istio|label_stage:Development|label_group:Engineering
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_12
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name12_data
+                    pod_name: pod_name12
+                    labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
+                    capacity_gig: 20
+        - node:
+          node_name: master_1
+          cpu_cores: 4
+          memory_gig: 8
+          namespaces:
+            kube-system:
+              pods:
+                - pod:
+                  pod_name: pod_name13
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+            openshift:
+              pods:
+                - pod:
+                  pod_name: pod_name14
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+        - node:
+          node_name: master_2
+          cpu_cores: 4
+          memory_gig: 8
+          namespaces:
+            kube-system:
+              pods:
+                - pod:
+                  pod_name: pod_name15
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+            openshift:
+              pods:
+                - pod:
+                  pod_name: pod_name16
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+        - node:
+          node_name: master_3
+          cpu_cores: 4
+          memory_gig: 8
+          namespaces:
+            kube-system:
+              pods:
+                - pod:
+                  pod_name: pod_name17
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+            openshift:
+              pods:
+                - pod:
+                  pod_name: pod_name18
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
