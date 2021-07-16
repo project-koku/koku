@@ -186,7 +186,7 @@ class TestCeleryTasks(MasuTestCase):
             tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
             self.assertIn("Skipping delete_archived_data. Upload feature is disabled.", captured_logs.output[0])
 
-    @override_settings(S3_MINIO_IN_USE=True)
+    @override_settings(ENABLE_S3_ARCHIVING=True, S3_MINIO_IN_USE=True)
     def test_delete_archived_data_minio(self):
         """Test that delete_archived_data correctly interacts with AWS S3."""
         schema_name = "acct10001"
