@@ -249,7 +249,7 @@ class QueryHandler:
     def _get_date_delta(self):
         """Return a time delta."""
         if self.time_scope_value in [-1, -2]:
-            date_delta = relativedelta.relativedelta(months=1)
+            date_delta = relativedelta.relativedelta(months=abs(self.time_scope_value))
         elif self.time_scope_value == -30:
             date_delta = datetime.timedelta(days=30)
         else:

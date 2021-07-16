@@ -1104,7 +1104,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=false"
+        url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
@@ -1165,7 +1165,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_costs_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=false"
+        url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
