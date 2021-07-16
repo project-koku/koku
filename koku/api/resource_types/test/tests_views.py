@@ -159,7 +159,7 @@ class ResourceTypesViewTest(IamTestCase):
     def test_azure_regions_ocp_view(self):
         """Test endpoint runs with a customer owner."""
         qs = "?openshift=true"
-        url = reverse("azure-regionsc") + qs
+        url = reverse("azure-regions") + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
