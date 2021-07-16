@@ -129,7 +129,7 @@ class OCPTagsViewTest(IamTestCase):
                 "filter[time_scope_units]": case.get("unit"),
                 "key_only": False,
                 "filter[type]": case.get("type"),
-                "filter[enabled]": False,
+                "filter[enabled]": True,
             }
             url = url + "?" + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
