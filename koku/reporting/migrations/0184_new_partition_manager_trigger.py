@@ -14,7 +14,7 @@ def update_partitioned_tables_trigger(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0182_drop_constraints")]
+    dependencies = [("reporting", "0183_cost_distribution")]
 
     operations = [
         migrations.RunSQL(
