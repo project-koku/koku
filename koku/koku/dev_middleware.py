@@ -24,15 +24,10 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):
 
     def process_request(self, request):
         """Inject an identity header for development purposes.
-
         Note: This identity object is still processed by koku.middleware.IdentityHeaderMiddleware
-
         Args:
             request (object): The request object
-
-
         Example object:
-
             request.user = {
                 "identity": {
                     "account_number": "10001",
@@ -53,7 +48,6 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):
                 },
                 "entitlements": {"cost_management": {"is_entitled": True}},
             }
-
         """
         if hasattr(request, "META") and (hasattr(settings, "DEVELOPMENT_IDENTITY") and settings.DEVELOPMENT_IDENTITY):
             identity_header = settings.DEVELOPMENT_IDENTITY
