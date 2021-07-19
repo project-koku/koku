@@ -32,8 +32,7 @@ class SourceCleanupTests(IamTestCase):
     def _create_source_for_providers(self):
         """Helper to create a source for each test provider."""
         providers = Provider.objects.all()
-        source_id = 1
-        for provider in providers:
+        for source_id, provider in enumerate(providers, start=1):
             source_def = {
                 "source_id": source_id,
                 "koku_uuid": provider.uuid,
@@ -46,13 +45,11 @@ class SourceCleanupTests(IamTestCase):
             }
             source = Sources(**source_def)
             source.save()
-            source_id = source_id + 1
 
     def _create_out_of_order_delete_sources(self):
         """Helper to create out of order delete source for each test provider."""
         providers = Provider.objects.all()
-        source_id = 1
-        for provider in providers:
+        for source_id, provider in enumerate(providers, start=1):
             source_def = {
                 "source_id": source_id,
                 "out_of_order_delete": True,
@@ -64,7 +61,6 @@ class SourceCleanupTests(IamTestCase):
             }
             source = Sources(**source_def)
             source.save()
-            source_id = source_id + 1
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_cleanup_all_good(self, _):
@@ -83,15 +79,28 @@ class SourceCleanupTests(IamTestCase):
         self._create_source_for_providers()
 
         sources = Sources.objects.all()
-        expected_missing_list = []
-        for source in sources:
-            expected_missing_list.append(f"Source ID: {source.source_id} Source UUID: {source.source_uuid}")
+        expected_missing_list = [
+            f"Source ID: {source.source_id} Source UUID: {source.source_uuid}" for source in sources
+        ]
 
-        self._create_source_for_providers()
         with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
             response = self.client.get(reverse("cleanup"), params)
             body = response.json()
             self.assertEqual(body.get("missing_sources"), expected_missing_list)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_cleanup_out_of_order_deletes(self, _):
+        """Test cleanup API when providers are left over."""
+        params = {"out_of_order_deletes": ""}
+        self._create_out_of_order_delete_sources()
+
+        sources = Sources.objects.all()
+        expected_missing_list = [f"Source ID: {source.source_id}" for source in sources]
+
+        response = self.client.get(reverse("cleanup"), params)
+        body = response.json()
+
+        self.assertEqual(body.get("out_of_order_deletes"), expected_missing_list)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_cleanup_providers_without_sources(self, _):
@@ -99,9 +108,7 @@ class SourceCleanupTests(IamTestCase):
         params = {"providers_without_sources": ""}
 
         providers = Provider.objects.all()
-        expected_missing_list = []
-        for provider in providers:
-            expected_missing_list.append(f"{provider.name} ({provider.uuid})")
+        expected_missing_list = [f"{provider.name} ({provider.uuid})" for provider in providers]
 
         response = self.client.get(reverse("cleanup"), params)
         body = response.json()
@@ -113,12 +120,6 @@ class SourceCleanupTests(IamTestCase):
     def test_delete_providers_without_sources(self, _):
         """Test to remove providers without sources."""
         params = {"providers_without_sources": ""}
-
-        providers = Provider.objects.all()
-        expected_missing_list = []
-        for provider in providers:
-            expected_missing_list.append(f"{provider.name} ({provider.uuid})")
-
         response = self.client.delete(f"{reverse('cleanup')}?providers_without_sources", params)
         body = response.json()
         self.assertEqual(body.get("job_queued"), "providers_without_sources")
@@ -128,11 +129,6 @@ class SourceCleanupTests(IamTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_delete_specific_provider_without_sources(self, _):
         """Test to remove a specific provider without sources."""
-
-        providers = Provider.objects.all()
-        expected_missing_list = []
-        for provider in providers:
-            expected_missing_list.append(f"{provider.name} ({provider.uuid})")
         initial_count = len(Provider.objects.all())
         provider_uuid = str(Provider.objects.first().uuid)
 
@@ -157,12 +153,10 @@ class SourceCleanupTests(IamTestCase):
         params = {"missing_sources": ""}
         self._create_source_for_providers()
 
-        sources = Sources.objects.all()
-        expected_missing_list = []
-        for source in sources:
-            expected_missing_list.append(f"Source ID: {source.source_id})")
+        # assert that the test has sources and providers:
+        self.assertNotEqual(len(Sources.objects.all()), 0)
+        self.assertNotEqual(len(Provider.objects.all()), 0)
 
-        self._create_source_for_providers()
         with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
             response = self.client.delete(f"{reverse('cleanup')}?missing_sources", params)
 
@@ -170,12 +164,6 @@ class SourceCleanupTests(IamTestCase):
         self.assertEqual(len(Sources.objects.all()), 0)
 
         # Now run again with providers_without_sources parameter to remove providers.
-
-        providers = Provider.objects.all()
-        expected_provider_missing_list = []
-        for provider in providers:
-            expected_provider_missing_list.append(f"{provider.name} ({provider.uuid})")
-
         params = {"providers_without_sources": ""}
         with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
             response = self.client.delete(f"{reverse('cleanup')}?providers_without_sources", params)
@@ -187,17 +175,11 @@ class SourceCleanupTests(IamTestCase):
     def test_delete_specific_missing_source(self, _):
         """Test cleanup API when deleting a specific source that is missing on the platform."""
         self._create_source_for_providers()
-
-        sources = Sources.objects.all()
-        expected_missing_list = []
-        for source in sources:
-            expected_missing_list.append(f"Source ID: {source.source_id})")
-
-        self._create_source_for_providers()
+        initial_count = len(Sources.objects.all())
+        self.assertNotEqual(initial_count, 0)
+        source_uuid = str(Sources.objects.first().source_uuid)
+        url_w_params = reverse("cleanup") + f"?missing_sources&uuid={source_uuid}"
         with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
-            initial_count = len(Sources.objects.all())
-            source_uuid = str(Sources.objects.first().source_uuid)
-            url_w_params = reverse("cleanup") + f"?missing_sources&uuid={source_uuid}"
             response = self.client.delete(url_w_params)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -209,16 +191,7 @@ class SourceCleanupTests(IamTestCase):
         """Test to remove out of order delete sources."""
         params = {}
         self._create_out_of_order_delete_sources()
-
-        providers = Provider.objects.all()
-        expected_missing_provider_list = []
-        for provider in providers:
-            expected_missing_provider_list.append(f"{provider.name} ({provider.uuid})")
-
-        sources = Sources.objects.all()
-        expected_missing_list = []
-        for source in sources:
-            expected_missing_list.append(f"Source ID: {source.source_id})")
+        self.assertNotEqual(len(Sources.objects.all()), 0)
 
         with patch.object(SourcesHTTPClient, "get_source_details"):
             response = self.client.delete(f"{reverse('cleanup')}?out_of_order_deletes", params)
