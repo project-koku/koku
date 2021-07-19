@@ -53,19 +53,20 @@ class AzureTagQueryHandler(TagQueryHandler):
     @property
     def filter_map(self):
         """Establish which filter map to use based on tag API."""
+        enabled_parameter = self._parameters.get_filter("enabled") in (None, True)
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
         if self._parameters.get_filter("value"):
             filter_map.update(
                 {
                     "subscription_guid": {"field": "subscription_guids", "operation": "icontains"},
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                 }
             )
         else:
             filter_map.update(
                 {
                     "subscription_guid": {"field": "subscription_guid", "operation": "icontains"},
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                 }
             )
         return filter_map
