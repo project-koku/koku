@@ -109,6 +109,10 @@ class AWSReportDBCleaner:
         with schema_context(self._schema):
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions
+                LOG.info(
+                    f"Deleting table partitions total for the following tables: "
+                    + f"{table_names} with partitions <= {partition_from}"
+                )
                 del_count = execute_delete_sql(
                     PartitionedTable.objects.filter(
                         schema_name=self._schema,
@@ -117,10 +121,7 @@ class AWSReportDBCleaner:
                         partition_parameters__from__lte=partition_from,
                     )
                 )
-                LOG.info(
-                    f"Deleted {del_count} table partitions total for the following tables: "
-                    + f"{table_names} with partitions <= {partition_from}"
-                )
+                LOG.info(f"Deleted {del_count} table partitions")
 
                 # Using skip_relations here as we have already dropped partitions above
                 cascade_delete(all_bill_objects.query.model, all_bill_objects, skip_relations=table_models)
