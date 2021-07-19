@@ -110,7 +110,7 @@ class AWSReportDBCleaner:
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions
                 LOG.info(
-                    f"Deleting table partitions total for the following tables: "
+                    "Deleting table partitions total for the following tables: "
                     + f"{table_names} with partitions <= {partition_from}"
                 )
                 del_count = execute_delete_sql(

@@ -1,3 +1,7 @@
+#
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
 import uuid
 
 from django.db import connection as conn
