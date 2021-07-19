@@ -232,7 +232,7 @@ def get_report_files(
 
 
 @celery_app.task(name="masu.processor.tasks.remove_expired_data", queue=DEFAULT)
-def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, line_items_only=False, queue_name=None):
+def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, queue_name=None):
     """
     Remove expired report data.
 
@@ -251,14 +251,12 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
         f" provider: {provider},\n"
         f" simulate: {simulate},\n"
         f" provider_uuid: {provider_uuid},\n",
-        f" line_items_only: {line_items_only}",
     )
     LOG.info(stmt)
-    _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_items_only)
-    if not line_items_only:
-        refresh_materialized_views.s(schema_name, provider, provider_uuid=provider_uuid).apply_async(
-            queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE
-        )
+    _remove_expired_data(schema_name, provider, simulate, provider_uuid)
+    refresh_materialized_views.s(schema_name, provider, provider_uuid=provider_uuid).apply_async(
+        queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE
+    )
 
 
 @celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SUMMARIZE_REPORTS_QUEUE)
@@ -306,8 +304,8 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                 ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
 
 
-@celery_app.task(name="masu.processor.tasks.update_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)
-def update_summary_tables(  # noqa: C901
+@celery_app.task(name="masu.processor.tasks.update_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)  # noqa: C901
+def update_summary_tables(
     schema_name,
     provider,
     provider_uuid,
@@ -424,11 +422,10 @@ def update_summary_tables(  # noqa: C901
         # we only want to call the delete line items after the summarize_reports
         # task above
         simulate = False
-        line_items_only = True
 
-        linked_tasks |= remove_expired_data.si(
-            schema_name, provider, simulate, provider_uuid, line_items_only, queue_name
-        ).set(queue=queue_name or REMOVE_EXPIRED_DATA_QUEUE)
+        linked_tasks |= remove_expired_data.si(schema_name, provider, simulate, provider_uuid, queue_name).set(
+            queue=queue_name or REMOVE_EXPIRED_DATA_QUEUE
+        )
 
     chain(linked_tasks).apply_async()
     if not synchronous:
@@ -526,8 +523,12 @@ def update_cost_model_costs(
         worker_cache.release_single_task(task_name, cache_args)
 
 
-@celery_app.task(name="masu.processor.tasks.refresh_materialized_views", queue=REFRESH_MATERIALIZED_VIEWS_QUEUE)
-def refresh_materialized_views(  # noqa: C901
+# fmt: off
+@celery_app.task(  # noqa: C901
+    name="masu.processor.tasks.refresh_materialized_views", queue=REFRESH_MATERIALIZED_VIEWS_QUEUE
+)
+# fmt: on
+def refresh_materialized_views(
     schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False, queue_name=None
 ):
     """Refresh the database's materialized views for reporting."""
@@ -634,8 +635,8 @@ def normalize_table_options(table_options):
 # At this time, no table parameter will be lowered past the known production engine
 # setting of 0.2 by default. However this function's settings can be overridden via the
 # AUTOVACUUM_TUNING environment variable. See below.
-@celery_app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name=DEFAULT)
-def autovacuum_tune_schema(schema_name):  # noqa: C901
+@celery_app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name=DEFAULT)  # noqa: C901
+def autovacuum_tune_schema(schema_name):
     """Set the autovacuum table settings based on table size for the specified schema."""
     table_sql = """
 SELECT s.relname as "table_name",
