@@ -289,13 +289,3 @@ class ExpiredDataRemoverTest(MasuTestCase):
         logging.disable(logging.CRITICAL)
 
         self.assertEqual(count_records, CostUsageReportManifest.objects.count())
-
-    def test_remove_items_only_azure(self):
-        """Test that remove is called with provider_uuid items only."""
-        azure_types = [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]
-        for az_type in azure_types:
-            remover = ExpiredDataRemover(self.schema, az_type)
-            result_no_provider = remover.remove(line_items_only=True)
-            self.assertEqual(result_no_provider, [])
-            result_with_provider = remover.remove(line_items_only=True, provider_uuid="1234")
-            self.assertEqual(result_with_provider, [])
