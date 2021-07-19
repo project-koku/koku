@@ -45,6 +45,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._supplementary_rates = cost_model_accessor.supplementary_rates
             self._tag_supplementary_rates = cost_model_accessor.tag_supplementary_rates
             self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
+            self._distribution = cost_model_accessor.distribution
 
     @staticmethod
     def _normalize_tier(input_tier):
@@ -197,7 +198,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                     )
 
                     report_accessor.populate_monthly_cost(
-                        cost_type, rate_type, rate, start_date, end_date, self._cluster_id, self._cluster_alias
+                        cost_type,
+                        rate_type,
+                        rate,
+                        start_date,
+                        end_date,
+                        self._cluster_id,
+                        self._cluster_alias,
+                        self._distribution,
                     )
 
         except OCPCostModelCostUpdaterError as error:
@@ -238,7 +246,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         )
 
                         report_accessor.populate_monthly_tag_cost(
-                            cost_type, rate_type, rate, start_date, end_date, self._cluster_id, self._cluster_alias
+                            cost_type,
+                            rate_type,
+                            rate,
+                            start_date,
+                            end_date,
+                            self._cluster_id,
+                            self._cluster_alias,
+                            self._distribution,
                         )
 
         except OCPCostModelCostUpdaterError as error:
@@ -279,7 +294,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         )
 
                         report_accessor.populate_monthly_tag_default_cost(
-                            cost_type, rate_type, rate, start_date, end_date, self._cluster_id, self._cluster_alias
+                            cost_type,
+                            rate_type,
+                            rate,
+                            start_date,
+                            end_date,
+                            self._cluster_id,
+                            self._cluster_alias,
+                            self._distribution,
                         )
 
         except OCPCostModelCostUpdaterError as error:

@@ -17,6 +17,7 @@ from api.tags.gcp.view import GCPTagView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
+from koku.database import get_model
 
 
 class SettingsViewTest(IamTestCase):
@@ -74,7 +75,7 @@ class SettingsViewTest(IamTestCase):
             all_key_values = [key_obj.get("value") for key_obj in all_keys]
             url = (
                 "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
-                "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
+                "&filter[resolution]=monthly&key_only=True&filter[enabled]=True"
             )
             query_params = self.mocked_query_params(url, test.get("view"))
             handler = test.get("handler")(query_params)
@@ -93,7 +94,7 @@ class SettingsViewTest(IamTestCase):
 
             url = (
                 "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
-                "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
+                "&filter[resolution]=monthly&key_only=True&filter[enabled]=True"
             )
             query_params = self.mocked_query_params(url, test.get("view"))
             handler = test.get("handler")(query_params)
@@ -130,8 +131,14 @@ class SettingsViewTest(IamTestCase):
             {"handler": AzureTagQueryHandler, "view": AzureTagView, "name": "azure"},
         ]
         for test in test_matrix:
+            if test["handler"] == AzureTagQueryHandler:
+                # Azure has been a difficult case. Make sure that one of the tags is
+                # disabled
+                azure_tag = get_model("reporting_azureenabledtagkeys").objects.first()
+                if azure_tag:
+                    azure_tag.delete()
             url = (
-                "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
+                "?filter[time_scope_units]=month&filter[time_scope_value]=-2"
                 "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
             )
             query_params = self.mocked_query_params(url, test.get("view"))

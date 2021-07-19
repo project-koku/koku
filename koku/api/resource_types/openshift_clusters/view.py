@@ -25,6 +25,7 @@ class OCPClustersView(generics.ListAPIView):
         )
         .values("value", "ocp_cluster_alias")
         .distinct()
+        .filter(cluster_id__isnull=False)
     )
     serializer_class = ResourceTypeSerializer
     permission_classes = [OpenShiftAccessPermission]
