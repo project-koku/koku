@@ -303,7 +303,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
 
 
 @celery_app.task(name="masu.processor.tasks.update_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)  # noqa: C901
-def update_summary_tables(
+def update_summary_tables(  # noqa: C901
     schema_name,
     provider,
     provider_uuid,
@@ -512,7 +512,7 @@ def update_cost_model_costs(
     name="masu.processor.tasks.refresh_materialized_views", queue=REFRESH_MATERIALIZED_VIEWS_QUEUE
 )
 # fmt: on
-def refresh_materialized_views(
+def refresh_materialized_views(  # noqa: C901
     schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False, queue_name=None
 ):
     """Refresh the database's materialized views for reporting."""
@@ -620,7 +620,7 @@ def normalize_table_options(table_options):
 # setting of 0.2 by default. However this function's settings can be overridden via the
 # AUTOVACUUM_TUNING environment variable. See below.
 @celery_app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name=DEFAULT)  # noqa: C901
-def autovacuum_tune_schema(schema_name):
+def autovacuum_tune_schema(schema_name):  # noqa: C901
     """Set the autovacuum table settings based on table size for the specified schema."""
     table_sql = """
 SELECT s.relname as "table_name",
