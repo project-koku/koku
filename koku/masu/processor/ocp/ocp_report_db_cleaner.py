@@ -85,7 +85,7 @@ class OCPReportDBCleaner:
 
     def purge_expired_report_data_by_date(self, expired_date, simulate=False):
         LOG.info("Executing purge_expired_report_data_by_date")
-        paritition_from = str(date(expired_date.year, expired_date.month, 1))
+        partition_from = str(date(expired_date.year, expired_date.month, 1))
         removed_items = []
         all_report_periods = []
         all_cluster_ids = set()
@@ -127,10 +127,13 @@ class OCPReportDBCleaner:
                         schema_name=self._schema,
                         partition_of_table_name__in=table_names,
                         partition_parameters__default=False,
-                        partition_parameters__from__lte=paritition_from,
+                        partition_parameters__from__lte=partition_from,
                     )
                 )
-                LOG.info(f"Deleted {del_count} table partitions total for the following tables: {table_names}")
+                LOG.info(
+                    f"Deleted {del_count} table partitions total for the following tables: "
+                    + f"{table_names} with partitions <= {partition_from}"
+                )
 
             if not simulate:
                 cascade_delete(all_usage_periods.query.model, all_usage_periods, skip_relations=table_models)

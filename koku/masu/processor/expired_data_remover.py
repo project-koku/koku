@@ -127,21 +127,19 @@ class ExpiredDataRemover:
 
         """
         removed_data = []
-        disable_purge_line_item = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL, Provider.PROVIDER_OCP)
         if provider_uuid is not None:
-            if self._provider not in disable_purge_line_item:
-                removed_data = self._cleaner.purge_expired_report_data(simulate=simulate, provider_uuid=provider_uuid)
-                with ReportManifestDBAccessor() as manifest_accessor:
-                    # Remove expired CostUsageReportManifests
-                    expiration_date = self._calculate_expiration_date()
-                    if not simulate:
-                        manifest_accessor.purge_expired_report_manifest_provider_uuid(provider_uuid, expiration_date)
-                    LOG.info(
-                        """Removed CostUsageReportManifest for
-                        provider uuid: %s before billing period: %s""",
-                        provider_uuid,
-                        expiration_date,
-                    )
+            removed_data = self._cleaner.purge_expired_report_data(simulate=simulate, provider_uuid=provider_uuid)
+            with ReportManifestDBAccessor() as manifest_accessor:
+                # Remove expired CostUsageReportManifests
+                expiration_date = self._calculate_expiration_date()
+                if not simulate:
+                    manifest_accessor.purge_expired_report_manifest_provider_uuid(provider_uuid, expiration_date)
+                LOG.info(
+                    """Removed CostUsageReportManifest for
+                    provider uuid: %s before billing period: %s""",
+                    provider_uuid,
+                    expiration_date,
+                )
         else:
             expiration_date = self._calculate_expiration_date()
             # Remove expired CostUsageReportManifests

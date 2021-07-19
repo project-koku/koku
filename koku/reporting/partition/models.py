@@ -45,3 +45,10 @@ class PartitionedTable(models.Model):
     subpartition_type = models.TextField(null=True)
     # Sub-partition key
     subpartition_col = models.TextField(null=True)
+
+    def __repr__(self):
+        return (
+            f"< PartitionedTable: {self.schema_name}.{self.table_name} "
+            + f"{self.partition_type}({self.partition_col}, {self.partition_parameters}) "
+            + f"part of {self.partition_of_table_name} >"
+        )

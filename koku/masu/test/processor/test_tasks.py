@@ -50,7 +50,6 @@ from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
 from masu.processor.tasks import remove_expired_data
-from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.processor.tasks import remove_stale_tenants
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import update_all_summary_tables
@@ -741,9 +740,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             | refresh_materialized_views.si(
                 self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id
             ).set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE)
-            | remove_expired_data.si(self.schema, provider, False, provider_aws_uuid, None).set(
-                queue=REMOVE_EXPIRED_DATA_QUEUE
-            )
         )
 
     @patch("masu.processor.tasks.update_summary_tables")

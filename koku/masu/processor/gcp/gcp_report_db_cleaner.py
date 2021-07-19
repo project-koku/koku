@@ -79,7 +79,7 @@ class GCPReportDBCleaner:
         return removed_items
 
     def purge_expired_report_data_by_date(self, expired_date, simulate=False):
-        paritition_from = str(date(expired_date.year, expired_date.month, 1))
+        partition_from = str(date(expired_date.year, expired_date.month, 1))
         with GCPReportDBAccessor(self._schema) as accessor:
             all_bill_objects = accessor.get_bill_query_before_date(expired_date).all()
             table_names = [
@@ -101,10 +101,13 @@ class GCPReportDBCleaner:
                         schema_name=self._schema,
                         partition_of_table_name__in=table_names,
                         partition_parameters__default=False,
-                        partition_parameters__from__lte=paritition_from,
+                        partition_parameters__from__lte=partition_from,
                     )
                 )
-                LOG.info(f"Deleted {del_count} table partitions total for the following tables: {table_names}")
+                LOG.info(
+                    f"Deleted {del_count} table partitions total for the following tables: "
+                    + f"{table_names} with partitions <= {partition_from}"
+                )
 
                 # Iterate over the remainder as they could involve much larger amounts of data
             for bill in all_bill_objects:

@@ -85,7 +85,7 @@ class AWSReportDBCleaner:
         return removed_items
 
     def purge_expired_report_data_by_date(self, expired_date, simulate=False):
-        paritition_from = str(date(expired_date.year, expired_date.month, 1))
+        partition_from = str(date(expired_date.year, expired_date.month, 1))
         removed_items = []
         all_account_ids = set()
         all_period_start = set()
@@ -114,10 +114,13 @@ class AWSReportDBCleaner:
                         schema_name=self._schema,
                         partition_of_table_name__in=table_names,
                         partition_parameters__default=False,
-                        partition_parameters__from__lte=paritition_from,
+                        partition_parameters__from__lte=partition_from,
                     )
                 )
-                LOG.info(f"Deleted {del_count} table partitions total for the following tables: {table_names}")
+                LOG.info(
+                    f"Deleted {del_count} table partitions total for the following tables: "
+                    + f"{table_names} with partitions <= {partition_from}"
+                )
 
                 # Using skip_relations here as we have already dropped partitions above
                 cascade_delete(all_bill_objects.query.model, all_bill_objects, skip_relations=table_models)

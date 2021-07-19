@@ -10,7 +10,6 @@ import os
 from decimal import Decimal
 from decimal import InvalidOperation
 
-import ciso8601
 from celery import chain
 from dateutil import parser
 from django.db import connection
@@ -21,7 +20,6 @@ import masu.prometheus_stats as worker_stats
 from api.common import log_json
 from api.iam.models import Tenant
 from api.provider.models import Provider
-from api.utils import DateHelper
 from koku import celery_app
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.middleware import KokuTenantMiddleware
@@ -412,20 +410,6 @@ def update_summary_tables(
         linked_tasks = refresh_materialized_views.s(
             schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id
         ).set(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
-
-    dh = DateHelper(utc=True)
-    prev_month_start_day = dh.last_month_start.replace(tzinfo=None).date()
-    if isinstance(start_date, str):
-        start_date = ciso8601.parse_datetime(start_date).date()
-    if manifest_id and (start_date <= prev_month_start_day):
-        # We want make sure that the manifest_id is not none, because
-        # we only want to call the delete line items after the summarize_reports
-        # task above
-        simulate = False
-
-        linked_tasks |= remove_expired_data.si(schema_name, provider, simulate, provider_uuid, queue_name).set(
-            queue=queue_name or REMOVE_EXPIRED_DATA_QUEUE
-        )
 
     chain(linked_tasks).apply_async()
     if not synchronous:
