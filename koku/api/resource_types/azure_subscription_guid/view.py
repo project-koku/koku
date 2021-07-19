@@ -34,7 +34,6 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
         user_access = []
         openshift = self.request.query_params.get("openshift")
         if openshift == "true":
-            user_access = request.user.access.get("azure.subscription_guid", {}).get("read", [])
             self.queryset = (
                 OCPAzureCostSummaryByAccount.objects.annotate(
                     **{"value": F("subscription_guid"), "alias": F("cluster_alias")}

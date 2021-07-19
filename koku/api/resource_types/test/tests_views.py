@@ -155,6 +155,28 @@ class ResourceTypesViewTest(IamTestCase):
         self.assertIsNotNone(json_result.get("data"))
         self.assertIsInstance(json_result.get("data"), list)
 
+    @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
+    def test_azure_regions_ocp_view(self):
+        """Test endpoint runs with a customer owner."""
+        qs = "?openshift=true"
+        url = reverse("azure-regions") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
+    def test_azure_services_ocp_view(self):
+        """Test endpoint runs with a customer owner."""
+        qs = "?openshift=true"
+        url = reverse("azure-services") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+
     @RbacPermissions({"aws.organizational_unit": {"read": ["OU_001"]}})
     def test_rbacpermissions_aws_org_unit_data(self):
         """Test that OpenShift endpoints accept valid OpenShift permissions."""
