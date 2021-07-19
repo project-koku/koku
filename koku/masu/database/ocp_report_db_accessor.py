@@ -965,7 +965,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         """
         with schema_context(self.schema):
-            # TODO: cody, there may be a more effienct way to get the desired mapping from the django orm.
             distributed_project_list = (
                 OCPUsageLineItemDailySummary.objects.filter(
                     usage_start__gte=start_date, usage_start__lt=end_date, cluster_id=cluster_id

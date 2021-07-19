@@ -696,7 +696,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
             reports = self.accessor.get_reports()
             self.assertEquals(len(reports), OCPUsageReport.objects.count())
 
-    # TODO: Fix
     def test_populate_monthly_cost_node_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for nodes in the summary table is populated."""
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
@@ -768,7 +767,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         )
                     self.assertEquals(sum(monthly_project_cost), expected_project_value)
 
-    # FIX:
     def test_populate_monthly_cost_node_supplementary_cost(self):
         """Test that the monthly supplementary cost row for nodes in the summary table is populated."""
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
@@ -1095,7 +1093,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 self.assertEquals(pvc_project_cost, pvc_rate)
             self.assertEquals(sum(project_total), expected_project_total)
 
-    # TODO: cody, update
     def test_remove_monthly_cost(self):
         """Test that the monthly cost row in the summary table is removed."""
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
