@@ -696,6 +696,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             reports = self.accessor.get_reports()
             self.assertEquals(len(reports), OCPUsageReport.objects.count())
 
+    # TODO: Fix
     def test_populate_monthly_cost_node_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for nodes in the summary table is populated."""
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
@@ -735,7 +736,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         OCPUsageLineItemDailySummary.objects.filter(
                             report_period__provider_id=self.ocp_provider.uuid,
                             usage_start__gte=start_date,
-                            infrastructure_monthly_cost__isnull=False,
+                            infrastructure_monthly_cost_json__isnull=False,
                         )
                         .values("node")
                         .distinct()
@@ -761,10 +762,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     )
                     self.assertEquals(monthly_project_cost_rows.count(), expected_project_count)
                     monthly_project_cost = []
-                    for monthly_cost_row in monthly_cost_rows:
-                        monthly_project_cost.append(monthly_cost_row.infrastructure_monthly_cost.get(distribution))
+                    for monthly_project_cost_row in monthly_project_cost_rows:
+                        monthly_project_cost.append(
+                            monthly_project_cost_row.infrastructure_project_monthly_cost.get(distribution)
+                        )
                     self.assertEquals(sum(monthly_project_cost), expected_project_value)
 
+    # FIX:
     def test_populate_monthly_cost_node_supplementary_cost(self):
         """Test that the monthly supplementary cost row for nodes in the summary table is populated."""
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
@@ -804,7 +808,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         OCPUsageLineItemDailySummary.objects.filter(
                             report_period__provider_id=self.ocp_provider.uuid,
                             usage_start__gte=start_date,
-                            supplementary_monthly_cost__isnull=False,
+                            supplementary_monthly_cost_json__isnull=False,
                         )
                         .values("node")
                         .distinct()
@@ -830,8 +834,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     )
                     self.assertEquals(monthly_project_cost_rows.count(), expected_project_count)
                     monthly_project_cost = []
-                    for monthly_cost_row in monthly_cost_rows:
-                        monthly_project_cost.append(monthly_cost_row.supplementary_monthly_cost.get(distribution))
+                    for monthly_project_cost_row in monthly_project_cost_rows:
+                        monthly_project_cost.append(
+                            monthly_project_cost_row.supplementary_project_monthly_cost.get(distribution)
+                        )
                     self.assertEquals(sum(monthly_project_cost), expected_project_value)
 
     def test_populate_monthly_cost_cluster_infrastructure_cost(self):
