@@ -35,6 +35,7 @@ from sources.kafka_message_processor import SOURCES_AWS_SOURCE_NAME
 from sources.kafka_message_processor import SOURCES_AZURE_SOURCE_NAME
 from sources.kafka_message_processor import SOURCES_GCP_SOURCE_NAME
 from sources.kafka_message_processor import SOURCES_OCP_SOURCE_NAME
+from sources.sources_http_client import AUTH_TYPES
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 from sources.test.test_sources_http_client import COST_MGMT_APP_TYPE_ID
@@ -198,25 +199,49 @@ class KafkaMessageProcessorTest(IamTestCase):
 
     def test_msg_for_cost_mgmt(self):
         """Test msg_for_cost_mgmt true or false."""
-        test_value_is_cost = {"id": 1, "source_id": 1, "application_type_id": COST_MGMT_APP_TYPE_ID}
-        test_value_is_not_cost = {"id": 1, "source_id": 1, "application_type_id": COST_MGMT_APP_TYPE_ID + 1}
+        test_app_value_is_cost = {"id": 1, "source_id": 1, "application_type_id": COST_MGMT_APP_TYPE_ID}
+        test_app_value_is_not_cost = {"id": 1, "source_id": 1, "application_type_id": COST_MGMT_APP_TYPE_ID + 1}
+        test_auth_value_valid = {"id": 1, "source_id": 1, "authtype": choice(list(AUTH_TYPES.values()))}
+        test_auth_value_invalid = {"id": 1, "source_id": 1, "authtype": "access_key_secret_key"}
         table = [
             # Source events
             {"processor": KafkaMessageProcessor, "event-type": "Source.create", "expected": False},
             {"processor": KafkaMessageProcessor, "event-type": KAFKA_SOURCE_UPDATE, "expected": False},
             {"processor": KafkaMessageProcessor, "event-type": KAFKA_SOURCE_DESTROY, "expected": False},
             # Application events
-            {"event-type": KAFKA_APPLICATION_CREATE, "expected": True, "value": test_value_is_cost},
-            {"event-type": KAFKA_APPLICATION_CREATE, "expected": False, "value": test_value_is_not_cost},
-            {"event-type": KAFKA_APPLICATION_UPDATE, "expected": True, "value": test_value_is_cost},
-            {"event-type": KAFKA_APPLICATION_UPDATE, "expected": False, "value": test_value_is_not_cost},
-            {"event-type": KAFKA_APPLICATION_DESTROY, "expected": True, "value": test_value_is_cost},
-            {"event-type": KAFKA_APPLICATION_DESTROY, "expected": False, "value": test_value_is_not_cost},
+            {"event-type": KAFKA_APPLICATION_CREATE, "expected": True, "value": test_app_value_is_cost},
+            {"event-type": KAFKA_APPLICATION_CREATE, "expected": False, "value": test_app_value_is_not_cost},
+            {"event-type": KAFKA_APPLICATION_UPDATE, "expected": True, "value": test_app_value_is_cost},
+            {"event-type": KAFKA_APPLICATION_UPDATE, "expected": False, "value": test_app_value_is_not_cost},
+            {"event-type": KAFKA_APPLICATION_DESTROY, "expected": True, "value": test_app_value_is_cost},
+            {"event-type": KAFKA_APPLICATION_DESTROY, "expected": False, "value": test_app_value_is_not_cost},
             # Authentication events
-            {"event-type": KAFKA_AUTHENTICATION_CREATE, "expected": True, "patch": True},
-            {"event-type": KAFKA_AUTHENTICATION_CREATE, "expected": False, "patch": False},
-            {"event-type": KAFKA_AUTHENTICATION_UPDATE, "expected": True, "patch": True},
-            {"event-type": KAFKA_AUTHENTICATION_UPDATE, "expected": False, "patch": False},
+            {
+                "event-type": KAFKA_AUTHENTICATION_CREATE,
+                "expected": True,
+                "patch": True,
+                "value": test_auth_value_valid,
+            },
+            {
+                "event-type": KAFKA_AUTHENTICATION_CREATE,
+                "expected": False,
+                "patch": False,
+                "value": test_auth_value_valid,
+            },
+            {"event-type": KAFKA_AUTHENTICATION_CREATE, "expected": False, "value": test_auth_value_invalid},
+            {
+                "event-type": KAFKA_AUTHENTICATION_UPDATE,
+                "expected": True,
+                "patch": True,
+                "value": test_auth_value_valid,
+            },
+            {
+                "event-type": KAFKA_AUTHENTICATION_UPDATE,
+                "expected": False,
+                "patch": False,
+                "value": test_auth_value_valid,
+            },
+            {"event-type": KAFKA_AUTHENTICATION_UPDATE, "expected": False, "value": test_auth_value_invalid},
         ]
         for test in table:
             with self.subTest(test=test):
