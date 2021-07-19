@@ -411,11 +411,13 @@ class ParquetReportProcessor:
 
     def create_daily_parquet(self, parquet_base_filename, data_frames):
         """Create a parquet file for daily aggregated data."""
+        file_path = None
         for i, data_frame in enumerate(data_frames):
             file_name = f"{parquet_base_filename}_{DAILY_FILE_TYPE}_{i}{PARQUET_EXT}"
             file_path = f"{self.local_path}/{file_name}"
             self._write_parquet_to_file(file_path, file_name, data_frame, file_type=DAILY_FILE_TYPE)
-        self.create_parquet_table(file_path, daily=True)
+        if file_path:
+            self.create_parquet_table(file_path, daily=True)
 
     def _determin_s3_path(self, file_type):
         """Determine the s3 path to use to write a parquet file to."""

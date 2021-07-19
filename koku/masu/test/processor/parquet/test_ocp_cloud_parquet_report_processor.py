@@ -152,12 +152,13 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     @patch.object(OCPCloudParquetReportProcessor, "_write_parquet_to_file")
     def test_create_ocp_on_cloud_parquet(self, mock_write, mock_create_table):
         """Test that we write OCP on Cloud data and create a table."""
-        file_name = f"{self.ocp_provider_uuid}{PARQUET_EXT}"
-        file_path = f"{self.report_processor.local_path}/{file_name}"
+        base_file_name = f"{self.ocp_provider_uuid}"
+        file_path = f"{self.report_processor.local_path}"
         df = pd.DataFrame()
-        self.report_processor.create_ocp_on_cloud_parquet(df, self.ocp_provider_uuid)
+        self.report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0, self.ocp_provider_uuid)
         mock_write.assert_called()
-        mock_create_table.assert_called_with(file_path, daily=True)
+        expected = f"{file_path}/{self.ocp_provider_uuid}_0_{self.ocp_provider_uuid}{PARQUET_EXT}"
+        mock_create_table.assert_called_with(expected, daily=True)
 
     @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_provider")
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
@@ -165,7 +166,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     def test_process(self, mock_data_processor, mock_create_parquet, mock_topology):
         """Test that ocp on cloud data is fully processed."""
         mock_topology.return_value = {"cluster_id": self.ocp_cluster_id}
-        self.report_processor.process("", pd.DataFrame())
+        self.report_processor.process("", [pd.DataFrame()])
 
         mock_topology.assert_called()
         mock_data_processor.assert_called()
