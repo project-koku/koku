@@ -1458,9 +1458,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 for project_dikt in project_distribution_list:
                     namespace = project_dikt.get("namespace")
                     distributed_cost = project_dikt.get("distributed_cost", Decimal(0))
-                    # I need to do a first, than an if not here.
                     project_line_item = OCPUsageLineItemDailySummary.objects.filter(
-                        uuid=uuid.uuid4(),
                         usage_start=start_date,
                         usage_end=start_date,
                         report_period=report_period,
