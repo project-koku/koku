@@ -1044,6 +1044,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         monthly_cost_type="Node",
                         node=project_node,
                         namespace=namespace,
+                        data_source="Pod",
                     ).first()
                     if not project_line_item:
                         project_line_item = OCPUsageLineItemDailySummary(
@@ -1056,6 +1057,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                             monthly_cost_type="Node",
                             node=project_node,
                             namespace=namespace,
+                            data_source="Pod",
                         )
                     monthly_cost = self.generate_monthly_cost_json_object(distribution, distributed_cost)
                     log_statement = (
