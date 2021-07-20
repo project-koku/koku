@@ -1626,8 +1626,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     node=node,
                     namespace=namespace,
                     data_source="Storage",
-                    infrastructure_monthly_cost__isnull=True,
-                    supplementary_monthly_cost__isnull=True,
+                    infrastructure_monthly_cost_json__isnull=True,
+                    supplementary_monthly_cost_json__isnull=True,
                 ).first()
                 if not project_line_item:
                     project_line_item = OCPUsageLineItemDailySummary(
