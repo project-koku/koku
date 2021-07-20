@@ -141,9 +141,9 @@ class ReportProcessor:
         """
         try:
             if self.trino_enabled:
-                parquet_base_filename, daily_data_frame = self._processor.process()
+                parquet_base_filename, daily_data_frames = self._processor.process()
                 if self.ocp_on_cloud_processor:
-                    self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frame)
+                    self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frames)
                 return
 
             return self._processor.process()
