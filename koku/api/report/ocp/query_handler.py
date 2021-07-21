@@ -38,6 +38,29 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
 
+        # We need to overwrite the default pack definitions with these
+        # Order of the keys matters in how we see it in the views.
+        ocp_pack_keys = {
+            "infra_raw": {"key": "raw", "group": "infrastructure"},
+            "infra_markup": {"key": "markup", "group": "infrastructure"},
+            "infra_usage": {"key": "usage", "group": "infrastructure"},
+            "infra_distributed": {"key": "distributed", "group": "infrastructure"},
+            "infra_total": {"key": "total", "group": "infrastructure"},
+            "sup_raw": {"key": "raw", "group": "supplementary"},
+            "sup_markup": {"key": "markup", "group": "supplementary"},
+            "sup_usage": {"key": "usage", "group": "supplementary"},
+            "sup_distributed": {"key": "distributed", "group": "supplementary"},
+            "sup_total": {"key": "total", "group": "supplementary"},
+            "cost_raw": {"key": "raw", "group": "cost"},
+            "cost_markup": {"key": "markup", "group": "cost"},
+            "cost_usage": {"key": "usage", "group": "cost"},
+            "cost_distributed": {"key": "distributed", "group": "cost"},
+            "cost_total": {"key": "total", "group": "cost"},
+        }
+        ocp_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
+        ocp_pack_definitions["cost_groups"]["keys"] = ocp_pack_keys
+        self._mapper.PACK_DEFINITIONS = ocp_pack_definitions
+
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
         # super() needs to be called before _get_group_by is called
