@@ -5,10 +5,10 @@
 """Asynchronous tasks."""
 import logging
 from os import path
-from api.common import log_json
 
 import psutil
 
+from api.common import log_json
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor

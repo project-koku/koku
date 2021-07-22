@@ -283,7 +283,12 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     # Filter and get account from payload's cluster-id
     cluster_id = report_meta.get("cluster_id")
     manifest_uuid = report_meta.get("uuid", request_id)
-    LOG.info(log_json(request_id, f"Payload with the request id {request_id} is part of the report with manifest id {manifest_uuid}"))
+    LOG.info(
+        log_json(
+            request_id,
+            f"Payload with the request id {request_id} is part of the report with manifest id {manifest_uuid}",
+        )
+    )
     if context:
         context["cluster_id"] = cluster_id
     account = get_account_from_cluster_id(cluster_id, manifest_uuid, context)
@@ -497,9 +502,12 @@ def summarize_manifest(report_meta, manifest_uuid):
                 "manifest_id": manifest_id,
             }
             if start_date and end_date:
-                LOG.info(log_json(manifest_uuid,
-                    f"Summarizing OCP reports from {str(start_date)}-{str(end_date)} for provider: {provider_uuid}"
-                ))
+                LOG.info(
+                    log_json(
+                        manifest_uuid,
+                        f"Summarizing OCP reports from {str(start_date)}-{str(end_date)} for provider: {provider_uuid}",
+                    )
+                )
                 report_meta["start"] = start_date
                 report_meta["end"] = end_date
             async_id = summarize_reports.s([report_meta], OCP_QUEUE).apply_async(queue=OCP_QUEUE)

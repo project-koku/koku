@@ -5,8 +5,8 @@
 """Update reporting summary tables."""
 import datetime
 import logging
-from api.common import log_json
 
+from api.common import log_json
 from api.models import Provider
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from masu.database.provider_db_accessor import ProviderDBAccessor
