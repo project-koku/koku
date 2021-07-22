@@ -1077,8 +1077,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that file list is saved in ReportStatsDBAccessor."""
         files_list = ["file1.csv", "file2.csv", "file3.csv"]
         manifest_id = 1
-
-        record_all_manifest_files(manifest_id, files_list)
+        tracing_id = "1234"
+        record_all_manifest_files(manifest_id, files_list, tracing_id)
 
         for report_file in files_list:
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()
@@ -1087,11 +1087,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that file list is saved in ReportStatsDBAccessor race condition."""
         files_list = ["file1.csv", "file2.csv", "file3.csv"]
         manifest_id = 1
-
-        record_all_manifest_files(manifest_id, files_list)
+        tracing_id = "1234"
+        record_all_manifest_files(manifest_id, files_list, tracing_id)
         with patch.object(ReportStatsDBAccessor, "does_db_entry_exist", return_value=False):
             with patch.object(ReportStatsDBAccessor, "add", side_effect=IntegrityError):
-                record_all_manifest_files(manifest_id, files_list)
+                record_all_manifest_files(manifest_id, files_list, tracing_id)
 
         for report_file in files_list:
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()

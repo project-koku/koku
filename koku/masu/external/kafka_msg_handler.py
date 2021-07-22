@@ -329,7 +329,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
         try:
             shutil.copy(payload_source_path, payload_destination_path)
             current_meta["current_file"] = payload_destination_path
-            record_all_manifest_files(report_meta["manifest_id"], report_meta.get("files"))
+            record_all_manifest_files(report_meta["manifest_id"], report_meta.get("files"), manifest_uuid)
             if not record_report_status(report_meta["manifest_id"], report_file, manifest_uuid, context):
                 msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
                 LOG.info(log_json(manifest_uuid, msg, context))

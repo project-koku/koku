@@ -130,9 +130,6 @@ class ReportSummaryUpdater:
         )
 
         LOG.info(f"Set report_summary_updater = {report_summary_updater.__name__}")
-        LOG.info("\n\n\nDEBUGGING LOOK HERE: ")
-        LOG.info(self._tracing_id)
-        LOG.info("---")
         return (
             report_summary_updater(self._schema, self._provider, self._manifest),
             ocp_cloud_updater(self._schema, self._provider, self._manifest),

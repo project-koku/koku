@@ -70,7 +70,7 @@ def _get_report_files(
         disk_msg = f"{function_name}: Available disk space: {disk.free} bytes ({100 - disk.percent}%)"
     except OSError:
         disk_msg = f"{function_name}: Unable to find available disk space. {Config.PVC_DIR} does not exist"
-    LOG.debug(log_json(tracing_id, disk_msg, context))
+    LOG.info(log_json(tracing_id, disk_msg, context))
 
     report = None
     try:
