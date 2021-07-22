@@ -185,13 +185,32 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
     resource_id_df = data_frame["resourceid"]
     if resource_id_df.isna().values.all():
         resource_id_df = data_frame["instanceid"]
-    resource_id_matched = resource_id_df.apply(lambda row: any([value in row for value in matchable_resources]))
-
+    resource_id_matched = resource_id_df.isin(matchable_resources)
+    # resource_id_matched = resource_id_df.apply(lambda row: any([value in row for value in matchable_resources]))
     data_frame["resource_id_matched"] = resource_id_matched
 
+    cluster_id = cluster_topology.get("cluster_id").lower()
+    cluster_alias = cluster_topology.get("cluster_alias").lower()
+    nodes = [node.lower() for node in cluster_topology.get("nodes", [])]
+    projects = [project.lower() for project in cluster_topology.get("projects", [])]
+
     tags = data_frame["tags"]
-    tag_matched = tags.apply(match_openshift_labels, args=(matched_tags, cluster_topology))
-    data_frame["matched_tag"] = tag_matched
+    tags = tags.str.lower()
+    special_case_tag_matched = tags.str.contains(
+        "|".join(["openshift_cluster", "openshift_project", "openshift_node"])
+    )
+    has_special_tags = special_case_tag_matched.any()
+    if matched_tags or has_special_tags:
+        if has_special_tags:
+            LOG.info("Matching OpenShift on Azure with special openshift_project/node/cluster tags.")
+        else:
+            LOG.info("Matching OpenShift on Azure tags.")
+        tag_matched = tags.apply(
+            match_openshift_labels, args=(matched_tags, cluster_id, cluster_alias, nodes, projects, has_special_tags)
+        )
+        data_frame["matched_tag"] = tag_matched
+    else:
+        data_frame["matched_tag"] = ""
     openshift_matched_data_frame = data_frame[
         (data_frame["resource_id_matched"] == True) | (data_frame["matched_tag"] != "")  # noqa: E712
     ]
