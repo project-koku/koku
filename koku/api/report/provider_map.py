@@ -16,6 +16,8 @@ class ProviderMap:
     references to help reduce the complexity of the ReportQueryHandler.
     """
 
+    # WARNING: OCP overwrites the cost_groups keys to include distributed cost
+    # in the query handler init
     PACK_DEFINITIONS = {
         # I structured the cost_groups in this way in order to keep the big O
         # notation the same in queries.py with only one for loop.

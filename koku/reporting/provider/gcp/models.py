@@ -107,9 +107,11 @@ class GCPCostEntryLineItem(models.Model):
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     cost_type = models.CharField(max_length=256, null=True, blank=True)
     line_item_type = models.CharField(max_length=256, null=True)
-    cost_entry_product = models.ForeignKey(GCPCostEntryProductService, null=True, on_delete=models.CASCADE)
-    cost_entry_bill = models.ForeignKey(GCPCostEntryBill, on_delete=models.CASCADE)
-    project = models.ForeignKey(GCPProject, on_delete=models.CASCADE)
+    cost_entry_product = models.ForeignKey(
+        GCPCostEntryProductService, null=True, on_delete=models.CASCADE, db_constraint=False
+    )
+    cost_entry_bill = models.ForeignKey(GCPCostEntryBill, on_delete=models.CASCADE, db_constraint=False)
+    project = models.ForeignKey(GCPProject, on_delete=models.CASCADE, db_constraint=False)
 
 
 class GCPCostEntryLineItemDaily(models.Model):

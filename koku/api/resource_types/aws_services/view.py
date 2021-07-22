@@ -10,7 +10,7 @@ from rest_framework import filters
 from rest_framework import generics
 
 from api.common import CACHE_RH_IDENTITY_HEADER
-from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
+from api.common.permissions.aws_access import AwsAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.aws.models import AWSCostSummaryByService
 
@@ -25,11 +25,18 @@ class AWSServiceView(generics.ListAPIView):
         .filter(product_code__isnull=False)
     )
     serializer_class = ResourceTypeSerializer
-    permission_classes = [ResourceTypeAccessPermission]
+    permission_classes = [AwsAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value"]
     search_fields = ["$value"]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
+        # Reads the users values for aws.accounts and displays values related to what the user has access to
+        user_access = []
+        if request.user.admin:
+            return super().list(request)
+        elif request.user.access:
+            user_access = request.user.access.get("aws.account", {}).get("read", [])
+        self.queryset = self.queryset.values("value").filter(usage_account_id__in=user_access)
         return super().list(request)

@@ -31,6 +31,7 @@ from masu.processor.report_parquet_processor_base import ReportParquetProcessorB
 from masu.test import MasuTestCase
 from masu.util.aws.common import aws_generate_daily_data
 from masu.util.aws.common import aws_post_processor
+from masu.util.azure.common import azure_generate_daily_data
 from masu.util.azure.common import azure_post_processor
 from masu.util.gcp.common import gcp_post_processor
 from masu.util.ocp.common import ocp_generate_daily_data
@@ -607,6 +608,17 @@ class TestParquetReportProcessor(MasuTestCase):
         daily_data_processor = processor.daily_data_processor
         self.assertEqual(daily_data_processor, aws_generate_daily_data)
 
+        processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.azure_provider_uuid,
+            provider_type=Provider.PROVIDER_AZURE_LOCAL,
+            manifest_id=self.manifest_id,
+            context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+        )
+        daily_data_processor = processor.daily_data_processor
+        self.assertEqual(daily_data_processor, azure_generate_daily_data)
+
         with patch.object(ParquetReportProcessor, "report_type", new_callable=PropertyMock) as mock_report_type:
             report_type = "pod_usage"
             mock_report_type.return_value = report_type
@@ -626,6 +638,6 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch.object(ParquetReportProcessor, "_write_parquet_to_file")
     def test_create_daily_parquet(self, mock_write, mock_create_table):
         """Test the daily parquet method."""
-        self.report_processor.create_daily_parquet("", pd.DataFrame())
+        self.report_processor.create_daily_parquet("", [pd.DataFrame()])
         mock_write.assert_called()
         mock_create_table.assert_called()

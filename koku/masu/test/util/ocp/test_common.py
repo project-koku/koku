@@ -259,3 +259,24 @@ class OCPUtilTests(MasuTestCase):
             expected = tag_dict.get("expected")
             result = utils.match_openshift_labels(td, matched_tags, cluster_topology)
             self.assertEqual(result, expected)
+
+    def test_get_report_details(self):
+        """Test that we handle manifest files properly."""
+        with tempfile.TemporaryDirectory() as manifest_path:
+            manifest_file = f"{manifest_path}/manifest.json"
+            with self.assertLogs("masu.util.ocp.common", level="INFO") as logger:
+                expected = f"INFO:masu.util.ocp.common:No manifest available at {manifest_file}"
+                utils.get_report_details(manifest_path)
+                self.assertIn(expected, logger.output)
+
+            with open(manifest_file, "w") as f:
+                data = {"key": "value"}
+                json.dump(data, f)
+            utils.get_report_details(manifest_path)
+
+            with patch("masu.util.ocp.common.open") as mock_open:
+                mock_open.side_effect = OSError
+                with self.assertLogs("masu.util.ocp.common", level="INFO") as logger:
+                    expected = "ERROR:masu.util.ocp.common:Unable to extract manifest data"
+                    utils.get_report_details(manifest_path)
+                    self.assertIn(expected, logger.output[0])

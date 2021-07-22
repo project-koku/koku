@@ -548,6 +548,7 @@ def process_report(request_id, report):
         "request_id": request_id,
         "provider_type": "OCP",
         "start_date": date,
+        "create_table": True,
     }
     try:
         return _process_report_file(schema_name, provider_type, report_dict)

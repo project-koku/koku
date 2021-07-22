@@ -27,6 +27,7 @@ from masu.util.aws.common import aws_post_processor
 from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import get_column_converters as aws_column_converters
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
+from masu.util.azure.common import azure_generate_daily_data
 from masu.util.azure.common import azure_post_processor
 from masu.util.azure.common import get_column_converters as azure_column_converters
 from masu.util.common import create_enabled_keys
@@ -190,6 +191,8 @@ class ParquetReportProcessor:
         daily_data_processor = None
         if self.provider_type == Provider.PROVIDER_AWS:
             daily_data_processor = aws_generate_daily_data
+        if self.provider_type == Provider.PROVIDER_AZURE:
+            daily_data_processor = azure_generate_daily_data
         if self.provider_type == Provider.PROVIDER_OCP:
             daily_data_processor = partial(ocp_generate_daily_data, report_type=self.report_type)
 
@@ -293,7 +296,6 @@ class ParquetReportProcessor:
         for us to convert the archived data.
         """
         parquet_base_filename = ""
-        daily_data_frame = pd.DataFrame()
         if not enable_trino_processing(self.provider_uuid, self.provider_type, self.schema_name):
             msg = "Skipping convert_to_parquet. Parquet processing is disabled."
             LOG.info(log_json(self.request_id, msg, self.error_context))
@@ -333,16 +335,16 @@ class ParquetReportProcessor:
                 failed_conversion.append(csv_filename)
                 continue
 
-            parquet_base_filename, daily_data_frame, success = self.convert_csv_to_parquet(csv_filename)
+            parquet_base_filename, daily_data_frames, success = self.convert_csv_to_parquet(csv_filename)
             if self.provider_type not in (Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP):
-                self.create_daily_parquet(parquet_base_filename, daily_data_frame)
+                self.create_daily_parquet(parquet_base_filename, daily_data_frames)
             if not success:
                 failed_conversion.append(csv_filename)
 
         if failed_conversion:
             msg = f"Failed to convert the following files to parquet:{','.join(failed_conversion)}."
             LOG.warn(log_json(self.request_id, msg, self.error_context))
-        return parquet_base_filename, daily_data_frame
+        return parquet_base_filename, daily_data_frames
 
     def create_parquet_table(self, parquet_file, daily=False):
         """Create parquet table."""
@@ -394,7 +396,7 @@ class ParquetReportProcessor:
 
                     success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
                     if not success:
-                        return parquet_base_filename, pd.DataFrame(), False
+                        return parquet_base_filename, daily_data_frames, False
             if self.create_table and not self.presto_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_file)
             create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
@@ -403,21 +405,19 @@ class ParquetReportProcessor:
                 f"File {csv_filename} could not be written as parquet to temp file {parquet_file}. Reason: {str(err)}"
             )
             LOG.warn(log_json(self.request_id, msg, self.error_context))
-            return parquet_base_filename, pd.DataFrame(), False
-
-        if daily_data_frames:
-            daily_data_frames = pd.concat(daily_data_frames)
-        else:
-            daily_data_frames = pd.DataFrame()
+            return parquet_base_filename, daily_data_frames, False
 
         return parquet_base_filename, daily_data_frames, True
 
-    def create_daily_parquet(self, parquet_base_filename, data_frame):
+    def create_daily_parquet(self, parquet_base_filename, data_frames):
         """Create a parquet file for daily aggregated data."""
-        file_name = f"{parquet_base_filename}_{DAILY_FILE_TYPE}{PARQUET_EXT}"
-        file_path = f"{self.local_path}/{file_name}"
-        self._write_parquet_to_file(file_path, file_name, data_frame, file_type=DAILY_FILE_TYPE)
-        self.create_parquet_table(file_path, daily=True)
+        file_path = None
+        for i, data_frame in enumerate(data_frames):
+            file_name = f"{parquet_base_filename}_{DAILY_FILE_TYPE}_{i}{PARQUET_EXT}"
+            file_path = f"{self.local_path}/{file_name}"
+            self._write_parquet_to_file(file_path, file_name, data_frame, file_type=DAILY_FILE_TYPE)
+        if file_path:
+            self.create_parquet_table(file_path, daily=True)
 
     def _determin_s3_path(self, file_type):
         """Determine the s3 path to use to write a parquet file to."""
@@ -454,7 +454,7 @@ class ParquetReportProcessor:
             f"Converting CSV files to Parquet.\n\tStart date: {str(self.start_date)}\n\tFile: {str(self.report_file)}"
         )
         LOG.info(msg)
-        parquet_base_filename, daily_data_frame = self.convert_to_parquet()
+        parquet_base_filename, daily_data_frames = self.convert_to_parquet()
 
         # Clean up the original downloaded file
         for f in self.file_list:
@@ -468,7 +468,7 @@ class ParquetReportProcessor:
         if os.path.exists(self.report_file):
             os.remove(self.report_file)
 
-        return parquet_base_filename, daily_data_frame
+        return parquet_base_filename, daily_data_frames
 
     def remove_temp_cur_files(self, report_path):
         """Remove processed files."""
