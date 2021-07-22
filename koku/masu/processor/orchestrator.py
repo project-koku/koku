@@ -7,6 +7,7 @@ import logging
 
 from celery import chord
 
+from api.common import log_json
 from api.models import Provider
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -142,8 +143,11 @@ class Orchestrator:
         )
         manifest = downloader.download_manifest(report_month)
         tracing_id = manifest.get("assembly_id", manifest.get("request_id", "no-request-id"))
-        LOG.info("\n\n\nAsh Here is the tracing id: %s" % tracing_id)
-        LOG.info(tracing_id)
+        files = manifest.get("files", [])
+        filenames = []
+        for file in files:
+            filenames.append(file.get("local_file"))
+        LOG.info(log_json(tracing_id, f"Report with manifest {tracing_id} contains the files: {filenames}"))
 
         if manifest:
             LOG.debug("Saving all manifest file names.")
