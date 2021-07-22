@@ -78,22 +78,22 @@ QUEUE_LIST = [
 ]
 
 
-def record_all_manifest_files(manifest_id, report_files):
+def record_all_manifest_files(manifest_id, report_files, tracing_id):
     """Store all report file names for manifest ID."""
     for report in report_files:
         try:
             with ReportStatsDBAccessor(report, manifest_id):
-                LOG.debug(f"Logging {report} for manifest ID: {manifest_id}")
+                LOG.debug(log_json(tracing_id, f"Logging {report} for manifest ID: {manifest_id}"))
         except IntegrityError:
             # OCP records the entire file list for a new manifest when the listener
             # recieves a payload.  With multiple listeners it is possilbe for
             # two listeners to recieve a report file for the same manifest at
             # roughly the same time.  In that case the report file may already
             # exist and an IntegrityError would be thrown.
-            LOG.debug(f"Report {report} has already been recorded.")
+            LOG.debug(log_json(tracing_id, f"Report {report} has already been recorded."))
 
 
-def record_report_status(manifest_id, file_name, request_id, context={}):
+def record_report_status(manifest_id, file_name, tracing_id, context={}):
     """
     Creates initial report status database entry for new report files.
 
@@ -105,7 +105,7 @@ def record_report_status(manifest_id, file_name, request_id, context={}):
     Args:
         manifest_id (Integer): Manifest Identifier.
         file_name (String): Report file name
-        request_id (String): Identifier associated with the payload
+        tracing_id (String): Identifier associated with the payload
         context (Dict): Context for logging (account, etc)
 
     Returns:
@@ -119,7 +119,7 @@ def record_report_status(manifest_id, file_name, request_id, context={}):
             msg = f"Report {file_name} has already been processed."
         else:
             msg = f"Recording stats entry for {file_name}"
-        LOG.info(log_json(request_id, msg, context))
+        LOG.info(log_json(tracing_id, msg, context))
     return already_processed
 
 
@@ -164,7 +164,7 @@ def get_report_files(
 
         report_file = report_context.get("key")
         cache_key = f"{provider_uuid}:{report_file}"
-        tracing_id = f"{provider_uuid}:{report_context.get('manifest_id')}:{report_file.split('/')[-1]}"
+        tracing_id = report_context.get('assembly_id', 'no-tracing-id')
         WorkerCache().add_task_to_cache(cache_key)
 
         report_dict = _get_report_files(

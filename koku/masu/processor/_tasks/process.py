@@ -50,7 +50,7 @@ def _process_report_file(schema_name, provider, report_dict):
     LOG.info(log_json(request_id, log_statement))
     mem = psutil.virtual_memory()
     mem_msg = f"Avaiable memory: {mem.free} bytes ({mem.percent}%)"
-    LOG.debug(mem_msg)
+    LOG.debug(log_json(request_id, mem_msg))
 
     file_name = report_path.split("/")[-1]
     with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
@@ -85,12 +85,12 @@ def _process_report_file(schema_name, provider, report_dict):
         if manifest:
             manifest_accesor.mark_manifest_as_updated(manifest)
         else:
-            LOG.error("Unable to find manifest for ID: %s, file %s", manifest_id, file_name)
+            LOG.error(log_json(request_id, ("Unable to find manifest for ID: %s, file %s", manifest_id, file_name)))
 
     with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
         if provider_accessor.get_setup_complete():
             files = processor.remove_processed_files(path.dirname(report_path))
-            LOG.info("Temporary files removed: %s", str(files))
+            LOG.info(log_json(request_id, ("Temporary files removed: %s", str(files))))
         provider_accessor.setup_complete()
 
     return True
