@@ -412,12 +412,12 @@ class ReportDBAccessorBase(KokuDBAccess):
 
     def add_partition(self, **partition_record):
         with transaction.atomic():
-            connection.set_schema(self.schema)
-            newpart, created = PartitionedTable.objects.get_or_create(
-                defaults=partition_record,
-                schema_name=partition_record["schema_name"],
-                table_name=partition_record["table_name"],
-            )
+            with schema_context(self.schema):
+                newpart, created = PartitionedTable.objects.get_or_create(
+                    defaults=partition_record,
+                    schema_name=partition_record["schema_name"],
+                    table_name=partition_record["table_name"],
+                )
         if created:
             LOG.info(f"Created a new partition for {newpart.partition_of_table_name} : {newpart.table_name}")
 
@@ -441,4 +441,10 @@ class ReportDBAccessorBase(KokuDBAccess):
         return False
 
     def execute_delete_sql(self, query):
+        """
+        Detach a partition by marking the active columnm as False in the tracking table
+        Schema must be set before this function is called
+        Parameters:
+            query (QuerySet) : A valid django queryset
+        """
         return exec_del_sql(query)
