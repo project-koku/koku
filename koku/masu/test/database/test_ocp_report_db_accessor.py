@@ -725,10 +725,18 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     .filter(usage_start=first_month, infrastructure_monthly_cost_json__isnull=False)
                     .all()
                 )
+                monthly_project_cost_rows = (
+                    self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+                    .filter(usage_start=first_month, infrastructure_project_monthly_cost__isnull=False)
+                    .all()
+                )
                 with schema_context(self.schema):
+                    # Test infrastructure monthly node distrbution
                     expected_count = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            report_period__provider_id=self.ocp_provider.uuid, usage_start__gte=start_date
+                            report_period__provider_id=self.ocp_provider.uuid,
+                            usage_start__gte=start_date,
+                            infrastructure_monthly_cost_json__isnull=False,
                         )
                         .values("node")
                         .distinct()
@@ -740,6 +748,26 @@ class OCPReportDBAccessorTest(MasuTestCase):
                             monthly_cost_row.infrastructure_monthly_cost_json.get(distribution), node_rate
                         )
 
+                    # Test infrastructure node to project distribution
+                    expected_project_value = expected_count * node_rate
+                    expected_project_count = (
+                        OCPUsageLineItemDailySummary.objects.filter(
+                            report_period__provider_id=self.ocp_provider.uuid,
+                            usage_start__gte=start_date,
+                            infrastructure_project_monthly_cost__isnull=False,
+                        )
+                        .values("node", "namespace")
+                        .distinct()
+                        .count()
+                    )
+                    self.assertEquals(monthly_project_cost_rows.count(), expected_project_count)
+                    monthly_project_cost = []
+                    for monthly_project_cost_row in monthly_project_cost_rows:
+                        monthly_project_cost.append(
+                            monthly_project_cost_row.infrastructure_project_monthly_cost.get(distribution)
+                        )
+                    self.assertEquals(sum(monthly_project_cost), expected_project_value)
+
     def test_populate_monthly_cost_node_supplementary_cost(self):
         """Test that the monthly supplementary cost row for nodes in the summary table is populated."""
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
@@ -748,6 +776,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end
         first_month, _ = month_date_range_tuple(start_date)
         cluster_alias = "test_cluster_alias"
+
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
                 self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
@@ -767,10 +796,18 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     .filter(usage_start=first_month, supplementary_monthly_cost_json__isnull=False)
                     .all()
                 )
+                monthly_project_cost_rows = (
+                    self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+                    .filter(usage_start=first_month, supplementary_project_monthly_cost__isnull=False)
+                    .all()
+                )
                 with schema_context(self.schema):
+                    # Test supplementary monthly node distrbution
                     expected_count = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            report_period__provider_id=self.ocp_provider.uuid, usage_start__gte=start_date
+                            report_period__provider_id=self.ocp_provider.uuid,
+                            usage_start__gte=start_date,
+                            supplementary_monthly_cost_json__isnull=False,
                         )
                         .values("node")
                         .distinct()
@@ -781,6 +818,26 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         self.assertEquals(
                             monthly_cost_row.supplementary_monthly_cost_json.get(distribution), node_rate
                         )
+
+                    # Test supplementary node to project distribution
+                    expected_project_value = expected_count * node_rate
+                    expected_project_count = (
+                        OCPUsageLineItemDailySummary.objects.filter(
+                            report_period__provider_id=self.ocp_provider.uuid,
+                            usage_start__gte=start_date,
+                            supplementary_project_monthly_cost__isnull=False,
+                        )
+                        .values("node", "namespace")
+                        .distinct()
+                        .count()
+                    )
+                    self.assertEquals(monthly_project_cost_rows.count(), expected_project_count)
+                    monthly_project_cost = []
+                    for monthly_project_cost_row in monthly_project_cost_rows:
+                        monthly_project_cost.append(
+                            monthly_project_cost_row.supplementary_project_monthly_cost.get(distribution)
+                        )
+                    self.assertEquals(sum(monthly_project_cost), expected_project_value)
 
     def test_populate_monthly_cost_cluster_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for clusters in the summary table is populated."""
@@ -810,13 +867,29 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     .filter(usage_start=first_month, infrastructure_monthly_cost_json__isnull=False)
                     .all()
                 )
+
+                project_monthly_cost_rows = (
+                    self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+                    .filter(usage_start=first_month, infrastructure_project_monthly_cost__isnull=False)
+                    .all()
+                )
+
                 with schema_context(self.schema):
+                    # Test cluster to node distribution
                     sum_row_list = []
                     for monthly_cost_row in monthly_cost_rows:
                         sum_row_list.append(monthly_cost_row.infrastructure_monthly_cost_json.get(distribution))
                     #  handle small possible imprecision due to division
                     # eg. 56.99999999999999 != 57
                     self.assertTrue((cluster_rate - sum(sum_row_list)) < 0.001)
+
+                    # Test cluster to project distribution
+                    project_sum_list = []
+                    for p_monthly_cost_row in project_monthly_cost_rows:
+                        project_sum_list.append(
+                            p_monthly_cost_row.infrastructure_project_monthly_cost.get(distribution)
+                        )
+                    self.assertTrue((cluster_rate - sum(project_sum_list)) < 0.001)
 
     def test_populate_monthly_cost_cluster_supplementary_cost(self):
         """Test that the monthly infrastructure cost row for clusters in the summary table is populated."""
@@ -841,16 +914,32 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     cluster_alias,
                     distribution,
                 )
+
                 monthly_cost_rows = (
                     self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
                     .filter(usage_start=first_month, supplementary_monthly_cost_json__isnull=False)
                     .all()
                 )
+
+                project_monthly_cost_rows = (
+                    self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+                    .filter(usage_start=first_month, supplementary_project_monthly_cost__isnull=False)
+                    .all()
+                )
                 with schema_context(self.schema):
+                    # Test cluster to node distribution
                     sum_row_list = []
                     for monthly_cost_row in monthly_cost_rows:
                         sum_row_list.append(monthly_cost_row.supplementary_monthly_cost_json.get(distribution))
                     self.assertTrue((cluster_rate - sum(sum_row_list)) < 0.001)
+
+                    # Test cluster to project distribution
+                    project_sum_list = []
+                    for p_monthly_cost_row in project_monthly_cost_rows:
+                        project_sum_list.append(
+                            p_monthly_cost_row.supplementary_project_monthly_cost.get(distribution)
+                        )
+                    self.assertTrue((cluster_rate - sum(project_sum_list)) < 0.001)
 
     def test_populate_monthly_cost_pvc_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for PVC in the summary table is populated."""
@@ -881,7 +970,15 @@ class OCPReportDBAccessorTest(MasuTestCase):
             .filter(usage_start=first_month, infrastructure_monthly_cost_json__isnull=False)
             .all()
         )
+
+        project_monthly_cost_rows = (
+            self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+            .filter(usage_start=first_month, infrastructure_project_monthly_cost__isnull=False)
+            .all()
+        )
+
         with schema_context(self.schema):
+            # Test pvc to node distribution
             expected_count = (
                 OCPUsageLineItemDailySummary.objects.filter(
                     report_period__provider_id=self.ocp_provider.uuid,
@@ -897,6 +994,28 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 self.assertEquals(
                     monthly_cost_row.infrastructure_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION), pvc_rate
                 )
+            # Test pvc to project distribution
+            expected_project_total = expected_count * pvc_rate
+            expected_project_count = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    report_period__provider_id=self.ocp_provider.uuid,
+                    usage_start__gte=start_date,
+                    persistentvolumeclaim__isnull=False,
+                    namespace__isnull=False,
+                )
+                .values("persistentvolumeclaim")
+                .distinct()
+                .count()
+            )
+            self.assertEquals(project_monthly_cost_rows.count(), expected_project_count)
+            project_total = []
+            for p_monthly_cost_row in project_monthly_cost_rows:
+                pvc_project_cost = p_monthly_cost_row.infrastructure_project_monthly_cost.get(
+                    metric_constants.PVC_DISTRIBUTION
+                )
+                project_total.append(pvc_project_cost)
+                self.assertEquals(pvc_project_cost, pvc_rate)
+            self.assertEquals(sum(project_total), expected_project_total)
 
     def test_populate_monthly_cost_pvc_supplementary_cost(self):
         """Test that the monthly supplementary cost row for PVC in the summary table is populated."""
@@ -927,7 +1046,15 @@ class OCPReportDBAccessorTest(MasuTestCase):
             .filter(usage_start=first_month, supplementary_monthly_cost_json__isnull=False)
             .all()
         )
+
+        project_monthly_cost_rows = (
+            self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+            .filter(usage_start=first_month, supplementary_project_monthly_cost__isnull=False)
+            .all()
+        )
+
         with schema_context(self.schema):
+            # Test pvc to node distribution
             expected_count = (
                 OCPUsageLineItemDailySummary.objects.filter(
                     report_period__provider_id=self.ocp_provider.uuid,
@@ -943,6 +1070,29 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 self.assertEquals(
                     monthly_cost_row.supplementary_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION), pvc_rate
                 )
+
+            # Test pvc to project distribution
+            expected_project_total = expected_count * pvc_rate
+            expected_project_count = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    report_period__provider_id=self.ocp_provider.uuid,
+                    usage_start__gte=start_date,
+                    persistentvolumeclaim__isnull=False,
+                    namespace__isnull=False,
+                )
+                .values("persistentvolumeclaim")
+                .distinct()
+                .count()
+            )
+            self.assertEquals(project_monthly_cost_rows.count(), expected_project_count)
+            project_total = []
+            for p_monthly_cost_row in project_monthly_cost_rows:
+                pvc_project_cost = p_monthly_cost_row.supplementary_project_monthly_cost.get(
+                    metric_constants.PVC_DISTRIBUTION
+                )
+                project_total.append(pvc_project_cost)
+                self.assertEquals(pvc_project_cost, pvc_rate)
+            self.assertEquals(sum(project_total), expected_project_total)
 
     def test_remove_monthly_cost(self):
         """Test that the monthly cost row in the summary table is removed."""
@@ -967,11 +1117,18 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     .filter(usage_start=first_month, supplementary_monthly_cost_json__isnull=False)
                     .all()
                 )
+                project_monthly_rows = (
+                    self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+                    .filter(usage_start=first_month, supplementary_project_monthly_cost__isnull=False)
+                    .all()
+                )
                 with schema_context(self.schema):
                     self.assertTrue(monthly_cost_rows.exists())
+                    self.assertTrue(project_monthly_rows.exists())
                 self.accessor.remove_monthly_cost(start_date, first_next_month, self.cluster_id, cost_type)
                 with schema_context(self.schema):
                     self.assertFalse(monthly_cost_rows.exists())
+                    self.assertFalse(project_monthly_rows.exists())
 
     def test_remove_monthly_cost_no_data(self):
         """Test that an error isn't thrown when the monthly cost row has no data."""
@@ -1107,6 +1264,7 @@ select * from eek where val1 in {{report_period_ids}} ;
             for column in summary_columns:
                 self.assertIsNotNone(getattr(entry, column))
 
+    # TODO: Cody, update
     def test_upsert_monthly_cluster_cost_line_item_no_report_period(self):
         """Test that the cluster monthly costs are not updated when no report period  is found."""
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
