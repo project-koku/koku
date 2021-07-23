@@ -197,7 +197,7 @@ class Orchestrator:
                     report_context,
                 ).set(queue=GET_REPORT_FILES_QUEUE)
             )
-            LOG.info(log_json(tracing_id, "Download queued - schema_name: %s.", schema_name))
+            LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
 
         if report_tasks:
             reports_tasks_queued = True
