@@ -4,6 +4,7 @@
 #
 """Test the Sources Kafka Listener handler."""
 import queue
+from random import choice
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -35,6 +36,7 @@ from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import SourcesIntegrationError
 from sources.kafka_listener import storage_callback
 from sources.kafka_message_processor import ApplicationMsgProcessor
+from sources.kafka_message_processor import AUTH_TYPES
 from sources.kafka_message_processor import AuthenticationMsgProcessor
 from sources.kafka_message_processor import KAFKA_APPLICATION_CREATE
 from sources.kafka_message_processor import KAFKA_APPLICATION_DESTROY
@@ -248,7 +250,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 value={
                     "id": 1,
                     "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
-                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                    "authtype": AUTH_TYPES.get(Provider.PROVIDER_AWS),
                 },
             ),
         ]
@@ -260,7 +262,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
             s = model_to_dict(source, fields=[f for f in self.sources.get(Provider.PROVIDER_AWS).keys()])
-            self.assertDictEqual(s, self.sources.get(Provider.PROVIDER_AWS))
+            self.assertDictEqual(s, self.sources.get(Provider.PROVIDER_AWS), msg="failed create")
 
         # now test the update pathway
         msgs = [
@@ -277,7 +279,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 value={
                     "id": 1,
                     "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
-                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                    "authtype": AUTH_TYPES.get(Provider.PROVIDER_AWS),
                 },
             ),
         ]
@@ -289,7 +291,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
             s = model_to_dict(source, fields=[f for f in self.updated_sources.get(Provider.PROVIDER_AWS).keys()])
-            self.assertDictEqual(s, self.updated_sources.get(Provider.PROVIDER_AWS))
+            self.assertDictEqual(s, self.updated_sources.get(Provider.PROVIDER_AWS), msg="failed update")
 
         # now test the delete pathway
         msgs = [
@@ -314,7 +316,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             mock_consumer = MockKafkaConsumer([msg])
             source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
-            self.assertTrue(source.pending_delete)
+            self.assertTrue(source.pending_delete, msg="failed delete")
 
     def test_message_not_associated_with_cost_mgmt(self):
         """Test that messages not associated with cost-mgmt are not processed."""
@@ -383,6 +385,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                             "id": 1,
                             "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
                             "application_type_id": COST_MGMT_APP_TYPE_ID,
+                            "authtype": choice(list(AUTH_TYPES.values())),
                         },
                     )
                     mock_consumer = MockKafkaConsumer([msg])
@@ -420,6 +423,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                             "id": 1,
                             "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
                             "application_type_id": COST_MGMT_APP_TYPE_ID,
+                            "authtype": choice(list(AUTH_TYPES.values())),
                         },
                     )
                     mock_consumer = MockKafkaConsumer([msg])
