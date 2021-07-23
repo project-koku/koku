@@ -59,7 +59,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
         ocp_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
         ocp_pack_definitions["cost_groups"]["keys"] = ocp_pack_keys
-        self._mapper.PACK_DEFINITIONS = ocp_pack_definitions
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
@@ -69,6 +68,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         if is_grouped_by_project(parameters) and parameters.report_type == "costs":
             self._report_type = parameters.report_type + "_by_project"
             self._mapper = OCPProviderMap(provider=self.provider, report_type=self._report_type)
+        self._mapper.PACK_DEFINITIONS = ocp_pack_definitions
 
     @property
     def annotations(self):
