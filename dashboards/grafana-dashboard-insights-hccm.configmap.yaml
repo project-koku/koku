@@ -1565,7 +1565,7 @@ data:
               "renderer": "flot",
               "seriesOverrides": [],
               "spaceLength": 10,
-              "stack": false,
+              "stack": true,
               "steppedLine": false,
               "targets": [
                 {
@@ -3199,8 +3199,18 @@ data:
               },
               {
                 "selected": false,
+                "text": "insights-push-stage",
+                "value": "insights-push-stage"
+              },
+              {
+                "selected": false,
                 "text": "hccm-prod",
                 "value": "hccm-prod"
+              },
+              {
+                "selected": false,
+                "text": "insights-push-prod",
+                "value": "insights-push-prod"
               }
             ],
             "query": "hccm-stage,hccm-prod",
