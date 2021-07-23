@@ -47,8 +47,8 @@ FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
 WHERE source = '{{source_uuid | sqlsafe}}'
     AND year = '{{year | sqlsafe}}'
     AND month = '{{month | sqlsafe}}'
-    AND date(usage_start_time) >= date('{{start_date | sqlsafe}}')
-    AND date(usage_start_time) <= date('{{end_date | sqlsafe}}')
+    AND usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
+    AND usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
 GROUP BY billing_account_id,
     project_id,
     service_id,
