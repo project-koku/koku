@@ -50,7 +50,6 @@ from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
 from masu.processor.tasks import remove_expired_data
-from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.processor.tasks import remove_stale_tenants
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import update_all_summary_tables
@@ -488,23 +487,6 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
             remove_expired_data(schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True)
             self.assertIn(expected.format(str(expected_results)), logger.output)
 
-    @patch.object(ExpiredDataRemover, "remove")
-    @patch("masu.processor.tasks.refresh_materialized_views.s")
-    def test_remove_expired_line_items_only(self, fake_view, fake_remover):
-        """Test task."""
-        expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
-        fake_remover.return_value = expected_results
-
-        expected = "INFO:masu.processor._tasks.remove_expired:Expired Data:\n {}"
-
-        # disable logging override set in masu/__init__.py
-        logging.disable(logging.NOTSET)
-        with self.assertLogs("masu.processor._tasks.remove_expired") as logger:
-            remove_expired_data(
-                schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True, line_items_only=True
-            )
-            self.assertIn(expected.format(str(expected_results)), logger.output)
-
 
 class TestUpdateSummaryTablesTask(MasuTestCase):
     """Test cases for Processor summary table Celery tasks."""
@@ -758,9 +740,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             | refresh_materialized_views.si(
                 self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id
             ).set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE)
-            | remove_expired_data.si(self.schema, provider, False, provider_aws_uuid, True, None).set(
-                queue=REMOVE_EXPIRED_DATA_QUEUE
-            )
         )
 
     @patch("masu.processor.tasks.update_summary_tables")

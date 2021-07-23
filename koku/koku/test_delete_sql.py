@@ -67,6 +67,50 @@ class TestDeleteSQL(IamTestCase):
         self.assertEqual(udt_count, 1)
         self.assertEqual(Provider.objects.get(pk=p.pk).active, False)
 
+    def test_cascade_delete_with_skip(self):
+        """Test that cascade_delete can walk relations abd skip specified relations"""
+        action_ts = datetime.now().replace(tzinfo=UTC)
+        # Add a bogus customer
+        c = Customer(
+            date_created=action_ts,
+            date_updated=action_ts,
+            uuid=uuid.uuid4(),
+            account_id="68461385",
+            schema_name="acct68461385",
+        )
+        c.save()
+        # Create a customer tenant
+        t = Tenant(schema_name=c.schema_name)
+        t.save()
+        t.create_schema()
+        # Add some bogus providers
+        pocp = Provider(
+            uuid=uuid.uuid4(),
+            name="eek_ocp_provider_30",
+            type=Provider.PROVIDER_OCP,
+            setup_complete=False,
+            active=True,
+            customer=c,
+        )
+        pocp.save()
+
+        expected1 = "INFO:koku.database:Level 1: delete records from OCPUsageReportPeriod"
+        expected2 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItemDailySummary by directive"
+        expected3 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItem by directive"
+        skip_models = [kdb.get_model("OCPUsageLineItemDailySummary"), kdb.get_model("OCPUsageLineItem")]
+        query = Provider.objects.filter(pk=pocp.pk)
+        with self.assertLogs("koku.database", level="INFO") as _logger:
+            with schema_context(c.schema_name):
+                kdb.cascade_delete(Provider, query, skip_relations=skip_models)
+            self.assertIn(expected1, _logger.output)
+            self.assertIn(expected2, _logger.output)
+            self.assertIn(expected3, _logger.output)
+
+        with schema_context(c.schema_name):
+            self.assertEqual(OCPUsageReportPeriod.objects.filter(pk=pocp.pk).count(), 0)
+
+        self.assertEqual(Provider.objects.filter(pk=pocp.pk).count(), 0)
+
     def test_cascade_delete(self):
         """Test that cascade_delete can walk relations to delete FK constraint matched records"""
         action_ts = datetime.now().replace(tzinfo=UTC)
