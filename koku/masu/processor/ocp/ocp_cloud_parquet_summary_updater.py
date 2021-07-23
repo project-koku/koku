@@ -41,6 +41,14 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             )
         aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
         with schema_context(self._schema):
+            self._handle_partitions(
+                ("reporting_ocpawscostlineitem_daily_summary", "reporting_ocpawscostlineitem_project_daily_summary"),
+                start_date,
+                end_date,
+            )
+
+            cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
+            aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
             aws_bill_ids = [str(bill.id) for bill in aws_bills]
             current_aws_bill_id = aws_bills.first().id if aws_bills else None
             current_ocp_report_period_id = report_period.id
@@ -90,6 +98,17 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             )
         azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
         with schema_context(self._schema):
+            self._handle_partitions(
+                (
+                    "reporting_ocpazurecostlineitem_daily_summary",
+                    "reporting_ocpazurecostlineitem_project_daily_summary",
+                ),
+                start_date,
+                end_date,
+            )
+
+            cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
+            azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
             azure_bill_ids = [str(bill.id) for bill in azure_bills]
             current_azure_bill_id = azure_bills.first().id if azure_bills else None
             current_ocp_report_period_id = report_period.id
