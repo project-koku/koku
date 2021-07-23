@@ -286,7 +286,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     LOG.info(
         log_json(
             request_id,
-            f"Payload with the request id {request_id} is part of the report with manifest id {manifest_uuid}",
+            f"Payload with the request id {request_id} from cluster {cluster_id} is part of the report with manifest id {manifest_uuid}",
         )
     )
     if context:
