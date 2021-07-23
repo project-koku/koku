@@ -48,8 +48,8 @@ WITH cte_line_items AS (
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'
-        AND date(coalesce(date, usagedatetime)) >= date('{{start_date | sqlsafe}}')
-        AND date(coalesce(date, usagedatetime)) <= date('{{end_date | sqlsafe}}')
+        AND coalesce(date, usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
+        AND coalesce(date, usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
 )
 SELECT uuid() as uuid,
     li.usage_date AS usage_start,
