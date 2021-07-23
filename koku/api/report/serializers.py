@@ -251,7 +251,7 @@ class OrderSerializer(BaseSerializer):
 
     _tagkey_support = True
 
-    ORDER_CHOICES = (("asc", "asc"), ("desc", "desc"))
+    ORDER_CHOICES = (("asc", "asc"), ("desc", "desc"), ("2021-07-21", "2021-07-21"))
 
     cost = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
     infrastructure = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
@@ -281,7 +281,17 @@ class ParamSerializer(BaseSerializer):
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
 
-    order_by_allowlist = ("cost", "supplementary", "infrastructure", "delta", "usage", "request", "limit", "capacity")
+    order_by_allowlist = (
+        "cost",
+        "supplementary",
+        "infrastructure",
+        "delta",
+        "usage",
+        "request",
+        "limit",
+        "capacity",
+        "date",
+    )
 
     def _init_tagged_fields(self, **kwargs):
         """Initialize serializer fields that support tagging.

@@ -598,6 +598,19 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 if self.parameters.parameters.get("check_tags"):
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
 
+            if "2021-07-17date" in query_order_by:
+                new_list = []
+                query_order_by[1] = "2021-07-17"
+                if query_order_by[1]:
+                    for dates in query_data:
+                        if dates.get("date") == "2021-07-17":
+                            new_list.append(dates)
+                query_data = query_data.filter(usage_start="2021-07-17")
+
+            # if date in query_order_by:
+            # new_date=self._mapper.provider_map.get("date")
+            # query_data = query_data.filter("date"=="2021-07-17")
+
             query_sum = self._build_sum(query, annotations)
 
             if self._limit and query_data and not org_unit_applied:

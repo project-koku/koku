@@ -367,6 +367,11 @@ class QueryParameters:
                         new_value_dict = OrderedDict()
                         new_value_dict["cost_total"] = second
                         modified_param_dict[key] = new_value_dict
+                    elif "date" == first:
+                        new_value_dict = OrderedDict()
+                        new_value_dict["date"] = second
+                        modified_param_dict[key] = new_value_dict
+
         self._parameters = modified_param_dict
 
     @property

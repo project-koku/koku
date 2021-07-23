@@ -62,6 +62,7 @@ class QueryHandler:
         self.time_scope_units = self.parameters.get_filter("time_scope_units")
         if self.parameters.get_filter("time_scope_value"):
             self.time_scope_value = int(self.parameters.get_filter("time_scope_value"))
+        # self.time_order = parameters["date"]
 
         # self.start_datetime = parameters["start_date"]
         # self.end_datetime = parameters["end_date"]
@@ -117,7 +118,7 @@ class QueryHandler:
             `order_by[total]=desc` returns `-total`
 
         """
-        order_map = {"asc": "", "desc": "-"}
+        order_map = {"asc": "", "desc": "-", "2021-07-17": "2021-07-17"}
         return f"{order_map[self.order_direction]}{self.order_field}"
 
     @property
