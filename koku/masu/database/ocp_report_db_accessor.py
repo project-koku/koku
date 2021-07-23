@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for OCP report data."""
+import copy
 import datetime
 import json
 import logging
@@ -71,6 +72,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self.jinja_sql = JinjaSql()
         self.date_helper = DateHelper()
+        self._table_map = OCP_REPORT_TABLE_MAP
+        self._aws_table_map = AWS_CUR_TABLE_MAP
 
     @property
     def line_item_daily_summary_table(self):
@@ -78,27 +81,27 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_current_usage_report(self):
         """Get the most recent usage report object."""
-        table_name = OCP_REPORT_TABLE_MAP["report"]
+        table_name = self._table_map["report"]
 
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).order_by("-interval_start").first()
 
     def get_current_usage_period(self):
         """Get the most recent usage report period object."""
-        table_name = OCP_REPORT_TABLE_MAP["report_period"]
+        table_name = self._table_map["report_period"]
 
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).order_by("-report_period_start").first()
 
     def get_usage_periods_by_date(self, start_date):
         """Return all report period entries for the specified start date."""
-        table_name = OCP_REPORT_TABLE_MAP["report_period"]
+        table_name = self._table_map["report_period"]
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).filter(report_period_start=start_date).all()
 
     def get_usage_period_by_dates_and_cluster(self, start_date, end_date, cluster_id):
         """Return all report period entries for the specified start date."""
-        table_name = OCP_REPORT_TABLE_MAP["report_period"]
+        table_name = self._table_map["report_period"]
         with schema_context(self.schema):
             return (
                 self._get_db_obj_query(table_name)
@@ -108,7 +111,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_usage_period_on_or_before_date(self, date, provider_uuid=None):
         """Get the usage report period objects before provided date."""
-        table_name = OCP_REPORT_TABLE_MAP["report_period"]
+        table_name = self._table_map["report_period"]
 
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
@@ -120,7 +123,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_usage_period_query_by_provider(self, provider_uuid):
         """Return all report periods for the specified provider."""
-        table_name = OCP_REPORT_TABLE_MAP["report_period"]
+        table_name = self._table_map["report_period"]
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
 
@@ -138,7 +141,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_lineitem_query_for_reportid(self, query_report_id):
         """Get the usage report line item for a report id query."""
-        table_name = OCP_REPORT_TABLE_MAP["line_item"]
+        table_name = self._table_map["line_item"]
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
             line_item_query = base_query.filter(report_id=query_report_id)
@@ -146,7 +149,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_daily_usage_query_for_clusterid(self, cluster_identifier):
         """Get the usage report daily item for a cluster id query."""
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily"]
+        table_name = self._table_map["line_item_daily"]
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
             daily_usage_query = base_query.filter(cluster_id=cluster_identifier)
@@ -154,7 +157,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_summary_usage_query_for_clusterid(self, cluster_identifier):
         """Get the usage report summary for a cluster id query."""
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
             summary_usage_query = base_query.filter(cluster_id=cluster_identifier)
@@ -162,7 +165,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_item_query_report_period_id(self, report_period_id):
         """Get the usage report line item for a report id query."""
-        table_name = OCP_REPORT_TABLE_MAP["line_item"]
+        table_name = self._table_map["line_item"]
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
             line_item_query = base_query.filter(report_period_id=report_period_id)
@@ -170,7 +173,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_storage_item_query_report_period_id(self, report_period_id):
         """Get the storage report line item for a report id query."""
-        table_name = OCP_REPORT_TABLE_MAP["storage_line_item"]
+        table_name = self._table_map["storage_line_item"]
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
             line_item_query = base_query.filter(report_period_id=report_period_id)
@@ -178,7 +181,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_daily_storage_item_query_cluster_id(self, cluster_identifier):
         """Get the daily storage report line item for a cluster id query."""
-        table_name = OCP_REPORT_TABLE_MAP["storage_line_item_daily"]
+        table_name = self._table_map["storage_line_item_daily"]
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
             daily_item_query = base_query.filter(cluster_id=cluster_identifier)
@@ -186,7 +189,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_storage_summary_query_cluster_id(self, cluster_identifier):
         """Get the storage report summary for a cluster id query."""
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
         filters = {"cluster_id": cluster_identifier, "data_source": "Storage"}
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
@@ -195,7 +198,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_node_label_item_query_report_period_id(self, report_period_id):
         """Get the node label report line item for a report id query."""
-        table_name = OCP_REPORT_TABLE_MAP["node_label_line_item"]
+        table_name = self._table_map["node_label_line_item"]
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
             line_item_query = base_query.filter(report_period_id=report_period_id)
@@ -203,7 +206,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_ocp_aws_summary_query_for_cluster_id(self, cluster_identifier):
         """Get the OCP-on-AWS report summary item for a given cluster id query."""
-        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
+        table_name = self._aws_table_map["ocp_on_aws_daily_summary"]
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
             summary_item_query = base_query.filter(cluster_id=cluster_identifier)
@@ -211,7 +214,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_ocp_aws_project_summary_query_for_cluster_id(self, cluster_identifier):
         """Get the OCP-on-AWS report project summary item for a given cluster id query."""
-        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
+        table_name = self._aws_table_map["ocp_on_aws_project_daily_summary"]
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
             summary_item_query = base_query.filter(cluster_id=cluster_identifier)
@@ -219,7 +222,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_report_query_report_period_id(self, report_period_id):
         """Get the usage report line item for a report id query."""
-        table_name = OCP_REPORT_TABLE_MAP["report"]
+        table_name = self._table_map["report"]
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
             usage_report_query = base_query.filter(report_period_id=report_period_id)
@@ -328,7 +331,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             start_date = start_date.date()
             end_date = end_date.date()
 
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily"]
+        table_name = self._table_map["line_item_daily"]
 
         daily_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagelineitem_daily.sql")
         daily_sql = daily_sql.decode("utf-8")
@@ -351,7 +354,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
         summary_sql = pkgutil.get_data(
             "masu.database", "sql/reporting_ocpusagelineitem_daily_summary_update_enabled_tags.sql"
         )
@@ -484,7 +487,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         if isinstance(start_date, datetime.datetime):
             start_date = start_date.date()
             end_date = end_date.date()
-        table_name = OCP_REPORT_TABLE_MAP["storage_line_item_daily"]
+        table_name = self._table_map["storage_line_item_daily"]
 
         daily_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpstoragelineitem_daily.sql")
         daily_sql = daily_sql.decode("utf-8")
@@ -509,7 +512,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
 
         daily_charge_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagelineitem_daily_pod_charge.sql")
         charge_line_sql = daily_charge_sql.decode("utf-8")
@@ -527,7 +530,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
 
         daily_charge_sql = pkgutil.get_data("masu.database", "sql/reporting_ocp_storage_charge.sql")
         charge_line_sql = daily_charge_sql.decode("utf-8")
@@ -555,7 +558,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         if isinstance(start_date, datetime.datetime):
             start_date = start_date.date()
             end_date = end_date.date()
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
 
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagelineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
@@ -592,7 +595,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         if isinstance(start_date, datetime.datetime):
             start_date = start_date.date()
             end_date = end_date.date()
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
 
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpstoragelineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
@@ -727,14 +730,14 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_cost_summary_for_clusterid(self, cluster_identifier):
         """Get the cost summary for a cluster id query."""
-        table_name = OCP_REPORT_TABLE_MAP["cost_summary"]
+        table_name = self._table_map["cost_summary"]
         base_query = self._get_db_obj_query(table_name)
         cost_summary_query = base_query.filter(cluster_id=cluster_identifier)
         return cost_summary_query
 
     def populate_pod_label_summary_table(self, report_period_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
-        table_name = OCP_REPORT_TABLE_MAP["pod_label_summary"]
+        table_name = self._table_map["pod_label_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagepodlabel_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
@@ -749,7 +752,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def populate_volume_label_summary_table(self, report_period_ids, start_date, end_date):
         """Populate the OCP volume label summary table."""
-        table_name = OCP_REPORT_TABLE_MAP["volume_label_summary"]
+        table_name = self._table_map["volume_label_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
@@ -946,12 +949,56 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
                 )
 
+    def get_node_to_project_distribution(self, start_date, end_date, cluster_id, node_cost):
+        """Returns a list of dictionaries containing the distributed cost.
+
+        args:
+            start_date (datetime, str): The start_date to calculate monthly_cost.
+            end_date (datetime, str): The end_date to calculate monthly_cost.
+            cluster_id (str): The id of the cluster
+            cluster_cost (dec): The flat cost of the cluster
+
+        Node to Project Distribution:
+            - Node to project distribution is based on a per node scenario
+            - (node_cost) / (number of projects)
+
+        Return nested dictionaries:
+        - ex {'master_3': {'namespaces': ['openshift', 'kube-system'], 'distributed_cost': Decimal('500.0000000000')}
+
+        """
+        with schema_context(self.schema):
+            distributed_project_list = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=start_date, usage_start__lt=end_date, cluster_id=cluster_id
+                )
+                .filter(namespace__isnull=False)
+                .filter(node__isnull=False)
+                .values("namespace", "node")
+                .distinct()
+            )
+            node_mappings = {}
+            for project in distributed_project_list:
+                node_value = project.get("node")
+                namespace_value = project.get("namespace")
+                node_map = node_mappings.get(node_value)
+                if node_map:
+                    namespaces = copy.deepcopy(node_map.get("namespaces", []))
+                    namespaces.append(namespace_value)
+                    node_map["namespaces"] = namespaces
+                    node_map["distributed_cost"] = Decimal(node_cost) / Decimal(len(namespaces))
+                    node_mappings[node_value] = node_map
+                else:
+                    initial_map = {"namespaces": [namespace_value], "distributed_cost": Decimal(node_cost)}
+                    node_mappings[node_value] = initial_map
+        return node_mappings
+
     def upsert_monthly_node_cost_line_item(
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, node_cost, distribution
     ):
         """Update or insert daily summary line item for node cost."""
         unique_nodes = self.get_distinct_nodes(start_date, end_date, cluster_id)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
+        project_distrib_map = self.get_node_to_project_distribution(start_date, end_date, cluster_id, node_cost)
         with schema_context(self.schema):
             for node in unique_nodes:
                 line_item = OCPUsageLineItemDailySummary.objects.filter(
@@ -963,6 +1010,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     monthly_cost_type="Node",
                     node=node,
                     data_source="Pod",
+                    namespace__isnull=True,
                 ).first()
                 if not line_item:
                     line_item = OCPUsageLineItemDailySummary(
@@ -984,6 +1032,48 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     LOG.info("Node (%s) has a monthly supplemenarty cost of %s.", node, node_cost)
                     line_item.supplementary_monthly_cost_json = monthly_cost
                 line_item.save()
+            # How are we gonna handle distributing the node cost to the projects.
+            project_nodes = project_distrib_map.keys()
+            for project_node in project_nodes:
+                for namespace in project_distrib_map[project_node]["namespaces"]:
+                    distributed_cost = project_distrib_map[project_node]["distributed_cost"]
+                    project_line_item = OCPUsageLineItemDailySummary.objects.filter(
+                        usage_start=start_date,
+                        usage_end=start_date,
+                        report_period=report_period,
+                        cluster_id=cluster_id,
+                        cluster_alias=cluster_alias,
+                        monthly_cost_type="Node",
+                        node=project_node,
+                        namespace=namespace,
+                        data_source="Pod",
+                    ).first()
+                    if not project_line_item:
+                        project_line_item = OCPUsageLineItemDailySummary(
+                            uuid=uuid.uuid4(),
+                            usage_start=start_date,
+                            usage_end=start_date,
+                            report_period=report_period,
+                            cluster_id=cluster_id,
+                            cluster_alias=cluster_alias,
+                            monthly_cost_type="Node",
+                            node=project_node,
+                            namespace=namespace,
+                            data_source="Pod",
+                        )
+                    monthly_cost = self.generate_monthly_cost_json_object(distribution, distributed_cost)
+                    log_statement = (
+                        f"Distributing Node Cost to Project:\n"
+                        f" node ({project_node}) cost: {node_cost} \n"
+                        f" project ({namespace}) distributed cost: {distributed_cost}\n"
+                        f" distribution type: {distribution}\n"
+                    )
+                    if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                        project_line_item.infrastructure_project_monthly_cost = monthly_cost
+                    elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                        project_line_item.supplementary_project_monthly_cost = monthly_cost
+                    project_line_item.save()
+                    LOG.info(log_statement)
 
     def tag_upsert_monthly_node_cost_line_item(  # noqa: C901
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution
@@ -1260,6 +1350,44 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         # node_to_cluster_ratio=Sum(node_column)/Sum(cluster_column)
         return distributed_node_list
 
+    def get_cluster_to_project_distribution(self, start_date, end_date, cluster_id, distribution, cluster_cost):
+        """Returns a list of dictionaries containing the distributed cost.
+
+        args:
+            start_date (datetime, str): The start_date to calculate monthly_cost.
+            end_date (datetime, str): The end_date to calculate monthly_cost.
+            cluster_id (str): The id of the cluster
+            cluster_cost (dec): The flat cost of the cluster
+            distribution: Choice of monthly distribution ex. (memory or cpu)
+
+        Project Distribution:
+            - Project distribution is a rolling window estimate of month to date.
+            - (project_usage / cluster_usage) x cluster_cost
+
+        Return list of dictionaries:
+        - ex [{'namespace': 'openshift', 'distributed_cost': Decimal('71.84')}
+
+        """
+        usage_column = "pod_usage_cpu_core_hours"
+        if "memory" in distribution:
+            usage_column = "pod_usage_memory_gigabyte_hours"
+
+        with schema_context(self.schema):
+            cluster_hours = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=start_date, usage_start__lt=end_date, cluster_id=cluster_id
+                ).aggregate(cluster_hours=Sum(usage_column))
+            ).get("cluster_hours")
+            distributed_project_list = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=start_date, usage_start__lt=end_date, cluster_id=cluster_id
+                )
+                .filter(namespace__isnull=False)
+                .values("namespace")
+                .annotate(distributed_cost=Sum(usage_column) / cluster_hours * cluster_cost)
+            )
+        return distributed_project_list
+
     def upsert_monthly_cluster_cost_line_item(
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, cluster_cost, distribution
     ):
@@ -1288,7 +1416,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 LOG.info("Distributing the cluster cost to nodes using %s distribution.", distribution)
                 for node_dikt in distribution_list:
                     node = node_dikt.get("node")
-                    distributed_cost = node_dikt.get("distributed_cost")
+                    distributed_cost = node_dikt.get("distributed_cost", Decimal(0))
                     line_item = OCPUsageLineItemDailySummary.objects.filter(
                         usage_start=start_date,
                         usage_end=start_date,
@@ -1298,6 +1426,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         monthly_cost_type="Cluster",
                         node=node,
                         data_source="Pod",
+                        namespace__isnull=True,
                     ).first()
                     if not line_item:
                         line_item = OCPUsageLineItemDailySummary(
@@ -1324,6 +1453,49 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         line_item.supplementary_monthly_cost_json = monthly_cost
                     LOG.info(log_statement)
                     line_item.save()
+            # Project Distribution
+            project_distribution_list = self.get_cluster_to_project_distribution(
+                start_date, end_date, cluster_id, distribution, cluster_cost
+            )
+            with schema_context(self.schema):
+                for project_dikt in project_distribution_list:
+                    namespace = project_dikt.get("namespace")
+                    distributed_cost = project_dikt.get("distributed_cost", Decimal(0))
+                    project_line_item = OCPUsageLineItemDailySummary.objects.filter(
+                        usage_start=start_date,
+                        usage_end=start_date,
+                        report_period=report_period,
+                        cluster_id=cluster_id,
+                        cluster_alias=cluster_alias,
+                        monthly_cost_type="Cluster",
+                        namespace=namespace,
+                        data_source="Pod",
+                    ).first()
+                    if not project_line_item:
+                        project_line_item = OCPUsageLineItemDailySummary(
+                            uuid=uuid.uuid4(),
+                            usage_start=start_date,
+                            usage_end=start_date,
+                            report_period=report_period,
+                            cluster_id=cluster_id,
+                            cluster_alias=cluster_alias,
+                            monthly_cost_type="Cluster",
+                            namespace=namespace,
+                            data_source="Pod",
+                        )
+                    monthly_cost = self.generate_monthly_cost_json_object(distribution, distributed_cost)
+                    log_statement = (
+                        f"Distributing Cluster Cost to Project:\n"
+                        f" cluster ({cluster_id}) cost: {cluster_cost} \n"
+                        f" project ({namespace}) distributed cost: {distributed_cost}\n"
+                        f" distribution type: {distribution}\n"
+                    )
+                    if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                        project_line_item.infrastructure_project_monthly_cost = monthly_cost
+                    elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                        project_line_item.supplementary_project_monthly_cost = monthly_cost
+                    project_line_item.save()
+                    LOG.info(log_statement)
 
     def tag_upsert_monthly_pvc_cost_line_item(  # noqa: C901
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
@@ -1419,6 +1591,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     node=node,
                     data_source="Storage",
                     namespace=namespace,
+                    infrastructure_project_monthly_cost__isnull=True,
+                    supplementary_project_monthly_cost__isnull=True,
                 ).first()
                 if not line_item:
                     line_item = OCPUsageLineItemDailySummary(
@@ -1442,6 +1616,43 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     LOG.info("PVC (%s) has a monthly supplemenarty cost of %s.", pvc, pvc_cost)
                     line_item.supplementary_monthly_cost_json = monthly_cost
                 line_item.save()
+                # PVC to project Distribution
+                project_line_item = OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start=start_date,
+                    usage_end=start_date,
+                    report_period=report_period,
+                    cluster_id=cluster_id,
+                    cluster_alias=cluster_alias,
+                    monthly_cost_type="PVC",
+                    persistentvolumeclaim=pvc,
+                    node=node,
+                    namespace=namespace,
+                    data_source="Storage",
+                    infrastructure_monthly_cost_json__isnull=True,
+                    supplementary_monthly_cost_json__isnull=True,
+                ).first()
+                if not project_line_item:
+                    project_line_item = OCPUsageLineItemDailySummary(
+                        uuid=uuid.uuid4(),
+                        usage_start=start_date,
+                        usage_end=start_date,
+                        report_period=report_period,
+                        cluster_id=cluster_id,
+                        cluster_alias=cluster_alias,
+                        monthly_cost_type="PVC",
+                        persistentvolumeclaim=pvc,
+                        node=node,
+                        namespace=namespace,
+                        data_source="Storage",
+                    )
+                monthly_cost = self.generate_monthly_cost_json_object(metric_constants.PVC_DISTRIBUTION, pvc_cost)
+                if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                    LOG.info("PVC (%s) has a monthly project infrastructure cost of %s.", pvc, pvc_cost)
+                    project_line_item.infrastructure_project_monthly_cost = monthly_cost
+                elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                    LOG.info("PVC (%s) has a monthly project supplemenarty cost of %s.", pvc, pvc_cost)
+                    project_line_item.supplementary_project_monthly_cost = monthly_cost
+                project_line_item.save()
 
     def tag_upsert_monthly_cluster_cost_line_item(  # noqa: C901
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution
@@ -1613,6 +1824,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             cost_filters = [
                 f"{rate_type.lower()}_monthly_cost__isnull",
                 f"{rate_type.lower()}_monthly_cost_json__isnull",
+                f"{rate_type.lower()}_project_monthly_cost__isnull",
             ]
             for cost_filter in cost_filters:
                 filters.update({cost_filter: False})
@@ -1647,7 +1859,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         if isinstance(start_date, datetime.datetime):
             start_date = start_date.date()
             end_date = end_date.date()
-        table_name = OCP_REPORT_TABLE_MAP["node_label_line_item_daily"]
+        table_name = self._table_map["node_label_line_item_daily"]
 
         daily_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpnodelabellineitem_daily.sql")
         daily_sql = daily_sql.decode("utf-8")
@@ -1785,7 +1997,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     labels_field = "volume_labels"
                 else:
                     labels_field = "pod_labels"
-                table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+                table_name = self._table_map["line_item_daily_summary"]
                 for tag_key in tags:
                     tag_vals = tags.get(tag_key, {})
                     value_names = list(tag_vals.keys())
@@ -1867,7 +2079,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     labels_field = "volume_labels"
                 else:
                     labels_field = "pod_labels"
-                table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+                table_name = self._table_map["line_item_daily_summary"]
                 for tag_key in tags:
                     key_value_pair = []
                     tag_vals = tags.get(tag_key)
