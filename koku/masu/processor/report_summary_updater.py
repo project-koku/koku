@@ -54,7 +54,7 @@ class ReportSummaryUpdater:
         self._schema = customer_schema
         self._provider_uuid = provider_uuid
         self._manifest = None
-        self._tracing_id = None
+        self._tracing_id = tracing_id
         if manifest_id is not None:
             with ReportManifestDBAccessor() as manifest_accessor:
                 self._manifest = manifest_accessor.get_manifest_by_id(manifest_id)
