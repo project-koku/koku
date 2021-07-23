@@ -622,15 +622,15 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "sup_distributed": Sum(
                                 Coalesce(
-                                    KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                             ),
@@ -649,15 +649,15 @@ class OCPProviderMap(ProviderMap):
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
@@ -682,15 +682,15 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "infra_distributed": Sum(
                                 Coalesce(
-                                    KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                             ),
@@ -717,15 +717,15 @@ class OCPProviderMap(ProviderMap):
                                     F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField())
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
@@ -765,27 +765,27 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "cost_distributed": Sum(
                                 Coalesce(
-                                    KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                             ),
@@ -824,27 +824,27 @@ class OCPProviderMap(ProviderMap):
                                     F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField())
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
@@ -871,15 +871,15 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "sup_distributed": Sum(
                                 Coalesce(
-                                    KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                             ),
@@ -898,15 +898,15 @@ class OCPProviderMap(ProviderMap):
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
@@ -931,15 +931,15 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "infra_distributed": Sum(
                                 Coalesce(
-                                    KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                             ),
@@ -963,15 +963,15 @@ class OCPProviderMap(ProviderMap):
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
@@ -1014,27 +1014,27 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "cost_distributed": Sum(
                                 Coalesce(
-                                    KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                             ),
@@ -1073,27 +1073,27 @@ class OCPProviderMap(ProviderMap):
                                     F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField())
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
@@ -1138,27 +1138,27 @@ class OCPProviderMap(ProviderMap):
                                     F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField())
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("cpu", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("memory", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(
-                                    KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                                    KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
