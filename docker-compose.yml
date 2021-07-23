@@ -103,7 +103,7 @@ services:
         - RUN_GUNICORN=${RUN_GUNICORN}
         - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
         - GUNICORN_THREADS=${GUNICORN_THREADS-False}
-        - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-4}
+        - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
       privileged: true
       ports:
           - 5000:8000
@@ -279,7 +279,7 @@ services:
         - ENABLE_TRINO_SOURCE_TYPE
         - TRINO_DATE_STEP=${TRINO_DATE_STEP-31}
         - MAX_CELERY_TASKS_PER_WORKER=${MAX_CELERY_TASKS_PER_WORKER-10}
-        - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-4}
+        - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
       privileged: true
       volumes:
         - '.:/koku'
