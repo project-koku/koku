@@ -8,14 +8,16 @@ import logging
 import threading
 from abc import ABC
 from abc import abstractmethod
-from http.server import BaseHTTPRequestHandler
 from http.server import HTTPServer
 
+from prometheus_client.exposition import MetricsHandler
+
 from koku.env import ENVIRONMENT
+from masu.prometheus_stats import WORKER_REGISTRY
 
 
 LOG = logging.getLogger(__name__)
-CLOWDER_PORT = 8080
+CLOWDER_PORT = 9000
 if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
     from app_common_python import LoadedConfig
 
@@ -35,15 +37,16 @@ def start_probe_server(server_cls):
     daemon = threading.Thread(name="probe_server", target=start_server)
     daemon.setDaemon(True)  # Set as a daemon so it will be killed once the main thread is dead.
     daemon.start()
-    LOG.info("liveness/readiness probe server started")
+    LOG.info(f"liveness/readiness probe server started on port {httpd.server_port}")
 
     return httpd
 
 
-class ProbeServer(ABC, BaseHTTPRequestHandler):
+class ProbeServer(ABC, MetricsHandler):
     """HTTP server for liveness/readiness probes."""
 
     ready = False
+    registry = WORKER_REGISTRY
 
     def __init__(self, *args, **kwargs):
         """Initialize the server."""
@@ -67,6 +70,8 @@ class ProbeServer(ABC, BaseHTTPRequestHandler):
             self.liveness_check()
         elif self.path == "/readyz":
             self.readiness_check()
+        elif self.path == "/metrics":
+            super().do_GET()
         else:
             self.default_response()
 
@@ -86,6 +91,19 @@ class ProbeServer(ABC, BaseHTTPRequestHandler):
     def readiness_check(self):
         """Set the readiness check response."""
         pass
+
+
+class BasicProbeServer(ProbeServer):
+    """HTTP server for liveness/readiness probes."""
+
+    def readiness_check(self):
+        """Set the readiness check response."""
+        status = 424
+        msg = "not ready"
+        if self.ready:
+            status = 200
+            msg = "ok"
+        self._write_response(ProbeResponse(status, msg))
 
 
 class ProbeResponse:

@@ -40,7 +40,6 @@ from api.views import GCPServiceView
 from api.views import GCPStorageView
 from api.views import GCPTagView
 from api.views import get_currency
-from api.views import metrics
 from api.views import OCPAllCostForecastView
 from api.views import OCPAllCostView
 from api.views import OCPAllInstanceTypeView
@@ -88,7 +87,7 @@ urlpatterns = [
     path("currency/", get_currency, name="currency"),
     path("status/", StatusView.as_view(), name="server-status"),
     path("openapi.json", openapi, name="openapi"),
-    path("metrics/", metrics, name="metrics"),
+    # path("metrics/", metrics, name="metrics"),
     path(
         "tags/aws/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AWS_CACHE_PREFIX)(AWSTagView.as_view()),
