@@ -450,6 +450,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "manifest_id": report_meta.get("manifest_id"),
             "start": report_meta.get("start"),
             "end": report_meta.get("end"),
+            "manifest_uuid": "1234",
         }
 
         class FakeManifest:
