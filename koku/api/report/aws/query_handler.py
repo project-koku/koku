@@ -598,14 +598,35 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 if self.parameters.parameters.get("check_tags"):
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
 
-            if "2021-07-17date" in query_order_by:
-                new_list = []
-                query_order_by[1] = "2021-07-17"
-                if query_order_by[1]:
-                    for dates in query_data:
-                        if dates.get("date") == "2021-07-17":
-                            new_list.append(dates)
-                query_data = query_data.filter(usage_start="2021-07-17")
+            def check_if_valid_date_str(date_str):
+                """Check to see if a valid date has been passed in."""
+                import ciso8601
+
+                try:
+                    ciso8601.parse_datetime(date_str)
+                except ValueError:
+                    return False
+                return True
+
+            order_date = None
+            for i, param in enumerate(query_order_by):
+                if param == "2021-07-17date":
+                    param = param.replace("date", "")
+                    if check_if_valid_date_str(param):
+                        order_date = param
+                        break
+            # Remove the date order by as it is not actually used for ordering
+            query_order_by.pop(i)
+            date_filtered_query_data = query_data.filter(usage_start=order_date)
+            ordered_data = self.order_by(date_filtered_query_data, query_order_by)
+            order_of_interest = []
+            for entry in ordered_data:
+                order_of_interest.append(entry.get("service"))
+            # write a special order by function that iterates through the
+            # rest of the days in query_data and puts them in the same order
+            # return_query_data = []
+            sorted_data = [item for x in order_of_interest for item in query_data if item.get("service") == x]
+            sorted_data = self.order_by(sorted_data, ["date"])
 
             # if date in query_order_by:
             # new_date=self._mapper.provider_map.get("date")
