@@ -43,18 +43,21 @@ class AWSAccountView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for aws account and  displays values related to what the user has access to.
         user_access = []
-        openshift = self.request.query_params.get("openshift")
-        if openshift == "true":
-            self.queryset = (
-                OCPAWSCostSummaryByAccount.objects.annotate(
-                    **{
-                        "value": F("usage_account_id"),
-                        "alias": Coalesce(F("account_alias__account_alias"), "usage_account_id"),
-                    }
-                )
-                .values("value", "alias")
-                .distinct()
-            )
+        if self.request.query_params:
+            for key in self.request.query_params:
+                if key == "openshift":
+                    openshift = self.request.query_params.get("openshift")
+                    if openshift == "true":
+                        self.queryset = (
+                            OCPAWSCostSummaryByAccount.objects.annotate(
+                                **{
+                                    "value": F("usage_account_id"),
+                                    "alias": Coalesce(F("account_alias__account_alias"), "usage_account_id"),
+                                }
+                            )
+                            .values("value", "alias")
+                            .distinct()
+                        )
         if request.user.admin:
             return super().list(request)
         elif request.user.access:
