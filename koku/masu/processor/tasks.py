@@ -401,9 +401,9 @@ def update_summary_tables(  # noqa: C901
             cost_model = cost_model_accessor.cost_model
 
     if cost_model is not None:
-        linked_tasks = update_cost_model_costs.s(schema_name, provider_uuid, start_date, end_date).set(
-            queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE
-        ) | refresh_materialized_views.si(
+        linked_tasks = update_cost_model_costs.s(
+            schema_name, provider_uuid, start_date, end_date, tracing_id=tracing_id
+        ).set(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE) | refresh_materialized_views.si(
             schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id, tracing_id=tracing_id
         ).set(
             queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE
@@ -461,7 +461,7 @@ def update_all_summary_tables(start_date, end_date=None):
 
 @celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=UPDATE_COST_MODEL_COSTS_QUEUE)
 def update_cost_model_costs(
-    schema_name, provider_uuid, start_date=None, end_date=None, queue_name=None, synchronous=False
+    schema_name, provider_uuid, start_date=None, end_date=None, queue_name=None, synchronous=False, tracing_id=None
 ):
     """Update usage charge information.
 
@@ -481,7 +481,7 @@ def update_cost_model_costs(
         worker_cache = WorkerCache()
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
-            LOG.info(msg)
+            LOG.info(log_json(tracing_id, msg))
             update_cost_model_costs.s(
                 schema_name,
                 provider_uuid,
@@ -489,6 +489,7 @@ def update_cost_model_costs(
                 end_date=end_date,
                 queue_name=queue_name,
                 synchronous=synchronous,
+                tracing_id=tracing_id,
             ).apply_async(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=600)
@@ -500,7 +501,7 @@ def update_cost_model_costs(
         f" schema_name: {schema_name},\n"
         f" provider_uuid: {provider_uuid}"
     )
-    LOG.info(stmt)
+    LOG.info(log_json(tracing_id, stmt))
 
     try:
         updater = CostModelCostUpdater(schema_name, provider_uuid)

@@ -729,16 +729,24 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         expected_start_date = start_date.strftime("%Y-%m-%d")
         expected_end_date = end_date.strftime("%Y-%m-%d")
         manifest_id = 1
+        tracing_id = "1234"
 
         update_summary_tables(
-            self.schema, provider, provider_aws_uuid, start_date, end_date, manifest_id, synchronous=True
+            self.schema,
+            provider,
+            provider_aws_uuid,
+            start_date,
+            end_date,
+            manifest_id,
+            tracing_id=tracing_id,
+            synchronous=True,
         )
         mock_chain.assert_called_once_with(
-            update_cost_model_costs.s(self.schema, provider_aws_uuid, expected_start_date, expected_end_date).set(
-                queue=UPDATE_COST_MODEL_COSTS_QUEUE
-            )
+            update_cost_model_costs.s(
+                self.schema, provider_aws_uuid, expected_start_date, expected_end_date, tracing_id=tracing_id
+            ).set(queue=UPDATE_COST_MODEL_COSTS_QUEUE)
             | refresh_materialized_views.si(
-                self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id
+                self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id, tracing_id=tracing_id
             ).set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE)
         )
 
