@@ -506,11 +506,12 @@ def update_cost_model_costs(
         f"update_cost_model_costs called with args:\n"
         f" schema_name: {schema_name},\n"
         f" provider_uuid: {provider_uuid}"
+        f" tracing_id: {tracing_id}"
     )
     LOG.info(log_json(tracing_id, stmt))
 
     try:
-        updater = CostModelCostUpdater(schema_name, provider_uuid)
+        updater = CostModelCostUpdater(schema_name, provider_uuid, tracing_id)
         if updater:
             updater.update_cost_model_costs(start_date, end_date)
     except Exception as ex:

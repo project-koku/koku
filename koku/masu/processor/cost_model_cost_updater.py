@@ -23,7 +23,7 @@ class CostModelCostUpdaterError(Exception):
 class CostModelCostUpdater:
     """Update reporting summary tables."""
 
-    def __init__(self, customer_schema, provider_uuid):
+    def __init__(self, customer_schema, provider_uuid, tracing_id=None):
         """
         Initializer.
 
@@ -33,6 +33,7 @@ class CostModelCostUpdater:
 
         """
         self._schema = customer_schema
+        self.tracing_id = tracing_id
 
         with ProviderDBAccessor(provider_uuid) as provider_accessor:
             self._provider = provider_accessor.get_provider()
