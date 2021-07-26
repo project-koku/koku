@@ -154,7 +154,6 @@ class ReportSummaryUpdater:
         Args:
             start_date (str, datetime): When to start.
             end_date (str, datetime): When to end.
-            manifest_id (str): The particular manifest to use.
 
         Returns:
             (str, str): The start and end date strings used in the daily SQL.
@@ -168,22 +167,22 @@ class ReportSummaryUpdater:
 
         return start_date, end_date
 
-    def update_summary_tables(self, start_date, end_date):
+    def update_summary_tables(self, start_date, end_date, tracing_id):
         """
         Update report summary tables.
 
         Args:
             start_date (str, datetime): When to start.
             end_date (str, datetime): When to end.
-            manifest_id (str): The particular manifest to use.
+            tracing_id (str): The tracing_id.
 
         Returns:
             None
 
         """
         start_date, end_date = self._format_dates(start_date, end_date)
-        LOG.info("Using start date: %s", start_date)
-        LOG.info("Using end date: %s", end_date)
+        LOG.info(log_json(tracing_id, f"Using start date: {start_date}"))
+        LOG.info(log_json(tracing_id, f"Using end date: {end_date}"))
 
         start_date, end_date = self._updater.update_summary_tables(start_date, end_date)
 

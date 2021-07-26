@@ -294,7 +294,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                     start_date = start_date.strftime("%Y-%m-%d")
                     end_date = DateAccessor().today().strftime("%Y-%m-%d")
                 msg = f"report to summarize: {str(report)}"
-                tracing_id = report.get("request_id")
+                tracing_id = report.get("request_id", report.get("manifest_uuid", "no-request-id"))
                 LOG.info(log_json(tracing_id, msg))
                 update_summary_tables.s(
                     report.get("schema_name"),
@@ -362,16 +362,22 @@ def update_summary_tables(  # noqa: C901
         f" provider: {provider},\n"
         f" start_date: {start_date},\n"
         f" end_date: {end_date},\n"
-        f" manifest_id: {manifest_id}"
+        f" manifest_id: {manifest_id},\n"
+        f" tracing_id: {tracing_id}"
     )
     LOG.info(log_json(tracing_id, stmt))
 
     try:
         updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id, tracing_id)
         start_date, end_date = updater.update_daily_tables(start_date, end_date)
-        updater.update_summary_tables(start_date, end_date)
+        updater.update_summary_tables(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
-        LOG.info(f"Failed to correlate OpenShift metrics for provider: {str(provider_uuid)}. Error: {str(ex)}")
+        LOG.info(
+            log_json(
+                tracing_id,
+                f"Failed to correlate OpenShift metrics for provider: {str(provider_uuid)}. Error: {str(ex)}",
+            )
+        )
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)

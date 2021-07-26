@@ -511,6 +511,7 @@ def summarize_manifest(report_meta, manifest_uuid):
                 )
                 report_meta["start"] = start_date
                 report_meta["end"] = end_date
+                report_meta["manifest_uuid"] = manifest_uuid
             async_id = summarize_reports.s([report_meta], OCP_QUEUE).apply_async(queue=OCP_QUEUE)
     return async_id
 
