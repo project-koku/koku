@@ -18,5 +18,5 @@ def add_ocp_cost_views(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [("reporting", "0186_subpartition_cols.py")]
+    dependencies = [("reporting", "0186_subpartition_cols")]
     operations = [migrations.RunPython(add_ocp_cost_views)]
