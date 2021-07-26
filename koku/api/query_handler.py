@@ -118,7 +118,8 @@ class QueryHandler:
             `order_by[total]=desc` returns `-total`
 
         """
-        order_map = {"asc": "", "desc": "-", "2021-07-17": "2021-07-17"}
+
+        order_map = {"asc": "", "desc": "-", self.order_direction: self.order_direction}
         return f"{order_map[self.order_direction]}{self.order_field}"
 
     @property
