@@ -376,7 +376,7 @@ def aws_post_processor(data_frame):
 
     data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
     # Make sure we have entries for our required columns
-    data_frame.reindex(columns=columns)
+    data_frame = data_frame.reindex(columns=columns)
 
     columns = list(data_frame)
     column_name_map = {}
@@ -477,7 +477,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
     openshift_matched_data_frame = data_frame[
         (data_frame["resource_id_matched"] == True)  # noqa: E712
         | (data_frame["special_case_tag_matched"] == True)  # noqa: E712
-        | (data_frame["tag_matched"] == True)  # noqa: E712
+        | (data_frame["matched_tag"] != "")  # noqa: E712
     ]
 
     openshift_matched_data_frame["uuid"] = openshift_matched_data_frame.apply(lambda _: str(uuid.uuid4()), axis=1)

@@ -450,7 +450,8 @@ def match_openshift_labels(tag_dict, matched_tags):
     tag_dict = json.loads(tag_dict)
     tag_matches = []
     for key, value in tag_dict.items():
-        if {key.lower(): value.lower()} in matched_tags:
-            tag = json.dumps({key.lower(): value.lower()}).replace("{", "").replace("}", "")
+        lower_tag = {key.lower(): value.lower()}
+        if lower_tag in matched_tags:
+            tag = json.dumps(lower_tag).replace("{", "").replace("}", "")
             tag_matches.append(tag)
     return ",".join(tag_matches)
