@@ -304,6 +304,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                     end_date=end_date,
                     manifest_id=report.get("manifest_id"),
                     queue_name=queue_name,
+                    tracing_id=tracing_id,
                 ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
 
 
@@ -350,6 +351,7 @@ def update_summary_tables(  # noqa: C901
                 end_date=end_date,
                 manifest_id=manifest_id,
                 queue_name=queue_name,
+                tracing_id=tracing_id,
             ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=3600)
@@ -377,7 +379,7 @@ def update_summary_tables(  # noqa: C901
 
     if not provider_uuid:
         refresh_materialized_views.s(
-            schema_name, provider, manifest_id=manifest_id, queue_name=queue_name
+            schema_name, provider, manifest_id=manifest_id, queue_name=queue_name, tracing_id=tracing_id
         ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
         return
 
@@ -402,7 +404,7 @@ def update_summary_tables(  # noqa: C901
         linked_tasks = update_cost_model_costs.s(schema_name, provider_uuid, start_date, end_date).set(
             queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE
         ) | refresh_materialized_views.si(
-            schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id
+            schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id, tracing_id=tracing_id
         ).set(
             queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE
         )
@@ -414,7 +416,7 @@ def update_summary_tables(  # noqa: C901
         )
         LOG.info(log_json(tracing_id, stmt))
         linked_tasks = refresh_materialized_views.s(
-            schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id
+            schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id, tracing_id=tracing_id
         ).set(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
 
     chain(linked_tasks).apply_async()
@@ -519,7 +521,8 @@ def update_cost_model_costs(
 )
 # fmt: on
 def refresh_materialized_views(  # noqa: C901
-    schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False, queue_name=None
+    schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False, queue_name=None,
+    tracing_id=None
 ):
     """Refresh the database's materialized views for reporting."""
     task_name = "masu.processor.tasks.refresh_materialized_views"
@@ -528,7 +531,7 @@ def refresh_materialized_views(  # noqa: C901
         worker_cache = WorkerCache()
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
-            LOG.info(msg)
+            LOG.info(log_json(tracing_id, msg))
             refresh_materialized_views.s(
                 schema_name,
                 provider_type,
@@ -536,6 +539,7 @@ def refresh_materialized_views(  # noqa: C901
                 provider_uuid=provider_uuid,
                 synchronous=synchronous,
                 queue_name=queue_name,
+                tracing_id=tracing_id
             ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=600)
@@ -563,7 +567,7 @@ def refresh_materialized_views(  # noqa: C901
                 table_name = view._meta.db_table
                 with connection.cursor() as cursor:
                     cursor.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}")
-                    LOG.info(f"Refreshed {table_name}.")
+                    LOG.info(log_json(tracing_id, f"Refreshed {table_name}."))
 
         invalidate_view_cache_for_tenant_and_source_type(schema_name, provider_type)
 
