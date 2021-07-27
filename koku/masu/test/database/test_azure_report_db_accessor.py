@@ -15,6 +15,7 @@ from django.db.models import Sum
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
+from koku.database import get_model
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -402,6 +403,13 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             self.assertEqual(table_query.count(), 0)
+
+    def test_table_properties(self):
+        self.assertEqual(self.accessor.line_item_daily_summary_table, AzureCostEntryLineItemDailySummary)
+        self.assertEqual(self.accessor.line_item_daily_table, get_model("AzureCostEntryLineItemDaily"))
+
+    def test_table_map(self):
+        self.assertEqual(self.accessor._table_map, AZURE_REPORT_TABLE_MAP)
 
     def test_get_openshift_on_cloud_matched_tags(self):
         """Test that matched tags are returned."""
