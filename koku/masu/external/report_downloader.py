@@ -53,7 +53,7 @@ class ReportDownloader:
         self.provider_type = provider_type
         self.provider_uuid = provider_uuid
         self.tracing_id = tracing_id
-        self.request_id = tracing_id
+        self.request_id = tracing_id  # TODO: Remove this once the downloaders have been updated
         self.account = account
         if self.account is None:
             self.account = customer_name[4:]

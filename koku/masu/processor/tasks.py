@@ -397,8 +397,8 @@ def update_summary_tables(  # noqa: C901
     ):
         cost_model = None
         stmt = (
-            f"\n Markup for {provider} is calculated during summarization. No need to run update_cost_model_costs\n"
-            f" schema_name: {schema_name},\n"
+            f"Markup for {provider} is calculated during summarization. No need to run update_cost_model_costs"
+            f" schema_name: {schema_name}, "
             f" provider_uuid: {provider_uuid}"
         )
         LOG.info(log_json(tracing_id, stmt))

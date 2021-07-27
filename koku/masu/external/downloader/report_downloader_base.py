@@ -45,7 +45,7 @@ class ReportDownloaderBase:
         self._cache_key = kwargs.get("cache_key")
         self._provider_uuid = kwargs.get("provider_uuid")
         self._provider_type = kwargs.get("provider_type")
-        self.request_id = kwargs.get("request_id")
+        self.request_id = kwargs.get("request_id")  # TODO: Remove this once the downloaders have been updated
         self.tracing_id = kwargs.get("tracing_id")
         self.account = kwargs.get("account")
         self.context = {
