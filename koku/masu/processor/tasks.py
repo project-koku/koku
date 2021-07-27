@@ -200,10 +200,10 @@ def get_report_files(
 
         try:
             stmt = (
-                f"Processing starting:\n"
-                f" schema_name: {customer_name}\n"
-                f" provider: {provider_type}\n"
-                f" provider_uuid: {provider_uuid}\n"
+                f"Processing starting: "
+                f" schema_name: {customer_name} "
+                f" provider: {provider_type} "
+                f" provider_uuid: {provider_uuid} "
                 f' file: {report_dict.get("file")}'
             )
             LOG.info(log_json(tracing_id, stmt))
@@ -357,12 +357,12 @@ def update_summary_tables(  # noqa: C901
         worker_cache.lock_single_task(task_name, cache_args, timeout=3600)
 
     stmt = (
-        f"update_summary_tables called with args:\n"
-        f" schema_name: {schema_name},\n"
-        f" provider: {provider},\n"
-        f" start_date: {start_date},\n"
-        f" end_date: {end_date},\n"
-        f" manifest_id: {manifest_id},\n"
+        f"update_summary_tables called with args: "
+        f" schema_name: {schema_name}, "
+        f" provider: {provider}, "
+        f" start_date: {start_date}, "
+        f" end_date: {end_date}, "
+        f" manifest_id: {manifest_id}, "
         f" tracing_id: {tracing_id}"
     )
     LOG.info(log_json(tracing_id, stmt))
