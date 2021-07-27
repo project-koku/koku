@@ -95,13 +95,13 @@ def create_manifest_entries(report_meta, request_id, context={}):
     return downloader._prepare_db_manifest_record(report_meta)
 
 
-def get_account_from_cluster_id(cluster_id, request_id, context={}):
+def get_account_from_cluster_id(cluster_id, manifest_uuid, context={}):
     """
     Returns the provider details for a given OCP cluster id.
 
     Args:
         cluster_id (String): Cluster UUID.
-        request_id (String): Identifier associated with the payload
+        manifest_uuid (String): Identifier associated with the payload manifest
         context (Dict): Context for logging (account, etc)
 
     Returns:
@@ -118,10 +118,10 @@ def get_account_from_cluster_id(cluster_id, request_id, context={}):
     provider_uuid = utils.get_provider_uuid_from_cluster_id(cluster_id)
     if provider_uuid:
         msg = f"Found provider_uuid: {str(provider_uuid)} for cluster_id: {str(cluster_id)}"
-        LOG.info(log_json(request_id, msg, context))
+        LOG.info(log_json(manifest_uuid, msg, context))
         if context:
             context["provider_uuid"] = provider_uuid
-        account = get_account(provider_uuid, request_id, context)
+        account = get_account(provider_uuid, manifest_uuid, context)
     return account
 
 
@@ -282,14 +282,22 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
 
     # Filter and get account from payload's cluster-id
     cluster_id = report_meta.get("cluster_id")
+    manifest_uuid = report_meta.get("uuid", request_id)
+    LOG.info(
+        log_json(
+            request_id,
+            f"Payload with the request id {request_id} from cluster {cluster_id}"
+            + f"is part of the report with manifest id {manifest_uuid}",
+        )
+    )
     if context:
         context["cluster_id"] = cluster_id
-    account = get_account_from_cluster_id(cluster_id, request_id, context)
+    account = get_account_from_cluster_id(cluster_id, manifest_uuid, context)
     if not account:
         msg = f"Recieved unexpected OCP report from {cluster_id}"
-        LOG.warning(log_json(request_id, msg, context))
+        LOG.warning(log_json(manifest_uuid, msg, context))
         shutil.rmtree(temp_dir)
-        return None
+        return None, manifest_uuid
     schema_name = account.get("schema_name")
     provider_type = account.get("provider_type")
     context["account"] = schema_name[4:]
@@ -322,10 +330,10 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
         try:
             shutil.copy(payload_source_path, payload_destination_path)
             current_meta["current_file"] = payload_destination_path
-            record_all_manifest_files(report_meta["manifest_id"], report_meta.get("files"))
-            if not record_report_status(report_meta["manifest_id"], report_file, request_id, context):
+            record_all_manifest_files(report_meta["manifest_id"], report_meta.get("files"), manifest_uuid)
+            if not record_report_status(report_meta["manifest_id"], report_file, manifest_uuid, context):
                 msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
-                LOG.info(log_json(request_id, msg, context))
+                LOG.info(log_json(manifest_uuid, msg, context))
                 construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
                 report_metas.append(current_meta)
             else:
@@ -333,11 +341,11 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
                 pass
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
-            LOG.debug(log_json(request_id, msg, context))
+            LOG.debug(log_json(manifest_uuid, msg, context))
 
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
-    return report_metas
+    return report_metas, manifest_uuid
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
@@ -414,8 +422,8 @@ def handle_message(msg):
         try:
             msg = f"Extracting Payload for msg: {str(value)}"
             LOG.info(log_json(request_id, msg, context))
-            report_metas = extract_payload(value["url"], request_id, context)
-            return SUCCESS_CONFIRM_STATUS, report_metas
+            report_metas, manifest_uuid = extract_payload(value["url"], request_id, context)
+            return SUCCESS_CONFIRM_STATUS, report_metas, manifest_uuid
         except (OperationalError, InterfaceError) as error:
             close_and_set_db_connection()
             msg = f"Unable to extract payload, db closed. {type(error).__name__}: {error}"
@@ -425,19 +433,19 @@ def handle_message(msg):
             traceback.print_exc()
             msg = f"Unable to extract payload. Error: {type(error).__name__}: {error}"
             LOG.warning(log_json(request_id, msg, context))
-            return FAILURE_CONFIRM_STATUS, None
+            return FAILURE_CONFIRM_STATUS, None, None
     else:
         LOG.error("Unexpected Message")
-    return None, None
+    return None, None, None
 
 
-def get_account(provider_uuid, request_id, context={}):
+def get_account(provider_uuid, manifest_uuid, context={}):
     """
     Retrieve a provider's account configuration needed for processing.
 
     Args:
         provider_uuid (String): Provider unique identifier.
-        request_id (String): Identifier associated with the payload
+        manifest_uuid (String): Identifier associated with the payload manifest
         context (Dict): Context for logging (account, etc)
 
     Returns:
@@ -455,17 +463,18 @@ def get_account(provider_uuid, request_id, context={}):
         all_accounts = AccountsAccessor().get_accounts(provider_uuid)
     except AccountsAccessorError as error:
         msg = f"Unable to get accounts. Error: {str(error)}"
-        LOG.warning(log_json(request_id, msg, context))
+        LOG.warning(log_json(manifest_uuid, msg, context))
         return None
 
     return all_accounts.pop() if all_accounts else None
 
 
-def summarize_manifest(report_meta):
+def summarize_manifest(report_meta, manifest_uuid):
     """
     Kick off manifest summary when all report files have completed line item processing.
 
     Args:
+        manifest_uuid (string) - The id associated with the payload manifest
         report (Dict) - keys: value
                         schema_name: String,
                         manifest_id: Integer,
@@ -495,10 +504,14 @@ def summarize_manifest(report_meta):
             }
             if start_date and end_date:
                 LOG.info(
-                    f"Summarizing OCP reports from {str(start_date)}-{str(end_date)} for provider: {provider_uuid}"
+                    log_json(
+                        manifest_uuid,
+                        f"Summarizing OCP reports from {str(start_date)}-{str(end_date)} for provider: {provider_uuid}",
+                    )
                 )
                 report_meta["start"] = start_date
                 report_meta["end"] = end_date
+                report_meta["manifest_uuid"] = manifest_uuid
             async_id = summarize_reports.s([report_meta], OCP_QUEUE).apply_async(queue=OCP_QUEUE)
     return async_id
 
@@ -599,26 +612,27 @@ def process_messages(msg):
 
     """
     process_complete = False
-    status, report_metas = handle_message(msg)
+    status, report_metas, manifest_uuid = handle_message(msg)
 
     value = json.loads(msg.value().decode("utf-8"))
     request_id = value.get("request_id", "no_request_id")
+    tracing_id = manifest_uuid or request_id
     if report_metas:
         for report_meta in report_metas:
             report_meta["process_complete"] = process_report(request_id, report_meta)
-            LOG.info(f"Processing: {report_meta.get('current_file')} complete.")
+            LOG.info(log_json(tracing_id, f"Processing: {report_meta.get('current_file')} complete."))
         process_complete = report_metas_complete(report_metas)
-        summary_task_id = summarize_manifest(report_meta)
+        summary_task_id = summarize_manifest(report_meta, tracing_id)
         if summary_task_id:
-            LOG.info(f"Summarization celery uuid: {summary_task_id}")
+            LOG.info(log_json(tracing_id, f"Summarization celery uuid: {summary_task_id}"))
 
     if status:
         if report_metas:
             file_list = [meta.get("current_file") for meta in report_metas]
             files_string = ",".join(map(str, file_list))
-            LOG.info(f"Sending Ingress Service confirmation for: {files_string}")
+            LOG.info(log_json(tracing_id, f"Sending Ingress Service confirmation for: {files_string}"))
         else:
-            LOG.info(f"Sending Ingress Service confirmation for: {value}")
+            LOG.info(log_json(tracing_id, f"Sending Ingress Service confirmation for: {value}"))
         send_confirmation(value["request_id"], status)
 
     return process_complete
