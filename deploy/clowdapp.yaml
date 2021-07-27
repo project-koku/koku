@@ -116,8 +116,8 @@ objects:
         livenessProbe:
           failureThreshold: 5
           httpGet:
-            path: ${API_PATH_PREFIX}/v1/status/
-            port: web
+            path: /livez
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
