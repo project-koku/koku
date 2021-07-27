@@ -5,6 +5,7 @@
 """GCP Query Handling for Reports."""
 import copy
 import logging
+from datetime import timedelta
 
 from django.db.models import F
 from django.db.models import Value
@@ -62,6 +63,13 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
+
+        invoice_months = []
+        for day in range((self.end_datetime - self.start_datetime).days):
+            invoice_month = (self.start_datetime + timedelta(day)).strftime("%Y%m")
+            if invoice_month not in invoice_months:
+                invoice_months.append(invoice_month)
+        self.invoice_months = invoice_months
 
     @property
     def annotations(self):
@@ -146,6 +154,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         with tenant_context(self.tenant):
             query = self.query_table.objects.filter(self.query_filter)
+            query.filter(invoice_month__in=self.invoice_months)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
