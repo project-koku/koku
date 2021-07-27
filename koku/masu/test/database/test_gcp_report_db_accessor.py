@@ -14,6 +14,7 @@ from django.db.models import Sum
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
+from koku.database import get_model
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
@@ -240,3 +241,11 @@ class GCPReportDBAccessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             self.assertEqual(table_query.count(), 0)
+
+    def test_table_properties(self):
+        self.assertEqual(self.accessor.line_item_daily_summary_table, GCPCostEntryLineItemDailySummary)
+        self.assertEqual(self.accessor.line_item_daily_table, get_model("GCPCostEntryLineItemDaily"))
+        self.assertEqual(self.accessor.line_item_table, get_model("GCPCostEntryLineItem"))
+
+    def test_table_map(self):
+        self.assertEqual(self.accessor._table_map, GCP_REPORT_TABLE_MAP)
