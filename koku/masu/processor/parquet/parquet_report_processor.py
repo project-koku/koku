@@ -357,7 +357,6 @@ class ParquetReportProcessor:
         if not daily:
             processor.create_bill(bill_date=bill_date)
         processor.get_or_create_postgres_partition(bill_date=bill_date)
-        processor.sync_hive_partitions()
         self.presto_table_exists[self.report_type] = True
 
     def convert_csv_to_parquet(self, csv_filename):  # noqa: C901

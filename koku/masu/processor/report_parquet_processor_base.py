@@ -156,6 +156,7 @@ class ReportParquetProcessorBase:
             )
         if created:
             LOG.info(f"Created a new partition for {record.partition_of_table_name} : {record.table_name}")
+            self.sync_hive_partitions()
 
         return created
 
