@@ -178,10 +178,10 @@ def get_report_files(
         )
 
         stmt = (
-            f"Reports to be processed:\n"
-            f" schema_name: {customer_name}\n"
-            f" provider: {provider_type}\n"
-            f" provider_uuid: {provider_uuid}\n"
+            f"Reports to be processed: "
+            f" schema_name: {customer_name} "
+            f" provider: {provider_type} "
+            f" provider_uuid: {provider_uuid}"
         )
         if report_dict:
             stmt += f" file: {report_dict['file']}"
@@ -195,21 +195,21 @@ def get_report_files(
             "provider_type": provider_type,
             "provider_uuid": provider_uuid,
             "manifest_id": report_dict.get("manifest_id"),
-            "request_id": tracing_id,
+            "tracing_id": tracing_id,
         }
 
         try:
             stmt = (
-                f"Processing starting:\n"
-                f" schema_name: {customer_name}\n"
-                f" provider: {provider_type}\n"
-                f" provider_uuid: {provider_uuid}\n"
+                f"Processing starting: "
+                f" schema_name: {customer_name} "
+                f" provider: {provider_type} "
+                f" provider_uuid: {provider_uuid} "
                 f' file: {report_dict.get("file")}'
             )
             LOG.info(log_json(tracing_id, stmt))
             worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
 
-            report_dict["request_id"] = tracing_id
+            report_dict["tracing_id"] = tracing_id
             report_dict["provider_type"] = provider_type
 
             _process_report_file(schema_name, provider_type, report_dict)
@@ -294,7 +294,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                     start_date = start_date.strftime("%Y-%m-%d")
                     end_date = DateAccessor().today().strftime("%Y-%m-%d")
                 msg = f"report to summarize: {str(report)}"
-                tracing_id = report.get("request_id", report.get("manifest_uuid", "no-request-id"))
+                tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
                 LOG.info(log_json(tracing_id, msg))
                 update_summary_tables.s(
                     report.get("schema_name"),
@@ -357,12 +357,12 @@ def update_summary_tables(  # noqa: C901
         worker_cache.lock_single_task(task_name, cache_args, timeout=3600)
 
     stmt = (
-        f"update_summary_tables called with args:\n"
-        f" schema_name: {schema_name},\n"
-        f" provider: {provider},\n"
-        f" start_date: {start_date},\n"
-        f" end_date: {end_date},\n"
-        f" manifest_id: {manifest_id},\n"
+        f"update_summary_tables called with args: "
+        f" schema_name: {schema_name}, "
+        f" provider: {provider}, "
+        f" start_date: {start_date}, "
+        f" end_date: {end_date}, "
+        f" manifest_id: {manifest_id}, "
         f" tracing_id: {tracing_id}"
     )
     LOG.info(log_json(tracing_id, stmt))
@@ -397,8 +397,8 @@ def update_summary_tables(  # noqa: C901
     ):
         cost_model = None
         stmt = (
-            f"\n Markup for {provider} is calculated during summarization. No need to run update_cost_model_costs\n"
-            f" schema_name: {schema_name},\n"
+            f"Markup for {provider} is calculated during summarization. No need to run update_cost_model_costs"
+            f" schema_name: {schema_name}, "
             f" provider_uuid: {provider_uuid}"
         )
         LOG.info(log_json(tracing_id, stmt))
@@ -415,11 +415,7 @@ def update_summary_tables(  # noqa: C901
             queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE
         )
     else:
-        stmt = (
-            f"\n update_cost_model_costs skipped.\n"
-            f" schema_name: {schema_name},\n"
-            f" provider_uuid: {provider_uuid}"
-        )
+        stmt = f"update_cost_model_costs skipped. " f" schema_name: {schema_name}, " f" provider_uuid: {provider_uuid}"
         LOG.info(log_json(tracing_id, stmt))
         linked_tasks = refresh_materialized_views.s(
             schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id, tracing_id=tracing_id
