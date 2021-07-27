@@ -24,6 +24,12 @@ if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
     CLOWDER_METRICS_PORT = LoadedConfig.metricsPort
 
 
+def on_starting(server):
+    """gunicorn server hook to start probe server before main process"""
+    httpd = start_probe_server(BasicProbeServer)
+    httpd.RequestHandlerClass.ready = True
+
+
 def start_probe_server(server_cls):
     """Start the probe server."""
     httpd = HTTPServer(("0.0.0.0", CLOWDER_METRICS_PORT), server_cls)
