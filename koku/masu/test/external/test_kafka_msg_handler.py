@@ -121,6 +121,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         self.cluster_id = "my-ocp-cluster-1"
         self.date_range = "20190201-20190301"
+        self.manifest_id = "1234"
 
     @patch("masu.external.kafka_msg_handler.listen_for_messages")
     @patch("masu.external.kafka_msg_handler.get_consumer")
@@ -274,7 +275,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     "category": "tar",
                     "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
                 },
-                "handle_message_returns": (msg_handler.SUCCESS_CONFIRM_STATUS, [report_meta_1]),
+                "handle_message_returns": (msg_handler.SUCCESS_CONFIRM_STATUS, [report_meta_1], self.manifest_id),
                 "summarize_manifest_returns": summarize_manifest_uuid,
                 "expected_fn": _expected_success_path,
             },
@@ -285,7 +286,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     "category": "tar",
                     "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
                 },
-                "handle_message_returns": (msg_handler.FAILURE_CONFIRM_STATUS, None),
+                "handle_message_returns": (msg_handler.FAILURE_CONFIRM_STATUS, None, None),
                 "summarize_manifest_returns": summarize_manifest_uuid,
                 "expected_fn": _expected_success_path,
             },
@@ -296,7 +297,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     "category": "tar",
                     "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
                 },
-                "handle_message_returns": (None, None),
+                "handle_message_returns": (None, None, None),
                 "summarize_manifest_returns": summarize_manifest_uuid,
                 "expected_fn": _expected_fail_path,
             },
@@ -307,7 +308,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     "category": "tar",
                     "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
                 },
-                "handle_message_returns": (None, [report_meta_1]),
+                "handle_message_returns": (None, [report_meta_1], None),
                 "summarize_manifest_returns": summarize_manifest_uuid,
                 "expected_fn": _expected_fail_path,
             },
@@ -339,15 +340,15 @@ class KafkaMsgHandlerTest(MasuTestCase):
         advisor_msg = MockMessage("platform.upload.advisor", "http://insights-upload.com/quarnantine/file_to_validate")
 
         # Verify that when extract_payload is successful with 'hccm' message that SUCCESS_CONFIRM_STATUS is returned
-        with patch("masu.external.kafka_msg_handler.extract_payload", return_value=None):
-            self.assertEqual(msg_handler.handle_message(hccm_msg), (msg_handler.SUCCESS_CONFIRM_STATUS, None))
+        with patch("masu.external.kafka_msg_handler.extract_payload", return_value=(None, None)):
+            self.assertEqual(msg_handler.handle_message(hccm_msg), (msg_handler.SUCCESS_CONFIRM_STATUS, None, None))
 
         # Verify that when extract_payload is not successful with 'hccm' message that FAILURE_CONFIRM_STATUS is returned
         with patch("masu.external.kafka_msg_handler.extract_payload", side_effect=msg_handler.KafkaMsgHandlerError):
-            self.assertEqual(msg_handler.handle_message(hccm_msg), (msg_handler.FAILURE_CONFIRM_STATUS, None))
+            self.assertEqual(msg_handler.handle_message(hccm_msg), (msg_handler.FAILURE_CONFIRM_STATUS, None, None))
 
         # Verify that when None status is returned for non-hccm messages (we don't confirm these)
-        self.assertEqual(msg_handler.handle_message(advisor_msg), (None, None))
+        self.assertEqual(msg_handler.handle_message(advisor_msg), (None, None, None))
 
         # Verify that when extract_payload has a OperationalError that KafkaMessageError is raised
         with patch("masu.external.kafka_msg_handler.extract_payload", side_effect=OperationalError):
@@ -418,7 +419,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
             mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
-                msg_handler.summarize_manifest(report_meta)
+                msg_handler.summarize_manifest(report_meta, self.manifest_id)
                 mock_summarize_reports.assert_called()
 
         # Check when manifest is not done
@@ -427,7 +428,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
             mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
-                msg_handler.summarize_manifest(report_meta)
+                msg_handler.summarize_manifest(report_meta, self.manifest_id)
                 mock_summarize_reports.assert_not_called()
 
     def test_summarize_manifest_dates(self):
@@ -449,6 +450,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "manifest_id": report_meta.get("manifest_id"),
             "start": report_meta.get("start"),
             "end": report_meta.get("end"),
+            "manifest_uuid": "1234",
         }
 
         class FakeManifest:
@@ -468,7 +470,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
             mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
-                msg_handler.summarize_manifest(report_meta)
+                msg_handler.summarize_manifest(report_meta, self.manifest_id)
                 mock_summarize_reports.assert_called_with([expected_meta], OCP_QUEUE)
 
         # Check when manifest is not done
@@ -477,7 +479,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
             mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
-                msg_handler.summarize_manifest(report_meta)
+                msg_handler.summarize_manifest(report_meta, self.manifest_id)
                 mock_summarize_reports.assert_not_called()
 
     def test_extract_payload(self):
@@ -543,7 +545,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch("masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=None):
-                        self.assertFalse(msg_handler.extract_payload(payload_url, "test_request_id"))
+                        self.assertFalse(msg_handler.extract_payload(payload_url, "test_request_id")[0])
                         shutil.rmtree(fake_dir)
                         shutil.rmtree(fake_pvc_dir)
 
