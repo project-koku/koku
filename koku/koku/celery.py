@@ -13,6 +13,9 @@ from kombu.exceptions import OperationalError
 
 from koku import sentry  # noqa: F401
 from koku.env import ENVIRONMENT
+from koku.probe_server import ProbeResponse
+from koku.probe_server import ProbeServer
+from koku.probe_server import start_probe_server
 
 
 LOG = logging.getLogger(__name__)
@@ -37,6 +40,25 @@ class LoggingCelery(Celery):
         """
         kwargs.setdefault("base", LogErrorsTask)
         return super().task(*args, **kwargs)
+
+
+class WorkerProbeServer(ProbeServer):  # pragma: no cover
+    """HTTP server for liveness/readiness probes."""
+
+    def readiness_check(self):
+        """Set the readiness check response."""
+        status = 424
+        msg = "not ready"
+        if self.ready:
+            # TODO: Could add extra checks here.
+            # if not check_kafka_connection():
+            #     response = ProbeResponse(status, "kafka connection error")
+            #     self._write_response(response)
+            #     self.logger.info(response.json)
+            #     return
+            status = 200
+            msg = "ok"
+        self._write_response(ProbeResponse(status, msg))
 
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
@@ -177,9 +199,13 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
     """Wait for migrations to complete before completing worker startup."""
     from .database import check_migrations
 
+    httpd = start_probe_server(WorkerProbeServer)
+
     while not check_migrations():
         LOG.warning("Migrations not done. Sleeping")
         time.sleep(5)
+
+    httpd.RequestHandlerClass.ready = True  # Set `ready` to true to indicate migrations are done.
 
 
 def is_task_currently_running(task_name, task_id, check_args=None):
