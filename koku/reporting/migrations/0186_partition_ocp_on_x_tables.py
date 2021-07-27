@@ -61,7 +61,7 @@ def convert_ocpazure_project_table_to_partitioned(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0184_new_partition_manager_trigger")]
+    dependencies = [("reporting", "0185_subpartition_cols")]
 
     operations = [
         migrations.AlterModelOptions(name="ocpawscostlineitemdailysummary", options={"managed": False}),
