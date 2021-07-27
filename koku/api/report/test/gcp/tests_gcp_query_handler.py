@@ -44,7 +44,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.this_month_filter = {
             "usage_start__gte": self.dh.this_month_start,
             "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
-                self.dh.this_month_start, self.dh.today
+                self.dh.this_month_start, self.dh.this_month_end
             ),
         }
 
@@ -373,7 +373,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_curr_month_by_account_w_order_by_account(self):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[account]=asc&group_by[account]=*"  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly&order_by[account]=asc&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -382,11 +382,11 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.last_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
-        cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
+        cmonth_str = self.dh.last_month_start.strftime("%Y-%m")
         for data_item in data:
             month_val = data_item.get("date")
             month_data = data_item.get("accounts")
@@ -722,7 +722,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         expected_units = "USD"
@@ -730,7 +730,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             result = handler.calculate_total(**{"cost_units": expected_units})
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.last_month_filter)
         cost_total = result.get("cost", {}).get("total")
         self.assertIsNotNone(cost_total)
         self.assertEqual(cost_total.get("value"), current_totals["cost_total"])
