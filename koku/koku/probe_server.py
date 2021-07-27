@@ -21,7 +21,7 @@ CLOWDER_PORT = 9000
 if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
     from app_common_python import LoadedConfig
 
-    CLOWDER_PORT = LoadedConfig.publicPort
+    CLOWDER_PORT = LoadedConfig.metricsPort
 
 
 def start_probe_server(server_cls):
