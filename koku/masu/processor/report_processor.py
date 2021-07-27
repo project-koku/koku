@@ -43,7 +43,7 @@ class ReportProcessor:
         self.provider_uuid = provider_uuid
         self.manifest_id = manifest_id
         self.context = context
-        self.tracing_id = context.get("tracing_id")
+        self.tracing_id = context.get("tracing_id") if context else None
         try:
             self._processor = self._set_processor()
         except NotImplementedError as err:
