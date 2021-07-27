@@ -1,3 +1,7 @@
+#
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
 import uuid
 
 from django.db import connection as conn
@@ -7,12 +11,30 @@ from . import pg_partition as ppart
 from api.iam.test.iam_test_case import IamTestCase
 from reporting.models import AWSCostEntryLineItemDailySummary
 from reporting.models import OCPUsageLineItemDailySummary
+from reporting.models import PartitionedTable
 
 
 def _execute(sql, params=None):
     cur = conn.cursor()
     cur.execute(sql, params)
     return cur
+
+
+def _get_table_partition_info(schema, table):
+    sql = """
+select c.relkind,
+       c.relispartition
+  from pg_class c
+  join pg_namespace n
+    on n.oid = c.relnamespace
+ where n.nspname = %s
+   and c.relname = %s ;
+"""
+    with conn.cursor() as cur:
+        cur.execute(sql, (schema, table))
+        res = cur.fetchone()
+
+    return dict(zip(("relkind", "relispartition"), res)) if res else res
 
 
 class TestPGPartition(IamTestCase):
@@ -623,3 +645,119 @@ select (
                 )
                 res = cur.fetchone()
             self.assertEqual(res, (1, 2))
+
+    def test_subpartition(self):
+        """Test multiple levels of partitioning"""
+        partitioned_table_name = "_eek_partitioned"
+        new_partitioned_table_sql = f"""
+create table {self.schema_name}.{partitioned_table_name} (
+    id bigserial,
+    usage_start date not null,
+    provider_id text not null,
+    data jsonb
+)
+partition by range (usage_start);
+"""
+        _execute(new_partitioned_table_sql)
+        with schema_context(self.schema_name):
+            # partition first by usage_start (this is the default partition)
+            usage_default_partition = PartitionedTable(
+                schema_name=self.schema_name,
+                table_name=f"{partitioned_table_name}_default",
+                partition_of_table_name=partitioned_table_name,
+                partition_type=PartitionedTable.RANGE,
+                partition_col="usage_start",
+                partition_parameters={"default": True},
+                active=True,
+            )
+            usage_default_partition.save()
+            res = _get_table_partition_info(self.schema_name, usage_default_partition.table_name)
+            self.assertEqual({"relkind": "r", "relispartition": True}, res)
+
+            # partition first by usage_start, then by provider_id (this is the sub-partition)
+            usage_partition = PartitionedTable(
+                schema_name=self.schema_name,
+                table_name=f"{partitioned_table_name}_2020_01",
+                partition_of_table_name=partitioned_table_name,
+                partition_type=PartitionedTable.RANGE,
+                partition_col="usage_start",
+                partition_parameters={"default": False, "from": "2020-01-01", "to": "2020-02-01"},
+                subpartition_type=PartitionedTable.LIST,
+                subpartition_col="provider_id",
+                active=True,
+            )
+            usage_partition.save()
+            res = _get_table_partition_info(self.schema_name, usage_partition.table_name)
+            self.assertEqual({"relkind": "p", "relispartition": True}, res)
+
+            # Create a default for the sub-partitioned data. This is a leaf partition
+            usage_list_default_partition = PartitionedTable(
+                schema_name=self.schema_name,
+                table_name=f"{usage_partition.table_name}_default",
+                partition_of_table_name=usage_partition.table_name,
+                partition_type=PartitionedTable.LIST,
+                partition_col="provider_id",
+                partition_parameters={"default": True},
+                active=True,
+            )
+            usage_list_default_partition.save()
+            res = _get_table_partition_info(self.schema_name, usage_list_default_partition.table_name)
+            self.assertEqual({"relkind": "r", "relispartition": True}, res)
+
+            # This is a leaf partition that will hold our "good" data
+            usage_list_partition = PartitionedTable(
+                schema_name=self.schema_name,
+                table_name=f"{usage_partition.table_name}_a_d",
+                partition_of_table_name=usage_partition.table_name,
+                partition_type=PartitionedTable.LIST,
+                partition_col="provider_id",
+                partition_parameters={"default": False, "in": "ABC,DEF"},
+                active=True,
+            )
+            usage_list_partition.save()
+            res = _get_table_partition_info(self.schema_name, usage_list_partition.table_name)
+            self.assertEqual({"relkind": "r", "relispartition": True}, res)
+
+            # Add some data to various partitions
+            insert_sql = f"""
+insert into {self.schema_name}.{partitioned_table_name} (usage_start, provider_id, data)
+values
+('2020-01-15'::date, 'ABC', '{{"stuffs": 1}}'::jsonb),
+('2020-01-15'::date, 'DEF', '{{"stuffs": 2}}'::jsonb),
+('2020-01-15'::date, 'GHI', '{{"stuffs": 3}}'::jsonb),
+('2020-02-15'::date, 'ABC', '{{"stuffs": "FOUR"}}'::jsonb);
+"""
+            _execute(insert_sql)
+            expected_good_sql = f"""
+select count(*) from {self.schema_name}.{usage_list_partition.table_name} ;
+"""
+            expected_good_count = _execute(expected_good_sql).fetchone()[0]
+
+            expected_usage_list_default_sql = f"""
+select count(*) from {self.schema_name}.{usage_list_default_partition.table_name} ;
+"""
+            expected_usage_list_default_count = _execute(expected_usage_list_default_sql).fetchone()[0]
+
+            expected_usage_default_sql = f"""
+select count(*) from {self.schema_name}.{usage_default_partition.table_name} ;
+"""
+            expected_usage_default_count = _execute(expected_usage_default_sql).fetchone()[0]
+
+            # Verify that the records went to the correct partitions
+            self.assertEqual(expected_good_count, 2)
+            self.assertEqual(expected_usage_list_default_count, 1)
+            self.assertEqual(expected_usage_default_count, 1)
+
+            # Cleanup
+            usage_list_partition.delete()
+            usage_list_default_partition.delete()
+            usage_partition.delete()
+            usage_default_partition.delete()
+            _execute(f"""drop table {self.schema_name}.{partitioned_table_name} ;""")
+
+            # Verify that triggers cleaned up the tables
+            self.assertIsNone(_get_table_partition_info(self.schema_name, usage_list_partition.table_name))
+            self.assertIsNone(_get_table_partition_info(self.schema_name, usage_list_default_partition.table_name))
+            self.assertIsNone(_get_table_partition_info(self.schema_name, usage_partition.table_name))
+            self.assertIsNone(_get_table_partition_info(self.schema_name, usage_default_partition.table_name))
+            self.assertIsNone(_get_table_partition_info(self.schema_name, partitioned_table_name))

@@ -93,8 +93,8 @@ FROM (
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'
-        AND date(lineitem_usagestartdate) >= date('{{start_date | sqlsafe}}')
-        AND date(lineitem_usagestartdate) <= date('{{end_date | sqlsafe}}')
+        AND lineitem_usagestartdate >= TIMESTAMP '{{start_date | sqlsafe}}'
+        AND lineitem_usagestartdate < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     GROUP BY date(lineitem_usagestartdate),
         lineitem_productcode,
         lineitem_usageaccountid,
