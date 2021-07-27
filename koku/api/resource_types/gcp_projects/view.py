@@ -29,8 +29,8 @@ class GCPProjectsView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for GCP project id and displays values related to what the user has access to
         user_access = []
-        # if request.user.admin:
-        # return super().list(request)
+        if request.user.admin:
+            return super().list(request)
         if request.user.access:
             user_access = request.user.access.get("gcp.project", {}).get("read", [])
         self.queryset = self.queryset.values("value").filter(project_id__in=user_access)
