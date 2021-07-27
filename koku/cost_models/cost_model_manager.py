@@ -89,13 +89,24 @@ class CostModelManager:
             else:
                 schema_name = provider.customer.schema_name
                 # Because this is triggered from the UI, we use the priority queue
-                LOG.info(f"provider {provider_uuid} update for cost model {self._cost_model_uuid} with tracing_id {tracing_id}")
+                LOG.info(
+                    f"provider {provider_uuid} update for cost model {self._cost_model_uuid} with tracing_id {tracing_id}"
+                )
                 chain(
                     update_cost_model_costs.s(
-                        schema_name, provider.uuid, start_date, end_date, tracing_id=tracing_id, queue_name=PRIORITY_QUEUE
+                        schema_name,
+                        provider.uuid,
+                        start_date,
+                        end_date,
+                        tracing_id=tracing_id,
+                        queue_name=PRIORITY_QUEUE,
                     ).set(queue=PRIORITY_QUEUE),
                     refresh_materialized_views.si(
-                        schema_name, provider.type, provider_uuid=provider.uuid, tracing_id=tracing_id, queue_name=PRIORITY_QUEUE
+                        schema_name,
+                        provider.type,
+                        provider_uuid=provider.uuid,
+                        tracing_id=tracing_id,
+                        queue_name=PRIORITY_QUEUE,
                     ).set(queue=PRIORITY_QUEUE),
                 ).apply_async()
 
