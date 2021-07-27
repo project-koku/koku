@@ -90,7 +90,8 @@ class CostModelManager:
                 schema_name = provider.customer.schema_name
                 # Because this is triggered from the UI, we use the priority queue
                 LOG.info(
-                    f"provider {provider_uuid} update for cost model {self._cost_model_uuid} with tracing_id {tracing_id}"
+                    f"provider {provider_uuid} update for cost model {self._cost_model_uuid} "
+                    + f"with tracing_id {tracing_id}"
                 )
                 chain(
                     update_cost_model_costs.s(
