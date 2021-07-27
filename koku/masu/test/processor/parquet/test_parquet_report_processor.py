@@ -58,7 +58,7 @@ class TestParquetReportProcessor(MasuTestCase):
         super().setUp()
         self.test_assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
         self.test_etag = "fake_etag"
-        self.request_id = 1
+        self.tracing_id = 1
         self.account_id = self.schema[4:]
         self.manifest_id = 1
         self.report_name = "koku-1.csv.gz"
@@ -69,7 +69,7 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
             manifest_id=self.manifest_id,
-            context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
         )
 
     def test_resolve_enabled_tag_keys_model(self):
@@ -98,9 +98,9 @@ class TestParquetReportProcessor(MasuTestCase):
             )
             self.assertEqual(prp.enabled_tags_model, expected_tag_keys_model)
 
-    def test_request_id(self):
-        """Test that the request_id property is handled."""
-        self.assertIsNotNone(self.report_processor.request_id)
+    def test_tracing_id(self):
+        """Test that the tracing_id property is handled."""
+        self.assertIsNotNone(self.report_processor.tracing_id)
 
         # Test with missing context
         with self.assertRaises(ParquetReportProcessorError):
@@ -112,7 +112,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 manifest_id=self.manifest_id,
                 context={},
             )
-            report_processor.request_id
+            report_processor.tracing_id
 
     def test_start_date(self):
         """Test that the start_date property is handled."""
@@ -159,7 +159,7 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
             manifest_id=self.manifest_id,
-            context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
         )
         self.assertEqual(report_processor.file_extension, CSV_EXT)
 
@@ -170,7 +170,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 provider_uuid=self.aws_provider_uuid,
                 provider_type=Provider.PROVIDER_AWS_LOCAL,
                 manifest_id=self.manifest_id,
-                context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+                context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
             )
             report_processor.file_extension
 
@@ -201,7 +201,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 provider_uuid=test.get("provider_uuid"),
                 provider_type=test.get("provider_type"),
                 manifest_id=self.manifest_id,
-                context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+                context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
             )
 
             self.assertEqual(report_processor.post_processor, test.get("expected"))
@@ -367,7 +367,7 @@ class TestParquetReportProcessor(MasuTestCase):
                             provider_type=Provider.PROVIDER_AWS_LOCAL,
                             manifest_id=self.manifest_id,
                             context={
-                                "request_id": self.request_id,
+                                "tracing_id": self.tracing_id,
                                 "start_date": DateHelper().today,
                                 "create_table": True,
                             },
@@ -396,7 +396,7 @@ class TestParquetReportProcessor(MasuTestCase):
                                         provider_type=Provider.PROVIDER_OCP,
                                         manifest_id=self.manifest_id,
                                         context={
-                                            "request_id": self.request_id,
+                                            "tracing_id": self.tracing_id,
                                             "start_date": DateHelper().today,
                                             "create_table": True,
                                         },
@@ -482,7 +482,7 @@ class TestParquetReportProcessor(MasuTestCase):
                     provider_uuid=provider_uuid,
                     provider_type=provider_type,
                     manifest_id=self.manifest_id,
-                    context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+                    context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
                 )
                 report_processor.create_parquet_table(output_file, daily=test.get("daily"))
                 if test.get("daily"):
@@ -552,7 +552,7 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.ocp_provider_uuid,
             provider_type=Provider.PROVIDER_OCP,
             manifest_id=self.manifest_id,
-            context={"request_id": self.request_id, "start_date": DateHelper().today, "split_files": file_list},
+            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "split_files": file_list},
         )
         ocp_processor.process()
         mock_convert.assert_called()
@@ -579,7 +579,7 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.gcp_provider_uuid,
             provider_type=Provider.PROVIDER_GCP,
             manifest_id=self.manifest_id,
-            context={"request_id": self.request_id, "start_date": DateHelper().today, "split_files": file_list},
+            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "split_files": file_list},
         )
 
         with patch(
@@ -603,7 +603,7 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
             manifest_id=self.manifest_id,
-            context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
         )
         daily_data_processor = processor.daily_data_processor
         self.assertEqual(daily_data_processor, aws_generate_daily_data)
@@ -614,7 +614,7 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.azure_provider_uuid,
             provider_type=Provider.PROVIDER_AZURE_LOCAL,
             manifest_id=self.manifest_id,
-            context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
         )
         daily_data_processor = processor.daily_data_processor
         self.assertEqual(daily_data_processor, azure_generate_daily_data)
@@ -628,7 +628,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 provider_uuid=self.ocp_provider_uuid,
                 provider_type=Provider.PROVIDER_OCP,
                 manifest_id=self.manifest_id,
-                context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+                context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
             )
             daily_data_processor = processor.daily_data_processor
             expected = partial(ocp_generate_daily_data, report_type=report_type)

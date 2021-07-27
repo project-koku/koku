@@ -7,6 +7,7 @@ import logging
 
 from celery import chord
 
+from api.common import log_json
 from api.models import Provider
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -141,14 +142,20 @@ class Orchestrator:
             report_name=None,
         )
         manifest = downloader.download_manifest(report_month)
+        tracing_id = manifest.get("assembly_id", manifest.get("request_id", "no-request-id"))
+        files = manifest.get("files", [])
+        filenames = []
+        for file in files:
+            filenames.append(file.get("local_file"))
+        LOG.info(log_json(tracing_id, f"Report with manifest {tracing_id} contains the files: {filenames}"))
 
         if manifest:
-            LOG.info("Saving all manifest file names.")
+            LOG.debug("Saving all manifest file names.")
             record_all_manifest_files(
-                manifest["manifest_id"], [report.get("local_file") for report in manifest.get("files", [])]
+                manifest["manifest_id"], [report.get("local_file") for report in manifest.get("files", [])], tracing_id
             )
 
-        LOG.info(f"Found Manifests: {str(manifest)}")
+        LOG.info(log_json(tracing_id, f"Found Manifests: {str(manifest)}"))
         report_files = manifest.get("files", [])
         report_tasks = []
         last_report_index = len(report_files) - 1
@@ -158,24 +165,25 @@ class Orchestrator:
 
             # Check if report file is complete or in progress.
             if record_report_status(manifest["manifest_id"], local_file, "no_request"):
-                LOG.info(f"{local_file} was already processed")
+                LOG.info(log_json(tracing_id, f"{local_file} was already processed"))
                 continue
 
             cache_key = f"{provider_uuid}:{report_file}"
             if self.worker_cache.task_is_running(cache_key):
-                LOG.info(f"{local_file} process is in progress")
+                LOG.info(log_json(tracing_id, f"{local_file} process is in progress"))
                 continue
 
             report_context = manifest.copy()
             report_context["current_file"] = report_file
             report_context["local_file"] = local_file
             report_context["key"] = report_file
+            report_context["request_id"] = tracing_id
 
             if provider_type == Provider.PROVIDER_OCP or i == last_report_index:
                 # To reduce the number of times we check Trino/Hive tables, we just do this
                 # on the final file of the set.
                 report_context["create_table"] = True
-
+            # add the tracing id to the report context
             # This defaults to the celery queue
             report_tasks.append(
                 get_report_files.s(
@@ -189,12 +197,12 @@ class Orchestrator:
                     report_context,
                 ).set(queue=GET_REPORT_FILES_QUEUE)
             )
-            LOG.info("Download queued - schema_name: %s.", schema_name)
+            LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
 
         if report_tasks:
             reports_tasks_queued = True
             async_id = chord(report_tasks, summarize_reports.s().set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE))()
-            LOG.info(f"Manifest Processing Async ID: {async_id}")
+            LOG.debug(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
         return manifest, reports_tasks_queued
 
     def prepare(self):
