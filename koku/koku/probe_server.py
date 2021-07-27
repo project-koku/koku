@@ -17,16 +17,16 @@ from masu.prometheus_stats import WORKER_REGISTRY
 
 
 LOG = logging.getLogger(__name__)
-CLOWDER_PORT = 9000
+CLOWDER_METRICS_PORT = 9000
 if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
     from app_common_python import LoadedConfig
 
-    CLOWDER_PORT = LoadedConfig.metricsPort
+    CLOWDER_METRICS_PORT = LoadedConfig.metricsPort
 
 
 def start_probe_server(server_cls):
     """Start the probe server."""
-    httpd = HTTPServer(("0.0.0.0", CLOWDER_PORT), server_cls)
+    httpd = HTTPServer(("0.0.0.0", CLOWDER_METRICS_PORT), server_cls)
 
     def start_server():
         """Start a simple webserver serving path on port"""
