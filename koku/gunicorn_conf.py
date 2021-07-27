@@ -1,9 +1,11 @@
 """Gunicorn configuration file."""
 import multiprocessing
+from functools import partial
 
 import environ
 
-from koku import probe_server
+from koku.probe_server import BasicProbeServer
+from koku.probe_server import start_probe_server
 
 
 ENVIRONMENT = environ.Env()
@@ -23,5 +25,10 @@ gunicorn_threads = ENVIRONMENT.bool("GUNICORN_THREADS", default=False)
 if gunicorn_threads:
     threads = cpu_resources * 2 + 1
 
+
 # Server Hooks
-on_starting = probe_server.on_starting
+def on_starting(server):
+    """gunicorn server hook to start probe server before main process"""
+    handler = partial(BasicProbeServer, server.log)
+    httpd = start_probe_server(handler)
+    httpd.RequestHandlerClass.ready = True
