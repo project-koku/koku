@@ -5,7 +5,7 @@
     minReplicas: ${{WORKER_PRIORITY_MIN_REPLICAS}}
     webServices:
       public:
-        enabled: false
+        enabled: true
       private:
         enabled: false
       metrics:
@@ -119,6 +119,26 @@
           value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
+      livenessProbe:
+        httpGet:
+          path: /livez
+          port: web
+          scheme: HTTP
+        initialDelaySeconds: 30
+        periodSeconds: 20
+        successThreshold: 1
+        failureThreshold: 5
+        timeoutSeconds: 10
+      readinessProbe:
+        httpGet:
+          path: /readyz
+          port: web
+          scheme: HTTP
+        initialDelaySeconds: 30
+        periodSeconds: 20
+        successThreshold: 1
+        failureThreshold: 5
+        timeoutSeconds: 10
       resources:
         limits:
           cpu: ${WORKER_PRIORITY_CPU_LIMIT}

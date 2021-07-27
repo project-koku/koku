@@ -237,6 +237,26 @@ objects:
         - name: RABBITMQ_PORT
           value: ${RABBITMQ_PORT}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${LISTENER_CPU_LIMIT}
@@ -265,7 +285,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: false
+          enabled: true
     - minReplicas: ${{MASU_MIN_REPLICAS}}
       name: clowder-masu
       podSpec:
@@ -614,23 +634,23 @@ objects:
           value: ${DEMO_ACCOUNTS}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
-          failureThreshold: 10
+          failureThreshold: 5
           httpGet:
             path: ${API_PATH_PREFIX}/v1/status/?liveness
             port: web
             scheme: HTTP
-          initialDelaySeconds: 10
-          periodSeconds: 30
+          initialDelaySeconds: 30
+          periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
         readinessProbe:
-          failureThreshold: 10
+          failureThreshold: 5
           httpGet:
             path: ${API_PATH_PREFIX}/v1/status/
             port: web
             scheme: HTTP
-          initialDelaySeconds: 15
-          periodSeconds: 30
+          initialDelaySeconds: 30
+          periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
         resources:
@@ -735,6 +755,26 @@ objects:
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${SOURCES_LISTENER_CPU_LIMIT}
@@ -759,7 +799,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: false
+          enabled: true
     - minReplicas: ${{WORKER_CELERY_MIN_REPLICAS}}
       name: clowder-worker-celery
       podSpec:
@@ -870,6 +910,26 @@ objects:
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${WORKER_CELERY_CPU_LIMIT}
@@ -898,7 +958,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: false
+          enabled: true
     - minReplicas: ${{WORKER_COST_MODEL_MIN_REPLICAS}}
       name: clowder-worker-cost-model
       podSpec:
@@ -1009,6 +1069,26 @@ objects:
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${WORKER_COST_MODEL_CPU_LIMIT}
@@ -1037,7 +1117,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: false
+          enabled: true
     - minReplicas: ${{WORKER_DOWNLOAD_MIN_REPLICAS}}
       name: clowder-worker-download
       podSpec:
@@ -1148,6 +1228,26 @@ objects:
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${WORKER_DOWNLOAD_CPU_LIMIT}
@@ -1176,7 +1276,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: false
+          enabled: true
     - minReplicas: ${{WORKER_OCP_MIN_REPLICAS}}
       name: clowder-worker-ocp
       podSpec:
@@ -1287,6 +1387,26 @@ objects:
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${WORKER_OCP_CPU_LIMIT}
@@ -1315,7 +1435,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: false
+          enabled: true
     - minReplicas: ${{WORKER_PRIORITY_MIN_REPLICAS}}
       name: clowder-worker-priority
       podSpec:
@@ -1426,6 +1546,26 @@ objects:
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${WORKER_PRIORITY_CPU_LIMIT}
@@ -1454,7 +1594,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: false
+          enabled: true
     - minReplicas: ${{WORKER_REFRESH_MIN_REPLICAS}}
       name: clowder-worker-refresh
       podSpec:
@@ -1565,6 +1705,26 @@ objects:
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${WORKER_REFRESH_CPU_LIMIT}
@@ -1593,7 +1753,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: false
+          enabled: true
     - minReplicas: ${{WORKER_SUMMARY_MIN_REPLICAS}}
       name: clowder-worker-summary
       podSpec:
@@ -1704,6 +1864,26 @@ objects:
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${WORKER_SUMMARY_CPU_LIMIT}
@@ -1732,7 +1912,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: false
+          enabled: true
     envName: ${ENV_NAME}
     inMemoryDb: true
     kafkaTopics:
