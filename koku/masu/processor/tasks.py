@@ -415,11 +415,7 @@ def update_summary_tables(  # noqa: C901
             queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE
         )
     else:
-        stmt = (
-            f"update_cost_model_costs skipped. "
-            f" schema_name: {schema_name}, "
-            f" provider_uuid: {provider_uuid}"
-        )
+        stmt = f"update_cost_model_costs skipped. " f" schema_name: {schema_name}, " f" provider_uuid: {provider_uuid}"
         LOG.info(log_json(tracing_id, stmt))
         linked_tasks = refresh_materialized_views.s(
             schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id, tracing_id=tracing_id
