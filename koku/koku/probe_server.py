@@ -15,7 +15,7 @@ from koku.env import ENVIRONMENT
 
 
 LOG = logging.getLogger(__name__)
-CLOWDER_PORT = 8080
+CLOWDER_PORT = 9000
 if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
     from app_common_python import LoadedConfig
 
