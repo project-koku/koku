@@ -43,7 +43,7 @@ class ReportDownloader:
         provider_uuid,
         report_name=None,
         account=None,
-        request_id="no_request_id",
+        tracing_id="no_tracing_id",
     ):
         """Set the downloader based on the backend cloud provider."""
         self.customer_name = customer_name
@@ -52,12 +52,13 @@ class ReportDownloader:
         self.report_name = report_name
         self.provider_type = provider_type
         self.provider_uuid = provider_uuid
-        self.request_id = request_id
+        self.tracing_id = tracing_id
+        self.request_id = tracing_id  # TODO: Remove this once the downloaders have been updated
         self.account = account
         if self.account is None:
             self.account = customer_name[4:]
         self.context = {
-            "request_id": self.request_id,
+            "tracing_id": self.tracing_id,
             "provider_uuid": self.provider_uuid,
             "provider_type": self.provider_type,
             "account": self.account,
@@ -91,7 +92,7 @@ class ReportDownloader:
                 data_source=self.data_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                request_id=self.request_id,
+                tracing_id=self.tracing_id,
                 account=self.account,
                 provider_type=self.provider_type,
             )
@@ -102,7 +103,7 @@ class ReportDownloader:
                 data_source=self.data_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                request_id=self.request_id,
+                tracing_id=self.tracing_id,
                 account=self.account,
                 provider_type=self.provider_type,
             )
@@ -227,8 +228,8 @@ class ReportDownloader:
 
         """
         date_time = report_context.get("date")
-        msg = f"Attempting to get {self.provider_type} manifest for {str(date_time)}..."
-        LOG.info(log_json(self.request_id, msg, self.context))
+        msg = f"Attempting to get {self.provider_type} manifest for {str(date_time)}."
+        LOG.info(log_json(self.tracing_id, msg, self.context))
 
         manifest_id = report_context.get("manifest_id")
         report = report_context.get("current_file")
