@@ -159,12 +159,15 @@ class ReportSummaryUpdater:
             (str, str): The start and end date strings used in the daily SQL.
 
         """
+        msg = f"Daily summary starting for source {self._provider_uuid}"
+        LOG.info(log_json(self._tracing_id, msg))
         start_date, end_date = self._format_dates(start_date, end_date)
 
         start_date, end_date = self._updater.update_daily_tables(start_date, end_date)
 
         invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
-
+        msg = f"Daily summary completed for source {self._provider_uuid}"
+        LOG.info(log_json(self._tracing_id, msg))
         return start_date, end_date
 
     def update_summary_tables(self, start_date, end_date, tracing_id):
@@ -180,6 +183,8 @@ class ReportSummaryUpdater:
             None
 
         """
+        msg = f"Summary processing starting for source {self._provider_uuid}"
+        LOG.info(log_json(self._tracing_id, msg))
         start_date, end_date = self._format_dates(start_date, end_date)
         LOG.info(log_json(tracing_id, f"Using start date: {start_date}"))
         LOG.info(log_json(tracing_id, f"Using end date: {end_date}"))
@@ -190,5 +195,8 @@ class ReportSummaryUpdater:
             self._ocp_cloud_updater.update_summary_tables(start_date, end_date)
         except Exception as ex:
             raise ReportSummaryUpdaterCloudError(str(ex))
+
+        msg = f"Summary processing completed for source {self._provider_uuid}"
+        LOG.info(log_json(self._tracing_id, msg))
 
         invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)

@@ -82,7 +82,7 @@ def _get_report_files(
             provider_uuid=provider_uuid,
             report_name=None,
             account=customer_name[4:],
-            request_id=tracing_id,
+            tracing_id=tracing_id,
         )
         report = downloader.download_report(report_context)
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
