@@ -44,7 +44,7 @@ def add_gcp_views(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0183_cost_distribution")]
+    dependencies = [("reporting", "0187_project_distribution")]
 
     operations = [
         migrations.RunSQL(
