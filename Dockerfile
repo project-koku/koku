@@ -35,10 +35,8 @@ COPY ./.s2i/bin/ $STI_SCRIPTS_PATH
 # Copy application files to the image.
 COPY . /tmp/src/.
 
-
 RUN /usr/bin/fix-permissions /tmp/src && \
-curl -L -o /usr/bin/haberdasher https://github.com/RedHatInsights/haberdasher/releases/latest/download/haberdasher_linux_amd64 && \
-chmod 755 /usr/bin/haberdasher $STI_SCRIPTS_PATH/assemble $STI_SCRIPTS_PATH/run
+chmod 755 $STI_SCRIPTS_PATH/assemble $STI_SCRIPTS_PATH/run
 
 RUN groupadd -g ${USER_ID} koku \
     && useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root koku \
@@ -51,8 +49,6 @@ RUN umask u=rwx,g=rwx,o=rx
 EXPOSE 8080
 
 RUN $STI_SCRIPTS_PATH/assemble
-
-ENTRYPOINT ["/usr/bin/haberdasher"]
 
 # Set the default CMD
 CMD $STI_SCRIPTS_PATH/run
