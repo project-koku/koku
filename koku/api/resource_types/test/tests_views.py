@@ -198,3 +198,23 @@ class ResourceTypesViewTest(IamTestCase):
         self.assertIsNotNone(json_result.get("data"))
         self.assertIsInstance(json_result.get("data"), list)
         self.assertEqual(json_result.get("data"), [])
+
+    def test_inccorect_query_aws_accounts(self):
+        """Test invalid delta value."""
+        expected = "{'Unsupported parameter'}"
+        qs = "?foo="
+        url = reverse("aws-accounts") + qs
+        response = self.client.get(url, **self.headers)
+        result = str(response.data.get("foo")[0])
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(result, expected)
+
+    def test_inccorect_query_azure_subscription_guids(self):
+        """Test invalid delta value."""
+        expected = "{'Unsupported parameter'}"
+        qs = "?foo="
+        url = reverse("azure-subscription_guids") + qs
+        response = self.client.get(url, **self.headers)
+        result = str(response.data.get("foo")[0])
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(result, expected)
