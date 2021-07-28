@@ -25,6 +25,7 @@ KAFKA_AUTHENTICATION_UPDATE = "Authentication.update"
 KAFKA_SOURCE_UPDATE = "Source.update"
 KAFKA_SOURCE_DESTROY = "Source.destroy"
 KAFKA_HDR_RH_IDENTITY = "x-rh-identity"
+KAFKA_HDR_ACCOUNT_NUMBER = "x-rh-sources-account-number"
 KAFKA_HDR_EVENT_TYPE = "event_type"
 
 SOURCES_OCP_SOURCE_NAME = "openshift"
@@ -79,8 +80,12 @@ class KafkaMessageProcessor:
         self.offset = msg.offset()
         self.partition = msg.partition()
         self.auth_header = extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
-        if self.auth_header is None:
-            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}`: {msg.headers()}"
+        self.account_number = extract_from_header(msg.headers(), KAFKA_HDR_ACCOUNT_NUMBER)
+        if self.auth_header is None and self.account_number is None:
+            msg = (
+                f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}` "
+                f"and `{KAFKA_HDR_ACCOUNT_NUMBER}`: {msg.headers()}"
+            )
             LOG.warning(msg)
             raise SourcesMessageError(msg)
         self.source_id = None
@@ -274,8 +279,9 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
 
 def extract_from_header(headers, header_type):
     """Retrieve information from Kafka Headers."""
+    LOG.debug(f"[extract_from_header] headers: {headers}")
     if headers is None:
-        return "unknown"
+        return
     for header in headers:
         if header_type in header:
             for item in header:
@@ -283,7 +289,7 @@ def extract_from_header(headers, header_type):
                     continue
                 else:
                     return item.decode("ascii")
-    return None
+    return
 
 
 def create_msg_processor(msg, cost_mgmt_id):
