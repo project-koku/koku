@@ -8,6 +8,7 @@ from os import path
 
 import psutil
 
+from api.common import log_json
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
@@ -36,19 +37,20 @@ def _process_report_file(schema_name, provider, report_dict):
     compression = report_dict.get("compression")
     manifest_id = report_dict.get("manifest_id")
     provider_uuid = report_dict.get("provider_uuid")
+    tracing_id = report_dict.get("tracing_id")
     log_statement = (
-        f"Processing Report:\n"
-        f" schema_name: {schema_name}\n"
-        f" provider: {provider}\n"
-        f" provider_uuid: {provider_uuid}\n"
-        f" file: {report_path}\n"
-        f" compression: {compression}\n"
-        f" start_date: {start_date}"
+        f"Processing Report: "
+        f" schema_name: {schema_name} "
+        f" provider: {provider} "
+        f" provider_uuid: {provider_uuid} "
+        f" file: {report_path} "
+        f" compression: {compression} "
+        f" start_date: {start_date} "
     )
-    LOG.info(log_statement)
+    LOG.info(log_json(tracing_id, log_statement))
     mem = psutil.virtual_memory()
     mem_msg = f"Avaiable memory: {mem.free} bytes ({mem.percent}%)"
-    LOG.info(mem_msg)
+    LOG.debug(log_json(tracing_id, mem_msg))
 
     file_name = report_path.split("/")[-1]
     with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
@@ -83,12 +85,12 @@ def _process_report_file(schema_name, provider, report_dict):
         if manifest:
             manifest_accesor.mark_manifest_as_updated(manifest)
         else:
-            LOG.error("Unable to find manifest for ID: %s, file %s", manifest_id, file_name)
+            LOG.error(log_json(tracing_id, ("Unable to find manifest for ID: %s, file %s", manifest_id, file_name)))
 
     with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
         if provider_accessor.get_setup_complete():
             files = processor.remove_processed_files(path.dirname(report_path))
-            LOG.info("Temporary files removed: %s", str(files))
+            LOG.info(log_json(tracing_id, ("Temporary files removed: %s", str(files))))
         provider_accessor.setup_complete()
 
     return True

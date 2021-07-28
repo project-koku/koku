@@ -255,7 +255,7 @@ select t.relname::text as table_name,
         self.cache = rec["cache_size"]
         self.cycle = self.CYCLE if rec["cycle"] else self.NO_CYCLE
         self.current_value = rec["last_value"] or 1
-        self.owner = rec["sequenceowner"]
+        self.owner = rec["sequenceowner"].strip('"')
 
     def default_constraint(self):
         return f"nextval('{self.target_schema}.{self.name}'::regclass)"
@@ -463,7 +463,7 @@ class ViewDefinition:
         self.view_oid = viewrec["dependent_view_oid"]
         self.view_type = viewrec["dependent_view_type"]
         self.definition = viewrec["definition"]
-        self.view_owner = viewrec["dependent_view_owner"]
+        self.view_owner = viewrec["dependent_view_owner"].strip('"')
         self.indexes = []
         for ixrec in viewrec["indexes"] or []:
             self.indexes.append(IndexDefinition(self.target_schema, self.view_name, ixrec))
