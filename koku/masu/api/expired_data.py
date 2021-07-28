@@ -3,11 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for expired_data endpoint."""
-import json
 import logging
 
 from django.views.decorators.cache import never_cache
-from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
@@ -32,15 +30,8 @@ def expired_data(request):
         simulate = False
     LOG.info("Simulate Flag: %s", simulate)
 
-    params = request.query_params
-    acceptabools = ["true", "false"]
-    line_items_only = params.get("line_items_only", "false").lower()
-    if line_items_only not in acceptabools:
-        errmsg = "The param line_items_only must be {}.".format(str(acceptabools))
-        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-    line_items_only = json.loads(line_items_only)
     orchestrator = Orchestrator()
-    async_delete_results = orchestrator.remove_expired_report_data(simulate=simulate, line_items_only=line_items_only)
+    async_delete_results = orchestrator.remove_expired_report_data(simulate=simulate)
     response_key = "Async jobs for expired data removal"
     if simulate:
         response_key = response_key + " (simulated)"
