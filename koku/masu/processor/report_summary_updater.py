@@ -6,6 +6,7 @@
 import datetime
 import logging
 
+from api.common import log_json
 from api.models import Provider
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -41,7 +42,7 @@ class ReportSummaryUpdaterCloudError(Exception):
 class ReportSummaryUpdater:
     """Update reporting summary tables."""
 
-    def __init__(self, customer_schema, provider_uuid, manifest_id=None):
+    def __init__(self, customer_schema, provider_uuid, manifest_id=None, tracing_id=None):
         """
         Initializer.
 
@@ -53,6 +54,7 @@ class ReportSummaryUpdater:
         self._schema = customer_schema
         self._provider_uuid = provider_uuid
         self._manifest = None
+        self._tracing_id = tracing_id
         if manifest_id is not None:
             with ReportManifestDBAccessor() as manifest_accessor:
                 self._manifest = manifest_accessor.get_manifest_by_id(manifest_id)
@@ -70,7 +72,8 @@ class ReportSummaryUpdater:
 
         if not self._updater:
             raise ReportSummaryUpdaterError("Invalid provider type specified.")
-        LOG.info("Starting report data summarization for provider uuid: %s.", self._provider.uuid)
+        msg = f"Starting report data summarization for provider uuid: {self._provider.uuid}."
+        LOG.info(log_json(self._tracing_id, msg))
 
     def _set_updater(self):
         """
@@ -127,7 +130,6 @@ class ReportSummaryUpdater:
         )
 
         LOG.info(f"Set report_summary_updater = {report_summary_updater.__name__}")
-
         return (
             report_summary_updater(self._schema, self._provider, self._manifest),
             ocp_cloud_updater(self._schema, self._provider, self._manifest),
@@ -152,36 +154,40 @@ class ReportSummaryUpdater:
         Args:
             start_date (str, datetime): When to start.
             end_date (str, datetime): When to end.
-            manifest_id (str): The particular manifest to use.
 
         Returns:
             (str, str): The start and end date strings used in the daily SQL.
 
         """
+        msg = f"Daily summary starting for source {self._provider_uuid}"
+        LOG.info(log_json(self._tracing_id, msg))
         start_date, end_date = self._format_dates(start_date, end_date)
 
         start_date, end_date = self._updater.update_daily_tables(start_date, end_date)
 
         invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
-
+        msg = f"Daily summary completed for source {self._provider_uuid}"
+        LOG.info(log_json(self._tracing_id, msg))
         return start_date, end_date
 
-    def update_summary_tables(self, start_date, end_date):
+    def update_summary_tables(self, start_date, end_date, tracing_id):
         """
         Update report summary tables.
 
         Args:
             start_date (str, datetime): When to start.
             end_date (str, datetime): When to end.
-            manifest_id (str): The particular manifest to use.
+            tracing_id (str): The tracing_id.
 
         Returns:
             None
 
         """
+        msg = f"Summary processing starting for source {self._provider_uuid}"
+        LOG.info(log_json(self._tracing_id, msg))
         start_date, end_date = self._format_dates(start_date, end_date)
-        LOG.info("Using start date: %s", start_date)
-        LOG.info("Using end date: %s", end_date)
+        LOG.info(log_json(tracing_id, f"Using start date: {start_date}"))
+        LOG.info(log_json(tracing_id, f"Using end date: {end_date}"))
 
         start_date, end_date = self._updater.update_summary_tables(start_date, end_date)
 
@@ -189,5 +195,8 @@ class ReportSummaryUpdater:
             self._ocp_cloud_updater.update_summary_tables(start_date, end_date)
         except Exception as ex:
             raise ReportSummaryUpdaterCloudError(str(ex))
+
+        msg = f"Summary processing completed for source {self._provider_uuid}"
+        LOG.info(log_json(self._tracing_id, msg))
 
         invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
