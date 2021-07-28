@@ -8,6 +8,8 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import filters
 from rest_framework import generics
+from rest_framework import status
+from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.openshift_access import OpenShiftNodePermission
@@ -34,6 +36,11 @@ class OCPNodesView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for Openshift nodes and displays values that the user has access too
         user_access = []
+        error_message = {}
+        if self.request.query_params:
+            for key in self.request.query_params:
+                error_message[key] = [{"Unsupported parameter"}]
+                return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
         if request.user.admin:
             return super().list(request)
         elif request.user.access:
