@@ -8,7 +8,6 @@ import logging
 import threading
 from abc import ABC
 from abc import abstractmethod
-from functools import partial
 from http.server import HTTPServer
 
 from prometheus_client.exposition import MetricsHandler
@@ -27,8 +26,8 @@ if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
 
 def start_probe_server(server_cls, logger=LOG):
     """Start the probe server."""
-    handler = partial(server_cls, logger)
-    httpd = HTTPServer(("0.0.0.0", CLOWDER_METRICS_PORT), handler)
+    httpd = HTTPServer(("0.0.0.0", CLOWDER_METRICS_PORT), server_cls)
+    httpd.RequestHandlerClass.logger = logger
 
     def start_server():
         """Start a simple webserver serving path on port"""
@@ -47,13 +46,9 @@ def start_probe_server(server_cls, logger=LOG):
 class ProbeServer(ABC, MetricsHandler):
     """HTTP server for liveness/readiness probes."""
 
+    logger = LOG
     ready = False
     registry = WORKER_REGISTRY
-
-    def __init__(self, logger=LOG, *args, **kwargs):
-        """Initialize the server."""
-        self.logger = logger
-        super().__init__(*args, **kwargs)
 
     def _set_headers(self, status):
         """Set the response headers."""
