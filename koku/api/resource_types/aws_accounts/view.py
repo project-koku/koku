@@ -9,6 +9,8 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import filters
 from rest_framework import generics
+from rest_framework import status
+from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.aws_access import AwsAccessPermission
@@ -43,6 +45,7 @@ class AWSAccountView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for aws account and  displays values related to what the user has access to.
         user_access = []
+        error_message = {}
         if self.request.query_params:
             for key in self.request.query_params:
                 if key == "openshift":
@@ -58,6 +61,10 @@ class AWSAccountView(generics.ListAPIView):
                             .values("value", "alias")
                             .distinct()
                         )
+                else:
+                    error_message[key] = [{"Unsupported parameter"}]
+                    return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+
         if request.user.admin:
             return super().list(request)
         elif request.user.access:
