@@ -729,16 +729,24 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         expected_start_date = start_date.strftime("%Y-%m-%d")
         expected_end_date = end_date.strftime("%Y-%m-%d")
         manifest_id = 1
+        tracing_id = "1234"
 
         update_summary_tables(
-            self.schema, provider, provider_aws_uuid, start_date, end_date, manifest_id, synchronous=True
+            self.schema,
+            provider,
+            provider_aws_uuid,
+            start_date,
+            end_date,
+            manifest_id,
+            tracing_id=tracing_id,
+            synchronous=True,
         )
         mock_chain.assert_called_once_with(
-            update_cost_model_costs.s(self.schema, provider_aws_uuid, expected_start_date, expected_end_date).set(
-                queue=UPDATE_COST_MODEL_COSTS_QUEUE
-            )
+            update_cost_model_costs.s(
+                self.schema, provider_aws_uuid, expected_start_date, expected_end_date, tracing_id=tracing_id
+            ).set(queue=UPDATE_COST_MODEL_COSTS_QUEUE)
             | refresh_materialized_views.si(
-                self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id
+                self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id, tracing_id=tracing_id
             ).set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE)
         )
 
@@ -1056,8 +1064,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that file list is saved in ReportStatsDBAccessor."""
         files_list = ["file1.csv", "file2.csv", "file3.csv"]
         manifest_id = 1
-
-        record_all_manifest_files(manifest_id, files_list)
+        tracing_id = "1234"
+        record_all_manifest_files(manifest_id, files_list, tracing_id)
 
         for report_file in files_list:
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()
@@ -1066,11 +1074,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that file list is saved in ReportStatsDBAccessor race condition."""
         files_list = ["file1.csv", "file2.csv", "file3.csv"]
         manifest_id = 1
-
-        record_all_manifest_files(manifest_id, files_list)
+        tracing_id = "1234"
+        record_all_manifest_files(manifest_id, files_list, tracing_id)
         with patch.object(ReportStatsDBAccessor, "does_db_entry_exist", return_value=False):
             with patch.object(ReportStatsDBAccessor, "add", side_effect=IntegrityError):
-                record_all_manifest_files(manifest_id, files_list)
+                record_all_manifest_files(manifest_id, files_list, tracing_id)
 
         for report_file in files_list:
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()

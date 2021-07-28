@@ -76,22 +76,22 @@ QUEUE_LIST = [
 ]
 
 
-def record_all_manifest_files(manifest_id, report_files):
+def record_all_manifest_files(manifest_id, report_files, tracing_id):
     """Store all report file names for manifest ID."""
     for report in report_files:
         try:
             with ReportStatsDBAccessor(report, manifest_id):
-                LOG.debug(f"Logging {report} for manifest ID: {manifest_id}")
+                LOG.debug(log_json(tracing_id, f"Logging {report} for manifest ID: {manifest_id}"))
         except IntegrityError:
             # OCP records the entire file list for a new manifest when the listener
             # recieves a payload.  With multiple listeners it is possilbe for
             # two listeners to recieve a report file for the same manifest at
             # roughly the same time.  In that case the report file may already
             # exist and an IntegrityError would be thrown.
-            LOG.debug(f"Report {report} has already been recorded.")
+            LOG.debug(log_json(tracing_id, f"Report {report} has already been recorded."))
 
 
-def record_report_status(manifest_id, file_name, request_id, context={}):
+def record_report_status(manifest_id, file_name, tracing_id, context={}):
     """
     Creates initial report status database entry for new report files.
 
@@ -103,7 +103,7 @@ def record_report_status(manifest_id, file_name, request_id, context={}):
     Args:
         manifest_id (Integer): Manifest Identifier.
         file_name (String): Report file name
-        request_id (String): Identifier associated with the payload
+        tracing_id (String): Identifier associated with the payload
         context (Dict): Context for logging (account, etc)
 
     Returns:
@@ -117,7 +117,7 @@ def record_report_status(manifest_id, file_name, request_id, context={}):
             msg = f"Report {file_name} has already been processed."
         else:
             msg = f"Recording stats entry for {file_name}"
-        LOG.info(log_json(request_id, msg, context))
+        LOG.info(log_json(tracing_id, msg, context))
     return already_processed
 
 
@@ -133,6 +133,7 @@ def get_report_files(
     provider_uuid,
     report_month,
     report_context,
+    tracing_id=None,
 ):
     """
     Task to download a Report and process the report.
@@ -161,10 +162,11 @@ def get_report_files(
 
         report_file = report_context.get("key")
         cache_key = f"{provider_uuid}:{report_file}"
+        tracing_id = report_context.get("assembly_id", "no-tracing-id")
         WorkerCache().add_task_to_cache(cache_key)
 
         report_dict = _get_report_files(
-            self,
+            tracing_id,
             customer_name,
             authentication,
             billing_source,
@@ -176,14 +178,14 @@ def get_report_files(
         )
 
         stmt = (
-            f"Reports to be processed:\n"
-            f" schema_name: {customer_name}\n"
-            f" provider: {provider_type}\n"
-            f" provider_uuid: {provider_uuid}\n"
+            f"Reports to be processed: "
+            f" schema_name: {customer_name} "
+            f" provider: {provider_type} "
+            f" provider_uuid: {provider_uuid}"
         )
         if report_dict:
             stmt += f" file: {report_dict['file']}"
-            LOG.info(stmt)
+            LOG.info(log_json(tracing_id, stmt))
         else:
             WorkerCache().remove_task_from_cache(cache_key)
             return None
@@ -193,20 +195,21 @@ def get_report_files(
             "provider_type": provider_type,
             "provider_uuid": provider_uuid,
             "manifest_id": report_dict.get("manifest_id"),
+            "tracing_id": tracing_id,
         }
 
         try:
             stmt = (
-                f"Processing starting:\n"
-                f" schema_name: {customer_name}\n"
-                f" provider: {provider_type}\n"
-                f" provider_uuid: {provider_uuid}\n"
+                f"Processing starting: "
+                f" schema_name: {customer_name} "
+                f" provider: {provider_type} "
+                f" provider_uuid: {provider_uuid} "
                 f' file: {report_dict.get("file")}'
             )
-            LOG.info(stmt)
+            LOG.info(log_json(tracing_id, stmt))
             worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
 
-            report_dict["request_id"] = self.request.id
+            report_dict["tracing_id"] = tracing_id
             report_dict["provider_type"] = provider_type
 
             _process_report_file(schema_name, provider_type, report_dict)
@@ -290,7 +293,9 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                     start_date = DateAccessor().today() - datetime.timedelta(days=2)
                     start_date = start_date.strftime("%Y-%m-%d")
                     end_date = DateAccessor().today().strftime("%Y-%m-%d")
-                LOG.info("report to summarize: %s", str(report))
+                msg = f"report to summarize: {str(report)}"
+                tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
+                LOG.info(log_json(tracing_id, msg))
                 update_summary_tables.s(
                     report.get("schema_name"),
                     report.get("provider_type"),
@@ -299,6 +304,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                     end_date=end_date,
                     manifest_id=report.get("manifest_id"),
                     queue_name=queue_name,
+                    tracing_id=tracing_id,
                 ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
 
 
@@ -312,6 +318,7 @@ def update_summary_tables(  # noqa: C901
     manifest_id=None,
     queue_name=None,
     synchronous=False,
+    tracing_id=None,
 ):
     """Populate the summary tables for reporting.
 
@@ -335,7 +342,7 @@ def update_summary_tables(  # noqa: C901
         worker_cache = WorkerCache()
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
-            LOG.info(msg)
+            LOG.info(log_json(tracing_id, msg))
             update_summary_tables.s(
                 schema_name,
                 provider,
@@ -344,26 +351,33 @@ def update_summary_tables(  # noqa: C901
                 end_date=end_date,
                 manifest_id=manifest_id,
                 queue_name=queue_name,
+                tracing_id=tracing_id,
             ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=3600)
 
     stmt = (
-        f"update_summary_tables called with args:\n"
-        f" schema_name: {schema_name},\n"
-        f" provider: {provider},\n"
-        f" start_date: {start_date},\n"
-        f" end_date: {end_date},\n"
-        f" manifest_id: {manifest_id}"
+        f"update_summary_tables called with args: "
+        f" schema_name: {schema_name}, "
+        f" provider: {provider}, "
+        f" start_date: {start_date}, "
+        f" end_date: {end_date}, "
+        f" manifest_id: {manifest_id}, "
+        f" tracing_id: {tracing_id}"
     )
-    LOG.info(stmt)
+    LOG.info(log_json(tracing_id, stmt))
 
     try:
-        updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
+        updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id, tracing_id)
         start_date, end_date = updater.update_daily_tables(start_date, end_date)
-        updater.update_summary_tables(start_date, end_date)
+        updater.update_summary_tables(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
-        LOG.info(f"Failed to correlate OpenShift metrics for provider: {str(provider_uuid)}. Error: {str(ex)}")
+        LOG.info(
+            log_json(
+                tracing_id,
+                f"Failed to correlate OpenShift metrics for provider: {str(provider_uuid)}. Error: {str(ex)}",
+            )
+        )
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
@@ -371,7 +385,7 @@ def update_summary_tables(  # noqa: C901
 
     if not provider_uuid:
         refresh_materialized_views.s(
-            schema_name, provider, manifest_id=manifest_id, queue_name=queue_name
+            schema_name, provider, manifest_id=manifest_id, queue_name=queue_name, tracing_id=tracing_id
         ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
         return
 
@@ -383,32 +397,28 @@ def update_summary_tables(  # noqa: C901
     ):
         cost_model = None
         stmt = (
-            f"\n Markup for {provider} is calculated during summarization. No need to run update_cost_model_costs\n"
-            f" schema_name: {schema_name},\n"
+            f"Markup for {provider} is calculated during summarization. No need to run update_cost_model_costs"
+            f" schema_name: {schema_name}, "
             f" provider_uuid: {provider_uuid}"
         )
-        LOG.info(stmt)
+        LOG.info(log_json(tracing_id, stmt))
     else:
         with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
             cost_model = cost_model_accessor.cost_model
 
     if cost_model is not None:
-        linked_tasks = update_cost_model_costs.s(schema_name, provider_uuid, start_date, end_date).set(
-            queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE
-        ) | refresh_materialized_views.si(
-            schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id
+        linked_tasks = update_cost_model_costs.s(
+            schema_name, provider_uuid, start_date, end_date, tracing_id=tracing_id
+        ).set(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE) | refresh_materialized_views.si(
+            schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id, tracing_id=tracing_id
         ).set(
             queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE
         )
     else:
-        stmt = (
-            f"\n update_cost_model_costs skipped.\n"
-            f" schema_name: {schema_name},\n"
-            f" provider_uuid: {provider_uuid}"
-        )
-        LOG.info(stmt)
+        stmt = f"update_cost_model_costs skipped. " f" schema_name: {schema_name}, " f" provider_uuid: {provider_uuid}"
+        LOG.info(log_json(tracing_id, stmt))
         linked_tasks = refresh_materialized_views.s(
-            schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id
+            schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id, tracing_id=tracing_id
         ).set(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
 
     chain(linked_tasks).apply_async()
@@ -453,7 +463,7 @@ def update_all_summary_tables(start_date, end_date=None):
 
 @celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=UPDATE_COST_MODEL_COSTS_QUEUE)
 def update_cost_model_costs(
-    schema_name, provider_uuid, start_date=None, end_date=None, queue_name=None, synchronous=False
+    schema_name, provider_uuid, start_date=None, end_date=None, queue_name=None, synchronous=False, tracing_id=None
 ):
     """Update usage charge information.
 
@@ -473,7 +483,7 @@ def update_cost_model_costs(
         worker_cache = WorkerCache()
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
-            LOG.info(msg)
+            LOG.info(log_json(tracing_id, msg))
             update_cost_model_costs.s(
                 schema_name,
                 provider_uuid,
@@ -481,6 +491,7 @@ def update_cost_model_costs(
                 end_date=end_date,
                 queue_name=queue_name,
                 synchronous=synchronous,
+                tracing_id=tracing_id,
             ).apply_async(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=600)
@@ -491,11 +502,12 @@ def update_cost_model_costs(
         f"update_cost_model_costs called with args:\n"
         f" schema_name: {schema_name},\n"
         f" provider_uuid: {provider_uuid}"
+        f" tracing_id: {tracing_id}"
     )
-    LOG.info(stmt)
+    LOG.info(log_json(tracing_id, stmt))
 
     try:
-        updater = CostModelCostUpdater(schema_name, provider_uuid)
+        updater = CostModelCostUpdater(schema_name, provider_uuid, tracing_id)
         if updater:
             updater.update_cost_model_costs(start_date, end_date)
     except Exception as ex:
@@ -513,7 +525,8 @@ def update_cost_model_costs(
 )
 # fmt: on
 def refresh_materialized_views(  # noqa: C901
-    schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False, queue_name=None
+    schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False, queue_name=None,
+    tracing_id=None
 ):
     """Refresh the database's materialized views for reporting."""
     task_name = "masu.processor.tasks.refresh_materialized_views"
@@ -522,7 +535,7 @@ def refresh_materialized_views(  # noqa: C901
         worker_cache = WorkerCache()
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
-            LOG.info(msg)
+            LOG.info(log_json(tracing_id, msg))
             refresh_materialized_views.s(
                 schema_name,
                 provider_type,
@@ -530,6 +543,7 @@ def refresh_materialized_views(  # noqa: C901
                 provider_uuid=provider_uuid,
                 synchronous=synchronous,
                 queue_name=queue_name,
+                tracing_id=tracing_id
             ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=600)
@@ -557,7 +571,7 @@ def refresh_materialized_views(  # noqa: C901
                 table_name = view._meta.db_table
                 with connection.cursor() as cursor:
                     cursor.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}")
-                    LOG.info(f"Refreshed {table_name}.")
+                    LOG.info(log_json(tracing_id, f"Refreshed {table_name}."))
 
         invalidate_view_cache_for_tenant_and_source_type(schema_name, provider_type)
 

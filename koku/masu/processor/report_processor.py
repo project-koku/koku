@@ -10,6 +10,7 @@ from django.db import InterfaceError as DjangoInterfaceError
 from django.db import OperationalError
 from psycopg2 import InterfaceError
 
+from api.common import log_json
 from api.models import Provider
 from masu.processor import enable_trino_processing
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
@@ -42,6 +43,7 @@ class ReportProcessor:
         self.provider_uuid = provider_uuid
         self.manifest_id = manifest_id
         self.context = context
+        self.tracing_id = context.get("tracing_id") if context else None
         try:
             self._processor = self._set_processor()
         except NotImplementedError as err:
@@ -139,13 +141,16 @@ class ReportProcessor:
             (List) List of filenames downloaded.
 
         """
+        msg = f"Report processing started for {self.report_path}"
+        LOG.info(log_json(self.tracing_id, msg))
         try:
             if self.trino_enabled:
                 parquet_base_filename, daily_data_frames = self._processor.process()
                 if self.ocp_on_cloud_processor:
                     self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frames)
                 return
-
+            msg = f"Report processing completed for {self.report_path}"
+            LOG.info(log_json(self.tracing_id, msg))
             return self._processor.process()
         except (InterfaceError, DjangoInterfaceError, OperationalError) as err:
             raise ReportProcessorDBError(str(err))

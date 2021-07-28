@@ -45,10 +45,10 @@ class ReportDownloaderBase:
         self._cache_key = kwargs.get("cache_key")
         self._provider_uuid = kwargs.get("provider_uuid")
         self._provider_type = kwargs.get("provider_type")
-        self.request_id = kwargs.get("request_id")
+        self.request_id = kwargs.get("request_id")  # TODO: Remove this once the downloaders have been updated
+        self.tracing_id = kwargs.get("tracing_id")
         self.account = kwargs.get("account")
         self.context = {
-            "request_id": self.request_id,
             "provider_uuid": self._provider_uuid,
             "provider_type": self._provider_type,
             "account": self.account,
@@ -67,14 +67,15 @@ class ReportDownloaderBase:
         self, assembly_id, billing_start, num_of_files, manifest_modified_datetime, **kwargs
     ):
         """Insert or update the manifest DB record."""
-        LOG.info("Inserting/updating manifest in database for assembly_id: %s", assembly_id)
+        msg = f"Inserting/updating manifest in database for assembly_id: {assembly_id}"
+        LOG.info(log_json(self.tracing_id, msg))
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
 
             if not manifest_entry:
                 msg = f"No manifest entry found in database. Adding for bill period start: {billing_start}"
-                LOG.info(log_json(self.request_id, msg, self.context))
+                LOG.info(log_json(self.tracing_id, msg, self.context))
                 manifest_dict = {
                     "assembly_id": assembly_id,
                     "billing_period_start_datetime": billing_start,
@@ -90,7 +91,7 @@ class ReportDownloaderBase:
                         f"Manifest entry uniqueness collision: Error {error}. "
                         "Manifest already added, getting manifest_entry_id."
                     )
-                    LOG.warning(log_json(self.request_id, msg, self.context))
+                    LOG.warning(log_json(self.tracing_id, msg, self.context))
                     with ReportManifestDBAccessor() as manifest_accessor:
                         manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
             if not manifest_entry:
@@ -99,7 +100,7 @@ class ReportDownloaderBase:
                     provider = provider_accessor.get_provider()
                     if not provider:
                         msg = f"Provider entry not found for {self._provider_uuid}."
-                LOG.warning(log_json(self.request_id, msg, self.context))
+                LOG.warning(log_json(self.tracing_id, msg, self.context))
                 raise IntegrityError(msg)
             else:
                 manifest_accessor.mark_manifest_as_updated(manifest_entry)
