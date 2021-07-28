@@ -1,6 +1,5 @@
 """Gunicorn configuration file."""
 import multiprocessing
-from functools import partial
 
 import environ
 
@@ -29,6 +28,5 @@ if gunicorn_threads:
 # Server Hooks
 def on_starting(server):
     """gunicorn server hook to start probe server before main process"""
-    handler = partial(BasicProbeServer, server.log)
-    httpd = start_probe_server(handler)
+    httpd = start_probe_server(BasicProbeServer, server.log)
     httpd.RequestHandlerClass.ready = True
