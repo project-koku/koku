@@ -101,9 +101,21 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
 
 def process_cr(report_meta): 
         LOG.info("\n\n\n\nManifest info: ")
-        # LOG.info(report_meta)
-        # Check the manifest for any errors 
+        operator_versions = {
+            "f73a992e7b2fc19028b31c7fb87963ae19bba251": "koku-metrics-operator:v0.9.8",
+            "fd764dcd7e9b993025f3e05f7cd674bb32fad3be": "costmanagement-metrics-operator:1.0.0",
+            "d37e6d6fd90d65b0d6794347f5fe00a472ce9d33": "koku-metrics-operator:v0.9.7",
+            "1019682a6aa1eeb7533724b07d98cfb54dbe0e94": "koku-metrics-operator:v0.9.6",
+            "513e7dffddb6ecc090b9e8f20a2fba2fe8ec6053": "koku-metrics-operator:v0.9.5",
+            "eaef8ea323b3531fa9513970078a55758afea665": "koku-metrics-operator:v0.9.4",
+            "eaef8ea323b3531fa9513970078a55758afea665": "koku-metrics-operator:v0.9.3",
+            "4f1cc5580da20a11e6dfba50d04d8ae50f2e5fa5": "koku-metrics-operator:v0.9.2",
+            "0419bb957f5cdfade31e26c0f03b755528ec0d7f": "koku-metrics-operator:v0.9.1",
+            "bfdc1e54e104c2a6c8bf830ab135cf56a97f41d2": "koku-metrics-operator:v0.9.0"
+        }
         manifest_info = {
+            "airgapped": None,
+            "version": operator_versions.get(report_meta.get("version"), report_meta.get("version")),
             "certified": None,
             "channel": None, 
             "errors": None
@@ -115,11 +127,12 @@ def process_cr(report_meta):
             errors = {}
             for case in potential_errors:
                 case_info = cr_status.get(case, {})
-                for key, val in case_info.keys(): 
+                for key, val in case_info.items(): 
                     if key == "error": 
                         errors[case + "_error"] = val
             manifest_info["errors"] = errors
             manifest_info["channel"] = cr_status.get("clusterVersion")
+            manifest_info["airgapped"] = cr_status.get("upload", {}).get("upload")
 
         LOG.info(manifest_info)
         return manifest_info
@@ -304,10 +317,11 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest_timestamp = manifest.get("date")
         num_of_files = len(manifest.get("files", []))
         manifest_info = process_cr(manifest)
-        ocp_kwargs = {"operator_version": manifest.get("version"), 
+        ocp_kwargs = {"operator_version": manifest_info.get("version"), 
                       "cluster_channel": manifest_info.get("channel"), 
                       "operator_certified": manifest_info.get("certified"),
-                      "operator_errors": manifest.get("erors")}
+                      "operator_errors": manifest_info.get("erors"),
+                      "operator_airgapped": manifest_info.get("airgapped")}
         return self._process_manifest_db_record(
             assembly_id, billing_start, num_of_files, manifest_timestamp, **ocp_kwargs
         )
