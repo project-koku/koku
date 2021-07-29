@@ -68,7 +68,7 @@ class AzureLocalReportDownloader(AzureReportDownloader):
 
         if not os.path.exists(local_path):
             msg = f"Unable to find manifest: {local_path}."
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg, self.context))
             return manifest, None
 
         manifest_modified_timestamp = None
@@ -116,7 +116,7 @@ class AzureLocalReportDownloader(AzureReportDownloader):
         file_creation_date = None
         if etag != stored_etag:
             msg = f"Downloading {key} to {full_file_path}"
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg, self.context))
             shutil.copy2(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
             # Push to S3
@@ -124,16 +124,16 @@ class AzureLocalReportDownloader(AzureReportDownloader):
                 self.account, Provider.PROVIDER_AZURE, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
             )
             copy_local_report_file_to_s3_bucket(
-                self.request_id, s3_csv_path, full_file_path, local_filename, manifest_id, start_date, self.context
+                self.tracing_id, s3_csv_path, full_file_path, local_filename, manifest_id, start_date, self.context
             )
 
             manifest_accessor = ReportManifestDBAccessor()
             manifest = manifest_accessor.get_manifest_by_id(manifest_id)
 
             if not manifest_accessor.get_s3_csv_cleared(manifest):
-                remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
+                remove_files_not_in_set_from_s3_bucket(self.tracing_id, s3_csv_path, manifest_id)
                 manifest_accessor.mark_s3_csv_cleared(manifest)
 
         msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg, self.context))
         return full_file_path, etag, file_creation_date, []
