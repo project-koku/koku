@@ -65,12 +65,12 @@ def divide_csv_daily(file_path):
     return daily_files
 
 
-def create_daily_archives(request_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
     """
     Create daily CSVs from incoming report and archive to S3.
 
     Args:
-        request_id (str): The request id
+        tracing_id (str): The tracing id
         account (str): The account number
         provider_uuid (str): The uuid of a provider
         filename (str): The OCP file name
@@ -89,7 +89,7 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
                 account, Provider.PROVIDER_GCP, provider_uuid, start_date, Config.CSV_DATA_TYPE
             )
             copy_local_report_file_to_s3_bucket(
-                request_id,
+                tracing_id,
                 s3_csv_path,
                 daily_file.get("filepath"),
                 daily_file.get("filename"),
@@ -167,7 +167,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.etag = self._generate_etag()
         except ValidationError as ex:
             msg = f"GCP source ({self._provider_uuid}) for {customer_name} is not reachable. Error: {str(ex)}"
-            LOG.error(log_json(self.request_id, msg, self.context))
+            LOG.error(log_json(self.tracing_id, msg, self.context))
             raise GCPReportDownloaderError(str(ex))
 
     def _get_dataset_name(self):
@@ -396,7 +396,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         full_local_path = self._get_local_file_path(directory_path, key)
         os.makedirs(directory_path, exist_ok=True)
         msg = f"Downloading {key} to {full_local_path}"
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg, self.context))
         try:
             with open(full_local_path, "w") as f:
                 writer = csv.writer(f)
@@ -413,11 +413,11 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             raise GCPReportDownloaderError(err_msg)
 
         msg = f"Returning full_file_path: {full_local_path}"
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg, self.context))
         dh = DateHelper()
 
         file_names = create_daily_archives(
-            self.request_id,
+            self.tracing_id,
             self.account,
             self._provider_uuid,
             key,
@@ -455,6 +455,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         local_file_name = key.replace("/", "_")
         msg = f"Local filename: {local_file_name}"
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg, self.context))
         full_local_path = os.path.join(directory_path, local_file_name)
         return full_local_path

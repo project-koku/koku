@@ -61,12 +61,12 @@ def divide_csv_daily(file_path, filename):
     return daily_files
 
 
-def create_daily_archives(request_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
     """
     Create daily CSVs from incoming report and archive to S3.
 
     Args:
-        request_id (str): The request id
+        tracing_id (str): The tracing id
         account (str): The account number
         provider_uuid (str): The uuid of a provider
         filename (str): The OCP file name
@@ -88,7 +88,7 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
                 account, Provider.PROVIDER_OCP, provider_uuid, start_date, Config.CSV_DATA_TYPE
             )
             copy_local_report_file_to_s3_bucket(
-                request_id,
+                tracing_id,
                 s3_csv_path,
                 daily_file.get("filepath"),
                 daily_file.get("filename"),
@@ -133,7 +133,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         dates = utils.month_date_range(date_time)
         directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
         msg = f"Looking for manifest at {directory}"
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg, self.context))
         report_meta = utils.get_report_details(directory)
         self.context["version"] = report_meta.get("version")
         return report_meta
@@ -187,10 +187,10 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             os.remove(manifest_path)
             msg = f"Deleted manifest file at {directory}"
-            LOG.debug(log_json(self.request_id, msg, self.context))
+            LOG.debug(log_json(self.tracing_id, msg, self.context))
         except OSError:
             msg = f"Could not delete manifest file at {directory}"
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg, self.context))
 
         return None
 
@@ -207,12 +207,12 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         dates = utils.month_date_range(date_time)
         msg = f"Looking for cluster {self.cluster_id} report for date {str(dates)}"
-        LOG.debug(log_json(self.request_id, msg, self.context))
+        LOG.debug(log_json(self.tracing_id, msg, self.context))
         directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
 
         manifest = self._get_manifest(date_time)
         msg = f"manifest found: {str(manifest)}"
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg, self.context))
 
         reports = []
         for file in manifest.get("files", []):
@@ -249,12 +249,12 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         file_creation_date = None
         if ocp_etag != stored_etag or not os.path.isfile(full_file_path):
             msg = f"Downloading {key} to {full_file_path}"
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg, self.context))
             shutil.move(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
         file_names = create_daily_archives(
-            self.request_id,
+            self.tracing_id,
             self.account,
             self._provider_uuid,
             local_filename,
