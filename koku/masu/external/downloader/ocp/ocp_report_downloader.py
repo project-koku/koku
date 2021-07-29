@@ -99,6 +99,30 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
             daily_file_names.append(daily_file.get("filepath"))
     return daily_file_names
 
+def process_cr(report_meta): 
+        LOG.info("\n\n\n\nManifest info: ")
+        # LOG.info(report_meta)
+        # Check the manifest for any errors 
+        manifest_info = {
+            "certified": None,
+            "channel": None, 
+            "errors": None
+        }
+        manifest_info["certified"] = report_meta.get("certified")
+        cr_status = report_meta.get("cr_status", None)
+        if cr_status:
+            potential_errors = ["authentication", "packaging", "upload", "prometheus", "source"]
+            errors = {}
+            for case in potential_errors:
+                case_info = cr_status.get(case, {})
+                for key, val in case_info.keys(): 
+                    if key == "error": 
+                        errors[case + "_error"] = val
+            manifest_info["errors"] = errors
+            manifest_info["channel"] = cr_status.get("clusterVersion")
+
+        LOG.info(manifest_info)
+        return manifest_info
 
 class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """OCP Cost and Usage Report Downloader."""
@@ -279,8 +303,11 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         billing_start = datetime.datetime.strptime(billing_str, "%Y%m%d")
         manifest_timestamp = manifest.get("date")
         num_of_files = len(manifest.get("files", []))
-        ocp_kwargs = {"operator_version": manifest.get("version")}
-
+        manifest_info = process_cr(manifest)
+        ocp_kwargs = {"operator_version": manifest.get("version"), 
+                      "cluster_channel": manifest_info.get("channel"), 
+                      "operator_certified": manifest_info.get("certified"),
+                      "operator_errors": manifest.get("erors")}
         return self._process_manifest_db_record(
             assembly_id, billing_start, num_of_files, manifest_timestamp, **ocp_kwargs
         )
