@@ -39,6 +39,7 @@ class AzureServiceView(generics.ListAPIView):
         # Reads the users values for Azure subscription guid and displays values related to what the user has access to
         user_access = []
         error_message = {}
+        # Test for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
                 if key == "openshift":
@@ -50,6 +51,8 @@ class AzureServiceView(generics.ListAPIView):
                             .distinct()
                             .filter(service_name__isnull=False)
                         )
+                if key == "search":
+                    pass
                 else:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)

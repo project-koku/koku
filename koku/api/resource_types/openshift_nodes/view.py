@@ -37,10 +37,14 @@ class OCPNodesView(generics.ListAPIView):
         # Reads the users values for Openshift nodes and displays values that the user has access too
         user_access = []
         error_message = {}
+        # Test for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
-                error_message[key] = [{"Unsupported parameter"}]
-                return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+                if key == "search":
+                    pass
+                else:
+                    error_message[key] = [{"Unsupported parameter"}]
+                    return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
         if request.user.admin:
             return super().list(request)
         elif request.user.access:
