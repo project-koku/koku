@@ -279,6 +279,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     # Open manifest.json file and build the payload dictionary.
     full_manifest_path = f"{temp_dir}/{manifest_path[0]}"
     report_meta = utils.get_report_details(os.path.dirname(full_manifest_path))
+
     # Filter and get account from payload's cluster-id
     cluster_id = report_meta.get("cluster_id")
     manifest_uuid = report_meta.get("uuid", request_id)
@@ -306,6 +307,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     report_meta["schema_name"] = schema_name
     report_meta["account"] = schema_name[4:]
     report_meta["request_id"] = request_id
+    report_meta["tracing_id"] = manifest_uuid
 
     # Create directory tree for report.
     usage_month = utils.month_date_range(report_meta.get("date"))
@@ -316,7 +318,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     manifest_destination_path = f"{destination_dir}/{os.path.basename(report_meta.get('manifest_path'))}"
     shutil.copy(report_meta.get("manifest_path"), manifest_destination_path)
 
-    # Save Manifest  
+    # Save Manifest
     report_meta["manifest_id"] = create_manifest_entries(report_meta, request_id, context)
 
     # Copy report payload
@@ -549,12 +551,15 @@ def process_report(request_id, report):
     provider_type = report.get("provider_type")
     date = report.get("date")
 
+    # The create_table flag is used by the ParquetReportProcessor
+    # to create a Hive/Trino table.
     report_dict = {
         "file": report.get("current_file"),
         "compression": UNCOMPRESSED,
         "manifest_id": manifest_id,
         "provider_uuid": provider_uuid,
         "request_id": request_id,
+        "tracing_id": report.get("tracing_id"),
         "provider_type": "OCP",
         "start_date": date,
         "create_table": True,
