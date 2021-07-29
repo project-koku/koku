@@ -466,7 +466,6 @@ class TestParquetReportProcessor(MasuTestCase):
 
         mock_schema_exists.return_value = False
         mock_table_exists.return_value = False
-        mock_partition.return_value = True
 
         for test in test_matrix:
             if test.get("provider_type") == Provider.PROVIDER_OCP:
@@ -527,7 +526,6 @@ class TestParquetReportProcessor(MasuTestCase):
 
         mock_schema_exists.return_value = True
         mock_table_exists.return_value = True
-        mock_partition.return_value = False
 
         self.report_processor.create_parquet_table(output_file)
 
