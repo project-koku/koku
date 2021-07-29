@@ -335,7 +335,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             "operator_version": manifest_info.get("version"),
             "cluster_channel": manifest_info.get("channel"),
             "operator_certified": manifest_info.get("certified"),
-            "operator_errors": manifest_info.get("erors"),
+            "operator_errors": manifest_info.get("errors"),
             "operator_airgapped": manifest_info.get("airgapped"),
         }
         return self._process_manifest_db_record(

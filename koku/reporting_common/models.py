@@ -30,7 +30,7 @@ class CostUsageReportManifest(models.Model):
     cluster_channel = models.TextField(null=True)
     operator_certified = models.BooleanField(null=True)
     operator_airgapped = models.BooleanField(null=True)
-    operator_errors = models.JSONField(null=True)
+    operator_errors = models.JSONField(default=dict, null=True)
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
 
 
