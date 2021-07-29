@@ -535,7 +535,7 @@ class TestParquetReportProcessor(MasuTestCase):
         mock_create_table.assert_not_called()
         mock_create_bill.assert_called()
         mock_partition.assert_called()
-        mock_sync.assert_not_called()
+        mock_sync.assert_called()
 
     @patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_to_parquet")
     def test_process(self, mock_convert):
