@@ -15,6 +15,7 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.gcp.provider_map import GCPProviderMap
 from api.report.queries import ReportQueryHandler
+from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)
 
@@ -62,6 +63,9 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
+
+        dh = DateHelper()
+        self.invoice_months = dh.gcp_find_invoice_months_in_date_range(self.start_datetime, self.end_datetime)
 
     @property
     def annotations(self):
@@ -146,6 +150,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         with tenant_context(self.tenant):
             query = self.query_table.objects.filter(self.query_filter)
+            query = query.filter(invoice_month__in=self.invoice_months)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
@@ -202,6 +207,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
         """
         query_group_by = ["date"] + self._get_group_by()
         query = self.query_table.objects.filter(self.query_filter)
+        query = query.filter(invoice_month__in=self.invoice_months)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")
