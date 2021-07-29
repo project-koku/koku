@@ -128,25 +128,23 @@ def process_cr(report_meta):
         "bfdc1e54e104c2a6c8bf830ab135cf56a97f41d2": "koku-metrics-operator:v0.9.0",
     }
     manifest_info = {
-        "airgapped": None,
-        "version": operator_versions.get(report_meta.get("version"), report_meta.get("version")),
-        "certified": None,
-        "channel": None,
-        "errors": None,
+        "operator_airgapped": None,
+        "operator_version": operator_versions.get(report_meta.get("version"), report_meta.get("version")),
+        "operator_certified": None,
+        "cluster_channel": None,
+        "operator_errors": None,
     }
-    manifest_info["certified"] = report_meta.get("certified")
+    manifest_info["operator_certified"] = report_meta.get("certified")
     cr_status = report_meta.get("cr_status", None)
     if cr_status:
         potential_errors = ["authentication", "packaging", "upload", "prometheus", "source"]
         errors = {}
         for case in potential_errors:
             case_info = cr_status.get(case, {})
-            for key, val in case_info.items():
-                if key == "error":
-                    errors[case + "_error"] = val
-        manifest_info["errors"] = errors
-        manifest_info["channel"] = cr_status.get("clusterVersion")
-        manifest_info["airgapped"] = cr_status.get("upload", {}).get("upload")
+            errors[case + "_error"] = case_info.get("error")
+        manifest_info["operator_errors"] = errors
+        manifest_info["cluster_channel"] = cr_status.get("clusterVersion")
+        manifest_info["operator_airgapped"] = cr_status.get("upload", {}).get("upload")
 
     return manifest_info
 
@@ -331,13 +329,6 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest_timestamp = manifest.get("date")
         num_of_files = len(manifest.get("files", []))
         manifest_info = process_cr(manifest)
-        ocp_kwargs = {
-            "operator_version": manifest_info.get("version"),
-            "cluster_channel": manifest_info.get("channel"),
-            "operator_certified": manifest_info.get("certified"),
-            "operator_errors": manifest_info.get("errors"),
-            "operator_airgapped": manifest_info.get("airgapped"),
-        }
         return self._process_manifest_db_record(
-            assembly_id, billing_start, num_of_files, manifest_timestamp, **ocp_kwargs
+            assembly_id, billing_start, num_of_files, manifest_timestamp, **manifest_info
         )
