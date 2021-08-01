@@ -188,11 +188,11 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         etag = report_name.split("_")[1]
         full_local_path = self._get_local_file_path(key, etag)
         msg = f"Returning full_file_path: {full_local_path}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
+        LOG.info(log_json(self.request_id, msg, self.context))
         dh = DateHelper()
 
         file_names = create_daily_archives(
-            self.tracing_id,
+            self.request_id,
             self.account,
             self._provider_uuid,
             key,
@@ -222,7 +222,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             final_path = f"{self.storage_location}"
         local_file_name = key.replace("/", "_")
         msg = f"Local filename: {local_file_name}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
+        LOG.info(log_json(self.request_id, msg, self.context))
         full_local_path = os.path.join(final_path, local_file_name)
         return full_local_path
 
@@ -231,8 +231,8 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             os.remove(manifest_file)
             msg = f"Deleted manifest file at {manifest_file}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
+            LOG.info(log_json(self.request_id, msg, self.context))
         except OSError:
             msg = f"Could not delete manifest file at {manifest_file}"
-            LOG.info(log_json(self.tracing_id, msg, self.context))
+            LOG.info(log_json(self.request_id, msg, self.context))
         return None
