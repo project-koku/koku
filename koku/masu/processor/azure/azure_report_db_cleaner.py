@@ -83,9 +83,9 @@ class AzureReportDBCleaner:
         with AzureReportDBAccessor(self._schema) as accessor:
             all_bill_objects = accessor.get_bill_query_before_date(expired_date).all()
             table_names = [
-                accessor._table_map["ocp_on_azure_daily_summary"],
-                accessor._table_map["ocp_on_azure_project_daily_summary"],
-                accessor.line_item_daily_summary_table._meta.db_table,
+                # accessor._table_map["ocp_on_azure_daily_summary"],
+                # accessor._table_map["ocp_on_azure_project_daily_summary"],
+                accessor.line_item_daily_summary_table._meta.db_table
             ]
             table_models = [get_model(tn) for tn in table_names]
 
