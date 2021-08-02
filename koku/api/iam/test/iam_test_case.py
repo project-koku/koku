@@ -211,6 +211,7 @@ class RbacPermissions:
 
         @functools.wraps(function)
         def wrapper(*args, **kwargs):
+            original_id = args[0].headers[RH_IDENTITY_HEADER]
             user = self.user
             user["access"] = self.access
 
@@ -232,6 +233,7 @@ class RbacPermissions:
                         middleware = DevelopmentIdentityHeaderMiddleware()
                         middleware.process_request(request_context["request"])
                         result = function(*args, **kwargs)
+                        args[0].headers[RH_IDENTITY_HEADER] = original_id
             return result
 
         return wrapper
