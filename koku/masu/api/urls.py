@@ -5,19 +5,19 @@
 """Describes the urls and patterns for the API application."""
 from django.urls import path
 
+from masu.api.manifest.views import ManifestView
 from masu.api.views import celery_queue_lengths
 from masu.api.views import cleanup
 from masu.api.views import crawl_account_hierarchy
 from masu.api.views import download_report
 from masu.api.views import enabled_tags
 from masu.api.views import expired_data
-from masu.api.views import get_all_manifests
 from masu.api.views import get_status
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
 from masu.api.views import update_cost_model_costs
 
-# from masu.api.manifest.views import ManifestView
+# from masu.api.views import get_all_manifests
 
 
 urlpatterns = [
@@ -31,6 +31,5 @@ urlpatterns = [
     path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
     path("running_celery_tasks/", running_celery_tasks, name="running_celery_tasks"),
     path("celery_queue_lengths/", celery_queue_lengths, name="celery_queue_lengths"),
-    path("get_all_manifests/", get_all_manifests, name="get_all_manifests"),
-    # path("manifest/", ManifestView.as_view(), name="all_manifests"),
+    path("manifests/", ManifestView.as_view({"get": "list"}), name="all_manifests"),
 ]
