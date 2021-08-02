@@ -42,7 +42,7 @@ class SettingsViewTest(IamTestCase):
         response = client.post(url, data=body, format="json", **self.headers)
         return response
 
-    def get_duallist_from_response(self, response, source_name):
+    def get_duallist_from_response(self, response):
         """Utility to get dual list object from response."""
         data = response.data
         self.assertIsNotNone(data)
@@ -50,28 +50,32 @@ class SettingsViewTest(IamTestCase):
         primary_object = data[0]
         tg_mngmnt_subform_fields = primary_object.get("fields")
         self.assertIsNotNone(tg_mngmnt_subform_fields)
-        fields_len = 9
+        fields_len = 2
         self.assertEqual(len(tg_mngmnt_subform_fields), fields_len)
         for element in tg_mngmnt_subform_fields:
-            if element.get("name") == f"api.settings.tag-management.{source_name}.enabled":
+            component_name = element.get("component")
+            if component_name == f'{"dual-list-select"}':
                 return element
 
     def test_get_settings_tag_enabled(self):
         """Test that a GET settings call returns expected format."""
         test_matrix = [
-            {"handler": OCPTagQueryHandler, "view": OCPTagView, "name": "openshift"},
-            {"handler": AWSTagQueryHandler, "view": AWSTagView, "name": "aws"},
-            {"handler": AzureTagQueryHandler, "view": AzureTagView, "name": "azure"},
-            {"handler": GCPTagQueryHandler, "view": GCPTagView, "name": "gcp"},
+            {"handler": OCPTagQueryHandler, "view": OCPTagView, "name": "openshift", "label": "OpenShift labels"},
+            {"handler": AWSTagQueryHandler, "view": AWSTagView, "name": "aws", "label": "Amazon Web Services tags"},
+            {"handler": AzureTagQueryHandler, "view": AzureTagView, "name": "azure", "label": "Azure tags"},
+            {"handler": GCPTagQueryHandler, "view": GCPTagView, "name": "gcp", "label": "Google Cloud Platform tags"},
         ]
-        for test in test_matrix:
-            response = self.get_settings()
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-            duallist = self.get_duallist_from_response(response, test.get("name"))
-            all_keys = duallist.get("options")
-            self.assertIsNotNone(all_keys)
-            all_key_values = [key_obj.get("value") for key_obj in all_keys]
+        response = self.get_settings()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        duallist = self.get_duallist_from_response(response)
+        for test in test_matrix:
+            children = []
+            for option in duallist.get("options"):
+                if option.get("label") == test.get("label"):
+                    children = option.get("children")
+
+            all_key_values = [key_obj.get("label") for key_obj in children]
             url = (
                 "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
                 "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
@@ -85,12 +89,11 @@ class SettingsViewTest(IamTestCase):
     def test_post_settings_ocp_tag_enabled(self):
         """Test setting OCP tags as enabled."""
         test_matrix = [
-            {"handler": OCPTagQueryHandler, "view": OCPTagView, "name": "openshift"},
-            {"handler": AWSTagQueryHandler, "view": AWSTagView, "name": "aws"},
-            {"handler": AzureTagQueryHandler, "view": AzureTagView, "name": "azure"},
+            {"handler": OCPTagQueryHandler, "view": OCPTagView, "name": "openshift", "label": "OpenShift labels"},
+            {"handler": AWSTagQueryHandler, "view": AWSTagView, "name": "aws", "label": "Amazon Web Services tags"},
+            {"handler": AzureTagQueryHandler, "view": AzureTagView, "name": "azure", "label": "Azure tags"},
         ]
         for test in test_matrix:
-
             url = (
                 "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
                 "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
@@ -98,7 +101,7 @@ class SettingsViewTest(IamTestCase):
             query_params = self.mocked_query_params(url, test.get("view"))
             handler = test.get("handler")(query_params)
             query_output = handler.execute_query()
-            tag = query_output.get("data")[0]
+            tag = "".join([test.get("name"), "-", query_output.get("data")[0]])
 
             body = {"api": {"settings": {"tag-management": {test.get("name"): {"enabled": [tag]}}}}}
             response = self.post_settings(body)
@@ -106,7 +109,7 @@ class SettingsViewTest(IamTestCase):
 
             response = self.get_settings()
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            duallist = self.get_duallist_from_response(response, test.get("name"))
+            duallist = self.get_duallist_from_response(response)
             enabled = duallist.get("initialValue")
 
             self.assertIn(tag, enabled)
@@ -118,16 +121,16 @@ class SettingsViewTest(IamTestCase):
 
             response = self.get_settings()
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            duallist = self.get_duallist_from_response(response, test.get("name"))
+            duallist = self.get_duallist_from_response(response)
             enabled = duallist.get("initialValue")
             self.assertIn(tag, enabled)
 
     def test_post_settings_ocp_tag_disabled(self):
         """Test setting OCP tags get disabled."""
         test_matrix = [
-            {"handler": OCPTagQueryHandler, "view": OCPTagView, "name": "openshift"},
-            {"handler": AWSTagQueryHandler, "view": AWSTagView, "name": "aws"},
-            {"handler": AzureTagQueryHandler, "view": AzureTagView, "name": "azure"},
+            {"handler": OCPTagQueryHandler, "view": OCPTagView, "name": "openshift", "label": "OpenShift labels"},
+            {"handler": AWSTagQueryHandler, "view": AWSTagView, "name": "aws", "label": "Amazon Web Services tags"},
+            {"handler": AzureTagQueryHandler, "view": AzureTagView, "name": "azure", "label": "Azure tags"},
         ]
         for test in test_matrix:
             url = (
@@ -154,17 +157,16 @@ class SettingsViewTest(IamTestCase):
 
             response = self.get_settings()
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            duallist = self.get_duallist_from_response(response, test.get("name"))
+            duallist = self.get_duallist_from_response(response)
             enabled = duallist.get("initialValue")
             self.assertIn(tag, enabled)
-
-            body = {"api": {"settings": {"tag-management": {test.get("name"): {"enabled": []}}}}}
+            body = {"api": {"settings": {"tag-management": {test.get("name"): {}}}}}
             response = self.post_settings(body)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
             response = self.get_settings()
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            duallist = self.get_duallist_from_response(response, test.get("name"))
+            duallist = self.get_duallist_from_response(response)
             enabled = duallist.get("initialValue")
             self.assertEqual([], enabled)
 
@@ -175,7 +177,7 @@ class SettingsViewTest(IamTestCase):
 
             response = self.get_settings()
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            duallist = self.get_duallist_from_response(response, test.get("name"))
+            duallist = self.get_duallist_from_response(response)
             enabled = duallist.get("initialValue")
             self.assertEqual([], enabled)
 

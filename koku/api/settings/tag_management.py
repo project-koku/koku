@@ -108,6 +108,7 @@ class TagManagementSettings:
                 enabled_tags = tag_keys_kls.objects.filter(enabled=True).all()
             else:
                 enabled_tags = tag_keys_kls.objects.all()
+
             enabled = [enabled_tag.key for enabled_tag in enabled_tags]
             all_tags_set.update(enabled)
 
@@ -134,6 +135,7 @@ class TagManagementSettings:
         tag_key_text = create_plain_text_with_doc(tag_key_text_name, tag_key_text_context, doc_link)
         components = []
         avail_objs = []
+        enabled_objs = []
         for providerName in obtainTagKeysProvidersParams:
             tag_view = obtainTagKeysProvidersParams[providerName]["tag_view"]
             query_handler = obtainTagKeysProvidersParams[providerName]["query_handler"]
@@ -148,17 +150,18 @@ class TagManagementSettings:
                     ],
                 }
             )
+            if enabled:
+                enabled_objs.extend("".join([providerName, "-", tag_key]) for tag_key in enabled)
 
         dual_list_options = {
             "isTree": "true",
             "options": avail_objs,
             "leftTitle": "Disabled tags/labels",
             "rightTitle": "Enabled tags/labels",
-            "initialValue": enabled,
+            "initialValue": enabled_objs,
             "clearedValue": [],
         }
-        dual_list_name = f"{self._get_tag_management_prefix(providerName)}.enabled"
-
+        dual_list_name = f'{"api.settings.tag-management.enabled"}'
         components.append(create_dual_list_select(dual_list_name, **dual_list_options))
         sub_form_name = f"{SETTINGS_PREFIX}.tag_managment.subform"
         sub_form_title = "Enable tags and labels"
