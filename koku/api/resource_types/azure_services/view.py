@@ -51,7 +51,7 @@ class AzureServiceView(generics.ListAPIView):
                             .distinct()
                             .filter(service_name__isnull=False)
                         )
-                if key == "search":
+                elif key == "search":
                     pass
                 else:
                     error_message[key] = [{"Unsupported parameter"}]

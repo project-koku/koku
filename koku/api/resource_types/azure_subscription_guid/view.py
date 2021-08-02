@@ -48,7 +48,8 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
                             .values("value", "alias")
                             .distinct()
                         )
-                if key == "search":
+                        self.search_fields = ["alias"]
+                elif key == "search":
                     pass
                 else:
                     error_message[key] = [{"Unsupported parameter"}]
