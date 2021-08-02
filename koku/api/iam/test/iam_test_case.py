@@ -228,6 +228,7 @@ class RbacPermissions:
                 with override_settings(DEVELOPMENT_IDENTITY=identity):
                     with override_settings(MIDDLEWARE=middleware):
                         request_context = IamTestCase._create_request_context(self.customer, user)
+                        args[0].headers[RH_IDENTITY_HEADER] = None
                         middleware = DevelopmentIdentityHeaderMiddleware()
                         middleware.process_request(request_context["request"])
                         result = function(*args, **kwargs)
