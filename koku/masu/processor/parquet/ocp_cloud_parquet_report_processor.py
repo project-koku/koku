@@ -1,18 +1,7 @@
 #
-# Copyright 2021 Red Hat, Inc.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Processor to filter cost data for OpenShift and store as parquet."""
 import logging
@@ -127,14 +116,15 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             return self.parquet_ocp_on_cloud_path_s3
         return None
 
-    def create_ocp_on_cloud_parquet(self, data_frame, ocp_provider_uuid):
+    def create_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename, file_number, ocp_provider_uuid):
         """Create a parquet file for daily aggregated data."""
-        file_name = f"{ocp_provider_uuid}{PARQUET_EXT}"
+        # Add the OCP UUID in case multiple clusters are running on this cloud source.
+        file_name = f"{parquet_base_filename}_{file_number}_{ocp_provider_uuid}{PARQUET_EXT}"
         file_path = f"{self.local_path}/{file_name}"
         self._write_parquet_to_file(file_path, file_name, data_frame, file_type=self.report_type)
         self.create_parquet_table(file_path, daily=True)
 
-    def process(self, parquet_base_filename, daily_data_frame):
+    def process(self, parquet_base_filename, daily_data_frames):
         """Filter data and convert to parquet."""
         for ocp_provider_uuid, infra_tuple in self.ocp_infrastructure_map.items():
             infra_provider_uuid = infra_tuple[0]
@@ -155,8 +145,11 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
                     self.provider_uuid, ocp_provider_uuid, self.start_date, self.end_date
                 )
-            openshift_filtered_data_frame = self.ocp_on_cloud_data_processor(
-                daily_data_frame, cluster_topology, matched_tags
-            )
+            for i, daily_data_frame in enumerate(daily_data_frames):
+                openshift_filtered_data_frame = self.ocp_on_cloud_data_processor(
+                    daily_data_frame, cluster_topology, matched_tags
+                )
 
-            self.create_ocp_on_cloud_parquet(openshift_filtered_data_frame, ocp_provider_uuid)
+                self.create_ocp_on_cloud_parquet(
+                    openshift_filtered_data_frame, parquet_base_filename, i, ocp_provider_uuid
+                )

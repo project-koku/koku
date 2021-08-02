@@ -207,7 +207,7 @@ def set_constraints_immediate():
         cur.execute("set constraints all immediate;")
 
 
-def cascade_delete(from_model, instance_pk_query, skip_relations=[], base_model=None, level=0):
+def cascade_delete(from_model, instance_pk_query, skip_relations=None, base_model=None, level=0):
     """
     Performs a cascading delete by walking the Django model relations and executing compiled SQL
     to perform the on_delete actions instead or running the collector.
@@ -220,6 +220,9 @@ def cascade_delete(from_model, instance_pk_query, skip_relations=[], base_model=
     """
     if base_model is None:
         base_model = from_model
+
+    if skip_relations is None:
+        skip_relations = []
 
     # Skip the low-level data.
     skip_relations.extend(

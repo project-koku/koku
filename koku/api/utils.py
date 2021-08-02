@@ -6,6 +6,7 @@
 import calendar
 import datetime
 import logging
+from datetime import timedelta
 
 import pint
 import pytz
@@ -261,6 +262,26 @@ class DateHelper:
         date_obj = datetime.datetime.strptime(date_str, "%Y%m")
         gcp_month_start = self.month_start(date_obj)
         return gcp_month_start
+
+    def gcp_find_invoice_months_in_date_range(self, start, end):
+        """Finds all the invoice months in a given date range.
+
+        GCP invoice month format is {year}{month}.
+        Ex. 202011
+
+        Args:
+            start: (datetime.datetime)
+            end: (datetime.datetime)
+
+        Returns:
+            List of invoice months.
+        """
+        invoice_months = []
+        for day in range((end - start).days):
+            invoice_month = (start + timedelta(day)).strftime("%Y%m")
+            if invoice_month not in invoice_months:
+                invoice_months.append(invoice_month)
+        return invoice_months
 
 
 def materialized_view_month_start(dh=DateHelper()):
