@@ -638,6 +638,6 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch.object(ParquetReportProcessor, "_write_parquet_to_file")
     def test_create_daily_parquet(self, mock_write, mock_create_table):
         """Test the daily parquet method."""
-        self.report_processor.create_daily_parquet("", pd.DataFrame())
+        self.report_processor.create_daily_parquet("", [pd.DataFrame()])
         mock_write.assert_called()
         mock_create_table.assert_called()
