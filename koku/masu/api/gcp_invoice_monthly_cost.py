@@ -7,6 +7,7 @@ import logging
 
 from django.views.decorators.cache import never_cache
 from google.cloud import bigquery
+from google.cloud.exceptions import GoogleCloudError
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
@@ -56,17 +57,19 @@ def gcp_invoice_monthly_cost(request):
     invoice_months = dh.gcp_find_invoice_months_in_date_range(dh.last_month_start, dh.today)
 
     results = {}
-    for invoice_month in invoice_months:
-        query = f"""
-        SELECT sum(cost)
-        FROM {table_name}
-        WHERE invoice.month = '{invoice_month}'
-        """
-        client = bigquery.Client()
-        row = client.query(query).result().next()
-        value = row[0]
-        results[invoice_month] = value
+    try:
+        for invoice_month in invoice_months:
+            query = f"""
+            SELECT sum(cost)
+            FROM {table_name}
+            WHERE invoice.month = '{invoice_month}'
+            """
+            client = bigquery.Client()
+            row = client.query(query).result().next()
+            value = row[0]
+            results[invoice_month] = value
+    except GoogleCloudError as err:
+        return Response({"Error": err.message}, status=status.HTTP_400_BAD_REQUEST)
 
     resp = {"monthly_invoice_cost_mapping": results}
-
     return Response(resp)
