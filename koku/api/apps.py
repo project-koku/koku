@@ -10,6 +10,3 @@ class ApiConfig(AppConfig):
     """API application configuration."""
 
     name = "api"
-
-    def ready(self):
-        """Determine if app is ready on application startup."""
