@@ -20,7 +20,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_s
     line_item_type,
     unblended_cost,
     markup_cost,
-    source_uuid
+    source_uuid,
+    invoice_month
 )
 SELECT uuid() as uuid,
     INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
@@ -42,7 +43,8 @@ SELECT uuid() as uuid,
     cost_type as line_item_type,
     cast(sum(cost) AS decimal(24,9)) as unblended_cost,
     cast(sum(cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
-    UUID '{{source_uuid | sqlsafe}}' as source_uuid
+    UUID '{{source_uuid | sqlsafe}}' as source_uuid,
+    invoice_month
 FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
 WHERE source = '{{source_uuid | sqlsafe}}'
     AND year = '{{year | sqlsafe}}'
@@ -58,4 +60,5 @@ GROUP BY billing_account_id,
     location_region,
     json_extract_scalar(json_parse(system_labels), '$["compute.googleapis.com/machine_spec"]'),
     labels,
-    cost_type
+    cost_type,
+    invoice_month
