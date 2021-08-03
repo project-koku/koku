@@ -35,12 +35,13 @@ class OCPNodesView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for Openshift nodes and displays values that the user has access too
+        supported_query_params = ["search", "limit"]
         user_access = []
         error_message = {}
         # Test for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
-                if key == "search":
+                if key in supported_query_params:
                     pass
                 else:
                     error_message[key] = [{"Unsupported parameter"}]

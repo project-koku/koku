@@ -33,6 +33,7 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for Azure subscription guid and displays values related to what the user has access to
+        supported_query_params = ["search", "limit"]
         user_access = []
         error_message = {}
         # Test for only supported query_params
@@ -49,7 +50,7 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
                             .distinct()
                         )
                         self.search_fields = ["alias"]
-                elif key == "search":
+                elif key in supported_query_params:
                     pass
                 else:
                     error_message[key] = [{"Unsupported parameter"}]
