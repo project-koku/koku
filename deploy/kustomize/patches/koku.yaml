@@ -111,8 +111,8 @@
           value: ${CACHED_VIEWS_DISABLED}
       livenessProbe:
         httpGet:
-          path: /livez
-          port: metrics
+          path: ${API_PATH_PREFIX}/v1/status/
+          port: web
           scheme: HTTP
         initialDelaySeconds: 30
         periodSeconds: 20
