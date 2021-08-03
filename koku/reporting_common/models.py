@@ -27,6 +27,10 @@ class CostUsageReportManifest(models.Model):
     s3_csv_cleared = models.BooleanField(default=False, null=True)
     s3_parquet_cleared = models.BooleanField(default=False, null=True)
     operator_version = models.TextField(null=True)
+    cluster_channel = models.TextField(null=True)
+    operator_certified = models.BooleanField(null=True)
+    operator_airgapped = models.BooleanField(null=True)
+    operator_errors = models.JSONField(default=dict, null=True)
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
 
 
