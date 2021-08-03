@@ -734,8 +734,10 @@ SELECT s.relname as "table_name",
 def remove_stale_tenants():
     """ Remove stale tenants from the tenant api """
     table_sql = """
-        SELECT schema_name
+        SELECT c.schema_name
         FROM api_customer c
+        JOIN api_tenant t
+            ON c.schema_name = t.schema_name
         LEFT JOIN api_sources s
             ON c.account_id = s.account_id
         WHERE s.source_id IS null
