@@ -782,7 +782,7 @@
               "type": "object",
               "properties": {
                 "202107": {
-                  "type": "integer",
+                  "type": "number",
                   "example": 204.51
                 }
               }
