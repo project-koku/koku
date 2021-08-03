@@ -166,7 +166,7 @@ class SettingsViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             duallist = self.get_duallist_from_response(response)
             enabled = duallist.get("initialValue")
-            self.assertIn(tag, enabled)
+            self.assertIn(test.get("name") + "-" + tag, enabled)
             body = {"api": {"settings": {"tag-management": {test.get("name"): {}}}}}
             response = self.post_settings(body)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
