@@ -205,11 +205,10 @@ class SettingsViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
             response = self.get_settings()
-            expected = ["gcp-test_storage_key", "gcp-vm_key_proj2"]
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             duallist = self.get_duallist_from_response(response)
             enabled = duallist.get("initialValue")
-            self.assertEqual(expected, enabled)
+            self.assertEqual(test.get("expected"), enabled)
 
             # DDF will give an empty dictionary when disabling all
             body = {"api": {"settings": {"tag-management": {test.get("name"): {}}}}}
