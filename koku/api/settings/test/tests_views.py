@@ -129,10 +129,43 @@ class SettingsViewTest(IamTestCase):
     def test_post_settings_ocp_tag_disabled(self):
         """Test setting OCP tags get disabled."""
         test_matrix = [
-            {"handler": OCPTagQueryHandler, "view": OCPTagView, "name": "openshift", "label": "OpenShift labels"},
-            {"handler": AWSTagQueryHandler, "view": AWSTagView, "name": "aws", "label": "Amazon Web Services tags"},
-            {"handler": AzureTagQueryHandler, "view": AzureTagView, "name": "azure", "label": "Azure tags"},
+            {
+                "handler": OCPTagQueryHandler,
+                "view": OCPTagView,
+                "name": "openshift",
+                "label": "OpenShift labels",
+                "expected": [
+                    "azure-app",
+                    "azure-environment",
+                    "azure-storageclass",
+                    "azure-version",
+                    "gcp-test_storage_key",
+                    "gcp-vm_key_proj2",
+                ],
+            },
+            {
+                "handler": AWSTagQueryHandler,
+                "view": AWSTagView,
+                "name": "aws",
+                "label": "Amazon Web Services tags",
+                "expected": [
+                    "azure-app",
+                    "azure-environment",
+                    "azure-storageclass",
+                    "azure-version",
+                    "gcp-test_storage_key",
+                    "gcp-vm_key_proj2",
+                ],
+            },
+            {
+                "handler": AzureTagQueryHandler,
+                "view": AzureTagView,
+                "name": "azure",
+                "label": "Azure tags",
+                "expected": ["gcp-test_storage_key", "gcp-vm_key_proj2"],
+            },
         ]
+
         for test in test_matrix:
             if test["handler"] == AzureTagQueryHandler:
                 # Azure has been a difficult case. Make sure that one of the tags is
@@ -184,18 +217,10 @@ class SettingsViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
             response = self.get_settings()
-            expected = [
-                "azure-app",
-                "azure-environment",
-                "azure-storageclass",
-                "azure-version",
-                "gcp-test_storage_key",
-                "gcp-vm_key_proj2",
-            ]
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             duallist = self.get_duallist_from_response(response)
             enabled = duallist.get("initialValue")
-            self.assertEqual(expected, enabled)
+            self.assertEqual(test.get("expected"), enabled)
 
     def test_post_settings_ocp_tag_enabled_invalid_tag(self):
         """Test setting OCP tags as enabled with invalid tag key."""
