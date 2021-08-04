@@ -143,7 +143,8 @@ def process_cr(report_meta):
             case_info = cr_status.get(case, {})
             if case_info.get("error"):
                 errors[case + "_error"] = case_info.get("error")
-        manifest_info["operator_errors"] = errors
+        if errors != {}:
+            manifest_info["operator_errors"] = errors
         manifest_info["cluster_channel"] = cr_status.get("clusterVersion")
         manifest_info["operator_airgapped"] = cr_status.get("upload", {}).get("upload")
 
