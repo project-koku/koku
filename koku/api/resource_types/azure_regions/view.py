@@ -36,13 +36,16 @@ class AzureRegionView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for Azure subscription guid and displays values related to what the user has access to
-        supported_query_params = ["search", "limit"]
+        supported_query_params = ["search", "limit", "openshift"]
         user_access = []
         error_message = {}
         # Test for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
-                if key == "openshift":
+                if key not in supported_query_params:
+                    error_message[key] = [{"Unsupported parameter"}]
+                    return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+                elif key == "openshift":
                     openshift = self.request.query_params.get("openshift")
                     if openshift == "true":
                         self.queryset = (
@@ -51,11 +54,6 @@ class AzureRegionView(generics.ListAPIView):
                             .distinct()
                             .filter(resource_location__isnull=False)
                         )
-                elif key in supported_query_params:
-                    pass
-                else:
-                    error_message[key] = [{"Unsupported parameter"}]
-                    return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
 
         if request.user.admin:
             return super().list(request)

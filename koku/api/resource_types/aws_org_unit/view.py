@@ -41,9 +41,7 @@ class AWSOrganizationalUnitView(generics.ListAPIView):
         # Test for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
-                if key in supported_query_params:
-                    pass
-                else:
+                if key not in supported_query_params:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
         if request.user.admin:
