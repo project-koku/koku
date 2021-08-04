@@ -194,7 +194,7 @@ class SettingsViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             duallist = self.get_duallist_from_response(response)
             enabled = duallist.get("initialValue")
-            self.assertEqual([], enabled)
+            self.assertEqual(expected, enabled)
 
     def test_post_settings_ocp_tag_enabled_invalid_tag(self):
         """Test setting OCP tags as enabled with invalid tag key."""
