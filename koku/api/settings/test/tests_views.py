@@ -172,14 +172,7 @@ class SettingsViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
             response = self.get_settings()
-            expected = [
-                "azure-app",
-                "azure-environment",
-                "azure-storageclass",
-                "azure-version",
-                "gcp-test_storage_key",
-                "gcp-vm_key_proj2",
-            ]
+            expected = ["gcp-test_storage_key", "gcp-vm_key_proj2"]
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             duallist = self.get_duallist_from_response(response)
             enabled = duallist.get("initialValue")
@@ -191,6 +184,14 @@ class SettingsViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
             response = self.get_settings()
+            expected = [
+                "azure-app",
+                "azure-environment",
+                "azure-storageclass",
+                "azure-version",
+                "gcp-test_storage_key",
+                "gcp-vm_key_proj2",
+            ]
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             duallist = self.get_duallist_from_response(response)
             enabled = duallist.get("initialValue")
