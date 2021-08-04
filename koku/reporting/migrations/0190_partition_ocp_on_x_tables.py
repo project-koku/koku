@@ -731,6 +731,7 @@ class Migration(migrations.Migration):
         migrations.AlterModelOptions(name="ocpawscostlineitemprojectdailysummary", options={"managed": False}),
         migrations.AlterModelOptions(name="ocpazurecostlineitemdailysummary", options={"managed": False}),
         migrations.AlterModelOptions(name="ocpazurecostlineitemprojectdailysummary", options={"managed": False}),
+        migrations.RunPython(code=clear_cache),
         migrations.RunPython(code=create_ocpaws_partitioned_table),
         migrations.RunPython(code=create_ocpaws_project_partitioned_table),
         migrations.RunPython(code=create_ocpazure_partitioned_table),
