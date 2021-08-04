@@ -252,7 +252,7 @@ class OCPReportDownloaderTest(MasuTestCase):
             "files": report_keys,
             "version": version,
             "certified": False,
-            "clusterID": "4e009161-4f40-42c8-877c-3e59f6baea3d",
+            "cluster_id": "4e009161-4f40-42c8-877c-3e59f6baea3d",
             "cr_status": {
                 "clusterID": "4e009161-4f40-42c8-877c-3e59f6baea3d",
                 "clusterVersion": "stable-4.6",
