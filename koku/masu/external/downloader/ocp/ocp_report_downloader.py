@@ -132,6 +132,7 @@ def process_cr(report_meta):
         "operator_version": operator_versions.get(report_meta.get("version"), report_meta.get("version")),
         "operator_certified": None,
         "cluster_channel": None,
+        "cluster_id": report_meta.get("cluster_id"),
         "operator_errors": None,
     }
     manifest_info["operator_certified"] = report_meta.get("certified")

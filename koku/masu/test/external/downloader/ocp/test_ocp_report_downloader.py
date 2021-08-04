@@ -252,6 +252,7 @@ class OCPReportDownloaderTest(MasuTestCase):
             "files": report_keys,
             "version": version,
             "certified": False,
+            "clusterID": "4e009161-4f40-42c8-877c-3e59f6baea3d",
             "cr_status": {
                 "clusterID": "4e009161-4f40-42c8-877c-3e59f6baea3d",
                 "clusterVersion": "stable-4.6",
@@ -278,6 +279,7 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.assertEqual(manifest.operator_certified, False)
         self.assertEqual(manifest.operator_airgapped, False)
         self.assertEqual(manifest.cluster_channel, "stable-4.6")
+        self.assertEqual(manifest.cluster_id, "4e009161-4f40-42c8-877c-3e59f6baea3d")
         self.assertEqual(manifest.operator_errors, expected_errors)
         self.assertEqual(self.ocp_report_downloader.context.get("version"), version)
 
