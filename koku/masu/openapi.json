@@ -781,8 +781,12 @@
             "monthly_invoice_cost_mapping": {
               "type": "object",
               "properties": {
-                "202107": {
-                  "type": "integer",
+                "previous": {
+                  "type": "number",
+                  "example": 204.51
+                },
+                "current": {
+                  "type": "number",
                   "example": 204.51
                 }
               }
