@@ -102,7 +102,8 @@ class SettingsViewTest(IamTestCase):
             query_params = self.mocked_query_params(url, test.get("view"))
             handler = test.get("handler")(query_params)
             query_output = handler.execute_query()
-            tag = "".join([test.get("name"), "-", query_output.get("data")[0]])
+            # tag = "".join([test.get("name"), "-", query_output.get("data")[0]])
+            tag = query_output.get("data")[0]
 
             body = {"api": {"settings": {"tag-management": {test.get("name"): {"enabled": [tag]}}}}}
             response = self.post_settings(body)
