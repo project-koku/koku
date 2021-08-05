@@ -26,7 +26,7 @@ if $(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/
     # source $APP_ROOT/unit_test.sh
 
     if $(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/search/issues\?q\=sha:$GIT_COMMIT |
-    jq '[.items[].labels[].name] | length > 0 and inside(["lgtm", "pr-check-build", "smoke-tests"])'); then
+    jq '[.items[].labels[].name] | length > 0 and inside(["lgtm", "smoke-tests"])'); then
 
         source ${CICD_ROOT}/_common_deploy_logic.sh
         export NAMESPACE=$(bonfire namespace reserve --duration 3)
