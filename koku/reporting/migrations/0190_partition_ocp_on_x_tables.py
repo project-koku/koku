@@ -8,10 +8,6 @@ import pkgutil
 
 from django.db import migrations
 
-from reporting.provider.all.openshift.models import VIEWS as OCP_ALL_VIEWS
-from reporting.provider.aws.openshift.models import VIEWS as OCP_AWS_VIEWS
-from reporting.provider.azure.openshift.models import VIEWS as OCP_AZURE_VIEWS
-
 
 LOG = logging.getLogger(__name__)
 
@@ -19,25 +15,24 @@ LOG = logging.getLogger(__name__)
 CACHE = {}
 
 
-def clear_cache(apps, schema_editor):
-    LOG.info("Clearing migration setting cache")
-    CACHE.clear()
-
-
-def is_partitioned(conn, table_name):
+def check_partitioned(apps, schema_editor):
+    conn = schema_editor.connection
     sql = """
-SELECT (c.relkind = 'p')::boolean as "is_partitioned"
+SELECT c.relname::text,
+       (c.relkind = 'p')::boolean as "is_partitioned"
   FROM pg_class c
   JOIN pg_namespace n
     ON n.oid = c.relnamespace
  WHERE n.nspname = current_schema
-   AND c.relname = %s ;
+   AND c.relname = any(array['reporting_ocpawscostlineitem_daily_summary',
+                             'reporting_ocpawscostlineitem_project_daily_summary',
+                             'reporting_ocpazurecostlineitem_daily_summary',
+                             'reporting_ocpazurecostlineitem_project_daily_summary']::text[]) ;
 """
     with conn.cursor() as cur:
-        cur.execute(sql, (table_name,))
-        res = cur.fetchone()
-
-    return res[0] if res else False
+        cur.execute(sql)
+        for rec in cur.fetchall():
+            CACHE[rec[0]] = rec[1]
 
 
 def execute_sql_stmts(conn, sql_stmts):
@@ -48,55 +43,9 @@ def execute_sql_stmts(conn, sql_stmts):
                 cur.execute(stmt)
 
 
-def create_ocpaws_views(apps, schema_editor):
-    if any(CACHE.values()):
-        LOG.warning("SKIPPING CREATE OCP ON AWS VIEWS")
-        return
-
-    connection = schema_editor.connection
-
-    for view in OCP_AWS_VIEWS:
-        view_sql = pkgutil.get_data("reporting.provider.aws.openshift", f"sql/views/{view}.sql")
-        view_sql = view_sql.decode("utf-8")
-        LOG.info(f"""Creating materialized view "{view}"...""")
-        with connection.cursor() as cursor:
-            cursor.execute(view_sql)
-
-
-def create_ocpazure_views(apps, schema_editor):
-    if any(CACHE.values()):
-        LOG.warning("SKIPPING CREATE OCP ON AZURE VIEWS")
-        return
-
-    connection = schema_editor.connection
-
-    for view in OCP_AZURE_VIEWS:
-        view_sql = pkgutil.get_data("reporting.provider.azure.openshift", f"sql/views/{view}.sql")
-        view_sql = view_sql.decode("utf-8")
-        LOG.info(f"""Creating materialized view "{view}"...""")
-        with connection.cursor() as cursor:
-            cursor.execute(view_sql)
-
-
-def create_ocpall_views(apps, schema_editor):
-    if any(CACHE.values()):
-        LOG.warning("SKIPPING CREATE OCP ON ALL VIEWS")
-        return
-
-    connection = schema_editor.connection
-
-    for view in OCP_ALL_VIEWS:
-        view_sql = pkgutil.get_data("reporting.provider.all.openshift", f"sql/views/{view}.sql")
-        view_sql = view_sql.decode("utf-8")
-        LOG.info(f"""Creating materialized view "{view}"...""")
-        with connection.cursor() as cursor:
-            cursor.execute(view_sql)
-
-
 def create_ocpaws_partitioned_table(apps, schema_editor):
     connection = schema_editor.connection
-    CACHE["skip_ocpaws"] = is_partitioned(connection, "reporting_ocpawscostlineitem_daily_summary")
-    if CACHE.get("skip_ocpaws"):
+    if CACHE.get("reporting_ocpawscostlineitem_daily_summary"):
         LOG.warning("TABLE reporting_ocpawscostlineitem_daily_summary IS PARTITIONED. SKIP CREATE")
         return
 
@@ -212,18 +161,6 @@ SELECT current_schema,
        DO NOTHING;
 """,
         ],
-        [
-            "Actvate partitioned table p_reporting_ocpawscostlineitem_daily_summary (LOCK RISK)",
-            """
-ALTER TABLE reporting_ocpawscostlineitem_daily_summary
-      RENAME TO __reporting_ocpawscostlineitem_daily_summary;
-""",
-            """
-UPDATE partitioned_tables
-   SET partition_of_table_name = 'reporting_ocpawscostlineitem_daily_summary'
- WHERE partition_of_table_name = 'p_reporting_ocpawscostlineitem_daily_summary';
-""",
-        ],
     ]
 
     execute_sql_stmts(connection, sql_stmts)
@@ -231,8 +168,7 @@ UPDATE partitioned_tables
 
 def create_ocpaws_project_partitioned_table(apps, schema_editor):
     connection = schema_editor.connection
-    CACHE["skip_ocpaws_project"] = is_partitioned(connection, "reporting_ocpawscostlineitem_project_daily_summary")
-    if CACHE.get("skip_ocpaws_project"):
+    if CACHE.get("reporting_ocpawscostlineitem_project_daily_summary"):
         LOG.warning("TABLE reporting_ocpawscostlineitem_project_daily_summary IS PARTITIONED. SKIP CREATE")
         return
 
@@ -347,18 +283,6 @@ SELECT current_schema,
        DO NOTHING;
 """,
         ],
-        [
-            "Actvate partitioned table p_reporting_ocpawscostlineitem_project_daily_summary (LOCK RISK)",
-            """
-ALTER TABLE reporting_ocpawscostlineitem_project_daily_summary
-      RENAME TO __reporting_ocpawscostlineitem_project_daily_summary;
-""",
-            """
-UPDATE partitioned_tables
-   SET partition_of_table_name = 'reporting_ocpawscostlineitem_project_daily_summary'
- WHERE partition_of_table_name = 'p_reporting_ocpawscostlineitem_project_daily_summary';
-""",
-        ],
     ]
 
     execute_sql_stmts(connection, sql_stmts)
@@ -366,8 +290,7 @@ UPDATE partitioned_tables
 
 def create_ocpazure_partitioned_table(apps, schema_editor):
     connection = schema_editor.connection
-    CACHE["skip_ocpazure"] = is_partitioned(connection, "reporting_ocpazurecostlineitem_daily_summary")
-    if CACHE.get("skip_ocpazure"):
+    if CACHE.get("reporting_ocpazurecostlineitem_daily_summary"):
         LOG.warning("TABLE reporting_ocpazurecostlineitem_daily_summary IS PARTITIONED. SKIP CREATE")
         return
 
@@ -478,18 +401,6 @@ SELECT current_schema,
        DO NOTHING;
 """,
         ],
-        [
-            "Actvate partitioned table p_reporting_ocpazurecostlineitem_daily_summary (LOCK RISK)",
-            """
-ALTER TABLE reporting_ocpazurecostlineitem_daily_summary
-      RENAME TO __reporting_ocpazurecostlineitem_daily_summary;
-""",
-            """
-UPDATE partitioned_tables
-   SET partition_of_table_name = 'reporting_ocpazurecostlineitem_daily_summary'
- WHERE partition_of_table_name = 'p_reporting_ocpazurecostlineitem_daily_summary';
-""",
-        ],
     ]
 
     execute_sql_stmts(connection, sql_stmts)
@@ -497,8 +408,7 @@ UPDATE partitioned_tables
 
 def create_ocpazure_project_partitioned_table(apps, schema_editor):
     connection = schema_editor.connection
-    CACHE["skip_ocpazure_project"] = is_partitioned(connection, "reporting_ocpazurecostlineitem_project_daily_summary")
-    if CACHE.get("skip_ocpazure_project"):
+    if CACHE.get("reporting_ocpazurecostlineitem_project_daily_summary"):
         LOG.warning("TABLE reporting_ocpazurecostlineitem_project_daily_summary IS PARTITIONED. SKIP CREATE")
         return
 
@@ -531,7 +441,7 @@ ALTER TABLE p_reporting_ocpazurecostlineitem_project_daily_summary
 """,
         ],
         [
-            "Creating indexes on p_reporting_ocpazure_projectcostlineitem_daily_summary",
+            "Creating indexes on p_reporting_ocpazurecostlineitem_project_daily_summary",
             """CREATE INDEX "ocpazurecostlineitem_project_d_cost_entry_bill_id_idx" ON p_reporting_ocpazurecostlineitem_project_daily_summary (cost_entry_bill_id);""",
             """CREATE INDEX "ocpazurecostlineitem_project_dai_report_period_id_idx" ON p_reporting_ocpazurecostlineitem_project_daily_summary (report_period_id);""",
             """CREATE INDEX "ocpazurecostlineitem_project_daily__instance_type_idx" ON p_reporting_ocpazurecostlineitem_project_daily_summary (instance_type);""",
@@ -545,7 +455,7 @@ ALTER TABLE p_reporting_ocpazurecostlineitem_project_daily_summary
             """CREATE INDEX "ocpazurecostlineitem_project_daily_summary_upper_idx1" ON p_reporting_ocpazurecostlineitem_project_daily_summary USING gin (upper(node::text) gin_trgm_ops);""",
         ],
         [
-            "Creating default partition for p_reporting_ocpazure_projectcostlineitem_daily_summary",
+            "Creating default partition for p_reporting_ocpazurecostlineitem_project_daily_summary",
             """
 INSERT
   INTO partitioned_tables
@@ -572,7 +482,7 @@ VALUES (
 """,
         ],
         [
-            "Creating needed monthly partitions for p_reporting_ocpazure_projectcostlineitem_daily_summary",
+            "Creating needed monthly partitions for p_reporting_ocpazurecostlineitem_project_daily_summary",
             r"""
 INSERT
   INTO partitioned_tables
@@ -609,117 +519,9 @@ SELECT current_schema,
        DO NOTHING;
 """,
         ],
-        [
-            "Actvate partitioned table p_reporting_ocpazure_projectcostlineitem_daily_summary (LOCK RISK)",
-            """
-ALTER TABLE reporting_ocpazurecostlineitem_project_daily_summary
-      RENAME TO __reporting_ocpazurecostlineitem_project_daily_summary;
-""",
-            """
-UPDATE partitioned_tables
-   SET partition_of_table_name = 'reporting_ocpazurecostlineitem_project_daily_summary'
- WHERE partition_of_table_name = 'p_reporting_ocpazurecostlineitem_project_daily_summary';
-""",
-        ],
     ]
 
     execute_sql_stmts(connection, sql_stmts)
-
-
-def copy_ocpaws_project_data(apps, schema_editor):
-    if CACHE.get("skip_ocpaws_project"):
-        LOG.warning("SKIP COPY TO PARTITIONED TABLE reporting_ocpawscostlineitem_project_daily_summary")
-        return
-
-    connection = schema_editor.connection
-    sql_stmts = [
-        [
-            "Copying data from old table into reporting_ocpawscostlineitem_project_daily_summary",
-            """
-INSERT
-  INTO reporting_ocpawscostlineitem_project_daily_summary
-SELECT *
-  FROM __reporting_ocpawscostlineitem_project_daily_summary;
-""",
-        ]
-    ]
-
-    execute_sql_stmts(connection, sql_stmts)
-
-
-def copy_ocpaws_data(apps, schema_editor):
-    if CACHE.get("skip_ocpaws"):
-        LOG.warning("SKIP COPY TO PARTITIONED TABLE reporting_ocpawscostlineitem_daily_summary")
-        return
-
-    connection = schema_editor.connection
-    sql_stmts = [
-        [
-            "Copying data from old table into reporting_ocpawscostlineitem_daily_summary",
-            """
-INSERT
-  INTO reporting_ocpawscostlineitem_daily_summary
-SELECT *
-  FROM __reporting_ocpawscostlineitem_daily_summary;
-""",
-        ]
-    ]
-
-    execute_sql_stmts(connection, sql_stmts)
-
-
-def copy_ocpazure_project_data(apps, schema_editor):
-    if CACHE.get("skip_ocpazure_project"):
-        LOG.warning("SKIP COPY TO PARTITIONED TABLE reporting_ocpazurecostlineitem_project_daily_summary")
-        return
-
-    connection = schema_editor.connection
-    sql_stmts = [
-        [
-            "Copying data from old table into reporting_ocpazurecostlineitem_project_daily_summary",
-            """
-INSERT
-  INTO reporting_ocpazurecostlineitem_project_daily_summary
-SELECT *
-  FROM __reporting_ocpazurecostlineitem_project_daily_summary;
-""",
-        ]
-    ]
-
-    execute_sql_stmts(connection, sql_stmts)
-
-
-def copy_ocpazure_data(apps, schema_editor):
-    if CACHE.get("skip_ocpazure"):
-        LOG.warning("SKIP COPY TO PARTITIONED TABLE reporting_ocpazurecostlineitem_daily_summary")
-        return
-
-    connection = schema_editor.connection
-    sql_stmts = [
-        [
-            "Copying data from old table into reporting_ocpazurecostlineitem_daily_summary",
-            """
-INSERT
-  INTO reporting_ocpazurecostlineitem_daily_summary
-SELECT *
-  FROM __reporting_ocpazurecostlineitem_daily_summary;
-""",
-        ]
-    ]
-
-    execute_sql_stmts(connection, sql_stmts)
-
-
-def rename_old_matviews(apps, schema_editor):
-    if any(CACHE.values()):
-        LOG.warning("SKIPPING RENAME EXISTING MATERIALIZED VIEWS")
-        return
-
-    connection = schema_editor.connection
-    for view in reversed(OCP_AWS_VIEWS + OCP_AZURE_VIEWS + OCP_ALL_VIEWS):
-        LOG.info(f"Reaming existing materialized view {view}")
-        with connection.cursor() as cur:
-            cur.execute(f"""ALTER MATERIALIZED VIEW IF EXISTS {view} RENAME TO __{view} ;""")
 
 
 class Migration(migrations.Migration):
@@ -731,17 +533,9 @@ class Migration(migrations.Migration):
         migrations.AlterModelOptions(name="ocpawscostlineitemprojectdailysummary", options={"managed": False}),
         migrations.AlterModelOptions(name="ocpazurecostlineitemdailysummary", options={"managed": False}),
         migrations.AlterModelOptions(name="ocpazurecostlineitemprojectdailysummary", options={"managed": False}),
-        migrations.RunPython(code=clear_cache),
+        migrations.RunPython(code=check_partitioned),
         migrations.RunPython(code=create_ocpaws_partitioned_table),
         migrations.RunPython(code=create_ocpaws_project_partitioned_table),
         migrations.RunPython(code=create_ocpazure_partitioned_table),
         migrations.RunPython(code=create_ocpazure_project_partitioned_table),
-        migrations.RunPython(code=copy_ocpaws_project_data),
-        migrations.RunPython(code=copy_ocpaws_data),
-        migrations.RunPython(code=copy_ocpazure_project_data),
-        migrations.RunPython(code=copy_ocpazure_data),
-        migrations.RunPython(code=rename_old_matviews),
-        migrations.RunPython(code=create_ocpaws_views),
-        migrations.RunPython(code=create_ocpazure_views),
-        migrations.RunPython(code=create_ocpall_views),
     ]
