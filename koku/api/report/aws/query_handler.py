@@ -580,7 +580,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
-            query_order_by.extend([self.order])  # add implicit ordering
+            query_order_by.extend(self.order)  # add implicit ordering
 
             annotations = copy.deepcopy(self._mapper.report_type_map.get("annotations", {}))
             if not self.parameters.parameters.get("compute_count"):
