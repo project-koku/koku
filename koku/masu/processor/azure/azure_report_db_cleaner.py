@@ -4,10 +4,16 @@
 #
 """Removes report data from database."""
 import logging
+from datetime import date
 
 from tenant_schemas.utils import schema_context
 
+from koku.database import cascade_delete
+from koku.database import execute_delete_sql
+from koku.database import get_model
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
+from reporting.models import PartitionedTable
+
 
 LOG = logging.getLogger(__name__)
 
@@ -49,39 +55,72 @@ class AzureReportDBCleaner:
                 err = "This method must be called with either expired_date or provider_uuid"
                 raise AzureReportDBCleanerError(err)
             removed_items = []
+            all_providers = set()
+            all_period_starts = set()
 
             if expired_date is not None:
-                bill_objects = accessor.get_bill_query_before_date(expired_date)
-            else:
-                bill_objects = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
-            with schema_context(self._schema):
-                for bill in bill_objects.all():
-                    bill_id = bill.id
-                    removed_provider_uuid = bill.provider_id
-                    removed_billing_period_start = bill.billing_period_start
+                return self.purge_expired_report_data_by_date(expired_date, simulate=simulate)
 
-                    if not simulate:
-                        lineitem_query = accessor.get_lineitem_query_for_billid(bill_id)
-                        del_count = accessor.execute_delete_sql(lineitem_query)
-                        LOG.info("Removing %s cost entry line items for bill id %s", del_count, bill_id)
+            bill_objects = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
 
-                        summary_query = accessor.get_summary_query_for_billid(bill_id)
-                        del_count = accessor.execute_delete_sql(summary_query)
-                        LOG.info("Removing %s cost entry summary items for bill id %s", del_count, bill_id)
+        with schema_context(self._schema):
+            for bill in bill_objects.all():
+                removed_items.append(
+                    {"provider_uuid": bill.provider_id, "billing_period_start": str(bill.billing_period_start)}
+                )
+                all_providers.add(bill.provider_id)
+                all_period_starts.add(str(bill.billing_period_start))
 
-                    LOG.info(
-                        "Report data removed for Account Payer ID: %s with billing period: %s",
-                        removed_provider_uuid,
-                        removed_billing_period_start,
+            LOG.info(f"Deleting data for providers {sorted(all_providers)} and periods {sorted(all_period_starts)}")
+
+            if not simulate:
+                cascade_delete(bill_objects.query.model, bill_objects)
+
+        return removed_items
+
+    def purge_expired_report_data_by_date(self, expired_date, simulate=False):
+        partition_from = str(date(expired_date.year, expired_date.month, 1))
+        with AzureReportDBAccessor(self._schema) as accessor:
+            all_bill_objects = accessor.get_bill_query_before_date(expired_date).all()
+            table_names = [
+                # accessor._table_map["ocp_on_azure_daily_summary"],
+                # accessor._table_map["ocp_on_azure_project_daily_summary"],
+                accessor.line_item_daily_summary_table._meta.db_table
+            ]
+            table_models = [get_model(tn) for tn in table_names]
+
+        with schema_context(self._schema):
+            removed_items = []
+            all_providers = set()
+            all_period_starts = set()
+
+            # Iterate over the remainder as they could involve much larger amounts of data
+            for bill in all_bill_objects:
+                removed_items.append(
+                    {"provider_uuid": bill.provider_id, "billing_period_start": str(bill.billing_period_start)}
+                )
+                all_providers.add(bill.provider_id)
+                all_period_starts.add(str(bill.billing_period_start))
+
+            LOG.info(f"Deleting data for providers {sorted(all_providers)} and periods {sorted(all_period_starts)}")
+
+            if not simulate:
+                # Will call trigger to detach, truncate, and drop partitions
+                LOG.info(
+                    "Deleting table partitions total for the following tables: "
+                    + f"{table_names} with partitions <= {partition_from}"
+                )
+                del_count = execute_delete_sql(
+                    PartitionedTable.objects.filter(
+                        schema_name=self._schema,
+                        partition_of_table_name__in=table_names,
+                        partition_parameters__default=False,
+                        partition_parameters__from__lte=partition_from,
                     )
-                    removed_items.append(
-                        {
-                            "provider_uuid": removed_provider_uuid,
-                            "billing_period_start": str(removed_billing_period_start),
-                        }
-                    )
+                )
+                LOG.info(f"Deleted {del_count} table partitions")
 
-                if not simulate:
-                    bill_objects.delete()
+            if not simulate:
+                cascade_delete(all_bill_objects.query.model, all_bill_objects, skip_relations=table_models)
 
         return removed_items

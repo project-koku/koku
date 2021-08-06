@@ -4,9 +4,13 @@
 #
 """Test the AzureReportDBCleaner object."""
 import datetime
+import uuid
 from unittest.mock import patch
 
+import django
+import pytz
 from dateutil import relativedelta
+from django.db import transaction
 from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
@@ -18,6 +22,23 @@ from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleaner
 from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleanerError
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
+from reporting.models import PartitionedTable
+
+
+def table_exists(schema_name, table_name):
+    sql = """
+select oid
+  from pg_class
+ where relnamespace = %s::regnamespace
+   and relname = %s ;
+"""
+    conn = transaction.get_connection()
+    res = None
+    with conn.cursor() as cur:
+        cur.execute(sql, (schema_name, table_name))
+        res = cur.fetchone()
+
+    return True if res and res[0] else False
 
 
 class AzureReportDBCleanerTest(MasuTestCase):
@@ -264,3 +285,59 @@ class AzureReportDBCleanerTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertEqual(self.accessor._get_db_obj_query(bill_table_name).all().count(), 1)
             self.assertEqual(self.accessor._get_db_obj_query(line_item_table_name).count(), 1)
+
+    def test_drop_report_partitions(self):
+        """Test that cleaner drops report line item daily summary parititons"""
+        provider = Provider.objects.filter(type__in=[Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]).first()
+        self.assertIsNotNone(provider)
+
+        partitioned_table_name = AZURE_REPORT_TABLE_MAP["line_item_daily_summary"]
+        report_period_table_name = AZURE_REPORT_TABLE_MAP["bill"]
+        partitioned_table_model = None
+        report_period_model = None
+        for model in django.apps.apps.get_models():
+            if model._meta.db_table == partitioned_table_name:
+                partitioned_table_model = model
+            elif model._meta.db_table == report_period_table_name:
+                report_period_model = model
+            if partitioned_table_model and report_period_model:
+                break
+
+        self.assertIsNotNone(partitioned_table_model)
+        self.assertIsNotNone(report_period_model)
+
+        with schema_context(self.schema):
+            test_part = PartitionedTable(
+                schema_name=self.schema,
+                table_name=f"{partitioned_table_name}_2016_01",
+                partition_of_table_name=partitioned_table_name,
+                partition_type=PartitionedTable.RANGE,
+                partition_col="usage_start",
+                partition_parameters={"default": False, "from": "2016-01-01", "to": "2016-02-01"},
+                active=True,
+            )
+            test_part.save()
+
+            self.assertTrue(table_exists(self.schema, test_part.table_name))
+
+            report_period_start = datetime.datetime(2016, 1, 1, tzinfo=pytz.UTC)
+            report_period_end = datetime.datetime(2016, 1, 31, tzinfo=pytz.UTC)
+            report_period = report_period_model(
+                billing_period_start=report_period_start,
+                billing_period_end=report_period_end,
+                provider_id=provider.uuid,
+            )
+            report_period.save()
+
+            usage_date = datetime.date(2016, 1, 12)
+            lids_rec = partitioned_table_model(
+                usage_start=usage_date, usage_end=usage_date, cost_entry_bill_id=report_period.id, uuid=uuid.uuid4()
+            )
+            lids_rec.save()
+
+            cutoff_date = datetime.datetime(2016, 12, 31, tzinfo=pytz.UTC)
+            cleaner = AzureReportDBCleaner(self.schema)
+            removed_data = cleaner.purge_expired_report_data(cutoff_date, simulate=False)
+
+            self.assertEqual(len(removed_data), 1)
+            self.assertFalse(table_exists(self.schema, test_part.table_name))

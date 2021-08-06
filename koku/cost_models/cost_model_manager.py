@@ -5,6 +5,7 @@
 """Management layer for user defined rates."""
 import copy
 import logging
+import uuid
 
 from celery import chain
 from django.db import transaction
@@ -79,6 +80,7 @@ class CostModelManager:
         start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
         end_date = DateHelper().today.strftime("%Y-%m-%d")
         for provider_uuid in all_providers:
+            tracing_id = uuid.uuid4()
             # Update cost-model costs for each provider, on every PUT/DELETE
             try:
                 provider = Provider.objects.get(uuid=provider_uuid)
@@ -87,12 +89,25 @@ class CostModelManager:
             else:
                 schema_name = provider.customer.schema_name
                 # Because this is triggered from the UI, we use the priority queue
+                LOG.info(
+                    f"provider {provider_uuid} update for cost model {self._cost_model_uuid} "
+                    + f"with tracing_id {tracing_id}"
+                )
                 chain(
                     update_cost_model_costs.s(
-                        schema_name, provider.uuid, start_date, end_date, queue_name=PRIORITY_QUEUE
+                        schema_name,
+                        provider.uuid,
+                        start_date,
+                        end_date,
+                        tracing_id=tracing_id,
+                        queue_name=PRIORITY_QUEUE,
                     ).set(queue=PRIORITY_QUEUE),
                     refresh_materialized_views.si(
-                        schema_name, provider.type, provider_uuid=provider.uuid, queue_name=PRIORITY_QUEUE
+                        schema_name,
+                        provider.type,
+                        provider_uuid=provider.uuid,
+                        tracing_id=tracing_id,
+                        queue_name=PRIORITY_QUEUE,
                     ).set(queue=PRIORITY_QUEUE),
                 ).apply_async()
 

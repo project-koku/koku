@@ -19,6 +19,7 @@ from api.iam.test.iam_test_case import FakePrestoConn
 from api.metrics import constants as metric_constants
 from api.utils import DateHelper
 from koku import presto_database as kpdb
+from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -2575,6 +2576,13 @@ select * from eek where val1 in {{report_period_ids}} ;
 
         with schema_context(self.schema):
             self.assertEqual(table_query.count(), 0)
+
+    def test_table_properties(self):
+        self.assertEqual(self.accessor.line_item_daily_summary_table, OCPUsageLineItemDailySummary)
+
+    def test_table_map(self):
+        self.assertEqual(self.accessor._table_map, OCP_REPORT_TABLE_MAP)
+        self.assertEqual(self.accessor._aws_table_map, AWS_CUR_TABLE_MAP)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino(self, mock_presto):

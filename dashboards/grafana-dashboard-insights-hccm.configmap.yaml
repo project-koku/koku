@@ -1565,11 +1565,11 @@ data:
               "renderer": "flot",
               "seriesOverrides": [],
               "spaceLength": 10,
-              "stack": false,
+              "stack": true,
               "steppedLine": false,
               "targets": [
                 {
-                  "expr": "max by(schema)(postgresql_schema_size_bytes{namespace=\"$namespace\", schema=~\"acct.*\"} > 1048576000)",
+                  "expr": "max by(schema)(postgresql_schema_size_bytes{namespace=\"$schema_namespace\", schema=~\"acct.*\"} > 1048576000)",
                   "legendFormat": "{{schema}}",
                   "refId": "A"
                 }
@@ -3252,6 +3252,34 @@ data:
             "regex": "/.*app-sre.*01.*/",
             "skipUrlSync": false,
             "type": "datasource"
+          },
+          {
+            "allValue": null,
+            "current": {
+              "selected": false,
+              "text": "insights-push-stage",
+              "value": "insights-push-stage"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": null,
+            "multi": false,
+            "name": "schema_namespace",
+            "options": [
+              {
+                "selected": true,
+                "text": "insights-push-stage",
+                "value": "insights-push-stage"
+              },
+              {
+                "selected": false,
+                "text": "insights-push-prod",
+                "value": "insights-push-prod"
+              }
+            ],
+            "query": "insights-push-stage,insights-push-prod",
+            "skipUrlSync": false,
+            "type": "custom"
           }
         ]
       },

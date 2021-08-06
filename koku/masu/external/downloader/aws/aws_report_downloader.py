@@ -164,13 +164,13 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest = "{}/{}-Manifest.json".format(self._get_report_path(date_time), self.report_name)
         msg = f"Will attempt to download manifest: {manifest}"
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg, self.context))
 
         try:
             manifest_file, _, manifest_modified_timestamp, __ = self.download_file(manifest)
         except AWSReportDownloaderNoFileError as err:
             msg = f"Unable to get report manifest. Reason: {str(err)}"
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg, self.context))
             return "", self.empty_manifest, None
 
         manifest_json = None
@@ -186,7 +186,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.debug("Deleted manifest file at %s", manifest_file)
         except OSError:
             msg = f"Could not delete manifest file at {manifest_file}"
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg, self.context))
 
         return None
 
@@ -221,7 +221,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         local_s3_filename = utils.get_local_file_name(key)
         msg = f"Local S3 filename: {local_s3_filename}"
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg, self.context))
         full_file_path = f"{directory_path}/{local_s3_filename}"
 
         # Make sure the data directory exists
@@ -235,34 +235,38 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         except ClientError as ex:
             if ex.response["Error"]["Code"] == "NoSuchKey":
                 msg = "Unable to find {} in S3 Bucket: {}".format(s3_filename, self.report.get("S3Bucket"))
-                LOG.info(log_json(self.request_id, msg, self.context))
+                LOG.info(log_json(self.tracing_id, msg, self.context))
                 raise AWSReportDownloaderNoFileError(msg)
 
             msg = f"Error downloading file: Error: {str(ex)}"
-            LOG.error(log_json(self.request_id, msg, self.context))
+            LOG.error(log_json(self.tracing_id, msg, self.context))
             raise AWSReportDownloaderError(str(ex))
 
         if not self._check_size(key, check_inflate=True):
-            raise AWSReportDownloaderError(f"Insufficient disk space to download file: {s3_file}")
+            msg = f"Insufficient disk space to download file: {s3_file}"
+            LOG.error(log_json(self.tracing_id, msg, self.context))
+            raise AWSReportDownloaderError(msg)
 
         if s3_etag != stored_etag or not os.path.isfile(full_file_path):
-            LOG.debug("Downloading key: %s to file path: %s", key, full_file_path)
+            msg = f"Downloading key: {key} to file path: {full_file_path}"
+            LOG.info(log_json(self.tracing_id, msg, self.context))
             self.s3_client.download_file(self.report.get("S3Bucket"), key, full_file_path)
             # Push to S3
             s3_csv_path = get_path_prefix(
                 self.account, Provider.PROVIDER_AWS, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
             )
             utils.copy_local_report_file_to_s3_bucket(
-                self.request_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context
+                self.tracing_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context
             )
 
             manifest_accessor = ReportManifestDBAccessor()
             manifest = manifest_accessor.get_manifest_by_id(manifest_id)
 
             if not manifest_accessor.get_s3_csv_cleared(manifest):
-                utils.remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
+                utils.remove_files_not_in_set_from_s3_bucket(self.tracing_id, s3_csv_path, manifest_id)
                 manifest_accessor.mark_s3_csv_cleared(manifest)
-
+        msg = f"Download complete for {key}"
+        LOG.info(log_json(self.tracing_id, msg, self.context))
         return full_file_path, s3_etag, file_creation_date, []
 
     def get_manifest_context_for_date(self, date):
