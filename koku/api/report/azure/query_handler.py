@@ -140,7 +140,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
-            query_order_by.extend([self.order])  # add implicit ordering
+            query_order_by.extend(self.order)  # add implicit ordering
 
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query_data.values(*query_group_by).annotate(**annotations)

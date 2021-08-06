@@ -127,7 +127,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
-            query_order_by.extend([self.order])  # add implicit ordering
+            query_order_by.extend(self.order)  # add implicit ordering
 
             query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
 
