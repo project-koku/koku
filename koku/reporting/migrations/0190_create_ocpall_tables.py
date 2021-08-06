@@ -39,7 +39,7 @@ def execute_sql_stmts(conn, sql_stmts):
 
 def create_ocpall_summary_table(apps, schema_editor):
     table_name = "reporting_ocpallcostlineitem_daily_summary"
-    p_table_name = f"p_{table_name}"
+    p_table_name = f"{table_name}_p"
     if CACHE.get(p_table_name):
         LOG.warning(f"TABLE {p_table_name} IS PARTITIONED -- SKIP CREATE")
         return
@@ -105,7 +105,7 @@ ALTER TABLE {p_table_name}
 
 def drop_ocpall_summary_table(apps, schema_editor):
     table_name = "reporting_ocpallcostlineitem_daily_summary"
-    p_table_name = f"p_{table_name}"
+    p_table_name = f"{table_name}_p"
     sql_stmts = [[f"Dropping table {p_table_name}", f"DROP TABLE IF EXISTS {p_table_name} ;"]]
 
     execute_sql_stmts(schema_editor.connection, sql_stmts)
@@ -113,7 +113,7 @@ def drop_ocpall_summary_table(apps, schema_editor):
 
 def create_ocpall_project_summary_table(apps, schema_editor):
     table_name = "reporting_ocpallcostlineitem_project_daily_summary"
-    p_table_name = f"p_{table_name}"
+    p_table_name = f"{table_name}_p"
     if CACHE.get(p_table_name):
         LOG.warning(f"TABLE {p_table_name} IS PARTITIONED -- SKIP CREATE")
         return
@@ -177,10 +177,520 @@ ALTER TABLE {p_table_name}
 
 def drop_ocpall_project_summary_table(apps, schema_editor):
     table_name = "reporting_ocpallcostlineitem_project_daily_summary"
-    p_table_name = f"p_{table_name}"
+    p_table_name = f"{table_name}_p"
     sql_stmts = [[f"Dropping table {p_table_name}", f"DROP TABLE IF EXISTS {p_table_name} ;"]]
 
     execute_sql_stmts(schema_editor.connection, sql_stmts)
+
+
+def create_ocpall_partitions(apps, schema_editor):
+    table_name = "reporting_ocpallcostlineitem_daily_summary"
+    p_table_name = f"{table_name}_p"
+    connection = schema_editor.connection
+
+    sql_stmts = [
+        [
+            f"Creating default partitioin for {p_table_name}",
+            (
+                """
+INSERT
+  INTO partitioned_tables
+       (
+           schema_name,
+           table_name,
+           partition_of_table_name,
+           partition_type,
+           partition_col,
+           partition_parameters,
+           active
+       )
+VALUES (
+           current_schema,
+           %s,
+           %s,
+           'range',
+           'usage_start',
+           '{"default": true}'::jsonb,
+           true
+       )
+    ON CONFLICT (schema_name, table_name)
+       DO NOTHING;
+""",
+                (p_table_name + "_default", p_table_name),
+            ),
+        ],
+        [
+            f"Creating needed monthly partitions for {p_table_name}",
+            (
+                """
+INSERT
+  INTO partitioned_tables
+       (
+           schema_name,
+           table_name,
+           partition_of_table_name,
+           partition_type,
+           partition_col,
+           partition_parameters,
+           active
+       )
+WITH partition_min_max AS (
+SELECT min(date_trunc('month', coalesce(d.start_date, (current_date - '2 months'::interval))::date)::date) as min_usage_start,
+       max(date_trunc('month', coalesce(d.end_date, current_date))::date) as max_usage_start
+  FROM (
+         SELECT min(usage_start) as start_date,
+                max(usage_start) as end_date
+           FROM reporting_ocpawscostlineitem_daily_summary
+          UNION
+         SELECT min(usage_start) as start_date,
+                max(usage_start) as end_date
+           FROM reporting_ocpazurecostlineitem_daily_summary
+       ) as d
+),
+partition_start_values as (
+SELECT part_start::date
+  FROM generate_series(
+           (SELECT min_usage_start FROM partition_min_max),
+           (SELECT max_usage_start FROM partition_min_max),
+           '1 month'::interval
+       ) part_start
+)
+SELECT current_schema,
+       %s || to_char(usage_start, '_YYYY_MM')
+       %s,
+       'range',
+       'usage_start',
+       jsonb_build_object(
+           'default', false,
+           'from', to_char(usage_start, 'YYYY-MM-01'),
+           'to', to_char((usage_start + '1 month'::interval), 'YYYY-MM-01')
+       )
+       true
+  FROM partition_start_values
+    ON CONFLICT (schema_name, table_name)
+       DO NOTHING;
+""",
+                (p_table_name, p_table_name),
+            ),
+        ],
+    ]
+
+    execute_sql_stmts(connection, sql_stmts)
+
+
+def drop_ocpall_partitions(apps, schema_editor):
+    table_name = "reporting_ocpallcostlineitem_daily_summary"
+    p_table_name = f"{table_name}_p"
+    connection = schema_editor.connection
+
+    sql_stmts = [
+        [
+            f"Dropping non-default partitions of {p_table_name}",
+            (
+                """
+DELETE
+  FROM partitioned_tables
+ WHERE partition_of_table_name = %s ;
+""",
+                (p_table_name,),
+            ),
+        ]
+    ]
+
+    execute_sql_stmts(connection, sql_stmts)
+
+
+def create_ocpall_project_partitions(apps, schema_editor):
+    table_name = "reporting_ocpallcostlineitem_project_daily_summary"
+    p_table_name = f"{table_name}_p"
+    connection = schema_editor.connection
+
+    sql_stmts = [
+        [
+            f"Creating default partitioin for {p_table_name}",
+            (
+                """
+INSERT
+  INTO partitioned_tables
+       (
+           schema_name,
+           table_name,
+           partition_of_table_name,
+           partition_type,
+           partition_col,
+           partition_parameters,
+           active
+       )
+VALUES (
+           current_schema,
+           %s,
+           %s,
+           'range',
+           'usage_start',
+           '{"default": true}'::jsonb,
+           true
+       )
+    ON CONFLICT (schema_name, table_name)
+       DO NOTHING;
+""",
+                (p_table_name + "_default", p_table_name),
+            ),
+        ],
+        [
+            f"Creating needed monthly partitions for {p_table_name}",
+            (
+                """
+INSERT
+  INTO partitioned_tables
+       (
+           schema_name,
+           table_name,
+           partition_of_table_name,
+           partition_type,
+           partition_col,
+           partition_parameters,
+           active
+       )
+WITH partition_min_max AS (
+SELECT min(date_trunc('month', coalesce(d.start_date, (current_date - '2 months'::interval))::date)::date) as min_usage_start,
+       max(date_trunc('month', coalesce(d.end_date, current_date))::date) as max_usage_start
+  FROM (
+         SELECT min(usage_start) as start_date,
+                max(usage_start) as end_date
+           FROM reporting_ocpawscostlineitem_project_daily_summary
+          UNION
+         SELECT min(usage_start) as start_date,
+                max(usage_start) as end_date
+           FROM reporting_ocpazurecostlineitem_project_daily_summary
+       ) as d
+),
+partition_start_values as (
+SELECT part_start::date
+  FROM generate_series(
+           (SELECT min_usage_start FROM partition_min_max),
+           (SELECT max_usage_start FROM partition_min_max),
+           '1 month'::interval
+       ) part_start
+)
+SELECT current_schema,
+       %s || to_char(usage_start, '_YYYY_MM')
+       %s,
+       'range',
+       'usage_start',
+       jsonb_build_object(
+           'default', false,
+           'from', to_char(usage_start, 'YYYY-MM-01'),
+           'to', to_char((usage_start + '1 month'::interval), 'YYYY-MM-01')
+       )
+       true
+  FROM partition_start_values
+    ON CONFLICT (schema_name, table_name)
+       DO NOTHING;
+""",
+                (p_table_name, p_table_name),
+            ),
+        ],
+    ]
+
+    execute_sql_stmts(connection, sql_stmts)
+
+
+def drop_ocpall_project_partitions(apps, schema_editor):
+    table_name = "reporting_ocpallcostlineitem_project_daily_summary"
+    p_table_name = f"{table_name}_p"
+    connection = schema_editor.connection
+
+    sql_stmts = [
+        [
+            f"Dropping non-default partitions of {p_table_name}",
+            (
+                """
+DELETE
+  FROM partitioned_tables
+ WHERE partition_of_table_name = %s ;
+""",
+                (p_table_name,),
+            ),
+        ]
+    ]
+
+    execute_sql_stmts(connection, sql_stmts)
+
+
+def copy_ocpall_data(apps, schema_editor):
+    table_name = "reporting_ocpallcostlineitem_daily_summary"
+    p_table_name = f"{table_name}_p"
+    sql = f"""
+INSERT
+  INTO {p_table_name}
+       (
+           source_type,
+           cluster_id,
+           cluster_alias,
+           namespace,
+           node,
+           resource_id,
+           usage_start,
+           usage_end,
+           usage_account_id,
+           account_alias_id,
+           product_code,
+           product_family,
+           instance_type,
+           region,
+           availability_zone,
+           tags,
+           usage_amount,
+           unit,
+           unblended_cost,
+           markup_cost,
+           currency_code,
+           shared_projects,
+           source_uuid,
+           tags_hash,
+           namespace_hash
+       )
+SELECT  lids.source_type,
+        lids.cluster_id,
+        max(lids.cluster_alias) as cluster_alias,
+        lids.namespace,
+        lids.node,
+        lids.resource_id,
+        lids.usage_start,
+        lids.usage_start as usage_end,
+        lids.usage_account_id,
+        max(lids.account_alias_id) as account_alias_id,
+        lids.product_code,
+        lids.product_family,
+        lids.instance_type,
+        lids.region,
+        lids.availability_zone,
+        lids.tags,
+        sum(lids.usage_amount) as usage_amount,
+        max(lids.unit) as unit,
+        sum(lids.unblended_cost) as unblended_cost,
+        sum(lids.markup_cost) as markup_cost,
+        max(lids.currency_code) as currency_code,
+        max(lids.shared_projects) as shared_projects,
+        max(lids.source_uuid::text)::uuid as source_uuid,
+        lids.tags_hash,
+        lids.namespace_hash
+  FROM (
+         SELECT 'AWS'::text AS source_type,
+                aws.cluster_id,
+                aws.cluster_alias,
+                aws.namespace,
+                aws.node,
+                aws.resource_id,
+                aws.usage_start,
+                aws.usage_end,
+                aws.usage_account_id,
+                aws.account_alias_id,
+                aws.product_code,
+                aws.product_family,
+                aws.instance_type,
+                aws.region,
+                aws.availability_zone,
+                aws.tags,
+                aws.usage_amount,
+                aws.unit,
+                aws.unblended_cost,
+                aws.markup_cost,
+                aws.currency_code,
+                aws.shared_projects,
+                aws.source_uuid,
+                public.jsonb_sha256_text(aws.tags) as tags_hash,
+                encode(sha256(decode(array_to_string(aws.namespace, '|'), 'escape')), 'hex') as namespace_hash
+           FROM reporting_ocpawscostlineitem_daily_summary AS aws
+          WHERE aws.usage_start >= date_trunc(
+                                      'month',
+                                      (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_daily_summary)
+                                  )::date
+          UNION
+         SELECT 'Azure'::text AS source_type,
+                azure.cluster_id,
+                azure.cluster_alias,
+                azure.namespace,
+                azure.node,
+                azure.resource_id,
+                azure.usage_start,
+                azure.usage_end,
+                azure.subscription_guid AS usage_account_id,
+                NULL::integer AS account_alias_id,
+                azure.service_name AS product_code,
+                NULL::character varying AS product_family,
+                azure.instance_type,
+                azure.resource_location AS region,
+                NULL::character varying AS availability_zone,
+                azure.tags,
+                azure.usage_quantity AS usage_amount,
+                azure.unit_of_measure AS unit,
+                azure.pretax_cost AS unblended_cost,
+                azure.markup_cost,
+                azure.currency AS currency_code,
+                azure.shared_projects,
+                azure.source_uuid,
+                public.jsonb_sha256_text(azure.tags) as tags_hash,
+                encode(sha256(decode(array_to_string(azure.namespace, '|'), 'escape')), 'hex') as namespace_hash
+           FROM reporting_ocpazurecostlineitem_daily_summary AS azure
+          WHERE azure.usage_start >= date_trunc(
+                                        'month',
+                                        (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_daily_summary)
+                                    )::date
+       ) AS lids
+ GROUP
+    BY lids.source_type,
+       lids.cluster_id,
+       lids.cluster_alias,
+       lids.namespace,
+       lids.namespace_hash,
+       lids.node,
+       lids.resource_id,
+       lids.usage_start,
+       lids.usage_account_id,
+       lids.account_alias_id,
+       lids.product_code,
+       lids.product_family,
+       lids.instance_type,
+       lids.region,
+       lids.availability_zone,
+       lids.tags,
+       lids.tags_hash
+;
+"""
+    LOG.info(f"Copying data from {table_name} to {p_table_name}")
+    with schema_editor.connection.cursor() as cur:
+        cur.execute(sql)
+
+
+def copy_ocpall_project_data(apps, schema_editor):
+    table_name = "reporting_ocpallcostlineitem_project_daily_summary"
+    p_table_name = f"{table_name}_p"
+    sql = f"""
+INSERT
+  INTO {p_table_name}
+       (
+           source_type,
+           cluster_id,
+           cluster_alias,
+           data_source,
+           namespace,
+           node,
+           pod_labels,
+           resource_id,
+           usage_start,
+           usage_end,
+           usage_account_id,
+           account_alias_id,
+           product_code,
+           product_family,
+           instance_type,
+           region,
+           availability_zone,
+           usage_amount,
+           unit,
+           unblended_cost,
+           project_markup_cost,
+           pod_cost,
+           currency_code,
+           source_uuid
+       )
+SELECT 'AWS' as source_type,
+       cluster_id,
+       max(cluster_alias) as cluster_alias,
+       data_source,
+       namespace::text as namespace,
+       node::text as node,
+       pod_labels,
+       resource_id,
+       usage_start,
+       usage_end,
+       usage_account_id,
+       max(account_alias_id) as account_alias_id,
+       product_code,
+       product_family,
+       instance_type,
+       region,
+       availability_zone,
+       sum(usage_amount) as usage_amount,
+       max(unit) as unit,
+       sum(unblended_cost) as unblended_cost,
+       sum(project_markup_cost) as project_markup_cost,
+       sum(pod_cost) as pod_cost,
+       max(currency_code) as currency_code,
+       max(source_uuid::text)::uuid as source_uuid
+ FROM reporting_ocpawscostlineitem_project_daily_summary
+ WHERE usage_start >= date_trunc(
+                          'month',
+                          (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_project_daily_summary)
+                      )::date
+ GROUP
+    BY source_type,
+       usage_start,
+       usage_end,
+       cluster_id,
+       data_source,
+       namespace,
+       node,
+       usage_account_id,
+       resource_id,
+       product_code,
+       product_family,
+       instance_type,
+       region,
+       availability_zone,
+       pod_labels
+ UNION
+SELECT 'Azure' as source_type,
+       cluster_id,
+       max(cluster_alias) as cluster_alias,
+       data_source,
+       namespace::text as namespace,
+       node::text as node,
+       pod_labels,
+       resource_id,
+       usage_start,
+       usage_end,
+       subscription_guid as usage_account_id,
+       NULL::int as account_alias_id,
+       service_name as product_code,
+       NULL as product_family,
+       instance_type,
+       resource_location as region,
+       NULL as availability_zone,
+       sum(usage_quantity) as usage_amount,
+       max(unit_of_measure) as unit,
+       sum(pretax_cost) as unblended_cost,
+       sum(project_markup_cost) as project_markup_cost,
+       sum(pod_cost) as pod_cost,
+       max(currency) as currency_code,
+       max(source_uuid::text)::uuid as source_uuid
+  FROM reporting_ocpazurecostlineitem_project_daily_summary
+ WHERE usage_start >= date_trunc(
+                          'month',
+                          (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_project_daily_summary)
+                      )::date
+ GROUP
+    BY source_type,
+       usage_start,
+       usage_end,
+       cluster_id,
+       data_source,
+       namespace,
+       node,
+       usage_account_id,
+       resource_id,
+       product_code,
+       product_family,
+       instance_type,
+       region,
+       availability_zone,
+       pod_labels
+;
+"""
+    LOG.info(f"Copying data from {table_name} to {p_table_name}")
+    with schema_editor.connection.cursor() as cur:
+        cur.execute(sql)
 
 
 class Migration(migrations.Migration):
@@ -191,4 +701,8 @@ class Migration(migrations.Migration):
         migrations.RunPython(code=check_partitioned, reverse_code=lambda ap, se: None),
         migrations.RunPython(code=create_ocpall_summary_table, reverse_code=drop_ocpall_summary_table),
         migrations.RunPython(code=create_ocpall_project_summary_table, reverse_code=drop_ocpall_project_summary_table),
+        migrations.RunPython(code=create_ocpall_partitions, reverse_code=drop_ocpall_partitions),
+        migrations.RunPython(code=create_ocpall_project_partitions, reverse_code=drop_ocpall_project_partitions),
+        migrations.RunPython(code=copy_ocpall_data, reverse_code=lambda ap, se: None),
+        migrations.RunPython(code=copy_ocpall_project_data, reverse_code=lambda ap, se: None),
     ]
