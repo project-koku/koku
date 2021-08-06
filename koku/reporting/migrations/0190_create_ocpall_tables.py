@@ -47,10 +47,10 @@ def create_ocpall_summary_table(apps, schema_editor):
     sql_stmts = [
         [
             f"Create partitioned table {p_table_name}",
-            """
-CREATE TABLE p_reporting_ocpallcostlineitem_daily_summary
+            f"""
+CREATE TABLE {p_table_name}
 (
-    LIKE reporting_ocpallcostlineitem_daily_summary
+    LIKE {table_name}
     INCLUDING DEFAULTS
     INCLUDING GENERATED
     INCLUDING IDENTITY
@@ -60,29 +60,43 @@ PARTITION BY RANGE (usage_start);
 """,
         ],
         [
-            f"Alter column constraints and primary key on {p_table_name}",
-            """
-ALTER TABLE p_reporting_ocpallcostlineitem_daily_summary
+            f"Alter column data types and constraints on {p_table_name}",
+            f"""
+ALTER TABLE {p_table_name}
       ALTER COLUMN id SET DATA TYPE uuid USING uuid_generate_v4(),
       ALTER COLUMN id SET NOT NULL,
       ALTER COLUMN id SET DEFAULT uuid_generate_v4(),
       ALTER COLUMN namespace SET NOT NULL,
       ALTER COLUMN usage_start SET NOT NULL,
       ALTER COLUMN usage_end SET NOT NULL,
+      ALTER COLUMN usage_account_id SET DATA TYPE text,
       ALTER COLUMN usage_account_id SET NOT NULL,
+      ALTER COLUMN product_code SET DATA TYPE text,
       ALTER COLUMN product_code SET NOT NULL,
+      ALTER COLUMN product_family SET DATA TYPE text,
+      ALTER COLUMN instance_type SET DATA TYPE text,
+      ALTER COLUMN region SET DATA TYPE text,
+      ALTER COLUMN availability_zone SET DATA TYPE text,
       ALTER COLUMN shared_projects SET NOT NULL;
 """,
         ],
         [
             f"Create constraints on table {p_table_name}",
-            """
-ALTER TABLE p_reporting_ocpallcostlineitem_daily_summary
-  ADD CONSTRAINT "ocpallcostlineitem_daily_summary_pk" PRIMARY KEY (usage_start, id),
-  ADD CONSTRAINT "ocpallcost_account_alias_id_f19d2883_fk_reporting"
+            f"""
+ALTER TABLE {p_table_name}
+  ADD CONSTRAINT "ocpallcostlineitem_ds_pk" PRIMARY KEY (usage_start, id),
+  ADD CONSTRAINT "ocpallcostlineitem_ds_account_alias_id_fk"
       FOREIGN KEY (account_alias_id) REFERENCES reporting_awsaccountalias (id)
                   DEFERRABLE INITIALLY DEFERRED;
 """,
+        ],
+        [
+            f"Create indexes on tables {p_table_name}",
+            f"""CREATE INDEX ocpall_ds_prod_code_ilike ON {p_table_name} USING gin (upper(product_code::text) gin_trgm_ops);""",
+            f"""CREATE INDEX ocpall_ds_prod_fam_ilike ON {p_table_name} USING gin (upper(product_family::text) gin_trgm_ops);""",
+            f"""CREATE INDEX ocpall_ds_node ON {p_table_name} (node text_pattern_ops);""",
+            f"""CREATE INDEX ocpall_ds_node_like ON {p_table_name} USING gin (node gin_trgm_ops);""",
+            f"""CREATE INDEX ocpall_ds_namespace ON {p_table_name} USING gin (namespace);""",
         ],
     ]
 
@@ -107,10 +121,10 @@ def create_ocpall_project_summary_table(apps, schema_editor):
     sql_stmts = [
         [
             f"Create partitioned table {p_table_name}",
-            """
-CREATE TABLE p_reporting_ocpallcostlineitem_daily_summary
+            f"""
+CREATE TABLE {p_table_name}
 (
-    LIKE reporting_ocpallcostlineitem_daily_summary
+    LIKE {table_name}
     INCLUDING DEFAULTS
     INCLUDING GENERATED
     INCLUDING IDENTITY
@@ -120,29 +134,41 @@ PARTITION BY RANGE (usage_start);
 """,
         ],
         [
-            f"Alter column constraints and primary key on {p_table_name}",
-            """
-ALTER TABLE p_reporting_ocpallcostlineitem_daily_summary
+            f"Alter column data types and constraints on {p_table_name}",
+            f"""
+ALTER TABLE {p_table_name}
       ALTER COLUMN id SET DATA TYPE uuid USING uuid_generate_v4(),
       ALTER COLUMN id SET NOT NULL,
       ALTER COLUMN id SET DEFAULT uuid_generate_v4(),
       ALTER COLUMN namespace SET NOT NULL,
       ALTER COLUMN usage_start SET NOT NULL,
       ALTER COLUMN usage_end SET NOT NULL,
+      ALTER COLUMN usage_account_id SET DATA TYPE text,
       ALTER COLUMN usage_account_id SET NOT NULL,
+      ALTER COLUMN product_code SET DATA TYPE text,
       ALTER COLUMN product_code SET NOT NULL,
-      ALTER COLUMN shared_projects SET NOT NULL;
+      ALTER COLUMN product_family SET DATA TYPE text,
+      ALTER COLUMN instance_type SET DATA TYPE text,
+      ALTER COLUMN region SET DATA TYPE text,
+      ALTER COLUMN availability_zone SET DATA TYPE text;
 """,
         ],
         [
             f"Create constraints on table {p_table_name}",
-            """
-ALTER TABLE p_reporting_ocpallcostlineitem_daily_summary
-  ADD CONSTRAINT "ocpallcostlineitem_daily_summary_pk" PRIMARY KEY (usage_start, id),
-  ADD CONSTRAINT "ocpallcost_account_alias_id_f19d2883_fk_reporting"
+            f"""
+ALTER TABLE {p_table_name}
+  ADD CONSTRAINT "ocpallcostlineitem_pds_pk" PRIMARY KEY (usage_start, id),
+  ADD CONSTRAINT "ocpallcostlineitem_pds_account_alias_id_fk"
       FOREIGN KEY (account_alias_id) REFERENCES reporting_awsaccountalias (id)
                   DEFERRABLE INITIALLY DEFERRED;
 """,
+        ],
+        [
+            f"Create indexes on tables {p_table_name}",
+            f"""CREATE INDEX ocpall_pds_node ON {p_table_name} (node text_pattern_ops);""",
+            f"""CREATE INDEX ocpall_pds_node_like ON {p_table_name} USING gin (node gin_trgm_ops);""",
+            f"""CREATE INDEX ocpall_pds_namespace ON {p_table_name} (namespace text_pattern_ops);""",
+            f"""CREATE INDEX ocpall_pds_namespace_like ON {p_table_name} USING gin (namespace gin_trgm_ops);""",
         ],
     ]
 
