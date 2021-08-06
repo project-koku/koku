@@ -21,5 +21,4 @@ if API_PATH_PREFIX != "":
 urlpatterns = [
     path(f"{API_PATH_PREFIX}v1/", include("api.urls")),
     path(f"{API_PATH_PREFIX}v1/", include("cost_models.urls")),
-    path("", include("django_prometheus.urls")),
 ]
