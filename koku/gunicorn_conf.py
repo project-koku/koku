@@ -3,6 +3,10 @@ import multiprocessing
 
 import environ
 
+from koku.probe_server import BasicProbeServer
+from koku.probe_server import start_probe_server
+
+
 ENVIRONMENT = environ.Env()
 
 SOURCES = ENVIRONMENT.bool("SOURCES", default=False)
@@ -19,3 +23,10 @@ gunicorn_threads = ENVIRONMENT.bool("GUNICORN_THREADS", default=False)
 
 if gunicorn_threads:
     threads = cpu_resources * 2 + 1
+
+
+# Server Hooks
+def on_starting(server):
+    """gunicorn server hook to start probe server before main process"""
+    httpd = start_probe_server(BasicProbeServer, server.log)
+    httpd.RequestHandlerClass.ready = True
