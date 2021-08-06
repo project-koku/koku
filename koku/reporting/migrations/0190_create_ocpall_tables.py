@@ -101,6 +101,7 @@ ALTER TABLE {p_table_name}
             f"Create indexes on tables {p_table_name}",
             f"""CREATE INDEX ocpall_ds_prod_code_ilike ON {p_table_name} USING gin (upper(product_code::text) gin_trgm_ops);""",
             f"""CREATE INDEX ocpall_ds_prod_fam_ilike ON {p_table_name} USING gin (upper(product_family::text) gin_trgm_ops);""",
+            f"""CREATE INDEX ocpall_ds_resource_id ON {p_table_name} (resource_id);""",
             f"""CREATE INDEX ocpall_ds_node ON {p_table_name} (node text_pattern_ops);""",
             f"""CREATE INDEX ocpall_ds_node_like ON {p_table_name} USING gin (node gin_trgm_ops);""",
             f"""CREATE INDEX ocpall_ds_namespace ON {p_table_name} USING gin (namespace);""",
@@ -175,6 +176,9 @@ ALTER TABLE {p_table_name}
             f"""CREATE INDEX ocpall_pds_node ON {p_table_name} (node text_pattern_ops);""",
             f"""CREATE INDEX ocpall_pds_node_like ON {p_table_name} USING gin (node gin_trgm_ops);""",
             f"""CREATE INDEX ocpall_pds_namespace ON {p_table_name} (namespace text_pattern_ops);""",
+            f"""CREATE INDEX ocpall_pds_instance_type ON {p_table_name} (instance_type);""",
+            f"""CREATE INDEX ocpall_pds_resource_id ON {p_table_name} (resource_id);""",
+            f"""CREATE INDEX ocpall_pds_pod_labels ON {p_table_name} USING gin (pod_labels);""",
             f"""CREATE INDEX ocpall_pds_namespace_like ON {p_table_name} USING gin (namespace gin_trgm_ops);""",
         ],
     ]
