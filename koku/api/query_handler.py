@@ -118,9 +118,18 @@ class QueryHandler:
             `order_by[total]=desc` returns `-total`
 
         """
+        order_map = {"asc": "", "desc": "-"}
+        order = []
+        order_by = self.parameters.get("order_by", self.default_ordering)
 
-        order_map = {"asc": "", "desc": "-", self.order_direction: self.order_direction}
-        return f"{order_map[self.order_direction]}{self.order_field}"
+        for order_field, order_direction in order_by.items():
+            if order_direction not in order_map and order_field == "date":
+                # We've overloaded date to hold a specific date, not asc/desc
+                order.append(order_direction)
+            else:
+                order.append(f"{order_map[order_direction]}{order_field}")
+
+        return order
 
     @property
     def order_field(self):
