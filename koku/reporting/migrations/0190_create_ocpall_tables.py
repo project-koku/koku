@@ -23,8 +23,8 @@ SELECT c.relname::text,
  WHERE n.nspname = current_schema
    AND c.relname = any(array['reporting_ocpallcostlineitem_daily_summary',
                              'reporting_ocpallcostlineitem_project_daily_summary',
-                             'p_reporting_ocpallcostlineitem_daily_summary',
-                             'p_reporting_ocpallcostlineitem_project_daily_summary']::text[]) ;
+                             'reporting_ocpallcostlineitem_daily_summary_p',
+                             'reporting_ocpallcostlineitem_project_daily_summary_p']::text[]) ;
 """
     with conn.cursor() as cur:
         cur.execute(sql)
