@@ -241,7 +241,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /livez
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -251,7 +251,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /readyz
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -285,7 +285,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: true
+          enabled: false
     - minReplicas: ${{MASU_MIN_REPLICAS}}
       name: clowder-masu
       podSpec:
@@ -759,7 +759,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /livez
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -769,7 +769,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /readyz
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -795,11 +795,11 @@ objects:
             secretName: koku-gcp
       webServices:
         metrics:
-          enabled: false
+          enabled: true
         private:
           enabled: false
         public:
-          enabled: true
+          enabled: false
     - minReplicas: ${{WORKER_CELERY_MIN_REPLICAS}}
       name: clowder-worker-celery
       podSpec:
@@ -914,7 +914,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /livez
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -924,7 +924,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /readyz
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -958,7 +958,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: true
+          enabled: false
     - minReplicas: ${{WORKER_COST_MODEL_MIN_REPLICAS}}
       name: clowder-worker-cost-model
       podSpec:
@@ -1073,7 +1073,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /livez
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -1083,7 +1083,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /readyz
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -1117,7 +1117,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: true
+          enabled: false
     - minReplicas: ${{WORKER_DOWNLOAD_MIN_REPLICAS}}
       name: clowder-worker-download
       podSpec:
@@ -1232,7 +1232,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /livez
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -1242,7 +1242,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /readyz
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -1276,7 +1276,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: true
+          enabled: false
     - minReplicas: ${{WORKER_OCP_MIN_REPLICAS}}
       name: clowder-worker-ocp
       podSpec:
@@ -1391,7 +1391,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /livez
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -1401,7 +1401,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /readyz
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -1435,7 +1435,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: true
+          enabled: false
     - minReplicas: ${{WORKER_PRIORITY_MIN_REPLICAS}}
       name: clowder-worker-priority
       podSpec:
@@ -1550,7 +1550,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /livez
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -1560,7 +1560,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /readyz
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -1594,7 +1594,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: true
+          enabled: false
     - minReplicas: ${{WORKER_REFRESH_MIN_REPLICAS}}
       name: clowder-worker-refresh
       podSpec:
@@ -1709,7 +1709,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /livez
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -1719,7 +1719,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /readyz
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -1753,7 +1753,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: true
+          enabled: false
     - minReplicas: ${{WORKER_SUMMARY_MIN_REPLICAS}}
       name: clowder-worker-summary
       podSpec:
@@ -1868,7 +1868,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /livez
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -1878,7 +1878,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: /readyz
-            port: web
+            port: metrics
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -1912,7 +1912,7 @@ objects:
         private:
           enabled: false
         public:
-          enabled: true
+          enabled: false
     envName: ${ENV_NAME}
     inMemoryDb: true
     kafkaTopics:
