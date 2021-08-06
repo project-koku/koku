@@ -134,7 +134,7 @@ class ReportPagination(StandardResultsSetPagination):
 
     def get_limit_parameter(self, request):
         """Get the limit parameter from request."""
-        if request.query_params.get(self.limit_query_param):
+        if request.query_params.get(self.limit_query_param) is not None:
             return int(request.query_params.get(self.limit_query_param))
         return None
 

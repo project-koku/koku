@@ -4390,11 +4390,11 @@
                 "in": "query",
                 "name": "limit",
                 "required": false,
-                "description": "Parameter for selecting the amount of data in a returned.",
+                "description": "Parameter for selecting the amount of data in a returned. Limit of 0 will return all data.",
                 "schema": {
                     "type": "integer",
                     "default": 100,
-                    "minimum": 1,
+                    "minimum": 0,
                     "maximum": 1000
                 }
             },
