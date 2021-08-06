@@ -7,6 +7,7 @@ import copy
 
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
+from rest_framework.fields import DateField
 
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
@@ -251,7 +252,7 @@ class OrderSerializer(BaseSerializer):
 
     _tagkey_support = True
 
-    ORDER_CHOICES = (("asc", "asc"), ("desc", "desc"), ("2021-07-21", "2021-07-21"))
+    ORDER_CHOICES = (("asc", "asc"), ("desc", "desc"), (DateField, DateField))
 
     cost = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
     infrastructure = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)

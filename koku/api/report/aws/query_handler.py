@@ -610,10 +610,11 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
             order_date = None
             for i, param in enumerate(query_order_by):
-                if param == "2021-07-17date":
+                if "date" in param:
                     param = param.replace("date", "")
                     if check_if_valid_date_str(param):
                         order_date = param
+                        # query_data = query_data.filter(usage_start=order_date)
                         break
             # Remove the date order by as it is not actually used for ordering
             query_order_by.pop(i)
