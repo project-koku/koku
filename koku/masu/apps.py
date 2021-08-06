@@ -10,6 +10,3 @@ class MasuConfig(AppConfig):
     """Masu application configuration."""
 
     name = "masu"
-
-    def ready(self):
-        """Determine if app is ready on application startup."""
