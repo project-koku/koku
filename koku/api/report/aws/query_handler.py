@@ -608,31 +608,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     return False
                 return True
 
-            order_date = None
-            for i, param in enumerate(query_order_by):
-                if "date" in param:
-                    param = param.replace("date", "")
-                    if check_if_valid_date_str(param):
-                        order_date = param
-                        # query_data = query_data.filter(usage_start=order_date)
-                        break
-            # Remove the date order by as it is not actually used for ordering
-            query_order_by.pop(i)
-            date_filtered_query_data = query_data.filter(usage_start=order_date)
-            ordered_data = self.order_by(date_filtered_query_data, query_order_by)
-            order_of_interest = []
-            for entry in ordered_data:
-                order_of_interest.append(entry.get("service"))
-            # write a special order by function that iterates through the
-            # rest of the days in query_data and puts them in the same order
-            # return_query_data = []
-            sorted_data = [item for x in order_of_interest for item in query_data if item.get("service") == x]
-            sorted_data = self.order_by(sorted_data, ["date"])
-
-            # if date in query_order_by:
-            # new_date=self._mapper.provider_map.get("date")
-            # query_data = query_data.filter("date"=="2021-07-17")
-
             query_sum = self._build_sum(query, annotations)
 
             if self._limit and query_data and not org_unit_applied:
@@ -644,7 +619,28 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
-            query_data = self.order_by(query_data, query_order_by)
+            order_date = None
+            for i, param in enumerate(query_order_by):
+                if check_if_valid_date_str(param):
+                    order_date = param
+                    break
+            # Remove the date order by as it is not actually used for ordering
+            if order_date:
+                sort_term = self._get_group_by()[0]
+                query_order_by.pop(i)
+                date_filtered_query_data = query_data.filter(usage_start=order_date)
+                ordered_data = self.order_by(date_filtered_query_data, query_order_by)
+                order_of_interest = []
+                for entry in ordered_data:
+                    order_of_interest.append(entry.get(sort_term))
+                # write a special order by function that iterates through the
+                # rest of the days in query_data and puts them in the same order
+                # return_query_data = []
+                sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
+                query_data = self.order_by(sorted_data, ["-date"])
+            else:
+                # &order_by[cost]=desc&order_by[date]=2021-08-02
+                query_data = self.order_by(query_data, query_order_by)
 
             # Fetch the data (returning list(dict))
             query_results = list(query_data)
