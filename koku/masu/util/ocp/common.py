@@ -445,22 +445,13 @@ def ocp_generate_daily_data(data_frame, report_type):
     return daily_data_frame
 
 
-def match_openshift_labels(tag_dict, matched_tags, cluster_topology):
+def match_openshift_labels(tag_dict, matched_tags):
     """Match AWS data by OpenShift label associated with OpenShift cluster."""
     tag_dict = json.loads(tag_dict)
-    cluster_id = cluster_topology.get("cluster_id").lower()
-    cluster_alias = cluster_topology.get("cluster_alias").lower()
-    nodes = [node.lower() for node in cluster_topology.get("nodes", [])]
-    projects = [project.lower() for project in cluster_topology.get("projects", [])]
     tag_matches = []
     for key, value in tag_dict.items():
-        tag = json.dumps({key.lower(): value.lower()}).replace("{", "").replace("}", "")
-        if {key.lower(): value.lower()} in matched_tags:
+        lower_tag = {key.lower(): value.lower()}
+        if lower_tag in matched_tags:
+            tag = json.dumps(lower_tag).replace("{", "").replace("}", "")
             tag_matches.append(tag)
-        elif key.lower() == "openshift_project" and value.lower() in projects:
-            return tag
-        elif key.lower() == "openshift_node" and value.lower() in nodes:
-            return tag
-        elif key.lower() == "openshift_cluster" and value.lower() in (cluster_id, cluster_alias):
-            return tag
     return ",".join(tag_matches)
