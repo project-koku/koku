@@ -92,11 +92,14 @@ class ProviderManager:
             provider=self._uuid, manifest_completed_datetime__isnull=False
         ).exists()
 
-    def get_infrastructure_name(self):
-        """Get the name of the infrastructure that the provider is running on."""
+    def get_infrastructure_info(self):
+        """Get the type/uuid of the infrastructure that the provider is running on."""
         if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
-            return self.model.infrastructure.infrastructure_type
-        return "Unknown"
+            return {
+                "type": self.model.infrastructure.infrastructure_type,
+                "uuid": self.model.infrastructure.infrastructure_provider_id,
+            }
+        return {}
 
     def is_removable_by_user(self, current_user):
         """Determine if the current_user can remove the provider."""
