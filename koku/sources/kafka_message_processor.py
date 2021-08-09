@@ -2,8 +2,10 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import binascii
 import json
 import logging
+from base64 import b64decode
 
 from rest_framework.exceptions import ValidationError
 
@@ -47,6 +49,17 @@ SOURCE_PROVIDER_MAP = {
 }
 
 
+def convert_header_to_dict(header):
+    if not header:
+        return {}
+    try:
+        return json.loads(b64decode(header))
+    except (binascii.Error, TypeError, ValueError) as error:
+        msg = f"[convert_header_to_dict] unable to convert: {header}. Error: {error}"
+        LOG.error(msg)
+        raise SourcesMessageError(msg)
+
+
 class SourcesMessageError(ValidationError):
     """Sources Message error."""
 
@@ -80,7 +93,10 @@ class KafkaMessageProcessor:
         self.offset = msg.offset()
         self.partition = msg.partition()
         self.auth_header = extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
-        self.account_number = extract_from_header(msg.headers(), KAFKA_HDR_ACCOUNT_NUMBER)
+        decoded_header = convert_header_to_dict(self.auth_header)
+        self.account_number = extract_from_header(msg.headers(), KAFKA_HDR_ACCOUNT_NUMBER) or decoded_header.get(
+            "identity", {}
+        ).get("account_number")
         if self.auth_header is None and self.account_number is None:
             msg = (
                 f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}` "

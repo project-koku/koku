@@ -272,7 +272,11 @@ class SourcesHTTPClient:
             json_identity = json_dumps(identity_header)
             cost_internal_header = b64encode(json_identity.encode("utf-8"))
 
-            return {"x-rh-identity": cost_internal_header}
+            return {
+                "x-rh-identity": cost_internal_header,
+                "x-rh-sources-psk": Config.SOURCES_PSK,
+                "x-rh-sources-account-number": account,
+            }
         except (binascii.Error, JSONDecodeError, TypeError, KeyError, ValueError) as error:
             LOG.error(f"Unable to build internal status header. Error: {str(error)}")
 
