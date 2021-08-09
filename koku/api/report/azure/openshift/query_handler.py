@@ -109,6 +109,8 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                     ciso8601.parse_datetime(date_str)
                 except ValueError:
                     return False
+                except TypeError:
+                    return False
                 return True
 
             order_date = None

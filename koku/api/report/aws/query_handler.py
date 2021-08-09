@@ -606,6 +606,8 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     ciso8601.parse_datetime(date_str)
                 except ValueError:
                     return False
+                except TypeError:
+                    return False
                 return True
 
             query_sum = self._build_sum(query, annotations)
