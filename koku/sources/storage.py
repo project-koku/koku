@@ -3,11 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessors for Sources database table."""
-import binascii
 import logging
-from base64 import b64decode
-from json import loads as json_loads
-from json.decoder import JSONDecodeError
 
 from django.db import InterfaceError
 from django.db import OperationalError
@@ -302,17 +298,9 @@ def get_source_instance(source_id):
     return get_source(source_id, f"[get_source_instance] source_id: {source_id} does not exist.", LOG.info)
 
 
-def create_source_event(source_id, auth_header, offset):
+def create_source_event(source_id, account_id, auth_header, offset):
     """Create a Sources database object."""
     LOG.info(f"[create_source_event] starting for source_id {source_id} ...")
-    try:
-        decoded_rh_auth = b64decode(auth_header)
-        json_rh_auth = json_loads(decoded_rh_auth)
-        account_id = json_rh_auth.get("identity", {}).get("account_number")
-    except (binascii.Error, JSONDecodeError) as error:
-        LOG.error(str(error))
-        return
-
     try:
         source = Sources.objects.filter(source_id=source_id).first()
         if source:

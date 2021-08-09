@@ -2,10 +2,8 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import binascii
 import json
 import logging
-from base64 import b64decode
 
 from rest_framework.exceptions import ValidationError
 
@@ -13,6 +11,7 @@ from api.provider.models import Provider
 from sources import storage
 from sources.config import Config
 from sources.sources_http_client import AUTH_TYPES
+from sources.sources_http_client import convert_header_to_dict
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 
@@ -49,17 +48,6 @@ SOURCE_PROVIDER_MAP = {
 }
 
 
-def convert_header_to_dict(header):
-    if not header:
-        return {}
-    try:
-        return json.loads(b64decode(header))
-    except (binascii.Error, TypeError, ValueError) as error:
-        msg = f"[convert_header_to_dict] unable to convert: {header}. Error: {error}"
-        LOG.error(msg)
-        raise SourcesMessageError(msg)
-
-
 class SourcesMessageError(ValidationError):
     """Sources Message error."""
 
@@ -93,7 +81,7 @@ class KafkaMessageProcessor:
         self.offset = msg.offset()
         self.partition = msg.partition()
         self.auth_header = extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
-        decoded_header = convert_header_to_dict(self.auth_header)
+        decoded_header = convert_header_to_dict(self.auth_header, True)
         self.account_number = extract_from_header(msg.headers(), KAFKA_HDR_ACCOUNT_NUMBER) or decoded_header.get(
             "identity", {}
         ).get("account_number")
@@ -127,10 +115,10 @@ class KafkaMessageProcessor:
         return False
 
     def get_sources_client(self):
-        return SourcesHTTPClient(self.auth_header, self.source_id)
+        return SourcesHTTPClient(self.auth_header, self.source_id, self.account_number)
 
     def get_source_details(self):
-        return SourceDetails(self.auth_header, self.source_id)
+        return SourceDetails(self.auth_header, self.source_id, self.account_number)
 
     def save_sources_details(self):
         """
@@ -232,7 +220,7 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
     def process(self):
         """Process the message."""
         if self.event_type in (KAFKA_APPLICATION_CREATE,):
-            storage.create_source_event(self.source_id, self.auth_header, self.offset)
+            storage.create_source_event(self.source_id, self.account_number, self.auth_header, self.offset)
 
         if storage.is_known_source(self.source_id):
             if self.event_type in (KAFKA_APPLICATION_CREATE,):
@@ -272,7 +260,7 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
     def process(self):
         """Process the message."""
         if self.event_type in (KAFKA_AUTHENTICATION_CREATE):
-            storage.create_source_event(self.source_id, self.auth_header, self.offset)
+            storage.create_source_event(self.source_id, self.account_number, self.auth_header, self.offset)
 
         if storage.is_known_source(self.source_id):
             if self.event_type in (KAFKA_AUTHENTICATION_CREATE):
