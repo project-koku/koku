@@ -386,6 +386,11 @@ services:
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
         - DEMO_ACCOUNTS
         - prometheus_multiproc_dir=/tmp
+        - LOG_LEVEL=INFO
+        - KOKU_LOG_LEVEL=INFO
+        - DJANGO_LOG_LEVEL=INFO
+        - SOURCES_API_PREFIX=/api/sources/v1.0
+        - SOURCES_PSK=${SOURCES_PSK}
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
         - RUN_GUNICORN=${RUN_GUNICORN}
         - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
