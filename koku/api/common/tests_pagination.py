@@ -106,6 +106,16 @@ class ReportPaginationTest(TestCase):
 
         self.assertEqual(len(data.get("data", [])), expected_limit)
 
+    def test_paginate_queryset_nolimit(self):
+        """Test that the queryset is paginated properly."""
+        limit = 0
+        expected = len(self.data.get("data", []))
+
+        self.paginator.request.query_params = {"limit": limit}
+        data = self.paginator.paginate_queryset(self.data, self.paginator.request)
+
+        self.assertEqual(len(data.get("data", [])), expected)
+
     def test_paginate_queryset_high_offset(self):
         """Test that the queryset is paginated properly."""
         limit = 1
