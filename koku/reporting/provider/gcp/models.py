@@ -193,6 +193,7 @@ class GCPCostEntryLineItemDailySummary(models.Model):
     line_item_type = models.CharField(max_length=256, null=True)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
     # The following fields are aggregates
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -277,6 +278,8 @@ class GCPCostSummary(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPCostSummaryByAccount(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -306,6 +309,8 @@ class GCPCostSummaryByAccount(models.Model):
     currency = models.CharField(max_length=10)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
 
 class GCPCostSummaryByProject(models.Model):
@@ -341,6 +346,8 @@ class GCPCostSummaryByProject(models.Model):
 
     account_id = models.CharField(max_length=50, null=False)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPCostSummaryByRegion(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -372,6 +379,8 @@ class GCPCostSummaryByRegion(models.Model):
     currency = models.CharField(max_length=10)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
 
 class GCPCostSummaryByService(models.Model):
@@ -407,6 +416,8 @@ class GCPCostSummaryByService(models.Model):
 
     service_alias = models.CharField(max_length=256, null=True, blank=True)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPComputeSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -440,6 +451,8 @@ class GCPComputeSummary(models.Model):
     currency = models.CharField(max_length=10)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
 
 class GCPComputeSummaryByProject(models.Model):
@@ -481,6 +494,8 @@ class GCPComputeSummaryByProject(models.Model):
 
     account_id = models.CharField(max_length=50, null=False)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPComputeSummaryByService(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -521,6 +536,8 @@ class GCPComputeSummaryByService(models.Model):
 
     account_id = models.CharField(max_length=50, null=False)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPComputeSummaryByAccount(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -556,6 +573,8 @@ class GCPComputeSummaryByAccount(models.Model):
     source_uuid = models.UUIDField(unique=False, null=True)
 
     account_id = models.CharField(max_length=50, null=False)
+
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
 
 class GCPComputeSummaryByRegion(models.Model):
@@ -595,6 +614,8 @@ class GCPComputeSummaryByRegion(models.Model):
 
     region = models.CharField(max_length=50, null=True)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPStorageSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -626,6 +647,8 @@ class GCPStorageSummary(models.Model):
     currency = models.CharField(max_length=10)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
 
 class GCPStorageSummaryByProject(models.Model):
@@ -665,6 +688,8 @@ class GCPStorageSummaryByProject(models.Model):
 
     account_id = models.CharField(max_length=50, null=False)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPStorageSummaryByService(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -703,6 +728,8 @@ class GCPStorageSummaryByService(models.Model):
 
     account_id = models.CharField(max_length=50, null=False)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPStorageSummaryByAccount(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -738,6 +765,8 @@ class GCPStorageSummaryByAccount(models.Model):
     source_uuid = models.UUIDField(unique=False, null=True)
 
     account_id = models.CharField(max_length=50, null=False)
+
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
 
 class GCPStorageSummaryByRegion(models.Model):
@@ -777,6 +806,8 @@ class GCPStorageSummaryByRegion(models.Model):
 
     region = models.CharField(max_length=50, null=True)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPNetworkSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -815,6 +846,8 @@ class GCPNetworkSummary(models.Model):
 
     service_alias = models.CharField(max_length=256, null=True, blank=True)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPDatabaseSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -852,3 +885,5 @@ class GCPDatabaseSummary(models.Model):
     service_id = models.CharField(max_length=256, null=True)
 
     service_alias = models.CharField(max_length=256, null=True, blank=True)
+
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)

@@ -29,7 +29,6 @@ class OCPAzureCostLineItemDailySummary(models.Model):
         """Meta for OCPAzureCostLineItemDailySummary."""
 
         db_table = "reporting_ocpazurecostlineitem_daily_summary"
-        managed = False
 
         indexes = [
             models.Index(fields=["usage_start"], name="ocpazure_usage_start_idx"),
@@ -110,7 +109,6 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
         """Meta for OCPAzureCostLineItemProjectDailySummary."""
 
         db_table = "reporting_ocpazurecostlineitem_project_daily_summary"
-        managed = False
 
         indexes = [
             models.Index(fields=["usage_start"], name="ocpazure_proj_usage_start_idx"),
