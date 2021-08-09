@@ -553,6 +553,41 @@
             "Celery Queue Lengths"
           ]
         }
+      },
+      "/gcp_invoice_monthly_cost/": {
+        "get": {
+          "summary": "Returns dictionary with cost mappings for continuity checks",
+          "operationId": "gcpInvoiceMonthlyCost",
+          "description": "Returns a dictionary with cost mappings for continuity checks",
+          "parameters": [
+            {
+              "name": "provider_uuid",
+              "in": "query",
+              "description": "The provider UUID",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid",
+                "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Returns a dictionary with cost mappings for continuity checks",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/gcpInvoiceMonthlyCost"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "GCP Invoice Monthly Cost"
+          ]
+        }
       }
     },
     "components": {
@@ -737,6 +772,24 @@
             "celery": {
               "type": "integer",
               "example": 2
+            }
+          }
+        },
+        "gcpInvoiceMonthlyCost": {
+          "type": "object",
+          "properties": {
+            "monthly_invoice_cost_mapping": {
+              "type": "object",
+              "properties": {
+                "previous": {
+                  "type": "number",
+                  "example": 204.51
+                },
+                "current": {
+                  "type": "number",
+                  "example": 204.51
+                }
+              }
             }
           }
         },
