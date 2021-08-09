@@ -389,7 +389,7 @@ services:
         - LOG_LEVEL=INFO
         - KOKU_LOG_LEVEL=INFO
         - DJANGO_LOG_LEVEL=INFO
-        - SOURCES_API_PREFIX=/api/sources/v1.0
+        - SOURCES_API_PREFIX=${SOURCES_API_PREFIX}
         - SOURCES_PSK=${SOURCES_PSK}
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
         - RUN_GUNICORN=${RUN_GUNICORN}
