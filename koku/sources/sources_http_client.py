@@ -46,7 +46,7 @@ def convert_header_to_dict(header, b64_decode=False):
     if b64_decode:
         try:
             header = b64decode(header)
-        except binascii.Error as error:
+        except (binascii.Error, TypeError) as error:
             msg = f"[convert_header_to_dict] unable to decode: {header}. Error: {error}"
             LOG.error(msg)
             raise ValueError(msg)
