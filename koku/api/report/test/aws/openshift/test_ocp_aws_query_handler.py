@@ -4,6 +4,8 @@
 #
 """Test the Report Queries."""
 import copy
+from datetime import datetime
+from datetime import timedelta
 
 from tenant_schemas.utils import tenant_context
 
@@ -412,3 +414,30 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         self.assertNotEquals(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
+
+    def test_ocp_aws_date_order_by_cost_desc(self):
+        """Test execute_query with order by date for correct order of services."""
+        # execute query
+        today = datetime.utcnow() - timedelta(days=1)
+        yesterday = today - timedelta(days=2)
+        today = datetime.date(today)
+        yesterday = datetime.date(yesterday)
+        lst = []
+        correctlst = []
+        url = f"?order_by[cost]=desc&order_by[date]={today}&group_by[service]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        # test query output
+        for element in data:
+            if element.get("date") == str(yesterday):
+                for service in element.get("services"):
+                    lst.append(service.get("service"))
+        for element in data:
+            if element.get("date") == str(today):
+                for service in element.get("services"):
+                    correctlst.append(service.get("service"))
+        # test
+        self.assertEqual(lst, correctlst)
+        self.assertIsNotNone(data)

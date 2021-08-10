@@ -5,6 +5,7 @@
 """Test GCP Report Queries."""
 import logging
 from datetime import datetime
+from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
 from unittest.mock import patch
@@ -1082,3 +1083,30 @@ class GCPReportQueryHandlerTest(IamTestCase):
                         self.assertIsInstance(value.get("usage", {}).get("value"), Decimal)
                     service_checked = True
         self.assertTrue(service_checked)
+
+    def test_gcp_date_order_by_cost_desc(self):
+        """Test execute_query with order by date for correct order of services."""
+        # execute query
+        today = datetime.utcnow() - timedelta(days=1)
+        yesterday = today - timedelta(days=2)
+        today = datetime.date(today)
+        yesterday = datetime.date(yesterday)
+        lst = []
+        correctlst = []
+        url = f"?order_by[cost]=desc&order_by[date]={today}&group_by[service]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, GCPCostView)
+        handler = GCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        # test query output
+        for element in data:
+            if element.get("date") == str(yesterday):
+                for service in element.get("services"):
+                    lst.append(service.get("service"))
+        for element in data:
+            if element.get("date") == str(today):
+                for service in element.get("services"):
+                    correctlst.append(service.get("service"))
+        # test
+        self.assertEqual(lst, correctlst)
+        self.assertIsNotNone(data)
