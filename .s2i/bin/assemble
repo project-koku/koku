@@ -106,7 +106,7 @@ if should_collectstatic; then
       exit 1
     fi
 
-    echo "---> Testing `collectstatic` ..."
+    echo "---> Dry-run of 'collectstatic' ..."
     if ! python $manage_file collectstatic --dry-run --noinput; then
       echo "WARNING: could not run 'manage.py collectstatic'. To debug, run:"
       echo "    $ python $manage_file collectstatic --noinput"
