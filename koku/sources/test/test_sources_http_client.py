@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Sources HTTP Client."""
-import binascii
 from base64 import b64encode
 from itertools import product
 from unittest.mock import patch
@@ -61,10 +60,10 @@ class HeaderConverterTest(TestCase):
     def test_convert_header_to_dict_errors(self):
         """Test header conversion to dict with errors."""
         table = [
-            {"header": "gibberish", "error": binascii.Error, "b64_encode": True},
-            {"header": 123456789, "error": TypeError, "b64_encode": True},
+            {"header": "gibberish", "error": ValueError, "b64_encode": True},
+            {"header": 123456789, "error": ValueError, "b64_encode": True},
             {"header": '{"invalid": "json"', "error": ValueError, "b64_encode": False},
-            {"header": 123456789, "error": TypeError, "b64_encode": False},
+            {"header": 123456789, "error": ValueError, "b64_encode": False},
         ]
         for test in table:
             with self.subTest(test=test):

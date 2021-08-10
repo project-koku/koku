@@ -88,7 +88,7 @@ def mock_details_generator(provider_type, name, uid, source_id):
         with patch.object(
             SourcesHTTPClient, "get_source_type_name", return_value=SOURCE_TYPE_IDS.get(source_type_id, "unknown")
         ):
-            return SourceDetails(Config.SOURCES_FAKE_HEADER, source_id)
+            return SourceDetails(Config.SOURCES_FAKE_HEADER, source_id, 10001)
 
 
 class ConsumerRecord:
@@ -162,12 +162,12 @@ class KafkaMessageProcessorTest(IamTestCase):
                 uid = uuid4()
                 name = FAKER.name()
                 source_id = FAKER.pyint()
-                deets = mock_details_generator(provider, name, uid, source_id)
-                self.assertIsInstance(deets, SourceDetails)
-                self.assertEqual(deets.name, name)
-                self.assertEqual(deets.source_type, provider)
-                self.assertEqual(deets.source_type_name, SOURCE_TYPE_IDS[SOURCE_TYPE_IDS_MAP[provider]])
-                self.assertEqual(deets.source_uuid, uid)
+                details = mock_details_generator(provider, name, uid, source_id)
+                self.assertIsInstance(details, SourceDetails)
+                self.assertEqual(details.name, name)
+                self.assertEqual(details.source_type, provider)
+                self.assertEqual(details.source_type_name, SOURCE_TYPE_IDS[SOURCE_TYPE_IDS_MAP[provider]])
+                self.assertEqual(details.source_uuid, uid)
 
     def test_create_msg_processor(self):
         """Test create_msg_processor returns the correct processor based on msg event."""
