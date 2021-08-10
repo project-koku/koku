@@ -3,6 +3,9 @@ FROM registry.access.redhat.com/ubi8/python-38:latest
 ARG PIPENV_DEV=False
 ARG USER_ID=1000
 
+# needed for successful collectstatic
+ARG PROMETHEUS_MULTIPROC_DIR=/tmp
+
 ENV LC_ALL=en_US.UTF-8 \
     LANG=en_US.UTF-8 \
     PIP_NO_CACHE_DIR=off \

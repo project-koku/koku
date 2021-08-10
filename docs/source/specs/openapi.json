@@ -5345,7 +5345,7 @@
                                 "default": false
                             },
                             "infrastructure": {
-                                "type": "Object",
+                                "type": "object",
                                 "description": "Dictionary containing OpenShift foundational infrastructure type and uuid.",
                                 "example": {
                                     "type": "AWS",
