@@ -16,6 +16,7 @@ IQE_MARKER_EXPRESSION="smoke"
 IQE_FILTER_EXPRESSION=""
 
 # Install bonfire repo/initialize
+echo "is this gonna work?"
 CICD_URL=https://raw.githubusercontent.com/maskarb/bonfire/build-args/cicd
 curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
