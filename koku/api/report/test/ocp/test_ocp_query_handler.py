@@ -612,7 +612,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         yesterday = datetime.date(yesterday)
         lst = []
         correctlst = []
-        url = f"?order_by[cost]=desc&order_by[date]={today}&group_by[service]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={today}&group_by[project]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -620,12 +620,12 @@ class OCPReportQueryHandlerTest(IamTestCase):
         # test query output
         for element in data:
             if element.get("date") == str(yesterday):
-                for service in element.get("services"):
-                    lst.append(service.get("service"))
+                for service in element.get("projects"):
+                    lst.append(service.get("project"))
         for element in data:
             if element.get("date") == str(today):
-                for service in element.get("services"):
-                    correctlst.append(service.get("service"))
+                for service in element.get("projects"):
+                    correctlst.append(service.get("project"))
         # test
         self.assertEqual(lst, correctlst)
         self.assertIsNotNone(data)

@@ -1237,7 +1237,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         yesterday = datetime.date(yesterday)
         lst = []
         correctlst = []
-        url = f"?order_by[cost]=desc&order_by[date]={today}&group_by[service]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={today}&group_by[service_name]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -1245,12 +1245,12 @@ class AzureReportQueryHandlerTest(IamTestCase):
         # test query output
         for element in data:
             if element.get("date") == str(yesterday):
-                for service in element.get("services"):
-                    lst.append(service.get("service"))
+                for service in element.get("service_names"):
+                    lst.append(service.get("service_name"))
         for element in data:
             if element.get("date") == str(today):
-                for service in element.get("services"):
-                    correctlst.append(service.get("service"))
+                for service in element.get("service_names"):
+                    correctlst.append(service.get("service_name"))
         # test
         self.assertEqual(lst, correctlst)
         self.assertIsNotNone(data)
