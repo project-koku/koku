@@ -41,12 +41,31 @@ class GCPReportQueryHandlerTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.dh = DateHelper()
-        self.this_month_filter = {"usage_start__gte": self.dh.this_month_start}
-        self.ten_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 9)}
-        self.thirty_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 29)}
+        self.this_month_filter = {
+            "usage_start__gte": self.dh.this_month_start,
+            "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
+                self.dh.this_month_start, self.dh.this_month_end
+            ),
+        }
+
+        self.ten_day_filter = {
+            "usage_start__gte": self.dh.n_days_ago(self.dh.today, 9),
+            "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
+                self.dh.n_days_ago(self.dh.today, 9), self.dh.today
+            ),
+        }
+        self.thirty_day_filter = {
+            "usage_start__gte": self.dh.n_days_ago(self.dh.today, 29),
+            "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
+                self.dh.n_days_ago(self.dh.today, 29), self.dh.today
+            ),
+        }
         self.last_month_filter = {
             "usage_start__gte": self.dh.last_month_start,
             "usage_end__lte": self.dh.last_month_end,
+            "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
+                self.dh.last_month_start, self.dh.last_month_end
+            ),
         }
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
@@ -354,7 +373,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_curr_month_by_account_w_order_by_account(self):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[account]=asc&group_by[account]=*"  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly&order_by[account]=asc&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -363,11 +382,11 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.last_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
-        cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
+        cmonth_str = self.dh.last_month_start.strftime("%Y-%m")
         for data_item in data:
             month_val = data_item.get("date")
             month_data = data_item.get("accounts")
@@ -703,7 +722,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         expected_units = "USD"
@@ -711,7 +730,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             result = handler.calculate_total(**{"cost_units": expected_units})
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.last_month_filter)
         cost_total = result.get("cost", {}).get("total")
         self.assertIsNotNone(cost_total)
         self.assertEqual(cost_total.get("value"), current_totals["cost_total"])

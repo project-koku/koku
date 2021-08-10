@@ -132,10 +132,19 @@ class ReportPagination(StandardResultsSetPagination):
         """Determine a report data's count."""
         return len(queryset.get("data", []))
 
+    def get_limit_parameter(self, request):
+        """Get the limit parameter from request."""
+        if request.query_params.get(self.limit_query_param) is not None:
+            return int(request.query_params.get(self.limit_query_param))
+        return None
+
     def paginate_queryset(self, queryset, request, view=None):
         """Override queryset pagination."""
         self.count = self.get_count(queryset)
-        self.limit = self.get_limit(request)
+        if self.get_limit_parameter(request) == 0:
+            self.limit = 0
+        else:
+            self.limit = self.get_limit(request)
         if self.limit is None:
             return None
         self.offset = self.get_offset(request)
@@ -147,7 +156,11 @@ class ReportPagination(StandardResultsSetPagination):
             queryset["data"] = []
             return queryset
 
-        query_data = queryset.get("data", [])[self.offset : self.offset + self.limit]  # noqa
+        if self.limit:
+            query_data = queryset.get("data", [])[self.offset : self.offset + self.limit]  # noqa
+        else:
+            query_data = queryset.get("data", [])
+
         queryset["data"] = query_data
 
         return queryset

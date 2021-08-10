@@ -551,6 +551,8 @@ def process_report(request_id, report):
     provider_type = report.get("provider_type")
     date = report.get("date")
 
+    # The create_table flag is used by the ParquetReportProcessor
+    # to create a Hive/Trino table.
     report_dict = {
         "file": report.get("current_file"),
         "compression": UNCOMPRESSED,
