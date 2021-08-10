@@ -1,5 +1,6 @@
 FROM registry.access.redhat.com/ubi8/python-38:latest as builder
 
+ARG EXPIRATION=Never
 ARG PIPENV_DEV=False
 ARG USER_ID=1000
 
@@ -31,6 +32,8 @@ LABEL summary="$SUMMARY" \
     version="1" \
     maintainer="Red Hat Cost Management Services"
 
+LABEL quay.expires-after="$EXPIRATION"
+
 USER root
 
 COPY ./.s2i/bin/ $STI_SCRIPTS_PATH
@@ -59,7 +62,7 @@ CMD $STI_SCRIPTS_PATH/run
 # testing.
 # -----------------------------------------------------------------------
 
-FROM builder as local-build
+FROM builder as builder-local
 
 USER root
 

@@ -8,13 +8,15 @@
 APP_NAME="hccm"  # name of app-sre "application" folder this component lives in
 COMPONENT_NAME="koku"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
 IMAGE="quay.io/cloudservices/koku"
+DOCKER_TARGET=builder  # target in multi-stage dockerfile (optional)
+DOCKER_BUILD_ARGS="EXPIRATION=3d PIPENV_DEV=True"  # build arguments to pass to docker/podman (optional)
 
 IQE_PLUGINS="cost_management"
 IQE_MARKER_EXPRESSION="smoke"
 IQE_FILTER_EXPRESSION=""
 
 # Install bonfire repo/initialize
-CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
+CICD_URL=https://raw.githubusercontent.com/maskarb/bonfire/build-args/cicd
 curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
 if $(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/search/issues\?q\=sha:$GIT_COMMIT |
