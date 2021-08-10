@@ -669,7 +669,7 @@ class AWSReportQueryTest(IamTestCase):
         query_output = handler.execute_query()
         data = query_output.get("data")
         total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
-        self.assertIsNotNone(data)
+        #
         self.assertIsNotNone(total_cost_total)
         self.assertGreater(total_cost_total.get("value"), 0)
 
@@ -1854,6 +1854,32 @@ class AWSReportQueryTest(IamTestCase):
                         actual.append(value.get("account"))
         for acc in actual:
             self.assertTrue(acc in expected)
+
+    def test_aws_date_order_by_cost_asc(self):
+        """Test execute_query with order by date for correct order of services."""
+        # execute query
+        today = datetime.utcnow() - timedelta(days=1)
+        yesterday = today - timedelta(days=2)
+        today = datetime.date(today)
+        yesterday = datetime.date(yesterday)
+        lst = []
+        correctlst = []
+        url = f"?order_by[cost]=desc&order_by[date]={today}&group_by[service]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        # test query output
+        for element in data:
+            if element.get("date") == str(yesterday):
+                for service in element.get("services"):
+                    lst.append(service.get("service"))
+        for element in data:
+            if element.get("date") == str(today):
+                for service in element.get("services"):
+                    correctlst.append(service.get("service"))
+        self.assertEqual(lst, correctlst)
+        self.assertIsNotNone(data)
 
 
 class AWSReportQueryLogicalAndTest(IamTestCase):
