@@ -1878,6 +1878,7 @@ class AWSReportQueryTest(IamTestCase):
             if element.get("date") == str(today):
                 for service in element.get("services"):
                     correctlst.append(service.get("service"))
+        # test
         self.assertEqual(lst, correctlst)
         self.assertIsNotNone(data)
 
