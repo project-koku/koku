@@ -50,7 +50,15 @@ RUN $STI_SCRIPTS_PATH/assemble
 # Set the default CMD
 CMD $STI_SCRIPTS_PATH/run
 
-#### Add the following for local builds only.
+
+# -----------------------------------------------------------------------
+# The build_deploy.sh only builds up to this point with the use of the
+# `podman build --target=builder` command. The above is all that is
+# required to create an image that can be used in a deployment. The
+# following lines enable use of this Dockerfile on Fedora for local
+# testing.
+# -----------------------------------------------------------------------
+
 FROM builder as local-build
 
 USER root
