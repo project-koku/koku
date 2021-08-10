@@ -52,6 +52,7 @@ services:
       privileged: true
       ports:
           - 8000:8000
+          - 8001:9000
       volumes:
         - '.:/koku/'
       links:
@@ -107,6 +108,7 @@ services:
       privileged: true
       ports:
           - 5000:8000
+          - 5001:9000
       volumes:
         - '.:/koku/'
       links:
@@ -281,6 +283,8 @@ services:
         - MAX_CELERY_TASKS_PER_WORKER=${MAX_CELERY_TASKS_PER_WORKER-10}
         - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
       privileged: true
+      ports:
+          - 6001:9000
       volumes:
         - '.:/koku'
         - './testing:/testing'
@@ -346,7 +350,7 @@ services:
         - ENABLE_TRINO_SOURCE_TYPE
       privileged: true
       ports:
-          - "9988:9999"
+          - 7001:9000
       volumes:
         - '.:/koku'
       links:
@@ -392,7 +396,8 @@ services:
         - GUNICORN_THREADS=${GUNICORN_THREADS-False}
       privileged: true
       ports:
-          - 4000:8080
+          - 4000:8000
+          - 4001:9000
       volumes:
         - '.:/koku'
       links:

@@ -53,6 +53,8 @@ CMD $STI_SCRIPTS_PATH/run
 #### Add the following for local builds only.
 FROM builder as local-build
 
+USER root
+
 RUN groupadd -g ${USER_ID} koku \
     && useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root koku \
     && chmod g+rwx /opt
