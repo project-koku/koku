@@ -108,8 +108,6 @@ if should_collectstatic; then
       exit 1
     fi
 
-    python $manage_file collectstatic --dry-run --noinput
-
     if ! python $manage_file collectstatic --dry-run --noinput &> /dev/null; then
       echo "WARNING: could not run 'manage.py collectstatic'. To debug, run:"
       echo "    $ python $manage_file collectstatic --noinput"
