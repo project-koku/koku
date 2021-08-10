@@ -35,6 +35,7 @@ from sources.kafka_message_processor import SOURCES_AWS_SOURCE_NAME
 from sources.kafka_message_processor import SOURCES_AZURE_SOURCE_NAME
 from sources.kafka_message_processor import SOURCES_GCP_SOURCE_NAME
 from sources.kafka_message_processor import SOURCES_OCP_SOURCE_NAME
+from sources.kafka_message_processor import SourcesMessageError
 from sources.sources_http_client import AUTH_TYPES
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
@@ -94,7 +95,7 @@ def mock_details_generator(provider_type, name, uid, source_id):
 class ConsumerRecord:
     """Test class for kafka msg."""
 
-    def __init__(self, topic, offset, event_type, value, auth_header=None, partition=0):
+    def __init__(self, topic, offset, event_type, value, auth_header=None, partition=0, account_id="12345"):
         """Initialize Msg."""
         self._topic = topic
         self._offset = offset
@@ -103,6 +104,7 @@ class ConsumerRecord:
             self._headers = (
                 ("event_type", bytes(event_type, encoding="utf-8")),
                 ("x-rh-identity", bytes(auth_header, encoding="utf-8")),
+                ("x-rh-sources-account-number", bytes(account_id, encoding="utf-8")),
             )
         else:
             self._headers = (("event_type", bytes(event_type, encoding="utf-8")),)
@@ -190,6 +192,49 @@ class KafkaMessageProcessorTest(IamTestCase):
             with self.subTest(test=test):
                 msg = msg_generator(event_type=test.get("event_type"), topic=test.get("test_topic"))
                 self.assertIsInstance(create_msg_processor(msg, COST_MGMT_APP_TYPE_ID), test.get("expected"))
+
+    def test_create_msg_processor_various_headers(self):
+        """Test create_msg_processor various kafka headers."""
+        event = KAFKA_APPLICATION_CREATE
+        account_id = "10002"
+        table = [
+            {
+                "header_list": (
+                    ("event_type", bytes(event, encoding="utf-8")),
+                    ("x-rh-identity", bytes(Config.SOURCES_FAKE_HEADER, encoding="utf-8")),
+                    ("x-rh-sources-account-number", bytes(account_id, encoding="utf-8")),
+                ),
+                "expected": {"account_number": account_id, "auth_header": Config.SOURCES_FAKE_HEADER},
+            },
+            {
+                "header_list": (
+                    ("event_type", bytes(event, encoding="utf-8")),
+                    ("x-rh-identity", bytes(Config.SOURCES_FAKE_HEADER, encoding="utf-8")),
+                ),
+                "expected": {"account_number": "12345", "auth_header": Config.SOURCES_FAKE_HEADER},
+            },
+            {
+                "header_list": (
+                    ("event_type", bytes(event, encoding="utf-8")),
+                    ("x-rh-sources-account-number", bytes(account_id, encoding="utf-8")),
+                ),
+                "expected": {"account_number": account_id, "auth_header": None},
+            },
+        ]
+        for test in table:
+            with self.subTest(test=test):
+                msg = msg_generator(event_type=event)
+                msg._headers = test.get("header_list")
+                result = create_msg_processor(msg, COST_MGMT_APP_TYPE_ID)
+                for k, v in test.get("expected").items():
+                    self.assertEqual(getattr(result, k), v)
+
+    def test_create_msg_processor_missing_auth_and_account_id(self):
+        """Test that KafkaMessageProcessor raises SourcesMessageError on missing info."""
+        event = KAFKA_APPLICATION_CREATE
+        msg = msg_generator(event_type=event, header=None)
+        with self.assertRaises(SourcesMessageError):
+            create_msg_processor(msg, COST_MGMT_APP_TYPE_ID)
 
     def test_create_msg_processor_missing_header(self):
         """Test create_msg_processor on a message missing kafka headers."""
