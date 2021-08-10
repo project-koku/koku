@@ -108,7 +108,7 @@ if should_collectstatic; then
       exit 1
     fi
 
-    if ! python $manage_file collectstatic --dry-run --noinput &> /dev/null; then
+    if ! python $manage_file collectstatic --dry-run --noinput; then
       echo "WARNING: could not run 'manage.py collectstatic'. To debug, run:"
       echo "    $ python $manage_file collectstatic --noinput"
       echo "Ignore this warning if you're not serving static files with Django."
