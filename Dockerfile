@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/python-38:latest
+FROM registry.access.redhat.com/ubi8/python-38:latest as builder
 
 ARG PIPENV_DEV=False
 ARG USER_ID=1000
@@ -41,13 +41,7 @@ COPY . /tmp/src/.
 RUN /usr/bin/fix-permissions /tmp/src && \
 chmod 755 $STI_SCRIPTS_PATH/assemble $STI_SCRIPTS_PATH/run
 
-RUN groupadd -g ${USER_ID} koku \
-    && useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root koku \
-    && chmod g+rwx /opt
-
-USER koku
-
-RUN umask u=rwx,g=rwx,o=rx
+USER 1001
 
 EXPOSE 8080
 
@@ -55,3 +49,14 @@ RUN $STI_SCRIPTS_PATH/assemble
 
 # Set the default CMD
 CMD $STI_SCRIPTS_PATH/run
+
+#### Add the following for local builds only.
+FROM builder as local-build
+
+RUN groupadd -g ${USER_ID} koku \
+    && useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root koku \
+    && chmod g+rwx /opt
+
+USER koku
+
+RUN umask u=rwx,g=rwx,o=rx
