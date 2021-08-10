@@ -201,7 +201,7 @@ class FilterSerializer(BaseSerializer):
     time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
 
     resource_scope = StringOrListField(child=serializers.CharField(), required=False)
-    limit = serializers.IntegerField(required=False, min_value=1)
+    limit = serializers.IntegerField(required=False, min_value=0)
     offset = serializers.IntegerField(required=False, min_value=0)
 
     def validate(self, data):
