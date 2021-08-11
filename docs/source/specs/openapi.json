@@ -4390,11 +4390,11 @@
                 "in": "query",
                 "name": "limit",
                 "required": false,
-                "description": "Parameter for selecting the amount of data in a returned.",
+                "description": "Parameter for selecting the amount of data in a returned. Limit of 0 will return all data.",
                 "schema": {
                     "type": "integer",
                     "default": 100,
-                    "minimum": 1,
+                    "minimum": 0,
                     "maximum": 1000
                 }
             },
@@ -5345,9 +5345,12 @@
                                 "default": false
                             },
                             "infrastructure": {
-                                "type": "string",
-                                "description": "OpenShift foundational infrastructure type.",
-                                "example": "AWS"
+                                "type": "object",
+                                "description": "Dictionary containing OpenShift foundational infrastructure type and uuid.",
+                                "example": {
+                                    "type": "AWS",
+                                    "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1d"
+                                }
                             },
                             "cost_models": {
                                 "type": "array",

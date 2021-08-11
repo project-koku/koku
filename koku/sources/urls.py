@@ -19,4 +19,4 @@ if API_PATH_PREFIX != "":
     if not API_PATH_PREFIX.endswith("/"):
         API_PATH_PREFIX = API_PATH_PREFIX + "/"
 
-urlpatterns = [path(f"{API_PATH_PREFIX}v1/", include("sources.api.urls")), path("", include("django_prometheus.urls"))]
+urlpatterns = [path(f"{API_PATH_PREFIX}v1/", include("sources.api.urls"))]
