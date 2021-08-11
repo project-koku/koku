@@ -233,7 +233,7 @@ services:
       hostname: koku-worker-1
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,ocp,priority,summary,cost_model,refresh']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,ocp,priority,summary,cost_model,refresh']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
@@ -284,7 +284,7 @@ services:
         - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
       privileged: true
       ports:
-        - 6001:9000
+        - 6001-6020:9000
       volumes:
         - '.:/koku'
         - './testing:/testing'
@@ -350,7 +350,7 @@ services:
         - ENABLE_TRINO_SOURCE_TYPE
       privileged: true
       ports:
-        - 7001:9000
+        - 7001-7020:9000
       volumes:
         - '.:/koku'
       links:
