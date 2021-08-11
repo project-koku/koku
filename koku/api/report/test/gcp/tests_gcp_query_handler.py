@@ -1087,13 +1087,13 @@ class GCPReportQueryHandlerTest(IamTestCase):
     def test_gcp_date_order_by_cost_desc(self):
         """Test execute_query with order by date for correct order of services."""
         # execute query
-        today = datetime.utcnow() - timedelta(days=1)
-        yesterday = today - timedelta(days=2)
-        today = datetime.date(today)
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        # removes time from date
         yesterday = datetime.date(yesterday)
         lst = []
+        matchinglists = False
         correctlst = []
-        url = f"?order_by[cost]=desc&order_by[date]={today}&group_by[service]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -1102,11 +1102,15 @@ class GCPReportQueryHandlerTest(IamTestCase):
         for element in data:
             if element.get("date") == str(yesterday):
                 for service in element.get("services"):
-                    lst.append(service.get("service"))
-        for element in data:
-            if element.get("date") == str(today):
-                for service in element.get("services"):
                     correctlst.append(service.get("service"))
-        # test
-        self.assertEqual(lst, correctlst)
-        self.assertIsNotNone(data)
+        for element in data:
+            # Check if there is any data in services
+            if element.get("services") > []:
+                for service in element.get("services"):
+                    lst.append(service.get("service"))
+                if correctlst == lst:
+                    matchinglists = True
+                else:
+                    matchinglists = False
+                lst = []
+        self.assertTrue(matchinglists)
