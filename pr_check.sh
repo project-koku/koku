@@ -11,9 +11,9 @@ IMAGE="quay.io/cloudservices/koku"
 COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
 COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
 
-IQE_PLUGINS="cost_management"
-IQE_MARKER_EXPRESSION="cost_smoke"
-IQE_FILTER_EXPRESSION="test_api"
+export IQE_PLUGINS="cost_management"
+export IQE_MARKER_EXPRESSION="cost_smoke"
+export IQE_FILTER_EXPRESSION="test_api"
 
 set -ex
 
