@@ -51,12 +51,12 @@ def check_report_updates(*args, **kwargs):
 
 
 @celery_app.task(name="masu.celery.tasks.remove_expired_data", queue=DEFAULT)
-def remove_expired_data(simulate=False, line_items_only=False):
+def remove_expired_data(simulate=False):
     """Scheduled task to initiate a job to remove expired report data."""
     today = DateAccessor().today()
     LOG.info("Removing expired data at %s", str(today))
     orchestrator = Orchestrator()
-    orchestrator.remove_expired_report_data(simulate, line_items_only)
+    orchestrator.remove_expired_report_data(simulate)
 
 
 def deleted_archived_with_prefix(s3_bucket_name, prefix):
@@ -129,6 +129,9 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
 
     if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, provider_type, schema_name)):
         LOG.info("Skipping delete_archived_data. Upload feature is disabled.")
+        return
+    elif settings.S3_MINIO_IN_USE:
+        LOG.info("Skipping delete_archived_data. MinIO in use.")
         return
     else:
         message = f"Deleting S3 data for {provider_type} provider {provider_uuid} in account {schema_name}."

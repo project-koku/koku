@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: worker-priority
+    name: clowder-worker-priority
     minReplicas: ${{WORKER_PRIORITY_MIN_REPLICAS}}
     webServices:
       public:
@@ -47,6 +47,8 @@
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -117,6 +119,26 @@
           value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
+      livenessProbe:
+        httpGet:
+          path: /livez
+          port: metrics
+          scheme: HTTP
+        initialDelaySeconds: 30
+        periodSeconds: 20
+        successThreshold: 1
+        failureThreshold: 5
+        timeoutSeconds: 10
+      readinessProbe:
+        httpGet:
+          path: /readyz
+          port: metrics
+          scheme: HTTP
+        initialDelaySeconds: 30
+        periodSeconds: 20
+        successThreshold: 1
+        failureThreshold: 5
+        timeoutSeconds: 10
       resources:
         limits:
           cpu: ${WORKER_PRIORITY_CPU_LIMIT}
@@ -153,7 +175,7 @@
     displayName: Memory Request
     name: WORKER_PRIORITY_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 128Mi
 - op: add
   path: /parameters/-
   value:

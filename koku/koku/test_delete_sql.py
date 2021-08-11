@@ -67,6 +67,50 @@ class TestDeleteSQL(IamTestCase):
         self.assertEqual(udt_count, 1)
         self.assertEqual(Provider.objects.get(pk=p.pk).active, False)
 
+    def test_cascade_delete_with_skip(self):
+        """Test that cascade_delete can walk relations abd skip specified relations"""
+        action_ts = datetime.now().replace(tzinfo=UTC)
+        # Add a bogus customer
+        c = Customer(
+            date_created=action_ts,
+            date_updated=action_ts,
+            uuid=uuid.uuid4(),
+            account_id="68461385",
+            schema_name="acct68461385",
+        )
+        c.save()
+        # Create a customer tenant
+        t = Tenant(schema_name=c.schema_name)
+        t.save()
+        t.create_schema()
+        # Add some bogus providers
+        pocp = Provider(
+            uuid=uuid.uuid4(),
+            name="eek_ocp_provider_30",
+            type=Provider.PROVIDER_OCP,
+            setup_complete=False,
+            active=True,
+            customer=c,
+        )
+        pocp.save()
+
+        expected1 = "INFO:koku.database:Level 1: delete records from OCPUsageReportPeriod"
+        expected2 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItemDailySummary by directive"
+        expected3 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItem by directive"
+        skip_models = [kdb.get_model("OCPUsageLineItemDailySummary"), kdb.get_model("OCPUsageLineItem")]
+        query = Provider.objects.filter(pk=pocp.pk)
+        with self.assertLogs("koku.database", level="INFO") as _logger:
+            with schema_context(c.schema_name):
+                kdb.cascade_delete(Provider, query, skip_relations=skip_models)
+            self.assertIn(expected1, _logger.output)
+            self.assertIn(expected2, _logger.output)
+            self.assertIn(expected3, _logger.output)
+
+        with schema_context(c.schema_name):
+            self.assertEqual(OCPUsageReportPeriod.objects.filter(pk=pocp.pk).count(), 0)
+
+        self.assertEqual(Provider.objects.filter(pk=pocp.pk).count(), 0)
+
     def test_cascade_delete(self):
         """Test that cascade_delete can walk relations to delete FK constraint matched records"""
         action_ts = datetime.now().replace(tzinfo=UTC)
@@ -169,3 +213,124 @@ class TestDeleteSQL(IamTestCase):
             self.assertEqual(OCPUsageReportPeriod.objects.filter(pk=ocpurp.pk).count(), 0)
 
         self.assertEqual(Provider.objects.filter(pk__in=(paws.pk, pazure.pk, pgcp.pk, pocp.pk)).count(), 0)
+
+    def test_cascade_delete_immediate_constraint(self):
+        """Test that cascade_delete can set constraints to execute immediately"""
+        action_ts = datetime.now().replace(tzinfo=UTC)
+        # Add a bogus customer
+        c = Customer(
+            date_created=action_ts,
+            date_updated=action_ts,
+            uuid=uuid.uuid4(),
+            account_id="918273",
+            schema_name="acct918273",
+        )
+        c.save()
+        # Create a customer tenant
+        t = Tenant(schema_name=c.schema_name)
+        t.save()
+        t.create_schema()
+        # Add some bogus providers
+        paws = Provider(
+            uuid=uuid.uuid4(),
+            name="eek_aws_provider_4",
+            type=Provider.PROVIDER_AWS,
+            setup_complete=False,
+            active=True,
+            customer=c,
+        )
+        paws.save()
+        # Create billing period stuff for each provider
+        period_start = datetime(2020, 1, 1, tzinfo=UTC)
+        period_end = datetime(2020, 2, 1, tzinfo=UTC)
+        awsceb = AWSCostEntryBill(
+            billing_resource="6846351687354184651",
+            billing_period_start=period_start,
+            billing_period_end=period_end,
+            provider=paws,
+        )
+        with schema_context(c.schema_name):
+            awsceb.save()
+
+        expected = "DEBUG:koku.database:Setting constaints to execute immediately"
+        with self.assertLogs("koku.database", level="DEBUG") as _logger:
+            paws.delete()
+            self.assertIn(expected, _logger.output)
+
+        with schema_context(c.schema_name):
+            self.assertEqual(AWSCostEntryBill.objects.filter(pk=awsceb.pk).count(), 0)
+
+        self.assertEqual(Provider.objects.filter(pk=paws.pk).count(), 0)
+
+    def test_cascade_delete_skip(self):
+        """Test that cascade_delete can skip relations"""
+        action_ts = datetime.now().replace(tzinfo=UTC)
+        # Add a bogus customer
+        c = Customer(
+            date_created=action_ts,
+            date_updated=action_ts,
+            uuid=uuid.uuid4(),
+            account_id="918273",
+            schema_name="acct918273",
+        )
+        c.save()
+        # Create a customer tenant
+        t = Tenant(schema_name=c.schema_name)
+        t.save()
+        t.create_schema()
+        # Add some bogus providers
+        paws = Provider(
+            uuid=uuid.uuid4(),
+            name="eek_aws_provider_4",
+            type=Provider.PROVIDER_AWS,
+            setup_complete=False,
+            active=True,
+            customer=c,
+        )
+        paws.save()
+        # Create billing period stuff for each provider
+        period_start = datetime(2020, 1, 1, tzinfo=UTC)
+        period_end = datetime(2020, 2, 1, tzinfo=UTC)
+        AWSCostEntry = kdb.get_model("AWSCostEntry")
+        AWSCostEntryLineItem = kdb.get_model("AWSCostEntryLineItem")
+        with schema_context(c.schema_name):
+            awsceb = AWSCostEntryBill(
+                billing_resource="6846351687354184651",
+                billing_period_start=period_start,
+                billing_period_end=period_end,
+                provider=paws,
+            )
+            awsceb.save()
+            awsce = AWSCostEntry(interval_start=period_start, interval_end=period_end, bill=awsceb)
+            awsce.save()
+            awsceli = AWSCostEntryLineItem(
+                line_item_type="test",
+                usage_account_id="test",
+                usage_start=period_start,
+                usage_end=period_start,
+                product_code="test",
+                currency_code="USD",
+                cost_entry=awsce,
+                cost_entry_bill=awsceb,
+            )
+            awsceli.save()
+
+        expected = "INFO:koku.database:SKIPPING RELATION AWSCostEntryLineItem by directive"
+        expected2 = "INFO:koku.database:SKIPPING RELATION GCPCostEntryLineItem by directive"
+        expected3 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItem by directive"
+        expected4 = "INFO:koku.database:SKIPPING RELATION OCPStorageLineItem by directive"
+        expected5 = "INFO:koku.database:SKIPPING RELATION OCPNodeLabelLineItem by directive"
+        with self.assertLogs("koku.database", level="INFO") as _logger:
+            paws.delete()
+            self.assertIn(expected, _logger.output)
+            self.assertIn(expected2, _logger.output)
+            self.assertIn(expected3, _logger.output)
+            self.assertIn(expected4, _logger.output)
+            self.assertIn(expected5, _logger.output)
+
+        with schema_context(c.schema_name):
+            self.assertEqual(AWSCostEntryBill.objects.filter(pk=awsceb.pk).count(), 0)
+            self.assertEqual(AWSCostEntry.objects.filter(pk=awsce.pk).count(), 0)
+            self.assertNotEqual(AWSCostEntryLineItem.objects.filter(pk=awsceli.pk).count(), 0)
+
+        self.assertEqual(Provider.objects.filter(pk=paws.pk).count(), 0)

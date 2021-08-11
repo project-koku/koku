@@ -3,12 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for Azure report data."""
+import json
 import logging
 import pkgutil
 import uuid
 from datetime import datetime
 
 from dateutil.parser import parse
+from django.db import connection
 from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
@@ -40,10 +42,15 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         self._datetime_format = Config.AZURE_DATETIME_STR_FORMAT
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
+        self._table_map = AZURE_REPORT_TABLE_MAP
 
     @property
     def line_item_daily_summary_table(self):
         return AzureCostEntryLineItemDailySummary
+
+    @property
+    def line_item_daily_table(self):
+        return AzureCostEntryLineItemDaily
 
     def get_cost_entry_bills(self):
         """Get all cost entry bill objects."""
@@ -110,7 +117,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         _start_date = start_date.date() if isinstance(start_date, datetime) else start_date
         _end_date = end_date.date() if isinstance(end_date, datetime) else end_date
 
-        table_name = AZURE_REPORT_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_azurecostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -160,7 +167,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
-        table_name = AZURE_REPORT_TABLE_MAP["tags_summary"]
+        table_name = self._table_map["tags_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_azuretags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
@@ -226,7 +233,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
+        table_name = self._table_map["ocp_on_azure_daily_summary"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazurecostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -246,7 +253,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
 
     def populate_ocp_on_azure_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
-        table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_tags_summary"]
+        table_name = self._table_map["ocp_on_azure_tags_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazuretags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
@@ -255,7 +262,14 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def populate_ocp_on_azure_cost_daily_summary_presto(
-        self, start_date, end_date, openshift_provider_uuid, azure_provider_uuid, cluster_id, bill_id, markup_value
+        self,
+        start_date,
+        end_date,
+        openshift_provider_uuid,
+        azure_provider_uuid,
+        report_period_id,
+        bill_id,
+        markup_value,
     ):
         """Populate the daily cost aggregated summary for OCP on Azure."""
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpazurecostlineitem_daily_summary.sql")
@@ -269,7 +283,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             "month": start_date.strftime("%m"),
             "azure_source_uuid": azure_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
-            "cluster_id": cluster_id,
+            "report_period_id": report_period_id,
             "bill_id": bill_id,
             "markup": markup_value,
         }
@@ -284,7 +298,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = AZURE_REPORT_TABLE_MAP["enabled_tag_keys"]
+        table_name = self._table_map["enabled_tag_keys"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_azureenabledtagkeys.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -307,7 +321,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = AZURE_REPORT_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
         summary_sql = pkgutil.get_data(
             "masu.database", "sql/reporting_azurecostentryline_item_daily_summary_update_enabled_tags.sql"
         )
@@ -322,3 +336,52 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
+
+    def get_openshift_on_cloud_matched_tags(self, azure_bill_id, ocp_report_period_id):
+        """Return a list of matched tags."""
+        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazure_matched_tags.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {"bill_id": azure_bill_id, "report_period_id": ocp_report_period_id, "schema": self.schema}
+        sql, bind_params = self.jinja_sql.prepare_query(sql, sql_params)
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(sql, params=bind_params)
+            results = cursor.fetchall()
+
+        return [json.loads(result[0]) for result in results]
+
+    def get_openshift_on_cloud_matched_tags_trino(self, azure_source_uuid, ocp_source_uuid, start_date, end_date):
+        """Return a list of matched tags."""
+        sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpazure_matched_tags.sql")
+        sql = sql.decode("utf-8")
+
+        sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "azure_source_uuid": azure_source_uuid,
+            "ocp_source_uuid": ocp_source_uuid,
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
+        }
+        sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
+        results = self._execute_presto_raw_sql_query(self.schema, sql, bind_params=sql_params)
+
+        return [json.loads(result[0]) for result in results]
+
+    def back_populate_ocp_on_azure_daily_summary(self, start_date, end_date, report_period_id):
+        """Populate the OCP on AWS and OCP daily summary tables. after populating the project table via trino."""
+        table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
+
+        sql = pkgutil.get_data(
+            "masu.database", "sql/reporting_ocpazurecostentrylineitem_daily_summary_back_populate.sql"
+        )
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_id": report_period_id,
+        }
+        sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
+        self._execute_raw_sql_query(table_name, sql, bind_params=list(sql_params))

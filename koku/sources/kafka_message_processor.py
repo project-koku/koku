@@ -10,6 +10,7 @@ from rest_framework.exceptions import ValidationError
 from api.provider.models import Provider
 from sources import storage
 from sources.config import Config
+from sources.sources_http_client import AUTH_TYPES
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 
@@ -96,6 +97,10 @@ class KafkaMessageProcessor:
         if self.event_type in (KAFKA_APPLICATION_CREATE, KAFKA_APPLICATION_UPDATE, KAFKA_APPLICATION_DESTROY):
             return self.application_type_id == self.cost_mgmt_id
         if self.event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
+            if self.value.get("authtype") not in AUTH_TYPES.values():
+                # if authtype is not one of the valid auth types, then ignore the message
+                LOG.debug(f"[msg_for_cost_mgmt] AUTH TYPE: {self.value.get('authtype')}")
+                return False
             sources_network = self.get_sources_client()
             return sources_network.get_application_type_is_cost_management(self.cost_mgmt_id)
         return False
@@ -136,7 +141,7 @@ class KafkaMessageProcessor:
         sources_network = self.get_sources_client()
 
         try:
-            authentication = {"credentials": sources_network.get_credentials(source_type)}
+            authentication = {"credentials": sources_network.get_credentials(source_type, self.cost_mgmt_id)}
         except SourcesHTTPClientError as error:
             LOG.info(f"[save_credentials] authentication info not available for source_id: {self.source_id}")
             sources_network.set_source_status(error)
@@ -164,7 +169,7 @@ class KafkaMessageProcessor:
         sources_network = self.get_sources_client()
 
         try:
-            data_source = {"data_source": sources_network.get_data_source(source_type)}
+            data_source = {"data_source": sources_network.get_data_source(source_type, self.cost_mgmt_id)}
         except SourcesHTTPClientError as error:
             LOG.info(f"[save_billing_source] billing info not available for source_id: {self.source_id}")
             sources_network.set_source_status(error)

@@ -9,6 +9,7 @@ omit =
   *manage.py
   *configurator.py
   *database.py
+  *probe_server.py
   *settings.py
   *sentry.py
   *urls.py

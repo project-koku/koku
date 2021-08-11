@@ -87,7 +87,7 @@ class ExpiredDataRemover:
 
         return None
 
-    def _calculate_expiration_date(self, line_items_only=False):
+    def _calculate_expiration_date(self):
         """
         Calculate the expiration date based on the retention policy.
 
@@ -98,12 +98,8 @@ class ExpiredDataRemover:
             (datetime.datetime) Expiration date
 
         """
-        if line_items_only:
-            months = self._line_items_months
-            expiration_msg = "Line items expiration is {} for a {} month retention policy"
-        else:
-            months = self._months_to_keep
-            expiration_msg = "Report data expiration is {} for a {} month retention policy"
+        months = self._months_to_keep
+        expiration_msg = "Report data expiration is {} for a {} month retention policy"
         today = DateAccessor().today()
         LOG.info("Current date time is %s", today)
 
@@ -117,7 +113,7 @@ class ExpiredDataRemover:
         LOG.info(msg)
         return expiration_date
 
-    def remove(self, simulate=False, provider_uuid=None, line_items_only=False):
+    def remove(self, simulate=False, provider_uuid=None):
         """
         Remove expired data based on the retention policy.
 
@@ -130,51 +126,32 @@ class ExpiredDataRemover:
             ([{}]) List of dictionaries containing 'account_payer_id' and 'billing_period_start'
 
         """
-        removed_data = None
-        disable_purge_line_item = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL, Provider.PROVIDER_OCP)
-        no_data_msg = "%s has no line item data to be be removed."
+        removed_data = []
         if provider_uuid is not None:
-            if line_items_only:
-                if self._provider in disable_purge_line_item:
-                    LOG.info(no_data_msg % self._provider)
-                else:
-                    expiration_date = self._calculate_expiration_date(line_items_only=line_items_only)
-                    removed_data = self._cleaner.purge_expired_line_item(
-                        expired_date=expiration_date, simulate=simulate, provider_uuid=provider_uuid
-                    )
-            else:
-                removed_data = self._cleaner.purge_expired_report_data(simulate=simulate, provider_uuid=provider_uuid)
-                with ReportManifestDBAccessor() as manifest_accessor:
-                    # Remove expired CostUsageReportManifests
-                    expiration_date = self._calculate_expiration_date()
-                    if not simulate:
-                        manifest_accessor.purge_expired_report_manifest_provider_uuid(provider_uuid, expiration_date)
-                    LOG.info(
-                        """Removed CostUsageReportManifest for
-                        provider uuid: %s before billing period: %s""",
-                        provider_uuid,
-                        expiration_date,
-                    )
-        else:
-            expiration_date = self._calculate_expiration_date(line_items_only=line_items_only)
-            if line_items_only:
-                if self._provider in disable_purge_line_item:
-                    LOG.info(no_data_msg % self._provider)
-                else:
-                    removed_data = self._cleaner.purge_expired_line_item(
-                        expired_date=expiration_date, simulate=simulate
-                    )
-            else:
+            removed_data = self._cleaner.purge_expired_report_data(simulate=simulate, provider_uuid=provider_uuid)
+            with ReportManifestDBAccessor() as manifest_accessor:
                 # Remove expired CostUsageReportManifests
-                removed_data = self._cleaner.purge_expired_report_data(expired_date=expiration_date, simulate=simulate)
-                with ReportManifestDBAccessor() as manifest_accessor:
-                    if not simulate:
-                        manifest_accessor.purge_expired_report_manifest(self._provider, expiration_date)
-                    LOG.info(
-                        """Removed CostUsageReportManifest for
-                        provider type: %s before billing period: %s""",
-                        self._provider,
-                        expiration_date,
-                    )
+                expiration_date = self._calculate_expiration_date()
+                if not simulate:
+                    manifest_accessor.purge_expired_report_manifest_provider_uuid(provider_uuid, expiration_date)
+                LOG.info(
+                    """Removed CostUsageReportManifest for
+                    provider uuid: %s before billing period: %s""",
+                    provider_uuid,
+                    expiration_date,
+                )
+        else:
+            expiration_date = self._calculate_expiration_date()
+            # Remove expired CostUsageReportManifests
+            removed_data = self._cleaner.purge_expired_report_data(expired_date=expiration_date, simulate=simulate)
+            with ReportManifestDBAccessor() as manifest_accessor:
+                if not simulate:
+                    manifest_accessor.purge_expired_report_manifest(self._provider, expiration_date)
+                LOG.info(
+                    """Removed CostUsageReportManifest for
+                    provider type: %s before billing period: %s""",
+                    self._provider,
+                    expiration_date,
+                )
 
         return removed_data

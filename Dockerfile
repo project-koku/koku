@@ -1,6 +1,10 @@
 FROM registry.access.redhat.com/ubi8/python-38:latest
 
 ARG PIPENV_DEV=False
+ARG USER_ID=1000
+
+# needed for successful collectstatic
+ARG PROMETHEUS_MULTIPROC_DIR=/tmp
 
 ENV LC_ALL=en_US.UTF-8 \
     LANG=en_US.UTF-8 \
@@ -39,11 +43,13 @@ RUN /usr/bin/fix-permissions /tmp/src && \
 curl -L -o /usr/bin/haberdasher https://github.com/RedHatInsights/haberdasher/releases/latest/download/haberdasher_linux_amd64 && \
 chmod 755 /usr/bin/haberdasher $STI_SCRIPTS_PATH/assemble $STI_SCRIPTS_PATH/run
 
-RUN groupadd -g 1000 koku \
-    && useradd -m -s /bin/bash -g 1000 -u 1000 -G root koku \
+RUN groupadd -g ${USER_ID} koku \
+    && useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root koku \
     && chmod g+rwx /opt
 
-USER 1000
+USER koku
+
+RUN umask u=rwx,g=rwx,o=rx
 
 EXPOSE 8080
 
