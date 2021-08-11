@@ -59,10 +59,7 @@ SELECT uuid_generate_v4() as uuid,
        p.region,
        p.instance_type,
        pr.unit,
-       case when ek.keys = '{}'::text[]
-                 then li.tags
-            else li.tags - public.array_subtract(array(select jsonb_object_keys(li.tags))::text[], ek.keys::text[])
-       end::jsonb as "aws_tags",
+       li.tags - public.array_subtract(array(select jsonb_object_keys(li.tags))::text[], ek.keys::text[]) as "aws_tags",
        sum(li.usage_amount) as usage_amount,
        max(li.normalization_factor) as normalization_factor,
        sum(li.normalized_usage_amount) as normalized_usage_amount,
