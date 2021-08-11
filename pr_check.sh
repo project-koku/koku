@@ -14,6 +14,7 @@ COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should p
 export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
 export IQE_FILTER_EXPRESSION="test_api"
+export IQE_CJI_TIMEOUT="2h"
 
 set -ex
 
