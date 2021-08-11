@@ -15,6 +15,8 @@ IQE_PLUGINS="cost_management"
 IQE_MARKER_EXPRESSION="cost_smoke"
 IQE_FILTER_EXPRESSION="test_api"
 
+set -ex
+
 # Install bonfire repo/initialize
 CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
 curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
@@ -29,14 +31,10 @@ if $(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/
     jq '[.items[].labels[].name] | length > 0 and inside(["lgtm", "smoke-tests"])'); then
 
         source ${CICD_ROOT}/_common_deploy_logic.sh
-        export NAMESPACE=$(bonfire namespace reserve --duration 3)
-        oc apply -f testing/yamls/secret.yaml -n ${NAMESPACE}
+        export NAMESPACE=$(bonfire namespace reserve --duration 4)
 
-        echo "waiting 10 seconds"
-        sleep 10
-
-        oc get secret/koku-aws-test -o json -n ${NAMESPACE} | jq -r '.data' > aws-creds.json
-        oc get secret/koku-gcp-test -o json -n ${NAMESPACE} | jq -r '.data' > gcp-creds.json
+        oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
+        oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
 
         AWS_ACCESS_KEY_ID_EPH=$(jq -r '."aws-access-key-id"' < aws-creds.json)
         AWS_SECRET_ACCESS_KEY_EPH=$(jq -r '."aws-secret-access-key"' < aws-creds.json)
