@@ -24,7 +24,7 @@ curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 if $(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/search/issues\?q\=sha:$GIT_COMMIT |
     jq '[.items[].labels[].name] | length > 0 and inside(["lgtm", "pr-check-build", "smoke-tests"])'); then
 
-    # source $CICD_ROOT/build.sh
+    source $CICD_ROOT/build.sh
     # source $APP_ROOT/unit_test.sh
 
     if $(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/search/issues\?q\=sha:$GIT_COMMIT |
