@@ -992,6 +992,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
+            distribution = cost_model_accessor.distribution
 
         self.accessor.populate_ocp_on_aws_cost_daily_summary_presto(
             start_date,
@@ -1001,6 +1002,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.ocp_cluster_id,
             current_bill_id,
             markup_value,
+            distribution,
         )
         mock_presto.assert_called()
 
