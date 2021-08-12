@@ -5,6 +5,7 @@
 """Custom Koku Dev Middleware."""
 import json
 import logging
+from base64 import b64decode
 from base64 import b64encode
 from unittest.mock import Mock
 
@@ -50,7 +51,10 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):
             }
         """
         if hasattr(request, "META") and (hasattr(settings, "DEVELOPMENT_IDENTITY") and settings.DEVELOPMENT_IDENTITY):
-            identity_header = settings.DEVELOPMENT_IDENTITY
+            request_id_header = None
+            if request.META.get(self.header):
+                request_id_header = json.loads(b64decode(request.META.get(self.header)).decode("utf-8"))
+            identity_header = request_id_header or settings.DEVELOPMENT_IDENTITY
 
             user_dict = identity_header.get("identity", {}).get("user")
             user = Mock(

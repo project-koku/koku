@@ -140,8 +140,10 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 cluster_topology = accessor.get_openshift_topology_for_provider(ocp_provider_uuid)
             # Get matching tags
             report_period_id = self.get_report_period_id(ocp_provider_uuid)
+            LOG.info("Getting matching tags from Postgres.")
             matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id, report_period_id)
             if not matched_tags:
+                LOG.info("Matched tags not yet available via Postgres. Getting matching tags from Trino.")
                 matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
                     self.provider_uuid, ocp_provider_uuid, self.start_date, self.end_date
                 )
