@@ -13,11 +13,11 @@ apps:
   components:
     - name: koku
       host: local
-      repo: REPO
+      repo: project-koku/koku
       path: deploy/clowdapp.yaml
-      ref: main
+      ref: <insert-commit>
       parameters:
-        IMAGE_TAG: clowder
+        IMAGE_TAG: <insert-tag>
         KOKU_MIN_REPLICAS: 1
         LISTENER_MIN_REPLICAS: 1
         MASU_MIN_REPLICAS: 1
@@ -33,3 +33,26 @@ apps:
         WORKER_SUMMARY_MIN_REPLICAS: 1
         PRESTO_PORT: 8000
         PRESTO_HOST: presto-coordinator
+        S3_BUCKET_NAME: koku-eph-s3
+        AWS_ACCESS_KEY_ID_EPH: <insert-base64-encoded-value>
+        AWS_SECRET_ACCESS_KEY_EPH: <insert-base64-encoded-value>
+        GCP_CREDENTIALS_EPH: <insert-base64-encoded-value>
+
+    - name: hive-metastore
+      host: github
+      repo: redhatinsights/ubi-hive
+      path: deploy/clowdapp.yaml
+      ref: main
+      parameters:
+        IMAGE_TAG: 2.3.3-003
+        S3_BUCKET_NAME: koku-eph-s3
+    - name: presto
+      host: github
+      repo: redhatinsights/ubi-trino
+      path: deploy/clowdapp.yaml
+      ref: main
+      parameters:
+        IMAGE_TAG: 348-003
+        S3_BUCKET_NAME: koku-eph-s3
+        COORDINATOR_MEMORY_LIMIT: 8Gi
+        WORKER_MEMORY_LIMIT: 8Gi
