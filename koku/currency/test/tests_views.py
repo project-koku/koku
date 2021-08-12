@@ -2,7 +2,7 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Test the Metrics views."""
+"""Test the currency views."""
 import json
 from unittest.mock import patch
 
@@ -10,9 +10,9 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.currency.view import CURRENCY_FILE_NAME
-from api.currency.view import load_currencies
 from api.iam.test.iam_test_case import IamTestCase
+from currency.common import CURRENCY_FILE_NAME
+from currency.common import get_currencies
 
 
 class CurrencyViewTest(IamTestCase):
@@ -32,7 +32,7 @@ class CurrencyViewTest(IamTestCase):
             expected = json.load(api_file)
         self.assertEqual(data.get("data"), expected)
 
-    @patch("api.currency.view.load_currencies")
+    @patch("currency.api.view.get_currencies")
     def test_supported_currencies_fnf_error(self, currency):
         """Test that a list GET call with a FNF error returns 404."""
         url = reverse("currency")
@@ -43,12 +43,7 @@ class CurrencyViewTest(IamTestCase):
 
     def test_load_currencies(self):
         """Test load currency function happy path."""
-        data = load_currencies(CURRENCY_FILE_NAME)
+        data = get_currencies()
         with open(CURRENCY_FILE_NAME) as api_file:
             expected = json.load(api_file)
         self.assertEqual(data, expected)
-
-    def test_load_currencies_fnf(self):
-        """Test file not found load_currencies."""
-        with self.assertRaises(FileNotFoundError):
-            load_currencies("doesnotexist.json")
