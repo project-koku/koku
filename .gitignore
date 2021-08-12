@@ -137,3 +137,7 @@ scripts/openshift.local.clusterup/
 
 # Localdev Certs
 certs/
+
+# Bonfire configs
+dev/*.yaml
+dev/*.yml
