@@ -21,7 +21,7 @@ Ephemeral Cluster Development
 
 Running Koku in OpenShift using Clowder in an Ephermal environment
 ------------------------------------------------------------------
-Koku is deployed via `Clowder`_. Follow the `Ephemeral Environment <https://docs.google.com/document/d/1iBu_shOSY6LfleHdtGdqyxD5Bc_gGKgG1UK57tuqojw/edit?usp=sharing>` documentation.
+Koku is deployed via `Clowder`_. Follow the `Ephemeral Environment <https://docs.google.com/document/d/1iBu_shOSY6LfleHdtGdqyxD5Bc_gGKgG1UK57tuqojw/edit?usp=sharing>`_ documentation.
 
 Local Development
 =================
