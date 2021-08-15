@@ -47,7 +47,7 @@ class SettingsViewTest(IamTestCase):
         """Utility to get dual list object from response."""
         data = response.data
         self.assertIsNotNone(data)
-        self.assertEqual(len(data), 1)
+        self.assertEqual(len(data), 2)
         primary_object = data[0]
         tg_mngmnt_subform_fields = primary_object.get("fields")
         self.assertIsNotNone(tg_mngmnt_subform_fields)

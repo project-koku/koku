@@ -14,9 +14,10 @@ from rest_framework.views import APIView
 
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.settings.tag_management import TagManagementSettings
+from currency.settings import CurrencySettings
 
 LOG = logging.getLogger(__name__)
-SETTINGS_GENERATORS = {"tag-management": TagManagementSettings}
+SETTINGS_GENERATORS = {"tag-management": TagManagementSettings, "currency": CurrencySettings}
 
 
 class SettingsView(APIView):
