@@ -144,7 +144,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - name: gcp-credentials
           secret:
             items:
@@ -265,12 +269,16 @@ objects:
             cpu: ${LISTENER_CPU_REQUEST}
             memory: ${LISTENER_MEMORY_REQUEST}
         volumeMounts:
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         - mountPath: /var/tmp/masu/
           name: koku-listener-data
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-listener-data
         - name: gcp-credentials
@@ -407,7 +415,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - name: gcp-credentials
           secret:
             items:
@@ -670,7 +682,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - name: gcp-credentials
           secret:
             items:
@@ -798,7 +814,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - name: gcp-credentials
           secret:
             items:
@@ -955,7 +975,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1114,7 +1138,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1273,7 +1301,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1432,7 +1464,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1591,7 +1627,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1750,7 +1790,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1909,7 +1953,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
