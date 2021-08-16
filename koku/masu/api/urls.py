@@ -17,9 +17,6 @@ from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
 from masu.api.views import update_cost_model_costs
 
-# from masu.api.views import get_all_manifests
-
-
 urlpatterns = [
     path("status/", get_status, name="server-status"),
     path("download/", download_report, name="report_download"),
@@ -31,5 +28,26 @@ urlpatterns = [
     path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
     path("running_celery_tasks/", running_celery_tasks, name="running_celery_tasks"),
     path("celery_queue_lengths/", celery_queue_lengths, name="celery_queue_lengths"),
-    path("manifests/", ManifestView.as_view({"get": "list"}), name="all_manifests"),
+    path("manifests/", ManifestView.as_view({"get": "list_all"}), name="all_manifests"),
+    path("manifests/<str:source_uuid>/", ManifestView.as_view({"get": "retrieve"}), name="sources_manifests"),
+    path(
+        "manifests/<str:source_uuid>/<int:manifest_id>/",
+        ManifestView.as_view({"get": "retrieve_one"}),
+        name="manifest",
+    ),
+    path(
+        "manifests/<str:source_uuid>/<int:manifest_id>/<int:id>/",
+        ManifestView.as_view({"delete": "delete_manifest"}),
+        name="delete_manifest",
+    ),
+    path(
+        "manifests/<str:source_uuid>/<int:manifest_id>/files/",
+        ManifestView.as_view({"get": "get_manifest_files"}),
+        name="manifest_files",
+    ),
+    path(
+        "manifests/<str:source_uuid>/<int:manifest_id>/files/<int:id>/",
+        ManifestView.as_view({"get": "get_one_manifest_file"}),
+        name="download_Manifest_file",
+    ),
 ]
