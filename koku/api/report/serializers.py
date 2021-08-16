@@ -282,17 +282,7 @@ class ParamSerializer(BaseSerializer):
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
 
-    order_by_allowlist = (
-        "cost",
-        "supplementary",
-        "infrastructure",
-        "delta",
-        "usage",
-        "request",
-        "limit",
-        "capacity",
-        "date",
-    )
+    order_by_allowlist = ("cost", "supplementary", "infrastructure", "delta", "usage", "request", "limit", "capacity")
 
     def _init_tagged_fields(self, **kwargs):
         """Initialize serializer fields that support tagging.
@@ -363,7 +353,7 @@ class ParamSerializer(BaseSerializer):
 
         return data
 
-    def validate_order_by(self, value):
+    def validate_order_by(self, value):  # noqa: C901
         """Validate incoming order_by data.
 
         Args:
@@ -402,6 +392,9 @@ class ParamSerializer(BaseSerializer):
 
                 # special case: we order by account_alias, but we group by account.
                 if key == "account_alias" and ("account" in group_keys or "account" in or_keys):
+                    continue
+                # sepcial case: we order by date, but we group by an allowed param.
+                if key == "date" and group_keys:
                     continue
 
             error[key] = _(f'Order-by "{key}" requires matching Group-by.')
