@@ -199,7 +199,6 @@ class ResourceTypesViewTest(IamTestCase):
         self.assertIsInstance(json_result.get("data"), list)
         self.assertEqual(json_result.get("data"), [])
 
-
     def test_incorrect_query_all_endpoints(self):
         """Test invalid delta value."""
         self.ENDPOINTS = self.ENDPOINTS_AWS + self.ENDPOINTS_AZURE + self.ENDPOINTS_OPENSHIFT + self.ENDPOINTS_GCP
@@ -282,4 +281,3 @@ class ResourceTypesViewTest(IamTestCase):
                 self.assertIsNotNone(json_result.get("data"))
                 self.assertIsInstance(json_result.get("data"), list)
                 self.assertEqual(json_result.get("data"), [])
-
