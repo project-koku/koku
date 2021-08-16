@@ -129,7 +129,11 @@
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
+      - name: prometheus-data
+        mountPath: ${PROMETHEUS_DIR}
       volumes:
+      - name: prometheus-data
+        emptyDir: {}
       - name: gcp-credentials
         secret:
           secretName: koku-gcp
