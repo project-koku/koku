@@ -44,13 +44,23 @@ class ManifestView(viewsets.ModelViewSet):
             raise ManifestException("Invalid provider name.")
         return model_to_dict(provider)
 
+    def set_pagination(self, request, queryset, serializer):
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serialized = serializer(page, many=True).data
+            return serialized
+
     def list_all(self, request, *args, **kwargs):
         """API list all Manifests, filter by: provider name"""
         param = self.request.query_params
         if request.GET.get("name"):
             providers = self.get_provider_UUID(param["name"])
-            queryset = ManifestSerializer(self.queryset.filter(provider_id=providers["uuid"]), many=True).data
-            return Response(queryset)
+            queryset = self.queryset.filter(provider_id=providers["uuid"])
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            return Response(ManifestSerializer(queryset).data, many=True)
         else:
             return super().list(request)
 
@@ -60,6 +70,11 @@ class ManifestView(viewsets.ModelViewSet):
         queryset = self.queryset.filter(provider_id=sourceuuidParam["source_uuid"])
         if not queryset:
             raise ManifestException("Invalid source uuid.")
+
+        pagination = self.set_pagination(self, queryset, ManifestSerializer)
+        if pagination is not None:
+            return self.get_paginated_response(pagination)
+
         queryset = ManifestSerializer(queryset, many=True).data
         return Response(queryset)
 
@@ -69,7 +84,7 @@ class ManifestView(viewsets.ModelViewSet):
         queryset = self.queryset.filter(provider_id=Params["source_uuid"]).filter(id=Params["manifest_id"])
         if not queryset:
             raise ManifestException("Invalid source uuid or manifest id")
-        queryset = ManifestSerializer(queryset, many=True).data
+        queryset = self.get_serializer(queryset, many=True).data
         return Response(queryset)
 
     def get_manifest_files(self, request, *args, **kwargs):
@@ -77,6 +92,11 @@ class ManifestView(viewsets.ModelViewSet):
         queryset = CostUsageReportStatus.objects.filter(manifest_id=Params["manifest_id"])
         if not queryset:
             raise ManifestException("Invalid manifest id")
+
+        pagination = self.set_pagination(self, queryset, UsageReportStatusSerializer)
+        if pagination is not None:
+            return self.get_paginated_response(pagination)
+
         queryset = UsageReportStatusSerializer(queryset, many=True).data
         return Response(queryset)
 
