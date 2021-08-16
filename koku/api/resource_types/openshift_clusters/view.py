@@ -49,7 +49,9 @@ class OCPClustersView(generics.ListAPIView):
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
         if request.user.admin:
             return super().list(request)
-        elif request.user.access:
+        if request.user.access:
             user_access = request.user.access.get("openshift.cluster", {}).get("read", [])
-        self.queryset = self.queryset.values("value").filter(cluster_id__in=user_access)
+        if user_access and user_access[0] == "*":
+            return super().list(request)
+        self.queryset = self.queryset.filter(cluster_id__in=user_access)
         return super().list(request)

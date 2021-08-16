@@ -16,3 +16,22 @@ apps:
       repo: project-koku/koku
       path: deploy/clowdapp.yaml
       ref: main
+
+    - name: hive-metastore
+      host: github
+      repo: redhatinsights/ubi-hive
+      path: deploy/clowdapp.yaml
+      ref: main
+      parameters:
+        IMAGE_TAG: 2.3.3-003
+        S3_BUCKET_NAME: koku-eph-s3
+    - name: presto
+      host: github
+      repo: redhatinsights/ubi-trino
+      path: deploy/clowdapp.yaml
+      ref: main
+      parameters:
+        IMAGE_TAG: 348-003
+        S3_BUCKET_NAME: koku-eph-s3
+        COORDINATOR_MEMORY_LIMIT: 8Gi
+        WORKER_MEMORY_LIMIT: 8Gi

@@ -48,5 +48,7 @@ class AWSAccountRegionView(generics.ListAPIView):
             return super().list(request)
         elif request.user.access:
             user_access = request.user.access.get("aws.account", {}).get("read", [])
-        self.queryset = self.queryset.values("value").filter(usage_account_id__in=user_access)
+        if user_access and user_access[0] == "*":
+            return super().list(request)
+        self.queryset = self.queryset.filter(usage_account_id__in=user_access)
         return super().list(request)
