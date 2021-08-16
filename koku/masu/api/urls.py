@@ -37,11 +37,6 @@ urlpatterns = [
         name="manifest",
     ),
     path(
-        "manifests/<str:source_uuid>/<int:manifest_id>/<int:id>/",
-        ManifestView.as_view({"delete": "delete_manifest"}),
-        name="delete_manifest",
-    ),
-    path(
         "manifests/<str:source_uuid>/<int:manifest_id>/files/",
         ManifestView.as_view({"get": "get_manifest_files"}),
         name="manifest_files",
