@@ -54,6 +54,8 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
         with CostModelDBAccessor(self._schema, aws_provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = Decimal(markup.get("value", 0)) / 100
+
+        with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
             distribution = cost_model_accessor.distribution
 
         # OpenShift on AWS
@@ -114,6 +116,8 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
         with CostModelDBAccessor(self._schema, azure_provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = Decimal(markup.get("value", 0)) / 100
+
+        with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
             distribution = cost_model_accessor.distribution
 
         # OpenShift on Azure
