@@ -58,6 +58,17 @@ class CostModelResourseTypesTest(MasuTestCase):
                 self.assertIsInstance(json_result.get("data"), list)
                 self.assertTrue(len(json_result.get("data")) > 0)
 
+    def test_incorrect_query(self):
+        for endpoint in self.ENDPOINTS:
+            with self.subTest(endpoint=endpoint):
+                qs = "?foo="
+                url = reverse(endpoint) + qs
+                expected = "{'Unsupported parameter'}"
+                response = self.client.get(url, **self.headers)
+                result = str(response.data.get("foo")[0])
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertEqual(result, expected)
+
 
 class ResourceTypesViewTest(IamTestCase):
     """Tests the resource types views."""
