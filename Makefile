@@ -301,6 +301,9 @@ docker-logs:
 docker-presto-logs:
 	$(DOCKER_COMPOSE) -f ./testing/compose_files/docker-compose-presto.yml logs -f
 
+docker-trino-logs:
+	$(DOCKER_COMPOSE) -f ./testing/compose_files/docker-compose-trino.yml logs -f
+
 docker-rabbit:
 	$(DOCKER_COMPOSE) up -d rabbit
 
@@ -401,7 +404,7 @@ docker-metastore-setup:
 	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),koku-reports))/g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's/s3access/$(shell echo $(or $(S3_ACCESS_KEY),localhost))/g' testing/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/s3secret/$(shell echo $(or $(S3_SECRET),localhost))/g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's;s3secret;$(shell echo $(or $(S3_SECRET),localhost));g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's/database_name/$(shell echo $(or $(HIVE_DATABASE_NAME),hive))/g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's/database_user/$(shell echo $(or $(HIVE_DATABASE_USER),hive))/g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's/database_password/$(shell echo $(or $(HIVE_DATABASE_PASSWORD),hive))/g' testing/metastore/hive-config/hive-site.xml
@@ -436,6 +439,33 @@ docker-presto-down:
 	make docker-presto-cleanup
 
 docker-presto-down-all: docker-presto-down docker-down
+
+
+docker-trino-setup:
+	@cp -fr deploy/trino/ testing/trino/
+	find ./testing/trino -type d -exec chmod a+rwx {} \;
+	@cp -fr deploy/hadoop/ testing/hadoop/
+	find ./testing/hadoop -type d -exec chmod a+rwx {} \;
+	@[[ ! -d ./testing/parquet_data ]] && mkdir -p -m a+rwx ./testing/parquet_data || chmod a+rwx ./testing/parquet_data
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
+
+docker-trino-cleanup:
+	$(PREFIX) rm -fr ./testing/hadoop ./testing/metastore ./testing/trino
+	make clear-testing
+
+docker-trino-up: docker-metastore-setup docker-trino-setup
+	docker-compose -f ./testing/compose_files/docker-compose-trino.yml up -d $(build)
+
+docker-trino-ps:
+	docker-compose -f ./testing/compose_files/docker-compose-trino.yml ps
+
+docker-trino-down:
+	docker-compose -f ./testing/compose_files/docker-compose-trino.yml down -v
+	make docker-trino-cleanup
+
+docker-trino-down-all: docker-trino-down docker-down
+
+
 
 ### Source targets ###
 ocp-source-from-yaml:
