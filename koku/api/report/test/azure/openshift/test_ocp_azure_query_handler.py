@@ -1064,8 +1064,14 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                 lst = []
         self.assertTrue(matchinglists)
 
-    def test_gcp_date_incorrect_date(self):
+    def test_ocp_azure_date_incorrect_date(self):
         wrong_date = "200BC"
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, OCPAzureCostView)
+
+    def test_ocp_azure_date_incorrect_date_type(self):
+        wrong_date = 200
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPAzureCostView)

@@ -1892,6 +1892,12 @@ class AWSReportQueryTest(IamTestCase):
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AWSCostView)
 
+    def test_aws_date_incorrect_date_type(self):
+        wrong_date = 200
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, AWSCostView)
+
 
 class AWSReportQueryLogicalAndTest(IamTestCase):
     """Tests the report queries."""
