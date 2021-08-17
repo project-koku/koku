@@ -282,7 +282,11 @@ def listen_for_messages(kaf_msg, consumer, application_source_id):  # noqa: C901
     try:
         try:
             msg_processor = create_msg_processor(kaf_msg, application_source_id)
-            if msg_processor and msg_processor.source_id and msg_processor.auth_header:
+            if (
+                msg_processor
+                and msg_processor.source_id
+                and (msg_processor.auth_header or msg_processor.account_number)
+            ):
                 tp = TopicPartition(Config.SOURCES_TOPIC, msg_processor.partition, msg_processor.offset)
                 if not msg_processor.msg_for_cost_mgmt():
                     LOG.info("Event not associated with cost-management.")
