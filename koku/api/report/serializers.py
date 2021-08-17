@@ -10,6 +10,7 @@ from rest_framework import serializers
 
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
+from currency.common import load_currency_choices
 
 
 def handle_invalid_fields(this, data):
@@ -280,6 +281,8 @@ class ParamSerializer(BaseSerializer):
     # DateField defaults: format='iso-8601', input_formats=['iso-8601']
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
+
+    currency = serializers.ChoiceField(choices=load_currency_choices(), required=False)
 
     order_by_allowlist = ("cost", "supplementary", "infrastructure", "delta", "usage", "request", "limit", "capacity")
 
