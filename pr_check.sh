@@ -52,6 +52,7 @@ if $(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/
             --namespace ${NAMESPACE} \
             ${COMPONENTS_ARG} \
             ${COMPONENTS_RESOURCES_ARG} \
+            --set-parameter rbac/MIN_REPLICAS=1 \
             --set-parameter koku/AWS_ACCESS_KEY_ID_EPH=${AWS_ACCESS_KEY_ID_EPH} \
             --set-parameter koku/AWS_SECRET_ACCESS_KEY_EPH=${AWS_SECRET_ACCESS_KEY_EPH} \
             --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \

@@ -220,6 +220,7 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
     def process(self):
         """Process the message."""
         if self.event_type in (KAFKA_APPLICATION_CREATE,):
+            LOG.debug(f"[ApplicationMsgProcessor] creating source for source_id: {self.source_id}")
             storage.create_source_event(self.source_id, self.account_number, self.auth_header, self.offset)
 
         if storage.is_known_source(self.source_id):
@@ -260,6 +261,7 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
     def process(self):
         """Process the message."""
         if self.event_type in (KAFKA_AUTHENTICATION_CREATE):
+            LOG.debug(f"[AuthenticationMsgProcessor] creating source for source_id: {self.source_id}")
             storage.create_source_event(self.source_id, self.account_number, self.auth_header, self.offset)
 
         if storage.is_known_source(self.source_id):
