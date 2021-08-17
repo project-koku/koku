@@ -18,8 +18,9 @@ from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
+from currency.common import load_currency_choices as get_currency_choices
 
-CURRENCY_CHOICES = (("USD", "USD"),)
+CURRENCY_CHOICES = get_currency_choices()
 MARKUP_CHOICES = (("percent", "%"),)
 LOG = logging.getLogger(__name__)
 
@@ -393,6 +394,8 @@ class CostModelSerializer(serializers.Serializer):
     distribution = serializers.ChoiceField(
         choices=metric_constants.DISTRIBUTION_CHOICES, required=False, allow_blank=True
     )
+
+    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=True, allow_blank=False)
 
     @property
     def metric_map(self):

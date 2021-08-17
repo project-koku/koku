@@ -21,6 +21,10 @@ def load_currencies_from_file():
     return data
 
 
+def load_currency_choices():
+    return tuple([(currency.get("code"), currency.get("code")) for currency in load_currencies_from_file()])
+
+
 def get_currencies():
     return list(CurrencyOptions.objects.values("code", "name", "symbol", "description"))
 

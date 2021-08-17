@@ -76,6 +76,7 @@ class CostModelSerializerTest(IamTestCase):
             "providers": [{"uuid": self.provider.uuid, "name": self.provider.name}],
             "markup": {"value": 10, "unit": "percent"},
             "rates": [{"metric": {"name": ocp_metric}, "tiered_rates": tiered_rates}],
+            "currency": "USD",
         }
         self.basic_model = {
             "name": "Test Cost Model",
@@ -84,6 +85,7 @@ class CostModelSerializerTest(IamTestCase):
             "providers": [{"uuid": self.provider.uuid, "name": self.provider.name}],
             "markup": {"value": 10, "unit": "percent"},
             "rates": [{"metric": {"name": ocp_metric}}],
+            "currency": "USD",
         }
 
     def tearDown(self):
@@ -320,6 +322,7 @@ class CostModelSerializerTest(IamTestCase):
                         ],
                     }
                 ],
+                "currency": "USD",
             }
 
             with tenant_context(self.tenant):
@@ -343,6 +346,7 @@ class CostModelSerializerTest(IamTestCase):
                 "source_type": Provider.PROVIDER_OCP,
                 "providers": [{"uuid": self.provider.uuid, "name": self.provider.name}],
                 "rates": [{"metric": {"name": storage_rate}, "tiered_rates": [{"unit": "USD", "value": 0.22}]}],
+                "currency": "USD",
             }
 
             with tenant_context(self.tenant):
@@ -622,6 +626,7 @@ class CostModelSerializerTest(IamTestCase):
                 {"metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR}},
                 {"metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR}},
             ],
+            "currency": "USD",
         }
         cost_model["rates"][0]["tag_rates"] = format_tag_rate(tag_key="k1", tag_values=tag_values_kwargs)
         cost_model["rates"][1]["tag_rates"] = format_tag_rate(tag_key="k2", tag_values=tag_values_kwargs)

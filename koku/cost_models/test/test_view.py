@@ -63,6 +63,7 @@ class CostModelViewTests(IamTestCase):
             "rates": [
                 {"metric": {"name": self.ocp_metric}, "cost_type": "Infrastructure", "tiered_rates": tiered_rates}
             ],
+            "currency": "USD",
         }
 
         with tenant_context(self.tenant):
@@ -585,6 +586,7 @@ class CostModelViewTests(IamTestCase):
             "source_type": self.ocp_source_type,
             "source_uuids": [],
             "rates": [{"metric": {"name": self.ocp_metric}, "tiered_rates": tiered_rates}],
+            "currency": "USD",
         }
 
         url = reverse("cost-models-list")

@@ -46,6 +46,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._tag_supplementary_rates = cost_model_accessor.tag_supplementary_rates
             self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
             self._distribution = cost_model_accessor.distribution
+            self._currency = cost_model_accessor.currency
 
     @staticmethod
     def _normalize_tier(input_tier):

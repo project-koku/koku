@@ -105,6 +105,13 @@ class CostModelDBAccessor(KokuDBAccess):
             return self.cost_model.distribution
         return None
 
+    @property
+    def currency(self):
+        """Returns currency choice in the cost model."""
+        if self.cost_model:
+            return self.cost_model.currency
+        return None
+
     def get_rates(self, value):
         """Get the rates."""
         return self.price_list.get(value)
