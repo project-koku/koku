@@ -58,6 +58,17 @@ class CostModelResourseTypesTest(MasuTestCase):
                 self.assertIsInstance(json_result.get("data"), list)
                 self.assertTrue(len(json_result.get("data")) > 0)
 
+    def test_incorrect_query(self):
+        for endpoint in self.ENDPOINTS:
+            with self.subTest(endpoint=endpoint):
+                qs = "?foo="
+                url = reverse(endpoint) + qs
+                expected = "{'Unsupported parameter'}"
+                response = self.client.get(url, **self.headers)
+                result = str(response.data.get("foo")[0])
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertEqual(result, expected)
+
 
 class ResourceTypesViewTest(IamTestCase):
     """Tests the resource types views."""
@@ -198,6 +209,31 @@ class ResourceTypesViewTest(IamTestCase):
         self.assertIsNotNone(json_result.get("data"))
         self.assertIsInstance(json_result.get("data"), list)
         self.assertEqual(json_result.get("data"), [])
+
+    def test_incorrect_query_all_endpoints(self):
+        """Test invalid delta value."""
+        self.ENDPOINTS = self.ENDPOINTS_AWS + self.ENDPOINTS_AZURE + self.ENDPOINTS_OPENSHIFT + self.ENDPOINTS_GCP
+        # Tests all endpoints but the baseline resource-types
+        for endpoint in self.ENDPOINTS:
+            with self.subTest(endpoint=endpoint):
+                qs = "?foo="
+                url = reverse(endpoint) + qs
+                expected = "{'Unsupported parameter'}"
+                response = self.client.get(url, **self.headers)
+                result = str(response.data.get("foo")[0])
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertEqual(result, expected)
+
+    def test_correct_search_all_endspoints(self):
+        """Test invalid delta value."""
+        self.ENDPOINTS = self.ENDPOINTS_AWS + self.ENDPOINTS_AZURE + self.ENDPOINTS_OPENSHIFT + self.ENDPOINTS_GCP
+        # Tests all endpoints but the baseline resource-types for searching
+        for endpoint in self.ENDPOINTS:
+            with self.subTest(endpoint=endpoint):
+                qs = "?search=foo"
+                url = reverse(endpoint) + qs
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @RbacPermissions({"aws.account": {"read": ["1234"]}, "aws.organizational_unit": {"read": ["1234"]}})
     def test_rbacpermissions_aws_account_data_returns_null(self):
