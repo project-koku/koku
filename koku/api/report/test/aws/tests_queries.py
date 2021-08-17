@@ -1855,7 +1855,7 @@ class AWSReportQueryTest(IamTestCase):
         for acc in actual:
             self.assertTrue(acc in expected)
 
-    def test_aws_date_order_by_cost_asc(self):
+    def test_aws_date_order_by_cost_desc(self):
         """Test execute_query with order by date for correct order of services."""
         # execute query
         yesterday = datetime.utcnow() - timedelta(days=1)
@@ -1885,6 +1885,12 @@ class AWSReportQueryTest(IamTestCase):
                     matchinglists = False
                 lst = []
         self.assertTrue(matchinglists)
+
+    def test_aws_date_incorrect_date(self):
+        wrong_date = "200BC"
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, AWSCostView)
 
 
 class AWSReportQueryLogicalAndTest(IamTestCase):

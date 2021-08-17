@@ -7,6 +7,7 @@ import copy
 from datetime import datetime
 from datetime import timedelta
 
+from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -445,3 +446,9 @@ class OCPAWSQueryHandlerTest(IamTestCase):
                     matchinglists = False
                 lst = []
         self.assertTrue(matchinglists)
+
+    def test_gcp_date_incorrect_date(self):
+        wrong_date = "200BC"
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, OCPAWSCostView)

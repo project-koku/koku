@@ -16,6 +16,7 @@ from django.db import connection
 from django.db.models import F
 from django.db.models import Sum
 from django.urls import reverse
+from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -1062,3 +1063,9 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                     matchinglists = False
                 lst = []
         self.assertTrue(matchinglists)
+
+    def test_gcp_date_incorrect_date(self):
+        wrong_date = "200BC"
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, OCPAzureCostView)
