@@ -100,6 +100,7 @@ class SourcesHTTPClient:
     def _get_network_response(self, url, error_msg):
         """Helper to get network response or raise exception."""
         try:
+            LOG.debug(f"[_get_network_response] headers: {self._identity_header}")
             resp = requests.get(url, headers=self._identity_header)
         except RequestException as error:
             raise SourcesHTTPClientError(f"{error_msg}. Reason: {error}")
