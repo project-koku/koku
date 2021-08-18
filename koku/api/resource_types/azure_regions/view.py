@@ -8,6 +8,8 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import filters
 from rest_framework import generics
+from rest_framework import status
+from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.azure_access import AzureAccessPermission
@@ -34,15 +36,25 @@ class AzureRegionView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for Azure subscription guid and displays values related to what the user has access to
+        supported_query_params = ["search", "limit", "openshift"]
         user_access = []
-        openshift = self.request.query_params.get("openshift")
-        if openshift == "true":
-            self.queryset = (
-                OCPAzureCostSummaryByLocation.objects.annotate(**{"value": F("resource_location")})
-                .values("value")
-                .distinct()
-                .filter(resource_location__isnull=False)
-            )
+        error_message = {}
+        # Test for only supported query_params
+        if self.request.query_params:
+            for key in self.request.query_params:
+                if key not in supported_query_params:
+                    error_message[key] = [{"Unsupported parameter"}]
+                    return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+                elif key == "openshift":
+                    openshift = self.request.query_params.get("openshift")
+                    if openshift == "true":
+                        self.queryset = (
+                            OCPAzureCostSummaryByLocation.objects.annotate(**{"value": F("resource_location")})
+                            .values("value")
+                            .distinct()
+                            .filter(resource_location__isnull=False)
+                        )
+
         if request.user.admin:
             return super().list(request)
         elif request.user.access:
