@@ -213,13 +213,6 @@ class KafkaMessageProcessorTest(IamTestCase):
                 ),
                 "expected": {"account_number": "12345", "auth_header": Config.SOURCES_FAKE_HEADER},
             },
-            {
-                "header_list": (
-                    ("event_type", bytes(event, encoding="utf-8")),
-                    ("x-rh-sources-account-number", bytes(account_id, encoding="utf-8")),
-                ),
-                "expected": {"account_number": account_id, "auth_header": None},
-            },
         ]
         for test in table:
             with self.subTest(test=test):
