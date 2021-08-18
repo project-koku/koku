@@ -68,7 +68,7 @@ class ProbeServer(ABC, MetricsHandler):
         elif self.path == "/readyz":
             self.readiness_check()
         elif self.path == "/metrics":
-            super().do_GET()
+            self.metrics_check()
         else:
             self.default_response()
 
@@ -83,6 +83,10 @@ class ProbeServer(ABC, MetricsHandler):
     def liveness_check(self):
         """Set the liveness check response."""
         self._write_response(ProbeResponse(200, "ok"))
+
+    def metrics_check(self):
+        """Get the metrics."""
+        super().do_GET()
 
     @abstractmethod
     def readiness_check(self):
