@@ -85,11 +85,8 @@ class KafkaMessageProcessor:
         self.account_number = extract_from_header(msg.headers(), KAFKA_HDR_ACCOUNT_NUMBER) or decoded_header.get(
             "identity", {}
         ).get("account_number")
-        if self.auth_header is None and self.account_number is None:
-            msg = (
-                f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}` "
-                f"and `{KAFKA_HDR_ACCOUNT_NUMBER}`: {msg.headers()}"
-            )
+        if self.auth_header is None:
+            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}` {msg.headers()}"
             LOG.warning(msg)
             raise SourcesMessageError(msg)
         self.source_id = None
@@ -285,7 +282,7 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
 
 def extract_from_header(headers, header_type):
     """Retrieve information from Kafka Headers."""
-    LOG.debug(f"[extract_from_header] headers: {headers}")
+    LOG.debug(f"[extract_from_header] extracting `{header_type}` from headers: {headers}")
     if headers is None:
         return
     for header in headers:
@@ -302,7 +299,7 @@ def create_msg_processor(msg, cost_mgmt_id):
     """Create the message processor based on the event_type."""
     if msg.topic() == Config.SOURCES_TOPIC:
         event_type = extract_from_header(msg.headers(), KAFKA_HDR_EVENT_TYPE)
-        LOG.debug(f"event_type: {str(event_type)}")
+        LOG.debug(f"event_type: {event_type}")
         if event_type in (KAFKA_APPLICATION_CREATE, KAFKA_APPLICATION_UPDATE, KAFKA_APPLICATION_DESTROY):
             return ApplicationMsgProcessor(msg, event_type, cost_mgmt_id)
         elif event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):

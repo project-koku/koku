@@ -411,6 +411,7 @@ def save_status(source_id, status):
 
 def is_known_source(source_id):
     """Check if source exists in database."""
+    LOG.debug(f"[is_known_source] checking if source_id: {source_id} is known.")
     try:
         Sources.objects.get(source_id=source_id)
         source_exists = True
@@ -419,4 +420,5 @@ def is_known_source(source_id):
     except (InterfaceError, OperationalError) as error:
         LOG.error(f"Accessing Sources resulting in {type(error).__name__}: {error}")
         raise error
+    LOG.debug(f"[is_known_source] source_id: {source_id} is known: {source_exists}")
     return source_exists

@@ -81,11 +81,11 @@ class SourcesHTTPClient:
         self._base_url = f"{self._sources_host}{Config.SOURCES_API_PREFIX}"
         self._internal_url = f"{self._sources_host}{Config.SOURCES_INTERNAL_API_PREFIX}"
 
-        self._identity_header = {"x-rh-sources-psk": Config.SOURCES_PSK}
-        if auth_header is not None:
-            self._identity_header["x-rh-identity"] = auth_header
-        if account_id is not None:
-            self._identity_header["x-rh-identity-account-id"] = account_id
+        self._identity_header = {
+            "x-rh-sources-psk": Config.SOURCES_PSK,
+            "x-rh-identity": auth_header,
+            "x-rh-sources-account-number": account_id,
+        }
 
         self.credential_map = {
             Provider.PROVIDER_OCP: self._get_ocp_credentials,
@@ -100,8 +100,9 @@ class SourcesHTTPClient:
     def _get_network_response(self, url, error_msg):
         """Helper to get network response or raise exception."""
         try:
-            LOG.debug(f"[_get_network_response] headers: {self._identity_header}")
+            LOG.debug(f"[_get_network_response] url: {url} | headers: {self._identity_header}")
             resp = requests.get(url, headers=self._identity_header)
+            LOG.debug(f"[_get_network_response] status_code: {resp.status_code} | data: {resp.text}")
         except RequestException as error:
             raise SourcesHTTPClientError(f"{error_msg}. Reason: {error}")
 
@@ -304,6 +305,7 @@ class SourcesHTTPClient:
 
     def set_source_status(self, error_msg, cost_management_type_id=None):
         """Set the source status with error message."""
+        LOG.debug(f"[set_source_status] Setting source status: {self._source_id}")
         if storage.is_known_source(self._source_id):
             storage.clear_update_flag(self._source_id)
 
