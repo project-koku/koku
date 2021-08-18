@@ -222,7 +222,7 @@ class Sources(RunTextFieldValidators, models.Model):
     # Unique identifier for koku Provider
     koku_uuid = models.TextField(null=True, unique=True)
 
-    # This indicate if the source is paused.
+    # This field indicates if the source is paused.
     paused = models.BooleanField(default=False)
 
     # When source has been deleted on Platform-Sources this is True indicating it hasn't been
