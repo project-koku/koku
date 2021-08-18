@@ -50,14 +50,42 @@ KAFKA_CONNECTION_ERRORS_COUNTER = Counter(
 
 CELERY_ERRORS_COUNTER = Counter("celery_errors", "Number of celery errors", registry=WORKER_REGISTRY)
 
-DOWNLOAD_BACKLOG = Gauge("download_backlog", "Number of celery tasks in the download queue", registry=WORKER_REGISTRY)
-SUMMARY_BACKLOG = Gauge("summary_backlog", "Number of celery tasks in the summary queue", registry=WORKER_REGISTRY)
-PRIORITY_BACKLOG = Gauge("priority_backlog", "Number of celery tasks in the priority queue", registry=WORKER_REGISTRY)
-REFRESH_BACKLOG = Gauge("refresh_backlog", "Number of celery tasks in the refresh queue", registry=WORKER_REGISTRY)
-COST_MODEL_BACKLOG = Gauge(
-    "cost_model_backlog", "Number of celery tasks in the cost model queue", registry=WORKER_REGISTRY
+DOWNLOAD_BACKLOG = Gauge(
+    "download_backlog",
+    "Number of celery tasks in the download queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
 )
-DEFAULT_BACKLOG = Gauge("default_backlog", "Number of celery tasks in the default queue", registry=WORKER_REGISTRY)
+SUMMARY_BACKLOG = Gauge(
+    "summary_backlog",
+    "Number of celery tasks in the summary queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
+PRIORITY_BACKLOG = Gauge(
+    "priority_backlog",
+    "Number of celery tasks in the priority queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
+REFRESH_BACKLOG = Gauge(
+    "refresh_backlog",
+    "Number of celery tasks in the refresh queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
+COST_MODEL_BACKLOG = Gauge(
+    "cost_model_backlog",
+    "Number of celery tasks in the cost model queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
+DEFAULT_BACKLOG = Gauge(
+    "default_backlog",
+    "Number of celery tasks in the default queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
 QUEUES = {
     "download": DOWNLOAD_BACKLOG,
     "summary": SUMMARY_BACKLOG,

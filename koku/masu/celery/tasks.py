@@ -13,7 +13,6 @@ from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 from django.utils import timezone
-from prometheus_client import push_to_gateway
 from tenant_schemas.utils import schema_context
 
 from api.dataexport.models import DataExportRequest
@@ -24,7 +23,6 @@ from api.models import Provider
 from api.provider.models import Sources
 from api.utils import DateHelper
 from koku import celery_app
-from koku.metrics import REGISTRY
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
@@ -342,17 +340,5 @@ def collect_queue_metrics(self):
             length = conn.default_channel.client.llen(queue)
             queue_len[queue] = length
             gauge.set(length)
-    LOG.info("Celery queue backlog info: ")
-    LOG.info(queue_len)
-    LOG.debug("Pushing stats to gateway: %s", settings.PROMETHEUS_PUSHGATEWAY)
-    try:
-        push_to_gateway(
-            settings.PROMETHEUS_PUSHGATEWAY, job="masu.celery.tasks.collect_queue_metrics", registry=REGISTRY
-        )
-    except OSError as exc:
-        LOG.error("Problem reaching pushgateway: %s", exc)
-        try:
-            self.update_state(state="FAILURE", meta={"result": str(exc), "traceback": str(exc.__traceback__)})
-        except TypeError as err:
-            LOG.error("The following error occurred: %s " % err)
+    LOG.debug(f"Celery queue backlog info: {queue_len}")
     return queue_len

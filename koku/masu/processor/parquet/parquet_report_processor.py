@@ -50,6 +50,7 @@ CSV_EXT = ".csv"
 PARQUET_EXT = ".parquet"
 
 DAILY_FILE_TYPE = "daily"
+OPENSHIFT_REPORT_TYPE = "openshift"
 
 COLUMN_CONVERTERS = {
     Provider.PROVIDER_AWS: aws_column_converters,
@@ -234,6 +235,19 @@ class ParquetReportProcessor:
         )
 
     @property
+    def parquet_ocp_on_cloud_path_s3(self):
+        """The path in the S3 bucket where Parquet files are loaded."""
+        return get_path_prefix(
+            self.account,
+            self.provider_type,
+            self.provider_uuid,
+            self.start_date,
+            Config.PARQUET_DATA_TYPE,
+            report_type=OPENSHIFT_REPORT_TYPE,
+            daily=True,
+        )
+
+    @property
     def local_path(self):
         local_path = f"{Config.TMP_DIR}/{self.account}/{self.provider_uuid}"
         Path(local_path).mkdir(parents=True, exist_ok=True)
@@ -324,6 +338,9 @@ class ParquetReportProcessor:
             )
             remove_files_not_in_set_from_s3_bucket(
                 self.tracing_id, self.parquet_daily_path_s3, self.manifest_id, self.error_context
+            )
+            remove_files_not_in_set_from_s3_bucket(
+                self.tracing_id, self.parquet_ocp_on_cloud_path_s3, self.manifest_id, self.error_context
             )
             manifest_accessor.mark_s3_parquet_cleared(manifest)
 

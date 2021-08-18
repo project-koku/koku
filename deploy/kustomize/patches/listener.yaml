@@ -115,12 +115,16 @@
           cpu: ${LISTENER_CPU_REQUEST}
           memory: ${LISTENER_MEMORY_REQUEST}
       volumeMounts:
-      - mountPath: /var/tmp/masu/
-        name: koku-listener-data
+      - name: prometheus-data
+        mountPath: ${PROMETHEUS_DIR}
+      - name: koku-listener-data
+        mountPath: /var/tmp/masu/
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
       volumes:
+      - name: prometheus-data
+        emptyDir: {}
       - name: koku-listener-data
         emptyDir: {}
       - name: gcp-credentials
