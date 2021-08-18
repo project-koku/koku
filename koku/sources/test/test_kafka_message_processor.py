@@ -193,7 +193,7 @@ class KafkaMessageProcessorTest(IamTestCase):
                 msg = msg_generator(event_type=test.get("event_type"), topic=test.get("test_topic"))
                 self.assertIsInstance(create_msg_processor(msg, COST_MGMT_APP_TYPE_ID), test.get("expected"))
 
-    def test_create_msg_processor_various_headers(self):
+    def test_create_msg_processor_various_headers_success(self):
         """Test create_msg_processor various kafka headers."""
         event = KAFKA_APPLICATION_CREATE
         account_id = "10002"
@@ -228,6 +228,39 @@ class KafkaMessageProcessorTest(IamTestCase):
                 result = create_msg_processor(msg, COST_MGMT_APP_TYPE_ID)
                 for k, v in test.get("expected").items():
                     self.assertEqual(getattr(result, k), v)
+
+    def test_create_msg_processor_various_headers_failures(self):
+        """Test create_msg_processor various kafka headers."""
+        header_missing_account_number = "eyJpZGVudGl0eSI6IHsidXNlciI6IHsiaXNfb3JnX2FkbWluIjogImZhbHNlIiwgInVzZXJuYW1lIjogInNvdXJjZXMiLCAiZW1haWwiOiAic291cmNlc0Bzb3VyY2VzLmlvIn0sICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjU0MzIxIn19fQ=="  # noqa: E501
+        event = KAFKA_APPLICATION_CREATE
+        account_id = "10002"
+        table = [
+            {
+                "header_list": (
+                    ("event_type", bytes(event, encoding="utf-8")),
+                    ("x-rh-identity", bytes(header_missing_account_number, encoding="utf-8")),
+                )
+            },
+            {
+                "header_list": (
+                    ("event_type", bytes(event, encoding="utf-8")),
+                    ("x-rh-sources-account-number", bytes(account_id, encoding="utf-8")),
+                )
+            },
+            {
+                "header_list": (
+                    ("event_type", bytes(event, encoding="utf-8")),
+                    ("x-rh-identity", bytes(header_missing_account_number, encoding="utf-8")),
+                    ("x-rh-sources-account-number", bytes()),
+                )
+            },
+        ]
+        for test in table:
+            with self.subTest(test=test):
+                msg = msg_generator(event_type=event)
+                msg._headers = test.get("header_list")
+                with self.assertRaises(SourcesMessageError):
+                    create_msg_processor(msg, COST_MGMT_APP_TYPE_ID)
 
     def test_create_msg_processor_missing_auth_and_account_id(self):
         """Test that KafkaMessageProcessor raises SourcesMessageError on missing info."""
