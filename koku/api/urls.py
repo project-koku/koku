@@ -209,9 +209,9 @@ urlpatterns = [
     ),
     path(
         "reports/openshift/costs/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(
-            OCPCostView.as_view()
-        ),
+        # cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(
+        OCPCostView.as_view(),
+        # ),
         name="reports-openshift-costs",
     ),
     path(

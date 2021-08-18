@@ -3,10 +3,11 @@
     "description": "A cost model of on-premises OpenShift clusters.",
     "source_type": "OCP",
     "source_uuids": ["PROVIDER_UUID"],
+    "currency": "EUR",
     "rates": [{
         "metric": {"name": "cpu_core_usage_per_hour"},
         "tiered_rates": [{
-            "unit": "USD",
+            "unit": "EUR",
             "value": 0.0070000000,
             "usage_start": null,
             "usage_end": null
@@ -16,7 +17,7 @@
     {
         "metric": {"name": "cpu_core_request_per_hour"},
         "tiered_rates": [{
-            "unit": "USD",
+            "unit": "EUR",
             "value": 0.2000000000,
             "usage_start": null,
             "usage_end": null
@@ -26,7 +27,7 @@
     {
         "metric": {"name": "memory_gb_usage_per_hour"},
         "tiered_rates": [{
-            "unit": "USD",
+            "unit": "EUR",
             "value": 0.0090000000,
             "usage_start": null,
             "usage_end": null
@@ -36,7 +37,7 @@
     {
         "metric": {"name": "memory_gb_request_per_hour"},
         "tiered_rates": [{
-            "unit": "USD",
+            "unit": "EUR",
             "value": 0.0500000000,
             "usage_start": null,
             "usage_end": null
@@ -46,7 +47,7 @@
     {
         "metric": {"name": "storage_gb_usage_per_month"},
         "tiered_rates": [{
-            "unit": "USD",
+            "unit": "EUR",
             "value": 0.01,
             "usage_start": null,
             "usage_end": null
@@ -56,7 +57,7 @@
     {
         "metric": {"name": "storage_gb_request_per_month"},
         "tiered_rates": [{
-            "unit": "USD",
+            "unit": "EUR",
             "value": 0.01,
             "usage_start": null,
             "usage_end": null
@@ -66,7 +67,7 @@
     {
         "metric": {"name": "node_cost_per_month"},
         "tiered_rates": [{
-            "unit": "USD",
+            "unit": "EUR",
             "value": 1000.0,
             "usage_start": null,
             "usage_end": null
@@ -76,7 +77,7 @@
     {
         "metric": {"name": "cluster_cost_per_month"},
         "tiered_rates": [{
-            "unit": "USD",
+            "unit": "EUR",
             "value": 10000.0,
             "usage_start": null,
             "usage_end": null

@@ -16,6 +16,7 @@ from django.db.models.functions import Coalesce
 from api.models import Provider
 from api.report.provider_map import ProviderMap
 from koku.database import KeyDecimalTransform
+from koku.settings import KOKU_DEFAULT_CURRENCY
 from providers.provider_access import ProviderAccessor
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummary
@@ -30,8 +31,9 @@ from reporting.provider.ocp.models import OCPVolumeSummaryByProject
 class OCPProviderMap(ProviderMap):
     """OCP Provider Map."""
 
-    def __init__(self, provider, report_type):
+    def __init__(self, provider, report_type, currency=None):
         """Constructor."""
+        currency = currency if currency else KOKU_DEFAULT_CURRENCY
         self._mapping = [
             {
                 "provider": Provider.PROVIDER_OCP,
@@ -534,7 +536,7 @@ class OCPProviderMap(ProviderMap):
                                 + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Value(currency, output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -598,7 +600,7 @@ class OCPProviderMap(ProviderMap):
                             )
                         },
                         "filter": [{}],
-                        "cost_units_key": "USD",
+                        "cost_units_key": currency,
                         "sum_columns": ["cost_total", "infra_total", "sup_total"],
                     },
                     "costs_by_project": {
@@ -1099,7 +1101,7 @@ class OCPProviderMap(ProviderMap):
                                 + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Value(currency, output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "cost": Value(0, output_field=DecimalField()),
                             "source_uuid": ArrayAgg(
@@ -1166,7 +1168,7 @@ class OCPProviderMap(ProviderMap):
                             )
                         },
                         "filter": [{}],
-                        "cost_units_key": "USD",
+                        "cost_units_key": currency,
                         "sum_columns": ["cost_total", "infra_total", "sup_total"],
                     },
                     "cpu": {
@@ -1378,7 +1380,7 @@ class OCPProviderMap(ProviderMap):
                                     Value(0, output_field=DecimalField()),
                                 )
                             ),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Value(currency, output_field=CharField()),
                             "usage_units": Value("Core-Hours", output_field=CharField()),
                             "usage": Sum("pod_usage_cpu_core_hours"),
                             "request": Sum("pod_request_cpu_core_hours"),
@@ -1406,7 +1408,7 @@ class OCPProviderMap(ProviderMap):
                             ),
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
-                        "cost_units_key": "USD",
+                        "cost_units_key": currency,
                         "usage_units_key": "Core-Hours",
                         "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
                     },
@@ -1619,7 +1621,7 @@ class OCPProviderMap(ProviderMap):
                                     Value(0, output_field=DecimalField()),
                                 )
                             ),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Value(currency, output_field=CharField()),
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
                             "request": Sum("pod_request_memory_gigabyte_hours"),
                             "limit": Sum("pod_limit_memory_gigabyte_hours"),
@@ -1655,7 +1657,7 @@ class OCPProviderMap(ProviderMap):
                             ),
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
-                        "cost_units_key": "USD",
+                        "cost_units_key": currency,
                         "usage_units_key": "GB-Hours",
                         "sum_columns": ["usage", "request", "limit", "cost_total", "sup_total", "infra_total"],
                     },
@@ -1871,7 +1873,7 @@ class OCPProviderMap(ProviderMap):
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
                             "request": Sum("volume_request_storage_gigabyte_months"),
                             "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Value(currency, output_field=CharField()),
                             "usage_units": Value("GB-Mo", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
@@ -1903,7 +1905,7 @@ class OCPProviderMap(ProviderMap):
                             ),
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Storage"}],
-                        "cost_units_key": "USD",
+                        "cost_units_key": currency,
                         "usage_units_key": "GB-Mo",
                         "sum_columns": ["usage", "request", "cost_total", "sup_total", "infra_total"],
                     },

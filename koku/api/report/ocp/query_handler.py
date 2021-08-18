@@ -34,7 +34,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
-        self._mapper = OCPProviderMap(provider=self.provider, report_type=parameters.report_type)
+        self._mapper = OCPProviderMap(
+            provider=self.provider, report_type=parameters.report_type, currency=parameters.get("currency")
+        )
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
 
