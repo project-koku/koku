@@ -1,6 +1,5 @@
-FROM registry.access.redhat.com/ubi8/python-38:latest as builder
+FROM registry.access.redhat.com/ubi8/python-38:latest
 
-ARG EXPIRATION=Never
 ARG PIPENV_DEV=False
 ARG USER_ID=1000
 
@@ -16,9 +15,8 @@ ENV LC_ALL=en_US.UTF-8 \
     APP_MODULE="koku.wsgi" \
     APP_CONFIG="gunicorn_conf.py" \
     DISABLE_MIGRATE=true \
-    DJANGO_READ_DOT_ENV_FILE=false
-
-ENV SUMMARY="Koku is the Cost Management application" \
+    DJANGO_READ_DOT_ENV_FILE=false \
+    SUMMARY="Koku is the Cost Management application" \
     DESCRIPTION="Koku is the Cost Management application"
 
 LABEL summary="$SUMMARY" \
@@ -32,8 +30,6 @@ LABEL summary="$SUMMARY" \
     version="1" \
     maintainer="Red Hat Cost Management Services"
 
-LABEL quay.expires-after="$EXPIRATION"
-
 USER root
 
 COPY ./.s2i/bin/ $STI_SCRIPTS_PATH
@@ -41,10 +37,16 @@ COPY ./.s2i/bin/ $STI_SCRIPTS_PATH
 # Copy application files to the image.
 COPY . /tmp/src/.
 
-RUN /usr/bin/fix-permissions /tmp/src && \
-chmod 755 $STI_SCRIPTS_PATH/assemble $STI_SCRIPTS_PATH/run
 
-USER 1001
+RUN /usr/bin/fix-permissions /tmp/src && \
+    chmod 755 $STI_SCRIPTS_PATH/assemble $STI_SCRIPTS_PATH/run && \
+    groupadd -g ${USER_ID} koku \
+    && useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root koku \
+    && chmod g+rwx /opt
+
+USER koku
+
+RUN umask u=rwx,g=rwx,o=rx
 
 EXPOSE 8080
 
@@ -52,24 +54,3 @@ RUN $STI_SCRIPTS_PATH/assemble
 
 # Set the default CMD
 CMD $STI_SCRIPTS_PATH/run
-
-
-# -----------------------------------------------------------------------
-# The build_deploy.sh only builds up to this point with the use of the
-# `podman build --target=builder` command. The above is all that is
-# required to create an image that can be used in a deployment. The
-# following lines enable use of this Dockerfile on Fedora for local
-# testing.
-# -----------------------------------------------------------------------
-
-FROM builder as builder-local
-
-USER root
-
-RUN groupadd -g ${USER_ID} koku \
-    && useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root koku \
-    && chmod g+rwx /opt
-
-USER koku
-
-RUN umask u=rwx,g=rwx,o=rx

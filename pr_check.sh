@@ -19,8 +19,7 @@ export IQE_CJI_TIMEOUT="2h"
 set -ex
 
 # Install bonfire repo/initialize
-echo "is this gonna work?"
-CICD_URL=https://raw.githubusercontent.com/maskarb/bonfire/build-args/cicd
+CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
 curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
 if $(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/search/issues\?q\=sha:$GIT_COMMIT |
