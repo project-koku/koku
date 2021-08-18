@@ -85,8 +85,8 @@ class KafkaMessageProcessor:
         self.account_number = extract_from_header(msg.headers(), KAFKA_HDR_ACCOUNT_NUMBER) or decoded_header.get(
             "identity", {}
         ).get("account_number")
-        if self.auth_header is None:
-            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}` {msg.headers()}"
+        if None in (self.account_number, self.auth_header):
+            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}` or account-number: {msg.headers()}"
             LOG.warning(msg)
             raise SourcesMessageError(msg)
         self.source_id = None
