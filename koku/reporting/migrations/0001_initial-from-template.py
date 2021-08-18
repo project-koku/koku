@@ -35,17 +35,17 @@ def apply_partitioned_tables_trigger(apps, schema_editor):
         msh.apply_sql_file(schema_editor, os.path.join(path, funcfile))
 
 
-def apply_initial_reporting_migration(apps, schema_editor):
-    conn = schema_editor.connection
-    schema = conn.get_schema()
-    if schema != "public":
-        jsql = JinjaSql()
-        init_sql = pkgutil.get_data("api.iam", "sql/tenant-from-template0.sql").decode("utf-8")
-        jparams = {"schema_name": schema}
-        init_sql, _ = jsql.prepare_query(init_sql, jparams)
-        with conn.cursor() as cur:
-            for stmt in sqlparse.split(init_sql):
-                cur.execute(str(stmt))
+# def apply_initial_reporting_migration(apps, schema_editor):
+#     conn = schema_editor.connection
+#     schema = conn.get_schema()
+#     if schema != "public":
+#         jsql = JinjaSql()
+#         init_sql = pkgutil.get_data("api.iam", "sql/tenant-from-template0.sql").decode("utf-8")
+#         jparams = {"schema_name": schema}
+#         init_sql, _ = jsql.prepare_query(init_sql, jparams)
+#         with conn.cursor() as cur:
+#             for stmt in sqlparse.split(init_sql):
+#                 cur.execute(str(stmt))
 
 
 def set_partitioned_mode(apps, schema_editor):
@@ -58,7 +58,6 @@ def unset_partitioned_mode(apps, schema_editor):
 
 def apply_views(apps, schema_editor):
     conn = schema_editor.connection
-
     for view in AWS_MATERIALIZED_VIEWS:
         LOG.info(f"Applying materialized view {view}")
         LOG.info(f"Path: reporting/provider/aws/sql/views/{view}.sql")
@@ -74,16 +73,22 @@ def apply_views(apps, schema_editor):
             cur.execute(view_sql)
 
     for view in GCP_MATERIALIZED_VIEWS:
+        version = "_20210721"
         LOG.info(f"Applying materialized view {view}")
-        LOG.info(f"Path: reporting/provider/gcp/sql/views/{view}.sql")
-        view_sql = pkgutil.get_data("reporting.provider.gcp", f"sql/views/{view}.sql").decode("utf-8")
+        LOG.info(f"Path: reporting/provider/gcp/sql/views/{version}/{view}.sql")
+        view_sql = pkgutil.get_data("reporting.provider.gcp", f"sql/views/{version}/{view}{version}.sql").decode(
+            "utf-8"
+        )
         with conn.cursor() as cur:
             cur.execute(view_sql)
 
     for view in OCP_MATERIALIZED_VIEWS:
+        version = "_20210615"
         LOG.info(f"Applying materialized view {view}")
-        LOG.info(f"Path: reporting/provider/ocp/sql/views/_20210615/{view}_20210615.sql")
-        view_sql = pkgutil.get_data("reporting.provider.ocp", f"sql/views/{view}.sql").decode("utf-8")
+        LOG.info(f"Path: reporting/provider/ocp/sql/views/{version}/{view}{version}.sql")
+        view_sql = pkgutil.get_data("reporting.provider.ocp", f"sql/views/{version}/{view}{version}.sql").decode(
+            "utf-8"
+        )
         with conn.cursor() as cur:
             cur.execute(view_sql)
 
