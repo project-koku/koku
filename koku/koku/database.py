@@ -44,6 +44,8 @@ PARTITIONED_MODEL_NAMES = [
     "AzureCostEntryLineItemDailySummary",
     "GCPCostEntryLineItemDailySummary",
     "OCPUsageLineItemDailySummary",
+    "OCPAllCostLineItemDailySummaryP",
+    "OCPAllCostLineItemProjectDailySummaryP",
 ]
 DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
