@@ -38,11 +38,12 @@ COPY ./.s2i/bin/ $STI_SCRIPTS_PATH
 COPY . /tmp/src/.
 
 
-RUN /usr/bin/fix-permissions /tmp/src && \
+RUN \
+    /usr/bin/fix-permissions /tmp/src && \
     chmod 755 $STI_SCRIPTS_PATH/assemble $STI_SCRIPTS_PATH/run && \
-    groupadd -g ${USER_ID} koku \
-    && useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root koku \
-    && chmod g+rwx /opt
+    groupadd -g ${USER_ID} koku && \
+    useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root koku && \
+    chmod g+rwx /opt/app-root/src
 
 USER koku
 
