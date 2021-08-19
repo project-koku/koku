@@ -6,14 +6,13 @@ on:
     - 'r.*'
 
 jobs:
-  build:
+  pre-release:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: Get release notes
-      run: echo "::set-output name=RELEASE_BODY::${git log $(git tag --list | tail -2 | head -1)..$(git tag --list | tail -1) --pretty=format:'* %h - %s'}"
+      run: echo "::set-output name=RELEASE_BODY::$(git log $(git tag --list | tail -2 | head -1)..$(git tag --list | tail -1) --pretty=format:'* %h - %s')"
       id: release-notes-generator
-
     - uses: ncipollo/release-action@v1
       with:
         body: ${{ steps.release-notes-generator.outputs.RELEASE_BODY }}
