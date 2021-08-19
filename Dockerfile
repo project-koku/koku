@@ -43,7 +43,11 @@ RUN \
     chmod 755 $STI_SCRIPTS_PATH/assemble $STI_SCRIPTS_PATH/run && \
     groupadd -g ${USER_ID} koku && \
     useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root koku && \
-    chmod g+rwx /opt/app-root/src
+    # enable extended globbing so we can exclude the `.local` dir
+    shopt -s extglob && \
+    chmod g+rwx /opt/app-root/src/!(.local) && \
+    # disable extended globbing
+    shopt -u extglob
 
 USER koku
 
