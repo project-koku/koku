@@ -7,6 +7,7 @@ import copy
 
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
+from rest_framework.fields import DateField
 
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
@@ -251,7 +252,7 @@ class OrderSerializer(BaseSerializer):
 
     _tagkey_support = True
 
-    ORDER_CHOICES = (("asc", "asc"), ("desc", "desc"))
+    ORDER_CHOICES = (("asc", "asc"), ("desc", "desc"), (DateField, DateField))
 
     cost = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
     infrastructure = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
@@ -352,7 +353,7 @@ class ParamSerializer(BaseSerializer):
 
         return data
 
-    def validate_order_by(self, value):
+    def validate_order_by(self, value):  # noqa: C901
         """Validate incoming order_by data.
 
         Args:
@@ -391,6 +392,9 @@ class ParamSerializer(BaseSerializer):
 
                 # special case: we order by account_alias, but we group by account.
                 if key == "account_alias" and ("account" in group_keys or "account" in or_keys):
+                    continue
+                # sepcial case: we order by date, but we group by an allowed param.
+                if key == "date" and group_keys:
                     continue
 
             error[key] = _(f'Order-by "{key}" requires matching Group-by.')

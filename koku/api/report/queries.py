@@ -656,6 +656,7 @@ class ReportQueryHandler(QueryHandler):
                     key=lambda entry: (bool(re.match(r"other*", entry[field].lower())), entry[field].lower()),
                     reverse=reverse,
                 )
+
         return sorted_data
 
     def get_tag_order_by(self, tag):
