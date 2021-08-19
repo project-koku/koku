@@ -15,6 +15,7 @@ jobs:
       id: release-notes-generator
     - uses: ncipollo/release-action@v1
       with:
+        allowUpdates: true
         body: ${{ steps.release-notes-generator.outputs.RELEASE_BODY }}
         prerelease: true
         token: ${{ secrets.GITHUB_TOKEN }}
