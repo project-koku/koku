@@ -643,7 +643,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 # rest of the days in query_data and puts them in the same order
                 # return_query_data = []
                 sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
-
                 query_data = self.order_by(sorted_data, ["-date"])
             else:
                 # &order_by[cost]=desc&order_by[date]=2021-08-02
