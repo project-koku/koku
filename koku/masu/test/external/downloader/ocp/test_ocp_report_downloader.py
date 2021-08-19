@@ -277,7 +277,7 @@ class OCPReportDownloaderTest(MasuTestCase):
         expected_errors = {"prometheus_error": "fake error"}
         self.assertEqual(manifest.operator_version, version)
         self.assertEqual(manifest.operator_certified, False)
-        self.assertEqual(manifest.operator_airgapped, False)
+        self.assertEqual(manifest.operator_airgapped, True)
         self.assertEqual(manifest.cluster_channel, "stable-4.6")
         self.assertEqual(manifest.cluster_id, "4e009161-4f40-42c8-877c-3e59f6baea3d")
         self.assertEqual(manifest.operator_errors, expected_errors)
