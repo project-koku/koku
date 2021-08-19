@@ -4,6 +4,8 @@
 #
 """Common serializer logic."""
 import copy
+from datetime import datetime
+from datetime import timedelta
 
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
@@ -395,6 +397,12 @@ class ParamSerializer(BaseSerializer):
                     continue
                 # sepcial case: we order by date, but we group by an allowed param.
                 if key == "date" and group_keys:
+                    today = datetime.utcnow()
+                    today = datetime.date(today)
+                    yesterday = today - timedelta(days=10)
+                    if value.get("date") < yesterday or value.get("date") > today:
+                        error[key] = _(f'The date "{value.get("date")}" is out of range')
+                        raise serializers.ValidationError(error)
                     continue
 
             error[key] = _(f'Order-by "{key}" requires matching Group-by.')
