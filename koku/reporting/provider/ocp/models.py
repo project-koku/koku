@@ -203,6 +203,10 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     """
 
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
     MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"), ("PVC", "PVC"))
     MONTHLY_COST_RATE_MAP = {
         "Node": "node_cost_per_month",
@@ -223,8 +227,6 @@ class OCPUsageLineItemDailySummary(models.Model):
             models.Index(fields=["data_source"], name="summary_data_source_idx"),
             GinIndex(fields=["pod_labels"], name="pod_labels_idx"),
         ]
-
-        managed = False
 
     uuid = models.UUIDField(primary_key=True)
 
