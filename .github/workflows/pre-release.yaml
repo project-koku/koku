@@ -1,21 +1,22 @@
 name: pre release
 
 on:
-  create:
-    tags:
-    - 'r.*'
+  schedule:
+    - cron:  '0 12 * * 4'
 
 jobs:
   pre-release:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Get release notes
-      run: echo "::set-output name=RELEASE_BODY::$(git log $(git tag --list | tail -2 | head -1)..$(git tag --list | tail -1) --pretty=format:'* %h - %s')"
-      id: release-notes-generator
+    - name: Set variables
+      run: |
+        echo "::set-output name=RELEASE_BODY::$(git log $(git tag --list | tail -1)..main --pretty=format:'* %h - %s')"
+        echo "::set-output name=TAG_VERSION::r.$(date +%Y.%m.%d)"
+      id: variable-setter
     - uses: ncipollo/release-action@v1
       with:
-        allowUpdates: true
-        body: ${{ steps.release-notes-generator.outputs.RELEASE_BODY }}
+        body: ${{ steps.variable-setter.outputs.RELEASE_BODY }}
         prerelease: true
+        tag: ${{ steps.variable-setter.outputs.TAG_VERSION }}
         token: ${{ secrets.GITHUB_TOKEN }}
