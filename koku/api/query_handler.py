@@ -62,6 +62,7 @@ class QueryHandler:
         self.time_scope_units = self.parameters.get_filter("time_scope_units")
         if self.parameters.get_filter("time_scope_value"):
             self.time_scope_value = int(self.parameters.get_filter("time_scope_value"))
+        # self.time_order = parameters["date"]
 
         # self.start_datetime = parameters["start_date"]
         # self.end_datetime = parameters["end_date"]
@@ -118,7 +119,17 @@ class QueryHandler:
 
         """
         order_map = {"asc": "", "desc": "-"}
-        return f"{order_map[self.order_direction]}{self.order_field}"
+        order = []
+        order_by = self.parameters.get("order_by", self.default_ordering)
+
+        for order_field, order_direction in order_by.items():
+            if order_direction not in order_map and order_field == "date":
+                # We've overloaded date to hold a specific date, not asc/desc
+                order.append(order_direction)
+            else:
+                order.append(f"{order_map[order_direction]}{order_field}")
+
+        return order
 
     @property
     def order_field(self):
