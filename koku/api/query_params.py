@@ -352,21 +352,21 @@ class QueryParameters:
         """Parameters setter."""
         self._display_parameters = dikt
         modified_param_dict = copy.deepcopy(dikt)
-        for key, value in dikt.items():
-            if isinstance(value, dict):
-                for first, second in value.items():
+        for param, param_value in dikt.items():
+            if isinstance(param_value, dict):
+                new_param_value = copy.deepcopy(param_value)
+                for first, second in param_value.items():
                     if "supplementary" == first:
-                        new_value_dict = OrderedDict()
-                        new_value_dict["sup_total"] = second
-                        modified_param_dict[key] = new_value_dict
+                        new_param_value["sup_total"] = second
+                        del new_param_value["supplementary"]
                     elif "infrastructure" == first:
-                        new_value_dict = OrderedDict()
-                        new_value_dict["infra_total"] = second
-                        modified_param_dict[key] = new_value_dict
+                        new_param_value["infra_total"] = second
+                        del new_param_value["infrastructure"]
                     elif "cost" == first:
-                        new_value_dict = OrderedDict()
-                        new_value_dict["cost_total"] = second
-                        modified_param_dict[key] = new_value_dict
+                        new_param_value["cost_total"] = second
+                        del new_param_value["cost"]
+                modified_param_dict[param] = new_param_value
+
         self._parameters = modified_param_dict
 
     @property
