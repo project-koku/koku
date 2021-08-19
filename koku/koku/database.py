@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import threading
+import types
 
 import django
 from django.conf import settings
@@ -17,6 +18,7 @@ from django.db import OperationalError
 from django.db import transaction
 from django.db.migrations.loader import MigrationLoader
 from django.db.models import DecimalField
+from django.db.models import ForeignKey
 from django.db.models.aggregates import Func
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.sql.compiler import SQLDeleteCompiler
@@ -37,6 +39,12 @@ engines = {
 }
 
 
+PARTITIONED_MODEL_NAMES = [
+    "AWSCostEntryLineItemDailySummary",
+    "AzureCostEntryLineItemDailySummary",
+    "GCPCostEntryLineItemDailySummary",
+    "OCPUsageLineItemDailySummary",
+]
 DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
 
@@ -297,3 +305,141 @@ def get_model(model_or_table_name):
         if not DB_MODELS:
             _load_db_models()
     return DB_MODELS[model_or_table_name.lower()]
+
+
+def _count_fk_fields(model):
+    num_fk = 0
+    for f in model._meta.fields:
+        num_fk += int(isinstance(f, ForeignKey))
+    return num_fk
+
+
+def p_table_sql(self, model):
+    # Use default model class for the original django SQL generation
+    sql, params = self.o_table_sql(model)
+
+    # Based on model name match, get the defined model from the app
+    # For some reason, this differs from the model class passed into this method
+    # from the django migration processing
+    if model.__name__ in PARTITIONED_MODEL_NAMES:
+        pmodel = get_model(model.__name__)
+    else:
+        pmodel = None
+
+    # If there was a partition name match and the class has the required attribute,
+    # use this information to add the partition clause to the create table sql
+    # Otherwise, return the original sql and params
+    if pmodel is not None and hasattr(pmodel, "PartitionInfo"):
+        LOG.info(f"*** Creating PARTITIONED TABLE {pmodel._meta.db_table}")
+        partition_cols = pmodel.PartitionInfo.partition_cols
+        sparams = {
+            "partition_type": pmodel.PartitionInfo.partition_type.upper(),
+            "partition_cols": ", ".join(f'"{c}"' for c in partition_cols),
+        }
+
+        # The primary key will be overridden here
+        # Partitioned tables require that the partition column(s) be part of the primary key
+        p_sql = self.sql_partitioned_table % sparams
+        sql = sql.replace("PRIMARY KEY", "") + p_sql
+
+        pk_cols = partition_cols[:]
+        try:
+            mod_pk = pmodel._meta.pk.get_attname()
+        except Exception:
+            pass
+        else:
+            pk_cols.append(mod_pk)
+
+        sparams = {
+            "table_name": f'"{pmodel._meta.db_table}"',
+            "constraint_name": f'"{pmodel._meta.db_table}_pk"',
+            "constraint_cols": ", ".join(f'"{c}"' for c in pk_cols),
+        }
+        pk_constraint = self.sql_partitioned_pk % sparams
+
+        num_fk = _count_fk_fields(pmodel)
+        if num_fk:
+            self.deferred_sql.insert(-num_fk - 1, pk_constraint)
+        else:
+            self.deferred_sql.append(pk_constraint)
+
+        # Add a deferred sql statement to create the default partition
+        sparams = {
+            "default_partition_name": f"{pmodel._meta.db_table}_default",
+            "partitioned_table_name": pmodel._meta.db_table,
+            "partition_type": pmodel.PartitionInfo.partition_type.lower(),
+            "partition_col": ",".join(partition_cols),
+            "partition_parameters": '{"default": true}',
+        }
+        with self.connection.cursor() as cur:
+            self.deferred_sql.append(cur.mogrify(self.sql_partition_default, sparams).decode("utf-8"))
+    else:
+        LOG.info(f"Creating TABLE {model._meta.db_table}")
+
+    return sql, params
+
+
+def set_partitioned_schema_editor(schema_editor):
+    """
+    Add attributes and override method of given schema_editor to allow partition table sql statements
+    to be emitted.
+    """
+    # Add SQL templates, if not already present
+    if not hasattr(schema_editor, "sql_partitioned_table"):
+        setattr(schema_editor, "sql_partitioned_table", " PARTITION BY %(partition_type)s (%(partition_cols)s) ")
+
+    if not hasattr(schema_editor, "sql_partitioned_pk"):
+        setattr(
+            schema_editor,
+            "sql_partitioned_pk",
+            "ALTER TABLE %(table_name)s ADD CONSTRAINT %(constraint_name)s PRIMARY KEY (%(constraint_cols)s)",
+        )
+
+    # Special sql template to be added to the deferred sql to create the default partition
+    # This REQUIRES that the partitioned_tables table is present as well as the trigger and trigger
+    # function exists for partition management via this tracking table.
+    if not hasattr(schema_editor, "sql_partition_default"):
+        default_partition_sql = """
+INSERT INTO partitioned_tables (
+    schema_name,
+    table_name,
+    partition_of_table_name,
+    partition_type,
+    partition_col,
+    partition_parameters,
+    active
+)
+VALUES
+(
+    current_schema,
+    %(default_partition_name)s,
+    %(partitioned_table_name)s,
+    %(partition_type)s,
+    %(partition_col)s,
+    %(partition_parameters)s::jsonb,
+    true
+)
+"""
+        setattr(schema_editor, "sql_partition_default", default_partition_sql)
+
+    # Backup original method to emit create table sql and replace with the new method
+    if not hasattr(schema_editor, "o_table_sql"):
+        setattr(schema_editor, "o_table_sql", schema_editor.table_sql)
+        setattr(schema_editor, "table_sql", types.MethodType(p_table_sql, schema_editor))
+
+
+def unset_partitioned_schema_editor(schema_editor):
+    # Delete partition template attributes, if present
+    if not hasattr(schema_editor, "sql_partitioned_table"):
+        delattr(schema_editor, "sql_partitioned_table")
+
+    if not hasattr(schema_editor, "sql_partitioned_pk"):
+        delattr(schema_editor, "sql_partitioned_pk")
+
+    if not hasattr(schema_editor, "sql_partition_default"):
+        delattr(schema_editor, "sql_partition_default")
+
+    # Restore original functionality for create table sql emit
+    if not hasattr(schema_editor, "o_table_sql"):
+        setattr(schema_editor, "table_sql", schema_editor.o_table_sql)
+        delattr(schema_editor, "o_table_sql")

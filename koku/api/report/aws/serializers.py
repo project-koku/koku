@@ -44,7 +44,7 @@ class GroupBySerializer(GroupSerializer):
 class OrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ("usage", "account_alias", "region", "service", "product_family")
+    _opfields = ("usage", "account_alias", "region", "service", "product_family", "date")
 
     usage = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     # ordering by alias is supported, but ordering by account is not due to the
@@ -53,6 +53,7 @@ class OrderBySerializer(OrderSerializer):
     region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     service = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     product_family = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    date = serializers.DateField(required=False)
 
 
 class FilterSerializer(BaseFilterSerializer):
