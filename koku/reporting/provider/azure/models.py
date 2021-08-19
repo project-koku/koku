@@ -182,10 +182,12 @@ class AzureCostEntryLineItemDailySummary(models.Model):
 
     """
 
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
     class Meta:
         """Meta for AzureCostEntryLineItemDailySummary."""
-
-        managed = False
 
         db_table = "reporting_azurecostentrylineitem_daily_summary"
         indexes = [models.Index(fields=["usage_start"], name="ix_azurecstentrydlysumm_start")]
