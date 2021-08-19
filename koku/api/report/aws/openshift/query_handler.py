@@ -37,7 +37,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
-            query_order_by.extend([self.order])  # add implicit ordering
+            query_order_by.extend(self.order)  # add implicit ordering
 
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query_data.values(*query_group_by).annotate(**annotations)
@@ -63,7 +63,6 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
 
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
-            query_data = self.order_by(query_data, query_order_by)
             cost_units_value = self._mapper.report_type_map.get("cost_units_fallback", "USD")
             usage_units_value = self._mapper.report_type_map.get("usage_units_fallback")
             count_units_value = self._mapper.report_type_map.get("count_units_fallback")
@@ -73,6 +72,41 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                     usage_units_value = query_data[0].get("usage_units")
                 if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
                     count_units_value = query_data[0].get("count_units")
+
+            def check_if_valid_date_str(date_str):
+                """Check to see if a valid date has been passed in."""
+                import ciso8601
+
+                try:
+                    ciso8601.parse_datetime(date_str)
+                except ValueError:
+                    return False
+                except TypeError:
+                    return False
+                return True
+
+            order_date = None
+            for i, param in enumerate(query_order_by):
+                if check_if_valid_date_str(param):
+                    order_date = param
+                    break
+            # Remove the date order by as it is not actually used for ordering
+            if order_date:
+                sort_term = self._get_group_by()[0]
+                query_order_by.pop(i)
+                date_filtered_query_data = query_data.filter(usage_start=order_date)
+                ordered_data = self.order_by(date_filtered_query_data, query_order_by)
+                order_of_interest = []
+                for entry in ordered_data:
+                    order_of_interest.append(entry.get(sort_term))
+                # write a special order by function that iterates through the
+                # rest of the days in query_data and puts them in the same order
+                # return_query_data = []
+                sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
+                query_data = self.order_by(sorted_data, ["-date"])
+            else:
+                # &order_by[cost]=desc&order_by[date]=2021-08-02
+                query_data = self.order_by(query_data, query_order_by)
 
             if is_csv_output:
                 if self._limit:

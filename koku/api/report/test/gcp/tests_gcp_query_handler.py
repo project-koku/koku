@@ -5,6 +5,7 @@
 """Test GCP Report Queries."""
 import logging
 from datetime import datetime
+from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
 from unittest.mock import patch
@@ -14,6 +15,7 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import F
 from django.db.models import Sum
 from django.urls import reverse
+from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -1082,3 +1084,40 @@ class GCPReportQueryHandlerTest(IamTestCase):
                         self.assertIsInstance(value.get("usage", {}).get("value"), Decimal)
                     service_checked = True
         self.assertTrue(service_checked)
+
+    def test_gcp_date_order_by_cost_desc(self):
+        """Test execute_query with order by date for correct order of services."""
+        # execute query
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        # removes time from date
+        yesterday = datetime.date(yesterday)
+        lst = []
+        matchinglists = False
+        correctlst = []
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, GCPCostView)
+        handler = GCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        # test query output
+        for element in data:
+            if element.get("date") == str(yesterday):
+                for service in element.get("services"):
+                    correctlst.append(service.get("service"))
+        for element in data:
+            # Check if there is any data in services
+            if element.get("services") > []:
+                for service in element.get("services"):
+                    lst.append(service.get("service"))
+                if correctlst == lst:
+                    matchinglists = True
+                else:
+                    matchinglists = False
+                lst = []
+        self.assertTrue(matchinglists)
+
+    def test_gcp_date_incorrect_date(self):
+        wrong_date = "200BC"
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, GCPCostView)
