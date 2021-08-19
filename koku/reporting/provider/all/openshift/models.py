@@ -496,7 +496,7 @@ class OCPAllCostLineItemDailySummaryP(models.Model):
     """A summarized view of OCP on All infrastructure cost."""
 
     class PartitionInfo:
-        partitiion_type = "RANGE"
+        partition_type = "RANGE"
         partition_cols = ["usage_start"]
 
     class Meta:
@@ -579,14 +579,12 @@ class OCPAllCostLineItemDailySummaryP(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
-    tags_hash = models.TextField(max_length=512)
-
 
 class OCPAllCostLineItemProjectDailySummaryP(models.Model):
     """A summarized view of OCP on AWS cost by OpenShift project."""
 
     class PartitionInfo:
-        partitiion_type = "RANGE"
+        partition_type = "RANGE"
         partition_cols = ["usage_start"]
 
     class Meta:
