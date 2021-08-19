@@ -43,7 +43,7 @@ RUN \
     chmod 755 $STI_SCRIPTS_PATH/assemble $STI_SCRIPTS_PATH/run && \
     groupadd -g ${USER_ID} koku && \
     useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root koku && \
-    find $directory ! -name "/opt/app-root/src/.local" | xargs -I {} chmod g+rwx {}
+    chmod g+rwx /opt
 
 USER koku
 
