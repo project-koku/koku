@@ -8,8 +8,8 @@ from django.db import migrations
 from django.db import models
 
 from koku.database import get_model
-from koku.database import set_partitioned_schema_editor
-from koku.database import unset_partitioned_schema_editor
+from koku.database import set_partition_mode
+from koku.database import unset_partition_mode
 from reporting.provider.all.openshift.models import VIEWS as OCP_ALL_VIEWS
 
 COPY_OCPALL_SQL = f"""
@@ -264,14 +264,6 @@ SELECT 'Azure' as source_type,
        pod_labels
 ;
 """
-
-
-def set_partition_mode(apps, schema_editor):
-    set_partitioned_schema_editor(schema_editor)
-
-
-def unset_partition_mode(apps, schema_editor):
-    unset_partitioned_schema_editor(schema_editor)
 
 
 def create_new_ocpall_matviews(apps, schema_editor):

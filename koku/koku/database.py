@@ -460,6 +460,10 @@ DELETE
         setattr(schema_editor, "delete_model", types.MethodType(p_delete_model, schema_editor))
 
 
+def set_partition_mode(apps, schema_editor):
+    set_partitioned_schema_editor(schema_editor)
+
+
 def unset_partitioned_schema_editor(schema_editor):
     # Delete partition template attributes, if present
     if not hasattr(schema_editor, "sql_partitioned_table"):
@@ -483,3 +487,7 @@ def unset_partitioned_schema_editor(schema_editor):
     if not hasattr(schema_editor, "o_delete_model"):
         setattr(schema_editor, "table_sql", schema_editor.o_delete_model)
         delattr(schema_editor, "o_delete_model")
+
+
+def unset_partition_mode(apps, schema_editor):
+    unset_partitioned_schema_editor(schema_editor)
