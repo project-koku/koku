@@ -98,6 +98,9 @@ help:
 	@echo "  remove-test-db                        remove the django test db"
 	@echo "  reset-db-statistics                   clear the pg_stat_statements statistics"
 	@echo "  run-migrations                        run migrations against database"
+	@echo "                                          @param applabel - (optional) Use specified application"
+	@echo "                                          @param migration - (optional) Migrate to this migration"
+	@echo "                                          SPECIFY BOTH PARAMETERS OR NEITHER"
 	@echo "  serve                                 run the Django app on localhost"
 	@echo "  shell                                 run the Django interactive shell"
 	@echo "  shell-schema                          run the Django interactive shell with the specified schema"
@@ -226,7 +229,7 @@ check-manifest:
 	.github/scripts/check_manifest.sh
 
 run-migrations:
-	$(DJANGO_MANAGE) migrate_schemas
+	$(DJANGO_MANAGE) migrate_schemas $(applabel) $(migration)
 
 serve:
 	$(DJANGO_MANAGE) runserver
