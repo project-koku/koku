@@ -327,6 +327,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
+            distribution = cost_model_accessor.distribution
 
         self.accessor.populate_ocp_on_azure_cost_daily_summary_presto(
             start_date,
@@ -336,6 +337,35 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.ocp_cluster_id,
             current_bill_id,
             markup_value,
+            distribution,
+        )
+        mock_presto.assert_called()
+
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_multipart_sql_query")
+    def test_populate_ocp_on_azure_cost_daily_summary_presto_memory_distribution(self, mock_presto):
+        """Test that we construst our SQL and query using Presto."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider.uuid)
+        with schema_context(self.schema):
+            current_bill_id = bills.first().id if bills else None
+
+        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
+            markup = cost_model_accessor.markup
+            markup_value = float(markup.get("value", 0)) / 100
+            distribution = "memory"
+
+        self.accessor.populate_ocp_on_azure_cost_daily_summary_presto(
+            start_date,
+            end_date,
+            self.ocp_provider_uuid,
+            self.azure_provider_uuid,
+            self.ocp_cluster_id,
+            current_bill_id,
+            markup_value,
+            distribution,
         )
         mock_presto.assert_called()
 

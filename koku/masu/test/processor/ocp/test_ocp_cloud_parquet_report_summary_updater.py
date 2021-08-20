@@ -65,6 +65,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         updater.update_aws_summary_tables(
             self.ocp_test_provider_uuid, self.aws_test_provider_uuid, start_date, end_date
         )
+        distribution = None
         mock_ocp_on_aws.assert_called_with(
             start_date,
             end_date,
@@ -73,6 +74,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             current_ocp_report_period_id,
             bill_id,
             decimal.Decimal(0),
+            distribution,
         )
 
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
@@ -106,6 +108,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         updater.update_azure_summary_tables(
             self.ocp_test_provider_uuid, self.azure_test_provider_uuid, start_date, end_date
         )
+        distribution = None
         mock_ocp_on_azure.assert_called_with(
             start_date,
             end_date,
@@ -114,6 +117,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             current_ocp_report_period_id,
             bill_id,
             decimal.Decimal(0),
+            distribution,
         )
 
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
@@ -149,6 +153,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         updater.update_azure_summary_tables(
             self.ocp_test_provider_uuid, self.azure_test_provider_uuid, str(start_date), str(end_date)
         )
+        distribution = None
         mock_ocp_on_azure.assert_called_with(
             start_date,
             end_date,
@@ -157,4 +162,5 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             current_ocp_report_period_id,
             bill_id,
             decimal.Decimal(0),
+            distribution,
         )
