@@ -2,7 +2,8 @@ name: pre release
 
 on:
   schedule:
-    - cron:  '30 18 * * 5'
+    - cron:  '30 12 * * FRI'
+  workflow_dispatch:
 
 jobs:
   pre-release:
@@ -12,6 +13,8 @@ jobs:
     - name: Set variables
       run: echo "::set-output name=TAG_VERSION::r.$(date +%Y.%m.%d)"
       id: variable-setter
+    - name: Remove old remote-tracking references no longer on remote
+      run: git fetch --prune --unshallow
     - name: Create release body file
       run: bash .github/scripts/get_description.sh
     - uses: ncipollo/release-action@v1
