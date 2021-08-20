@@ -465,6 +465,9 @@ docker-trino-down:
 
 docker-trino-down-all: docker-trino-down docker-down
 
+docker-up-min-trino: docker-up-min docker-trino-up
+
+docker-up-min-trino-no-build: docker-up-min-no-build docker-trino-up
 
 
 ### Source targets ###
