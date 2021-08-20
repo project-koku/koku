@@ -1,7 +1,7 @@
 #!/bin/bash
 
 cat > release_body.md << EOF
-### Current commit: #######
+### Current commit: <insert-commit-hash>
 
 ### Summary:
 

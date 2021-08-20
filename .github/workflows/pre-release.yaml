@@ -2,7 +2,7 @@ name: pre release
 
 on:
   schedule:
-    - cron:  '0 12 * * 4'
+    - cron:  '30 18 * * 5'
 
 jobs:
   pre-release:
