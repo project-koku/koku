@@ -520,7 +520,7 @@ class OCPAllCostLineItemDailySummaryP(models.Model):
             # Function: (upper(product_family) gin_trgm_ops)
         ]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     # The infrastructure provider type
     source_type = models.TextField()
@@ -602,7 +602,7 @@ class OCPAllCostLineItemProjectDailySummaryP(models.Model):
             models.Index(fields=["instance_type"], name="ocpallp_p_proj_inst_type_idx"),
         ]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     # The infrastructure provider type
     source_type = models.TextField()
