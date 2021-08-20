@@ -390,8 +390,8 @@ services:
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
         - DEMO_ACCOUNTS
         - prometheus_multiproc_dir=/tmp
-        - LOG_LEVEL=INFO
-        - KOKU_LOG_LEVEL=INFO
+        - LOG_LEVEL=DEBUG
+        - KOKU_LOG_LEVEL=DEBUG
         - DJANGO_LOG_LEVEL=INFO
         - SOURCES_API_PREFIX=${SOURCES_API_PREFIX}
         - SOURCES_PSK=${SOURCES_PSK-sources-psk}
