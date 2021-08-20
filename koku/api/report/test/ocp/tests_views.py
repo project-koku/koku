@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report views."""
 import datetime
@@ -549,7 +537,6 @@ class OCPReportViewTest(IamTestCase):
                             KeyDecimalTransform("storage", "supplementary_usage_cost"),
                             Value(0, output_field=DecimalField()),
                         )
-                        + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
                         + Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))
                         + Coalesce(
                             KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
@@ -563,7 +550,30 @@ class OCPReportViewTest(IamTestCase):
                             KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                             Value(0, output_field=DecimalField()),
                         )
-                        + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(
+                            KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
                         + Coalesce(F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField()))
                     )
                 )
@@ -616,7 +626,30 @@ class OCPReportViewTest(IamTestCase):
                             KeyDecimalTransform("storage", "supplementary_usage_cost"),
                             Value(0, output_field=DecimalField()),
                         )
-                        + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(
+                            KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
                         + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
                         + Coalesce(
                             KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
@@ -630,7 +663,6 @@ class OCPReportViewTest(IamTestCase):
                             KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                             Value(0, output_field=DecimalField()),
                         )
-                        + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                         + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
                     )
                 )
@@ -656,7 +688,30 @@ class OCPReportViewTest(IamTestCase):
                             KeyDecimalTransform("storage", "supplementary_usage_cost"),
                             Value(0, output_field=DecimalField()),
                         )
-                        + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(
+                            KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
                         + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
                         + Coalesce(
                             KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
@@ -670,7 +725,6 @@ class OCPReportViewTest(IamTestCase):
                             KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                             Value(0, output_field=DecimalField()),
                         )
-                        + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                         + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
                     )
                 )
@@ -695,7 +749,30 @@ class OCPReportViewTest(IamTestCase):
                             KeyDecimalTransform("storage", "supplementary_usage_cost"),
                             Value(0, output_field=DecimalField()),
                         )
-                        + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(
+                            KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                            Value(0, output_field=DecimalField()),
+                        )
                         + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
                         + Coalesce(
                             KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
@@ -709,7 +786,6 @@ class OCPReportViewTest(IamTestCase):
                             KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                             Value(0, output_field=DecimalField()),
                         )
-                        + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                         + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
                     )
                 )
@@ -1028,7 +1104,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=false"
+        url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
@@ -1089,7 +1165,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_costs_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=false"
+        url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
@@ -1122,7 +1198,6 @@ class OCPReportViewTest(IamTestCase):
                             KeyDecimalTransform("storage", "supplementary_usage_cost"),
                             Value(0, output_field=DecimalField()),
                         )
-                        + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
                         + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
                         + Coalesce(
                             KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
@@ -1136,7 +1211,6 @@ class OCPReportViewTest(IamTestCase):
                             KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                             Value(0, output_field=DecimalField()),
                         )
-                        + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                         + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
                     )
                 )

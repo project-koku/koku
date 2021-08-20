@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Common util functions."""
 import calendar
@@ -82,6 +70,7 @@ def ingest_method_for_provider(provider):
         Provider.PROVIDER_GCP: POLL_INGEST,
         Provider.PROVIDER_GCP_LOCAL: POLL_INGEST,
         Provider.PROVIDER_IBM: POLL_INGEST,
+        Provider.PROVIDER_IBM_LOCAL: POLL_INGEST,
         Provider.PROVIDER_OCP: LISTEN_INGEST,
     }
     return ingest_map.get(provider)
@@ -245,13 +234,15 @@ def date_range_pair(start_date, end_date, step=5):
         yield start_date.date(), end_date.date()
 
 
-def get_path_prefix(account, provider_type, provider_uuid, start_date, data_type, report_type=None):
+def get_path_prefix(account, provider_type, provider_uuid, start_date, data_type, report_type=None, daily=False):
     """Get the S3 bucket prefix"""
     path = None
     if start_date:
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         path_prefix = f"{Config.WAREHOUSE_PATH}/{data_type}"
+        if daily:
+            path_prefix += "/daily"
         path = f"{path_prefix}/{account}/{provider_type}/source={provider_uuid}/year={year}/month={month}"
         if report_type:
             path = (
@@ -261,9 +252,13 @@ def get_path_prefix(account, provider_type, provider_uuid, start_date, data_type
     return path
 
 
-def get_hive_table_path(account, provider_type, report_type=None):
+def get_hive_table_path(account, provider_type, report_type=None, daily=False):
     """Get the S3 bucket prefix without partitions for hive table location."""
     path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
+    if daily:
+        path_prefix += "/daily"
+        if report_type is None:
+            report_type = "raw"
     table_path = f"{path_prefix}/{account}/{provider_type}"
     if report_type:
         table_path += f"/{report_type}"

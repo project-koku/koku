@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the download task."""
 import json
@@ -62,7 +50,6 @@ from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
 from masu.processor.tasks import remove_expired_data
-from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.processor.tasks import remove_stale_tenants
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import update_all_summary_tables
@@ -500,23 +487,6 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
             remove_expired_data(schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True)
             self.assertIn(expected.format(str(expected_results)), logger.output)
 
-    @patch.object(ExpiredDataRemover, "remove")
-    @patch("masu.processor.tasks.refresh_materialized_views.s")
-    def test_remove_expired_line_items_only(self, fake_view, fake_remover):
-        """Test task."""
-        expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
-        fake_remover.return_value = expected_results
-
-        expected = "INFO:masu.processor._tasks.remove_expired:Expired Data:\n {}"
-
-        # disable logging override set in masu/__init__.py
-        logging.disable(logging.NOTSET)
-        with self.assertLogs("masu.processor._tasks.remove_expired") as logger:
-            remove_expired_data(
-                schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True, line_items_only=True
-            )
-            self.assertIn(expected.format(str(expected_results)), logger.output)
-
 
 class TestUpdateSummaryTablesTask(MasuTestCase):
     """Test cases for Processor summary table Celery tasks."""
@@ -759,20 +729,25 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         expected_start_date = start_date.strftime("%Y-%m-%d")
         expected_end_date = end_date.strftime("%Y-%m-%d")
         manifest_id = 1
+        tracing_id = "1234"
 
         update_summary_tables(
-            self.schema, provider, provider_aws_uuid, start_date, end_date, manifest_id, synchronous=True
+            self.schema,
+            provider,
+            provider_aws_uuid,
+            start_date,
+            end_date,
+            manifest_id,
+            tracing_id=tracing_id,
+            synchronous=True,
         )
         mock_chain.assert_called_once_with(
-            update_cost_model_costs.s(self.schema, provider_aws_uuid, expected_start_date, expected_end_date).set(
-                queue=UPDATE_COST_MODEL_COSTS_QUEUE
-            )
+            update_cost_model_costs.s(
+                self.schema, provider_aws_uuid, expected_start_date, expected_end_date, tracing_id=tracing_id
+            ).set(queue=UPDATE_COST_MODEL_COSTS_QUEUE)
             | refresh_materialized_views.si(
-                self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id
+                self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id, tracing_id=tracing_id
             ).set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE)
-            | remove_expired_data.si(self.schema, provider, False, provider_aws_uuid, True, None).set(
-                queue=REMOVE_EXPIRED_DATA_QUEUE
-            )
         )
 
     @patch("masu.processor.tasks.update_summary_tables")
@@ -1089,8 +1064,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that file list is saved in ReportStatsDBAccessor."""
         files_list = ["file1.csv", "file2.csv", "file3.csv"]
         manifest_id = 1
-
-        record_all_manifest_files(manifest_id, files_list)
+        tracing_id = "1234"
+        record_all_manifest_files(manifest_id, files_list, tracing_id)
 
         for report_file in files_list:
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()
@@ -1099,11 +1074,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that file list is saved in ReportStatsDBAccessor race condition."""
         files_list = ["file1.csv", "file2.csv", "file3.csv"]
         manifest_id = 1
-
-        record_all_manifest_files(manifest_id, files_list)
+        tracing_id = "1234"
+        record_all_manifest_files(manifest_id, files_list, tracing_id)
         with patch.object(ReportStatsDBAccessor, "does_db_entry_exist", return_value=False):
             with patch.object(ReportStatsDBAccessor, "add", side_effect=IntegrityError):
-                record_all_manifest_files(manifest_id, files_list)
+                record_all_manifest_files(manifest_id, files_list, tracing_id)
 
         for report_file in files_list:
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()
@@ -1309,6 +1284,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
 
         refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
         mock_delay.assert_not_called()
+        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
         refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
         mock_delay.assert_called()
         self.assertTrue(self.single_task_is_running(task_name, cache_args))

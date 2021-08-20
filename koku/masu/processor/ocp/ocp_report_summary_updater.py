@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Updates report summary tables in the database."""
 import calendar
@@ -87,11 +75,11 @@ class OCPReportSummaryUpdater:
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
-        report_periods = None
+        report_period = None
         with OCPReportDBAccessor(self._schema) as accessor:
-            report_periods = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+            report_period = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
             with schema_context(self._schema):
-                report_period_ids = [report_period.id for report_period in report_periods]
+                report_period_ids = [report_period.id]
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
                     "Updating OpenShift report summary tables for \n\tSchema: %s "
@@ -102,17 +90,18 @@ class OCPReportSummaryUpdater:
                     start,
                     end,
                 )
-                accessor.populate_line_item_daily_summary_table(start, end, self._cluster_id)
-                accessor.populate_storage_line_item_daily_summary_table(start, end, self._cluster_id)
+                accessor.populate_line_item_daily_summary_table(start, end, self._cluster_id, self._provider.uuid)
+                accessor.populate_storage_line_item_daily_summary_table(
+                    start, end, self._cluster_id, self._provider.uuid
+                )
             accessor.populate_pod_label_summary_table(report_period_ids, start_date, end_date)
             accessor.populate_volume_label_summary_table(report_period_ids, start_date, end_date)
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
 
-            for period in report_periods:
-                if period.summary_data_creation_datetime is None:
-                    period.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
-                period.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
-                period.save()
+            if report_period.summary_data_creation_datetime is None:
+                report_period.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.save()
 
         return start_date, end_date
 

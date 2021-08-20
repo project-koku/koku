@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the Provider views."""
 import json
@@ -537,8 +525,9 @@ class ProviderManagerTest(IamTestCase):
 
         provider_uuid = provider.uuid
         manager = ProviderManager(provider_uuid)
-        infrastructure_name = manager.get_infrastructure_name()
-        self.assertEqual(infrastructure_name, Provider.PROVIDER_AWS)
+        infrastructure_info = manager.get_infrastructure_info()
+        self.assertEqual(infrastructure_info.get("type", ""), Provider.PROVIDER_AWS)
+        self.assertEqual(infrastructure_info.get("uuid", ""), aws_provider.uuid)
 
     def test_ocp_on_azure_infrastructure_type(self):
         """Test that the provider infrastructure returns Azure when running on Azure."""
@@ -560,8 +549,9 @@ class ProviderManagerTest(IamTestCase):
 
         provider_uuid = provider.uuid
         manager = ProviderManager(provider_uuid)
-        infrastructure_name = manager.get_infrastructure_name()
-        self.assertEqual(infrastructure_name, Provider.PROVIDER_AZURE)
+        infrastructure_info = manager.get_infrastructure_info()
+        self.assertEqual(infrastructure_info.get("type", ""), Provider.PROVIDER_AZURE)
+        self.assertEqual(infrastructure_info.get("uuid", ""), azure_provider.uuid)
 
     def test_ocp_infrastructure_type(self):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
@@ -578,8 +568,8 @@ class ProviderManagerTest(IamTestCase):
 
         provider_uuid = provider.uuid
         manager = ProviderManager(provider_uuid)
-        infrastructure_name = manager.get_infrastructure_name()
-        self.assertEqual(infrastructure_name, "Unknown")
+        infrastructure_info = manager.get_infrastructure_info()
+        self.assertEqual(infrastructure_info, {})
 
     def test_ocp_infrastructure_type_error(self):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
@@ -596,8 +586,8 @@ class ProviderManagerTest(IamTestCase):
 
         provider_uuid = provider.uuid
         manager = ProviderManager(provider_uuid)
-        infrastructure_name = manager.get_infrastructure_name()
-        self.assertEqual(infrastructure_name, "Unknown")
+        infrastructure_info = manager.get_infrastructure_info()
+        self.assertEqual(infrastructure_info, {})
 
     @patch("api.provider.provider_manager.ProviderManager.is_removable_by_user", return_value=False)
     def test_remove_not_removeable(self, _):

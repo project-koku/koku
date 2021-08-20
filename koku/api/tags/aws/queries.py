@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """AWS Tag Query Handling."""
 from copy import deepcopy
@@ -53,6 +41,7 @@ class AWSTagQueryHandler(TagQueryHandler):
         self._parameters = parameters
         if not hasattr(self, "_mapper"):
             self._mapper = AWSProviderMap(provider=self.provider, report_type=parameters.report_type)
+
         if parameters.get_filter("enabled") is None:
             parameters.set_filter(**{"enabled": True})
         # super() needs to be called after _mapper is set
@@ -61,6 +50,7 @@ class AWSTagQueryHandler(TagQueryHandler):
     @property
     def filter_map(self):
         """Establish which filter map to use based on tag API."""
+        enabled_parameter = self._parameters.get_filter("enabled") in (None, True)
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
         if self._parameters.get_filter("value"):
             filter_map.update(
@@ -69,7 +59,7 @@ class AWSTagQueryHandler(TagQueryHandler):
                         {"field": "account_aliases", "operation": "icontains", "composition_key": "account_filter"},
                         {"field": "usage_account_ids", "operation": "icontains", "composition_key": "account_filter"},
                     ],
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                 }
             )
         else:
@@ -83,7 +73,7 @@ class AWSTagQueryHandler(TagQueryHandler):
                         },
                         {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
                     ],
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                 }
             )
         return filter_map

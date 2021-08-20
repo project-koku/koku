@@ -82,6 +82,37 @@
                 }
             }
         },
+        "/currency/": {
+            "get": {
+                "tags": [
+                    "Currency"
+                ],
+                "summary": "Obtain the supported currencies",
+                "operationId": "getCurrency",
+                "responses": {
+                    "200": {
+                        "description": "An object describing the supported currencies",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Currency"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Currencies not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/cost-models/": {
             "get": {
                 "tags": [
@@ -2458,6 +2489,74 @@
                 }
             }
         },
+        "/resource-types/aws-regions/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List AWS Regions For RBAC",
+                "operationId": "listResourcesAwsRegions",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/aws-services/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List AWS Services For RBAC",
+                "operationId": "listResourcesAwsServices",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/resource-types/gcp-accounts/": {
             "get": {
                 "tags": [
@@ -2526,6 +2625,74 @@
                 }
             }
         },
+        "/resource-types/gcp-services/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List GCP Services For RBAC",
+                "operationId": "listResourcesGcpServices",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/gcp-regions/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List GCP Regions For RBAC",
+                "operationId": "listResourcesGcpRegions",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/resource-types/aws-organizational-units/": {
             "get": {
                 "tags": [
@@ -2567,6 +2734,74 @@
                 ],
                 "summary": "List Azure Subscription Guids For RBAC",
                 "operationId": "listResourcesAzureSubGuids",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/azure-services/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Azure Services For RBAC",
+                "operationId": "listResourcesAzureServices",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/azure-regions/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Azure Regions For RBAC",
+                "operationId": "listResourcesAzureRegions",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryOffset"
                     },
@@ -4155,11 +4390,11 @@
                 "in": "query",
                 "name": "limit",
                 "required": false,
-                "description": "Parameter for selecting the amount of data in a returned.",
+                "description": "Parameter for selecting the amount of data in a returned. Limit of 0 will return all data.",
                 "schema": {
                     "type": "integer",
                     "default": 100,
-                    "minimum": 1,
+                    "minimum": 0,
                     "maximum": 1000
                 }
             },
@@ -4253,6 +4488,13 @@
                     },
                     "markup": {
                         "$ref": "#/components/schemas/Markup"
+                    },
+                    "distribution": {
+                        "type": "string",
+                        "enum": [
+                            "memory",
+                            "cpu"
+                        ]
                     }
                 },
                 "required": [
@@ -4296,6 +4538,13 @@
                                 {"$ref": "#/components/schemas/TagRate"}
                             ]
                         }
+                    },
+                    "distribution": {
+                        "type": "string",
+                        "enum": [
+                            "memory",
+                            "cpu"
+                        ]
                     }
                 },
                 "required": [
@@ -4352,6 +4601,48 @@
                         }
                     }
                 ]
+            },
+            "Currency": {
+                "allOf": [{
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/Currencies"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            "Currencies": {
+                "required": [
+                    "code",
+                    "symbol",
+                    "name",
+                    "description"
+                ],
+                "properties": {
+                    "code": {
+                        "type": "string"
+                    },
+                    "symbol": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    }
+                }
             },
             "Customer": {
                 "required": [
@@ -5054,9 +5345,12 @@
                                 "default": false
                             },
                             "infrastructure": {
-                                "type": "string",
-                                "description": "OpenShift foundational infrastructure type.",
-                                "example": "AWS"
+                                "type": "object",
+                                "description": "Dictionary containing OpenShift foundational infrastructure type and uuid.",
+                                "example": {
+                                    "type": "AWS",
+                                    "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1d"
+                                }
                             },
                             "cost_models": {
                                 "type": "array",

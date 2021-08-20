@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Models for GCP cost and usage entry tables."""
 from uuid import uuid4
@@ -119,9 +107,11 @@ class GCPCostEntryLineItem(models.Model):
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     cost_type = models.CharField(max_length=256, null=True, blank=True)
     line_item_type = models.CharField(max_length=256, null=True)
-    cost_entry_product = models.ForeignKey(GCPCostEntryProductService, null=True, on_delete=models.CASCADE)
-    cost_entry_bill = models.ForeignKey(GCPCostEntryBill, on_delete=models.CASCADE)
-    project = models.ForeignKey(GCPProject, on_delete=models.CASCADE)
+    cost_entry_product = models.ForeignKey(
+        GCPCostEntryProductService, null=True, on_delete=models.CASCADE, db_constraint=False
+    )
+    cost_entry_bill = models.ForeignKey(GCPCostEntryBill, on_delete=models.CASCADE, db_constraint=False)
+    project = models.ForeignKey(GCPProject, on_delete=models.CASCADE, db_constraint=False)
 
 
 class GCPCostEntryLineItemDaily(models.Model):
@@ -167,10 +157,12 @@ class GCPCostEntryLineItemDailySummary(models.Model):
 
     """
 
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
     class Meta:
         """Meta for GCPCostEntryLineItemDailySummary."""
-
-        managed = False  # for partitioning
 
         db_table = "reporting_gcpcostentrylineitem_daily_summary"
         indexes = [
@@ -203,6 +195,7 @@ class GCPCostEntryLineItemDailySummary(models.Model):
     line_item_type = models.CharField(max_length=256, null=True)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10)
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
     # The following fields are aggregates
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -287,6 +280,8 @@ class GCPCostSummary(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPCostSummaryByAccount(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -316,6 +311,8 @@ class GCPCostSummaryByAccount(models.Model):
     currency = models.CharField(max_length=10)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
 
 class GCPCostSummaryByProject(models.Model):
@@ -351,6 +348,8 @@ class GCPCostSummaryByProject(models.Model):
 
     account_id = models.CharField(max_length=50, null=False)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPCostSummaryByRegion(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -382,6 +381,8 @@ class GCPCostSummaryByRegion(models.Model):
     currency = models.CharField(max_length=10)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
 
 class GCPCostSummaryByService(models.Model):
@@ -417,6 +418,8 @@ class GCPCostSummaryByService(models.Model):
 
     service_alias = models.CharField(max_length=256, null=True, blank=True)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPComputeSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -450,6 +453,8 @@ class GCPComputeSummary(models.Model):
     currency = models.CharField(max_length=10)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
 
 class GCPComputeSummaryByProject(models.Model):
@@ -491,6 +496,8 @@ class GCPComputeSummaryByProject(models.Model):
 
     account_id = models.CharField(max_length=50, null=False)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPComputeSummaryByService(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -531,6 +538,8 @@ class GCPComputeSummaryByService(models.Model):
 
     account_id = models.CharField(max_length=50, null=False)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPComputeSummaryByAccount(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -566,6 +575,8 @@ class GCPComputeSummaryByAccount(models.Model):
     source_uuid = models.UUIDField(unique=False, null=True)
 
     account_id = models.CharField(max_length=50, null=False)
+
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
 
 class GCPComputeSummaryByRegion(models.Model):
@@ -605,6 +616,8 @@ class GCPComputeSummaryByRegion(models.Model):
 
     region = models.CharField(max_length=50, null=True)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPStorageSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -636,6 +649,8 @@ class GCPStorageSummary(models.Model):
     currency = models.CharField(max_length=10)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
 
 class GCPStorageSummaryByProject(models.Model):
@@ -675,6 +690,8 @@ class GCPStorageSummaryByProject(models.Model):
 
     account_id = models.CharField(max_length=50, null=False)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPStorageSummaryByService(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -713,6 +730,8 @@ class GCPStorageSummaryByService(models.Model):
 
     account_id = models.CharField(max_length=50, null=False)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPStorageSummaryByAccount(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -748,6 +767,8 @@ class GCPStorageSummaryByAccount(models.Model):
     source_uuid = models.UUIDField(unique=False, null=True)
 
     account_id = models.CharField(max_length=50, null=False)
+
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
 
 class GCPStorageSummaryByRegion(models.Model):
@@ -787,6 +808,8 @@ class GCPStorageSummaryByRegion(models.Model):
 
     region = models.CharField(max_length=50, null=True)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPNetworkSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -825,6 +848,8 @@ class GCPNetworkSummary(models.Model):
 
     service_alias = models.CharField(max_length=256, null=True, blank=True)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
 
 class GCPDatabaseSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -862,3 +887,5 @@ class GCPDatabaseSummary(models.Model):
     service_id = models.CharField(max_length=256, null=True)
 
     service_alias = models.CharField(max_length=256, null=True, blank=True)
+
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)

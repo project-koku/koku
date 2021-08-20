@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Provider external interface for koku to consume."""
 import logging
@@ -55,7 +43,7 @@ class ReportDownloader:
         provider_uuid,
         report_name=None,
         account=None,
-        request_id="no_request_id",
+        tracing_id="no_tracing_id",
     ):
         """Set the downloader based on the backend cloud provider."""
         self.customer_name = customer_name
@@ -64,12 +52,13 @@ class ReportDownloader:
         self.report_name = report_name
         self.provider_type = provider_type
         self.provider_uuid = provider_uuid
-        self.request_id = request_id
+        self.tracing_id = tracing_id
+        self.request_id = tracing_id  # TODO: Remove this once the downloaders have been updated
         self.account = account
         if self.account is None:
             self.account = customer_name[4:]
         self.context = {
-            "request_id": self.request_id,
+            "tracing_id": self.tracing_id,
             "provider_uuid": self.provider_uuid,
             "provider_type": self.provider_type,
             "account": self.account,
@@ -103,7 +92,7 @@ class ReportDownloader:
                 data_source=self.data_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                request_id=self.request_id,
+                tracing_id=self.tracing_id,
                 account=self.account,
                 provider_type=self.provider_type,
             )
@@ -114,7 +103,7 @@ class ReportDownloader:
                 data_source=self.data_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
-                request_id=self.request_id,
+                tracing_id=self.tracing_id,
                 account=self.account,
                 provider_type=self.provider_type,
             )
@@ -239,8 +228,8 @@ class ReportDownloader:
 
         """
         date_time = report_context.get("date")
-        msg = f"Attempting to get {self.provider_type} manifest for {str(date_time)}..."
-        LOG.info(log_json(self.request_id, msg, self.context))
+        msg = f"Attempting to get {self.provider_type} manifest for {str(date_time)}."
+        LOG.info(log_json(self.tracing_id, msg, self.context))
 
         manifest_id = report_context.get("manifest_id")
         report = report_context.get("current_file")
@@ -262,6 +251,8 @@ class ReportDownloader:
                 LOG.warning(f"Unable to download report file: {report}. Reason: {str(error)}")
                 return {}
 
+        # The create_table flag is used by the ParquetReportProcessor
+        # to create a Hive/Trino table.
         return {
             "file": file_name,
             "split_files": split_files,

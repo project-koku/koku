@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Models for AWS cost entry tables."""
 from uuid import uuid4
@@ -41,6 +29,8 @@ VIEWS = (
 
 
 PRESTO_LINE_ITEM_TABLE = "aws_line_items"
+PRESTO_LINE_ITEM_DAILY_TABLE = "aws_line_items_daily"
+PRESTO_OCP_ON_AWS_DAILY_TABLE = "aws_openshift_daily"
 
 PRESTO_REQUIRED_COLUMNS = (
     "lineItem/UsageStartDate",
@@ -118,11 +108,17 @@ class AWSCostEntryLineItem(models.Model):
 
     id = models.BigAutoField(primary_key=True)
 
-    cost_entry = models.ForeignKey("AWSCostEntry", on_delete=models.CASCADE)
-    cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE)
-    cost_entry_product = models.ForeignKey("AWSCostEntryProduct", on_delete=models.SET_NULL, null=True)
-    cost_entry_pricing = models.ForeignKey("AWSCostEntryPricing", on_delete=models.SET_NULL, null=True)
-    cost_entry_reservation = models.ForeignKey("AWSCostEntryReservation", on_delete=models.SET_NULL, null=True)
+    cost_entry = models.ForeignKey("AWSCostEntry", on_delete=models.CASCADE, db_constraint=False)
+    cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE, db_constraint=False)
+    cost_entry_product = models.ForeignKey(
+        "AWSCostEntryProduct", on_delete=models.SET_NULL, null=True, db_constraint=False
+    )
+    cost_entry_pricing = models.ForeignKey(
+        "AWSCostEntryPricing", on_delete=models.SET_NULL, null=True, db_constraint=False
+    )
+    cost_entry_reservation = models.ForeignKey(
+        "AWSCostEntryReservation", on_delete=models.SET_NULL, null=True, db_constraint=False
+    )
 
     tags = JSONField(null=True)
 
@@ -217,11 +213,14 @@ class AWSCostEntryLineItemDailySummary(models.Model):
 
     """
 
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
     class Meta:
         """Meta for AWSCostEntryLineItemDailySummary."""
 
         db_table = "reporting_awscostentrylineitem_daily_summary"
-        managed = False
 
         indexes = [
             models.Index(fields=["usage_start"], name="summary_usage_start_idx"),

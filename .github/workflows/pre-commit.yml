@@ -2,7 +2,8 @@ name: pre-commit
 
 on:
   pull_request:
-    branches: [master]
+    branches:
+      - main
 
 jobs:
   pre-commit:
@@ -12,4 +13,4 @@ jobs:
     - uses: actions/setup-python@v2
       with:
         python-version: '3.8'
-    - uses: pre-commit/action@v2.0.0
+    - uses: pre-commit/action@v2.0.3

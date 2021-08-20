@@ -1,24 +1,13 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Common serializer logic."""
 import copy
 
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
+from rest_framework.fields import DateField
 
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
@@ -213,7 +202,7 @@ class FilterSerializer(BaseSerializer):
     time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
 
     resource_scope = StringOrListField(child=serializers.CharField(), required=False)
-    limit = serializers.IntegerField(required=False, min_value=1)
+    limit = serializers.IntegerField(required=False, min_value=0)
     offset = serializers.IntegerField(required=False, min_value=0)
 
     def validate(self, data):
@@ -263,7 +252,7 @@ class OrderSerializer(BaseSerializer):
 
     _tagkey_support = True
 
-    ORDER_CHOICES = (("asc", "asc"), ("desc", "desc"))
+    ORDER_CHOICES = (("asc", "asc"), ("desc", "desc"), (DateField, DateField))
 
     cost = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
     infrastructure = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
@@ -364,7 +353,7 @@ class ParamSerializer(BaseSerializer):
 
         return data
 
-    def validate_order_by(self, value):
+    def validate_order_by(self, value):  # noqa: C901
         """Validate incoming order_by data.
 
         Args:
@@ -403,6 +392,9 @@ class ParamSerializer(BaseSerializer):
 
                 # special case: we order by account_alias, but we group by account.
                 if key == "account_alias" and ("account" in group_keys or "account" in or_keys):
+                    continue
+                # sepcial case: we order by date, but we group by an allowed param.
+                if key == "date" and group_keys:
                     continue
 
             error[key] = _(f'Order-by "{key}" requires matching Group-by.')

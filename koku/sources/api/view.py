@@ -1,18 +1,6 @@
 #
-# Copyright 2019 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """View for Sources."""
 import logging
@@ -230,7 +218,7 @@ class SourcesViewSet(*MIXIN_LIST):
                 source["current_month_data"] = False
                 source["previous_month_data"] = False
                 source["has_data"] = False
-                source["infrastructure"] = "Unknown"
+                source["infrastructure"] = {}
                 source["cost_models"] = []
             else:
                 source["provider_linked"] = True
@@ -238,7 +226,7 @@ class SourcesViewSet(*MIXIN_LIST):
                 source["current_month_data"] = manager.get_current_month_data_exists()
                 source["previous_month_data"] = manager.get_previous_month_data_exists()
                 source["has_data"] = manager.get_any_data_exists()
-                source["infrastructure"] = manager.get_infrastructure_name()
+                source["infrastructure"] = manager.get_infrastructure_info()
                 source["cost_models"] = [
                     {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
                 ]
@@ -259,7 +247,7 @@ class SourcesViewSet(*MIXIN_LIST):
             response.data["current_month_data"] = False
             response.data["previous_month_data"] = False
             response.data["has_data"] = False
-            response.data["infrastructure"] = "Unknown"
+            response.data["infrastructure"] = {}
             response.data["cost_models"] = []
         else:
             response.data["provider_linked"] = True
@@ -268,7 +256,7 @@ class SourcesViewSet(*MIXIN_LIST):
             response.data["previous_month_data"] = manager.get_previous_month_data_exists()
             response.data["has_data"] = manager.get_any_data_exists()
 
-            response.data["infrastructure"] = manager.get_infrastructure_name()
+            response.data["infrastructure"] = manager.get_infrastructure_info()
             response.data["cost_models"] = [
                 {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
             ]

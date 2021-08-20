@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Updates report summary tables in the database."""
 import logging
@@ -46,14 +34,29 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             end_date = parser.parse(end_date).date()
 
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
+        with OCPReportDBAccessor(self._schema) as accessor:
+            report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
+            accessor.delete_infrastructure_raw_cost_from_daily_summary(
+                openshift_provider_uuid, report_period.id, start_date, end_date
+            )
         aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
         with schema_context(self._schema):
+            # self._handle_partitions(
+            #     ("reporting_ocpawscostlineitem_daily_summary", "reporting_ocpawscostlineitem_project_daily_summary"),
+            #     start_date,
+            #     end_date,
+            # )
+
             aws_bill_ids = [str(bill.id) for bill in aws_bills]
             current_aws_bill_id = aws_bills.first().id if aws_bills else None
+            current_ocp_report_period_id = report_period.id
 
         with CostModelDBAccessor(self._schema, aws_provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = Decimal(markup.get("value", 0)) / 100
+
+        with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
+            distribution = cost_model_accessor.distribution
 
         # OpenShift on AWS
         with AWSReportDBAccessor(self._schema) as accessor:
@@ -74,16 +77,13 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     end,
                     openshift_provider_uuid,
                     aws_provider_uuid,
-                    cluster_id,
+                    current_ocp_report_period_id,
                     current_aws_bill_id,
                     markup_value,
+                    distribution,
                 )
+            accessor.back_populate_ocp_on_aws_daily_summary(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start_date, end_date)
-
-        with OCPReportDBAccessor(self._schema) as accessor:
-            # This call just sends the infrastructure cost to the
-            # OCP usage daily summary table
-            accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)
 
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on Azure."""
@@ -93,14 +93,32 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             end_date = parser.parse(end_date).date()
 
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
+        with OCPReportDBAccessor(self._schema) as accessor:
+            report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
+            accessor.delete_infrastructure_raw_cost_from_daily_summary(
+                openshift_provider_uuid, report_period.id, start_date, end_date
+            )
         azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
         with schema_context(self._schema):
+            # self._handle_partitions(
+            #     (
+            #         "reporting_ocpazurecostlineitem_daily_summary",
+            #         "reporting_ocpazurecostlineitem_project_daily_summary",
+            #     ),
+            #     start_date,
+            #     end_date,
+            # )
+
             azure_bill_ids = [str(bill.id) for bill in azure_bills]
             current_azure_bill_id = azure_bills.first().id if azure_bills else None
+            current_ocp_report_period_id = report_period.id
 
         with CostModelDBAccessor(self._schema, azure_provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = Decimal(markup.get("value", 0)) / 100
+
+        with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
+            distribution = cost_model_accessor.distribution
 
         # OpenShift on Azure
         with AzureReportDBAccessor(self._schema) as accessor:
@@ -121,13 +139,10 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     end,
                     openshift_provider_uuid,
                     azure_provider_uuid,
-                    cluster_id,
+                    current_ocp_report_period_id,
                     current_azure_bill_id,
                     markup_value,
+                    distribution,
                 )
+            accessor.back_populate_ocp_on_azure_daily_summary(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start_date, end_date)
-
-        with OCPReportDBAccessor(self._schema) as accessor:
-            # This call just sends the infrastructure cost to the
-            # OCP usage daily summary table
-            accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)

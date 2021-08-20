@@ -1,17 +1,6 @@
-# Copyright 2018 Red Hat, Inc.
 #
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Describes the urls and patterns for the API application."""
 from django.conf import settings
@@ -20,17 +9,21 @@ from django.views.decorators.cache import cache_page
 from django.views.generic.base import RedirectView
 from rest_framework.routers import DefaultRouter
 
+from api.views import AWSAccountRegionView
 from api.views import AWSAccountView
 from api.views import AWSCostForecastView
 from api.views import AWSCostView
 from api.views import AWSInstanceTypeView
 from api.views import AWSOrganizationalUnitView
 from api.views import AWSOrgView
+from api.views import AWSServiceView
 from api.views import AWSStorageView
 from api.views import AWSTagView
 from api.views import AzureCostForecastView
 from api.views import AzureCostView
 from api.views import AzureInstanceTypeView
+from api.views import AzureRegionView
+from api.views import AzureServiceView
 from api.views import AzureStorageView
 from api.views import AzureSubscriptionGuidView
 from api.views import AzureTagView
@@ -42,8 +35,11 @@ from api.views import GCPCostView
 from api.views import GCPForecastCostView
 from api.views import GCPInstanceTypeView
 from api.views import GCPProjectsView
+from api.views import GCPRegionView
+from api.views import GCPServiceView
 from api.views import GCPStorageView
 from api.views import GCPTagView
+from api.views import get_currency
 from api.views import metrics
 from api.views import OCPAllCostForecastView
 from api.views import OCPAllCostView
@@ -89,6 +85,7 @@ ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="datae
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 urlpatterns = [
     path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
+    path("currency/", get_currency, name="currency"),
     path("status/", StatusView.as_view(), name="server-status"),
     path("openapi.json", openapi, name="openapi"),
     path("metrics/", metrics, name="metrics"),
@@ -307,11 +304,17 @@ urlpatterns = [
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
     path("resource-types/gcp-accounts/", GCPAccountView.as_view(), name="gcp-accounts"),
     path("resource-types/gcp-projects/", GCPProjectsView.as_view(), name="gcp-projects"),
+    path("resource-types/gcp-regions/", GCPRegionView.as_view(), name="gcp-regions"),
+    path("resource-types/gcp-services/", GCPServiceView.as_view(), name="gcp-services"),
     path(
         "resource-types/aws-organizational-units/",
         AWSOrganizationalUnitView.as_view(),
         name="aws-organizational-units",
     ),
+    path("resource-types/azure-regions/", AzureRegionView.as_view(), name="azure-regions"),
+    path("resource-types/azure-services/", AzureServiceView.as_view(), name="azure-services"),
+    path("resource-types/aws-services/", AWSServiceView.as_view(), name="aws-services"),
+    path("resource-types/aws-regions/", AWSAccountRegionView.as_view(), name="aws-regions"),
     path(
         "resource-types/azure-subscription-guids/",
         AzureSubscriptionGuidView.as_view(),

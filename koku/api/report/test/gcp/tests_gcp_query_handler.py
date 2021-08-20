@@ -1,22 +1,11 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test GCP Report Queries."""
 import logging
 from datetime import datetime
+from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
 from unittest.mock import patch
@@ -26,6 +15,7 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import F
 from django.db.models import Sum
 from django.urls import reverse
+from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -53,12 +43,31 @@ class GCPReportQueryHandlerTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.dh = DateHelper()
-        self.this_month_filter = {"usage_start__gte": self.dh.this_month_start}
-        self.ten_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 9)}
-        self.thirty_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 29)}
+        self.this_month_filter = {
+            "usage_start__gte": self.dh.this_month_start,
+            "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
+                self.dh.this_month_start, self.dh.this_month_end
+            ),
+        }
+
+        self.ten_day_filter = {
+            "usage_start__gte": self.dh.n_days_ago(self.dh.today, 9),
+            "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
+                self.dh.n_days_ago(self.dh.today, 9), self.dh.today
+            ),
+        }
+        self.thirty_day_filter = {
+            "usage_start__gte": self.dh.n_days_ago(self.dh.today, 29),
+            "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
+                self.dh.n_days_ago(self.dh.today, 29), self.dh.today
+            ),
+        }
         self.last_month_filter = {
             "usage_start__gte": self.dh.last_month_start,
             "usage_end__lte": self.dh.last_month_end,
+            "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
+                self.dh.last_month_start, self.dh.last_month_end
+            ),
         }
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
@@ -366,7 +375,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_curr_month_by_account_w_order_by_account(self):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[account]=asc&group_by[account]=*"  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly&order_by[account]=asc&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -375,11 +384,11 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.last_month_filter)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
-        cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
+        cmonth_str = self.dh.last_month_start.strftime("%Y-%m")
         for data_item in data:
             month_val = data_item.get("date")
             month_data = data_item.get("accounts")
@@ -715,7 +724,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         expected_units = "USD"
@@ -723,7 +732,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             result = handler.calculate_total(**{"cost_units": expected_units})
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.last_month_filter)
         cost_total = result.get("cost", {}).get("total")
         self.assertIsNotNone(cost_total)
         self.assertEqual(cost_total.get("value"), current_totals["cost_total"])
@@ -1075,3 +1084,40 @@ class GCPReportQueryHandlerTest(IamTestCase):
                         self.assertIsInstance(value.get("usage", {}).get("value"), Decimal)
                     service_checked = True
         self.assertTrue(service_checked)
+
+    def test_gcp_date_order_by_cost_desc(self):
+        """Test execute_query with order by date for correct order of services."""
+        # execute query
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        # removes time from date
+        yesterday = datetime.date(yesterday)
+        lst = []
+        matchinglists = False
+        correctlst = []
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, GCPCostView)
+        handler = GCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        # test query output
+        for element in data:
+            if element.get("date") == str(yesterday):
+                for service in element.get("services"):
+                    correctlst.append(service.get("service"))
+        for element in data:
+            # Check if there is any data in services
+            if element.get("services") > []:
+                for service in element.get("services"):
+                    lst.append(service.get("service"))
+                if correctlst == lst:
+                    matchinglists = True
+                else:
+                    matchinglists = False
+                lst = []
+        self.assertTrue(matchinglists)
+
+    def test_gcp_date_incorrect_date(self):
+        wrong_date = "200BC"
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, GCPCostView)

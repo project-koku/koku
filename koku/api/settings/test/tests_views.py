@@ -1,18 +1,6 @@
 #
-# Copyright 2019 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the Settings views."""
 from django.urls import reverse
@@ -29,6 +17,7 @@ from api.tags.gcp.view import GCPTagView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
+from koku.database import get_model
 
 
 class SettingsViewTest(IamTestCase):
@@ -86,7 +75,7 @@ class SettingsViewTest(IamTestCase):
             all_key_values = [key_obj.get("value") for key_obj in all_keys]
             url = (
                 "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
-                "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
+                "&filter[resolution]=monthly&key_only=True&filter[enabled]=True"
             )
             query_params = self.mocked_query_params(url, test.get("view"))
             handler = test.get("handler")(query_params)
@@ -105,7 +94,7 @@ class SettingsViewTest(IamTestCase):
 
             url = (
                 "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
-                "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
+                "&filter[resolution]=monthly&key_only=True&filter[enabled]=True"
             )
             query_params = self.mocked_query_params(url, test.get("view"))
             handler = test.get("handler")(query_params)
@@ -142,8 +131,14 @@ class SettingsViewTest(IamTestCase):
             {"handler": AzureTagQueryHandler, "view": AzureTagView, "name": "azure"},
         ]
         for test in test_matrix:
+            if test["handler"] == AzureTagQueryHandler:
+                # Azure has been a difficult case. Make sure that one of the tags is
+                # disabled
+                azure_tag = get_model("reporting_azureenabledtagkeys").objects.first()
+                if azure_tag:
+                    azure_tag.delete()
             url = (
-                "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
+                "?filter[time_scope_units]=month&filter[time_scope_value]=-2"
                 "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
             )
             query_params = self.mocked_query_params(url, test.get("view"))

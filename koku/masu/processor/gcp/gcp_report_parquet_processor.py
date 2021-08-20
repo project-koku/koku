@@ -1,18 +1,6 @@
 #
-# Copyright 2021 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Processor for GCP Parquet files."""
 import ciso8601
@@ -30,14 +18,14 @@ class GCPReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
         numeric_columns = ["cost", "currency_conversion_rate", "usage_amount", "usage_amount_in_pricing_units"]
         date_columns = ["usage_start_time", "usage_end_time", "export_time"]
+        column_types = {"numeric_columns": numeric_columns, "date_columns": date_columns, "boolean_columns": []}
         super().__init__(
             manifest_id=manifest_id,
             account=account,
             s3_path=s3_path,
             provider_uuid=provider_uuid,
             parquet_local_path=parquet_local_path,
-            numeric_columns=numeric_columns,
-            date_columns=date_columns,
+            column_types=column_types,
             table_name=PRESTO_LINE_ITEM_TABLE,
         )
 

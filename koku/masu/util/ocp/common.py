@@ -1,20 +1,9 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """OCP utility functions."""
+import copy
 import json
 import logging
 import os
@@ -62,6 +51,25 @@ STORAGE_COLUMNS = [
     "persistentvolumeclaim_labels",
 ]
 
+STORAGE_GROUP_BY = [
+    "namespace",
+    "pod",
+    "persistentvolumeclaim",
+    "persistentvolume",
+    "storageclass",
+    "persistentvolume_labels",
+    "persistentvolumeclaim_labels",
+]
+
+STORAGE_AGG = {
+    "report_period_start": ["max"],
+    "report_period_end": ["max"],
+    "persistentvolumeclaim_capacity_bytes": ["max"],
+    "persistentvolumeclaim_capacity_byte_seconds": ["sum"],
+    "volume_request_storage_byte_seconds": ["sum"],
+    "persistentvolumeclaim_usage_byte_seconds": ["sum"],
+}
+
 CPU_MEM_USAGE_COLUMNS = [
     "report_period_start",
     "report_period_end",
@@ -84,6 +92,24 @@ CPU_MEM_USAGE_COLUMNS = [
     "pod_labels",
 ]
 
+POD_GROUP_BY = ["namespace", "node", "pod", "pod_labels"]
+
+POD_AGG = {
+    "report_period_start": ["max"],
+    "report_period_end": ["max"],
+    "resource_id": ["max"],
+    "pod_usage_cpu_core_seconds": ["sum"],
+    "pod_request_cpu_core_seconds": ["sum"],
+    "pod_limit_cpu_core_seconds": ["sum"],
+    "pod_usage_memory_byte_seconds": ["sum"],
+    "pod_request_memory_byte_seconds": ["sum"],
+    "pod_limit_memory_byte_seconds": ["sum"],
+    "node_capacity_cpu_cores": ["max"],
+    "node_capacity_cpu_core_seconds": ["sum"],
+    "node_capacity_memory_bytes": ["max"],
+    "node_capacity_memory_byte_seconds": ["sum"],
+}
+
 NODE_LABEL_COLUMNS = [
     "report_period_start",
     "report_period_end",
@@ -92,6 +118,11 @@ NODE_LABEL_COLUMNS = [
     "interval_end",
     "node_labels",
 ]
+
+NODE_GROUP_BY = ["node", "node_labels"]
+
+NODE_AGG = {"report_period_start": ["max"], "report_period_end": ["max"]}
+
 
 NAMESPACE_LABEL_COLUMNS = [
     "report_period_start",
@@ -102,11 +133,35 @@ NAMESPACE_LABEL_COLUMNS = [
     "namespace_labels",
 ]
 
+NAMESPACE_GROUP_BY = ["namespace", "namespace_labels"]
+
+NAMESPACE_AGG = {"report_period_start": ["max"], "report_period_end": ["max"]}
+
 REPORT_TYPES = {
-    "storage_usage": {"columns": STORAGE_COLUMNS, "enum": OCPReportTypes.STORAGE},
-    "pod_usage": {"columns": CPU_MEM_USAGE_COLUMNS, "enum": OCPReportTypes.CPU_MEM_USAGE},
-    "node_labels": {"columns": NODE_LABEL_COLUMNS, "enum": OCPReportTypes.NODE_LABELS},
-    "namespace_labels": {"columns": NAMESPACE_LABEL_COLUMNS, "enum": OCPReportTypes.NAMESPACE_LABELS},
+    "storage_usage": {
+        "columns": STORAGE_COLUMNS,
+        "enum": OCPReportTypes.STORAGE,
+        "group_by": STORAGE_GROUP_BY,
+        "agg": STORAGE_AGG,
+    },
+    "pod_usage": {
+        "columns": CPU_MEM_USAGE_COLUMNS,
+        "enum": OCPReportTypes.CPU_MEM_USAGE,
+        "group_by": POD_GROUP_BY,
+        "agg": POD_AGG,
+    },
+    "node_labels": {
+        "columns": NODE_LABEL_COLUMNS,
+        "enum": OCPReportTypes.NODE_LABELS,
+        "group_by": NODE_GROUP_BY,
+        "agg": NODE_AGG,
+    },
+    "namespace_labels": {
+        "columns": NAMESPACE_LABEL_COLUMNS,
+        "enum": OCPReportTypes.NAMESPACE_LABELS,
+        "group_by": NAMESPACE_GROUP_BY,
+        "agg": NAMESPACE_AGG,
+    },
 }
 
 
@@ -134,19 +189,22 @@ def get_report_details(report_directory):
 
     """
     manifest_path = "{}/{}".format(report_directory, "manifest.json")
-
     payload_dict = {}
-    try:
-        with open(manifest_path) as file:
-            payload_dict = json.load(file)
-            payload_dict["date"] = parser.parse(payload_dict["date"])
-            payload_dict["manifest_path"] = manifest_path
-            # parse start and end dates if in manifest
-            for field in ["start", "end"]:
-                if payload_dict.get(field):
-                    payload_dict[field] = parser.parse(payload_dict[field])
-    except (OSError, IOError, KeyError) as exc:
-        LOG.error("Unable to extract manifest data: %s", exc)
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path) as file:
+                payload_dict = json.load(file)
+                payload_dict["date"] = parser.parse(payload_dict["date"])
+                payload_dict["manifest_path"] = manifest_path
+                # parse start and end dates if in manifest
+                for field in ["start", "end"]:
+                    if payload_dict.get(field):
+                        payload_dict[field] = parser.parse(payload_dict[field])
+        except (OSError, IOError, KeyError) as exc:
+            LOG.error("Unable to extract manifest data: %s", exc)
+    else:
+        msg = f"No manifest available at {manifest_path}"
+        LOG.info(msg)
 
     return payload_dict
 
@@ -210,7 +268,9 @@ def get_cluster_id_from_provider(provider_uuid):
         return cluster_id
 
     with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
-        cluster_id = provider_accessor.get_credentials().get("cluster_id")
+        credentials = provider_accessor.get_credentials()
+        if credentials:
+            cluster_id = credentials.get("cluster_id")
 
     return cluster_id
 
@@ -284,11 +344,10 @@ def detect_type(report_path):
     """
     Detects the OCP report type.
     """
-    data_frame = pd.read_csv(report_path)
+    sorted_columns = sorted(pd.read_csv(report_path, nrows=0).columns)
     for report_type, report_def in REPORT_TYPES.items():
         report_columns = sorted(report_def.get("columns"))
         report_enum = report_def.get("enum")
-        sorted_columns = sorted(data_frame.columns)
         if report_columns == sorted_columns:
             return report_type, report_enum
     return None, OCPReportTypes.UNKNOWN
@@ -364,3 +423,35 @@ def get_column_converters():
         "node_labels": process_openshift_labels_to_json,
         "namespace_labels": process_openshift_labels_to_json,
     }
+
+
+def ocp_generate_daily_data(data_frame, report_type):
+    """Given a dataframe, group the data to create daily data."""
+    # usage_start = data_frame["lineitem_usagestartdate"]
+    # usage_start_dates = usage_start.apply(lambda row: row.date())
+    # data_frame["usage_start"] = usage_start_dates
+    if data_frame.empty:
+        return data_frame
+    group_bys = copy.deepcopy(REPORT_TYPES.get(report_type, {}).get("group_by", []))
+    group_bys.append(pd.Grouper(key="interval_start", freq="D"))
+    aggs = copy.deepcopy(REPORT_TYPES.get(report_type, {}).get("agg", {}))
+    daily_data_frame = data_frame.groupby(group_bys, dropna=False).agg(aggs)
+
+    columns = daily_data_frame.columns.droplevel(1)
+    daily_data_frame.columns = columns
+
+    daily_data_frame.reset_index(inplace=True)
+
+    return daily_data_frame
+
+
+def match_openshift_labels(tag_dict, matched_tags):
+    """Match AWS data by OpenShift label associated with OpenShift cluster."""
+    tag_dict = json.loads(tag_dict)
+    tag_matches = []
+    for key, value in tag_dict.items():
+        lower_tag = {key.lower(): value.lower()}
+        if lower_tag in matched_tags:
+            tag = json.dumps(lower_tag).replace("{", "").replace("}", "")
+            tag_matches.append(tag)
+    return ",".join(tag_matches)

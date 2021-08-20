@@ -1,0 +1,163 @@
+- op: add
+  path: /objects/0/spec/deployments/-
+  value:
+    name: clowder-sources-client
+    minReplicas: ${{SOURCES_CLIENT_MIN_REPLICAS}}
+    webServices:
+      public:
+        enabled: true
+      private:
+        enabled: false
+      metrics:
+        enabled: true
+    podSpec:
+      image: ${IMAGE}:${IMAGE_TAG}
+      command:  # this `command` overrides haberdasher; `command` can be removed entirely when implementing haberdasher
+        - /usr/libexec/s2i/run
+      env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: SOURCES
+          value: "true"
+        - name: DJANGO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              key: django-secret-key
+              name: koku-secret
+              optional: false
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: APP_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: API_PATH_PREFIX
+          value: ${API_PATH_PREFIX}
+        - name: APP_DOMAIN
+          value: ${APP_DOMAIN}
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: LOG_LEVEL
+          value: ${LOG_LEVEL}
+        - name: KOKU_LOG_LEVEL
+          value: ${KOKU_LOG_LEVEL}
+        - name: DJANGO_LOG_LEVEL
+          value: ${DJANGO_LOG_LEVEL}
+        - name: DJANGO_LOG_FORMATTER
+          value: ${DJANGO_LOG_FORMATTER}
+        - name: DJANGO_LOG_HANDLERS
+          value: ${DJANGO_LOG_HANDLERS}
+        - name: DJANGO_LOG_DIRECTORY
+          value: ${DJANGO_LOG_DIRECTORY}
+        - name: DJANGO_LOGGING_FILE
+          value: ${DJANGO_LOG_FILE}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
+        - name: RBAC_SERVICE_PATH
+          value: ${RBAC_SERVICE_PATH}
+        - name: RBAC_CACHE_TTL
+          value: ${RBAC_CACHE_TTL}
+        - name: prometheus_multiproc_dir
+          value: ${PROMETHEUS_DIR}
+        - name: KOKU_API_ENABLE_SENTRY
+          value: ${ENABLE_API_SENTRY}
+        - name: KOKU_SENTRY_ENVIRONMENT
+          value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: sources-sentry-dsn
+              name: koku-sentry
+              optional: true
+        - name: DEMO_ACCOUNTS
+          value: ${DEMO_ACCOUNTS}
+      livenessProbe:
+        httpGet:
+          path: ${API_PATH_PREFIX}/v1/status/?liveness
+          port: web
+          scheme: HTTP
+        initialDelaySeconds: 30
+        periodSeconds: 20
+        successThreshold: 1
+        failureThreshold: 5
+        timeoutSeconds: 10
+      readinessProbe:
+        httpGet:
+          path: ${API_PATH_PREFIX}/v1/status/
+          port: web
+          scheme: HTTP
+        initialDelaySeconds: 30
+        periodSeconds: 20
+        successThreshold: 1
+        failureThreshold: 5
+        timeoutSeconds: 10
+      resources:
+        requests:
+          cpu: ${SOURCES_CLIENT_CPU_REQUEST}
+          memory: ${SOURCES_CLIENT_MEMORY_REQUEST}
+        limits:
+          cpu: ${SOURCES_CLIENT_CPU_LIMIT}
+          memory: ${SOURCES_CLIENT_MEMORY_LIMIT}
+      volumeMounts:
+      - name: gcp-credentials
+        mountPath: /etc/gcp
+        readOnly: true
+      - name: prometheus-data
+        mountPath: ${PROMETHEUS_DIR}
+      volumes:
+      - name: prometheus-data
+        emptyDir: {}
+      - name: gcp-credentials
+        secret:
+          secretName: koku-gcp
+          items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Minimum replicas
+    name: SOURCES_CLIENT_MIN_REPLICAS
+    required: true
+    value: '1'
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Memory Request
+    name: SOURCES_CLIENT_MEMORY_REQUEST
+    required: true
+    value: 128Mi
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Memory Limit
+    name: SOURCES_CLIENT_MEMORY_LIMIT
+    required: true
+    value: 256Mi
+- op: add
+  path: /parameters/-
+  value:
+    displayName: CPU Request
+    name: SOURCES_CLIENT_CPU_REQUEST
+    required: true
+    value: 100m
+- op: add
+  path: /parameters/-
+  value:
+    displayName: CPU Limit
+    name: SOURCES_CLIENT_CPU_LIMIT
+    required: true
+    value: 200m

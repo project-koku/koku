@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Models for identity and access management."""
 import logging
@@ -163,17 +151,6 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
             cur.execute("SET search_path = public;")
 
         return result[0] if result else False
-
-    # def _clone_schema(self):
-    #     LOG.info("Loading create script from koku_tenant_create.sql file.")
-    #     create_sql_buff = pkgutil.get_data("api.iam", "sql/koku_tenant_create.sql").decode("utf-8")
-    #     LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
-    #     with conn.cursor() as cur:
-    #         cur.execute(f'CREATE SCHEMA IF NOT EXISTS "{self.schema_name}" AUTHORIZATION current_user ;')
-    #         cur.execute(f'SET search_path = "{self.schema_name}", public ;')
-    #         cur.execute(create_sql_buff)
-    #         cur.execute("SET search_path = public ;")
-    #     return True
 
     def create_schema(self, check_if_exists=True, sync_schema=True, verbosity=1):
         """

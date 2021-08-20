@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportProcessor."""
 import calendar
@@ -124,8 +112,10 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         mock_storage_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_sum.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
-        mock_storage_summary.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
+        mock_sum.assert_called_with(start_date.date(), end_date.date(), self.cluster_id, self.provider.uuid)
+        mock_storage_summary.assert_called_with(
+            start_date.date(), end_date.date(), self.cluster_id, self.provider.uuid
+        )
 
         with OCPReportDBAccessor(self.schema) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date).filter(provider_id=self.ocp_provider_uuid)[0]
@@ -174,10 +164,14 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         # Remove the first date since it's the start date
         dates.pop(0)
         expected_calls = []
+        expected_calls_with_source_uuid = []
         for date in dates:
             if expected_start_date > expected_end_date:
                 break
             expected_calls.append(call(expected_start_date.date(), date.date(), self.cluster_id))
+            expected_calls_with_source_uuid.append(
+                call(expected_start_date.date(), date.date(), self.cluster_id, self.provider.uuid)
+            )
             expected_start_date = date + datetime.timedelta(days=1)
 
         self.assertIsNone(period.summary_data_creation_datetime)
@@ -192,9 +186,8 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         mock_storage_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-
-        self.assertEqual(mock_sum.call_args_list, expected_calls)
-        self.assertEqual(mock_storage_summary.call_args_list, expected_calls)
+        self.assertEqual(mock_sum.call_args_list, expected_calls_with_source_uuid)
+        self.assertEqual(mock_storage_summary.call_args_list, expected_calls_with_source_uuid)
 
         with OCPReportDBAccessor(self.schema) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date).filter(provider_id=self.ocp_provider_uuid)[0]
@@ -261,10 +254,15 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         # Remove the first date since it's the start date
         expected_start_date = dates.pop(0)
         expected_calls = []
+        expected_calls_with_source_uuid = []
+
         for date in dates:
             if expected_start_date > expected_end_date:
                 break
             expected_calls.append(call(expected_start_date.date(), date.date(), self.cluster_id))
+            expected_calls_with_source_uuid.append(
+                call(expected_start_date.date(), date.date(), self.cluster_id, self.provider.uuid)
+            )
             expected_start_date = date + datetime.timedelta(days=1)
 
         self.assertIsNone(period.summary_data_creation_datetime)
@@ -279,8 +277,8 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         mock_storage_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        self.assertEqual(mock_sum.call_args_list, expected_calls)
-        self.assertEqual(mock_storage_summary.call_args_list, expected_calls)
+        self.assertEqual(mock_sum.call_args_list, expected_calls_with_source_uuid)
+        self.assertEqual(mock_storage_summary.call_args_list, expected_calls_with_source_uuid)
 
         with OCPReportDBAccessor(self.schema) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date)[0]
@@ -324,8 +322,10 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         mock_storage_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_sum.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
-        mock_storage_summary.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
+        mock_sum.assert_called_with(start_date.date(), end_date.date(), self.cluster_id, self.provider.uuid)
+        mock_storage_summary.assert_called_with(
+            start_date.date(), end_date.date(), self.cluster_id, self.provider.uuid
+        )
 
         with OCPReportDBAccessor(self.schema) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date).filter(provider_id=self.ocp_provider_uuid)[0]
@@ -368,8 +368,10 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         mock_storage_summary.assert_not_called()
 
         updater.update_summary_tables(start_date_str, end_date_str)
-        mock_sum.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
-        mock_storage_summary.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
+        mock_sum.assert_called_with(start_date.date(), end_date.date(), self.cluster_id, self.provider.uuid)
+        mock_storage_summary.assert_called_with(
+            start_date.date(), end_date.date(), self.cluster_id, self.provider.uuid
+        )
 
         with OCPReportDBAccessor(self.schema) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date)[0]

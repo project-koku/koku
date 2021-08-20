@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Query Handling for all APIs."""
 import datetime
@@ -74,6 +62,7 @@ class QueryHandler:
         self.time_scope_units = self.parameters.get_filter("time_scope_units")
         if self.parameters.get_filter("time_scope_value"):
             self.time_scope_value = int(self.parameters.get_filter("time_scope_value"))
+        # self.time_order = parameters["date"]
 
         # self.start_datetime = parameters["start_date"]
         # self.end_datetime = parameters["end_date"]
@@ -130,7 +119,17 @@ class QueryHandler:
 
         """
         order_map = {"asc": "", "desc": "-"}
-        return f"{order_map[self.order_direction]}{self.order_field}"
+        order = []
+        order_by = self.parameters.get("order_by", self.default_ordering)
+
+        for order_field, order_direction in order_by.items():
+            if order_direction not in order_map and order_field == "date":
+                # We've overloaded date to hold a specific date, not asc/desc
+                order.append(order_direction)
+            else:
+                order.append(f"{order_map[order_direction]}{order_field}")
+
+        return order
 
     @property
     def order_field(self):
@@ -261,7 +260,7 @@ class QueryHandler:
     def _get_date_delta(self):
         """Return a time delta."""
         if self.time_scope_value in [-1, -2]:
-            date_delta = relativedelta.relativedelta(months=1)
+            date_delta = relativedelta.relativedelta(months=abs(self.time_scope_value))
         elif self.time_scope_value == -30:
             date_delta = datetime.timedelta(days=30)
         else:

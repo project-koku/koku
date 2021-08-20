@@ -1,27 +1,17 @@
 """Masu AWS common module tests."""
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 import pandas as pd
 
 from api.utils import DateHelper
 from masu.test import MasuTestCase
 from masu.util.azure.common import azure_date_converter
+from masu.util.azure.common import azure_generate_daily_data
 from masu.util.azure.common import azure_json_converter
 from masu.util.azure.common import azure_post_processor
+from masu.util.azure.common import match_openshift_resources_and_labels
 from reporting.provider.azure.models import PRESTO_COLUMNS
 
 
@@ -72,3 +62,91 @@ class TestAzureUtils(MasuTestCase):
         )
 
         self.assertEqual(columns, expected_columns)
+
+    def test_azure_generate_daily_data(self):
+        """Test that we return the original data frame."""
+        df = pd.DataFrame([{"key": "value"}])
+        result = azure_generate_daily_data(df)
+        self.assertEqual(id(df), id(result))
+
+    def test_match_openshift_resources_and_labels(self):
+        """Test that OCP on Azure matching occurs."""
+        cluster_topology = {
+            "resource_ids": [],
+            "cluster_id": self.ocp_cluster_id,
+            "cluster_alias": "my-ocp-cluster",
+            "nodes": ["id1", "id2", "id3"],
+            "projects": [],
+        }
+
+        matched_tags = [{"key": "value"}]
+
+        data = [
+            {"resourceid": "id1", "pretaxcost": 1, "tags": '{"key": "value"}'},
+            {"resourceid": "id2", "pretaxcost": 1, "tags": '{"key": "other_value"}'},
+            {"resourceid": "id4", "pretaxcost": 1, "tags": '{"keyz": "value"}'},
+            {"resourceid": "id5", "pretaxcost": 1, "tags": '{"key": "value"}'},
+        ]
+
+        df = pd.DataFrame(data)
+
+        matched_df = match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+
+        # resource id matching
+        result = matched_df[matched_df["resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.bool())
+
+        result = matched_df[matched_df["resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.bool())
+
+        result = matched_df[matched_df["resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.empty)
+
+        result = matched_df[matched_df["resourceid"] == "id4"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.empty)
+
+        # tag matching
+        result = matched_df[matched_df["resourceid"] == "id1"]["matched_tag"] == '"key": "value"'
+        self.assertTrue(result.bool())
+
+        result = matched_df[matched_df["resourceid"] == "id5"]["matched_tag"] == '"key": "value"'
+        self.assertTrue(result.bool())
+
+        # Matched tags, but none that match the dataset
+        matched_tags = [{"something_else": "entirely"}]
+        matched_df = match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+
+        # resource id matching
+        result = matched_df[matched_df["resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.bool())
+
+        result = matched_df[matched_df["resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.bool())
+
+        result = matched_df[matched_df["resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.empty)
+
+        result = matched_df[matched_df["resourceid"] == "id4"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.empty)
+        # tag matching
+        self.assertFalse((matched_df["matched_tag"] != "").any())
+
+        # No matched tags
+        matched_tags = []
+        matched_df = match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+
+        # resource id matching
+        result = matched_df[matched_df["resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.bool())
+
+        result = matched_df[matched_df["resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.bool())
+
+        result = matched_df[matched_df["resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.empty)
+
+        result = matched_df[matched_df["resourceid"] == "id4"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.empty)
+
+        # tag matching
+        self.assertFalse((matched_df["matched_tag"] != "").any())

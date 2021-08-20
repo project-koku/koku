@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Processor for Parquet files."""
 import logging
@@ -42,25 +30,14 @@ class TrinoExecutionError(Exception):
 
 
 class ReportParquetProcessorBase:
-    def __init__(
-        self,
-        manifest_id,
-        account,
-        s3_path,
-        provider_uuid,
-        parquet_local_path,
-        numeric_columns,
-        date_columns,
-        table_name,
-    ):
+    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, column_types, table_name):
         self._manifest_id = manifest_id
         self._account = account
         self._schema_name = f"acct{account}"
         self._parquet_path = parquet_local_path
         self._s3_path = s3_path
         self._provider_uuid = provider_uuid
-        self._numeric_columns = numeric_columns
-        self._date_columns = date_columns
+        self._column_types = column_types
         self._table_name = table_name
 
     @property
@@ -130,10 +107,12 @@ class ReportParquetProcessorBase:
 
         for idx, col in enumerate(parquet_columns):
             norm_col = strip_characters_from_column_name(col)
-            if norm_col in self._numeric_columns:
+            if norm_col in self._column_types["numeric_columns"]:
                 col_type = "double"
-            elif norm_col in self._date_columns:
+            elif norm_col in self._column_types["date_columns"]:
                 col_type = "timestamp"
+            elif norm_col in self._column_types["boolean_columns"]:
+                col_type = "boolean"
             else:
                 col_type = "varchar"
 
@@ -154,7 +133,6 @@ class ReportParquetProcessorBase:
         sql = self._generate_create_table_sql()
         self._execute_sql(sql, self._schema_name)
         LOG.info(f"Presto Table: {self._table_name} created.")
-        self._execute_sql(sql, self._schema_name)
 
     def get_or_create_postgres_partition(self, bill_date, **kwargs):
         """Make sure we have a Postgres partition for a billing period."""

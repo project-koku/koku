@@ -1,23 +1,12 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Unit conversion util functions."""
 import calendar
 import datetime
 import logging
+from datetime import timedelta
 
 import pint
 import pytz
@@ -157,7 +146,10 @@ class DateHelper:
     def month_end(self, in_date):
         """Datetime of midnight on the last day of the in_date month."""
         month_end = self.days_in_month(in_date)
-        return in_date.replace(microsecond=0, second=0, minute=0, hour=0, day=month_end)
+        if isinstance(in_date, datetime.datetime):
+            return in_date.replace(microsecond=0, second=0, minute=0, hour=0, day=month_end)
+        elif isinstance(in_date, datetime.date):
+            return in_date.replace(day=month_end)
 
     def next_month(self, in_date):
         """Return the first of the next month from the in_date.
@@ -270,6 +262,26 @@ class DateHelper:
         date_obj = datetime.datetime.strptime(date_str, "%Y%m")
         gcp_month_start = self.month_start(date_obj)
         return gcp_month_start
+
+    def gcp_find_invoice_months_in_date_range(self, start, end):
+        """Finds all the invoice months in a given date range.
+
+        GCP invoice month format is {year}{month}.
+        Ex. 202011
+
+        Args:
+            start: (datetime.datetime)
+            end: (datetime.datetime)
+
+        Returns:
+            List of invoice months.
+        """
+        invoice_months = []
+        for day in range((end - start).days):
+            invoice_month = (start + timedelta(day)).strftime("%Y%m")
+            if invoice_month not in invoice_months:
+                invoice_months.append(invoice_month)
+        return invoice_months
 
 
 def materialized_view_month_start(dh=DateHelper()):

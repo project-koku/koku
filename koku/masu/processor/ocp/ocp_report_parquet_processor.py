@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Processor for OCP Parquet files."""
 import datetime
@@ -26,12 +14,16 @@ from masu.util.common import month_date_range
 from masu.util.ocp import common as utils
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_DAILY_MAP
 from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_MAP
 
 
 class OCPReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
-        ocp_table_name = PRESTO_LINE_ITEM_TABLE_MAP[report_type]
+        if "daily" in s3_path:
+            ocp_table_name = PRESTO_LINE_ITEM_TABLE_DAILY_MAP[report_type]
+        else:
+            ocp_table_name = PRESTO_LINE_ITEM_TABLE_MAP[report_type]
         numeric_columns = [
             "pod_usage_cpu_core_seconds",
             "pod_request_cpu_core_seconds",
@@ -49,14 +41,14 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             "persistentvolumeclaim_capacity_bytes",
         ]
         date_columns = ["report_period_start", "report_period_end", "interval_start", "interval_end"]
+        column_types = {"numeric_columns": numeric_columns, "date_columns": date_columns, "boolean_columns": []}
         super().__init__(
             manifest_id=manifest_id,
             account=account,
             s3_path=s3_path,
             provider_uuid=provider_uuid,
             parquet_local_path=parquet_local_path,
-            numeric_columns=numeric_columns,
-            date_columns=date_columns,
+            column_types=column_types,
             table_name=ocp_table_name,
         )
 

@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Common pagination class."""
 import logging
@@ -144,10 +132,19 @@ class ReportPagination(StandardResultsSetPagination):
         """Determine a report data's count."""
         return len(queryset.get("data", []))
 
+    def get_limit_parameter(self, request):
+        """Get the limit parameter from request."""
+        if request.query_params.get(self.limit_query_param) is not None:
+            return int(request.query_params.get(self.limit_query_param))
+        return None
+
     def paginate_queryset(self, queryset, request, view=None):
         """Override queryset pagination."""
         self.count = self.get_count(queryset)
-        self.limit = self.get_limit(request)
+        if self.get_limit_parameter(request) == 0:
+            self.limit = 0
+        else:
+            self.limit = self.get_limit(request)
         if self.limit is None:
             return None
         self.offset = self.get_offset(request)
@@ -159,7 +156,11 @@ class ReportPagination(StandardResultsSetPagination):
             queryset["data"] = []
             return queryset
 
-        query_data = queryset.get("data", [])[self.offset : self.offset + self.limit]  # noqa
+        if self.limit:
+            query_data = queryset.get("data", [])[self.offset : self.offset + self.limit]  # noqa
+        else:
+            query_data = queryset.get("data", [])
+
         queryset["data"] = query_data
 
         return queryset

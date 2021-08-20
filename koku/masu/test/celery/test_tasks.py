@@ -186,6 +186,17 @@ class TestCeleryTasks(MasuTestCase):
             tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
             self.assertIn("Skipping delete_archived_data. Upload feature is disabled.", captured_logs.output[0])
 
+    @override_settings(ENABLE_S3_ARCHIVING=True, S3_MINIO_IN_USE=True)
+    def test_delete_archived_data_minio(self):
+        """Test that delete_archived_data correctly interacts with AWS S3."""
+        schema_name = "acct10001"
+        provider_type = Provider.PROVIDER_AWS
+        provider_uuid = "00000000-0000-0000-0000-000000000001"
+
+        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+            tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
+            self.assertIn("Skipping delete_archived_data. MinIO in use.", captured_logs.output[0])
+
     @patch("masu.celery.tasks.Config")
     @patch("masu.external.date_accessor.DateAccessor.get_billing_months")
     def test_clean_volume(self, mock_date, mock_config):
@@ -265,4 +276,13 @@ class TestCeleryTasks(MasuTestCase):
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.crawl_account_hierarchy()
             expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % (len(polling_accounts))
+            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+    @patch("masu.celery.tasks.celery_app")
+    def test_collect_queue_len(self, mock_celery_app):
+        """Test that the collect queue len function runs correctly."""
+        mock_celery_app.pool.acquire(block=True).default_channel.client.llen.return_value = 2
+        with self.assertLogs("masu.celery.tasks", "DEBUG") as captured_logs:
+            tasks.collect_queue_metrics()
+            expected_log_msg = "Celery queue backlog info: "
             self.assertIn(expected_log_msg, captured_logs.output[0])

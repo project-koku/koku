@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Updates report summary tables in the database."""
 import calendar
@@ -105,45 +93,45 @@ class OCPReportParquetSummaryUpdater:
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
-        report_periods = None
         with OCPReportDBAccessor(self._schema) as accessor:
             with schema_context(self._schema):
-                report_periods = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
-                report_period_ids = [report_period.id for report_period in report_periods]
+                report_period = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+                report_period_id = report_period.id
 
-            for report_period in report_periods:
-                for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
-                    LOG.info(
-                        "Updating OpenShift report summary tables for \n\tSchema: %s "
-                        "\n\tProvider: %s \n\tCluster: %s \n\tReport Period ID: %s \n\tDates: %s - %s",
-                        self._schema,
-                        self._provider.uuid,
-                        self._cluster_id,
-                        report_period.id,
-                        start,
-                        end,
-                    )
-                    # This will process POD and STORAGE together
-                    accessor.delete_line_item_daily_summary_entries_for_date_range(self._provider.uuid, start, end)
-                    accessor.populate_line_item_daily_summary_table_presto(
-                        start, end, report_period.id, self._cluster_id, self._cluster_alias, self._provider.uuid
-                    )
+            for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                LOG.info(
+                    "Updating OpenShift report summary tables for \n\tSchema: %s "
+                    "\n\tProvider: %s \n\tCluster: %s \n\tReport Period ID: %s \n\tDates: %s - %s",
+                    self._schema,
+                    self._provider.uuid,
+                    self._cluster_id,
+                    report_period_id,
+                    start,
+                    end,
+                )
+                # This will process POD and STORAGE together
+                accessor.delete_line_item_daily_summary_entries_for_date_range(self._provider.uuid, start, end)
+                accessor.populate_line_item_daily_summary_table_presto(
+                    start, end, report_period_id, self._cluster_id, self._cluster_alias, self._provider.uuid
+                )
 
             # This will process POD and STORAGE together
             LOG.info(
                 "Updating OpenShift label summary tables for \n\tSchema: %s " "\n\tReport Period IDs: %s",
                 self._schema,
-                report_period_ids,
+                [report_period_id],
             )
-            accessor.populate_pod_label_summary_table(report_period_ids, start_date, end_date)
-            accessor.populate_volume_label_summary_table(report_period_ids, start_date, end_date)
-            accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
+            accessor.populate_pod_label_summary_table([report_period_id], start_date, end_date)
+            accessor.populate_volume_label_summary_table([report_period_id], start_date, end_date)
+            accessor.populate_openshift_cluster_information_tables(
+                self._provider, self._cluster_id, self._cluster_alias, start_date, end_date
+            )
+            accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, [report_period_id])
 
             LOG.info("Updating OpenShift report periods")
-            for period in report_periods:
-                if period.summary_data_creation_datetime is None:
-                    period.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
-                period.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
-                period.save()
+            if report_period.summary_data_creation_datetime is None:
+                report_period.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.save()
 
         return start_date, end_date

@@ -1,18 +1,6 @@
 #
-# Copyright 2019 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """API views for import organization"""
 # flake8: noqa
@@ -20,7 +8,9 @@ from masu.api.crawl_account_hierarchy import crawl_account_hierarchy
 from masu.api.download import download_report
 from masu.api.enabled_tags import enabled_tags
 from masu.api.expired_data import expired_data
+from masu.api.gcp_invoice_monthly_cost import gcp_invoice_monthly_cost
 from masu.api.report_data import report_data
+from masu.api.running_celery_tasks import celery_queue_lengths
 from masu.api.running_celery_tasks import running_celery_tasks
 from masu.api.source_cleanup import cleanup
 from masu.api.status import get_status

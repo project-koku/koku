@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """OCP Tag Query Handling."""
 from copy import deepcopy
@@ -87,11 +75,12 @@ class OCPTagQueryHandler(TagQueryHandler):
     def filter_map(self):
         """Establish which filter map to use based on tag API."""
         filter_map = deepcopy(TagQueryHandler.FILTER_MAP)
+        enabled_parameter = self._parameters.get_filter("enabled") in (None, True)
         if self._parameters.get_filter("value"):
             filter_map.update(
                 {
                     "project": {"field": "namespaces", "operation": "contained_by"},
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                     "cluster": [
                         {"field": "cluster_ids", "operation": "contained_by", "composition_key": "cluster_filter"},
                         {"field": "cluster_aliases", "operation": "contained_by", "composition_key": "cluster_filter"},
@@ -103,7 +92,7 @@ class OCPTagQueryHandler(TagQueryHandler):
             filter_map.update(
                 {
                     "project": {"field": "namespace", "operation": "icontains"},
-                    "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+                    "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                     "cluster": [
                         {
                             "field": "report_period__cluster_id",

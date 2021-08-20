@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build:
@@ -86,4 +86,5 @@ jobs:
           file: ./coverage.xml
           flags: unittests
           name: Python-${{ matrix.python-version}}
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true

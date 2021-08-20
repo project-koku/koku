@@ -1,18 +1,6 @@
 #
-# Copyright 2021 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Sources HTTP Client."""
 import binascii
@@ -41,6 +29,12 @@ APP_EXTRA_FIELD_MAP = {
     Provider.PROVIDER_AZURE_LOCAL: ["resource_group", "storage_account"],
     Provider.PROVIDER_GCP: ["dataset"],
     Provider.PROVIDER_GCP_LOCAL: ["dataset"],
+}
+AUTH_TYPES = {
+    Provider.PROVIDER_OCP: "token",
+    Provider.PROVIDER_AWS: "arn",
+    Provider.PROVIDER_AZURE: "tenant_id_client_id_client_secret",
+    Provider.PROVIDER_GCP: "project_id_service_account_json",
 }
 ENDPOINT_APPLICATIONS = "applications"
 ENDPOINT_APPLICATION_TYPES = "application_types"
@@ -141,13 +135,15 @@ class SourcesHTTPClient:
             raise SourcesHTTPClientError("source type name not found")
         return source_types_data.get("name")
 
-    def get_data_source(self, source_type):
+    def get_data_source(self, source_type, app_type_id):
         """Get the data_source settings from Sources."""
         if source_type not in APP_EXTRA_FIELD_MAP.keys():
             msg = f"[get_data_source] Unexpected source type: {source_type}"
             LOG.error(msg)
             raise SourcesHTTPClientError(msg)
-        application_url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}"
+        application_url = (
+            f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}&application_type_id={app_type_id}"
+        )
         applications_response = self._get_network_response(application_url, "Unable to get application settings")
         applications_data = (applications_response.get("data") or [None])[0]
         if not applications_data:
@@ -161,24 +157,27 @@ class SourcesHTTPClient:
             )
         return {k: app_settings.get(k) for k in required_extras}
 
-    def get_credentials(self, source_type):
+    def get_credentials(self, source_type, app_type_id):
         """Get the source credentials."""
         if source_type not in self.credential_map.keys():
             msg = f"[get_credentials] unexpected source type: {source_type}"
             LOG.error(msg)
             raise SourcesHTTPClientError(msg)
-        return self.credential_map.get(source_type)()
+        return self.credential_map.get(source_type)(app_type_id)
 
-    def _get_ocp_credentials(self):
+    def _get_ocp_credentials(self, _):
         """Get the OCP cluster_id from the source."""
         source_details = self.get_source_details()
         if source_details.get("source_ref"):
             return {"cluster_id": source_details.get("source_ref")}
         raise SourcesHTTPClientError("Unable to find Cluster ID")
 
-    def _get_aws_credentials(self):
+    def _get_aws_credentials(self, _):
         """Get the roleARN from Sources Authentication service."""
-        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}"
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_AWS)
+        authentications_url = (
+            f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}&authtype={auth_type}"
+        )
         auth_response = self._get_network_response(authentications_url, "Unable to get AWS RoleARN")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:
@@ -201,9 +200,12 @@ class SourcesHTTPClient:
 
         raise SourcesHTTPClientError(f"Unable to get AWS roleARN for Source: {self._source_id}")
 
-    def _get_gcp_credentials(self):
+    def _get_gcp_credentials(self, _):
         """Get the GCP credentials from Sources Authentication service."""
-        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}"
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_GCP)
+        authentications_url = (
+            f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}&authtype={auth_type}"
+        )
         auth_response = self._get_network_response(authentications_url, "Unable to get GCP credentials")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:
@@ -214,10 +216,10 @@ class SourcesHTTPClient:
 
         raise SourcesHTTPClientError(f"Unable to get GCP credentials for Source: {self._source_id}")
 
-    def _get_azure_credentials(self):
+    def _get_azure_credentials(self, app_type_id):
         """Get the Azure Credentials from Sources Authentication service."""
         # get subscription_id from applications extra
-        url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}"
+        url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}&application_type_id={app_type_id}"
         app_response = self._get_network_response(url, "Unable to get Azure credentials")
         app_data = (app_response.get("data") or [None])[0]
         if not app_data:
@@ -225,7 +227,10 @@ class SourcesHTTPClient:
         subscription_id = app_data.get("extra", {}).get("subscription_id")
 
         # get client and tenant ids
-        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}"
+        auth_type = AUTH_TYPES.get(Provider.PROVIDER_AZURE)
+        authentications_url = (
+            f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}&authtype={auth_type}"
+        )
         auth_response = self._get_network_response(authentications_url, "Unable to get Azure credentials")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:

@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Query Handling for Tags."""
 import copy
@@ -176,7 +164,7 @@ class TagQueryHandler(QueryHandler):
             if self.parameters.get_filter("value") and filter_key == "enabled":
                 continue
             filter_value = self.parameters.get_filter(filter_key)
-            if filter_value and not TagQueryHandler.has_wildcard(filter_value):
+            if filter_value is not None and not TagQueryHandler.has_wildcard(filter_value):
                 filter_obj = self.filter_map.get(filter_key)
                 if isinstance(filter_value, bool):
                     filters.add(QueryFilter(**filter_obj))
@@ -261,17 +249,19 @@ class TagQueryHandler(QueryHandler):
         tag_keys = set()
         with tenant_context(self.tenant):
             for source in self.data_sources:
+                select_cols = ["key"]
                 tag_keys_query = source.get("db_table").objects
                 annotations = source.get("annotations")
                 if annotations:
                     tag_keys_query = tag_keys_query.annotate(**annotations)
+                    select_cols.extend(annotations)
                 if filters is True:
                     tag_keys_query = tag_keys_query.filter(self.query_filter)
 
                 if type_filter and type_filter != source.get("type"):
                     continue
                 exclusion = self._get_exclusions("key")
-                tag_keys_query = tag_keys_query.exclude(exclusion).values("key").distinct().all()
+                tag_keys_query = tag_keys_query.exclude(exclusion).values(*select_cols).distinct().all()
 
                 tag_keys.update({tag.get("key") for tag in tag_keys_query})
 

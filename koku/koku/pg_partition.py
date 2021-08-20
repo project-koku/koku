@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 import json
 import logging
@@ -37,9 +25,9 @@ PARTITION_RANGE = "RANGE"
 PARTITION_LIST = "LIST"
 
 # This value from pg_class.relkind denotes a materialized view
-VIEW_TYPE_MATERIALIZED = "m"
+VIEW_TYPE_MATERIALIZED = "MVIEW"
 
-LOG = logging.getLogger("pg_partition")
+LOG = logging.getLogger(__name__)
 # SQLFILE = open('/tmp/pg_partition.sql', 'wt')
 
 _TEMPLATE_SCHEMA = os.environ.get("TEMPLATE_SCHEMA", "template0")
@@ -58,7 +46,7 @@ def conn_execute(sql, params=None, _conn=conn):
     """
     if sql:
         cursor = _conn.cursor()
-        LOG.info(f"SQL: {cursor.mogrify(sql, params).decode('utf-8')}")
+        LOG.debug(f"SQL: {cursor.mogrify(sql, params).decode('utf-8')}")
         # print(cursor.mogrify(sql, params).decode('utf-8') + '\n', file=SQLFILE, flush=True)
         cursor.execute(sql, params)
         return cursor
@@ -267,7 +255,7 @@ select t.relname::text as table_name,
         self.cache = rec["cache_size"]
         self.cycle = self.CYCLE if rec["cycle"] else self.NO_CYCLE
         self.current_value = rec["last_value"] or 1
-        self.owner = rec["sequenceowner"]
+        self.owner = rec["sequenceowner"].strip('"')
 
     def default_constraint(self):
         return f"nextval('{self.target_schema}.{self.name}'::regclass)"
@@ -379,6 +367,8 @@ class ConstraintDefinition:
     def __init__(self, target_schema, target_table, constraintrec):
         self.target_schema = target_schema
         self.target_table = target_table
+        self.constraint_type = constraintrec["constraint_type"]
+        self.constraint_columns = constraintrec["constraint_columns"]
         self.constraint_name = constraintrec["constraint_name"]
         self.definition = constraintrec["definition"]
 
@@ -430,7 +420,10 @@ class IndexDefinition:
         self.target_schema = target_schema
         self.target_table = target_table
         self.schema_name = indexrec["schemaname"]
+        self.table_name = indexrec["tablename"]
         self.index_name = indexrec["indexname"]
+        self.index_columns = indexrec["indexcols"]
+        self.is_unique = indexrec["indisunique"]
         self.definition = indexrec["indexdef"]
 
         if ";" not in self.definition[:-10]:
@@ -441,6 +434,7 @@ class IndexDefinition:
         if index_parts:
             LOG.info(f'Creating index "p_{self.index_name}"')
             index_parts = list(index_parts[0])
+            index_parts[0] += "IF NOT EXISTS "
             index_parts[self.INDEX_NAME_IX] = f"p_{self.index_name}"
             index_parts[self.INDEX_TABLE_IX] = f"{self.target_schema}.{self.target_table}"
             return " ".join(index_parts)
@@ -460,13 +454,16 @@ class ViewDefinition:
 
     def __init__(self, target_schema, viewrec):
         self.target_schema = target_schema
+        self.level = viewrec["level"]
         self.schema_name = viewrec["source_schema"]
         self.table_name = viewrec["source_table"]
         self.view_schema = viewrec["dependent_schema"]
+        self.view_schema_oid = viewrec["dependent_schema_oid"]
         self.view_name = viewrec["dependent_view"]
+        self.view_oid = viewrec["dependent_view_oid"]
         self.view_type = viewrec["dependent_view_type"]
         self.definition = viewrec["definition"]
-        self.view_owner = viewrec["dependent_view_owner"]
+        self.view_owner = viewrec["dependent_view_owner"].strip('"')
         self.indexes = []
         for ixrec in viewrec["indexes"] or []:
             self.indexes.append(IndexDefinition(self.target_schema, self.view_name, ixrec))
@@ -516,8 +513,8 @@ ALTER {view_type} VIEW "{self.target_schema}"."{self.view_name}"
     #         return sql
 
     def create(self):
-        view_type = "MATERIALIZED" if self.view_type == VIEW_TYPE_MATERIALIZED else ""
-        LOG.info(f'Creating {view_type} view "{self.view_name}')
+        view_type = "MATERIALIZED " if self.view_type == VIEW_TYPE_MATERIALIZED else ""
+        LOG.info(f'Creating {view_type}VIEW "{self.view_name}')
         sql = f"""
 CREATE {view_type} VIEW "{self.target_schema}"."{self.view_name}" AS
 {self.definition}
@@ -537,6 +534,9 @@ class ConvertToPartition:
     Driver class to facilitate the conversion of an existing table to a partitioned table
     with the same table definition, as well as duplicated constraint, sequence, index, and view definitions.
     """
+
+    VIEW_DESTROY_ORDER = 0
+    VIEW_CREATE_ORDER = 1
 
     def __init__(
         self,
@@ -573,9 +573,44 @@ class ConvertToPartition:
         self.indexes = self.__get_indexes()
         self.constraints = self.__get_constraints()
         self.views = self.__get_views()
+        self.__new_trigger = self.detect_new_manager_trigger()
 
     def __repr__(self):
         return f"""Convert "{self.source_schema}"."{self.source_table_name}" to a partitioned table"""
+
+    def view_iter(self, order):
+        if order == self.VIEW_DESTROY_ORDER:
+            return iter(self.views)
+        else:
+            return reversed(self.views)
+
+    def detect_new_manager_trigger(self):
+        func_sql = """
+select oid
+  from pg_proc
+ where pronamespace = 'public'::regnamespace
+   and proname = 'trfn_partition_manager';
+"""
+        trgr_sql = f"""
+select oid
+  from pg_trigger
+ where tgrelid = '"{self.target_schema}"."partitioned_tables"'::regclass
+   and tgfoid = %s
+   and tgname = 'tr_partition_manager' ;
+"""
+        func_oid = (conn_execute(func_sql).fetchone() or [None])[0]
+        if func_oid:
+            trgr_oid = (conn_execute(trgr_sql, (func_oid,)).fetchone() or [None])[0]
+            res = bool(trgr_oid)
+        else:
+            res = False
+
+        if res:
+            LOG.info(f"{self.__class__.__name__}: Using trfn_partition_manager function")
+        else:
+            LOG.info(f"{self.__class__.__name__}: Using trfn_manage_date_range_partition function")
+
+        return res
 
     def __get_constraints(self):
         LOG.info(f"Getting constraints for table {self.source_schema}.{self.source_table_name}")
@@ -629,102 +664,251 @@ select c.oid::int as constraint_oid,
     def __get_indexes(self):
         LOG.info(f"Getting indexes for table {self.source_schema}.{self.source_table_name}")
         sql = """
-with pk_indexes as (
-select i.relname
+select n.nspname::text as "schemaname",
+       t.relname::text as "tablename",
+       ix.relname::text as "indexname",
+       i.indisunique,
+       i.indisprimary,
+       (
+           select array_agg(_a.attname)
+             from pg_attribute _a
+            where _a.attrelid = t.oid
+              and _a.attnum = any(i.indkey)
+       )::text[] as "indexcols",
+       pg_get_indexdef(i.indexrelid) as "indexdef"
   from pg_class t
   join pg_namespace n
     on n.oid = t.relnamespace
-  join pg_index x
-    on x.indrelid = t.oid
-   and x.indisprimary = true
-  join pg_class i
-    on i.oid = x.indexrelid
+  join pg_index i
+    on i.indrelid = t.oid
+  join pg_class ix
+    on ix.oid = i.indexrelid
  where n.nspname = %s
    and t.relname = %s
-   and t.relkind = 'r'
-)
-select i.*
-  from pg_indexes i
- where i.schemaname = %s
-   and i.tablename = %s
-   and not exists (select 1 from pk_indexes x where i.indexname = x.relname)
+   and not i.indisprimary
  order
-    by i.tablename;
+    by t.relname;
 """
-        params = [self.source_schema, self.source_table_name, self.source_schema, self.source_table_name]
+        params = [self.source_schema, self.source_table_name]
         cur = conn_execute(sql, params)
         return [IndexDefinition(self.target_schema, self.partitioned_table_name, rec) for rec in fetchall(cur)]
 
     def __get_views(self):
         LOG.info(f"Getting views referencing table {self.source_schema}.{self.source_table_name}")
-        sql = """
-WITH RECURSIVE view_deps AS (
-SELECT DISTINCT
-       dependent_ns.nspname as dependent_schema,
-       dependent_view.oid as dependent_view_oid,
-       dependent_view.relname as dependent_view,
-       dependent_view.relkind as dependent_view_type,
-       dependent_view.relowner::regrole::text as dependent_view_owner,
-       source_ns.nspname as source_schema,
-       source_table.relname as source_table
-  FROM pg_depend
-  JOIN pg_rewrite
-    ON pg_depend.objid = pg_rewrite.oid
-  JOIN pg_class as dependent_view
-    ON pg_rewrite.ev_class = dependent_view.oid
-  JOIN pg_class as source_table
-    ON pg_depend.refobjid = source_table.oid
-  JOIN pg_namespace dependent_ns
-    ON dependent_ns.oid = dependent_view.relnamespace
-  JOIN pg_namespace source_ns
-    ON source_ns.oid = source_table.relnamespace
- WHERE NOT (dependent_ns.nspname = source_ns.nspname AND
-            dependent_view.relname = source_table.relname)
-   AND source_table.relnamespace = %s::regnamespace
-   AND source_table.relname = %s
-UNION
-SELECT DISTINCT
-       dependent_ns.nspname as dependent_schema,
-       dependent_view.oid as dependent_view_oid,
-       dependent_view.relname as dependent_view,
-       dependent_view.relkind as dependent_view_type,
-       dependent_view.relowner::regrole::text as dependent_view_owner,
-       source_ns.nspname as source_schema,
-       source_table.relname as source_table
-  FROM pg_depend
-  JOIN pg_rewrite
-    ON pg_depend.objid = pg_rewrite.oid
-  JOIN pg_class as dependent_view
-    ON pg_rewrite.ev_class = dependent_view.oid
-  JOIN pg_class as source_table
-    ON pg_depend.refobjid = source_table.oid
-  JOIN pg_namespace dependent_ns
-    ON dependent_ns.oid = dependent_view.relnamespace
-  JOIN pg_namespace source_ns
-    ON source_ns.oid = source_table.relnamespace
-  JOIN view_deps vd
-    ON vd.dependent_schema = source_ns.nspname
-   AND vd.dependent_view = source_table.relname
-   AND NOT (dependent_ns.nspname = vd.dependent_schema AND
-            dependent_view.relname = vd.dependent_view)
+        hierarchy_sql = """
+WITH RECURSIVE preference AS (
+  SELECT 10 AS max_depth  -- The deeper the recursion goes, the slower it performs.
+    , 16384 AS min_oid -- user objects only
+    , '^(londiste|pgq|pg_toast)'::text AS schema_exclusion
+    , '^pg_(conversion|language|ts_(dict|template))'::text AS class_exclusion
+    , '{"SCHEMA":"00", "TABLE":"01", "CONSTRAINT":"02", "DEFAULT":"03",
+        "INDEX":"05", "SEQUENCE":"06", "TRIGGER":"07", "FUNCTION":"08",
+        "VIEW":"10", "MVIEW":"11", "FOREIGN":"12"}'::json AS type_ranks
 )
-SELECT vd.dependent_schema,
-       vd.dependent_view_oid,
-       vd.dependent_view,
-       vd.dependent_view_type,
-       replace(vd.dependent_view_owner, '"', '') as dependent_view_owner,
-       vd.source_schema,
-       vd.source_table,
-       (select array_agg(row_to_json(vi))
-          from pg_indexes vi
-         where vi.schemaname = vd.dependent_schema
-           and vi.tablename = vd.dependent_view)::json[] as indexes,
-       pg_get_viewdef(dependent_view_oid) as definition
-  FROM view_deps vd
- ORDER BY source_schema, source_table;
-"""
-        cur = conn_execute(sql, [self.source_schema, self.source_table_name])
-        return [ViewDefinition(self.target_schema, rec) for rec in fetchall(cur)]
+, dependency_pair AS (
+    WITH relation_object AS (
+        SELECT oid
+        , oid::regclass::text AS object_name
+        , CASE relkind
+              WHEN 'r' THEN 'TABLE'::text
+              WHEN 'i' THEN 'INDEX'::text
+              WHEN 'S' THEN 'SEQUENCE'::text
+              WHEN 'v' THEN 'VIEW'::text
+              WHEN 'm' THEN 'MVIEW'::text
+              WHEN 'c' THEN 'TYPE'::text      -- COMPOSITE type
+              WHEN 't' THEN 'TOAST'::text
+              WHEN 'f' THEN 'FOREIGN'::text
+          END AS object_type
+        FROM pg_class
+    )
+    select
+        case when classid = 'pg_rewrite'::regclass
+             THEN (SELECT e.ev_class FROM pg_rewrite e WHERE e.oid = objid)
+             else objid
+        end::oid objid,
+        CASE classid
+            WHEN 'pg_amop'::regclass THEN 'ACCESS METHOD OPERATOR'
+            WHEN 'pg_amproc'::regclass THEN 'ACCESS METHOD PROCEDURE'
+            WHEN 'pg_attrdef'::regclass THEN 'DEFAULT'
+            WHEN 'pg_cast'::regclass THEN 'CAST'
+            WHEN 'pg_class'::regclass THEN rel.object_type
+            WHEN 'pg_constraint'::regclass THEN 'CONSTRAINT'
+            WHEN 'pg_extension'::regclass THEN 'EXTENSION'
+            WHEN 'pg_namespace'::regclass THEN 'SCHEMA'
+            WHEN 'pg_opclass'::regclass THEN 'OPERATOR CLASS'
+            WHEN 'pg_operator'::regclass THEN 'OPERATOR'
+            WHEN 'pg_opfamily'::regclass THEN 'OPERATOR FAMILY'
+            WHEN 'pg_proc'::regclass THEN 'FUNCTION'
+            WHEN 'pg_rewrite'::regclass THEN (SELECT concat(object_type,' RULE(' || objid::text || ')') FROM pg_rewrite e JOIN relation_object r ON r.oid = ev_class WHERE e.oid = objid)
+            WHEN 'pg_trigger'::regclass THEN 'TRIGGER'
+            WHEN 'pg_type'::regclass THEN 'TYPE'
+            ELSE classid::regclass::text
+        END AS object_type,
+        CASE classid
+            WHEN 'pg_attrdef'::regclass THEN (SELECT attname FROM pg_attrdef d JOIN pg_attribute c ON (c.attrelid,c.attnum)=(d.adrelid,d.adnum) WHERE d.oid = objid)
+            WHEN 'pg_cast'::regclass THEN (SELECT concat(castsource::regtype::text, ' AS ', casttarget::regtype::text,' WITH ', castfunc::regprocedure::text) FROM pg_cast WHERE oid = objid)
+            WHEN 'pg_class'::regclass THEN rel.object_name
+            WHEN 'pg_constraint'::regclass THEN (SELECT conname FROM pg_constraint WHERE oid = objid)
+            WHEN 'pg_extension'::regclass THEN (SELECT extname FROM pg_extension WHERE oid = objid)
+            WHEN 'pg_namespace'::regclass THEN (SELECT nspname FROM pg_namespace WHERE oid = objid)
+            WHEN 'pg_opclass'::regclass THEN (SELECT opcname FROM pg_opclass WHERE oid = objid)
+            WHEN 'pg_operator'::regclass THEN (SELECT oprname FROM pg_operator WHERE oid = objid)
+            WHEN 'pg_opfamily'::regclass THEN (SELECT opfname FROM pg_opfamily WHERE oid = objid)
+            WHEN 'pg_proc'::regclass THEN objid::regprocedure::text
+            WHEN 'pg_rewrite'::regclass THEN (SELECT ev_class::regclass::text FROM pg_rewrite WHERE oid = objid)
+            WHEN 'pg_trigger'::regclass THEN (SELECT tgname FROM pg_trigger WHERE oid = objid)
+            WHEN 'pg_type'::regclass THEN objid::regtype::text
+            ELSE objid::text
+        END AS object_name,
+        array_agg(objsubid ORDER BY objsubid) AS objsubids,
+        refobjid,
+        CASE refclassid
+            WHEN 'pg_namespace'::regclass THEN 'SCHEMA'
+            WHEN 'pg_class'::regclass THEN rrel.object_type
+            WHEN 'pg_opfamily'::regclass THEN 'OPERATOR FAMILY'
+            WHEN 'pg_proc'::regclass THEN 'FUNCTION'
+            WHEN 'pg_type'::regclass THEN 'TYPE'
+            ELSE refclassid::text
+        END AS refobj_type,
+        CASE refclassid
+            WHEN 'pg_namespace'::regclass THEN (SELECT nspname FROM pg_namespace WHERE oid = refobjid)
+            WHEN 'pg_class'::regclass THEN rrel.object_name
+            WHEN 'pg_opfamily'::regclass THEN (SELECT opfname FROM pg_opfamily WHERE oid = refobjid)
+            WHEN 'pg_proc'::regclass THEN refobjid::regprocedure::text
+            WHEN 'pg_type'::regclass THEN refobjid::regtype::text
+            ELSE refobjid::text
+        END AS refobj_name,
+        array_agg(refobjsubid ORDER BY refobjsubid) AS refobjsubids,
+        CASE deptype
+            WHEN 'n' THEN 'normal'
+            WHEN 'a' THEN 'automatic'
+            WHEN 'i' THEN 'internal'
+            WHEN 'e' THEN 'extension'
+            WHEN 'p' THEN 'pinned'
+        END AS dependency_type
+    FROM pg_depend dep
+    LEFT JOIN relation_object rel ON rel.oid = dep.objid
+    LEFT JOIN relation_object rrel ON rrel.oid = dep.refobjid
+    left join pg_class cls on dep.objid = cls.oid
+    , preference
+    WHERE deptype = ANY('{n,a}')
+    AND objid >= preference.min_oid
+    AND (refobjid >= preference.min_oid OR refobjid = 2200) -- need public schema as root node
+    AND classid::regclass::text !~ preference.class_exclusion
+    AND refclassid::regclass::text !~ preference.class_exclusion
+    AND coalesce(substring(objid::regclass::text, E'^(\\w+)\\.'),'') !~ preference.schema_exclusion
+    AND coalesce(substring(refobjid::regclass::text, E'^(\\w+)\\.'),'') !~ preference.schema_exclusion
+    GROUP BY classid, objid, refclassid, refobjid, deptype, rel.object_name, rel.object_type, rrel.object_name, rrel.object_type
+)
+, dependency_hierarchy AS (
+    SELECT DISTINCT
+        0 AS level,
+        refobjid AS objid,
+        refobj_type AS object_type,
+        refobj_name AS object_name,
+        NULL::text AS dependency_type,
+        ARRAY[refobjid] AS dependency_chain,
+        ARRAY[concat(preference.type_ranks->>refobj_type,refobj_type,' ',refobj_name)] AS dependency_name_chain
+    FROM dependency_pair root
+    , preference
+    WHERE NOT EXISTS
+       (SELECT 'x' FROM dependency_pair branch WHERE branch.objid = root.refobjid)
+    AND refobj_name !~ preference.schema_exclusion
+    UNION ALL
+    SELECT
+        level + 1 AS level,
+        child.objid,
+        child.object_type,
+        child.object_name,
+        child.dependency_type,
+        parent.dependency_chain || child.objid,
+        parent.dependency_name_chain || concat(preference.type_ranks->>child.object_type,child.object_type,' ',child.object_name)
+    FROM dependency_pair child
+    JOIN dependency_hierarchy parent ON (parent.objid = child.refobjid)
+    , preference
+    WHERE level < preference.max_depth
+    AND child.object_name !~ preference.schema_exclusion
+    AND child.refobj_name !~ preference.schema_exclusion
+    AND NOT (child.objid = ANY(parent.dependency_chain)) -- prevent circular referencing
+)
+SELECT level,
+       case when object_type = 'SCHEMA'
+            then objid
+            else cls.relnamespace
+       end::oid nspid,
+       case when object_type = 'SCHEMA'
+            then object_name
+            else cls.relnamespace::regnamespace::text
+       end::text namespace_name,
+       objid,
+       object_type,
+       object_name,
+       cls.relowner::regrole::text object_owner,
+       dependency_chain,
+       dependency_name_chain,
+       case when object_type ~ '^M*VIEW'
+            then (
+                     select array_agg(row_to_json(vi))
+                       from (
+                                select _t.relnamespace::regnamespace::text as "schemaname",
+                                       _t.relname::text as "tablename",
+                                       _ix.relname::text as "indexname",
+                                       _i.indisunique,
+                                       _i.indisprimary,
+                                       (
+                                            select array_agg(_a.attname)
+                                              from pg_attribute _a
+                                             where _a.attrelid = _t.oid
+                                               and _a.attnum = any(_i.indkey)
+                                       )::text[] as "indexcols",
+                                       pg_get_indexdef(_i.indexrelid) as "indexdef"
+                                  from pg_class _t
+                                  join pg_index _i
+                                    on _i.indrelid = _t.oid
+                                  join pg_class _ix
+                                    on _ix.oid = _i.indexrelid
+                                 where _t.oid = dependency_hierarchy.objid
+                            ) vi
+            )
+            else null
+       end::json[] as view_indexes,
+       case when object_type ~ '^M*VIEW'
+            then pg_get_viewdef(dependency_hierarchy.objid)
+            else null
+       end::text as view_definition
+  FROM dependency_hierarchy
+  left
+  join pg_class cls
+    on cls.oid = objid
+ WHERE array_position(dependency_chain, %s::regclass::oid) is not null
+   AND (object_type = ANY('{SCHEMA,TABLE}'::text[]) or
+        object_type ~ '^M*VIEW RULE')
+ ORDER BY level desc, dependency_chain ;
+"""  # noqa:E501
+        hierarchy = fetchall(conn_execute(hierarchy_sql, [f'"{self.source_schema}"."{self.source_table_name}"']))
+        # The hierarchy will be stored with the lowest level first or in destroy-order
+        res = []
+        for entry in hierarchy:
+            if entry["object_type"] == "TABLE":
+                break
+            if "." in entry["object_name"]:
+                _, entry["object_name"] = entry["object_name"].split(".", 1)
+            rec = {
+                "level": entry["level"],
+                "source_schema": self.source_schema,
+                "source_table": self.source_table_name,
+                "dependent_schema_oid": entry["nspid"],
+                "dependent_schema": entry["namespace_name"],
+                "dependent_view_oid": entry["objid"],
+                "dependent_view_type": entry["object_type"].split()[0],
+                "dependent_view": entry["object_name"],
+                "definition": entry["view_definition"],
+                "dependent_view_owner": entry["object_owner"],
+                "indexes": entry["view_indexes"],
+            }
+            res.append(ViewDefinition(self.target_schema, rec))
+
+        return res
 
     def __create_table_like_source(self):
         msg = f'Creating base table structure for "{self.target_schema}"."{self.partitioned_table_name}" from '
@@ -742,6 +926,36 @@ CREATE TABLE IF NOT EXISTS "{self.target_schema}"."{self.partitioned_table_name}
 PARTITION BY {self.partition_type} ( "{self.partition_key}" ) ;
 """
         conn_execute(sql)
+
+    def __create_default_partition_new(self):
+        sql = f"""
+INSERT INTO "{self.target_schema}"."partitioned_tables" (
+    schema_name,
+    table_name,
+    partition_of_table_name,
+    partition_type,
+    partition_col,
+    partition_parameters
+)
+VALUES (
+    %s,
+    %s,
+    %s,
+    %s,
+    %s,
+    %s::jsonb
+);
+"""
+        params = (
+            self.target_schema,
+            f"{self.source_table_name}_default",
+            self.partitioned_table_name,
+            self.partition_type.lower(),
+            self.partition_key,
+            '{"default": true}',
+        )
+        LOG.info(f'Creating and recording default partition "{self.target_schema}"."{self.source_table_name}_default"')
+        conn_execute(sql, params)
 
     def __create_default_partition(self):
         LOG.info(f'Creating default partition "{self.target_schema}"."{self.source_table_name}_default"')
@@ -809,28 +1023,33 @@ VALUES (
     def __set_constraints(self):
         LOG.info("Applying any table constratins")
         for cdef in self.constraints:
-            conn_execute(cdef.alter_add_constraint())
+            if cdef.constraint_type.lower() == "u" and not set(cdef.constraint_columns).isdisjoint(
+                set(self.pk_def.column_names)
+            ):
+                LOG.warning(f"Unique constraint {cdef.constraint_name} overlaps with primary key and will be omitted.")
+                continue
+            else:
+                LOG.info(f"Applying constraint {cdef.constraint_name}")
+                conn_execute(cdef.alter_add_constraint())
 
     def __create_indexes(self):
         for idef in self.indexes:
-            LOG.info(f"Applying index definition from {idef.index_name}")
-            conn_execute(idef.create())
+            if idef.is_unique and not set(idef.index_columns).isdisjoint(set(self.pk_def.column_names)):
+                LOG.warning(f"Unique index {idef.index_name} overlaps with primary key and will be omitted.")
+                continue
+            else:
+                LOG.info(f"Applying index definition for {idef.index_name}")
+                conn_execute(idef.create())
 
-    def __create_partitions(self):
-        # Get "requested" partitions
+    def __get_partition_start_values(self, params):
         sql = """
 select partition_start from scan_for_date_partitions(%s::text, %s::text, %s::text, %s::text);
 """
-        params = [
-            f"{self.source_schema}.{self.source_table_name}",  # This will be quoted properly in the proc
-            self.partition_key,
-            self.target_schema,
-            self.partitioned_table_name,
-        ]
         cur = conn_execute(sql, params)
         requested_partitions = fetchall(cur)
+        return requested_partitions
 
-        # Get existing partitions except the default partition
+    def __get_partition_parameters_start_values(self, params):
         sql = f"""
 select (partition_parameters->>'from')::date as existing_partition
   from "{self.target_schema}"."partitioned_tables"
@@ -839,13 +1058,87 @@ select (partition_parameters->>'from')::date as existing_partition
    and table_name ~ %s
    and partition_parameters->>'default' = 'false';
 """
-        params = [self.target_schema, self.partitioned_table_name, f"^{self.partitioned_table_name}"]
         cur = conn_execute(sql, params)
         existing_partitions = fetchall(cur)
+        return existing_partitions
 
+    def __get_needed_partitions(self, requested_partitions, existing_partitions):
         needed_partitions = {p["partition_start"] for p in requested_partitions} - {
             ciso8601.parse_datetime(p["partition_parameters"]["from"]).date() for p in existing_partitions
         }
+        return needed_partitions
+
+    def __create_partitions_new(self):
+        created_partitions = []
+        params = [
+            f"{self.source_schema}.{self.source_table_name}",  # This will be quoted properly in the proc
+            self.partition_key,
+            self.target_schema,
+            self.partitioned_table_name,
+        ]
+        requested_partitions = self.__get_partition_start_values(params)
+
+        # Get existing partitions except the default partition
+        params = [self.target_schema, self.partitioned_table_name, f"^{self.partitioned_table_name}"]
+        existing_partitions = self.__get_partition_parameters_start_values(params)
+
+        needed_partitions = self.__get_needed_partitions(requested_partitions, existing_partitions)
+
+        part_rec_sql = f"""
+INSERT INTO "{self.target_schema}"."partitioned_tables" (
+    schema_name,
+    table_name,
+    partition_of_table_name,
+    partition_type,
+    partition_col,
+    partition_parameters
+)
+VALUES (
+    %s,
+    %s,
+    %s,
+    %s,
+    %s,
+    %s::jsonb
+);
+"""
+        params = [
+            self.target_schema,
+            None,
+            self.partitioned_table_name,
+            self.partition_type.lower(),
+            self.partition_key,
+            None,
+        ]
+        part_params = {"default": False, "from": None, "to": None}
+        for newpart in needed_partitions:
+            part_params["from"] = str(newpart)
+            part_params["to"] = str(newpart + relativedelta(months=1))
+            suffix = newpart.strftime("%Y_%m")
+            partition_name = f"{self.partitioned_table_name}_{suffix}"
+            params[1] = partition_name
+            params[-1] = json.dumps(part_params)
+            LOG.info(f'Creating and recording partition "{self.target_schema}"."{partition_name}"')
+            conn_execute(part_rec_sql, params)
+            created_partitions.append({"table_name": partition_name, "suffix": suffix})
+
+        self.created_partitions = created_partitions
+
+    def __create_partitions(self):
+        # Get "requested" partitions
+        params = [
+            f"{self.source_schema}.{self.source_table_name}",  # This will be quoted properly in the proc
+            self.partition_key,
+            self.target_schema,
+            self.partitioned_table_name,
+        ]
+        requested_partitions = self.__get_partition_start_values(params)
+
+        # Get existing partitions except the default partition
+        params = [self.target_schema, self.partitioned_table_name, f"^{self.partitioned_table_name}"]
+        existing_partitions = self.__get_partition_parameters_start_values(params)
+
+        needed_partitions = self.__get_needed_partitions(requested_partitions, existing_partitions)
 
         sqltmpl = f"""
 CREATE TABLE IF NOT EXISTS "{self.target_schema}"."{{table_partition}}"
@@ -910,6 +1203,82 @@ SELECT * FROM "{self.source_schema}"."{self.source_table_name}" ;
 """
         with transaction.atomic():
             conn_execute(sql)
+
+    def __rename_objects_new(self):
+        messages = [f'Locking source table "{self.source_schema}"."{self.source_table_name}"']
+        sql_actions = [
+            f"""
+LOCK TABLE "{self.source_schema}"."{self.source_table_name}" ;
+"""
+        ]
+        for vdef in self.views:
+            actions = vdef.rename_original_view_indexes()
+            messages.append(f'Renaming view indexes for "{vdef.view_schema}"."{vdef.view_name}"')
+            messages.extend([None] * (len(actions) - 1))
+            sql_actions.extend(actions)
+            messages.append(f'Renaming view "{vdef.view_schema}"."{vdef.view_name}" to "__{vdef.view_name}"')
+            sql_actions.append(vdef.rename_original_view())
+
+        messages.append(
+            f'Renaming source table "{self.source_schema}"."{self.source_table_name}"'
+            f' to "__{self.source_table_name}"'
+        )
+        sql_actions.append(
+            f"""
+ALTER TABLE "{self.source_schema}"."{self.source_table_name}"
+RENAME TO "__{self.source_table_name}" ;
+"""
+        )
+        messages.append(
+            f'Renaming partitioned table "{self.target_schema}"."{self.partitioned_table_name}"'
+            f' to "{self.source_table_name}"'
+        )
+        sql_actions.append(
+            (
+                f"""
+UPDATE "{self.target_schema}".partitioned_tables
+   SET partition_of_table_name = %s
+ WHERE schema_name = %s
+   AND partition_of_table_name = %s;
+""",
+                (self.source_table_name, self.target_schema, self.partitioned_table_name),
+            )
+        )
+        for partition in self.created_partitions:
+            r_partition_name = f'{self.source_table_name}_{partition["suffix"]}'
+            messages.append(
+                f'''Renaming table partition "{self.target_schema}"."{partition['table_name']}"'''
+                f' to "{r_partition_name}"'
+            )
+            sql_actions.append(
+                (
+                    f"""
+UPDATE "{self.target_schema}".partitioned_tables
+   SET table_name = %s
+ WHERE schema_name = %s
+   AND partition_of_table_name = %s
+   AND table_name = %s;
+""",
+                    (r_partition_name, self.target_schema, self.source_table_name, partition["table_name"]),
+                )
+            )
+
+        for ix in range(len(sql_actions)):
+            msg = messages[ix]
+            if msg:
+                LOG.info(msg)
+
+            sql = sql_actions[ix]
+            if isinstance(sql, tuple):
+                sql, params = sql
+            else:
+                params = None
+
+            LOG.debug(f"SQL = {sql}  PARAMS = {params}")
+            conn_execute(sql, params)
+
+        self.partitioned_table_name = self.source_table_name
+        self.source_table_name = f"__{self.source_table_name}"
 
     def __rename_objects(self):
         LOG.info(f'Locking source table "{self.source_schema}"."{self.source_table_name}"')
@@ -981,7 +1350,7 @@ UPDATE "{self.target_schema}"."partitioned_tables"
 
     def __create_views(self):
         LOG.info("Creating any views")
-        for vdef in self.views:
+        for vdef in self.view_iter(self.VIEW_CREATE_ORDER):
             conn_execute(vdef.create())
             if vdef.indexes:
                 LOG.info("Creating view indexes")
@@ -1037,8 +1406,12 @@ select exists (
             self.__set_column_definitions()
             self.__set_constraints()
             self.__create_indexes()
-            self.__create_default_partition()
-            self.__create_partitions()
+            if self.__new_trigger:
+                self.__create_default_partition_new()
+                self.__create_partitions_new()
+            else:
+                self.__create_default_partition()
+                self.__create_partitions()
 
         # Copy all source data
         with transaction.atomic():
@@ -1046,7 +1419,10 @@ select exists (
 
         # Rename objects (acquires lock)
         with transaction.atomic():
-            self.__rename_objects()
+            if self.__new_trigger:
+                self.__rename_objects_new()
+            else:
+                self.__rename_objects()
 
         # Create views
         with transaction.atomic():
@@ -1085,6 +1461,8 @@ class PartitionDefaultData:
         partitioned_table (str) : Default partition table name
     """
 
+    # NOTE: This needs to be updated to support subpartitions
+
     def __init__(self, schema_name, partitioned_table, default_partition=None):
         self.conn = transaction.get_connection()
         self.schema_name = schema_name
@@ -1092,7 +1470,6 @@ class PartitionDefaultData:
         self.default_partition = default_partition or self._get_default_partition()
         self.partition_name = ""
         self.tracking_rec = None
-        self.partition_parameters = {}
         self.tx_id = str(uuid.uuid4()).replace("-", "_")
         self._get_default_partition_tracker_info()
 
@@ -1125,66 +1502,59 @@ SELECT *
 """
         LOG.info(f"Getting default tracker record for {self.default_partition} of {self.partitioned_table}")
         cur = conn_execute(sql, (self.schema_name, self.partitioned_table, self.default_partition), _conn=self.conn)
-        default_tracker = fetchone(cur)
-        self.partition_type = default_tracker["partition_type"]
-        self.partition_key = default_tracker["partition_col"]
+        self.tracking_rec = fetchone(cur)
+        self.tracking_rec["partition_parameters"] = json.loads(self.tracking_rec["partition_parameters"])
+        self.partition_type = self.tracking_rec["partition_type"]
+        self.partition_key = self.tracking_rec["partition_col"]
 
-    def _update_partition_tracking_record(self, set_col):
-        LOG.debug(f"Execute SQL to update partition_parameters.{set_col}")
-        if set_col == "partition_parameters":
-            partition_parameters = self.partition_parameters.copy()
-            partition_parameters["from"] = str(partition_parameters["from"])
-            partition_parameters["to"] = str(partition_parameters["to"])
-            partition_parameters["default"] = False
-            self.tracking_rec["partition_parameters"] = json.dumps(partition_parameters)
-
+    def _update_partition_tracking_record(self):
+        LOG.debug("Execute SQL to update partition tracking record")
         update_sql = f"""
 UPDATE "{self.schema_name}"."partitioned_tables"
-   SET {set_col} = %s{'::boolean' if set_col == 'active' else '::jsonb'}
- WHERE "id" = %s;
+   SET "schema_name" = %(schema_name)s ,
+       "table_name" = %(table_name)s ,
+       "partition_of_table_name" = %(partition_of_table_name)s ,
+       "partition_type" = %(partition_type)s ,
+       "partition_col" = %(partition_col)s ,
+       "partition_parameters" = %(partition_parameters_str)s ,
+       "active" = %(active)s
+ WHERE "id" = %(id)s;
 """
-        vals = [self.tracking_rec[set_col], self.tracking_rec["id"]]
-
-        conn_execute(update_sql, vals, _conn=self.conn)
+        self.tracking_rec["partition_parameters"]["from"] = str(self.tracking_rec["partition_parameters"]["from"])
+        self.tracking_rec["partition_parameters"]["to"] = str(self.tracking_rec["partition_parameters"]["to"])
+        self.tracking_rec["partition_parameters_str"] = json.dumps(self.tracking_rec["partition_parameters"])
+        conn_execute(update_sql, self.tracking_rec, _conn=self.conn)
 
     def _create_partititon_tracking_record(self):
         LOG.debug(f"Creating tracking record for new partition {self.partition_name}")
-        partition_parameters = self.partition_parameters.copy()
-        partition_parameters["from"] = str(partition_parameters["from"])
-        partition_parameters["to"] = str(partition_parameters["to"])
-        partition_parameters["default"] = False
+        self.tracking_rec["partition_parameters"]["from"] = str(self.tracking_rec["partition_parameters"]["from"])
+        self.tracking_rec["partition_parameters"]["to"] = str(self.tracking_rec["partition_parameters"]["to"])
+        self.tracking_rec["partition_parameters"]["default"] = False
+        self.tracking_rec["partition_parameters_str"] = json.dumps(self.tracking_rec["partition_parameters"])
         part_track_insert_sql = f"""
 INSERT INTO "{self.schema_name}"."partitioned_tables"
        (schema_name, table_name, partition_of_table_name, partition_type, partition_col, partition_parameters, active)
-VALUES (%s, %s, %s, %s, %s, %s::jsonb, true)
+VALUES (%(schema_name)s, %(table_name)s, %(partition_of_table_name)s, %(partition_type)s, %(partition_col)s,
+        %(partition_parameters_str)s::jsonb, true)
 RETURNING *;
 """
-        vals = (
-            self.schema_name,
-            self.partition_name,
-            self.partitioned_table,
-            self.partition_type,
-            self.partition_key,
-            json.dumps(partition_parameters),
-        )
-        cur = conn_execute(part_track_insert_sql, vals, _conn=self.conn)
+        cur = conn_execute(part_track_insert_sql, self.tracking_rec, _conn=self.conn)
         self.tracking_rec = fetchone(cur)
+        self.tracking_rec["partition_parameters_str"] = None
+        self.tracking_rec["partition_parameters"] = json.loads(self.tracking_rec["partition_parameters"])
 
     def _create_partition(self):
         self._create_partititon_tracking_record()
 
     def _attach_partition(self):
         self.tracking_rec["active"] = True
-
-        # This is necessary to prevent two triggers from firing and getting a race condition
-        LOG.debug("Updating tracking partition parameters")
-        self._update_partition_tracking_record(set_col="partition_parameters")
         LOG.debug("Updating tracking active state")
-        self._update_partition_tracking_record(set_col="active")
+        self._update_partition_tracking_record()
 
     def _detach_partition(self):
         self.tracking_rec["active"] = False
-        self._update_partition_tracking_record(set_col="active")
+        LOG.debug("Updating tracking active state")
+        self._update_partition_tracking_record()
 
     def _get_new_partitions_from_default(self):
         partition_start_sql = f"""
@@ -1205,6 +1575,7 @@ SELECT DISTINCT
         return res
 
     def repartition_default_data(self):
+        # NOTE: This needs to be updated to be more generic
         new_partitions = self._get_new_partitions_from_default()
         if new_partitions:
             mv_recs_sql = f"""
@@ -1221,18 +1592,16 @@ SELECT * FROM __mv_recs_{self.tx_id} ;
 
             for bounds in new_partitions:
                 p_from, p_to = bounds
-                self.partition_name = f"{self.partitioned_table}_{p_from.strftime('%Y_%m')}"
-                full_partition_name = f'"{self.schema_name}"."{self.partition_name}"'
+                self.tracking_rec["table_name"] = f"{self.partitioned_table}_{p_from.strftime('%Y_%m')}"
+                full_partition_name = f'''"{self.schema_name}"."{self.tracking_rec['table_name']}"'''
 
                 # A little jiggery-pokery here to increase efficiency.
                 # The partition is named properly, but it set as a partition for 100 years in the future
                 # This will allow us to create the partition with all of the structure that is required.
                 # Before the data move, we will detach the partition, then move the data,
                 # then reattach with the proper bounds.
-                self.partition_parameters = {
-                    "from": p_from.replace(year=p_from.year + 100),
-                    "to": p_to.replace(year=p_to.year + 100),
-                }
+                self.tracking_rec["partition_parameters"]["from"] = p_from.replace(year=p_from.year + 100)
+                self.tracking_rec["partition_parameters"]["to"] = p_to.replace(year=p_to.year + 100)
 
                 LOG.info(
                     f"Re-partitioning {self.schema_name}.{self.default_partition} into {full_partition_name} "
@@ -1248,8 +1617,8 @@ SELECT * FROM __mv_recs_{self.tx_id} ;
                     conn_execute(mv_recs_sql.format(full_partition_name), (p_from, p_to), _conn=self.conn)
 
                     # Re-attach partition with actual bounds
-                    self.partition_parameters["from"] = p_from
-                    self.partition_parameters["to"] = p_to
+                    self.tracking_rec["partition_parameters"]["from"] = p_from
+                    self.tracking_rec["partition_parameters"]["to"] = p_to
                     self._attach_partition()
 
 

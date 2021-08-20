@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """GCP Query Handling for Reports."""
 import copy
@@ -27,6 +15,7 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.gcp.provider_map import GCPProviderMap
 from api.report.queries import ReportQueryHandler
+from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)
 
@@ -74,6 +63,9 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
+
+        dh = DateHelper()
+        self.invoice_months = dh.gcp_find_invoice_months_in_date_range(self.start_datetime, self.end_datetime)
 
     @property
     def annotations(self):
@@ -147,7 +139,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
             self._pack_data_object(query_sum, **self._mapper.PACK_DEFINITIONS)
         return query_sum
 
-    def execute_query(self):
+    def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
 
         Returns:
@@ -158,10 +150,11 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         with tenant_context(self.tenant):
             query = self.query_table.objects.filter(self.query_filter)
+            query = query.filter(invoice_month__in=self.invoice_months)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
-            query_order_by.extend([self.order])  # add implicit ordering
+            query_order_by.extend(self.order)  # add implicit ordering
 
             annotations = self._mapper.report_type_map.get("annotations")
             for alias_key, alias_value in self.group_by_alias.items():
@@ -181,7 +174,40 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
-            query_data = self.order_by(query_data, query_order_by)
+            def check_if_valid_date_str(date_str):
+                """Check to see if a valid date has been passed in."""
+                import ciso8601
+
+                try:
+                    ciso8601.parse_datetime(date_str)
+                except ValueError:
+                    return False
+                except TypeError:
+                    return False
+                return True
+
+            order_date = None
+            for i, param in enumerate(query_order_by):
+                if check_if_valid_date_str(param):
+                    order_date = param
+                    break
+            # Remove the date order by as it is not actually used for ordering
+            if order_date:
+                sort_term = self._get_group_by()[0]
+                query_order_by.pop(i)
+                date_filtered_query_data = query_data.filter(usage_start=order_date)
+                ordered_data = self.order_by(date_filtered_query_data, query_order_by)
+                order_of_interest = []
+                for entry in ordered_data:
+                    order_of_interest.append(entry.get(sort_term))
+                # write a special order by function that iterates through the
+                # rest of the days in query_data and puts them in the same order
+                # return_query_data = []
+                sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
+                query_data = self.order_by(sorted_data, ["-date"])
+            else:
+                # &order_by[cost]=desc&order_by[date]=2021-08-02
+                query_data = self.order_by(query_data, query_order_by)
 
             if is_csv_output:
                 if self._limit:
@@ -214,6 +240,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
         """
         query_group_by = ["date"] + self._get_group_by()
         query = self.query_table.objects.filter(self.query_filter)
+        query = query.filter(invoice_month__in=self.invoice_months)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")

@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Report Downloader."""
 import logging
@@ -57,10 +45,10 @@ class ReportDownloaderBase:
         self._cache_key = kwargs.get("cache_key")
         self._provider_uuid = kwargs.get("provider_uuid")
         self._provider_type = kwargs.get("provider_type")
-        self.request_id = kwargs.get("request_id")
+        self.request_id = kwargs.get("request_id")  # TODO: Remove this once the downloaders have been updated
+        self.tracing_id = kwargs.get("tracing_id")
         self.account = kwargs.get("account")
         self.context = {
-            "request_id": self.request_id,
             "provider_uuid": self._provider_uuid,
             "provider_type": self._provider_type,
             "account": self.account,
@@ -75,16 +63,19 @@ class ReportDownloaderBase:
                 manifest_id = manifest.id
         return manifest_id
 
-    def _process_manifest_db_record(self, assembly_id, billing_start, num_of_files, manifest_modified_datetime):
+    def _process_manifest_db_record(
+        self, assembly_id, billing_start, num_of_files, manifest_modified_datetime, **kwargs
+    ):
         """Insert or update the manifest DB record."""
-        LOG.info("Inserting/updating manifest in database for assembly_id: %s", assembly_id)
+        msg = f"Inserting/updating manifest in database for assembly_id: {assembly_id}"
+        LOG.info(log_json(self.tracing_id, msg))
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
 
             if not manifest_entry:
                 msg = f"No manifest entry found in database. Adding for bill period start: {billing_start}"
-                LOG.info(log_json(self.request_id, msg, self.context))
+                LOG.info(log_json(self.tracing_id, msg, self.context))
                 manifest_dict = {
                     "assembly_id": assembly_id,
                     "billing_period_start_datetime": billing_start,
@@ -92,6 +83,7 @@ class ReportDownloaderBase:
                     "provider_uuid": self._provider_uuid,
                     "manifest_modified_datetime": manifest_modified_datetime,
                 }
+                manifest_dict.update(kwargs)
                 try:
                     manifest_entry = manifest_accessor.add(**manifest_dict)
                 except IntegrityError as error:
@@ -99,7 +91,7 @@ class ReportDownloaderBase:
                         f"Manifest entry uniqueness collision: Error {error}. "
                         "Manifest already added, getting manifest_entry_id."
                     )
-                    LOG.warning(log_json(self.request_id, msg, self.context))
+                    LOG.warning(log_json(self.tracing_id, msg, self.context))
                     with ReportManifestDBAccessor() as manifest_accessor:
                         manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
             if not manifest_entry:
@@ -108,7 +100,7 @@ class ReportDownloaderBase:
                     provider = provider_accessor.get_provider()
                     if not provider:
                         msg = f"Provider entry not found for {self._provider_uuid}."
-                LOG.warning(log_json(self.request_id, msg, self.context))
+                LOG.warning(log_json(self.tracing_id, msg, self.context))
                 raise IntegrityError(msg)
             else:
                 manifest_accessor.mark_manifest_as_updated(manifest_entry)

@@ -1,21 +1,10 @@
 #
-# Copyright 2019 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the Sources Kafka Listener handler."""
 import queue
+from random import choice
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -47,6 +36,7 @@ from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import SourcesIntegrationError
 from sources.kafka_listener import storage_callback
 from sources.kafka_message_processor import ApplicationMsgProcessor
+from sources.kafka_message_processor import AUTH_TYPES
 from sources.kafka_message_processor import AuthenticationMsgProcessor
 from sources.kafka_message_processor import KAFKA_APPLICATION_CREATE
 from sources.kafka_message_processor import KAFKA_APPLICATION_DESTROY
@@ -54,7 +44,6 @@ from sources.kafka_message_processor import KAFKA_APPLICATION_UPDATE
 from sources.kafka_message_processor import KAFKA_AUTHENTICATION_CREATE
 from sources.kafka_message_processor import KAFKA_AUTHENTICATION_UPDATE
 from sources.kafka_message_processor import KAFKA_SOURCE_DESTROY
-from sources.kafka_message_processor import SourceMsgProcessor
 from sources.sources_http_client import ENDPOINT_APPLICATION_TYPES
 from sources.sources_http_client import ENDPOINT_APPLICATIONS
 from sources.sources_http_client import ENDPOINT_AUTHENTICATIONS
@@ -68,10 +57,6 @@ from sources.test.test_kafka_message_processor import SOURCE_TYPE_IDS_MAP
 from sources.test.test_sources_http_client import COST_MGMT_APP_TYPE_ID
 from sources.test.test_sources_http_client import MOCK_URL
 
-# import requests_mock
-# from requests.exceptions import RequestException
-# from sources.sources_http_client import SourceNotFoundError
-# from sources.sources_http_client import SourcesHTTPClientError
 
 faker = Faker()
 FAKE_AWS_ARN = "arn:aws:iam::111111111111:role/CostManagement"
@@ -265,7 +250,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 value={
                     "id": 1,
                     "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
-                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                    "authtype": AUTH_TYPES.get(Provider.PROVIDER_AWS),
                 },
             ),
         ]
@@ -277,7 +262,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
             s = model_to_dict(source, fields=[f for f in self.sources.get(Provider.PROVIDER_AWS).keys()])
-            self.assertDictEqual(s, self.sources.get(Provider.PROVIDER_AWS))
+            self.assertDictEqual(s, self.sources.get(Provider.PROVIDER_AWS), msg="failed create")
 
         # now test the update pathway
         msgs = [
@@ -294,7 +279,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 value={
                     "id": 1,
                     "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
-                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                    "authtype": AUTH_TYPES.get(Provider.PROVIDER_AWS),
                 },
             ),
         ]
@@ -306,7 +291,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
             s = model_to_dict(source, fields=[f for f in self.updated_sources.get(Provider.PROVIDER_AWS).keys()])
-            self.assertDictEqual(s, self.updated_sources.get(Provider.PROVIDER_AWS))
+            self.assertDictEqual(s, self.updated_sources.get(Provider.PROVIDER_AWS), msg="failed update")
 
         # now test the delete pathway
         msgs = [
@@ -331,18 +316,16 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             mock_consumer = MockKafkaConsumer([msg])
             source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
-            self.assertTrue(source.pending_delete)
+            self.assertTrue(source.pending_delete, msg="failed delete")
 
     def test_message_not_associated_with_cost_mgmt(self):
         """Test that messages not associated with cost-mgmt are not processed."""
         table = [
-            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_CREATE, "called": True},
+            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_CREATE},
             {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_UPDATE},
-            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_DESTROY, "called": True},
+            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_DESTROY},
             {"processor": AuthenticationMsgProcessor, "event": KAFKA_AUTHENTICATION_CREATE},
             {"processor": AuthenticationMsgProcessor, "event": KAFKA_AUTHENTICATION_UPDATE},
-            {"processor": SourceMsgProcessor, "event": KAFKA_SOURCE_DESTROY, "called": True},
-            {"processor": SourceMsgProcessor, "event": "Source.create"},
         ]
         for test in table:
             with self.subTest(test=test):
@@ -353,19 +336,20 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                         json={"data": []},
                     )
                     with patch.object(test.get("processor"), "process") as mock_processor:
-                        msg = msg_generator(event_type=test.get("event"))
+                        msg = msg_generator(
+                            event_type=test.get("event"),
+                            value={"id": 1, "source_id": 1, "application_type_id": COST_MGMT_APP_TYPE_ID + 1},
+                        )
                         mock_consumer = MockKafkaConsumer([msg])
                         source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
-                        if test.get("called"):
-                            mock_processor.assert_called()
-                        else:
-                            mock_processor.assert_not_called()
+                        mock_processor.assert_not_called()
 
     def test_listen_for_messages_exceptions_no_retry(self):
         """Test listen_for_messages exceptions that do not cause a retry."""
         table = [
-            {"event": KAFKA_APPLICATION_CREATE, "value": b'{"this value is messeged up}'},
-            {"event": KAFKA_AUTHENTICATION_CREATE},
+            {"event": KAFKA_APPLICATION_CREATE, "header": True, "value": b'{"this value is messeged up}'},
+            {"event": KAFKA_APPLICATION_DESTROY, "header": False},
+            {"event": KAFKA_AUTHENTICATION_CREATE, "header": True},
         ]
         for test in table:
             with self.subTest(test=test):
@@ -376,6 +360,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                         json={},
                     )
                     msg = msg_generator(test.get("event"))
+                    if not test.get("header"):
+                        msg = msg_generator(test.get("event"), header=None)
                     if test.get("value"):
                         msg._value = test.get("value")
                     mock_consumer = MockKafkaConsumer([msg])
@@ -399,6 +385,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                             "id": 1,
                             "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
                             "application_type_id": COST_MGMT_APP_TYPE_ID,
+                            "authtype": choice(list(AUTH_TYPES.values())),
                         },
                     )
                     mock_consumer = MockKafkaConsumer([msg])
@@ -436,6 +423,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                             "id": 1,
                             "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
                             "application_type_id": COST_MGMT_APP_TYPE_ID,
+                            "authtype": choice(list(AUTH_TYPES.values())),
                         },
                     )
                     mock_consumer = MockKafkaConsumer([msg])

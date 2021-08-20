@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Base forecasting module."""
 import logging
@@ -175,8 +163,12 @@ class Forecast:
         X = self._enumerate_dates(dates)
         Y = [float(c) for c in costs]
 
+        # difference in days between the first day to be predicted and the last day of data after outlier removal
+        day_gap = (
+            datetime.combine(self.dh.today.date(), self.dh.midnight) - datetime.combine(dates[-1], self.dh.midnight)
+        ).days
         # calculate x-values for the prediction range
-        pred_x = [i for i in range(X[-1] + 1, X[-1] + 1 + self.forecast_days_required)]
+        pred_x = [i for i in range(X[-1] + day_gap, X[-1] + day_gap + self.forecast_days_required)]
 
         # run the forecast
         results = self._run_forecast(X, Y, to_predict=pred_x)

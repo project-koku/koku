@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the AWSReportDBAccessor utility object."""
 import datetime
@@ -33,6 +21,7 @@ from django.db.models.query import QuerySet
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
+from koku.database import get_model
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -881,7 +870,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
             ocp_accessor.populate_node_label_line_item_daily_table(start_date, end_date, cluster_id)
             ocp_accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
-            ocp_accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id)
+            ocp_accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id, provider_uuid)
         with schema_context(self.schema):
             query = self.accessor._get_db_obj_query(summary_table_name)
             initial_count = query.count()
@@ -1003,6 +992,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
+            distribution = cost_model_accessor.distribution
 
         self.accessor.populate_ocp_on_aws_cost_daily_summary_presto(
             start_date,
@@ -1012,6 +1002,35 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.ocp_cluster_id,
             current_bill_id,
             markup_value,
+            distribution,
+        )
+        mock_presto.assert_called()
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_multipart_sql_query")
+    def test_populate_ocp_on_aws_cost_daily_summary_presto_memory_distribution(self, mock_presto):
+        """Test that we construst our SQL and query using Presto."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
+        with schema_context(self.schema):
+            current_bill_id = bills.first().id if bills else None
+
+        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
+            markup = cost_model_accessor.markup
+            markup_value = float(markup.get("value", 0)) / 100
+            distribution = "memory"
+
+        self.accessor.populate_ocp_on_aws_cost_daily_summary_presto(
+            start_date,
+            end_date,
+            self.ocp_provider_uuid,
+            self.aws_provider_uuid,
+            self.ocp_cluster_id,
+            current_bill_id,
+            markup_value,
+            distribution,
         )
         mock_presto.assert_called()
 
@@ -1100,3 +1119,45 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             self.assertEqual(table_query.count(), 0)
+
+    def test_table_properties(self):
+        self.assertEqual(self.accessor.line_item_daily_summary_table, get_model("AWSCostEntryLineItemDailySummary"))
+        self.assertEqual(self.accessor.line_item_table, get_model("AWSCostEntryLineItem"))
+        self.assertEqual(self.accessor.cost_entry_table, get_model("AWSCostEntry"))
+        self.assertEqual(self.accessor.line_item_daily_table, get_model("AWSCostEntryLineItemDaily"))
+
+    def test_table_map(self):
+        self.assertEqual(self.accessor._table_map, AWS_CUR_TABLE_MAP)
+
+    def test_get_openshift_on_cloud_matched_tags(self):
+        """Test that matched tags are returned."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+
+        with schema_context(self.schema_name):
+            bills = self.accessor.bills_for_provider_uuid(self.aws_provider_uuid, start_date)
+            bill_id = bills.first().id
+
+        with OCPReportDBAccessor(self.schema_name) as accessor:
+            with schema_context(self.schema_name):
+                report_period = accessor.report_periods_for_provider_uuid(
+                    self.ocp_on_aws_ocp_provider.uuid, start_date
+                )
+                report_period_id = report_period.id
+
+        matched_tags = self.accessor.get_openshift_on_cloud_matched_tags(bill_id, report_period_id)
+
+        self.assertGreater(len(matched_tags), 0)
+        self.assertIsInstance(matched_tags[0], dict)
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
+        """Test that Trino is used to find matched tags."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        self.accessor.get_openshift_on_cloud_matched_tags_trino(
+            self.aws_provider_uuid, self.ocp_on_aws_ocp_provider.uuid, start_date, end_date
+        )
+        mock_presto.assert_called()

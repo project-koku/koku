@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for GCP report data."""
 import logging
@@ -52,10 +40,19 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         super().__init__(schema)
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
+        self._table_map = GCP_REPORT_TABLE_MAP
 
     @property
     def line_item_daily_summary_table(self):
         return GCPCostEntryLineItemDailySummary
+
+    @property
+    def line_item_daily_table(self):
+        return GCPCostEntryLineItemDaily
+
+    @property
+    def line_item_table(self):
+        return GCPCostEntryLineItem
 
     def get_cost_entry_bills(self):
         """Get all cost entry bill objects."""
@@ -134,7 +131,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = GCP_REPORT_TABLE_MAP["line_item_daily"]
+        table_name = self._table_map["line_item_daily"]
 
         daily_sql = pkgutil.get_data("masu.database", "sql/reporting_gcpcostentrylineitem_daily.sql")
         daily_sql = daily_sql.decode("utf-8")
@@ -180,7 +177,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = GCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_gcpcostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -228,7 +225,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
-        table_name = GCP_REPORT_TABLE_MAP["tags_summary"]
+        table_name = self._table_map["tags_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "sql/reporting_gcptags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
@@ -299,7 +296,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = GCP_REPORT_TABLE_MAP["enabled_tag_keys"]
+        table_name = self._table_map["enabled_tag_keys"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_gcpenabledtagkeys.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -324,7 +321,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         Returns
             (None)
         """
-        table_name = GCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        table_name = self._table_map["line_item_daily_summary"]
         summary_sql = pkgutil.get_data(
             "masu.database", "sql/reporting_gcpcostentryline_item_daily_summary_update_enabled_tags.sql"
         )

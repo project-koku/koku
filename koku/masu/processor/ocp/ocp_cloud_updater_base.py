@@ -1,18 +1,6 @@
 #
-# Copyright 2019 Red Hat, Inc.
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Updater base for OpenShift on Cloud Infrastructures."""
 import logging
@@ -94,6 +82,39 @@ class OCPCloudUpdaterBase:
         elif self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             with OCPReportDBAccessor(self._schema) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map(
+                    start_date, end_date, azure_provider_uuid=self._provider_uuid
+                )
+
+        # Save to DB
+        self.set_provider_infra_map(infra_map)
+
+        return infra_map
+
+    def _generate_ocp_infra_map_from_sql_trino(self, start_date, end_date):
+        """Get the OCP on X infrastructure map.
+
+        Args:
+            start_date (str) The date to start populating the table.
+            end_date   (str) The date to end on.
+
+        Returns:
+            infra_map (dict) The OCP infrastructure map.
+
+        """
+        infra_map = {}
+        if self._provider.type == Provider.PROVIDER_OCP:
+            with OCPReportDBAccessor(self._schema) as accessor:
+                infra_map = accessor.get_ocp_infrastructure_map_trino(
+                    start_date, end_date, ocp_provider_uuid=self._provider_uuid
+                )
+        elif self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+            with OCPReportDBAccessor(self._schema) as accessor:
+                infra_map = accessor.get_ocp_infrastructure_map_trino(
+                    start_date, end_date, aws_provider_uuid=self._provider_uuid
+                )
+        elif self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            with OCPReportDBAccessor(self._schema) as accessor:
+                infra_map = accessor.get_ocp_infrastructure_map_trino(
                     start_date, end_date, azure_provider_uuid=self._provider_uuid
                 )
 

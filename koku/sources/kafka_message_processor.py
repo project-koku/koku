@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 import json
 import logging
@@ -22,6 +10,7 @@ from rest_framework.exceptions import ValidationError
 from api.provider.models import Provider
 from sources import storage
 from sources.config import Config
+from sources.sources_http_client import AUTH_TYPES
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 
@@ -31,6 +20,8 @@ LOG = logging.getLogger(__name__)
 KAFKA_APPLICATION_CREATE = "Application.create"
 KAFKA_APPLICATION_UPDATE = "Application.update"
 KAFKA_APPLICATION_DESTROY = "Application.destroy"
+KAFKA_APPLICATION_PAUSE = "Application.pause"
+KAFKA_APPLICATION_UNPAUSE = "Application.unpause"
 KAFKA_AUTHENTICATION_CREATE = "Authentication.create"
 KAFKA_AUTHENTICATION_UPDATE = "Authentication.update"
 KAFKA_SOURCE_UPDATE = "Source.update"
@@ -90,7 +81,12 @@ class KafkaMessageProcessor:
         self.offset = msg.offset()
         self.partition = msg.partition()
         self.auth_header = extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
+        if self.auth_header is None:
+            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}`: {msg.headers()}"
+            LOG.warning(msg)
+            raise SourcesMessageError(msg)
         self.source_id = None
+        self.application_type_id = None
 
     def __repr__(self):
         return (
@@ -100,12 +96,16 @@ class KafkaMessageProcessor:
 
     def msg_for_cost_mgmt(self):
         """Filter messages not intended for cost management."""
-        if self.event_type in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
-            return True
-        if self.event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_APPLICATION_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
+        if self.event_type in (KAFKA_APPLICATION_CREATE, KAFKA_APPLICATION_UPDATE, KAFKA_APPLICATION_DESTROY):
+            return self.application_type_id == self.cost_mgmt_id
+        if self.event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
+            if self.value.get("authtype") not in AUTH_TYPES.values():
+                # if authtype is not one of the valid auth types, then ignore the message
+                LOG.debug(f"[msg_for_cost_mgmt] AUTH TYPE: {self.value.get('authtype')}")
+                return False
             sources_network = self.get_sources_client()
             return sources_network.get_application_type_is_cost_management(self.cost_mgmt_id)
-        return True  # TODO: I wonder if this should be false?
+        return False
 
     def get_sources_client(self):
         return SourcesHTTPClient(self.auth_header, self.source_id)
@@ -143,7 +143,7 @@ class KafkaMessageProcessor:
         sources_network = self.get_sources_client()
 
         try:
-            authentication = {"credentials": sources_network.get_credentials(source_type)}
+            authentication = {"credentials": sources_network.get_credentials(source_type, self.cost_mgmt_id)}
         except SourcesHTTPClientError as error:
             LOG.info(f"[save_credentials] authentication info not available for source_id: {self.source_id}")
             sources_network.set_source_status(error)
@@ -171,7 +171,7 @@ class KafkaMessageProcessor:
         sources_network = self.get_sources_client()
 
         try:
-            data_source = {"data_source": sources_network.get_data_source(source_type)}
+            data_source = {"data_source": sources_network.get_data_source(source_type, self.cost_mgmt_id)}
         except SourcesHTTPClientError as error:
             LOG.info(f"[save_billing_source] billing info not available for source_id: {self.source_id}")
             sources_network.set_source_status(error)
@@ -208,6 +208,7 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
         """Constructor for ApplicationMsgProcessor."""
         super().__init__(msg, event_type, cost_mgmt_id)
         self.source_id = int(self.value.get("source_id"))
+        self.application_type_id = int(self.value.get("application_type_id", -1))
 
     def process(self):
         """Process the message."""
@@ -273,32 +274,6 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
                     )
 
 
-class SourceMsgProcessor(KafkaMessageProcessor):
-    """Processor for Source events."""
-
-    def __init__(self, msg, event_type, cost_mgmt_id):
-        """Constructor for SourceMsgProcessor."""
-        super().__init__(msg, event_type, cost_mgmt_id)
-        self.source_id = int(self.value.get("id"))
-
-    def process(self):
-        """Process the message."""
-        # if self.event_type in (KAFKA_SOURCE_UPDATE,):  # TODO source.update events are currently ignored
-        #     if not storage.is_known_source(self.source_id):
-        #         LOG.info("[SourceMsgProcessor] update event for unknown source_id, skipping...")
-        #         return
-        #     updated = self.save_sources_details()
-        #     if updated:
-        #         LOG.info(f"[SourceMsgProcessor] source_id {self.source_id} updated")
-        #         storage.enqueue_source_create_or_update(self.source_id)
-        #     else:
-        #         LOG.info(f"[SourceMsgProcessor] source_id {self.source_id} not updated. No changes detected.")
-
-        # elif self.event_type in (KAFKA_SOURCE_DESTROY,):
-        if self.event_type in (KAFKA_SOURCE_DESTROY,):
-            storage.enqueue_source_delete(self.source_id, self.offset)
-
-
 def extract_from_header(headers, header_type):
     """Retrieve information from Kafka Headers."""
     if headers is None:
@@ -310,7 +285,7 @@ def extract_from_header(headers, header_type):
                     continue
                 else:
                     return item.decode("ascii")
-    return "unknown"
+    return None
 
 
 def create_msg_processor(msg, cost_mgmt_id):
@@ -322,7 +297,5 @@ def create_msg_processor(msg, cost_mgmt_id):
             return ApplicationMsgProcessor(msg, event_type, cost_mgmt_id)
         elif event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
             return AuthenticationMsgProcessor(msg, event_type, cost_mgmt_id)
-        elif event_type in (KAFKA_SOURCE_DESTROY,):  # KAFKA_SOURCE_UPDATE):
-            return SourceMsgProcessor(msg, event_type, cost_mgmt_id)
         else:
             LOG.debug(f"Other Message: {msg.value()}")

@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for report data."""
 import logging
@@ -29,6 +17,7 @@ from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 import koku.presto_database as kpdb
+from koku.database import execute_delete_sql as exec_del_sql
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
 from masu.database.koku_database_access import mini_transaction_delete
@@ -423,12 +412,12 @@ class ReportDBAccessorBase(KokuDBAccess):
 
     def add_partition(self, **partition_record):
         with transaction.atomic():
-            connection.set_schema(self.schema)
-            newpart, created = PartitionedTable.objects.get_or_create(
-                defaults=partition_record,
-                schema_name=partition_record["schema_name"],
-                table_name=partition_record["table_name"],
-            )
+            with schema_context(self.schema):
+                newpart, created = PartitionedTable.objects.get_or_create(
+                    defaults=partition_record,
+                    schema_name=partition_record["schema_name"],
+                    table_name=partition_record["table_name"],
+                )
         if created:
             LOG.info(f"Created a new partition for {newpart.partition_of_table_name} : {newpart.table_name}")
 
@@ -442,3 +431,20 @@ class ReportDBAccessorBase(KokuDBAccess):
             count, _ = mini_transaction_delete(select_query)
         msg = f"Deleted {count} records from {self.line_item_daily_summary_table}"
         LOG.info(msg)
+
+    def table_exists_trino(self, table_name):
+        """Check if table exists."""
+        table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
+        table = self._execute_presto_raw_sql_query(self.schema, table_check_sql)
+        if table:
+            return True
+        return False
+
+    def execute_delete_sql(self, query):
+        """
+        Detach a partition by marking the active columnm as False in the tracking table
+        Schema must be set before this function is called
+        Parameters:
+            query (QuerySet) : A valid django queryset
+        """
+        return exec_del_sql(query)

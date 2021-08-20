@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Models for shared reporting tables."""
 from django.db import models
@@ -38,6 +26,12 @@ class CostUsageReportManifest(models.Model):
     num_total_files = models.IntegerField()
     s3_csv_cleared = models.BooleanField(default=False, null=True)
     s3_parquet_cleared = models.BooleanField(default=False, null=True)
+    operator_version = models.TextField(null=True)
+    cluster_channel = models.TextField(null=True)
+    operator_certified = models.BooleanField(null=True)
+    operator_airgapped = models.BooleanField(null=True)
+    operator_errors = models.JSONField(default=dict, null=True)
+    cluster_id = models.TextField(null=True)
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
 
 

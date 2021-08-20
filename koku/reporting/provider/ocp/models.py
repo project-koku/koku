@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Models for OCP cost entry tables."""
 from decimal import Decimal
@@ -28,6 +16,13 @@ PRESTO_LINE_ITEM_TABLE_MAP = {
     "storage_usage": "openshift_storage_usage_line_items",
     "node_labels": "openshift_node_labels_line_items",
     "namespace_labels": "openshift_namespace_labels_line_items",
+}
+
+PRESTO_LINE_ITEM_TABLE_DAILY_MAP = {
+    "pod_usage": "openshift_pod_usage_line_items_daily",
+    "storage_usage": "openshift_storage_usage_line_items_daily",
+    "node_labels": "openshift_node_labels_line_items_daily",
+    "namespace_labels": "openshift_namespace_labels_line_items_daily",
 }
 
 VIEWS = (
@@ -95,9 +90,9 @@ class OCPUsageLineItem(models.Model):
 
     id = models.BigAutoField(primary_key=True)
 
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, db_constraint=False)
 
-    report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE)
+    report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE, db_constraint=False)
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
@@ -208,12 +203,17 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     """
 
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
     MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"), ("PVC", "PVC"))
     MONTHLY_COST_RATE_MAP = {
         "Node": "node_cost_per_month",
         "Cluster": "cluster_cost_per_month",
         "PVC": "pvc_cost_per_month",
     }
+    DISTRIBUTION_COST_TYPES = ["cpu", "memory", "pvc"]
 
     class Meta:
         """Meta for OCPUsageLineItemDailySummary."""
@@ -227,8 +227,6 @@ class OCPUsageLineItemDailySummary(models.Model):
             models.Index(fields=["data_source"], name="summary_data_source_idx"),
             GinIndex(fields=["pod_labels"], name="pod_labels_idx"),
         ]
-
-        managed = False
 
     uuid = models.UUIDField(primary_key=True)
 
@@ -311,10 +309,18 @@ class OCPUsageLineItemDailySummary(models.Model):
     infrastructure_project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_monthly_cost_json = JSONField(null=True)
+
+    infrastructure_project_monthly_cost = JSONField(null=True)
 
     supplementary_usage_cost = JSONField(null=True)
 
     supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    supplementary_monthly_cost_json = JSONField(null=True)
+
+    infrastructure_project_monthly_cost = JSONField(null=True)
+
+    supplementary_project_monthly_cost = JSONField(null=True)
 
     monthly_cost_type = models.TextField(null=True, choices=MONTHLY_COST_TYPES)
 
@@ -367,9 +373,9 @@ class OCPStorageLineItem(models.Model):
 
     id = models.BigAutoField(primary_key=True)
 
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, db_constraint=False)
 
-    report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE)
+    report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE, db_constraint=False)
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
@@ -476,9 +482,9 @@ class OCPNodeLabelLineItem(models.Model):
 
     id = models.BigAutoField(primary_key=True)
 
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, db_constraint=False)
 
-    report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE)
+    report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE, db_constraint=False)
 
     # Kubernetes objects by convention have a max name length of 253 chars
     node = models.CharField(max_length=253, null=True)
@@ -554,6 +560,62 @@ class OCPEnabledTagKeys(models.Model):
     key = models.CharField(max_length=253, unique=True)
 
 
+class OCPCluster(models.Model):
+    """All clusters for a tenant."""
+
+    class Meta:
+        """Meta for OCPCluster."""
+
+        db_table = "reporting_ocp_clusters"
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    cluster_id = models.TextField()
+    cluster_alias = models.TextField(null=True)
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
+
+
+class OCPNode(models.Model):
+    """All nodes for a cluster."""
+
+    class Meta:
+        """Meta for OCPNode."""
+
+        db_table = "reporting_ocp_nodes"
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    node = models.TextField()
+    resource_id = models.TextField(null=True)
+    node_capacity_cpu_cores = models.DecimalField(max_digits=18, decimal_places=2, null=True)
+    cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
+
+
+class OCPPVC(models.Model):
+    """All PVCs for a cluster."""
+
+    class Meta:
+        """Meta for OCPPVC."""
+
+        db_table = "reporting_ocp_pvcs"
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    persistent_volume_claim = models.TextField()
+    persistent_volume = models.TextField()
+    cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
+
+
+class OCPProject(models.Model):
+    """All Projects for a cluster."""
+
+    class Meta:
+        """Meta for OCPProject."""
+
+        db_table = "reporting_ocp_projects"
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    project = models.TextField()
+    cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
+
+
 class OCPCostSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
 
@@ -584,10 +646,12 @@ class OCPCostSummary(models.Model):
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_monthly_cost_json = JSONField(null=True)
 
     supplementary_usage_cost = JSONField(null=True)
 
     supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    supplementary_monthly_cost_json = JSONField(null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -624,13 +688,17 @@ class OCPCostSummaryByProject(models.Model):
 
     infrastructure_project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     supplementary_usage_cost = JSONField(null=True)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+    infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    infrastructure_project_monthly_cost = JSONField(null=True)
+
+    supplementary_project_monthly_cost = JSONField(null=True)
 
 
 class OCPCostSummaryByNode(models.Model):
@@ -665,10 +733,12 @@ class OCPCostSummaryByNode(models.Model):
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_monthly_cost_json = JSONField(null=True)
 
     supplementary_usage_cost = JSONField(null=True)
 
     supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    supplementary_monthly_cost_json = JSONField(null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -725,6 +795,14 @@ class OCPPodSummary(models.Model):
     cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+
+    infrastructure_monthly_cost = JSONField(null=True)
+
+    supplementary_monthly_cost = JSONField(null=True)
+
+    infrastructure_monthly_cost_json = JSONField(null=True)
+
+    supplementary_monthly_cost_json = JSONField(null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -786,6 +864,14 @@ class OCPPodSummaryByProject(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
+    infrastructure_monthly_cost = JSONField(null=True)
+
+    supplementary_monthly_cost = JSONField(null=True)
+
+    infrastructure_monthly_cost_json = JSONField(null=True)
+
+    supplementary_monthly_cost_json = JSONField(null=True)
+
 
 class OCPVolumeSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -829,6 +915,14 @@ class OCPVolumeSummary(models.Model):
     volume_request_storage_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
     persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+
+    infrastructure_monthly_cost = JSONField(null=True)
+
+    supplementary_monthly_cost = JSONField(null=True)
+
+    infrastructure_monthly_cost_json = JSONField(null=True)
+
+    supplementary_monthly_cost_json = JSONField(null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -879,3 +973,11 @@ class OCPVolumeSummaryByProject(models.Model):
     persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    infrastructure_monthly_cost = JSONField(null=True)
+
+    supplementary_monthly_cost = JSONField(null=True)
+
+    infrastructure_monthly_cost_json = JSONField(null=True)
+
+    supplementary_monthly_cost_json = JSONField(null=True)

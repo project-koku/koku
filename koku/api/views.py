@@ -1,22 +1,11 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """API views for import organization"""
 # flake8: noqa
 from api.cloud_accounts.views import cloud_accounts
+from api.currency.view import get_currency
 from api.dataexport.views import DataExportRequestViewSet
 from api.forecast.views import AWSCostForecastView
 from api.forecast.views import AzureCostForecastView
@@ -52,10 +41,16 @@ from api.report.ocp.view import OCPMemoryView
 from api.report.ocp.view import OCPVolumeView
 from api.resource_types.aws_accounts.view import AWSAccountView
 from api.resource_types.aws_org_unit.view import AWSOrganizationalUnitView
+from api.resource_types.aws_regions.view import AWSAccountRegionView
+from api.resource_types.aws_services.view import AWSServiceView
+from api.resource_types.azure_regions.view import AzureRegionView
+from api.resource_types.azure_services.view import AzureServiceView
 from api.resource_types.azure_subscription_guid.view import AzureSubscriptionGuidView
 from api.resource_types.cost_models.view import CostModelResourceTypesView
 from api.resource_types.gcp_accounts.view import GCPAccountView
 from api.resource_types.gcp_projects.view import GCPProjectsView
+from api.resource_types.gcp_regions.view import GCPRegionView
+from api.resource_types.gcp_services.view import GCPServiceView
 from api.resource_types.openshift_clusters.view import OCPClustersView
 from api.resource_types.openshift_nodes.view import OCPNodesView
 from api.resource_types.openshift_projects.view import OCPProjectsView

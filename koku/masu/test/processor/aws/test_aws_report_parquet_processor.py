@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the AWSReportParquetProcessor."""
 from unittest.mock import patch
@@ -25,7 +13,9 @@ from masu.test import MasuTestCase
 from reporting.models import PartitionedTable
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
+from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
+from reporting.provider.aws.models import PRESTO_OCP_ON_AWS_DAILY_TABLE
 
 
 class AWSReportProcessorParquetTest(MasuTestCase):
@@ -46,6 +36,18 @@ class AWSReportProcessorParquetTest(MasuTestCase):
     def test_aws_table_name(self):
         """Test the AWS table name generation."""
         self.assertEqual(self.processor._table_name, PRESTO_LINE_ITEM_TABLE)
+
+        s3_path = "/s3/path/daily"
+        processor = AWSReportParquetProcessor(
+            self.manifest_id, self.account, s3_path, self.aws_provider_uuid, self.local_parquet
+        )
+        self.assertEqual(processor._table_name, PRESTO_LINE_ITEM_DAILY_TABLE)
+
+        s3_path = "/s3/path/openshift/daily"
+        processor = AWSReportParquetProcessor(
+            self.manifest_id, self.account, s3_path, self.aws_provider_uuid, self.local_parquet
+        )
+        self.assertEqual(processor._table_name, PRESTO_OCP_ON_AWS_DAILY_TABLE)
 
     def test_postgres_summary_table(self):
         """Test that the correct table is returned."""

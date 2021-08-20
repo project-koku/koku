@@ -1,18 +1,6 @@
 #
-# Copyright 2019 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Models for Azure cost and usage entry tables."""
 from uuid import uuid4
@@ -23,6 +11,8 @@ from django.db.models import JSONField
 
 
 PRESTO_LINE_ITEM_TABLE = "azure_line_items"
+PRESTO_LINE_ITEM_DAILY_TABLE = PRESTO_LINE_ITEM_TABLE
+PRESTO_OCP_ON_AZURE_DAILY_TABLE = "azure_openshift_daily"
 
 PRESTO_COLUMNS = [
     "billingperiodstartdate",
@@ -192,10 +182,12 @@ class AzureCostEntryLineItemDailySummary(models.Model):
 
     """
 
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
     class Meta:
         """Meta for AzureCostEntryLineItemDailySummary."""
-
-        managed = False
 
         db_table = "reporting_azurecostentrylineitem_daily_summary"
         indexes = [models.Index(fields=["usage_start"], name="ix_azurecstentrydlysumm_start")]

@@ -1,18 +1,6 @@
 #
-# Copyright 2019 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Sources Integration Service."""
 import itertools
@@ -295,7 +283,7 @@ def listen_for_messages(kaf_msg, consumer, application_source_id):  # noqa: C901
     try:
         try:
             msg_processor = create_msg_processor(kaf_msg, application_source_id)
-            if msg_processor and msg_processor.source_id:
+            if msg_processor and msg_processor.source_id and msg_processor.auth_header:
                 tp = TopicPartition(Config.SOURCES_TOPIC, msg_processor.partition, msg_processor.offset)
                 if not msg_processor.msg_for_cost_mgmt():
                     LOG.info("Event not associated with cost-management.")
@@ -395,8 +383,10 @@ def sources_integration_thread():  # pragma: no cover
             count += 1
             LOG.info("Reattempting connection to Sources REST API.")
         except SourceNotFoundError as err:
-            LOG.error(f"Cost Management application not found: {err}. Exiting...")
-            sys.exit(1)
+            LOG.error(f"Cost Management application not found: {err}")
+            backoff(count)
+            count += 1
+            LOG.info("Reattempting connection to Sources REST API.")
         except KeyboardInterrupt:
             sys.exit(0)
 

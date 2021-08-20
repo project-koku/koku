@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportProcessor."""
 import datetime
@@ -71,6 +59,9 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.updater = OCPReportParquetSummaryUpdater(self.schema, self.provider, self.manifest)
 
     @patch(
+        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.populate_openshift_cluster_information_tables"  # noqa: E501
+    )
+    @patch(
         "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range"  # noqa: E501
     )
     @patch(
@@ -84,7 +75,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_report_parquet_summary_updater."
         "OCPReportDBAccessor.populate_line_item_daily_summary_table_presto"
     )
-    def test_update_summary_tables(self, mock_sum, mock_tag_sum, mock_vol_tag_sum, mock_delete):
+    def test_update_summary_tables(self, mock_sum, mock_tag_sum, mock_vol_tag_sum, mock_delete, mock_cluster_populate):
         """Test that summary tables are run for a full month when no report period is found."""
         start_date = self.dh.today
         end_date = start_date

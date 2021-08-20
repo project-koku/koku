@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the ReportParquetProcessorBase."""
 import shutil
@@ -54,16 +42,21 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         self.local_parquet = self.output_file
         self.date_columns = ["date1", "date2"]
         self.numeric_columns = ["numeric1", "numeric2"]
+        self.boolean_columns = ["bool_col"]
         self.other_columns = ["other"]
         self.table_name = "test_table"
+        self.column_types = {
+            "numeric_columns": self.numeric_columns,
+            "date_columns": self.date_columns,
+            "boolean_columns": self.boolean_columns,
+        }
         self.processor = ReportParquetProcessorBase(
             self.manifest_id,
             self.account,
             self.s3_path,
             self.provider_uuid,
             self.local_parquet,
-            self.numeric_columns,
-            self.date_columns,
+            self.column_types,
             self.table_name,
         )
 

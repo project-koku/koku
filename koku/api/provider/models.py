@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Models for provider management."""
 import logging
@@ -21,10 +9,14 @@ from uuid import uuid4
 from django.conf import settings
 from django.core.validators import MaxLengthValidator
 from django.db import models
+from django.db import router
 from django.db import transaction
 from django.db.models import JSONField
+from django.db.models.signals import post_delete
+from tenant_schemas.utils import schema_context
 
 from api.model_utils import RunTextFieldValidators
+from koku.database import cascade_delete
 
 LOG = logging.getLogger(__name__)
 
@@ -118,6 +110,7 @@ class Provider(models.Model):
     # throughout the codebase
     PROVIDER_LIST = [choice[0] for choice in PROVIDER_CHOICES]
     CLOUD_PROVIDER_LIST = [choice[0] for choice in CLOUD_PROVIDER_CHOICES]
+    OPENSHIFT_ON_CLOUD_PROVIDER_LIST = [PROVIDER_AWS, PROVIDER_AWS_LOCAL, PROVIDER_AZURE, PROVIDER_AZURE_LOCAL]
 
     uuid = models.UUIDField(default=uuid4, primary_key=True)
     name = models.CharField(max_length=256, null=False)
@@ -137,6 +130,7 @@ class Provider(models.Model):
     data_updated_timestamp = models.DateTimeField(null=True)
 
     active = models.BooleanField(default=True)
+    paused = models.BooleanField(default=False)
 
     # This field applies to OpenShift providers and identifies
     # which (if any) cloud provider the cluster is on
@@ -171,6 +165,17 @@ class Provider(models.Model):
             LOG.info(f"Starting data ingest task for Provider {self.uuid}")
             # Start check_report_updates task after Provider has been committed.
             transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid))
+
+    def delete(self, *args, **kwargs):
+        if self.customer:
+            using = router.db_for_write(self.__class__, isinstance=self)
+            with schema_context(self.customer.schema_name):
+                LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
+                cascade_delete(self.__class__, self.__class__.objects.filter(pk=self.pk))
+                post_delete.send(sender=self.__class__, instance=self, using=using)
+        else:
+            LOG.warning("Cannot customer link cannot be found! Using ORM delete!")
+            super().delete()
 
 
 class Sources(RunTextFieldValidators, models.Model):
@@ -216,6 +221,9 @@ class Sources(RunTextFieldValidators, models.Model):
 
     # Unique identifier for koku Provider
     koku_uuid = models.TextField(null=True, unique=True)
+
+    # This field indicates if the source is paused.
+    paused = models.BooleanField(default=False)
 
     # When source has been deleted on Platform-Sources this is True indicating it hasn't been
     # removed on the Koku side yet.  Entry is removed entirely once Koku-Provider was successfully

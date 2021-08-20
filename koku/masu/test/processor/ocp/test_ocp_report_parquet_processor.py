@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportParquetProcessor."""
 import datetime
@@ -24,6 +12,7 @@ from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProc
 from masu.test import MasuTestCase
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_DAILY_MAP
 from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_MAP
 
 
@@ -47,6 +36,12 @@ class OCPReportProcessorParquetTest(MasuTestCase):
     def test_ocp_table_name(self):
         """Test the OCP table name generation."""
         self.assertEqual(self.processor._table_name, PRESTO_LINE_ITEM_TABLE_MAP[self.report_type])
+
+        s3_path = "/s3/path/daily"
+        processor = OCPReportParquetProcessor(
+            self.manifest_id, self.account, s3_path, self.provider_uuid, self.local_parquet, self.report_type
+        )
+        self.assertEqual(processor._table_name, PRESTO_LINE_ITEM_TABLE_DAILY_MAP[self.report_type])
 
     def test_postgres_summary_table(self):
         """Test that the correct table is returned."""

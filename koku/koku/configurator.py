@@ -1,18 +1,6 @@
 #
-# Copyright 2021 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """
 Handler module for gathering configuration data.
@@ -22,7 +10,7 @@ from .env import ENVIRONMENT
 
 CLOWDER_ENABLED = ENVIRONMENT.bool("CLOWDER_ENABLED", default=False)
 if CLOWDER_ENABLED:
-    from app_common_python import LoadedConfig, KafkaTopics, DependencyEndpoints
+    from app_common_python import ObjectBuckets, LoadedConfig, KafkaTopics, DependencyEndpoints
 
 
 class Configurator:
@@ -79,6 +67,11 @@ class Configurator:
         pass
 
     @staticmethod
+    def get_object_store_endpoint():
+        """Obtain object store endpoint."""
+        pass
+
+    @staticmethod
     def get_object_store_host():
         """Obtain object store host."""
         pass
@@ -94,17 +87,17 @@ class Configurator:
         pass
 
     @staticmethod
-    def get_object_store_access_key():
+    def get_object_store_access_key(requestedName: str = ""):
         """Obtain object store access key."""
         pass
 
     @staticmethod
-    def get_object_store_secret_key():
+    def get_object_store_secret_key(requestedName: str = ""):
         """Obtain object store secret key."""
         pass
 
     @staticmethod
-    def get_object_store_bucket():
+    def get_object_store_bucket(requestedName: str = ""):
         """Obtain object store bucket."""
         pass
 
@@ -213,34 +206,45 @@ class EnvConfigurator(Configurator):
         return ENVIRONMENT.get_value("CW_LOG_GROUP", default="platform-dev")
 
     @staticmethod
+    def get_object_store_endpoint():
+        """Obtain object store endpoint."""
+        S3_ENDPOINT = ENVIRONMENT.get_value("S3_ENDPOINT", default="s3.us-east-1.amazonaws.com")
+        if not (S3_ENDPOINT.startswith("https://") or S3_ENDPOINT.startswith("http://")):
+            S3_ENDPOINT = "https://" + S3_ENDPOINT
+        return S3_ENDPOINT
+
+    @staticmethod
     def get_object_store_host():
         """Obtain object store host."""
-        return ENVIRONMENT.get_value("MINIO_ENDPOINT", default=None)
+        # return ENVIRONMENT.get_value("S3_HOST", default=None)
+        pass
 
     @staticmethod
     def get_object_store_port():
         """Obtain object store port."""
-        return ENVIRONMENT.get_value("MINIO_ENDPOINT_PORT", default=443)
+        # return ENVIRONMENT.get_value("S3_PORT", default=443)
+        pass
 
     @staticmethod
     def get_object_store_tls():
         """Obtain object store secret key."""
-        return ENVIRONMENT.bool("MINIO_SECURE", default=True)
+        # return ENVIRONMENT.bool("S3_SECURE", default=False)
+        pass
 
     @staticmethod
-    def get_object_store_access_key():
+    def get_object_store_access_key(requestedName: str = ""):
         """Obtain object store access key."""
-        return ENVIRONMENT.get_value("MINIO_ACCESS_KEY", default=None)
+        return ENVIRONMENT.get_value("S3_ACCESS_KEY", default=None)
 
     @staticmethod
-    def get_object_store_secret_key():
+    def get_object_store_secret_key(requestedName: str = ""):
         """Obtain object store secret key."""
-        return ENVIRONMENT.get_value("MINIO_SECRET_KEY", default=None)
+        return ENVIRONMENT.get_value("S3_SECRET", default=None)
 
     @staticmethod
-    def get_object_store_bucket():
+    def get_object_store_bucket(requestedName: str = ""):
         """Obtain object store bucket."""
-        return ENVIRONMENT.get_value("MINIO_BUCKET", default="open-marketplace")
+        return ENVIRONMENT.get_value("S3_BUCKET_NAME", default=requestedName)
 
     @staticmethod
     def get_database_name():
@@ -308,16 +312,16 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_in_memory_db_host():
         """Obtain in memory (redis) db host."""
-        # return LoadedConfig.inMemoryDb.hostname
+        return LoadedConfig.inMemoryDb.hostname
         # TODO: if we drop an elasticache instance or clowder supports more
         # than 1 elasticache instance, we can switch to using the inMemoryDb
-        return ENVIRONMENT.get_value("REDIS_HOST", default="redis")
+        # return ENVIRONMENT.get_value("REDIS_HOST", default="redis")
 
     @staticmethod
     def get_in_memory_db_port():
         """Obtain in memory (redis) db port."""
-        # return LoadedConfig.inMemoryDb.port
-        return ENVIRONMENT.get_value("REDIS_PORT", default="6379")
+        return LoadedConfig.inMemoryDb.port
+        # return ENVIRONMENT.get_value("REDIS_PORT", default="6379")
 
     @staticmethod
     def get_kafka_broker_host():
@@ -355,6 +359,19 @@ class ClowderConfigurator(Configurator):
         return LoadedConfig.logging.cloudwatch.logGroup
 
     @staticmethod
+    def get_object_store_endpoint():
+        """Obtain object store endpoint."""
+        S3_SECURE = CONFIGURATOR.get_object_store_tls()
+        S3_HOST = CONFIGURATOR.get_object_store_host()
+        S3_PORT = CONFIGURATOR.get_object_store_port()
+
+        S3_PREFIX = "https://" if S3_SECURE else "http://"
+        endpoint = f"{S3_PREFIX}{S3_HOST}"
+        if bool(S3_PORT):
+            endpoint += f":{S3_PORT}"
+        return endpoint
+
+    @staticmethod
     def get_object_store_host():
         """Obtain object store host."""
         return LoadedConfig.objectStore.hostname
@@ -376,23 +393,31 @@ class ClowderConfigurator(Configurator):
             return False
 
     @staticmethod
-    def get_object_store_access_key():
+    def get_object_store_access_key(requestedName: str = ""):
         """Obtain object store access key."""
+        if requestedName != "" and ObjectBuckets.get(requestedName):
+            return ObjectBuckets.get(requestedName).accessKey
+        if len(LoadedConfig.objectStore.buckets) > 0:
+            return LoadedConfig.objectStore.buckets[0].accessKey
         if LoadedConfig.objectStore.accessKey:
             return LoadedConfig.objectStore.accessKey
-        return LoadedConfig.objectStore.buckets[0].accessKey
 
     @staticmethod
-    def get_object_store_secret_key():
+    def get_object_store_secret_key(requestedName: str = ""):
         """Obtain object store secret key."""
+        if requestedName != "" and ObjectBuckets.get(requestedName):
+            return ObjectBuckets.get(requestedName).secretKey
+        if len(LoadedConfig.objectStore.buckets) > 0:
+            return LoadedConfig.objectStore.buckets[0].secretKey
         if LoadedConfig.objectStore.secretKey:
             return LoadedConfig.objectStore.secretKey
-        return LoadedConfig.objectStore.buckets[0].secretKey
 
     @staticmethod
-    def get_object_store_bucket():
+    def get_object_store_bucket(requestedName: str = ""):
         """Obtain object store bucket."""
-        return LoadedConfig.objectStore.buckets[0].name
+        if ObjectBuckets.get(requestedName):
+            return ObjectBuckets.get(requestedName).name
+        return requestedName
 
     @staticmethod
     def get_database_name():

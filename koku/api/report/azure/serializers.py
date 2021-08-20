@@ -1,18 +1,6 @@
 #
-# Copyright 2019 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Azure Report Serializers."""
 from pint.errors import UndefinedUnitError
@@ -41,12 +29,13 @@ class AzureGroupBySerializer(GroupSerializer):
 class AzureOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ("subscription_guid", "resource_location", "instance_type", "service_name")
+    _opfields = ("subscription_guid", "resource_location", "instance_type", "service_name", "date")
 
     subscription_guid = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     resource_location = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     instance_type = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     service_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    date = serializers.DateField(required=False)
 
 
 class AzureFilterSerializer(BaseFilterSerializer):

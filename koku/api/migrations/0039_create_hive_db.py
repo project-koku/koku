@@ -45,11 +45,12 @@ def create_hive_db(apps, schema_editor):
         select has_database_privilege(%s, %s, 'connect');
     """
 
-    with schema_editor.connection.connection.__class__(
-        "postgresql://{user}:{password}@{host}:{port}/{dbname}".format(
-            password=db_password, **schema_editor.connection.connection.get_dsn_parameters()
+    try:
+        conn = schema_editor.connection.connection.__class__(
+            "postgresql://{user}:{password}@{host}:{port}/{dbname}".format(
+                password=db_password, **schema_editor.connection.connection.get_dsn_parameters()
+            )
         )
-    ) as conn:
         conn.autocommit = True
         with conn.cursor() as cur:
             LOG.info(f"Creating role {rolname}.")
@@ -113,6 +114,9 @@ def create_hive_db(apps, schema_editor):
                 cur.execute(f"""revoke "{rolname}" from "{kokudbuser}"; """)
             except (ProgrammingError, InsufficientPrivilege) as e:
                 LOG.info(e)
+    finally:
+        if conn:
+            conn.close()
 
 
 class Migration(migrations.Migration):

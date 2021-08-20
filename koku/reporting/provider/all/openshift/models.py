@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Models for OCP on AWS tables."""
 from django.contrib.postgres.fields import ArrayField
@@ -116,11 +104,9 @@ class OCPAllCostLineItemDailySummary(models.Model):
     # It is used to divide cost evenly among projects
     shared_projects = models.IntegerField(null=False, default=1)
 
-    # A JSON dictionary of the project cost, keyed by project/namespace name
-    # See comment on unblended_cost for project cost explanation
-    project_costs = JSONField(null=True)
-
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    tags_hash = models.TextField(max_length=512)
 
 
 # Materialized Views for UI Reporting

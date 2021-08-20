@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Updates report summary tables in the database with charge information."""
 import logging
@@ -57,6 +45,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._supplementary_rates = cost_model_accessor.supplementary_rates
             self._tag_supplementary_rates = cost_model_accessor.tag_supplementary_rates
             self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
+            self._distribution = cost_model_accessor.distribution
 
     @staticmethod
     def _normalize_tier(input_tier):
@@ -209,7 +198,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                     )
 
                     report_accessor.populate_monthly_cost(
-                        cost_type, rate_type, rate, start_date, end_date, self._cluster_id, self._cluster_alias
+                        cost_type,
+                        rate_type,
+                        rate,
+                        start_date,
+                        end_date,
+                        self._cluster_id,
+                        self._cluster_alias,
+                        self._distribution,
                     )
 
         except OCPCostModelCostUpdaterError as error:
@@ -250,7 +246,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         )
 
                         report_accessor.populate_monthly_tag_cost(
-                            cost_type, rate_type, rate, start_date, end_date, self._cluster_id, self._cluster_alias
+                            cost_type,
+                            rate_type,
+                            rate,
+                            start_date,
+                            end_date,
+                            self._cluster_id,
+                            self._cluster_alias,
+                            self._distribution,
                         )
 
         except OCPCostModelCostUpdaterError as error:
@@ -291,7 +294,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         )
 
                         report_accessor.populate_monthly_tag_default_cost(
-                            cost_type, rate_type, rate, start_date, end_date, self._cluster_id, self._cluster_alias
+                            cost_type,
+                            rate_type,
+                            rate,
+                            start_date,
+                            end_date,
+                            self._cluster_id,
+                            self._cluster_alias,
+                            self._distribution,
                         )
 
         except OCPCostModelCostUpdaterError as error:
@@ -357,8 +367,8 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._update_monthly_tag_based_default_cost(start_date, end_date)
 
         with OCPReportDBAccessor(self._schema) as accessor:
-            report_periods = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
-            with schema_context(self._schema):
-                for period in report_periods:
-                    period.derived_cost_datetime = DateAccessor().today_with_timezone("UTC")
-                    period.save()
+            report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
+            if report_period:
+                with schema_context(self._schema):
+                    report_period.derived_cost_datetime = DateAccessor().today_with_timezone("UTC")
+                    report_period.save()

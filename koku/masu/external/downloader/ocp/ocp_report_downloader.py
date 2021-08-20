@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """OCP Report Downloader."""
 import datetime
@@ -27,6 +15,7 @@ from django.conf import settings
 from api.common import log_json
 from api.provider.models import Provider
 from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
@@ -72,12 +61,12 @@ def divide_csv_daily(file_path, filename):
     return daily_files
 
 
-def create_daily_archives(request_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
     """
     Create daily CSVs from incoming report and archive to S3.
 
     Args:
-        request_id (str): The request id
+        tracing_id (str): The tracing id
         account (str): The account number
         provider_uuid (str): The uuid of a provider
         filename (str): The OCP file name
@@ -89,14 +78,17 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
     daily_file_names = []
 
     if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, Provider.PROVIDER_OCP, account):
-        daily_files = divide_csv_daily(filepath, filename)
+        if context.get("version"):
+            daily_files = [{"filepath": filepath, "filename": filename}]
+        else:
+            daily_files = divide_csv_daily(filepath, filename)
         for daily_file in daily_files:
             # Push to S3
             s3_csv_path = get_path_prefix(
                 account, Provider.PROVIDER_OCP, provider_uuid, start_date, Config.CSV_DATA_TYPE
             )
             copy_local_report_file_to_s3_bucket(
-                request_id,
+                tracing_id,
                 s3_csv_path,
                 daily_file.get("filepath"),
                 daily_file.get("filename"),
@@ -106,6 +98,57 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
             )
             daily_file_names.append(daily_file.get("filepath"))
     return daily_file_names
+
+
+def process_cr(report_meta):
+    """
+    Process the manifest info.
+
+    Args:
+        report_meta (Dict): The metadata from the manifest
+
+    Returns:
+        manifest_info (Dict): Dictionary containing the following:
+            airgapped: (Bool or None)
+            version: (str or None)
+            certified: (Bool or None)
+            channel: (str or None)
+            errors: (Dict or None)
+    """
+    LOG.info(log_json(report_meta.get("tracing_id"), "Processing the manifest"))
+    operator_versions = {
+        "f73a992e7b2fc19028b31c7fb87963ae19bba251": "koku-metrics-operator:v0.9.8",
+        "fd764dcd7e9b993025f3e05f7cd674bb32fad3be": "costmanagement-metrics-operator:1.0.0",
+        "d37e6d6fd90d65b0d6794347f5fe00a472ce9d33": "koku-metrics-operator:v0.9.7",
+        "1019682a6aa1eeb7533724b07d98cfb54dbe0e94": "koku-metrics-operator:v0.9.6",
+        "513e7dffddb6ecc090b9e8f20a2fba2fe8ec6053": "koku-metrics-operator:v0.9.5",
+        "eaef8ea323b3531fa9513970078a55758afea665": "koku-metrics-operator:v0.9.4",
+        "4f1cc5580da20a11e6dfba50d04d8ae50f2e5fa5": "koku-metrics-operator:v0.9.2",
+        "0419bb957f5cdfade31e26c0f03b755528ec0d7f": "koku-metrics-operator:v0.9.1",
+        "bfdc1e54e104c2a6c8bf830ab135cf56a97f41d2": "koku-metrics-operator:v0.9.0",
+    }
+    manifest_info = {
+        "operator_airgapped": None,
+        "operator_version": operator_versions.get(report_meta.get("version"), report_meta.get("version")),
+        "operator_certified": None,
+        "cluster_channel": None,
+        "cluster_id": report_meta.get("cluster_id"),
+        "operator_errors": None,
+    }
+    manifest_info["operator_certified"] = report_meta.get("certified")
+    cr_status = report_meta.get("cr_status", None)
+    if cr_status:
+        potential_errors = ["authentication", "packaging", "upload", "prometheus", "source"]
+        errors = {}
+        for case in potential_errors:
+            case_info = cr_status.get(case, {})
+            if case_info.get("error"):
+                errors[case + "_error"] = case_info.get("error")
+        manifest_info["operator_errors"] = errors or None
+        manifest_info["cluster_channel"] = cr_status.get("clusterVersion")
+        manifest_info["operator_airgapped"] = not cr_status.get("upload", {}).get("upload")
+
+    return manifest_info
 
 
 class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
@@ -135,13 +178,15 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         else:
             self.cluster_id = credentials
         self.context["cluster_id"] = self.cluster_id
+        self.manifest = None
 
     def _get_manifest(self, date_time):
         dates = utils.month_date_range(date_time)
         directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
         msg = f"Looking for manifest at {directory}"
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg, self.context))
         report_meta = utils.get_report_details(directory)
+        self.context["version"] = report_meta.get("version")
         return report_meta
 
     def get_manifest_context_for_date(self, date):
@@ -193,10 +238,10 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             os.remove(manifest_path)
             msg = f"Deleted manifest file at {directory}"
-            LOG.debug(log_json(self.request_id, msg, self.context))
+            LOG.debug(log_json(self.tracing_id, msg, self.context))
         except OSError:
             msg = f"Could not delete manifest file at {directory}"
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg, self.context))
 
         return None
 
@@ -213,12 +258,12 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         dates = utils.month_date_range(date_time)
         msg = f"Looking for cluster {self.cluster_id} report for date {str(dates)}"
-        LOG.debug(log_json(self.request_id, msg, self.context))
+        LOG.debug(log_json(self.tracing_id, msg, self.context))
         directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
 
         manifest = self._get_manifest(date_time)
         msg = f"manifest found: {str(manifest)}"
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg, self.context))
 
         reports = []
         for file in manifest.get("files", []):
@@ -238,6 +283,9 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (String): The path and file name of the saved file
 
         """
+        if not self.manifest:
+            self.manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
+        self.context["version"] = self.manifest.operator_version
         local_filename = utils.get_local_file_name(key)
 
         directory_path = f"{DATA_DIR}/{self.customer_name}/ocp/{self.cluster_id}"
@@ -252,12 +300,12 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         file_creation_date = None
         if ocp_etag != stored_etag or not os.path.isfile(full_file_path):
             msg = f"Downloading {key} to {full_file_path}"
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg, self.context))
             shutil.move(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
         file_names = create_daily_archives(
-            self.request_id,
+            self.tracing_id,
             self.account,
             self._provider_uuid,
             local_filename,
@@ -282,5 +330,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         billing_start = datetime.datetime.strptime(billing_str, "%Y%m%d")
         manifest_timestamp = manifest.get("date")
         num_of_files = len(manifest.get("files", []))
-
-        return self._process_manifest_db_record(assembly_id, billing_start, num_of_files, manifest_timestamp)
+        manifest_info = process_cr(manifest)
+        return self._process_manifest_db_record(
+            assembly_id, billing_start, num_of_files, manifest_timestamp, **manifest_info
+        )

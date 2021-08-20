@@ -1,26 +1,16 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the ReportProcessor object."""
 from unittest.mock import patch
+from unittest.mock import PropertyMock
 
 from django.test import override_settings
 
 from api.models import Provider
 from masu.exceptions import MasuProcessingError
+from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 from masu.processor.report_processor import ReportProcessor
 from masu.processor.report_processor import ReportProcessorError
@@ -132,9 +122,13 @@ class ReportProcessorTest(MasuTestCase):
                 manifest_id=None,
             )
 
-    @patch("masu.processor.aws.aws_report_processor.AWSReportProcessor.process", return_value=None)
-    def test_aws_process(self, fake_process):
+    @patch("masu.processor.report_processor.ReportProcessor.trino_enabled", new_callable=PropertyMock)
+    @patch("masu.processor.report_processor.ParquetReportProcessor.process", return_value=(1, 1))
+    @patch("masu.processor.report_processor.OCPCloudParquetReportProcessor.process", return_value=2)
+    @patch("masu.processor.report_processor.AWSReportProcessor.process", return_value=1)
+    def test_aws_process(self, mock_process, mock_ocp_cloud_process, mock_parquet_process, mock_trino_enabled):
         """Test to process for AWS."""
+        mock_trino_enabled.return_value = True
         processor = ReportProcessor(
             schema_name=self.schema,
             report_path="/my/report/file",
@@ -143,10 +137,27 @@ class ReportProcessorTest(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
-        try:
-            processor.process()
-        except Exception:
-            self.fail("unexpected error")
+        processor.process()
+        mock_process.assert_not_called()
+        mock_parquet_process.assert_called()
+        mock_ocp_cloud_process.assert_called()
+
+        mock_trino_enabled.reset_mock()
+        mock_parquet_process.reset_mock()
+        mock_ocp_cloud_process.reset_mock()
+        mock_trino_enabled.return_value = False
+        processor = ReportProcessor(
+            schema_name=self.schema,
+            report_path="/my/report/file",
+            compression="GZIP",
+            provider=Provider.PROVIDER_AWS,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=None,
+        )
+        processor.process()
+        mock_process.assert_called()
+        mock_parquet_process.assert_not_called()
+        mock_ocp_cloud_process.assert_not_called()
 
     @patch("masu.processor.aws.aws_report_processor.AWSReportProcessor.process", side_effect=MasuProcessingError)
     def test_aws_process_error(self, fake_process):
@@ -208,3 +219,33 @@ class ReportProcessorTest(MasuTestCase):
             context={"request_id": 1},
         )
         self.assertIsInstance(processor._processor, ParquetReportProcessor)
+
+    @patch("masu.processor.report_processor.ReportProcessor.trino_enabled", new_callable=PropertyMock)
+    def test_ocp_on_cloud_processor(self, mock_trino_enabled):
+        """Test that we return the right class."""
+        mock_trino_enabled.return_value = True
+
+        processor = ReportProcessor(
+            schema_name=self.schema,
+            report_path="/my/report/file",
+            compression="GZIP",
+            provider=Provider.PROVIDER_AWS,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=None,
+            context={"request_id": 1},
+        )
+        self.assertIsInstance(processor.ocp_on_cloud_processor, OCPCloudParquetReportProcessor)
+
+        mock_trino_enabled.reset_mock()
+        mock_trino_enabled.return_value = False
+
+        processor = ReportProcessor(
+            schema_name=self.schema,
+            report_path="/my/report/file",
+            compression="GZIP",
+            provider=Provider.PROVIDER_AWS,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=None,
+            context={"request_id": 1},
+        )
+        self.assertIsNone(processor.ocp_on_cloud_processor)

@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Query Handling for Reports."""
 import copy
@@ -84,7 +72,7 @@ class ReportQueryHandler(QueryHandler):
         super().__init__(parameters)
 
         self._tag_keys = parameters.tag_keys
-
+        self._report_type = parameters.report_type
         self._delta = parameters.delta
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
@@ -117,7 +105,7 @@ class ReportQueryHandler(QueryHandler):
     def query_table(self):
         """Return the database table or view to query against."""
         query_table = self._mapper.query_table
-        report_type = self.parameters.report_type
+        report_type = self._report_type
         report_group = "default"
 
         if self.provider in (
@@ -199,6 +187,7 @@ class ReportQueryHandler(QueryHandler):
         """
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
+        access_filters = QueryFilterCollection()
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
@@ -216,7 +205,8 @@ class ReportQueryHandler(QueryHandler):
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
             if access:
-                self.set_access_filters(access, filt, filters)
+                access_filt = copy.deepcopy(filt)
+                self.set_access_filters(access, access_filt, access_filters)
 
         # Update filters with tag filters
         filters = self._set_tag_filters(filters)
@@ -229,6 +219,9 @@ class ReportQueryHandler(QueryHandler):
         multi_field_or_composed_filters = self._set_or_filters()
         composed_filters = filters.compose()
         composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        if access_filters:
+            composed_access_filters = access_filters.compose()
+            composed_filters = composed_filters & composed_access_filters
         if multi_field_or_composed_filters:
             composed_filters = composed_filters & multi_field_or_composed_filters
         LOG.debug(f"_get_search_filter: {composed_filters}")
@@ -663,6 +656,7 @@ class ReportQueryHandler(QueryHandler):
                     key=lambda entry: (bool(re.match(r"other*", entry[field].lower())), entry[field].lower()),
                     reverse=reverse,
                 )
+
         return sorted_data
 
     def get_tag_order_by(self, tag):
@@ -721,7 +715,7 @@ class ReportQueryHandler(QueryHandler):
             rank_value = f"no-{group_by_value[0]}"
         return rank_value
 
-    def _group_by_ranks(self, query, data):
+    def _group_by_ranks(self, query, data):  # noqa: C901
         """Handle grouping data by filter limit."""
         group_by_value = self._get_group_by()
         gb = group_by_value if group_by_value else ["date"]
@@ -737,6 +731,14 @@ class ReportQueryHandler(QueryHandler):
             else:
                 rank_annotations = {self._delta: self.report_annotations[self._delta]}
                 rank_orders.append(getattr(F(self._delta), self.order_direction)())
+        elif self._limit and "offset" in self.parameters.get("filter", {}) and self.parameters.get("order_by"):
+            if self.report_annotations.get(self.order_field):
+                rank_annotations = {self.order_field: self.report_annotations.get(self.order_field)}
+            # AWS is special and account alias is a foreign key field so special_rank was annotated on the query
+            if self.order_field == "account_alias":
+                rank_orders.append(getattr(F("special_rank"), self.order_direction)())
+            else:
+                rank_orders.append(getattr(F(self.order_field), self.order_direction)())
         else:
             for key, val in self.default_ordering.items():
                 order_field, order_direction = key, val
@@ -763,7 +765,8 @@ class ReportQueryHandler(QueryHandler):
         for rank in ranks:
             rank_value = rank.get(group_by_value[0])
             rank_value = self.check_missing_rank_value(rank_value)
-            rankings.insert((rank.get("rank") - 1), rank_value)
+            if rank_value not in rankings:
+                rankings.append(rank_value)
 
         for query_return in data:
             query_return = self._apply_group_null_label(query_return, gb)
@@ -879,6 +882,13 @@ class ReportQueryHandler(QueryHandler):
 
             if "cluster" in group_by:
                 other["cluster_alias"] = others_label
+                clusters_list = []
+                source_uuids_list = []
+                for entry in others_list:
+                    clusters_list.extend(entry.get("clusters", []))
+                    source_uuids_list.extend(entry.get("source_uuid", []))
+                other["clusters"] = list(set(clusters_list))
+                other["source_uuid"] = list(set(source_uuids_list))
                 exclusions = []
             else:
                 # delete these labels from the Others category if we're not

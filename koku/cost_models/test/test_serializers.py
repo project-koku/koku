@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the Cost Model serializers."""
 import logging
@@ -687,3 +675,28 @@ class CostModelSerializerTest(IamTestCase):
             serializer = CostModelSerializer(data=self.basic_model)
             with self.assertRaises(serializers.ValidationError):
                 serializer.validate_source_uuids([uuid4()])
+
+    def test_distribution_choices_added_successfully(self):
+        """Test that a source type is valid if it has markup."""
+        valid_choices = ["cpu", "memory"]
+        for good_input in valid_choices:
+            self.ocp_data["distribution"] = good_input
+            self.assertEqual(self.ocp_data["distribution"], good_input)
+            with tenant_context(self.tenant):
+                instance = None
+                serializer = CostModelSerializer(data=self.ocp_data)
+                if serializer.is_valid(raise_exception=True):
+                    instance = serializer.save()
+                self.assertIsNotNone(instance)
+                self.assertIsNotNone(instance.uuid)
+
+    def test_error_bad_distribution_choice(self):
+        """Test that source successfully fails if bad distribution type."""
+        bad_choice_list = ["bad1", "bad2", "bad3"]
+        for bad_input in bad_choice_list:
+            self.ocp_data["distribution"] = bad_input
+            self.assertEqual(self.ocp_data["distribution"], bad_input)
+            with tenant_context(self.tenant):
+                serializer = CostModelSerializer(data=self.ocp_data)
+                with self.assertRaises(serializers.ValidationError):
+                    serializer.validate_distribution(bad_input)

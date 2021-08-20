@@ -1,22 +1,13 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
 import copy
+from datetime import datetime
+from datetime import timedelta
 
+from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -424,3 +415,40 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         self.assertNotEquals(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
+
+    def test_ocp_aws_date_order_by_cost_desc(self):
+        """Test execute_query with order by date for correct order of services."""
+        # execute query
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        # removes time from date
+        yesterday = datetime.date(yesterday)
+        lst = []
+        matchinglists = False
+        correctlst = []
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        # test query output
+        for element in data:
+            if element.get("date") == str(yesterday):
+                for service in element.get("services"):
+                    correctlst.append(service.get("service"))
+        for element in data:
+            # Check if there is any data in services
+            if element.get("services") > []:
+                for service in element.get("services"):
+                    lst.append(service.get("service"))
+                if correctlst == lst:
+                    matchinglists = True
+                else:
+                    matchinglists = False
+                lst = []
+        self.assertTrue(matchinglists)
+
+    def test_ocp_aws_date_incorrect_date(self):
+        wrong_date = "200BC"
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, OCPAWSCostView)

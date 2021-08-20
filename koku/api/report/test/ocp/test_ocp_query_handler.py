@@ -1,27 +1,18 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
 import logging
 from collections import defaultdict
+from datetime import datetime
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
 from django.db.models import Max
 from django.db.models.expressions import OrderBy
+from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -506,6 +497,25 @@ class OCPReportQueryHandlerTest(IamTestCase):
                     self.assertIsNotNone(cluster_value["cluster"])
                     self.assertIsNotNone(cluster_value["clusters"])
 
+    def test_other_clusters(self):
+        """Test that group by cluster includes cluster and cluster_alias."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&group_by[cluster]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPCpuView)
+        handler = OCPReportQueryHandler(query_params)
+
+        query_data = handler.execute_query()
+        for data in query_data.get("data"):
+            for cluster_data in data.get("clusters"):
+                cluster_name = cluster_data.get("cluster", "")
+                if cluster_name == "Other":
+                    for cluster_value in cluster_data.get("values"):
+                        self.assertTrue(len(cluster_value.get("clusters", [])) == 1)
+                        self.assertTrue(len(cluster_value.get("source_uuid", [])) == 1)
+                elif cluster_name == "Others":
+                    for cluster_value in cluster_data.get("values"):
+                        self.assertTrue(len(cluster_value.get("clusters", [])) > 1)
+                        self.assertTrue(len(cluster_value.get("source_uuid", [])) > 1)
+
     def test_subtotals_add_up_to_total(self):
         """Test the apply_group_by handles different grouping scenerios."""
         group_by_list = [
@@ -593,3 +603,41 @@ class OCPReportQueryHandlerTest(IamTestCase):
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
+
+    def test_ocp_date_order_by_cost_desc(self):
+        """Test execute_query with order by date for correct order of services."""
+        # execute query
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        # removes time from date
+        yesterday = datetime.date(yesterday)
+        lst = []
+        matchinglists = False
+        correctlst = []
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPCostView)
+        handler = OCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        # test query output
+        # test query output
+        for element in data:
+            if element.get("date") == str(yesterday):
+                for service in element.get("projects"):
+                    correctlst.append(service.get("project"))
+        for element in data:
+            # Check if there is any data in services
+            if element.get("projects") > []:
+                for service in element.get("projects"):
+                    lst.append(service.get("project"))
+                if correctlst == lst:
+                    matchinglists = True
+                else:
+                    matchinglists = False
+                lst = []
+        self.assertTrue(matchinglists)
+
+    def test_gcp_date_incorrect_date(self):
+        wrong_date = "200BC"
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, OCPCostView)

@@ -1,18 +1,6 @@
 #
-# Copyright 2019 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """View for server status."""
 import logging
@@ -46,26 +34,25 @@ from sources.sources_http_client import SourcesHTTPClientError
 
 LOG = logging.getLogger(__name__)
 
+BROKER_CONNECTION = BrokerConnection(
+    SourcesConfig.SOURCES_KAFKA_HOST, int(SourcesConfig.SOURCES_KAFKA_PORT), socket.AF_UNSPEC
+)
 BROKER_CONNECTION_ERROR = "Unable to establish connection with broker."
 CELERY_WORKER_NOT_FOUND = "No running Celery workers were found."
 
 
 def check_kafka_connection():
     """Check connectability of Kafka Broker."""
-    conn = BrokerConnection(SourcesConfig.SOURCES_KAFKA_HOST, int(SourcesConfig.SOURCES_KAFKA_PORT), socket.AF_UNSPEC)
-    connected = conn.connect_blocking(timeout=1)
+    connected = BROKER_CONNECTION.connect_blocking(timeout=1)
     if connected:
-        conn.close()
+        BROKER_CONNECTION.close()
     return connected
 
 
 def check_sources_connection():
     """Check sources-backend connection."""
     try:
-        cost_management_type_id = SourcesHTTPClient(
-            SourcesConfig.SOURCES_FAKE_HEADER
-        ).get_cost_management_application_type_id()
-        return cost_management_type_id
+        return SourcesHTTPClient(SourcesConfig.SOURCES_FAKE_HEADER).get_cost_management_application_type_id()
     except (SourcesHTTPClientError, SourceNotFoundError):
         return
 

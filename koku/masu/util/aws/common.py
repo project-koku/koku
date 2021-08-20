@@ -1,27 +1,17 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """AWS utility functions."""
 import datetime
 import json
 import logging
 import re
+import uuid
 
 import boto3
 import ciso8601
+import pandas as pd
 from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from dateutil.relativedelta import relativedelta
@@ -36,6 +26,7 @@ from masu.processor import enable_trino_processing
 from masu.util import common as utils
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
+from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
 
 LOG = logging.getLogger(__name__)
@@ -381,6 +372,7 @@ def aws_post_processor(data_frame):
     resource_tags_dict = tag_df.apply(
         lambda row: {scrub_resource_col_name(column): value for column, value in row.items() if value}, axis=1
     )
+    resource_tags_dict.where(resource_tags_dict.notna(), lambda _: [{}], inplace=True)
 
     data_frame["resourceTags"] = resource_tags_dict.apply(json.dumps)
     # Make sure we have entries for our required columns
@@ -397,6 +389,103 @@ def aws_post_processor(data_frame):
     data_frame = data_frame.drop(columns=drop_columns)
     data_frame = data_frame.rename(columns=column_name_map)
     return (data_frame, unique_keys)
+
+
+def aws_generate_daily_data(data_frame):
+    """Given a dataframe, group the data to create daily data."""
+    # usage_start = data_frame["lineitem_usagestartdate"]
+    # usage_start_dates = usage_start.apply(lambda row: row.date())
+    # data_frame["usage_start"] = usage_start_dates
+    daily_data_frame = data_frame.groupby(
+        [
+            "lineitem_resourceid",
+            pd.Grouper(key="lineitem_usagestartdate", freq="D"),
+            "lineitem_usageaccountid",
+            "lineitem_productcode",
+            "lineitem_availabilityzone",
+            "product_productfamily",
+            "product_instancetype",
+            "product_region",
+            "pricing_unit",
+            "resourcetags",
+        ],
+        dropna=False,
+    ).agg(
+        {
+            "lineitem_usageamount": ["sum"],
+            "lineitem_normalizationfactor": ["max"],
+            "lineitem_normalizedusageamount": ["sum"],
+            "lineitem_currencycode": ["max"],
+            "lineitem_unblendedrate": ["max"],
+            "lineitem_unblendedcost": ["sum"],
+            "lineitem_blendedrate": ["max"],
+            "lineitem_blendedcost": ["sum"],
+            "pricing_publicondemandcost": ["sum"],
+            "pricing_publicondemandrate": ["max"],
+        }
+    )
+    columns = daily_data_frame.columns.droplevel(1)
+    daily_data_frame.columns = columns
+    daily_data_frame.reset_index(inplace=True)
+
+    return daily_data_frame
+
+
+def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_tags):
+    """Filter a dataframe to the subset that matches an OpenShift source."""
+    resource_ids = cluster_topology.get("resource_ids", [])
+    resource_id_df = data_frame["lineitem_resourceid"]
+
+    LOG.info("Matching OpenShift on AWS by resource ID.")
+    resource_id_matched = resource_id_df.isin(resource_ids)
+    data_frame["resource_id_matched"] = resource_id_matched
+
+    tags = data_frame["resourcetags"]
+    tags = tags.str.lower()
+
+    special_case_tag_matched = tags.str.contains(
+        "|".join(["openshift_cluster", "openshift_project", "openshift_node"])
+    )
+    data_frame["special_case_tag_matched"] = special_case_tag_matched
+
+    if matched_tags:
+        tag_keys = []
+        tag_values = []
+        for tag in matched_tags:
+            tag_keys.extend(list(tag.keys()))
+            tag_values.extend(list(tag.values()))
+
+        tag_matched = tags.str.contains("|".join(tag_keys)) & tags.str.contains("|".join(tag_values))
+        data_frame["tag_matched"] = tag_matched
+        any_tag_matched = tag_matched.any()
+
+        if any_tag_matched:
+            tag_df = pd.concat([tags, tag_matched], axis=1)
+            tag_df.columns = ("tags", "tag_matched")
+            tag_subset = tag_df[tag_df.tag_matched == True].tags  # noqa: E712
+
+            LOG.info("Matching OpenShift on AWS tags.")
+
+            matched_tag = tag_subset.apply(match_openshift_labels, args=(matched_tags,))
+            data_frame["matched_tag"] = matched_tag
+            data_frame["matched_tag"].fillna(value="", inplace=True)
+        else:
+            data_frame["matched_tag"] = ""
+    else:
+        data_frame["tag_matched"] = False
+        data_frame["matched_tag"] = ""
+    openshift_matched_data_frame = data_frame[
+        (data_frame["resource_id_matched"] == True)  # noqa: E712
+        | (data_frame["special_case_tag_matched"] == True)  # noqa: E712
+        | (data_frame["matched_tag"] != "")  # noqa: E712
+    ]
+
+    openshift_matched_data_frame["uuid"] = openshift_matched_data_frame.apply(lambda _: str(uuid.uuid4()), axis=1)
+    openshift_matched_data_frame = openshift_matched_data_frame.drop(
+        columns=["special_case_tag_matched", "tag_matched"]
+    )
+
+    return openshift_matched_data_frame
 
 
 def get_column_converters():

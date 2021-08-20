@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Asynchronous tasks."""
 import logging
@@ -25,12 +13,14 @@ from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 from django.utils import timezone
+from tenant_schemas.utils import schema_context
 
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer
 from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.iam.models import Tenant
 from api.models import Provider
+from api.provider.models import Sources
 from api.utils import DateHelper
 from koku import celery_app
 from masu.config import Config
@@ -41,7 +31,11 @@ from masu.processor import enable_trino_processing
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
+from masu.processor.tasks import PRIORITY_QUEUE
+from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
+from masu.prometheus_stats import QUEUES
 from masu.util.aws.common import get_s3_resource
+from masu.util.ocp.common import REPORT_TYPES
 
 LOG = logging.getLogger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
@@ -55,12 +49,12 @@ def check_report_updates(*args, **kwargs):
 
 
 @celery_app.task(name="masu.celery.tasks.remove_expired_data", queue=DEFAULT)
-def remove_expired_data(simulate=False, line_items_only=False):
+def remove_expired_data(simulate=False):
     """Scheduled task to initiate a job to remove expired report data."""
     today = DateAccessor().today()
     LOG.info("Removing expired data at %s", str(today))
     orchestrator = Orchestrator()
-    orchestrator.remove_expired_report_data(simulate, line_items_only)
+    orchestrator.remove_expired_report_data(simulate)
 
 
 def deleted_archived_with_prefix(s3_bucket_name, prefix):
@@ -90,7 +84,7 @@ def deleted_archived_with_prefix(s3_bucket_name, prefix):
 
 @celery_app.task(
     name="masu.celery.tasks.delete_archived_data",
-    queue=DEFAULT,
+    queue=REMOVE_EXPIRED_DATA_QUEUE,
     autoretry_for=(ClientError,),
     max_retries=10,
     retry_backoff=10,
@@ -134,6 +128,9 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
     if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, provider_type, schema_name)):
         LOG.info("Skipping delete_archived_data. Upload feature is disabled.")
         return
+    elif settings.S3_MINIO_IN_USE:
+        LOG.info("Skipping delete_archived_data. MinIO in use.")
+        return
     else:
         message = f"Deleting S3 data for {provider_type} provider {provider_uuid} in account {schema_name}."
         LOG.info(message)
@@ -149,9 +146,20 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
     deleted_archived_with_prefix(settings.S3_BUCKET_NAME, prefix)
 
     path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
-    prefix = f"{path_prefix}/{account}/{source_type}/source={provider_uuid}/"
-    LOG.info("Attempting to delete our archived data in S3 under %s", prefix)
-    deleted_archived_with_prefix(settings.S3_BUCKET_NAME, prefix)
+    if provider_type == Provider.PROVIDER_OCP:
+        prefixes = []
+        for report_type in REPORT_TYPES:
+            prefixes.append(f"{path_prefix}/{account}/{source_type}/{report_type}/source={provider_uuid}/")
+            prefixes.append(f"{path_prefix}/daily/{account}/{source_type}/{report_type}/source={provider_uuid}/")
+    else:
+        prefixes = [
+            f"{path_prefix}/{account}/{source_type}/source={provider_uuid}/",
+            f"{path_prefix}/daily/{account}/{source_type}/raw/source={provider_uuid}/",
+            f"{path_prefix}/daily/{account}/{source_type}/openshift/source={provider_uuid}/",
+        ]
+    for prefix in prefixes:
+        LOG.info("Attempting to delete our archived data in S3 under %s", prefix)
+        deleted_archived_with_prefix(settings.S3_BUCKET_NAME, prefix)
 
 
 @celery_app.task(
@@ -302,3 +310,35 @@ def crawl_account_hierarchy(provider_uuid=None):
             )
             skipped += 1
     LOG.info(f"Account hierarchy crawler finished. {processed} processed and {skipped} skipped")
+
+
+@celery_app.task(name="masu.celery.tasks.delete_provider_async", queue=PRIORITY_QUEUE)
+def delete_provider_async(name, provider_uuid, schema_name):
+    with schema_context(schema_name):
+        LOG.info(f"Removing Provider without Source: {str(name)} ({str(provider_uuid)}")
+        Provider.objects.get(uuid=provider_uuid).delete()
+
+
+@celery_app.task(name="masu.celery.tasks.out_of_order_source_delete_async", queue=PRIORITY_QUEUE)
+def out_of_order_source_delete_async(source_id):
+    LOG.info(f"Removing out of order delete Source (ID): {str(source_id)}")
+    Sources.objects.get(source_id=source_id).delete()
+
+
+@celery_app.task(name="masu.celery.tasks.missing_source_delete_async", queue=PRIORITY_QUEUE)
+def missing_source_delete_async(source_id):
+    LOG.info(f"Removing missing Source: {str(source_id)}")
+    Sources.objects.get(source_id=source_id).delete()
+
+
+@celery_app.task(name="masu.celery.tasks.collect_queue_metrics", bind=True, queue=DEFAULT)
+def collect_queue_metrics(self):
+    """Collect queue metrics with scheduled celery task."""
+    queue_len = {}
+    with celery_app.pool.acquire(block=True) as conn:
+        for queue, gauge in QUEUES.items():
+            length = conn.default_channel.client.llen(queue)
+            queue_len[queue] = length
+            gauge.set(length)
+    LOG.debug(f"Celery queue backlog info: {queue_len}")
+    return queue_len

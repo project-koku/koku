@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the API utils module."""
 import datetime
@@ -190,6 +178,10 @@ class DateHelperTest(TestCase):
         today = self.date_helper.today
         expected = datetime.datetime(1970, 1, 31, 0, 0, 0, 0)
         self.assertEqual(self.date_helper.month_end(today), expected)
+
+        today_date = today.date()
+        expected = datetime.date(1970, 1, 31)
+        self.assertEqual(self.date_helper.month_end(today_date), expected)
 
     def test_midnight(self):
         """Test midnight property."""

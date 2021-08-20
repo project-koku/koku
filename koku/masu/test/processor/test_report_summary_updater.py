@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the ReportSummaryUpdater object."""
 import datetime
@@ -47,6 +35,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         today = DateAccessor().today_with_timezone("UTC")
         cls.today = today.strftime("%Y-%m-%d")
         cls.tomorrow = (today + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+        cls.tracing_id = "1234"
 
     @patch("masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_summary_tables")
@@ -58,7 +47,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_daily.return_value = (mock_start, mock_end)
         mock_update.return_value = (mock_start, mock_end)
 
-        updater = ReportSummaryUpdater(self.schema, self.aws_provider_uuid)
+        updater = ReportSummaryUpdater(self.schema, self.aws_provider_uuid, tracing_id=self.tracing_id)
         self.assertIsInstance(updater._updater, AWSReportSummaryUpdater)
 
         updater.update_daily_tables(self.today, self.tomorrow)
@@ -66,7 +55,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_update.assert_not_called()
         mock_cloud.assert_not_called()
 
-        updater.update_summary_tables(self.today, self.tomorrow)
+        updater.update_summary_tables(self.today, self.tomorrow, self.tracing_id)
         mock_update.assert_called_with(self.today, self.tomorrow)
         mock_cloud.assert_called_with(mock_start, mock_end)
 
@@ -81,7 +70,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_update.return_value = (mock_start, mock_end)
         mock_cloud.side_effect = Exception("test")
 
-        updater = ReportSummaryUpdater(self.schema, self.aws_provider_uuid)
+        updater = ReportSummaryUpdater(self.schema, self.aws_provider_uuid, tracing_id=self.tracing_id)
         self.assertIsInstance(updater._updater, AWSReportSummaryUpdater)
 
         updater.update_daily_tables(self.today, self.tomorrow)
@@ -90,7 +79,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_cloud.assert_not_called()
 
         with self.assertRaises(ReportSummaryUpdaterCloudError):
-            updater.update_summary_tables(self.today, self.tomorrow)
+            updater.update_summary_tables(self.today, self.tomorrow, self.tracing_id)
 
     @patch("masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_summary_tables")
@@ -102,7 +91,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_daily.return_value = (mock_start, mock_end)
         mock_update.return_value = (mock_start, mock_end)
 
-        updater = ReportSummaryUpdater(self.schema, self.azure_test_provider_uuid)
+        updater = ReportSummaryUpdater(self.schema, self.azure_test_provider_uuid, tracing_id=self.tracing_id)
         self.assertIsInstance(updater._updater, AzureReportSummaryUpdater)
 
         updater.update_daily_tables(self.today, self.tomorrow)
@@ -110,7 +99,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_update.assert_not_called()
         mock_cloud.assert_not_called()
 
-        updater.update_summary_tables(self.today, self.tomorrow)
+        updater.update_summary_tables(self.today, self.tomorrow, self.tracing_id)
         mock_update.assert_called_with(self.today, self.tomorrow)
         mock_cloud.assert_called_with(mock_start, mock_end)
 
@@ -123,7 +112,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_end = 2
         mock_daily.return_value = (mock_start, mock_end)
         mock_update.return_value = (mock_start, mock_end)
-        updater = ReportSummaryUpdater(self.schema, self.aws_provider_uuid)
+        updater = ReportSummaryUpdater(self.schema, self.aws_provider_uuid, tracing_id=self.tracing_id)
         self.assertIsInstance(updater._updater, AWSReportSummaryUpdater)
 
         updater.update_daily_tables(self.today, self.tomorrow)
@@ -131,7 +120,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_update.assert_not_called()
         mock_cloud.assert_not_called()
 
-        updater.update_summary_tables(self.today, self.tomorrow)
+        updater.update_summary_tables(self.today, self.tomorrow, self.tracing_id)
         mock_update.assert_called_with(self.today, self.tomorrow)
         mock_cloud.assert_called_with(mock_start, mock_end)
 
@@ -144,7 +133,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_end = 2
         mock_daily.return_value = (mock_start, mock_end)
         mock_update.return_value = (mock_start, mock_end)
-        updater = ReportSummaryUpdater(self.schema, self.ocp_test_provider_uuid)
+        updater = ReportSummaryUpdater(self.schema, self.ocp_test_provider_uuid, tracing_id=self.tracing_id)
         self.assertIsInstance(updater._updater, OCPReportSummaryUpdater)
 
         updater.update_daily_tables(self.today, self.tomorrow)
@@ -152,7 +141,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_update.assert_not_called()
         mock_cloud.assert_not_called()
 
-        updater.update_summary_tables(self.today, self.tomorrow)
+        updater.update_summary_tables(self.today, self.tomorrow, self.tracing_id)
         mock_update.assert_called_with(self.today, self.tomorrow)
         mock_cloud.assert_called_with(mock_start, mock_end)
 
@@ -165,7 +154,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_end = 2
         mock_daily.return_value = (mock_start, mock_end)
         mock_update.return_value = (mock_start, mock_end)
-        updater = ReportSummaryUpdater(self.schema, self.azure_test_provider_uuid)
+        updater = ReportSummaryUpdater(self.schema, self.azure_test_provider_uuid, tracing_id=self.tracing_id)
         self.assertIsInstance(updater._updater, AzureReportSummaryUpdater)
 
         updater.update_daily_tables(self.today, self.tomorrow)
@@ -173,7 +162,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_update.assert_not_called()
         mock_cloud.assert_not_called()
 
-        updater.update_summary_tables(self.today, self.tomorrow)
+        updater.update_summary_tables(self.today, self.tomorrow, self.tracing_id)
         mock_update.assert_called_with(self.today, self.tomorrow)
         mock_cloud.assert_called_with(mock_start, mock_end)
 

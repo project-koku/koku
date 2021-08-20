@@ -1,22 +1,11 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Management layer for user defined rates."""
 import copy
 import logging
+import uuid
 
 from celery import chain
 from django.db import transaction
@@ -91,6 +80,7 @@ class CostModelManager:
         start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
         end_date = DateHelper().today.strftime("%Y-%m-%d")
         for provider_uuid in all_providers:
+            tracing_id = uuid.uuid4()
             # Update cost-model costs for each provider, on every PUT/DELETE
             try:
                 provider = Provider.objects.get(uuid=provider_uuid)
@@ -99,12 +89,25 @@ class CostModelManager:
             else:
                 schema_name = provider.customer.schema_name
                 # Because this is triggered from the UI, we use the priority queue
+                LOG.info(
+                    f"provider {provider_uuid} update for cost model {self._cost_model_uuid} "
+                    + f"with tracing_id {tracing_id}"
+                )
                 chain(
                     update_cost_model_costs.s(
-                        schema_name, provider.uuid, start_date, end_date, queue_name=PRIORITY_QUEUE
+                        schema_name,
+                        provider.uuid,
+                        start_date,
+                        end_date,
+                        tracing_id=tracing_id,
+                        queue_name=PRIORITY_QUEUE,
                     ).set(queue=PRIORITY_QUEUE),
                     refresh_materialized_views.si(
-                        schema_name, provider.type, provider_uuid=provider.uuid, queue_name=PRIORITY_QUEUE
+                        schema_name,
+                        provider.type,
+                        provider_uuid=provider.uuid,
+                        tracing_id=tracing_id,
+                        queue_name=PRIORITY_QUEUE,
                     ).set(queue=PRIORITY_QUEUE),
                 ).apply_async()
 
@@ -114,6 +117,7 @@ class CostModelManager:
         self._model.description = data.get("description", self._model.description)
         self._model.rates = data.get("rates", self._model.rates)
         self._model.markup = data.get("markup", self._model.markup)
+        self._model.distribution = data.get("distribution", self._model.distribution)
         self._model.save()
 
     def get_provider_names_uuids(self):

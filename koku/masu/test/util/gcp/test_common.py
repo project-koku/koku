@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCP common util."""
 import pandas as pd
@@ -144,15 +132,22 @@ class TestGCPUtils(MasuTestCase):
 
     def test_post_processor(self):
         """Test that data frame post processing succeeds."""
-        data = {"column.one": [1, 2, 3], "column.two": [4, 5, 6], "three": [7, 8, 9]}
-        expected_columns = ["column_one", "column_two", "three"]
+        data = {
+            "column.one": [1, 2, 3],
+            "column.two": [4, 5, 6],
+            "three": [7, 8, 9],
+            "labels": ['{"label_one": "value_one"}', '{"label_one": "value_two"}', '{"label_two": "value_three"}'],
+        }
+        expected_columns = ["column_one", "column_two", "labels", "three"]
 
         df = pd.DataFrame(data)
 
+        expected_tags = {"label_one", "label_two"}
         result_df = utils.gcp_post_processor(df)
-        if isinstance(result_df, tuple):
-            result_df, df_tag_keys = result_df
-            self.assertIsInstance(df_tag_keys, set)
+        self.assertIsInstance(result_df, tuple)
+        result_df, df_tag_keys = result_df
+        self.assertIsInstance(df_tag_keys, set)
+        self.assertEqual(df_tag_keys, expected_tags)
 
         result_columns = list(result_df)
         self.assertEqual(sorted(result_columns), sorted(expected_columns))

@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """OCP Query Handling for Reports."""
 import copy
@@ -47,9 +35,30 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         """
         self._mapper = OCPProviderMap(provider=self.provider, report_type=parameters.report_type)
-        self._report_type = parameters.report_type
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
+
+        # We need to overwrite the default pack definitions with these
+        # Order of the keys matters in how we see it in the views.
+        ocp_pack_keys = {
+            "infra_raw": {"key": "raw", "group": "infrastructure"},
+            "infra_markup": {"key": "markup", "group": "infrastructure"},
+            "infra_usage": {"key": "usage", "group": "infrastructure"},
+            "infra_distributed": {"key": "distributed", "group": "infrastructure"},
+            "infra_total": {"key": "total", "group": "infrastructure"},
+            "sup_raw": {"key": "raw", "group": "supplementary"},
+            "sup_markup": {"key": "markup", "group": "supplementary"},
+            "sup_usage": {"key": "usage", "group": "supplementary"},
+            "sup_distributed": {"key": "distributed", "group": "supplementary"},
+            "sup_total": {"key": "total", "group": "supplementary"},
+            "cost_raw": {"key": "raw", "group": "cost"},
+            "cost_markup": {"key": "markup", "group": "cost"},
+            "cost_usage": {"key": "usage", "group": "cost"},
+            "cost_distributed": {"key": "distributed", "group": "cost"},
+            "cost_total": {"key": "total", "group": "cost"},
+        }
+        ocp_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
+        ocp_pack_definitions["cost_groups"]["keys"] = ocp_pack_keys
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
@@ -59,6 +68,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         if is_grouped_by_project(parameters) and parameters.report_type == "costs":
             self._report_type = parameters.report_type + "_by_project"
             self._mapper = OCPProviderMap(provider=self.provider, report_type=self._report_type)
+        self._mapper.PACK_DEFINITIONS = ocp_pack_definitions
 
     @property
     def annotations(self):
@@ -100,7 +110,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return output
 
-    def execute_query(self):
+    def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
 
         Returns:
@@ -117,7 +127,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
-            query_order_by.extend([self.order])  # add implicit ordering
+            query_order_by.extend(self.order)  # add implicit ordering
 
             query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
 
@@ -141,7 +151,40 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_data = self.add_deltas(query_data, query_sum)
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
-            query_data = self.order_by(query_data, query_order_by)
+            def check_if_valid_date_str(date_str):
+                """Check to see if a valid date has been passed in."""
+                import ciso8601
+
+                try:
+                    ciso8601.parse_datetime(date_str)
+                except ValueError:
+                    return False
+                except TypeError:
+                    return False
+                return True
+
+            order_date = None
+            for i, param in enumerate(query_order_by):
+                if check_if_valid_date_str(param):
+                    order_date = param
+                    break
+            # Remove the date order by as it is not actually used for ordering
+            if order_date:
+                sort_term = self._get_group_by()[0]
+                query_order_by.pop(i)
+                date_filtered_query_data = query_data.filter(usage_start=order_date)
+                ordered_data = self.order_by(date_filtered_query_data, query_order_by)
+                order_of_interest = []
+                for entry in ordered_data:
+                    order_of_interest.append(entry.get(sort_term))
+                # write a special order by function that iterates through the
+                # rest of the days in query_data and puts them in the same order
+                # return_query_data = []
+                sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
+                query_data = self.order_by(sorted_data, ["-date"])
+            else:
+                # &order_by[cost]=desc&order_by[date]=2021-08-02
+                query_data = self.order_by(query_data, query_order_by)
 
             if is_csv_output:
                 if self._limit:

@@ -1,18 +1,6 @@
 #
-# Copyright 2019 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Azure Report Downloader."""
 import datetime
@@ -141,7 +129,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
         except AzureCostReportNotFound as ex:
             msg = f"Unable to find manifest. Error: {str(ex)}"
-            LOG.info(log_json(self.request_id, msg, self.context))
+            LOG.info(log_json(self.tracing_id, msg, self.context))
             return manifest, None
         report_name = blob.name
 
@@ -240,27 +228,27 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             file_creation_date = blob.last_modified
         except AzureCostReportNotFound as ex:
             msg = f"Error when downloading Azure report for key: {key}. Error {ex}"
-            LOG.error(log_json(self.request_id, msg, self.context))
+            LOG.error(log_json(self.tracing_id, msg, self.context))
             raise AzureReportDownloaderError(msg)
 
         msg = f"Downloading {key} to {full_file_path}"
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg, self.context))
         blob = self._azure_client.download_cost_export(key, self.container_name, destination=full_file_path)
         # Push to S3
         s3_csv_path = get_path_prefix(
             self.account, Provider.PROVIDER_AZURE, self._provider_uuid, start_date, Config.CSV_DATA_TYPE
         )
         copy_local_report_file_to_s3_bucket(
-            self.request_id, s3_csv_path, full_file_path, local_filename, manifest_id, start_date, self.context
+            self.tracing_id, s3_csv_path, full_file_path, local_filename, manifest_id, start_date, self.context
         )
 
         manifest_accessor = ReportManifestDBAccessor()
         manifest = manifest_accessor.get_manifest_by_id(manifest_id)
 
         if not manifest_accessor.get_s3_csv_cleared(manifest):
-            remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
+            remove_files_not_in_set_from_s3_bucket(self.tracing_id, s3_csv_path, manifest_id)
             manifest_accessor.mark_s3_csv_cleared(manifest)
 
         msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
-        LOG.info(log_json(self.request_id, msg, self.context))
+        LOG.info(log_json(self.tracing_id, msg, self.context))
         return full_file_path, etag, file_creation_date, []

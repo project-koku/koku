@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the common util functions."""
 import gzip
@@ -235,6 +223,13 @@ class CommonUtilTests(MasuTestCase):
         path = common_utils.get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet")
         self.assertEqual(path, expected_path)
 
+        expected_path = (
+            f"{expected_path_prefix}/daily/{account}/{provider_type}/"
+            f"source={provider_uuid}/year={year}/month={month}"
+        )
+        path = common_utils.get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet", daily=True)
+        self.assertEqual(path, expected_path)
+
         # Test with report_type
         report_type = "pod_report"
         expected_path = (
@@ -255,6 +250,10 @@ class CommonUtilTests(MasuTestCase):
         expected_path = f"{expected_path_prefix}/{account}/{provider_type}"
 
         path = common_utils.get_hive_table_path(account, provider_type)
+        self.assertEqual(path, expected_path)
+
+        expected_path = f"{expected_path_prefix}/daily/{account}/{provider_type}/raw"
+        path = common_utils.get_hive_table_path(account, provider_type, daily=True)
         self.assertEqual(path, expected_path)
 
         # Test with report_type

@@ -75,6 +75,7 @@ help:
 	@echo "                                          @param generator_config_file - (optional, default=default) config file for the generator"
 	@echo "                                          @param generator_template_file - (optional) jinja2 template to render output"
 	@echo "                                          @param generator_flags - (optional) additional cli flags and args"
+	@echo "  delete-test-sources                   Call the source DELETE API for each source in the database"
 	@echo "  large-ocp-source-testing              create a test OCP source "large_ocp_1" with a larger volume of data"
 	@echo "                                          @param nise_config_dir - directory of nise config files to use"
 	@echo "  load-test-customer-data               load test data for the default sources created in create-test-customer"
@@ -92,6 +93,7 @@ help:
 	@echo "  requirements                          generate Pipfile.lock, RTD requirements and manifest for product security"
 	@echo "  manifest                              create/update manifest for product security"
 	@echo "  check-manifest                        check that the manifest is up to date"
+	@echo "  clowdapp                              generates a new clowdapp.yaml"
 	@echo "  remove-db                             remove local directory $(TOPDIR)/pg_data"
 	@echo "  remove-test-db                        remove the django test db"
 	@echo "  reset-db-statistics                   clear the pg_stat_statements statistics"
@@ -130,6 +132,8 @@ help:
 	@echo "  docker-iqe-local-hccm                create container based off local hccm plugin. Requires env 'HCCM_PLUGIN_PATH'"
 	@echo "                                          @param iqe_cmd - (optional) Command to run. Defaults to 'bash'."
 	@echo "  docker-iqe-smokes-tests              run smoke tests"
+	@echo "  docker-iqe-smokes-tests-trino        run smoke tests without reininting the db and clearing testing"
+
 	@echo "  docker-iqe-api-tests                 run api tests"
 	@echo "  docker-iqe-vortex-tests              run vortex tests"
 	@echo ""
@@ -170,6 +174,9 @@ create-test-customer: run-migrations docker-up-koku
 
 create-test-customer-no-sources: run-migrations docker-up-koku
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-sources --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
+
+delete-test-sources:
+	$(PYTHON) $(TOPDIR)/scripts/delete_test_sources.py
 
 load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(start) $(end)
@@ -262,6 +269,20 @@ oc-stop-forwarding-ports:
 
 oc-delete-e2e:
 	oc delete project/hccm project/buildfactory project/secrets
+
+clowdapp: kustomize
+	$(KUSTOMIZE) build deploy/kustomize > deploy/clowdapp.yaml
+
+kustomize:
+ifeq (, $(shell which kustomize))
+	@{ \
+	set -e ;\
+	bash <(curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh") $(TESTINGDIR);\
+	}
+KUSTOMIZE=$(TESTINGDIR)/kustomize
+else
+KUSTOMIZE=$(shell which kustomize)
+endif
 
 ###############################
 ### Docker-compose Commands ###
@@ -360,6 +381,9 @@ docker-iqe-local-hccm: docker-reinitdb _set-test-dir-permissions clear-testing
 docker-iqe-smokes-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_smoke_tests.sh
 
+docker-iqe-smokes-tests-trino:
+	./testing/run_smoke_tests.sh
+
 docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_api_tests.sh
 
@@ -373,8 +397,8 @@ docker-metastore-setup:
 	@cp -fr deploy/hadoop/ testing/hadoop/
 #	@[[ ! -d ./testing/hadoop/hadoop-logs ]] && mkdir -p -m a+rwx ./hadoop/hadoop-logs || chmod a+rwx ./hadoop/hadoop-logs
 	find ./testing/hadoop -type d -exec chmod a+rwx {} \;
-	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
-	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),koku-reports))/g' testing/hadoop/hadoop-config/core-site.xml
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),koku-reports))/g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's/s3access/$(shell echo $(or $(S3_ACCESS_KEY),localhost))/g' testing/metastore/hive-config/hive-site.xml
 	@$(SED_IN_PLACE) -e 's/s3secret/$(shell echo $(or $(S3_SECRET),localhost))/g' testing/metastore/hive-config/hive-site.xml
@@ -402,7 +426,7 @@ docker-presto-cleanup:
 	make clear-testing
 
 docker-presto-up: docker-metastore-setup docker-presto-setup
-	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d
+	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d $(build)
 
 docker-presto-ps:
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml ps

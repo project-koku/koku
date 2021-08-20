@@ -1,18 +1,6 @@
 #
-# Copyright 2018 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """AWS Query Handling for Reports."""
 import copy
@@ -592,7 +580,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
-            query_order_by.extend([self.order])  # add implicit ordering
+            query_order_by.extend(self.order)  # add implicit ordering
 
             annotations = copy.deepcopy(self._mapper.report_type_map.get("annotations", {}))
             if not self.parameters.parameters.get("compute_count"):
@@ -610,6 +598,18 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 if self.parameters.parameters.get("check_tags"):
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
 
+            def check_if_valid_date_str(date_str):
+                """Check to see if a valid date has been passed in."""
+                import ciso8601
+
+                try:
+                    ciso8601.parse_datetime(date_str)
+                except ValueError:
+                    return False
+                except TypeError:
+                    return False
+                return True
+
             query_sum = self._build_sum(query, annotations)
 
             if self._limit and query_data and not org_unit_applied:
@@ -621,7 +621,28 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
-            query_data = self.order_by(query_data, query_order_by)
+            order_date = None
+            for i, param in enumerate(query_order_by):
+                if check_if_valid_date_str(param):
+                    order_date = param
+                    break
+            # Remove the date order by as it is not actually used for ordering
+            if order_date:
+                sort_term = self._get_group_by()[0]
+                query_order_by.pop(i)
+                date_filtered_query_data = query_data.filter(usage_start=order_date)
+                ordered_data = self.order_by(date_filtered_query_data, query_order_by)
+                order_of_interest = []
+                for entry in ordered_data:
+                    order_of_interest.append(entry.get(sort_term))
+                # write a special order by function that iterates through the
+                # rest of the days in query_data and puts them in the same order
+                # return_query_data = []
+                sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
+                query_data = self.order_by(sorted_data, ["-date"])
+            else:
+                # &order_by[cost]=desc&order_by[date]=2021-08-02
+                query_data = self.order_by(query_data, query_order_by)
 
             # Fetch the data (returning list(dict))
             query_results = list(query_data)
@@ -689,3 +710,14 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
 
         return total_query
+
+    def _group_by_ranks(self, query, data):
+        """
+        AWS is special because account alias is a foreign key
+        and the query needs that for rankings to work.
+        """
+        if "account" in self._get_group_by():
+            query = query.annotate(
+                special_rank=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
+            )
+        return super()._group_by_ranks(query, data)

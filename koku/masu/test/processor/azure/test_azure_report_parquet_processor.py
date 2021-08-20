@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Test the AzureReportParquetProcessor."""
 from tenant_schemas.utils import schema_context
@@ -23,6 +11,7 @@ from masu.test import MasuTestCase
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import PRESTO_LINE_ITEM_TABLE
+from reporting.provider.azure.models import PRESTO_OCP_ON_AZURE_DAILY_TABLE
 
 
 class AzureReportParquetProcessorTest(MasuTestCase):
@@ -44,6 +33,12 @@ class AzureReportParquetProcessorTest(MasuTestCase):
     def test_azure_table_name(self):
         """Test the Azure table name generation."""
         self.assertEqual(self.processor._table_name, PRESTO_LINE_ITEM_TABLE)
+
+        s3_path = "/s3/path/openshift/daily"
+        processor = AzureReportParquetProcessor(
+            self.manifest_id, self.account, s3_path, self.aws_provider_uuid, self.local_parquet
+        )
+        self.assertEqual(processor._table_name, PRESTO_OCP_ON_AZURE_DAILY_TABLE)
 
     def test_postgres_summary_table(self):
         """Test that the correct table is returned."""

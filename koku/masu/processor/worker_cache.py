@@ -1,18 +1,6 @@
 #
-# Copyright 2020 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 """Cache of worker tasks currently running."""
 import logging
@@ -130,7 +118,7 @@ class WorkerCache:
         task_list = self.worker_cache
         task_list.append(task_key)
         self.cache.set(settings.WORKER_CACHE_KEY, task_list, version=self._hostname)
-        LOG.info(f"Added task key {task_key} to cache.")
+        LOG.debug(f"Added task key {task_key} to cache.")
 
     def remove_task_from_cache(self, task_key):
         """Remove an entry from the cache for a task."""
@@ -141,7 +129,7 @@ class WorkerCache:
             pass
         else:
             self.cache.set(settings.WORKER_CACHE_KEY, task_list, version=self._hostname)
-            LOG.info(f"Removed task key {task_key} from cache.")
+            LOG.debug(f"Removed task key {task_key} from cache.")
 
     def get_all_running_tasks(self):
         """Combine each host's running tasks into a single list."""
