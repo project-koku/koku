@@ -135,11 +135,11 @@ SELECT uuid(),
     ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count as unblended_cost,
     ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count * cast({{markup}} as decimal(24,9)) as markup_cost,
     CASE WHEN ocp_aws.resource_id_matched = TRUE AND ocp_aws.data_source = 'Pod'
-        THEN (ocp_aws.pod_usage_cpu_core_hours / ocp_aws.cluster_capacity_cpu_core_hours) * ocp_aws.unblended_cost / dsc.data_source_count
+        THEN (ocp_aws.{{node_column | sqlsafe}} / ocp_aws.{{cluster_column | sqlsafe}}) * ocp_aws.unblended_cost / dsc.data_source_count
         ELSE ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count
     END as pod_cost,
     CASE WHEN ocp_aws.resource_id_matched = TRUE AND ocp_aws.data_source = 'Pod'
-        THEN (ocp_aws.pod_usage_cpu_core_hours / ocp_aws.cluster_capacity_cpu_core_hours) * ocp_aws.unblended_cost * cast({{markup}} as decimal(24,9)) / dsc.data_source_count
+        THEN (ocp_aws.{{node_column | sqlsafe}} / ocp_aws.{{cluster_column | sqlsafe}}) * ocp_aws.unblended_cost * cast({{markup}} as decimal(24,9)) / dsc.data_source_count
         ELSE ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
     CASE WHEN ocp_aws.pod_labels IS NOT NULL
