@@ -139,7 +139,7 @@ SELECT  lids.source_type,
            FROM reporting_ocpawscostlineitem_daily_summary AS aws
           WHERE aws.usage_start >= date_trunc(
                                       'month',
-                                      (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_daily_summary)
+                                      (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_daily_summary_p)
                                   )::date
           UNION
          SELECT 'Azure'::text AS source_type,
@@ -168,7 +168,7 @@ SELECT  lids.source_type,
            FROM reporting_ocpazurecostlineitem_daily_summary AS azure
           WHERE azure.usage_start >= date_trunc(
                                         'month',
-                                        (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_daily_summary)
+                                        (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_daily_summary_p)
                                     )::date
        ) AS lids
  GROUP
@@ -295,7 +295,7 @@ SELECT 'AWS' as source_type,
  FROM reporting_ocpawscostlineitem_project_daily_summary
  WHERE usage_start >= date_trunc(
                           'month',
-                          (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_project_daily_summary)
+                          (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_project_daily_summary_p)
                       )::date
  GROUP
     BY source_type,
@@ -341,7 +341,7 @@ SELECT 'Azure' as source_type,
   FROM reporting_ocpazurecostlineitem_project_daily_summary
  WHERE usage_start >= date_trunc(
                           'month',
-                          (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_project_daily_summary)
+                          (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_project_daily_summary_p)
                       )::date
  GROUP
     BY source_type,
