@@ -85,6 +85,19 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             accessor.back_populate_ocp_on_aws_daily_summary(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start_date, end_date)
 
+            with OCPReportDBAccessor(self._schema) as ocp_accessor:
+                self._handle_partitions("reporting_ocpallcostlineitem_daily_summary", start_date, end_date)
+                sql_params = {
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "source_uuid": self._provider_uuid,
+                    "source_type": "AWS",
+                    "daily_summary_table": "reporting_ocpawscostlineitem_daily_summary",
+                    "project_daily_summary_table": "reporting_ocpawscostlineitem_project_daily_summary",
+                }
+                ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
+                ocp_accessor.populate_ocp_on_all_daily_summary("aws", sql_params)
+
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on Azure."""
         if isinstance(start_date, str):
@@ -146,3 +159,16 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 )
             accessor.back_populate_ocp_on_azure_daily_summary(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start_date, end_date)
+
+            with OCPReportDBAccessor(self._schema) as ocp_accessor:
+                self._handle_partitions("reporting_ocpallcostlineitem_daily_summary", start_date, end_date)
+                sql_params = {
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "source_uuid": self._provider_uuid,
+                    "source_type": "Azure",
+                    "daily_summary_table": "reporting_ocpazurecostlineitem_daily_summary",
+                    "project_daily_summary_table": "reporting_ocpazurecostlineitem_project_daily_summary",
+                }
+                ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
+                ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)

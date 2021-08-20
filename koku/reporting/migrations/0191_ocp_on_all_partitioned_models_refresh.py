@@ -12,6 +12,57 @@ from koku.database import set_partition_mode
 from koku.database import unset_partition_mode
 from reporting.provider.all.openshift.models import VIEWS as OCP_ALL_VIEWS
 
+
+OCPALL_PARTITIONS_SQL = f"""
+INSERT
+  INTO partitioned_tables
+       (
+           schema_name,
+           table_name,
+           partition_of_table_name,
+           partition_type,
+           partition_col,
+           partition_parameters,
+           active
+       )
+WITH start_end_date as (
+    SELECT min(r.partition_start) as partition_start,
+           max(r.partition_end) as partition_end
+      FROM (
+          SELECT max(date_trunc('month', usage_start)) - '2 months'::interval as partition_start,
+                 max(date_trunc('month', usage_start)) as partition_end
+            FROM reporting_ocpawscostlineitem_daily_summary
+           UNION
+          SELECT max(date_trunc('month', usage_start)) - '2 months'::interval as partition_start,
+                 max(date_trunc('month', usage_start)) as partition_end
+            FROM reporting_ocpazurecostlineitem_daily_summary
+      ) r
+),
+partitions as (
+    SELECT partition_start::date
+      FROM generate_series(
+               (SELECT partition_start from start_end_date),
+               (SELECT partition_end from start_end_date),
+               '1 month'::interval
+           ) partition_start
+)
+SELECT current_schema,
+       '{get_model("OCPAllCostLineItemDailySummaryP")._meta.db_table}_' || to_char(p.partition_start, 'YYYY_MM'),
+       '{get_model("OCPAllCostLineItemDailySummaryP")._meta.db_table}',
+       'range',
+       'usage_start',
+       jsonb_build_object(
+           'default', false,
+           'from', p.partition_start::text,
+           'to', (p.partition_start + '1 month'::interval)::text
+       ),
+       true
+  FROM partitions p
+    ON CONFLICT (schema_name, table_name)
+    DO NOTHING;
+"""
+
+
 COPY_OCPALL_SQL = f"""
 INSERT
   INTO {get_model("OCPAllCostLineItemDailySummaryP")._meta.db_table}
@@ -90,7 +141,7 @@ SELECT  lids.source_type,
            FROM reporting_ocpawscostlineitem_daily_summary AS aws
           WHERE aws.usage_start >= date_trunc(
                                       'month',
-                                      (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_daily_summary)
+                                      (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_daily_summary_p)
                                   )::date
           UNION
          SELECT 'Azure'::text AS source_type,
@@ -119,7 +170,7 @@ SELECT  lids.source_type,
            FROM reporting_ocpazurecostlineitem_daily_summary AS azure
           WHERE azure.usage_start >= date_trunc(
                                         'month',
-                                        (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_daily_summary)
+                                        (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_daily_summary_p)
                                     )::date
        ) AS lids
  GROUP
@@ -139,6 +190,56 @@ SELECT  lids.source_type,
        lids.availability_zone,
        lids.tags
 ;
+"""
+
+
+OCPALL_PROJECT_PARTITIONS_SQL = f"""
+INSERT
+  INTO partitioned_tables
+       (
+           schema_name,
+           table_name,
+           partition_of_table_name,
+           partition_type,
+           partition_col,
+           partition_parameters,
+           active
+       )
+WITH start_end_date as (
+    SELECT min(r.partition_start) as partition_start,
+           max(r.partition_end) as partition_end
+      FROM (
+          SELECT max(date_trunc('month', usage_start)) - '2 months'::interval as partition_start,
+                 max(date_trunc('month', usage_start)) as partition_end
+            FROM reporting_ocpawscostlineitem_project_daily_summary
+           UNION
+          SELECT max(date_trunc('month', usage_start)) - '2 months'::interval as partition_start,
+                 max(date_trunc('month', usage_start)) as partition_end
+            FROM reporting_ocpazurecostlineitem_project_daily_summary
+      ) r
+),
+partitions as (
+    SELECT partition_start::date
+      FROM generate_series(
+               (SELECT partition_start from start_end_date),
+               (SELECT partition_end from start_end_date),
+               '1 month'::interval
+           ) partition_start
+)
+SELECT current_schema,
+       '{get_model("OCPAllCostLineItemProjectDailySummaryP")._meta.db_table}_' || to_char(p.partition_start, 'YYYY_MM'),
+       '{get_model("OCPAllCostLineItemProjectDailySummaryP")._meta.db_table}',
+       'range',
+       'usage_start',
+       jsonb_build_object(
+           'default', false,
+           'from', p.partition_start::text,
+           'to', (p.partition_start + '1 month'::interval)::text
+       ),
+       true
+  FROM partitions p
+    ON CONFLICT (schema_name, table_name)
+    DO NOTHING;
 """
 
 
@@ -198,7 +299,7 @@ SELECT 'AWS' as source_type,
  FROM reporting_ocpawscostlineitem_project_daily_summary
  WHERE usage_start >= date_trunc(
                           'month',
-                          (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_project_daily_summary)
+                          (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_project_daily_summary_p)
                       )::date
  GROUP
     BY source_type,
@@ -244,7 +345,7 @@ SELECT 'Azure' as source_type,
   FROM reporting_ocpazurecostlineitem_project_daily_summary
  WHERE usage_start >= date_trunc(
                           'month',
-                          (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_project_daily_summary)
+                          (select coalesce(max(usage_start), '1970-01-01'::date) from reporting_ocpallcostlineitem_project_daily_summary_p)
                       )::date
  GROUP
     BY source_type,
@@ -266,23 +367,7 @@ SELECT 'Azure' as source_type,
 """
 
 
-def create_new_ocpall_matviews(apps, schema_editor):
-    version = "_20210818"
-    conn = schema_editor.connection
-    converted_views = (
-        "reporting_ocpallcostlineitem_daily_summary",
-        "reporting_ocpallcostlineitem_project_daily_summary",
-    )
-    ocpallviews = [v for v in OCP_ALL_VIEWS if v not in converted_views]
-    for view in ocpallviews:
-        new_view = f"{view}_p{version}.sql"
-        view_sql = pkgutil.get_data("reporting.provider.all.openshift", f"sql/views/{version}/{new_view}")
-        view_sql = view_sql.decode("utf-8")
-        with conn.cursor() as cur:
-            cur.execute(view_sql)
-
-
-def drop_new_ocpall_matviews(apps, schema_editor):
+def refresh_new_ocpall_matviews(apps, schema_editor):
     conn = schema_editor.connection
     converted_views = (
         "reporting_ocpallcostlineitem_daily_summary",
@@ -292,7 +377,7 @@ def drop_new_ocpall_matviews(apps, schema_editor):
     for view in ocpallviews:
         new_view = f"{view}_p"
         with conn.cursor() as cur:
-            cur.execute(f"DROP MATERIALIZED VIEW IF EXISTS {new_view} ;")
+            cur.execute(f"REFRESH MATERIALIZED VIEW {new_view} WITH DATA;")
 
 
 class Migration(migrations.Migration):
@@ -300,287 +385,9 @@ class Migration(migrations.Migration):
     dependencies = [("reporting", "0001_initial-from-template")]
 
     operations = [
-        migrations.RunPython(code=set_partition_mode, reverse_code=unset_partition_mode),
-        migrations.CreateModel(
-            name="OCPAllCostLineItemProjectDailySummaryP",
-            fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
-                ("source_type", models.TextField()),
-                ("cluster_id", models.CharField(max_length=50, null=True)),
-                ("cluster_alias", models.CharField(max_length=256, null=True)),
-                ("data_source", models.CharField(max_length=64, null=True)),
-                ("namespace", models.CharField(max_length=253)),
-                ("node", models.CharField(max_length=253, null=True)),
-                ("pod_labels", models.JSONField(null=True)),
-                ("resource_id", models.CharField(max_length=253, null=True)),
-                ("usage_start", models.DateField()),
-                ("usage_end", models.DateField()),
-                ("usage_account_id", models.CharField(max_length=50)),
-                ("product_code", models.CharField(max_length=50)),
-                ("product_family", models.CharField(max_length=150, null=True)),
-                ("instance_type", models.CharField(max_length=50, null=True)),
-                ("region", models.CharField(max_length=50, null=True)),
-                ("availability_zone", models.CharField(max_length=50, null=True)),
-                ("usage_amount", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("unit", models.CharField(max_length=63, null=True)),
-                ("unblended_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("project_markup_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("pod_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("currency_code", models.CharField(max_length=10, null=True)),
-                ("source_uuid", models.UUIDField(null=True)),
-                (
-                    "account_alias",
-                    models.ForeignKey(
-                        null=True, on_delete=django.db.models.deletion.SET_NULL, to="reporting.awsaccountalias"
-                    ),
-                ),
-            ],
-            options={"db_table": "reporting_ocpallcostlineitem_project_daily_summary_p"},
-        ),
-        migrations.CreateModel(
-            name="OCPAllCostLineItemDailySummaryP",
-            fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
-                ("source_type", models.TextField()),
-                ("cluster_id", models.CharField(max_length=50, null=True)),
-                ("cluster_alias", models.CharField(max_length=256, null=True)),
-                (
-                    "namespace",
-                    django.contrib.postgres.fields.ArrayField(base_field=models.CharField(max_length=253), size=None),
-                ),
-                ("node", models.CharField(max_length=253, null=True)),
-                ("resource_id", models.CharField(max_length=253, null=True)),
-                ("usage_start", models.DateField()),
-                ("usage_end", models.DateField()),
-                ("usage_account_id", models.CharField(max_length=50)),
-                ("product_code", models.CharField(max_length=50)),
-                ("product_family", models.CharField(max_length=150, null=True)),
-                ("instance_type", models.CharField(max_length=50, null=True)),
-                ("region", models.CharField(max_length=50, null=True)),
-                ("availability_zone", models.CharField(max_length=50, null=True)),
-                ("tags", models.JSONField(null=True)),
-                ("usage_amount", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
-                ("unit", models.CharField(max_length=63, null=True)),
-                ("unblended_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("markup_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("currency_code", models.CharField(max_length=10, null=True)),
-                ("shared_projects", models.IntegerField(default=1)),
-                ("source_uuid", models.UUIDField(null=True)),
-                (
-                    "account_alias",
-                    models.ForeignKey(
-                        null=True, on_delete=django.db.models.deletion.SET_NULL, to="reporting.awsaccountalias"
-                    ),
-                ),
-            ],
-            options={"db_table": "reporting_ocpallcostlineitem_daily_summary_p"},
-        ),
-        migrations.AddIndex(
-            model_name="ocpallcostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["usage_start"], name="ocpallp_p_proj_usage_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpallcostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["namespace"], name="ocpallp_p_proj_namespace_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpallcostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["node"], name="ocpallp_p_proj_node_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpallcostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["resource_id"], name="ocpallp_p_proj_resource_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpallcostlineitemprojectdailysummaryp",
-            index=django.contrib.postgres.indexes.GinIndex(
-                fields=["pod_labels"], name="ocpallp_p_proj_pod_labels_idx"
-            ),
-        ),
-        migrations.AddIndex(
-            model_name="ocpallcostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["product_family"], name="ocpallp_p_proj_prod_fam_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpallcostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["instance_type"], name="ocpallp_p_proj_inst_type_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpallcostlineitemdailysummaryp",
-            index=models.Index(fields=["usage_start"], name="ocpall_p_usage_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpallcostlineitemdailysummaryp",
-            index=models.Index(fields=["namespace"], name="ocpall_p_namespace_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpallcostlineitemdailysummaryp",
-            index=models.Index(fields=["node"], name="ocpall_p_node_idx", opclasses=["varchar_pattern_ops"]),
-        ),
-        migrations.AddIndex(
-            model_name="ocpallcostlineitemdailysummaryp",
-            index=models.Index(fields=["resource_id"], name="ocpall_p_resource_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpallcostlineitemdailysummaryp",
-            index=django.contrib.postgres.indexes.GinIndex(fields=["tags"], name="ocpall_p_tags_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpallcostlineitemdailysummaryp",
-            index=models.Index(fields=["product_family"], name="ocpall_p_product_family_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpallcostlineitemdailysummaryp",
-            index=models.Index(fields=["instance_type"], name="ocpall_p_instance_type_idx"),
-        ),
-        migrations.RunPython(code=unset_partition_mode, reverse_code=set_partition_mode),
+        migrations.RunSQL(OCPALL_PROJECT_PARTITIONS_SQL, reverse_sql="select 1"),
+        migrations.RunSQL(OCPALL_PARTITIONS_SQL, reverse_sql="select 1"),
         migrations.RunSQL(COPY_OCPALL_PROJECT_SQL, reverse_sql="select 1"),
         migrations.RunSQL(COPY_OCPALL_SQL, reverse_sql="select 1"),
-        migrations.RunPython(code=create_new_ocpall_matviews, reverse_code=drop_new_ocpall_matviews),
-        migrations.CreateModel(
-            name="OCPAllComputeSummaryP",
-            fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
-                ("cluster_id", models.CharField(max_length=50, null=True)),
-                ("cluster_alias", models.CharField(max_length=256, null=True)),
-                ("usage_account_id", models.CharField(max_length=50)),
-                ("usage_start", models.DateField()),
-                ("usage_end", models.DateField()),
-                ("product_code", models.CharField(max_length=50)),
-                ("instance_type", models.CharField(max_length=50)),
-                ("resource_id", models.CharField(max_length=253)),
-                ("usage_amount", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("unit", models.CharField(max_length=63, null=True)),
-                ("unblended_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("markup_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("currency_code", models.CharField(max_length=10, null=True)),
-                ("source_uuid", models.UUIDField(null=True)),
-            ],
-            options={"db_table": "reporting_ocpall_compute_summary_p", "managed": False},
-        ),
-        migrations.CreateModel(
-            name="OCPAllCostSummaryByAccountP",
-            fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
-                ("usage_start", models.DateField()),
-                ("usage_end", models.DateField()),
-                ("cluster_id", models.CharField(max_length=50, null=True)),
-                ("cluster_alias", models.CharField(max_length=256, null=True)),
-                ("usage_account_id", models.CharField(max_length=50)),
-                ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
-                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
-                ("currency_code", models.CharField(max_length=10)),
-                ("source_uuid", models.UUIDField(null=True)),
-            ],
-            options={"db_table": "reporting_ocpall_cost_summary_by_account_p", "managed": False},
-        ),
-        migrations.CreateModel(
-            name="OCPAllCostSummaryByRegionP",
-            fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
-                ("usage_start", models.DateField()),
-                ("usage_end", models.DateField()),
-                ("cluster_id", models.CharField(max_length=50, null=True)),
-                ("cluster_alias", models.CharField(max_length=256, null=True)),
-                ("usage_account_id", models.CharField(max_length=50)),
-                ("region", models.CharField(max_length=50, null=True)),
-                ("availability_zone", models.CharField(max_length=50, null=True)),
-                ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
-                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
-                ("currency_code", models.CharField(max_length=10)),
-                ("source_uuid", models.UUIDField(null=True)),
-            ],
-            options={"db_table": "reporting_ocpall_cost_summary_by_region_p", "managed": False},
-        ),
-        migrations.CreateModel(
-            name="OCPAllCostSummaryByServiceP",
-            fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
-                ("usage_start", models.DateField()),
-                ("usage_end", models.DateField()),
-                ("cluster_id", models.CharField(max_length=50, null=True)),
-                ("cluster_alias", models.CharField(max_length=256, null=True)),
-                ("usage_account_id", models.CharField(max_length=50)),
-                ("product_code", models.CharField(max_length=50)),
-                ("product_family", models.CharField(max_length=150, null=True)),
-                ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
-                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
-                ("currency_code", models.CharField(max_length=10)),
-                ("source_uuid", models.UUIDField(null=True)),
-            ],
-            options={"db_table": "reporting_ocpall_cost_summary_by_service_p", "managed": False},
-        ),
-        migrations.CreateModel(
-            name="OCPAllCostSummaryP",
-            fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
-                ("usage_start", models.DateField()),
-                ("usage_end", models.DateField()),
-                ("cluster_id", models.CharField(max_length=50, null=True)),
-                ("cluster_alias", models.CharField(max_length=256, null=True)),
-                ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
-                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
-                ("currency_code", models.CharField(max_length=10)),
-                ("source_uuid", models.UUIDField(null=True)),
-            ],
-            options={"db_table": "reporting_ocpall_cost_summary_p", "managed": False},
-        ),
-        migrations.CreateModel(
-            name="OCPAllDatabaseSummaryP",
-            fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
-                ("cluster_id", models.CharField(max_length=50, null=True)),
-                ("cluster_alias", models.CharField(max_length=256, null=True)),
-                ("usage_account_id", models.CharField(max_length=50)),
-                ("usage_start", models.DateField()),
-                ("usage_end", models.DateField()),
-                ("product_code", models.CharField(max_length=50)),
-                ("usage_amount", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("unit", models.CharField(max_length=63, null=True)),
-                ("unblended_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("markup_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("currency_code", models.CharField(max_length=10, null=True)),
-                ("source_uuid", models.UUIDField(null=True)),
-            ],
-            options={"db_table": "reporting_ocpall_database_summary_p", "managed": False},
-        ),
-        migrations.CreateModel(
-            name="OCPAllNetworkSummaryP",
-            fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
-                ("cluster_id", models.CharField(max_length=50, null=True)),
-                ("cluster_alias", models.CharField(max_length=256, null=True)),
-                ("usage_account_id", models.CharField(max_length=50)),
-                ("usage_start", models.DateField()),
-                ("usage_end", models.DateField()),
-                ("product_code", models.CharField(max_length=50)),
-                ("usage_amount", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("unit", models.CharField(max_length=63, null=True)),
-                ("unblended_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("markup_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("currency_code", models.CharField(max_length=10, null=True)),
-                ("source_uuid", models.UUIDField(null=True)),
-            ],
-            options={"db_table": "reporting_ocpall_network_summary_p", "managed": False},
-        ),
-        migrations.CreateModel(
-            name="OCPAllStorageSummaryP",
-            fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
-                ("cluster_id", models.CharField(max_length=50, null=True)),
-                ("cluster_alias", models.CharField(max_length=256, null=True)),
-                ("usage_account_id", models.CharField(max_length=50)),
-                ("usage_start", models.DateField()),
-                ("usage_end", models.DateField()),
-                ("product_family", models.CharField(max_length=150, null=True)),
-                ("product_code", models.CharField(max_length=50)),
-                ("usage_amount", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("unit", models.CharField(max_length=63, null=True)),
-                ("unblended_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("markup_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("currency_code", models.CharField(max_length=10, null=True)),
-                ("source_uuid", models.UUIDField(null=True)),
-            ],
-            options={"db_table": "reporting_ocpall_storage_summary_p", "managed": False},
-        ),
+        migrations.RunPython(code=refresh_new_ocpall_matviews, reverse_code=lambda a, s: None),
     ]
