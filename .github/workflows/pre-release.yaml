@@ -10,13 +10,13 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Set variables
-      run: |
-        echo "::set-output name=RELEASE_BODY::$(git log $(git tag --list | tail -1)..main --pretty=format:'* %h - %s')"
-        echo "::set-output name=TAG_VERSION::r.$(date +%Y.%m.%d)"
+      run: echo "::set-output name=TAG_VERSION::r.$(date +%Y.%m.%d)"
       id: variable-setter
+    - name: Create release body file
+      run: bash .github/scripts/get_description.sh
     - uses: ncipollo/release-action@v1
       with:
-        body: ${{ steps.variable-setter.outputs.RELEASE_BODY }}
+        bodyFile: release_body.md
         prerelease: true
         tag: ${{ steps.variable-setter.outputs.TAG_VERSION }}
         token: ${{ secrets.GITHUB_TOKEN }}
