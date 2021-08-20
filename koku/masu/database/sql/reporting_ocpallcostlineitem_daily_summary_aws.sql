@@ -1,7 +1,6 @@
 -- OCP ON ALL DAILY SUMMARY PROCESSING (AWS DATA)
 INSERT
-  INTO reporting_ocpallcostlineitem_daily_summary (
-           id,
+  INTO reporting_ocpallcostlineitem_daily_summary_p (
            source_type,
            cluster_id,
            cluster_alias,
@@ -26,8 +25,7 @@ INSERT
            shared_projects,
            source_uuid
        )
-SELECT uuid_generate_v4(),
-       'AWS'::text AS source_type,
+SELECT 'AWS'::text AS source_type,
        aws.cluster_id,
        max(aws.cluster_alias),
        aws.namespace,

@@ -87,12 +87,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 self._handle_partitions("reporting_ocpallcostlineitem_daily_summary", start_date, end_date)
-                sql_params = {
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "source_uuid": self._provider.uuid,
-                    "source_type": "AWS",
-                }
+                sql_params = {"start_date": start_date, "end_date": end_date, "source_uuid": self._provider.uuid}
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
                 ocp_accessor.populate_ocp_on_all_daily_summary("aws", sql_params)
 
@@ -160,11 +155,6 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 self._handle_partitions("reporting_ocpallcostlineitem_daily_summary", start_date, end_date)
-                sql_params = {
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "source_uuid": self._provider.uuid,
-                    "source_type": "Azure",
-                }
+                sql_params = {"start_date": start_date, "end_date": end_date, "source_uuid": self._provider.uuid}
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
                 ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)
