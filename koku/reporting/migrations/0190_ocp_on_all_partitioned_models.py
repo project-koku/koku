@@ -12,6 +12,55 @@ from koku.database import set_partition_mode
 from koku.database import unset_partition_mode
 from reporting.provider.all.openshift.models import VIEWS as OCP_ALL_VIEWS
 
+
+OCPALL_PARTITIONS_SQL = f"""
+INSERT
+  INTO partitioned_tables
+       (
+           schema_name,
+           table_name,
+           partition_of_table_name,
+           partition_type,
+           partition_col,
+           partition_parameters,
+           active
+       )
+WITH start_end_date as (
+    SELECT min(r.partition_start) as partition_start,
+           max(r.partition_end) as partition_end
+      FROM (
+          SELECT max(date_trunc('month', usage_start)) - '2 months'::interval as partition_start,
+                 max(date_trunc('month', usage_start)) as partition_end
+            FROM reporting_ocpawscostlineitem_daily_summary
+           UNION
+          SELECT max(date_trunc('month', usage_start)) - '2 months'::interval as partition_start,
+                 max(date_trunc('month', usage_start)) as partition_end
+            FROM reporting_ocpazurecostlineitem_daily_summary
+      ) r
+),
+partitions as (
+    SELECT partition_start::date
+      FROM generate_series(
+               (SELECT partition_start from start_end_date),
+               (SELECT partition_end from start_end_date),
+               '1 month'::interval
+           ) partition_start
+)
+SELECT current_schema,
+       '{get_model("OCPAllCostLineItemDailySummaryP")._meta.db_table}_' || to_char(p.partition_start, 'YYYY_MM'),
+       '{get_model("OCPAllCostLineItemDailySummaryP")._meta.db_table}',
+       'range',
+       'usage_start',
+       jsonb_build_object(
+           'default', false,
+           'from', p.partition_start::text,
+           'to', (p.partition_start + '1 month'::interval)::text
+       ),
+       true
+  FROM partitions p;
+"""
+
+
 COPY_OCPALL_SQL = f"""
 INSERT
   INTO {get_model("OCPAllCostLineItemDailySummaryP")._meta.db_table}
@@ -139,6 +188,54 @@ SELECT  lids.source_type,
        lids.availability_zone,
        lids.tags
 ;
+"""
+
+
+OCPALL_PROJECT_PARTITIONS_SQL = f"""
+INSERT
+  INTO partitioned_tables
+       (
+           schema_name,
+           table_name,
+           partition_of_table_name,
+           partition_type,
+           partition_col,
+           partition_parameters,
+           active
+       )
+WITH start_end_date as (
+    SELECT min(r.partition_start) as partition_start,
+           max(r.partition_end) as partition_end
+      FROM (
+          SELECT max(date_trunc('month', usage_start)) - '2 months'::interval as partition_start,
+                 max(date_trunc('month', usage_start)) as partition_end
+            FROM reporting_ocpawscostlineitem_project_daily_summary
+           UNION
+          SELECT max(date_trunc('month', usage_start)) - '2 months'::interval as partition_start,
+                 max(date_trunc('month', usage_start)) as partition_end
+            FROM reporting_ocpazurecostlineitem_project_daily_summary
+      ) r
+),
+partitions as (
+    SELECT partition_start::date
+      FROM generate_series(
+               (SELECT partition_start from start_end_date),
+               (SELECT partition_end from start_end_date),
+               '1 month'::interval
+           ) partition_start
+)
+SELECT current_schema,
+       '{get_model("OCPAllCostLineItemProjectDailySummaryP")._meta.db_table}_' || to_char(p.partition_start, 'YYYY_MM'),
+       '{get_model("OCPAllCostLineItemProjectDailySummaryP")._meta.db_table}',
+       'range',
+       'usage_start',
+       jsonb_build_object(
+           'default', false,
+           'from', p.partition_start::text,
+           'to', (p.partition_start + '1 month'::interval)::text
+       ),
+       true
+  FROM partitions p;
 """
 
 
@@ -304,7 +401,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPAllCostLineItemProjectDailySummaryP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("source_type", models.TextField()),
                 ("cluster_id", models.CharField(max_length=50, null=True)),
                 ("cluster_alias", models.CharField(max_length=256, null=True)),
@@ -337,10 +434,16 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_ocpallcostlineitem_project_daily_summary_p"},
         ),
+        migrations.RunSQL(
+            """
+ALTER TABLE reporting_ocpallcostlineitem_project_daily_summary_p
+      ALTER COLUMN "id" SET DEFAULT uuid_generate_v4();
+"""
+        ),
         migrations.CreateModel(
             name="OCPAllCostLineItemDailySummaryP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("source_type", models.TextField()),
                 ("cluster_id", models.CharField(max_length=50, null=True)),
                 ("cluster_alias", models.CharField(max_length=256, null=True)),
@@ -374,6 +477,12 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={"db_table": "reporting_ocpallcostlineitem_daily_summary_p"},
+        ),
+        migrations.RunSQL(
+            """
+ALTER TABLE reporting_ocpallcostlineitem_daily_summary_p
+      ALTER COLUMN "id" SET DEFAULT uuid_generate_v4();
+"""
         ),
         migrations.AddIndex(
             model_name="ocpallcostlineitemprojectdailysummaryp",
@@ -434,6 +543,8 @@ class Migration(migrations.Migration):
             index=models.Index(fields=["instance_type"], name="ocpall_p_instance_type_idx"),
         ),
         migrations.RunPython(code=unset_partition_mode, reverse_code=set_partition_mode),
+        migrations.RunSQL(OCPALL_PROJECT_PARTITIONS_SQL, reverse_sql="select 1"),
+        migrations.RunSQL(OCPALL_PARTITIONS_SQL, reverse_sql="select 1"),
         migrations.RunSQL(COPY_OCPALL_PROJECT_SQL, reverse_sql="select 1"),
         migrations.RunSQL(COPY_OCPALL_SQL, reverse_sql="select 1"),
         migrations.RunPython(code=create_new_ocpall_matviews, reverse_code=drop_new_ocpall_matviews),
