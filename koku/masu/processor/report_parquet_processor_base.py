@@ -5,14 +5,14 @@
 """Processor for Parquet files."""
 import logging
 
-import prestodb
 import pyarrow.parquet as pq
+import trino
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
-from prestodb.exceptions import PrestoExternalError
-from prestodb.exceptions import PrestoQueryError
-from prestodb.exceptions import PrestoUserError
 from tenant_schemas.utils import schema_context
+from trino.exceptions import TrinoExternalError
+from trino.exceptions import TrinoQueryError
+from trino.exceptions import TrinoUserError
 
 from api.models import Provider
 from masu.util.common import strip_characters_from_column_name
@@ -49,16 +49,16 @@ class ReportParquetProcessorBase:
         """Execute presto SQL."""
         rows = []
         try:
-            with prestodb.dbapi.connect(
+            with trino.dbapi.connect(
                 host=settings.PRESTO_HOST, port=settings.PRESTO_PORT, user="admin", catalog="hive", schema=schema_name
             ) as conn:
                 cur = conn.cursor()
                 cur.execute(sql)
                 rows = cur.fetchall()
                 LOG.debug(f"_execute_sql rows: {str(rows)}. Type: {type(rows)}")
-        except PrestoUserError as err:
+        except TrinoUserError as err:
             LOG.error(err)
-        except (PrestoExternalError, PrestoQueryError) as err:
+        except (TrinoExternalError, TrinoQueryError) as err:
             LOG.error(err)
             msg = "There was an error running Trino SQL"
             raise TrinoExecutionError(msg)
