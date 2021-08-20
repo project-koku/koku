@@ -42,4 +42,5 @@ def running_celery_tasks(request):
 def celery_queue_lengths(request):
     """Get the length of the celery queues."""
     queue_len = collect_queue_metrics()
+    LOG.info(f"Celery queue backlog info: {queue_len}")
     return Response(queue_len)
