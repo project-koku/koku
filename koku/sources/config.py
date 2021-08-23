@@ -38,5 +38,6 @@ class Config:
             "NmQxLTQ3OGItYjViNi02YmQxMjljYjZkNWQifSwgImludGVybmFsIjogeyJvcmdfaWQiOiAiNTQzMjEifX19"
         ),
     )
+    SOURCES_PSK = ENVIRONMENT.get_value("SOURCES_PSK", default="sources-psk")
 
     RETRY_SECONDS = ENVIRONMENT.int("RETRY_SECONDS", default=10)
