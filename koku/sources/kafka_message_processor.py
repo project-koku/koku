@@ -11,6 +11,7 @@ from api.provider.models import Provider
 from sources import storage
 from sources.config import Config
 from sources.sources_http_client import AUTH_TYPES
+from sources.sources_http_client import convert_header_to_dict
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 
@@ -20,11 +21,14 @@ LOG = logging.getLogger(__name__)
 KAFKA_APPLICATION_CREATE = "Application.create"
 KAFKA_APPLICATION_UPDATE = "Application.update"
 KAFKA_APPLICATION_DESTROY = "Application.destroy"
+KAFKA_APPLICATION_PAUSE = "Application.pause"
+KAFKA_APPLICATION_UNPAUSE = "Application.unpause"
 KAFKA_AUTHENTICATION_CREATE = "Authentication.create"
 KAFKA_AUTHENTICATION_UPDATE = "Authentication.update"
 KAFKA_SOURCE_UPDATE = "Source.update"
 KAFKA_SOURCE_DESTROY = "Source.destroy"
 KAFKA_HDR_RH_IDENTITY = "x-rh-identity"
+KAFKA_HDR_ACCOUNT_NUMBER = "x-rh-sources-account-number"
 KAFKA_HDR_EVENT_TYPE = "event_type"
 
 SOURCES_OCP_SOURCE_NAME = "openshift"
@@ -53,8 +57,8 @@ class SourcesMessageError(ValidationError):
 class SourceDetails:
     """Sources Details object."""
 
-    def __init__(self, auth_header, source_id):
-        sources_network = SourcesHTTPClient(auth_header, source_id)
+    def __init__(self, auth_header, source_id, account_id):
+        sources_network = SourcesHTTPClient(auth_header, source_id, account_id)
         details = sources_network.get_source_details()
         self.name = details.get("name")
         self.source_type_id = int(details.get("source_type_id"))
@@ -79,8 +83,12 @@ class KafkaMessageProcessor:
         self.offset = msg.offset()
         self.partition = msg.partition()
         self.auth_header = extract_from_header(msg.headers(), KAFKA_HDR_RH_IDENTITY)
-        if self.auth_header is None:
-            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}`: {msg.headers()}"
+        decoded_header = convert_header_to_dict(self.auth_header, True)
+        self.account_number = extract_from_header(msg.headers(), KAFKA_HDR_ACCOUNT_NUMBER) or decoded_header.get(
+            "identity", {}
+        ).get("account_number")
+        if None in (self.account_number, self.auth_header):
+            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}` or account-number: {msg.headers()}"
             LOG.warning(msg)
             raise SourcesMessageError(msg)
         self.source_id = None
@@ -106,10 +114,10 @@ class KafkaMessageProcessor:
         return False
 
     def get_sources_client(self):
-        return SourcesHTTPClient(self.auth_header, self.source_id)
+        return SourcesHTTPClient(self.auth_header, self.source_id, self.account_number)
 
     def get_source_details(self):
-        return SourceDetails(self.auth_header, self.source_id)
+        return SourceDetails(self.auth_header, self.source_id, self.account_number)
 
     def save_sources_details(self):
         """
@@ -211,7 +219,8 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
     def process(self):
         """Process the message."""
         if self.event_type in (KAFKA_APPLICATION_CREATE,):
-            storage.create_source_event(self.source_id, self.auth_header, self.offset)
+            LOG.debug(f"[ApplicationMsgProcessor] creating source for source_id: {self.source_id}")
+            storage.create_source_event(self.source_id, self.account_number, self.auth_header, self.offset)
 
         if storage.is_known_source(self.source_id):
             if self.event_type in (KAFKA_APPLICATION_CREATE,):
@@ -251,7 +260,8 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
     def process(self):
         """Process the message."""
         if self.event_type in (KAFKA_AUTHENTICATION_CREATE):
-            storage.create_source_event(self.source_id, self.auth_header, self.offset)
+            LOG.debug(f"[AuthenticationMsgProcessor] creating source for source_id: {self.source_id}")
+            storage.create_source_event(self.source_id, self.account_number, self.auth_header, self.offset)
 
         if storage.is_known_source(self.source_id):
             if self.event_type in (KAFKA_AUTHENTICATION_CREATE):
@@ -274,8 +284,9 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
 
 def extract_from_header(headers, header_type):
     """Retrieve information from Kafka Headers."""
+    LOG.debug(f"[extract_from_header] extracting `{header_type}` from headers: {headers}")
     if headers is None:
-        return "unknown"
+        return
     for header in headers:
         if header_type in header:
             for item in header:
@@ -283,14 +294,14 @@ def extract_from_header(headers, header_type):
                     continue
                 else:
                     return item.decode("ascii")
-    return None
+    return
 
 
 def create_msg_processor(msg, cost_mgmt_id):
     """Create the message processor based on the event_type."""
     if msg.topic() == Config.SOURCES_TOPIC:
         event_type = extract_from_header(msg.headers(), KAFKA_HDR_EVENT_TYPE)
-        LOG.debug(f"event_type: {str(event_type)}")
+        LOG.debug(f"event_type: {event_type}")
         if event_type in (KAFKA_APPLICATION_CREATE, KAFKA_APPLICATION_UPDATE, KAFKA_APPLICATION_DESTROY):
             return ApplicationMsgProcessor(msg, event_type, cost_mgmt_id)
         elif event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):

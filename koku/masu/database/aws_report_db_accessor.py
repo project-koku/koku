@@ -323,7 +323,15 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         )
 
     def populate_ocp_on_aws_cost_daily_summary_presto(
-        self, start_date, end_date, openshift_provider_uuid, aws_provider_uuid, report_period_id, bill_id, markup_value
+        self,
+        start_date,
+        end_date,
+        openshift_provider_uuid,
+        aws_provider_uuid,
+        report_period_id,
+        bill_id,
+        markup_value,
+        distribution,
     ):
         """Populate the daily cost aggregated summary for OCP on AWS.
 
@@ -335,6 +343,13 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        # Default to cpu distribution
+        node_column = "node_capacity_cpu_core_hours"
+        cluster_column = "cluster_capacity_cpu_core_hours"
+        if distribution == "memory":
+            node_column = "node_capacity_memory_gigabyte_hours"
+            cluster_column = "cluster_capacity_memory_gigabyte_hours"
+
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpawscostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -348,6 +363,8 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             "bill_id": bill_id,
             "report_period_id": report_period_id,
             "markup": markup_value,
+            "node_column": node_column,
+            "cluster_column": cluster_column,
         }
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 

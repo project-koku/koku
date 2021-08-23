@@ -272,6 +272,9 @@ parameters:
 - description: Source API Path prefix
   name: SOURCES_API_PREFIX
   value: /api/sources/v1.0
+- description: Sources PSK secret name
+  name: SOURCES_PSK_SECRET_NAME
+  value: "sources-psk"
 
 - name: SECRET_KEY
   displayName: Secret Key (Ephemeral)
