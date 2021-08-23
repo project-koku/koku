@@ -6,9 +6,6 @@
 import binascii
 import logging
 from base64 import b64decode
-from base64 import b64encode
-from json import dumps as json_dumps
-from json import JSONDecodeError
 from json import loads as json_loads
 
 import requests
@@ -43,6 +40,24 @@ ENDPOINT_SOURCES = "sources"
 ENDPOINT_SOURCE_TYPES = "source_types"
 
 
+def convert_header_to_dict(header, b64_decode=False):
+    if not header:
+        return {}
+    if b64_decode:
+        try:
+            header = b64decode(header)
+        except (binascii.Error, TypeError) as error:
+            msg = f"[convert_header_to_dict] unable to decode: {header}. Error: {error}"
+            LOG.error(msg)
+            raise ValueError(msg)
+    try:
+        return json_loads(header)
+    except (TypeError, ValueError) as error:
+        msg = f"[convert_header_to_dict] unable to convert: {header}. Error: {error}"
+        LOG.error(msg)
+        raise ValueError(msg)
+
+
 class SourcesHTTPClientError(Exception):
     """SourcesHTTPClient Error."""
 
@@ -58,15 +73,19 @@ class SourceNotFoundError(Exception):
 class SourcesHTTPClient:
     """Sources HTTP client for Sources API service."""
 
-    def __init__(self, auth_header, source_id=None):
+    def __init__(self, auth_header, source_id=None, account_id=None):
         """Initialize the client."""
         self._source_id = source_id
+        self._account_id = account_id
         self._sources_host = Config.SOURCES_API_URL
         self._base_url = f"{self._sources_host}{Config.SOURCES_API_PREFIX}"
         self._internal_url = f"{self._sources_host}{Config.SOURCES_INTERNAL_API_PREFIX}"
 
-        header = {"x-rh-identity": auth_header}
-        self._identity_header = header
+        self._identity_header = {
+            "x-rh-sources-psk": Config.SOURCES_PSK,
+            "x-rh-identity": auth_header,
+            "x-rh-sources-account-number": account_id,
+        }
 
         self.credential_map = {
             Provider.PROVIDER_OCP: self._get_ocp_credentials,
@@ -81,7 +100,9 @@ class SourcesHTTPClient:
     def _get_network_response(self, url, error_msg):
         """Helper to get network response or raise exception."""
         try:
+            LOG.debug(f"[_get_network_response] url: {url} | headers: {self._identity_header}")
             resp = requests.get(url, headers=self._identity_header)
+            LOG.debug(f"[_get_network_response] status_code: {resp.status_code} | data: {resp.text}")
         except RequestException as error:
             raise SourcesHTTPClientError(f"{error_msg}. Reason: {error}")
 
@@ -255,27 +276,6 @@ class SourcesHTTPClient:
 
         raise SourcesHTTPClientError(f"Unable to get Azure credentials for Source: {self._source_id}")
 
-    def build_status_header(self):
-        """Build org-admin header for internal status delivery."""
-        try:
-            encoded_auth_header = self._identity_header.get("x-rh-identity")
-            identity = json_loads(b64decode(encoded_auth_header))
-            account = identity["identity"]["account_number"]
-
-            identity_header = {
-                "identity": {
-                    "account_number": account,
-                    "type": "User",
-                    "user": {"username": "cost-mgmt", "email": "cost-mgmt@redhat.com", "is_org_admin": True},
-                }
-            }
-            json_identity = json_dumps(identity_header)
-            cost_internal_header = b64encode(json_identity.encode("utf-8"))
-
-            return {"x-rh-identity": cost_internal_header}
-        except (binascii.Error, JSONDecodeError, TypeError, KeyError, ValueError) as error:
-            LOG.error(f"Unable to build internal status header. Error: {str(error)}")
-
     def build_source_status(self, error_obj):
         """
         Format the availability status for a source.
@@ -305,11 +305,9 @@ class SourcesHTTPClient:
 
     def set_source_status(self, error_msg, cost_management_type_id=None):
         """Set the source status with error message."""
+        LOG.debug(f"[set_source_status] Setting source status: {self._source_id}")
         if storage.is_known_source(self._source_id):
             storage.clear_update_flag(self._source_id)
-        status_header = self.build_status_header()
-        if not status_header:
-            return False
 
         if not cost_management_type_id:
             cost_management_type_id = self.get_cost_management_application_type_id()
@@ -329,7 +327,7 @@ class SourcesHTTPClient:
             json_data = self.build_source_status(error_msg)
             if storage.save_status(self._source_id, json_data):
                 LOG.info(f"[set_source_status] source_id: {self._source_id}: {json_data}")
-                application_response = requests.patch(application_url, json=json_data, headers=status_header)
+                application_response = requests.patch(application_url, json=json_data, headers=self._identity_header)
                 error_message = (
                     f"[set_source_status] error: Status code: "
                     f"{application_response.status_code}. Response: {application_response.text}."
