@@ -1,0 +1,25 @@
+name: pre release
+
+on:
+  schedule:
+    - cron:  '30 12 * * FRI'
+  workflow_dispatch:
+
+jobs:
+  pre-release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set variables
+      run: echo "::set-output name=TAG_VERSION::r.$(date +%Y.%m.%d)"
+      id: variable-setter
+    - name: Remove old remote-tracking references no longer on remote
+      run: git fetch --prune --unshallow
+    - name: Create release body file
+      run: bash .github/scripts/get_description.sh
+    - uses: ncipollo/release-action@v1
+      with:
+        bodyFile: release_body.md
+        prerelease: true
+        tag: ${{ steps.variable-setter.outputs.TAG_VERSION }}
+        token: ${{ secrets.GITHUB_TOKEN }}
