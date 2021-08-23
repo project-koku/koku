@@ -187,7 +187,7 @@ def execute_koku_provider_op(msg):
     provider = msg.get("provider")
     operation = msg.get("operation")
     account_coordinator = SourcesProviderCoordinator(provider.source_id, provider.auth_header)
-    sources_client = SourcesHTTPClient(provider.auth_header, provider.source_id)
+    sources_client = SourcesHTTPClient(provider.auth_header, provider.source_id, provider.account_id)
 
     try:
         if operation == "create":

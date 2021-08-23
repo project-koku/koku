@@ -19,6 +19,12 @@
           value: ${CLOWDER_ENABLED}
         - name: SOURCES
           value: "true"
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psks
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
