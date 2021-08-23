@@ -81,10 +81,9 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
-
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query_data.values(*query_group_by).annotate(**annotations)
-
+            copy_query_data = query_data
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
                 if not self.parameters.get("order_by"):
@@ -122,7 +121,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             if order_date:
                 sort_term = self._get_group_by()[0]
                 query_order_by.pop(i)
-                date_filtered_query_data = query_data.filter(usage_start=order_date)
+                date_filtered_query_data = copy_query_data.filter(usage_start=order_date)
                 ordered_data = self.order_by(date_filtered_query_data, query_order_by)
                 order_of_interest = []
                 for entry in ordered_data:

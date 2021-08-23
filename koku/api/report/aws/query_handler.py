@@ -578,6 +578,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             tag_results = None
             query = query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
+
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
@@ -597,6 +598,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
                 if self.parameters.parameters.get("check_tags"):
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
+            copy_query_data = query_data
 
             def check_if_valid_date_str(date_str):
                 """Check to see if a valid date has been passed in."""
@@ -628,13 +630,10 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     break
             # Remove the date order by as it is not actually used for ordering
             if order_date:
-                for i in query_data:
-                    if order_date < i.get("date"):
-                        # return an error that the date is out of range
-                        pass
+
                 sort_term = self._get_group_by()[0]
                 query_order_by.pop(i)
-                date_filtered_query_data = query_data.filter(usage_start=order_date)
+                date_filtered_query_data = copy_query_data.filter(usage_start=order_date)
                 ordered_data = self.order_by(date_filtered_query_data, query_order_by)
                 order_of_interest = []
                 for entry in ordered_data:

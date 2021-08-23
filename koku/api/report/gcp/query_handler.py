@@ -152,6 +152,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             query = query.filter(invoice_month__in=self.invoice_months)
             query_data = query.annotate(**self.annotations)
+
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
@@ -162,6 +163,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
                     annotations[f"{alias_key}_alias"] = F(alias_value)
             query_data = query_data.values(*query_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
+            copy_query_data = query_data
 
             if self._limit:
                 query_data = self._group_by_ranks(query, query_data)
@@ -195,7 +197,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
             if order_date:
                 sort_term = self._get_group_by()[0]
                 query_order_by.pop(i)
-                date_filtered_query_data = query_data.filter(usage_start=order_date)
+                date_filtered_query_data = copy_query_data.filter(usage_start=order_date)
                 ordered_data = self.order_by(date_filtered_query_data, query_order_by)
                 order_of_interest = []
                 for entry in ordered_data:

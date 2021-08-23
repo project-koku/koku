@@ -397,9 +397,10 @@ class ParamSerializer(BaseSerializer):
                     continue
                 # sepcial case: we order by date, but we group by an allowed param.
                 if key == "date" and group_keys:
+                    # WIP need to find range and return if it is in range
                     today = datetime.utcnow()
                     today = datetime.date(today)
-                    yesterday = today - timedelta(days=10)
+                    yesterday = today - timedelta(days=90)
                     if value.get("date") < yesterday or value.get("date") > today:
                         error[key] = _(f'The date "{value.get("date")}" is out of range')
                         raise serializers.ValidationError(error)
