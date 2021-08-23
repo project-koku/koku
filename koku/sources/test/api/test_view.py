@@ -151,8 +151,10 @@ class SourcesViewTests(IamTestCase):
     def test_source_get_other_header(self):
         """Test the GET endpoint other header not matching test data."""
         user_data = self._create_user_data()
+        other_account = "10002"
+        customer = self._create_customer_data(account=other_account)
+        IdentityHeaderMiddleware.create_customer(other_account)
 
-        customer = self._create_customer_data(account="10002")
         request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
         with requests_mock.mock() as m:
             m.get(
