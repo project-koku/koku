@@ -21,10 +21,10 @@ jobs:
       run: echo "RELEASE_COMMIT=${{ github.event.inputs.commit }}" >> $GITHUB_ENV
     - name: Create release body file
       run: bash .github/scripts/get_description.sh
-    - run: cat release_body.md
-    # - uses: ncipollo/release-action@v1
-    #   with:
-    #     bodyFile: release_body.md
-    #     prerelease: true
-    #     tag: ${{ steps.variable-setter.outputs.TAG_VERSION }}
-    #     token: ${{ secrets.GITHUB_TOKEN }}
+    - uses: ncipollo/release-action@v1
+      with:
+        bodyFile: release_body.md
+        commit: ${{ github.event.inputs.commit }}
+        prerelease: true
+        tag: ${{ steps.variable-setter.outputs.TAG_VERSION }}
+        token: ${{ secrets.GITHUB_TOKEN }}
