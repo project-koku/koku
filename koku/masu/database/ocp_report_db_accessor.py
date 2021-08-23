@@ -2285,11 +2285,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     cur.execute(sql_stmt, params)
 
     def populate_ocp_on_all_project_daily_summary(self, platform, sql_params):
-        LOG.info(f"Populating {sql_params['source_type']} records for ocpallcostlineitem_project_daily_summary")
+        LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_project_daily_summary")
         script_file_path = f"sql/reporting_ocpallcostlineitem_project_daily_summary_{platform.lower()}.sql"
         self._execute_processing_script(script_file_path, sql_params)
 
     def populate_ocp_on_all_daily_summary(self, platform, sql_params):
-        LOG.info(f"Populating {sql_params['source_type']} records for ocpallcostlineitem_daily_summary")
+        LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_daily_summary")
         script_file_path = f"sql/reporting_ocpallcostlineitem_daily_summary_{platform.lower()}.sql"
         self._execute_processing_script(script_file_path, sql_params)

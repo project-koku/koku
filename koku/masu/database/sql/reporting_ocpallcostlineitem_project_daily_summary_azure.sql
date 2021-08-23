@@ -1,6 +1,6 @@
 -- OCP ON ALL PROJECT DAILY SUMMARY PROCESSING (AZURE DATA)
 INSERT
-  INTO reporting_ocpallcostlineitem_daily_summary_p (
+  INTO reporting_ocpallcostlineitem_project_daily_summary_p (
            source_type,
            cluster_id,
            cluster_alias,
@@ -13,6 +13,10 @@ INSERT
            usage_end,
            usage_account_id,
            account_alias_id,
+           product_code,
+           product_family,
+           instance_type,
+           region,
            availability_zone,
            usage_amount,
            unit,
@@ -45,7 +49,7 @@ SELECT 'Azure' as source_type,
        sum(project_markup_cost) as project_markup_cost,
        sum(pod_cost) as pod_cost,
        max(currency) as currency_code,
-       max(source_uuid::text)::uuid as source_uuid
+       {{source_uuid}} as source_uuid
   FROM reporting_ocpazurecostlineitem_project_daily_summary
  WHERE usage_start >= {{start_date}}::date
    AND usage_start <= {{end_date}}::date
