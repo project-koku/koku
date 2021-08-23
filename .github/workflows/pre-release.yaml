@@ -2,22 +2,29 @@ name: pre release
 
 on:
   workflow_dispatch:
+    inputs:
+      commit:
+        description: 'Release commit'
+        required: true
 
 jobs:
   pre-release:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
     - name: Set variables
       run: echo "::set-output name=TAG_VERSION::r.$(date +%Y.%m.%d)"
       id: variable-setter
-    - name: Remove old remote-tracking references no longer on remote
-      run: git fetch --prune --unshallow
+    - name: set the release commit
+      run: echo "RELEASE_COMMIT=${{ github.event.inputs.commit }}" >> $GITHUB_ENV
     - name: Create release body file
       run: bash .github/scripts/get_description.sh
-    - uses: ncipollo/release-action@v1
-      with:
-        bodyFile: release_body.md
-        prerelease: true
-        tag: ${{ steps.variable-setter.outputs.TAG_VERSION }}
-        token: ${{ secrets.GITHUB_TOKEN }}
+    - run: cat release_body.md
+    # - uses: ncipollo/release-action@v1
+    #   with:
+    #     bodyFile: release_body.md
+    #     prerelease: true
+    #     tag: ${{ steps.variable-setter.outputs.TAG_VERSION }}
+    #     token: ${{ secrets.GITHUB_TOKEN }}

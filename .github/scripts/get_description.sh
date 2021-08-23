@@ -7,5 +7,5 @@ TODO: insert summary
 
 ### Changes:
 
-$(git log $(git tag --list | tail -1)..main --pretty=format:'* %h - %s')
+$(git log $(git tag --list | tail -1)..${RELEASE_COMMIT} --pretty=format:'* %h - %s')
 EOF
