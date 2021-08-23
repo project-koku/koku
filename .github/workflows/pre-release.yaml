@@ -39,5 +39,5 @@ jobs:
         bodyFile: release_body.md
         commit: ${{ github.event.inputs.commit }}
         prerelease: true
-        tag: ${{ steps.variable-setter.outputs.TAG_VERSION }}
+        tag: ${{ steps.tag-setter.outputs.TAG_VERSION }}
         token: ${{ secrets.GITHUB_TOKEN }}
