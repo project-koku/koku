@@ -1,8 +1,6 @@
 #!/bin/bash
 
 cat > release_body.md << EOF
-### Current commit: \<insert-commit-hash\>
-
 ### Summary:
 
 TODO: insert summary

@@ -1,8 +1,6 @@
 name: pre release
 
 on:
-  schedule:
-    - cron:  '30 12 * * FRI'
   workflow_dispatch:
 
 jobs:
