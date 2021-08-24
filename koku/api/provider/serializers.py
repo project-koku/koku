@@ -221,6 +221,7 @@ class ProviderSerializer(serializers.ModelSerializer):
     customer = CustomerSerializer(read_only=True)
     created_by = UserSerializer(read_only=True)
     active = serializers.BooleanField(read_only=True)
+    paused = serializers.BooleanField()
 
     class Meta:
         """Metadata for the serializer."""
@@ -236,6 +237,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             "created_by",
             "created_timestamp",
             "active",
+            "paused",
         )
 
     def __init__(self, instance=None, data=empty, **kwargs):
@@ -362,6 +364,11 @@ class ProviderSerializer(serializers.ModelSerializer):
         credentials = authentication.get("credentials")
         billing_source = validated_data.pop("billing_source")
         data_source = billing_source.get("data_source")
+
+        # updating `paused` must happen regardless of Provider availabilty
+        LOG.warning(f"paused info: {instance.paused} | validated_data: {validated_data}")
+        paused = validated_data.pop("paused", instance.paused)
+        instance.paused = paused
 
         try:
             if self._is_demo_account(provider_type, credentials):
