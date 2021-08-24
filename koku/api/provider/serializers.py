@@ -221,7 +221,7 @@ class ProviderSerializer(serializers.ModelSerializer):
     customer = CustomerSerializer(read_only=True)
     created_by = UserSerializer(read_only=True)
     active = serializers.BooleanField(read_only=True)
-    paused = serializers.BooleanField(default=False)
+    paused = serializers.BooleanField(required=False)
 
     class Meta:
         """Metadata for the serializer."""
