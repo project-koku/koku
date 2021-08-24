@@ -123,14 +123,6 @@ class OrgQueryParamSerializer(ParamSerializer):
         error = "Parameter end_date must be from {} to {}".format(dh.last_month_start.date(), dh.today.date())
         raise serializers.ValidationError(error)
 
-    def validate_order_by_date(self, value):
-        """Validate that the end_date is within the expected range."""
-        dh = DateHelper()
-        if value >= materialized_view_month_start(dh).date() and value <= dh.today.date():
-            return value
-        error = "Parameter end_date must be from {} to {}".format(dh.last_month_start.date(), dh.today.date())
-        raise serializers.ValidationError(error)
-
 
 class AWSOrgQueryParamSerializer(OrgQueryParamSerializer):
     """Serializer for handling AWS org query parameters."""

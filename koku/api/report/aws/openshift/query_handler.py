@@ -45,6 +45,8 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 query_data = query_data.annotate(
                     account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
                 )
+            # We take a copy of the query_data while it is still in a queryset form
+            # Used if order_by[date] is a query parameter
             copy_query_data = query_data
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)

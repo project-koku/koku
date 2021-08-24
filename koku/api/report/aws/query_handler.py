@@ -598,6 +598,8 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
                 if self.parameters.parameters.get("check_tags"):
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
+            # We take a copy of the query_data while it is still in a queryset form
+            # Used if order_by[date] is a query parameter
             copy_query_data = query_data
 
             def check_if_valid_date_str(date_str):
@@ -640,11 +642,9 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     order_of_interest.append(entry.get(sort_term))
                 # write a special order by function that iterates through the
                 # rest of the days in query_data and puts them in the same order
-                # return_query_data = []
                 sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
                 query_data = self.order_by(sorted_data, ["-date"])
             else:
-                # &order_by[cost]=desc&order_by[date]=2021-08-02
                 query_data = self.order_by(query_data, query_order_by)
 
             # Fetch the data (returning list(dict))

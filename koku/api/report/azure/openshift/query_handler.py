@@ -83,6 +83,8 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query_data.values(*query_group_by).annotate(**annotations)
+            # We take a copy of the query_data while it is still in a queryset form
+            # Used if order_by[date] is a query parameter
             copy_query_data = query_data
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
@@ -132,7 +134,6 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
                 query_data = self.order_by(sorted_data, ["-date"])
             else:
-                # &order_by[cost]=desc&order_by[date]=2021-08-02
                 query_data = self.order_by(query_data, query_order_by)
 
             cost_units_value = self._mapper.report_type_map.get("cost_units_fallback", "USD")

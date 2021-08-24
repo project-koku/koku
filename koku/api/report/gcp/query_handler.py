@@ -163,6 +163,8 @@ class GCPReportQueryHandler(ReportQueryHandler):
                     annotations[f"{alias_key}_alias"] = F(alias_value)
             query_data = query_data.values(*query_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
+            # We take a copy of the query_data while it is still in a queryset form
+            # Used if order_by[date] is a query parameter
             copy_query_data = query_data
 
             if self._limit:

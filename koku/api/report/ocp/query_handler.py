@@ -130,6 +130,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_order_by.extend(self.order)  # add implicit ordering
 
             query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
+            # We take a copy of the query_data while it is still in a queryset form
+            # Used if order_by[date] is a query parameter
             copy_query_data = query_data
 
             if self._limit and query_data:
