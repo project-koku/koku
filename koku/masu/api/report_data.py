@@ -8,6 +8,7 @@ import datetime
 import logging
 
 import ciso8601
+import pytz
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -65,8 +66,8 @@ def report_data(request):
             errmsg = "start_date is a required parameter."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        start_date = ciso8601.parse_datetime(start_date)
-        end_date = ciso8601.parse_datetime(end_date) if end_date else datetime.datetime.utcnow()
+        start_date = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
+        end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC) if end_date else DateHelper().today
         months = DateHelper().list_month_tuples(start_date, end_date)
         num_months = len(months)
         first_month = months[0]
