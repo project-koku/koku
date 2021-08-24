@@ -22,13 +22,14 @@ faker = Faker()
 
 
 class MockSourceObject:
-    def __init__(self, name, type, authentication, billing_source, uuid=None):
+    def __init__(self, name, type, authentication, billing_source, uuid=None, paused=False):
         self.name = name
         self.source_type = type
         self.authentication = authentication
         self.billing_source = billing_source
         self.source_uuid = uuid
         self.koku_uuid = uuid
+        self.paused = paused
 
 
 class ProviderBuilderTest(IamTestCase):
