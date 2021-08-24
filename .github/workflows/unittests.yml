@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  build:
+  unit-tests:
 
     runs-on: ubuntu-20.04
     strategy:

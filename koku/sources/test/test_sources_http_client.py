@@ -5,7 +5,6 @@
 """Test the Sources HTTP Client."""
 from base64 import b64encode
 from itertools import product
-from json import dumps as json_dumps
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -21,6 +20,7 @@ from sources.config import Config
 from sources.kafka_listener import storage_callback
 from sources.sources_http_client import APP_EXTRA_FIELD_MAP
 from sources.sources_http_client import AUTH_TYPES
+from sources.sources_http_client import convert_header_to_dict
 from sources.sources_http_client import ENDPOINT_APPLICATION_TYPES
 from sources.sources_http_client import ENDPOINT_APPLICATIONS
 from sources.sources_http_client import ENDPOINT_AUTHENTICATIONS
@@ -33,6 +33,42 @@ from sources.sources_http_client import SourcesHTTPClientError
 faker = Faker()
 COST_MGMT_APP_TYPE_ID = 2
 MOCK_URL = "http://mock.url"
+
+
+class HeaderConverterTest(TestCase):
+    def test_convert_header_to_dict(self):
+        """Test header conversion to dict."""
+        table = [
+            {"header": None, "expected": {}, "b64_encode": True},
+            {"header": None, "expected": {}, "b64_encode": False},
+            {
+                "header": b64encode(b'{"valid-b64": "valid-key"}'),
+                "expected": {"valid-b64": "valid-key"},
+                "b64_encode": True,
+            },
+            {
+                "header": '{"valid-string": "valid-key"}',
+                "expected": {"valid-string": "valid-key"},
+                "b64_encode": False,
+            },
+        ]
+        for test in table:
+            with self.subTest(test=test):
+                result = convert_header_to_dict(test["header"], test["b64_encode"])
+                self.assertDictEqual(result, test["expected"])
+
+    def test_convert_header_to_dict_errors(self):
+        """Test header conversion to dict with errors."""
+        table = [
+            {"header": "gibberish", "error": ValueError, "b64_encode": True},
+            {"header": 123456789, "error": ValueError, "b64_encode": True},
+            {"header": '{"invalid": "json"', "error": ValueError, "b64_encode": False},
+            {"header": 123456789, "error": ValueError, "b64_encode": False},
+        ]
+        for test in table:
+            with self.subTest(test=test):
+                with self.assertRaises(test["error"]):
+                    convert_header_to_dict(test["header"], test["b64_encode"])
 
 
 @patch.object(Config, "SOURCES_API_URL", MOCK_URL)
@@ -545,26 +581,6 @@ class SourcesHTTPClientTest(TestCase):
                         with self.assertRaises(SourcesHTTPClientError):
                             client._get_azure_credentials(COST_MGMT_APP_TYPE_ID)
 
-    def test_build_status_header(self):
-        """Test build status header success and failure."""
-        table = [
-            {"header": None, "expected": None},
-            {"header": "", "expected": None},
-            {"header": "çëœ", "expected": None},
-            {"header": b64encode("this is gibberish".encode()), "expected": None},
-            {"header": b64encode(json_dumps({"identity": {}}).encode("utf-8")), "expected": None},
-            {
-                "header": Config.SOURCES_FAKE_HEADER,
-                "expected": {
-                    "x-rh-identity": b"eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAidHlwZSI6ICJVc2VyIiwgInVzZXIiOiB7InVzZXJuYW1lIjogImNvc3QtbWdtdCIsICJlbWFpbCI6ICJjb3N0LW1nbXRAcmVkaGF0LmNvbSIsICJpc19vcmdfYWRtaW4iOiB0cnVlfX19"  # noqa: E501
-                },
-            },
-        ]
-        for test in table:
-            with self.subTest(test=test):
-                client = SourcesHTTPClient(auth_header=test.get("header"))
-                self.assertEqual(client.build_status_header(), test.get("expected"))
-
     def test_build_source_status(self):
         """Test build source status."""
         table = [
@@ -635,12 +651,6 @@ class SourcesHTTPClientTest(TestCase):
             )
             response = client.set_source_status(error_msg)
             self.assertTrue(response)
-
-    def test_set_source_status_failed_header(self):
-        """Test set_source_status with invalid header."""
-        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
-        with patch.object(SourcesHTTPClient, "build_status_header", return_value=None):
-            self.assertFalse(client.set_source_status(""))
 
     @patch("sources.storage.is_known_source", return_value=True)
     @patch("sources.storage.clear_update_flag")

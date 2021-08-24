@@ -34,12 +34,13 @@ class GCPGroupBySerializer(GroupSerializer):
 class GCPOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ("account", "region", "service", "project")
+    _opfields = ("account", "region", "service", "project", "date")
 
     account = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     service = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    date = serializers.DateField(required=False)
 
 
 class GCPFilterSerializer(BaseFilterSerializer):

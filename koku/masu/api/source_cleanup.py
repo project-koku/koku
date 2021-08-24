@@ -157,7 +157,7 @@ def _missing_sources(source_uuid):
     missing_sources = []
     for source in sources:
         try:
-            sources_client = SourcesHTTPClient(source.auth_header, source.source_id)
+            sources_client = SourcesHTTPClient(source.auth_header, source.source_id, source.account_id)
             _ = sources_client.get_source_details()
         except SourceNotFoundError:
             LOG.debug(

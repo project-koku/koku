@@ -14,7 +14,7 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
-from masu.processor.parquet.ocp_cloud_parquet_report_processor import REPORT_TYPE
+from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.test import MasuTestCase
 from masu.util.aws.common import match_openshift_resources_and_labels
@@ -45,11 +45,11 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
 
     def test_parquet_ocp_on_cloud_path_s3(self):
         """Test that the path is set properly."""
-        self.assertIn(REPORT_TYPE, self.report_processor.parquet_ocp_on_cloud_path_s3)
+        self.assertIn(OPENSHIFT_REPORT_TYPE, self.report_processor.parquet_ocp_on_cloud_path_s3)
 
     def test_report_type(self):
         """Test that the report type is set properly."""
-        self.assertEqual(REPORT_TYPE, self.report_processor.report_type)
+        self.assertEqual(OPENSHIFT_REPORT_TYPE, self.report_processor.report_type)
 
     def test_ocp_on_cloud_data_processor(self):
         """Test that the processor is properly set."""
@@ -132,7 +132,8 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     def test_determin_s3_path(self):
         """Test that we return the OCP on cloud path."""
         self.assertEqual(
-            self.report_processor._determin_s3_path(REPORT_TYPE), self.report_processor.parquet_ocp_on_cloud_path_s3
+            self.report_processor._determin_s3_path(OPENSHIFT_REPORT_TYPE),
+            self.report_processor.parquet_ocp_on_cloud_path_s3,
         )
         self.assertIsNone(self.report_processor._determin_s3_path("incorrect"))
 

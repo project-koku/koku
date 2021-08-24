@@ -55,6 +55,9 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             markup = cost_model_accessor.markup
             markup_value = Decimal(markup.get("value", 0)) / 100
 
+        with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
+            distribution = cost_model_accessor.distribution
+
         # OpenShift on AWS
         with AWSReportDBAccessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
@@ -77,6 +80,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     current_ocp_report_period_id,
                     current_aws_bill_id,
                     markup_value,
+                    distribution,
                 )
             accessor.back_populate_ocp_on_aws_daily_summary(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start_date, end_date)
@@ -113,6 +117,9 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             markup = cost_model_accessor.markup
             markup_value = Decimal(markup.get("value", 0)) / 100
 
+        with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
+            distribution = cost_model_accessor.distribution
+
         # OpenShift on Azure
         with AzureReportDBAccessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
@@ -135,6 +142,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     current_ocp_report_period_id,
                     current_azure_bill_id,
                     markup_value,
+                    distribution,
                 )
             accessor.back_populate_ocp_on_azure_daily_summary(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start_date, end_date)
