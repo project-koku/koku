@@ -181,6 +181,8 @@ class KafkaMessageProcessorTest(IamTestCase):
             {"event_type": KAFKA_APPLICATION_CREATE, "expected": ApplicationMsgProcessor},
             {"event_type": KAFKA_APPLICATION_UPDATE, "expected": ApplicationMsgProcessor},
             {"event_type": KAFKA_APPLICATION_DESTROY, "expected": ApplicationMsgProcessor},
+            {"event_type": KAFKA_APPLICATION_PAUSE, "expected": ApplicationMsgProcessor},
+            {"event_type": KAFKA_APPLICATION_UNPAUSE, "expected": ApplicationMsgProcessor},
             {"event_type": KAFKA_AUTHENTICATION_CREATE, "expected": AuthenticationMsgProcessor},
             {"event_type": KAFKA_AUTHENTICATION_UPDATE, "expected": AuthenticationMsgProcessor},
             {
