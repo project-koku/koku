@@ -598,9 +598,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
                 if self.parameters.parameters.get("check_tags"):
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
-            # We take a copy of the query_data while it is still in a queryset form
-            # Used if order_by[date] is a query parameter
-            copy_query_data = query_data
 
             def check_if_valid_date_str(date_str):
                 """Check to see if a valid date has been passed in."""
@@ -635,8 +632,12 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
                 sort_term = self._get_group_by()[0]
                 query_order_by.pop(i)
-                date_filtered_query_data = copy_query_data.filter(usage_start=order_date)
-                ordered_data = self.order_by(date_filtered_query_data, query_order_by)
+                filtered_query_data = []
+                for index in query_data:
+                    for key, value in index.items():
+                        if (key == "date") and (value == order_date):
+                            filtered_query_data.append(index)
+                ordered_data = self.order_by(filtered_query_data, query_order_by)
                 order_of_interest = []
                 for entry in ordered_data:
                     order_of_interest.append(entry.get(sort_term))
