@@ -44,6 +44,8 @@ PARTITIONED_MODEL_NAMES = [
     "AzureCostEntryLineItemDailySummary",
     "GCPCostEntryLineItemDailySummary",
     "OCPUsageLineItemDailySummary",
+    "OCPAllCostLineItemDailySummaryP",
+    "OCPAllCostLineItemProjectDailySummaryP",
 ]
 DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
@@ -379,6 +381,21 @@ def p_table_sql(self, model):
     return sql, params
 
 
+def p_delete_model(self, model):
+    if model.__name__ in PARTITIONED_MODEL_NAMES:
+        pmodel = get_model(model.__name__)
+    else:
+        pmodel = None
+
+    if pmodel is not None and hasattr(pmodel, "PartitionInfo"):
+        sparams = {"partitioned_table_name": pmodel._meta.db_table}
+        with self.connection.cursor() as cur:
+            drop_partitions_sql = cur.mogrify(self.sql_drop_partitions, sparams).decode("utf-8")
+        self.execute(drop_partitions_sql)
+
+    self.o_delete_model(model)
+
+
 def set_partitioned_schema_editor(schema_editor):
     """
     Add attributes and override method of given schema_editor to allow partition table sql statements
@@ -422,10 +439,29 @@ VALUES
 """
         setattr(schema_editor, "sql_partition_default", default_partition_sql)
 
+    # Template to drop partitions by using the partition manager trigger function set
+    # on the table
+    if not hasattr(schema_editor, "sql_drop_partitions"):
+        drop_partitions_sql = """
+DELETE
+  FROM partitioned_tables
+ WHERE schema_name = current_schema
+   AND partition_of_table_name = %(partitioned_table_name)s
+"""
+        setattr(schema_editor, "sql_drop_partitions", drop_partitions_sql)
+
     # Backup original method to emit create table sql and replace with the new method
     if not hasattr(schema_editor, "o_table_sql"):
         setattr(schema_editor, "o_table_sql", schema_editor.table_sql)
         setattr(schema_editor, "table_sql", types.MethodType(p_table_sql, schema_editor))
+
+    if not hasattr(schema_editor, "o_delete_model"):
+        setattr(schema_editor, "o_delete_model", schema_editor.delete_model)
+        setattr(schema_editor, "delete_model", types.MethodType(p_delete_model, schema_editor))
+
+
+def set_partition_mode(apps, schema_editor):
+    set_partitioned_schema_editor(schema_editor)
 
 
 def unset_partitioned_schema_editor(schema_editor):
@@ -439,7 +475,19 @@ def unset_partitioned_schema_editor(schema_editor):
     if not hasattr(schema_editor, "sql_partition_default"):
         delattr(schema_editor, "sql_partition_default")
 
+    if not hasattr(schema_editor, "sql_drop_partitions"):
+        delattr(schema_editor, "sql_drop_partitions")
+
     # Restore original functionality for create table sql emit
     if not hasattr(schema_editor, "o_table_sql"):
         setattr(schema_editor, "table_sql", schema_editor.o_table_sql)
         delattr(schema_editor, "o_table_sql")
+
+    # Restore original functionality for delete_model method
+    if not hasattr(schema_editor, "o_delete_model"):
+        setattr(schema_editor, "table_sql", schema_editor.o_delete_model)
+        delattr(schema_editor, "o_delete_model")
+
+
+def unset_partition_mode(apps, schema_editor):
+    unset_partitioned_schema_editor(schema_editor)
