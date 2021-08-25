@@ -344,10 +344,10 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
 
         """
         # Default to cpu distribution
-        node_column = "node_capacity_cpu_core_hours"
+        node_column = "pod_usage_cpu_core_hours"
         cluster_column = "cluster_capacity_cpu_core_hours"
         if distribution == "memory":
-            node_column = "node_capacity_memory_gigabyte_hours"
+            node_column = "pod_usage_memory_gigabyte_hours"
             cluster_column = "cluster_capacity_memory_gigabyte_hours"
 
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpawscostlineitem_daily_summary.sql")
