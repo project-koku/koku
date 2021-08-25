@@ -29,11 +29,15 @@ urlpatterns = [
     path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
     path("running_celery_tasks/", running_celery_tasks, name="running_celery_tasks"),
     path("celery_queue_lengths/", celery_queue_lengths, name="celery_queue_lengths"),
-    path("manifests/", ManifestView.as_view({"get": "list_all"}), name="all_manifests"),
-    path("manifests/<str:source_uuid>/", ManifestView.as_view({"get": "retrieve"}), name="sources_manifests"),
+    path("manifests/", ManifestView.as_view({"get": "get_all_manifests"}), name="all_manifests"),
+    path(
+        "manifests/<str:source_uuid>/",
+        ManifestView.as_view({"get": "get_manifests_by_source"}),
+        name="sources_manifests",
+    ),
     path(
         "manifests/<str:source_uuid>/<int:manifest_id>/",
-        ManifestView.as_view({"get": "retrieve_one"}),
+        ManifestView.as_view({"get": "get_manifest"}),
         name="manifest",
     ),
     path(

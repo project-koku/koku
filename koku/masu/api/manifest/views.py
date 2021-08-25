@@ -31,6 +31,15 @@ class ManifestException(APIException):
         self.detail = {"detail": force_text(message)}
 
 
+class ManifestInvalidFilterException(APIException):
+    """Invalid parameter value"""
+
+    def __init__(self, message):
+        """Initialize with status code 40."""
+        self.status_code = status.HTTP_400_BAD_REQUEST
+        self.detail = {"detail": force_text(message)}
+
+
 class ManifestView(viewsets.ModelViewSet):
     queryset = CostUsageReportManifest.objects.all()
     serializer_class = ManifestSerializer
@@ -44,15 +53,24 @@ class ManifestView(viewsets.ModelViewSet):
             raise ManifestException("Invalid provider name.")
         return model_to_dict(provider)
 
+    @staticmethod
+    def check_filters(dict_):
+        """Check if filter parameters are valid"""
+        valid_query_params = ["name"]
+        params = {k: dict_.get(k) for k in dict_.keys() if k not in valid_query_params}
+        if params:
+            raise ManifestInvalidFilterException("Invalid Filter Parameter")
+
     def set_pagination(self, request, queryset, serializer):
         page = self.paginate_queryset(queryset)
         if page is not None:
             serialized = serializer(page, many=True).data
             return serialized
 
-    def list_all(self, request, *args, **kwargs):
+    def get_all_manifests(self, request, *args, **kwargs):
         """API list all Manifests, filter by: provider name"""
         param = self.request.query_params
+        self.check_filters(param.dict())
         if request.GET.get("name"):
             providers = self.get_provider_UUID(param["name"])
             queryset = self.queryset.filter(provider_id=providers["uuid"])
@@ -64,7 +82,7 @@ class ManifestView(viewsets.ModelViewSet):
         else:
             return super().list(request)
 
-    def retrieve(self, request, *args, **kwargs):
+    def get_manifests_by_source(self, request, *args, **kwargs):
         """Get Manifests by source UUID"""
         sourceuuidParam = kwargs
         queryset = self.queryset.filter(provider_id=sourceuuidParam["source_uuid"])
@@ -78,7 +96,7 @@ class ManifestView(viewsets.ModelViewSet):
         queryset = ManifestSerializer(queryset, many=True).data
         return Response(queryset)
 
-    def retrieve_one(self, request, *args, **kwargs):
+    def get_manifest(self, request, *args, **kwargs):
         """Get single Manifest by source UUID and manifest ID"""
         Params = kwargs
         queryset = self.queryset.filter(provider_id=Params["source_uuid"]).filter(id=Params["manifest_id"])

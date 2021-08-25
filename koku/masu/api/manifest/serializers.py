@@ -4,27 +4,30 @@ from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
 
-class ManifestSerializer(serializers.ModelSerializer):
+class ManifestSerializer(serializers.Serializer):
     class Meta:
         model = CostUsageReportManifest
 
-        fields = [
-            "id",
-            "assembly_id",
-            "manifest_creation_datetime",
-            "manifest_updated_datetime",
-            "manifest_completed_datetime",
-            "manifest_modified_datetime",
-            "billing_period_start_datetime",
-            "provider_id",
-            "s3_csv_cleared",
-            "s3_parquet_cleared",
-            "operator_version",
-        ]
+    id = serializers.IntegerField()
+    assembly_id = serializers.CharField()
+    manifest_creation_datetime = serializers.DateTimeField()
+    manifest_updated_datetime = serializers.DateTimeField()
+    manifest_completed_datetime = serializers.DateTimeField()
+    manifest_modified_datetime = serializers.DateTimeField()
+    billing_period_start_datetime = serializers.DateTimeField()
+    provider_id = serializers.CharField()
+    s3_csv_cleared = serializers.BooleanField()
+    s3_parquet_cleared = serializers.BooleanField()
+    operator_version = serializers.CharField()
 
 
-class UsageReportStatusSerializer(serializers.ModelSerializer):
+class UsageReportStatusSerializer(serializers.Serializer):
     class Meta:
         model = CostUsageReportStatus
 
-        fields = ["id", "report_name", "last_completed_datetime", "last_started_datetime", "etag", "manifest"]
+    id = serializers.IntegerField()
+    manifest = serializers.PrimaryKeyRelatedField(read_only=True)
+    report_name = serializers.CharField()
+    last_completed_datetime = serializers.DateTimeField()
+    last_started_datetime = serializers.DateTimeField()
+    etag = serializers.CharField()
