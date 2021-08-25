@@ -55,3 +55,22 @@ class CURAccountsDBTest(MasuTestCase):
         accounts = CURAccountsDB().get_accounts_from_source()
         if len(accounts) != expected_count:
             self.fail("unexpected number of accounts")
+
+    def test_get_accounts_with_active_and_paused(self):
+        """Test to get accounts when either active or paused."""
+        providers = Provider.objects.all()
+        num_providers = len(providers)
+        first = providers[0]
+
+        table = [
+            {"active": True, "paused": True, "expected": num_providers - 1},
+            {"active": True, "paused": False, "expected": num_providers},
+            {"active": False, "paused": True, "expected": num_providers - 1},
+            {"active": False, "paused": False, "expected": num_providers - 1},
+        ]
+        for test in table:
+            first.active = test["active"]
+            first.paused = test["paused"]
+            first.save()
+            accounts = CURAccountsDB().get_accounts_from_source()
+            self.assertEqual(len(accounts), test["expected"])
