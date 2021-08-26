@@ -578,6 +578,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             tag_results = None
             query = query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
+
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
@@ -628,20 +629,23 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     break
             # Remove the date order by as it is not actually used for ordering
             if order_date:
+
                 sort_term = self._get_group_by()[0]
                 query_order_by.pop(i)
-                date_filtered_query_data = query_data.filter(usage_start=order_date)
-                ordered_data = self.order_by(date_filtered_query_data, query_order_by)
+                filtered_query_data = []
+                for index in query_data:
+                    for key, value in index.items():
+                        if (key == "date") and (value == order_date):
+                            filtered_query_data.append(index)
+                ordered_data = self.order_by(filtered_query_data, query_order_by)
                 order_of_interest = []
                 for entry in ordered_data:
                     order_of_interest.append(entry.get(sort_term))
                 # write a special order by function that iterates through the
                 # rest of the days in query_data and puts them in the same order
-                # return_query_data = []
                 sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
                 query_data = self.order_by(sorted_data, ["-date"])
             else:
-                # &order_by[cost]=desc&order_by[date]=2021-08-02
                 query_data = self.order_by(query_data, query_order_by)
 
             # Fetch the data (returning list(dict))
