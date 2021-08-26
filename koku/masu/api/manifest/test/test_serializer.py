@@ -1,9 +1,10 @@
 import datetime
-from unittest import TestCase
 
+from rest_framework import serializers
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.provider.models import Provider
 from masu.api.manifest.serializers import ManifestSerializer
 from masu.api.manifest.serializers import UsageReportStatusSerializer
 from reporting_common.models import CostUsageReportManifest
@@ -15,6 +16,19 @@ class ManifestSerializerTest(IamTestCase):
         super().setUp()
         self.manifest = CostUsageReportManifest.objects.first()
         self.serializer = ManifestSerializer(self.manifest)
+        self.basic_model = {
+            "id": 1,
+            "assembly_id": "Test assembly id",
+            "manifest_creation_datetime": datetime.datetime.now(),
+            "manifest_updated_datetime": datetime.datetime.now(),
+            "manifest_completed_datetime": datetime.datetime.now(),
+            "manifest_modified_datetime": datetime.datetime.now(),
+            "billing_period_start_datetime": datetime.datetime.now(),
+            "provider_id": Provider.objects.first().uuid,
+            "s3_csv_cleared": True,
+            "s3_parquet_cleared": True,
+            "operator_version": "1.0",
+        }
 
     def test_manifest_contains_expected_fields(self):
         """Tests the ManifestSerializer is utilizing expected fields."""
@@ -38,50 +52,59 @@ class ManifestSerializerTest(IamTestCase):
 
     def test_valid_data(self):
         """Test rate and markup for valid entries."""
-        basic_model = {
-            "id": 1,
-            "assembly_id": "Test assembly id",
-            "manifest_creation_datetime": datetime.datetime.now(),
-            "manifest_updated_datetime": datetime.datetime.now(),
-            "manifest_completed_datetime": datetime.datetime.now(),
-            "manifest_modified_datetime": datetime.datetime.now(),
-            "billing_period_start_datetime": datetime.datetime.now(),
-            "provider_id": "test provider id",
-            "s3_csv_cleared": True,
-            "s3_parquet_cleared": True,
-            "operator_version": "1.0",
-        }
         with tenant_context(self.tenant):
-            serializer = ManifestSerializer(data=basic_model)
+            serializer = ManifestSerializer(data=self.basic_model)
             self.assertTrue(serializer.is_valid(raise_exception=True))
 
-    def test_invalid_data(self):
+    def test_invalid_string_data(self):
         """Test rate and markup for valid entries."""
-        basic_model = {
-            "id": 1,
-            "assembly_id": 3,
-            "manifest_creation_datetime": datetime.datetime.now(),
-            "manifest_updated_datetime": datetime.datetime.now(),
-            "manifest_completed_datetime": datetime.datetime.now(),
-            "manifest_modified_datetime": datetime.datetime.now(),
-            "billing_period_start_datetime": datetime.datetime.now(),
-            "provider_id": "test provider id",
-            "s3_csv_cleared": True,
-            "s3_parquet_cleared": True,
-            "operator_version": "1.0",
-        }
-
-        serializer = ManifestSerializer(data=basic_model)
+        self.basic_model["assembly_id"] = 1
+        serializer = ManifestSerializer(data=self.basic_model)
         self.assertRaises(TypeError, serializer.is_valid(raise_exception=True))
 
+    def test_invalid_date_data(self):
+        """Test rate and markup for valid entries."""
+        self.basic_model["manifest_creation_datetime"] = "invalid date"
+        with tenant_context(self.tenant):
+            serializer = ManifestSerializer(data=self.basic_model)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
 
-class UsageReportStatusSerializerTest(TestCase):
+    def test_invalid_boolean_data(self):
+        """Test rate and markup for valid entries."""
+        self.basic_model["s3_csv_cleared"] = 6
+        with tenant_context(self.tenant):
+            serializer = ManifestSerializer(data=self.basic_model)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+
+    def test_invalid_provider_data(self):
+        """Test rate and markup for valid entries."""
+        self.basic_model["provider_id"] = "invalid_provider_id"
+        with tenant_context(self.tenant):
+            serializer = ManifestSerializer(data=self.basic_model)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+
+
+class UsageReportStatusSerializerTest(IamTestCase):
     """Tests the UsageReportStatusSerializer."""
 
     def setUp(self):
         super().setUp()
-        self.manifest = CostUsageReportStatus.objects.first()
-        self.serializer = UsageReportStatusSerializer(self.manifest)
+        self.cost_report = CostUsageReportStatus.objects.first()
+        self.serializer = UsageReportStatusSerializer(self.cost_report)
+        self.basic_model = {
+            "id": 1,
+            "manifest": CostUsageReportManifest.objects.first().id,
+            "report_name": "test_report_name",
+            "last_completed_datetime": datetime.datetime.now(),
+            "last_started_datetime": datetime.datetime.now(),
+            "etag": "test_etag",
+        }
 
     def test_manifest_contains_expected_fields(self):
         """Tests the ManifestSerializer is utilizing expected fields."""
@@ -92,16 +115,20 @@ class UsageReportStatusSerializerTest(TestCase):
         )
 
     def test_valid_manifest_key(self):
-        manifest = CostUsageReportManifest.objects.first()
-        manifest_id = manifest.id
-        basic_model = {
-            "id": 1,
-            "manifest": manifest_id,
-            "report_name": "test_report_name",
-            "last_completed_datetime": datetime.datetime.now(),
-            "last_started_datetime": datetime.datetime.now(),
-            "etag": "test etag",
-        }
-
-        serializer = UsageReportStatusSerializer(data=basic_model)
+        serializer = UsageReportStatusSerializer(data=self.basic_model)
         self.assertTrue(serializer.is_valid(raise_exception=True))
+
+    def test_invalid_string_data(self):
+        """Test rate and markup for valid entries."""
+        self.basic_model["report_name"] = 1
+        serializer = UsageReportStatusSerializer(data=self.basic_model)
+        self.assertRaises(TypeError, serializer.is_valid(raise_exception=True))
+
+    def test_invalid_date_data(self):
+        """Test rate and markup for valid entries."""
+        self.basic_model["last_completed_datetime"] = "invalid date"
+        with tenant_context(self.tenant):
+            serializer = UsageReportStatusSerializer(data=self.basic_model)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()

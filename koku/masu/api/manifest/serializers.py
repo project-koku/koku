@@ -15,7 +15,7 @@ class ManifestSerializer(serializers.Serializer):
     manifest_completed_datetime = serializers.DateTimeField()
     manifest_modified_datetime = serializers.DateTimeField()
     billing_period_start_datetime = serializers.DateTimeField()
-    provider_id = serializers.CharField()
+    provider_id = serializers.PrimaryKeyRelatedField(read_only=True)
     s3_csv_cleared = serializers.BooleanField()
     s3_parquet_cleared = serializers.BooleanField()
     operator_version = serializers.CharField()
