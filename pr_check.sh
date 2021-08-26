@@ -89,13 +89,15 @@ else
     build_image
 fi
 
-if ! check_for_labels "lgtm|smoke-tests"
-then
-    echo "PR smoke tests skipped"
-    exit_code=2
-else
-    echo "running PR smoke tests"
-    run_smoke_tests
+if [[ $exit_code == 0 ]]; then
+    if ! check_for_labels "lgtm|smoke-tests"
+    then
+        echo "PR smoke tests skipped"
+        exit_code=2
+    else
+        echo "running PR smoke tests"
+        run_smoke_tests
+    fi
 fi
 
 if [[ $exit_code != 0 ]]
