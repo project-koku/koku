@@ -37,48 +37,42 @@ get_pr_labels
 CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
 curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
-if check_for_labels "lgtm|pr-check-build|smoke-tests"; then
-
-    source $CICD_ROOT/build.sh
-    # source $APP_ROOT/unit_test.sh
-
-    if check_for_labels "lgtm|smoke-tests"; then
-
-        source ${CICD_ROOT}/_common_deploy_logic.sh
-        export NAMESPACE=$(bonfire namespace reserve --duration 4)
-
-        oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
-        oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
-
-        AWS_ACCESS_KEY_ID_EPH=$(jq -r '."aws-access-key-id"' < aws-creds.json)
-        AWS_SECRET_ACCESS_KEY_EPH=$(jq -r '."aws-secret-access-key"' < aws-creds.json)
-        GCP_CREDENTIALS_EPH=$(jq -r '."gcp-credentials"' < gcp-creds.json)
-
-        bonfire deploy \
-            ${APP_NAME} \
-            --source=appsre \
-            --ref-env insights-stage \
-            --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${GIT_COMMIT} \
-            --set-image-tag ${IMAGE}=${IMAGE_TAG} \
-            --namespace ${NAMESPACE} \
-            ${COMPONENTS_ARG} \
-            ${COMPONENTS_RESOURCES_ARG} \
-            --set-parameter rbac/MIN_REPLICAS=1 \
-            --set-parameter koku/AWS_ACCESS_KEY_ID_EPH=${AWS_ACCESS_KEY_ID_EPH} \
-            --set-parameter koku/AWS_SECRET_ACCESS_KEY_EPH=${AWS_SECRET_ACCESS_KEY_EPH} \
-            --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \
-            --timeout 600
-
-        source $CICD_ROOT/cji_smoke_test.sh
-
-        # bonfire namespace release --namespace ${NAMESPACE}
-
-    fi
+if ! check_for_labels "lgtm|pr-check-build|smoke-tests"; then
+    echo "PR check skipped"
+    exit 1
 fi
 
-mkdir -p $WORKSPACE/artifacts
-cat << EOF > $WORKSPACE/artifacts/junit-dummy.xml
-<testsuite tests="1">
-    <testcase classname="dummy" name="dummytest"/>
-</testsuite>
-EOF
+source $CICD_ROOT/build.sh
+# source $APP_ROOT/unit_test.sh
+
+if ! check_for_labels "lgtm|smoke-tests"; then
+    echo "PR smoke tests skipped"
+    exit 2
+fi
+
+source ${CICD_ROOT}/_common_deploy_logic.sh
+export NAMESPACE=$(bonfire namespace reserve --duration 4)
+
+oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
+oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
+
+AWS_ACCESS_KEY_ID_EPH=$(jq -r '."aws-access-key-id"' < aws-creds.json)
+AWS_SECRET_ACCESS_KEY_EPH=$(jq -r '."aws-secret-access-key"' < aws-creds.json)
+GCP_CREDENTIALS_EPH=$(jq -r '."gcp-credentials"' < gcp-creds.json)
+
+bonfire deploy \
+    ${APP_NAME} \
+    --source=appsre \
+    --ref-env insights-stage \
+    --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${GIT_COMMIT} \
+    --set-image-tag ${IMAGE}=${IMAGE_TAG} \
+    --namespace ${NAMESPACE} \
+    ${COMPONENTS_ARG} \
+    ${COMPONENTS_RESOURCES_ARG} \
+    --set-parameter rbac/MIN_REPLICAS=1 \
+    --set-parameter koku/AWS_ACCESS_KEY_ID_EPH=${AWS_ACCESS_KEY_ID_EPH} \
+    --set-parameter koku/AWS_SECRET_ACCESS_KEY_EPH=${AWS_SECRET_ACCESS_KEY_EPH} \
+    --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \
+    --timeout 600
+
+source $CICD_ROOT/cji_smoke_test.sh
