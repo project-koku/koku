@@ -20,10 +20,8 @@ export IQE_CJI_TIMEOUT="2h"
 
 set -ex
 
-function get_pr_labels() {
-    mkdir -p $ARTIFACTS_DIR
-    curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/search/issues\?q\=sha:$GIT_COMMIT | jq '.items[].labels[].name' > $ARTIFACTS_DIR/github_labels.txt
-}
+mkdir -p $ARTIFACTS_DIR
+
 
 function check_for_labels() {
     if [ -f $ARTIFACTS_DIR/github_labels.txt ]; then
@@ -31,7 +29,8 @@ function check_for_labels() {
     fi
 }
 
-get_pr_labels
+# Save PR labels into a file
+curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/search/issues\?q\=sha:$GIT_COMMIT | jq '.items[].labels[].name' > $ARTIFACTS_DIR/github_labels.txt
 
 # Install bonfire repo/initialize
 CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
