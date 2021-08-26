@@ -80,15 +80,6 @@ class ManifestSerializerTest(IamTestCase):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
 
-    def test_invalid_provider_data(self):
-        """Test rate and markup for valid entries."""
-        self.basic_model["provider_id"] = "invalid_provider_id"
-        with tenant_context(self.tenant):
-            serializer = ManifestSerializer(data=self.basic_model)
-            with self.assertRaises(serializers.ValidationError):
-                if serializer.is_valid(raise_exception=True):
-                    serializer.save()
-
 
 class UsageReportStatusSerializerTest(IamTestCase):
     """Tests the UsageReportStatusSerializer."""
