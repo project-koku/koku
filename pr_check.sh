@@ -66,7 +66,7 @@ function run_smoke_tests() {
 }
 
 function make_results_xml() {
-cat << EOF > $WORKSPACE/artifacts/pr_check.xml
+cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
 <testsuite failures="1" tests="1">
     <testcase classname="pr_check" code="$exit_code"/>
     <error message="${error_arr[$exit_code]}"/>
