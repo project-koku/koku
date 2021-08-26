@@ -70,8 +70,9 @@ function make_results_xml() {
 cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
 <?xml version="1.0" encoding="UTF-8" ?>
 <testsuite id="pr_check" name="PR Check" tests="1" failures="1">
-    <testcase id="pr_check.${task_arr[$exit_code]}" name="${task_arr[$exit_code]}"/>
-    <failure type="${task_arr[$exit_code]}">"${error_arr[$exit_code]}"</failure>
+    <testcase id="pr_check.${task_arr[$exit_code]}" name="${task_arr[$exit_code]}">
+        <failure type="${task_arr[$exit_code]}">"${error_arr[$exit_code]}"</failure>
+    </testcase>
 </testsuite>
 EOF
 }
