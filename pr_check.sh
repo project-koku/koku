@@ -71,7 +71,7 @@ cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
 <?xml version="1.0" encoding="UTF-8" ?>
 <testsuite id="pr_check" name="PR Check" tests="1" failures="1">
     <testcase id="pr_check.${task_arr[$exit_code]}" name="${task_arr[$exit_code]}"/>
-    <failure message="${error_arr[$exit_code]}"/>
+    <failure message="${error_arr[$exit_code]}" type="FATAL"/>
 </testsuite>
 EOF
 }
