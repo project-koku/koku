@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# source unit_test.sh
-
 # --------------------------------------------
 # Options that must be configured by app owner
 # --------------------------------------------
@@ -71,7 +69,7 @@ function make_results_xml() {
 cat << EOF > $WORKSPACE/artifacts/pr_check.xml
 <testsuite failures="1" tests="1">
     <testcase classname="pr_check" code="$exit_code"/>
-    <error message="${error_arr[$exit_code]}" type="failure">
+    <error message="${error_arr[$exit_code]}"/>
 </testsuite>
 EOF
 }
