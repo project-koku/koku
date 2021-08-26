@@ -25,11 +25,18 @@ class ManifestViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @patch("koku.middleware.MASU", return_value=True)
-    def test_get_all_manifests_invalid(self, _):
+    def test_get_all_manifests_invalid_parameter(self, _):
         """Test Manifests with invalid parameters"""
         url = "%s?invalid=parameter" % reverse("all_manifests")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_get_all_manifests_invalid_provider(self, _):
+        """Test exception for provider function."""
+        url = "%s?name=invalid_provider_name" % reverse("all_manifests")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_filter_manifest(self, _):
@@ -54,6 +61,14 @@ class ManifestViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @patch("koku.middleware.MASU", return_value=True)
+    def test_manifests_by_invalid_source(self, _):
+        """Test get all manifests for provider source uuid."""
+        provider_uuid = "invalid provider uuid"
+        url = reverse("sources_manifests", kwargs={"source_uuid": provider_uuid})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch("koku.middleware.MASU", return_value=True)
     def test_single_manifests(self, _):
         """Test that we can get a single manifest."""
         manifest = CostUsageReportManifest.objects.first()
@@ -64,6 +79,26 @@ class ManifestViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @patch("koku.middleware.MASU", return_value=True)
+    def test_single_manifests_invalid_source(self, _):
+        """Test that we can get a single manifest."""
+        manifest = CostUsageReportManifest.objects.first()
+        provider_uuid = "invalid_provider_source_uuid"
+        manifest_id = manifest.id
+        url = reverse("manifest", kwargs=dict(source_uuid=provider_uuid, manifest_id=manifest_id))
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_single_manifests_invalid_manifest(self, _):
+        """Test that we can get a single manifest."""
+        manifest = CostUsageReportManifest.objects.first()
+        provider_uuid = manifest.provider_id
+        manifest_id = 300000000
+        url = reverse("manifest", kwargs=dict(source_uuid=provider_uuid, manifest_id=manifest_id))
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch("koku.middleware.MASU", return_value=True)
     def test_manifests_files(self, _):
         """Test that we can get files for one manifest."""
         manifest = CostUsageReportManifest.objects.first()
@@ -72,6 +107,16 @@ class ManifestViewTests(IamTestCase):
         url = reverse("manifest_files", kwargs=dict(source_uuid=provider_uuid, manifest_id=manifest_id))
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_manifests_files_invalid_manifest(self, _):
+        """Test that we can get files for one manifest."""
+        manifest = CostUsageReportManifest.objects.first()
+        provider_uuid = manifest.provider_id
+        manifest_id = 30000000
+        url = reverse("manifest_files", kwargs=dict(source_uuid=provider_uuid, manifest_id=manifest_id))
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_single_manifest_file(self, _):
@@ -86,3 +131,16 @@ class ManifestViewTests(IamTestCase):
         )
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_single_manifest_file_invalid(self, _):
+        """Test that we can get a specific file."""
+        manifest = CostUsageReportManifest.objects.first()
+        provider_uuid = manifest.provider_id
+        manifest_id = manifest.id
+        file_id = 3000000000
+        url = reverse(
+            "get_one_manifest_file", kwargs=dict(source_uuid=provider_uuid, manifest_id=manifest_id, id=file_id)
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

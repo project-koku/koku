@@ -85,8 +85,9 @@ class ManifestView(viewsets.ModelViewSet):
     def get_manifests_by_source(self, request, *args, **kwargs):
         """Get Manifests by source UUID"""
         sourceuuidParam = kwargs
-        queryset = self.queryset.filter(provider_id=sourceuuidParam["source_uuid"])
-        if not queryset:
+        try:
+            queryset = self.queryset.filter(provider_id=sourceuuidParam["source_uuid"])
+        except Exception:
             raise ManifestException("Invalid source uuid.")
 
         pagination = self.set_pagination(self, queryset, ManifestSerializer)
@@ -99,9 +100,12 @@ class ManifestView(viewsets.ModelViewSet):
     def get_manifest(self, request, *args, **kwargs):
         """Get single Manifest by source UUID and manifest ID"""
         Params = kwargs
-        queryset = self.queryset.filter(provider_id=Params["source_uuid"]).filter(id=Params["manifest_id"])
-        if not queryset:
-            raise ManifestException("Invalid source uuid or manifest id")
+        try:
+            queryset = self.queryset.filter(provider_id=Params["source_uuid"]).filter(id=Params["manifest_id"])
+            if not queryset:
+                raise ManifestException("Invalid manifest id")
+        except Exception:
+            raise ManifestException("Invalid source uuid")
         queryset = self.get_serializer(queryset, many=True).data
         return Response(queryset)
 
