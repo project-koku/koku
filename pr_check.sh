@@ -22,7 +22,7 @@ set -ex
 
 mkdir -p $ARTIFACTS_DIR
 exit_code=0
-error_arr=([1]="PR not labeled to build the image", [2]="PR not labeled to run smoke tests")
+error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests")
 
 function check_for_labels() {
     if [ -f $ARTIFACTS_DIR/github_labels.txt ]; then
@@ -92,13 +92,13 @@ else
     run_smoke_tests
 fi
 
-if exit_code != 0
+if [[ $exit_code != 0 ]]
 then
 echo "PR check failed"
 cat << EOF > $WORKSPACE/artifacts/pr_check.xml
 <testsuite failures="1" tests="1">
-    <testcase classname="pr_check" code="${error_code}"/>
-    <error message="${error_arr[$error_code]}" type="failure">
+    <testcase classname="pr_check" code="$exit_code"/>
+    <error message="${error_arr[$exit_code]}" type="failure">
 </testsuite>
 EOF
 fi
