@@ -67,18 +67,26 @@ function run_smoke_tests() {
     source $CICD_ROOT/cji_smoke_test.sh
 }
 
+function make_results_xml() {
+cat << EOF > $WORKSPACE/artifacts/pr_check.xml
+<testsuite failures="1" tests="1">
+    <testcase classname="pr_check" code="$exit_code"/>
+    <error message="${error_arr[$exit_code]}" type="failure">
+</testsuite>
+EOF
+}
+
 # Save PR labels into a file
 curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/search/issues\?q\=sha:$GIT_COMMIT | jq '.items[].labels[].name' > $ARTIFACTS_DIR/github_labels.txt
-
-# Install bonfire repo/initialize
-CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
-curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
 if ! check_for_labels "lgtm|pr-check-build|smoke-tests"
 then
     echo "PR check skipped"
     exit_code=1
 else
+    # Install bonfire repo/initialize
+    CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
+    curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
     echo "creating PR image"
     build_image
 fi
@@ -94,11 +102,6 @@ fi
 
 if [[ $exit_code != 0 ]]
 then
-echo "PR check failed"
-cat << EOF > $WORKSPACE/artifacts/pr_check.xml
-<testsuite failures="1" tests="1">
-    <testcase classname="pr_check" code="$exit_code"/>
-    <error message="${error_arr[$exit_code]}" type="failure">
-</testsuite>
-EOF
+    echo "PR check failed"
+    make_results_xml
 fi
