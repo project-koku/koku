@@ -172,8 +172,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if order_date:
                 sort_term = self._get_group_by()[0]
                 query_order_by.pop(i)
-                date_filtered_query_data = query_data.filter(usage_start=order_date)
-                ordered_data = self.order_by(date_filtered_query_data, query_order_by)
+                filtered_query_data = []
+                for index in query_data:
+                    for key, value in index.items():
+                        if (key == "date") and (value == order_date):
+                            filtered_query_data.append(index)
+                ordered_data = self.order_by(filtered_query_data, query_order_by)
                 order_of_interest = []
                 for entry in ordered_data:
                     order_of_interest.append(entry.get(sort_term))
@@ -183,7 +187,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
                 query_data = self.order_by(sorted_data, ["-date"])
             else:
-                # &order_by[cost]=desc&order_by[date]=2021-08-02
                 query_data = self.order_by(query_data, query_order_by)
 
             if is_csv_output:
