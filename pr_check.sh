@@ -20,6 +20,7 @@ set -ex
 
 mkdir -p $ARTIFACTS_DIR
 exit_code=0
+task_arr=([1]="Build" [2]="Smoke Tests")
 error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests")
 
 function check_for_labels() {
@@ -67,9 +68,10 @@ function run_smoke_tests() {
 
 function make_results_xml() {
 cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
-<testsuite failures="1" tests="1">
-    <testcase classname="pr_check" code="$exit_code"/>
-    <error message="${error_arr[$exit_code]}"/>
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuite id="pr_check" name="PR Check" tests="1" failures="1">
+    <testcase id="pr_check.${task_arr[$exit_code]}" name="${task_arr[$exit_code]"/>
+    <failure message="${error_arr[$exit_code]}"/>
 </testsuite>
 EOF
 }
