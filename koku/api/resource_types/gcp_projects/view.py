@@ -42,8 +42,12 @@ class GCPProjectsView(generics.ListAPIView):
         if request.user.admin:
             return super().list(request)
         if request.user.access:
-            user_access = request.user.access.get("gcp.project", {}).get("read", [])
+            if request.user.access.get("gcp.project", {}).get("read", []):
+                user_access = request.user.access.get("gcp.project", {}).get("read", [])
+                self.queryset = self.queryset.filter(project_id__in=user_access)
+            elif request.user.access.get("gcp.account", {}).get("read", []):
+                user_access = request.user.access.get("gcp.account", {}).get("read", [])
+                self.queryset = self.queryset.filter(account_id__in=user_access)
         if user_access and user_access[0] == "*":
             return super().list(request)
-        self.queryset = self.queryset.filter(project_id__in=user_access)
         return super().list(request)
