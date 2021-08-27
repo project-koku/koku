@@ -78,7 +78,6 @@ class ManifestView(viewsets.ModelViewSet):
         """API list all Manifests, filter by: provider name"""
         param = self.request.query_params
         self.check_filters(param.dict())
-        # return Response(param)
         if request.GET.get("name"):
             providers = self.get_provider_UUID(param["name"])
             queryset = self.queryset.filter(provider_id=providers["uuid"])
