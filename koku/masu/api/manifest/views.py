@@ -1,4 +1,8 @@
-# API views for manifests
+#
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+"""Views for Masu API `manifest`."""
 from django.forms.models import model_to_dict
 from django.utils.encoding import force_text
 from rest_framework import permissions
@@ -26,7 +30,7 @@ class ManifestException(APIException):
     """Invalid query value"""
 
     def __init__(self, message):
-        """Initialize with status code 40."""
+        """Initialize with status code 404."""
         self.status_code = status.HTTP_404_NOT_FOUND
         self.detail = {"detail": force_text(message)}
 
@@ -35,19 +39,21 @@ class ManifestInvalidFilterException(APIException):
     """Invalid parameter value"""
 
     def __init__(self, message):
-        """Initialize with status code 40."""
+        """Initialize with status code 400."""
         self.status_code = status.HTTP_400_BAD_REQUEST
         self.detail = {"detail": force_text(message)}
 
 
 class ManifestView(viewsets.ModelViewSet):
+    """Manifest View class."""
+
     queryset = CostUsageReportManifest.objects.all()
     serializer_class = ManifestSerializer
     permission_classes = [ManifestPermission]
-    http_method_names = ["get", "post", "head", "delete", "put"]
+    http_method_names = ["get"]
 
     def get_provider_UUID(request, provider):
-        """Gets provider uuid based on provider name"""
+        """returns provider uuid based on provider name"""
         provider = Provider.objects.filter(name=provider).first()
         if provider is None:
             raise ManifestException("Invalid provider name.")
@@ -62,6 +68,7 @@ class ManifestView(viewsets.ModelViewSet):
             raise ManifestInvalidFilterException("Invalid Filter Parameter")
 
     def set_pagination(self, request, queryset, serializer):
+        """Sets up pagination"""
         page = self.paginate_queryset(queryset)
         if page is not None:
             serialized = serializer(page, many=True).data
@@ -74,10 +81,9 @@ class ManifestView(viewsets.ModelViewSet):
         if request.GET.get("name"):
             providers = self.get_provider_UUID(param["name"])
             queryset = self.queryset.filter(provider_id=providers["uuid"])
-            page = self.paginate_queryset(queryset)
-            if page is not None:
-                serializer = self.get_serializer(page, many=True)
-                return self.get_paginated_response(serializer.data)
+            pagination = self.set_pagination(self, queryset, ManifestSerializer)
+            if pagination is not None:
+                return self.get_paginated_response(pagination)
             return Response(ManifestSerializer(queryset).data, many=True)
         else:
             return super().list(request)
@@ -98,7 +104,7 @@ class ManifestView(viewsets.ModelViewSet):
         return Response(queryset)
 
     def get_manifest(self, request, *args, **kwargs):
-        """Get single Manifest by source UUID and manifest ID"""
+        """Get single Manifest by source uuid and manifest id"""
         Params = kwargs
         try:
             queryset = self.queryset.filter(provider_id=Params["source_uuid"]).filter(id=Params["manifest_id"])
@@ -110,6 +116,7 @@ class ManifestView(viewsets.ModelViewSet):
         return Response(queryset)
 
     def get_manifest_files(self, request, *args, **kwargs):
+        """Get files for specific manifest"""
         Params = kwargs
         queryset = CostUsageReportStatus.objects.filter(manifest_id=Params["manifest_id"])
         if not queryset:
@@ -123,6 +130,7 @@ class ManifestView(viewsets.ModelViewSet):
         return Response(queryset)
 
     def get_one_manifest_file(self, request, *args, **kwargs):
+        """Get specified file for specific manifest"""
         Params = kwargs
         queryset = CostUsageReportStatus.objects.filter(manifest_id=Params["manifest_id"]).filter(id=Params["id"])
         if not queryset:

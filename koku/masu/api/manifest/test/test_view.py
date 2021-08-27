@@ -1,3 +1,8 @@
+#
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+"""Tests the Masu API `manifest` Views."""
 from unittest.mock import patch
 
 from django.test.utils import override_settings
@@ -13,34 +18,36 @@ from reporting_common.models import CostUsageReportStatus
 
 @override_settings(ROOT_URLCONF="masu.urls")
 class ManifestViewTests(IamTestCase):
-    """Test Get all manifests"""
+    """Tests manifests views"""
 
     def setUp(self):
+        """Set up the tests."""
         super().setUp()
         self.client = APIClient()
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_all_manifests(self, _):
+        """Test Get all manifests"""
         response = self.client.get(reverse("all_manifests"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_all_manifests_invalid_parameter(self, _):
-        """Test Manifests with invalid parameters"""
+        """Test Manifests with invalid parameter for filter"""
         url = "%s?invalid=parameter" % reverse("all_manifests")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_all_manifests_invalid_provider(self, _):
-        """Test exception for provider function."""
+        """Test manifests invalid provider_name filter."""
         url = "%s?name=invalid_provider_name" % reverse("all_manifests")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_filter_manifest(self, _):
-        """Test that we can filter Manifests by provider name."""
+        """Tests manifests filter valid data."""
         provider = Provider.objects.first()
         name = provider.name
         url = reverse("all_manifests")
@@ -53,7 +60,7 @@ class ManifestViewTests(IamTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_manifests_by_source(self, _):
-        """Test get all manifests for provider source uuid."""
+        """Test get manifests for provider source uuid."""
         manifest = CostUsageReportManifest.objects.first()
         provider_uuid = manifest.provider_id
         url = reverse("sources_manifests", kwargs={"source_uuid": provider_uuid})
@@ -62,7 +69,7 @@ class ManifestViewTests(IamTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_manifests_by_invalid_source(self, _):
-        """Test get all manifests for provider source uuid."""
+        """Test get manifests invalid provider source uuid."""
         provider_uuid = "invalid provider uuid"
         url = reverse("sources_manifests", kwargs={"source_uuid": provider_uuid})
         response = self.client.get(url)
@@ -70,7 +77,7 @@ class ManifestViewTests(IamTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_single_manifests(self, _):
-        """Test that we can get a single manifest."""
+        """Test get a single manifest."""
         manifest = CostUsageReportManifest.objects.first()
         provider_uuid = manifest.provider_id
         manifest_id = manifest.id
@@ -80,7 +87,7 @@ class ManifestViewTests(IamTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_single_manifests_invalid_source(self, _):
-        """Test that we can get a single manifest."""
+        """Test get single manifest invalid provider."""
         manifest = CostUsageReportManifest.objects.first()
         provider_uuid = "invalid_provider_source_uuid"
         manifest_id = manifest.id
@@ -90,7 +97,7 @@ class ManifestViewTests(IamTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_single_manifests_invalid_manifest(self, _):
-        """Test that we can get a single manifest."""
+        """Test get single manifest invalid manifest id."""
         manifest = CostUsageReportManifest.objects.first()
         provider_uuid = manifest.provider_id
         manifest_id = 300000000
@@ -100,7 +107,7 @@ class ManifestViewTests(IamTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_manifests_files(self, _):
-        """Test that we can get files for one manifest."""
+        """Test get files for one manifest."""
         manifest = CostUsageReportManifest.objects.first()
         provider_uuid = manifest.provider_id
         manifest_id = manifest.id
@@ -110,7 +117,7 @@ class ManifestViewTests(IamTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_manifests_files_invalid_manifest(self, _):
-        """Test that we can get files for one manifest."""
+        """Test get files for one manifest invalid manifest."""
         manifest = CostUsageReportManifest.objects.first()
         provider_uuid = manifest.provider_id
         manifest_id = 30000000
@@ -120,7 +127,7 @@ class ManifestViewTests(IamTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_single_manifest_file(self, _):
-        """Test that we can get a specific file."""
+        """Test get a specific file for manifest."""
         manifest = CostUsageReportManifest.objects.first()
         provider_uuid = manifest.provider_id
         manifest_id = manifest.id
@@ -134,7 +141,7 @@ class ManifestViewTests(IamTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_single_manifest_file_invalid(self, _):
-        """Test that we can get a specific file."""
+        """Test get a specific file invalid manifest id."""
         manifest = CostUsageReportManifest.objects.first()
         provider_uuid = manifest.provider_id
         manifest_id = manifest.id

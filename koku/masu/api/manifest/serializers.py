@@ -1,3 +1,8 @@
+#
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+"""Serializers for Masu API `manifest`."""
 from rest_framework import serializers
 
 from reporting_common.models import CostUsageReportManifest
@@ -5,6 +10,8 @@ from reporting_common.models import CostUsageReportStatus
 
 
 class ManifestSerializer(serializers.Serializer):
+    """Serializer for CostUsageReportManifest."""
+
     class Meta:
         model = CostUsageReportManifest
 
@@ -22,6 +29,8 @@ class ManifestSerializer(serializers.Serializer):
 
 
 class UsageReportStatusSerializer(serializers.Serializer):
+    """Serializer for CostUsageReportStatus."""
+
     class Meta:
         model = CostUsageReportStatus
 

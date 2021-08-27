@@ -1,3 +1,8 @@
+#
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+"""Tests the Masu API `manifest` Serializers."""
 import datetime
 
 from rest_framework import serializers
@@ -13,6 +18,7 @@ from reporting_common.models import CostUsageReportStatus
 
 class ManifestSerializerTest(IamTestCase):
     def setUp(self):
+        """Set up the tests."""
         super().setUp()
         self.manifest = CostUsageReportManifest.objects.first()
         self.serializer = ManifestSerializer(self.manifest)
@@ -31,7 +37,7 @@ class ManifestSerializerTest(IamTestCase):
         }
 
     def test_manifest_contains_expected_fields(self):
-        """Tests the ManifestSerializer is utilizing expected fields."""
+        """Tests ManifestSerializer is utilizing expected fields."""
         data = self.serializer.data
         self.assertEqual(
             set(data.keys()),
@@ -51,19 +57,19 @@ class ManifestSerializerTest(IamTestCase):
         )
 
     def test_valid_data(self):
-        """Test rate and markup for valid entries."""
+        """Tests ManifestSerializer with all valid data."""
         with tenant_context(self.tenant):
             serializer = ManifestSerializer(data=self.basic_model)
             self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_invalid_string_data(self):
-        """Test rate and markup for valid entries."""
+        """Tests ManifestSerializer invalid string."""
         self.basic_model["assembly_id"] = 1
         serializer = ManifestSerializer(data=self.basic_model)
         self.assertRaises(TypeError, serializer.is_valid(raise_exception=True))
 
     def test_invalid_date_data(self):
-        """Test rate and markup for valid entries."""
+        """Tests ManifestSerializer invalid date."""
         self.basic_model["manifest_creation_datetime"] = "invalid date"
         with tenant_context(self.tenant):
             serializer = ManifestSerializer(data=self.basic_model)
@@ -72,7 +78,7 @@ class ManifestSerializerTest(IamTestCase):
                     serializer.save()
 
     def test_invalid_boolean_data(self):
-        """Test rate and markup for valid entries."""
+        """Tests ManifestSerializer invalid boolean."""
         self.basic_model["s3_csv_cleared"] = 6
         with tenant_context(self.tenant):
             serializer = ManifestSerializer(data=self.basic_model)
@@ -85,6 +91,7 @@ class UsageReportStatusSerializerTest(IamTestCase):
     """Tests the UsageReportStatusSerializer."""
 
     def setUp(self):
+        """Set up the tests."""
         super().setUp()
         self.cost_report = CostUsageReportStatus.objects.first()
         self.serializer = UsageReportStatusSerializer(self.cost_report)
@@ -98,25 +105,26 @@ class UsageReportStatusSerializerTest(IamTestCase):
         }
 
     def test_manifest_contains_expected_fields(self):
-        """Tests the ManifestSerializer is utilizing expected fields."""
+        """Tests UsageReportStatusSerializer is utilizing expected fields."""
         data = self.serializer.data
         self.assertEqual(
             set(data.keys()),
             {"id", "manifest", "report_name", "last_completed_datetime", "last_started_datetime", "etag"},
         )
 
-    def test_valid_manifest_key(self):
+    def test_valid_data(self):
+        """Tests UsageReportStatusSerializer valid data."""
         serializer = UsageReportStatusSerializer(data=self.basic_model)
         self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_invalid_string_data(self):
-        """Test rate and markup for valid entries."""
+        """Tests UsageReportStatusSerializer invalid string."""
         self.basic_model["report_name"] = 1
         serializer = UsageReportStatusSerializer(data=self.basic_model)
         self.assertRaises(TypeError, serializer.is_valid(raise_exception=True))
 
     def test_invalid_date_data(self):
-        """Test rate and markup for valid entries."""
+        """Tests UsageReportStatusSerializer invalid date."""
         self.basic_model["last_completed_datetime"] = "invalid date"
         with tenant_context(self.tenant):
             serializer = UsageReportStatusSerializer(data=self.basic_model)
