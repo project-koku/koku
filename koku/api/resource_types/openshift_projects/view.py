@@ -47,7 +47,15 @@ class OCPProjectsView(generics.ListAPIView):
         if request.user.admin:
             return super().list(request)
         elif request.user.access:
-            user_access = request.user.access.get("openshift.project", {}).get("read", [])
+            if request.user.access.get("openshift.cluster", {}).get("read", []):
+                user_access = request.user.access.get("openshift.cluster", {}).get("read", [])
+                self.queryset = self.queryset.filter(cluster_id__in=user_access)
+            elif request.user.access.get("openshift.node", {}).get("read", []):
+                user_access = request.user.access.get("openshift.node", {}).get("read", [])
+                self.queryset = self.queryset.filter(node_id__in=user_access)
+            elif request.user.access.get("openshift.project", {}).get("read", []):
+                user_access = request.user.access.get("openshift.project", {}).get("read", [])
+                self.queryset = self.queryset.filter(project_id__in=user_access)
         if user_access and user_access[0] == "*":
             return super().list(request)
         self.queryset = self.queryset.filter(namespace__in=user_access)
