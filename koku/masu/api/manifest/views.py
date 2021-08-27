@@ -62,7 +62,7 @@ class ManifestView(viewsets.ModelViewSet):
     @staticmethod
     def check_filters(dict_):
         """Check if filter parameters are valid"""
-        valid_query_params = ["name"]
+        valid_query_params = ["name", "limit", "offset"]
         params = {k: dict_.get(k) for k in dict_.keys() if k not in valid_query_params}
         if params:
             raise ManifestInvalidFilterException("Invalid Filter Parameter")
@@ -78,6 +78,7 @@ class ManifestView(viewsets.ModelViewSet):
         """API list all Manifests, filter by: provider name"""
         param = self.request.query_params
         self.check_filters(param.dict())
+        # return Response(param)
         if request.GET.get("name"):
             providers = self.get_provider_UUID(param["name"])
             queryset = self.queryset.filter(provider_id=providers["uuid"])
