@@ -401,7 +401,7 @@ services:
         - GUNICORN_THREADS=${GUNICORN_THREADS-False}
       privileged: true
       ports:
-        - 4000:8000
+        - 4000:8080
         - 4001:9000
       volumes:
         - '.:/koku'
