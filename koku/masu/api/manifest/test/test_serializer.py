@@ -17,6 +17,8 @@ from reporting_common.models import CostUsageReportStatus
 
 
 class ManifestSerializerTest(IamTestCase):
+    """Manifest serializer tests."""
+
     def setUp(self):
         """Set up the tests."""
         super().setUp()
@@ -88,7 +90,7 @@ class ManifestSerializerTest(IamTestCase):
 
 
 class UsageReportStatusSerializerTest(IamTestCase):
-    """Tests the UsageReportStatusSerializer."""
+    """UsageReportStatusSerializer Test."""
 
     def setUp(self):
         """Set up the tests."""
