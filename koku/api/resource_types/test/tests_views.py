@@ -147,7 +147,7 @@ class ResourceTypesViewTest(IamTestCase):
     @RbacPermissions({"openshift.project": {"read": ["*"]}})
     def test_ocp_project_with_node_rbac_access_view(self):
         """Test endpoint runs with a customer owner."""
-        url = reverse("openshift-project")
+        url = reverse("openshift-projects")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
@@ -157,7 +157,7 @@ class ResourceTypesViewTest(IamTestCase):
     @RbacPermissions({"openshift.node": {"read": ["*"]}})
     def test_ocp_project_with_project_rbac_access_view(self):
         """Test endpoint runs with a customer owner."""
-        url = reverse("openshift-node")
+        url = reverse("openshift-nodes")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
