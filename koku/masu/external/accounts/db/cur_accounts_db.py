@@ -44,15 +44,20 @@ class CURAccountsDB(CURAccountsInterface):
             all_providers = collector.get_provider_uuid_map()
             provider = all_providers.get(str(provider_uuid))
             if provider_uuid and provider:
-                if provider.active:
+                if provider.active and not provider.paused:
                     return [self.get_account_information(provider)]
-                else:
-                    LOG.info(f"Provider {provider.uuid} is not active. Processing suspended...")
-                    return []
+                LOG.info(
+                    f"Provider {provider.uuid} is active={provider.active} "
+                    f"or paused={provider.paused}. Processing suspended..."
+                )
+                return []
 
             for _, provider in all_providers.items():
-                if provider.active is False:
-                    LOG.info(f"Provider {provider.uuid} is not active. Processing suspended...")
+                if provider.active is False or provider.paused:
+                    LOG.info(
+                        f"Provider {provider.uuid} is active={provider.active} "
+                        f"or paused={provider.paused}. Processing suspended..."
+                    )
                     continue
                 accounts.append(self.get_account_information(provider))
         return accounts
