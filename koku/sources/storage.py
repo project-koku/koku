@@ -398,6 +398,17 @@ def add_provider_koku_uuid(source_id, koku_uuid):
         source_query.update(koku_uuid=koku_uuid)
 
 
+def add_source_pause(source_id, pause):
+    """Add pause to Sources database object."""
+    LOG.info(f"[add_source_pause] start setting pause: {pause} to source_id: {source_id}")
+    source = get_source(source_id, f"[add_source_pause] error: source_id: {source_id} does not exist.", LOG.error)
+    if source and source.paused != pause:
+        LOG.info(f"[add_source_pause] set pause: {pause} on source_id: {source_id}")
+        source.paused = pause
+        source.pending_update = True
+        source.save()
+
+
 def save_status(source_id, status):
     """Save source status."""
     source = get_source(source_id, f"[save_status] warning: source_id: {source_id} does not exist.", LOG.warning)
