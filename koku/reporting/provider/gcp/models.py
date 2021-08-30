@@ -136,7 +136,6 @@ class GCPCostEntryLineItemDaily(models.Model):
     line_item_type = models.CharField(max_length=256, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=True)
-    partition_date = models.DateTimeField(null=True)
     tags = JSONField(null=True)
     usage_type = models.CharField(max_length=50, null=True)
     region = models.CharField(max_length=256, null=True, blank=True)

@@ -16,7 +16,6 @@ from api.utils import DateHelper
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.gcp.gcp_report_downloader import create_daily_archives
 from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
-from masu.external.downloader.gcp.gcp_report_downloader import divide_csv_daily
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
 from masu.test import MasuTestCase
@@ -245,34 +244,6 @@ class GCPReportDownloaderTest(MasuTestCase):
         start_date = dh.last_month_start
         manifest_dict = downloader._generate_monthly_pseudo_manifest(start_date)
         self.assertIsNotNone(manifest_dict)
-
-    def test_divid_csv_daily(self):
-        """Test that CSVs are divided"""
-        data = {
-            "usage_start_time": ["2021-02-01T00:00:00Z", "2021-02-02T00:00:00Z", "2021-02-03T00:00:00Z"],
-            "usage": [1, 2, 3],
-            "cost": [4, 5, 6],
-        }
-
-        expected_daily_files = ["/tmp/2021-02-01.csv", "/tmp/2021-02-02.csv", "/tmp/2021-02-03.csv"]
-
-        file_path = "/tmp/test.csv"
-
-        df = pd.DataFrame(data)
-        df.to_csv(file_path, index=False, header=True)
-
-        self.assertTrue(os.path.exists(file_path))
-
-        daily_file_dict = divide_csv_daily(file_path)
-        daily_file_list = [entry.get("filepath") for entry in daily_file_dict]
-
-        self.assertEqual(sorted(daily_file_list), sorted(expected_daily_files))
-
-        for daily_file in expected_daily_files:
-            self.assertTrue(os.path.exists(daily_file))
-            os.remove(daily_file)
-
-        os.remove(file_path)
 
     @override_settings(ENABLE_PARQUET_PROCESSING=True)
     @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")

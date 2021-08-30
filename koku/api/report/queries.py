@@ -340,7 +340,6 @@ class ReportQueryHandler(QueryHandler):
 
         """
         if "gcp_filters" in dir(self._mapper) and self._mapper.gcp_filters:
-            LOG.info("GCP FILTERS")
             filters = super()._get_gcp_filter(delta)
         else:
             filters = super()._get_filter(delta)

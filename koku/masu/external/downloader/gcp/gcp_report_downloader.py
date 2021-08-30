@@ -329,7 +329,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     def build_query_select_statement(self):
         """Helper to build query select statement."""
         columns_list = self.gcp_big_query_columns.copy()
-        columns_list.append("DATE(_PARTITIONTIME) as parition_time")
+        columns_list.append("DATE(_PARTITIONTIME) as partition_time")
         return ",".join(columns_list)
 
     def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):

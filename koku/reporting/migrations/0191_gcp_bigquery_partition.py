@@ -51,27 +51,19 @@ class Migration(migrations.Migration):
             model_name="gcpcostentrylineitem", name="partition_date", field=models.DateTimeField(null=True)
         ),
         migrations.AddField(
-            model_name="gcpcostentrylineitemdaily", name="partition_date", field=models.DateTimeField(null=True)
+            model_name="gcpcostentrylineitemdaily",
+            name="credit_amount",
+            field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
         ),
         migrations.RunSQL(
             "ALTER TABLE reporting_gcpcostentrylineitem_daily_summary ADD COLUMN credit_amount DECIMAL(24,9) NULL;",
             state_operations=[
                 migrations.AddField(
-                    model_name="gcpcostentrylineitemdailysummary", name="credits", field=models.JSONField(null=True)
+                    model_name="gcpcostentrylineitemdailysummary",
+                    name="credits",
+                    field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
                 )
             ],
         ),
         migrations.RunPython(add_gcp_views),
     ]
-
-
-# migrations.RunSQL(
-#     "ALTER TABLE reporting_gcpcostentrylineitem_daily_summary ADD COLUMN blended_cost DECIMAL(24,9) NULL;",
-#     state_operations=[
-#         migrations.AddField(
-#             model_name='gcpcostentrylineitemdailysummary',
-#             name='blended_cost',
-#             field=models.DecimalField(max_digits=24, decimal_places=9, null=True),
-#         )
-#     ],
-# ),

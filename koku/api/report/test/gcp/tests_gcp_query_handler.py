@@ -43,13 +43,14 @@ class GCPReportQueryHandlerTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.dh = DateHelper()
+        # The monthly filters for gcp only use the invoice month
+        # check out this pr for more information:
+        # https://github.com/project-koku/koku/pull/3098
         self.this_month_filter = {
-            "usage_start__gte": self.dh.this_month_start,
             "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
                 self.dh.this_month_start, self.dh.this_month_end
-            ),
+            )
         }
-
         self.ten_day_filter = {
             "usage_start__gte": self.dh.n_days_ago(self.dh.today, 9),
             "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
@@ -63,11 +64,9 @@ class GCPReportQueryHandlerTest(IamTestCase):
             ),
         }
         self.last_month_filter = {
-            "usage_start__gte": self.dh.last_month_start,
-            "usage_end__lte": self.dh.last_month_end,
             "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
                 self.dh.last_month_start, self.dh.last_month_end
-            ),
+            )
         }
 
     def get_totals_by_time_scope(self, aggregates, filters=None):

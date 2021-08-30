@@ -132,6 +132,10 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        # For gcp in order to catch what we are calling cross over data
+        # we need to extend the end date by a couple of days. For more
+        # information see: https://issues.redhat.com/browse/COST-1771
+        end_date += relativedelta(days=2)
         table_name = self._table_map["line_item_daily"]
 
         daily_sql = pkgutil.get_data("masu.database", "sql/reporting_gcpcostentrylineitem_daily.sql")
@@ -141,6 +145,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "bill_ids": bill_ids,
+            "invoice_month": start_date.strftime("%Y%m"),
             "schema": self.schema,
         }
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
@@ -178,6 +183,10 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        # For gcp in order to catch what we are calling cross over data
+        # we need to extend the end date by a couple of days. For more
+        # information see: https://issues.redhat.com/browse/COST-1771
+        end_date += relativedelta(days=2)
         table_name = self._table_map["line_item_daily_summary"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_gcpcostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
@@ -186,6 +195,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "bill_ids": bill_ids,
+            "invoice_month": start_date.strftime("%Y%m"),
             "schema": self.schema,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
