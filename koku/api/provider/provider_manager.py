@@ -70,6 +70,10 @@ class ProviderManager:
         """Get provider active status."""
         return self.model.active
 
+    def get_paused_status(self):
+        """Get provider paused status."""
+        return self.model.paused
+
     def get_current_month_data_exists(self):
         """Get current month data avaiability status."""
         return CostUsageReportManifest.objects.filter(
