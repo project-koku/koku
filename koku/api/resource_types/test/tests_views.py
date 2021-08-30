@@ -144,6 +144,26 @@ class ResourceTypesViewTest(IamTestCase):
                 self.assertIsNotNone(json_result.get("data"))
                 self.assertIsInstance(json_result.get("data"), list)
 
+    @RbacPermissions({"openshift.project": {"read": ["*"]}})
+    def test_ocp_project_with_node_rbac_access_view(self):
+        """Test endpoint runs with a customer owner."""
+        url = reverse("openshift-project")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"openshift.node": {"read": ["*"]}})
+    def test_ocp_project_with_project_rbac_access_view(self):
+        """Test endpoint runs with a customer owner."""
+        url = reverse("openshift-node")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+
     @RbacPermissions({"aws.account": {"read": ["*"]}})
     def test_aws_accounts_ocp_view(self):
         """Test endpoint runs with a customer owner."""
