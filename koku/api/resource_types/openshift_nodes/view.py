@@ -36,6 +36,7 @@ class OCPNodesView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for Openshift nodes and displays values that the user has access too
         supported_query_params = ["search", "limit"]
+        holder = ""
         user_access = []
         error_message = {}
         # Test for only supported query_params
@@ -44,19 +45,17 @@ class OCPNodesView(generics.ListAPIView):
                 if key not in supported_query_params:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
-        if request.user.admin:
-            return super().list(request)
-        elif request.user.access:
+        # if request.user.admin:
+        #    return super().list(request)
+
+        if request.user.access:
             if request.user.access.get("openshift.cluster", {}).get("read", []):
                 user_access = request.user.access.get("openshift.cluster", {}).get("read", [])
-                self.queryset = self.queryset.filter(cluster_id__in=user_access)
+                holder = self.queryset.filter(cluster_id__in=user_access)
             elif request.user.access.get("openshift.node", {}).get("read", []):
                 user_access = request.user.access.get("openshift.node", {}).get("read", [])
-                self.queryset = self.queryset.filter(node_id__in=user_access)
-            elif request.user.access.get("openshift.project", {}).get("read", []):
-                user_access = request.user.access.get("openshift.project", {}).get("read", [])
-                self.queryset = self.queryset.filter(project_id__in=user_access)
+                holder = self.queryset.filter(node__in=user_access)
         if user_access and user_access[0] == "*":
             return super().list(request)
-        self.queryset = self.queryset.filter(node__in=user_access)
+        self.queryset = holder
         return super().list(request)
