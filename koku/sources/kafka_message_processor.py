@@ -102,7 +102,13 @@ class KafkaMessageProcessor:
 
     def msg_for_cost_mgmt(self):
         """Filter messages not intended for cost management."""
-        if self.event_type in (KAFKA_APPLICATION_CREATE, KAFKA_APPLICATION_UPDATE, KAFKA_APPLICATION_DESTROY):
+        if self.event_type in (
+            KAFKA_APPLICATION_CREATE,
+            KAFKA_APPLICATION_UPDATE,
+            KAFKA_APPLICATION_DESTROY,
+            KAFKA_APPLICATION_PAUSE,
+            KAFKA_APPLICATION_UNPAUSE,
+        ):
             return self.application_type_id == self.cost_mgmt_id
         if self.event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
             if self.value.get("authtype") not in AUTH_TYPES.values():
@@ -216,7 +222,7 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
         self.source_id = int(self.value.get("source_id"))
         self.application_type_id = int(self.value.get("application_type_id", -1))
 
-    def process(self):
+    def process(self):  # noqa: C901
         """Process the message."""
         if self.event_type in (KAFKA_APPLICATION_CREATE,):
             LOG.debug(f"[ApplicationMsgProcessor] creating source for source_id: {self.source_id}")
@@ -244,6 +250,13 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
                     storage.enqueue_source_create_or_update(self.source_id)
                 else:
                     LOG.info(f"[ApplicationMsgProcessor] source_id {self.source_id} not updated. No changes detected.")
+
+            if self.event_type in (KAFKA_APPLICATION_PAUSE, KAFKA_APPLICATION_UNPAUSE):
+                LOG.info(f"[ApplicationMsgProcessor] source_id {self.source_id} paused/unpaused")
+                context = {"schema": self.account_number, "application-type": self.application_type_id}
+                LOG.debug(f"[ApplicationMsgProcessor] context: {context}")
+                pause = self.event_type == KAFKA_APPLICATION_PAUSE
+                storage.add_source_pause(self.source_id, pause)
 
         if self.event_type in (KAFKA_APPLICATION_DESTROY,):
             storage.enqueue_source_delete(self.source_id, self.offset, allow_out_of_order=True)
@@ -302,7 +315,13 @@ def create_msg_processor(msg, cost_mgmt_id):
     if msg.topic() == Config.SOURCES_TOPIC:
         event_type = extract_from_header(msg.headers(), KAFKA_HDR_EVENT_TYPE)
         LOG.debug(f"event_type: {event_type}")
-        if event_type in (KAFKA_APPLICATION_CREATE, KAFKA_APPLICATION_UPDATE, KAFKA_APPLICATION_DESTROY):
+        if event_type in (
+            KAFKA_APPLICATION_CREATE,
+            KAFKA_APPLICATION_UPDATE,
+            KAFKA_APPLICATION_DESTROY,
+            KAFKA_APPLICATION_PAUSE,
+            KAFKA_APPLICATION_UNPAUSE,
+        ):
             return ApplicationMsgProcessor(msg, event_type, cost_mgmt_id)
         elif event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
             return AuthenticationMsgProcessor(msg, event_type, cost_mgmt_id)
