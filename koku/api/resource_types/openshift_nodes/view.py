@@ -45,9 +45,8 @@ class OCPNodesView(generics.ListAPIView):
                 if key not in supported_query_params:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
-        # if request.user.admin:
-        #    return super().list(request)
-
+        if request.user.admin:
+            return super().list(request)
         if request.user.access:
             if request.user.access.get("openshift.cluster", {}).get("read", []):
                 user_access = request.user.access.get("openshift.cluster", {}).get("read", [])
