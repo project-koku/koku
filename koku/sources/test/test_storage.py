@@ -194,6 +194,24 @@ class SourcesStorageTest(TestCase):
         except Exception as error:
             self.fail(str(error))
 
+    def test_add_source_pause(self):
+        """Tests add a pause to a source."""
+        for test in {True, False}:
+            with self.subTest(test=test):
+                test_source = Sources.objects.get(source_id=self.test_source_id)
+                self.assertFalse(test_source.paused)
+                storage.add_source_pause(self.test_source_id, test)
+                self.assertEqual(Sources.objects.get(source_id=self.test_source_id).paused, test)
+
+    def test_add_source_pause_does_not_exist(self):
+        """Tests add a pause to a source that does not exist."""
+        for test in {True, False}:
+            with self.subTest(test=test):
+                try:
+                    storage.add_source_pause(self.test_source_id + 1, test)
+                except Exception as error:
+                    self.fail(str(error))
+
     def test_screen_and_build_provider_sync_create_event(self):
         """Tests that provider create events are generated."""
         test_matrix = [
