@@ -15,7 +15,6 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.gcp.provider_map import GCPProviderMap
 from api.report.queries import ReportQueryHandler
-from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)
 
@@ -61,11 +60,31 @@ class GCPReportQueryHandler(ReportQueryHandler):
         self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
         self.group_by_alias = {"service": "service_alias", "project": "project_name"}
 
+        # We need to overwrite the pack keys here to include the credit
+        # dictionary in the endpoint returns.
+        gcp_pack_keys = {
+            "infra_raw": {"key": "raw", "group": "infrastructure"},
+            "infra_markup": {"key": "markup", "group": "infrastructure"},
+            "infra_usage": {"key": "usage", "group": "infrastructure"},
+            "infra_credit": {"key": "credit", "group": "infrastructure"},
+            "infra_total": {"key": "total", "group": "infrastructure"},
+            "sup_raw": {"key": "raw", "group": "supplementary"},
+            "sup_markup": {"key": "markup", "group": "supplementary"},
+            "sup_usage": {"key": "usage", "group": "supplementary"},
+            "sup_credit": {"key": "credit", "group": "supplementary"},
+            "sup_total": {"key": "total", "group": "supplementary"},
+            "cost_raw": {"key": "raw", "group": "cost"},
+            "cost_markup": {"key": "markup", "group": "cost"},
+            "cost_usage": {"key": "usage", "group": "cost"},
+            "cost_credit": {"key": "credit", "group": "cost"},
+            "cost_total": {"key": "total", "group": "cost"},
+        }
+        gcp_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
+        gcp_pack_definitions["cost_groups"]["keys"] = gcp_pack_keys
+
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
-
-        dh = DateHelper()
-        self.invoice_months = dh.gcp_find_invoice_months_in_date_range(self.start_datetime, self.end_datetime)
+        self._mapper.PACK_DEFINITIONS = gcp_pack_definitions
 
     @property
     def annotations(self):
@@ -150,7 +169,6 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         with tenant_context(self.tenant):
             query = self.query_table.objects.filter(self.query_filter)
-            query = query.filter(invoice_month__in=self.invoice_months)
             query_data = query.annotate(**self.annotations)
 
             query_group_by = ["date"] + self._get_group_by()
@@ -245,7 +263,6 @@ class GCPReportQueryHandler(ReportQueryHandler):
         """
         query_group_by = ["date"] + self._get_group_by()
         query = self.query_table.objects.filter(self.query_filter)
-        query = query.filter(invoice_month__in=self.invoice_months)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")

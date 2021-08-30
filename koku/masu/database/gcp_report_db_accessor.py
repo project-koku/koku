@@ -9,6 +9,7 @@ import uuid
 from os import path
 
 from dateutil.parser import parse
+from dateutil.relativedelta import relativedelta
 from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
@@ -203,6 +204,10 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        # For gcp in order to catch what we are calling cross over data
+        # we need to extend the end date by a couple of days. For more
+        # information see: https://issues.redhat.com/browse/COST-1771
+        end_date += relativedelta(days=2)
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_gcpcostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")

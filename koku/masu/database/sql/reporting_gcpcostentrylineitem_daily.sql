@@ -17,8 +17,8 @@ CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_{{uuid | sqlsafe}} A
         li.invoice_month,
         li.cost_type as tax_type
     FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem AS li
-    WHERE date(li.usage_start) >= {{ start_date }}
-        AND date(li.usage_start) <= {{ end_date }}
+    WHERE date(li.partition_date) >= {{ start_date }}
+        AND date(li.partition_date) <= {{ end_date }}
         {% if bill_ids %}
         AND cost_entry_bill_id IN (
             {%- for bill_id in bill_ids  -%}
@@ -43,8 +43,8 @@ CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_{{uuid | sqlsafe}} A
 
 -- Clear out old entries first
 DELETE FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily AS li
-WHERE li.usage_start >= {{start_date}}
-    AND li.usage_start <= {{end_date}}
+WHERE li.partition_date >= {{start_date}}
+    AND li.partition_date <= {{end_date}}
     {% if bill_ids %}
     AND cost_entry_bill_id IN (
         {%- for bill_id in bill_ids  -%}

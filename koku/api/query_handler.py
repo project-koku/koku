@@ -298,6 +298,36 @@ class QueryHandler:
 
         return filters
 
+    def _get_gcp_filter(self, delta=False):
+        """Create dictionary for filter parameters for GCP.
+
+        For the gcp filters when the time scope is -1 or -2 we remove
+        the usage_start & usage_end filters and only use the invoice month.
+
+        Args:
+            delta (Boolean): Construct timeframe for delta
+        Returns:
+            (Dict): query filter dictionary
+        """
+        filters = QueryFilterCollection()
+        if delta:
+            date_delta = self._get_date_delta()
+            start = self.start_datetime - date_delta
+            end = self.end_datetime - date_delta
+        else:
+            start = self.start_datetime
+            end = self.end_datetime
+
+        invoice_months = self.dh.gcp_find_invoice_months_in_date_range(start.date(), end.date())
+        invoice_filter = QueryFilter(field="invoice_month", operation="in", parameter=invoice_months)
+        filters.add(invoice_filter)
+        if self.time_scope_value not in [-1, -2]:
+            start_filter = QueryFilter(field="usage_start", operation="gte", parameter=start.date())
+            end_filter = QueryFilter(field="usage_end", operation="lte", parameter=end.date())
+            filters.add(start_filter)
+            filters.add(end_filter)
+        return filters
+
     def filter_to_order_by(self, parameters):  # noqa: C901
         """Remove group_by[NAME]=* and replace it with group_by[NAME]=X.
 
