@@ -374,7 +374,7 @@ class TagQueryHandler(QueryHandler):
     def _get_dictionary_for_key(dictionary_list, key):
         """Get dictionary matching key from list of dictionaries."""
         for di in dictionary_list:
-            if key in di.get("key"):
+            if key == di.get("key"):
                 return di
         return None
 

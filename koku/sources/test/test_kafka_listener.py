@@ -40,6 +40,8 @@ from sources.kafka_message_processor import AUTH_TYPES
 from sources.kafka_message_processor import AuthenticationMsgProcessor
 from sources.kafka_message_processor import KAFKA_APPLICATION_CREATE
 from sources.kafka_message_processor import KAFKA_APPLICATION_DESTROY
+from sources.kafka_message_processor import KAFKA_APPLICATION_PAUSE
+from sources.kafka_message_processor import KAFKA_APPLICATION_UNPAUSE
 from sources.kafka_message_processor import KAFKA_APPLICATION_UPDATE
 from sources.kafka_message_processor import KAFKA_AUTHENTICATION_CREATE
 from sources.kafka_message_processor import KAFKA_AUTHENTICATION_UPDATE
@@ -233,8 +235,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             ]
         }
 
-    def test_listen_for_messages_aws_create_update_delete(self):
-        """Test for app/auth create, app/auth update, app/source delete."""
+    def test_listen_for_messages_aws_create_update_pause_unpause_delete(self):
+        """Test for app/auth create, app/auth update, app pause/unpause, app/source delete."""
         # First, test the create pathway:
         msgs = [
             msg_generator(
@@ -293,6 +295,35 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             s = model_to_dict(source, fields=[f for f in self.updated_sources.get(Provider.PROVIDER_AWS).keys()])
             self.assertDictEqual(s, self.updated_sources.get(Provider.PROVIDER_AWS), msg="failed update")
 
+        # now test pause/unpause pathway
+        msgs = {
+            KAFKA_APPLICATION_PAUSE: msg_generator(
+                KAFKA_APPLICATION_PAUSE,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            ),
+            KAFKA_APPLICATION_UNPAUSE: msg_generator(
+                KAFKA_APPLICATION_UNPAUSE,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            ),
+        }
+
+        with requests_mock.mock() as m:
+            for resp in self.mock_update_requests.get(Provider.PROVIDER_AWS):
+                m.get(url=resp.get("url"), status_code=resp.get("status"), json=resp.get("json"))
+            for event, msg in msgs.items():
+                mock_consumer = MockKafkaConsumer([msg])
+                source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
+                source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
+                self.assertEqual(source.paused, event == KAFKA_APPLICATION_PAUSE, msg="failed pause/unpause")
+
         # now test the delete pathway
         msgs = [
             msg_generator(
@@ -324,6 +355,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_CREATE},
             {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_UPDATE},
             {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_DESTROY},
+            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_PAUSE},
+            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_UNPAUSE},
             {"processor": AuthenticationMsgProcessor, "event": KAFKA_AUTHENTICATION_CREATE},
             {"processor": AuthenticationMsgProcessor, "event": KAFKA_AUTHENTICATION_UPDATE},
         ]
