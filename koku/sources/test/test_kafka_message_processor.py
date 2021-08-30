@@ -24,6 +24,8 @@ from sources.kafka_message_processor import AuthenticationMsgProcessor
 from sources.kafka_message_processor import create_msg_processor
 from sources.kafka_message_processor import KAFKA_APPLICATION_CREATE
 from sources.kafka_message_processor import KAFKA_APPLICATION_DESTROY
+from sources.kafka_message_processor import KAFKA_APPLICATION_PAUSE
+from sources.kafka_message_processor import KAFKA_APPLICATION_UNPAUSE
 from sources.kafka_message_processor import KAFKA_APPLICATION_UPDATE
 from sources.kafka_message_processor import KAFKA_AUTHENTICATION_CREATE
 from sources.kafka_message_processor import KAFKA_AUTHENTICATION_UPDATE
@@ -47,6 +49,8 @@ EVENT_LIST = [
     KAFKA_APPLICATION_CREATE,
     KAFKA_APPLICATION_DESTROY,
     KAFKA_APPLICATION_UPDATE,
+    KAFKA_APPLICATION_PAUSE,
+    KAFKA_APPLICATION_UNPAUSE,
     KAFKA_AUTHENTICATION_CREATE,
     KAFKA_AUTHENTICATION_UPDATE,
     KAFKA_SOURCE_DESTROY,
@@ -177,6 +181,8 @@ class KafkaMessageProcessorTest(IamTestCase):
             {"event_type": KAFKA_APPLICATION_CREATE, "expected": ApplicationMsgProcessor},
             {"event_type": KAFKA_APPLICATION_UPDATE, "expected": ApplicationMsgProcessor},
             {"event_type": KAFKA_APPLICATION_DESTROY, "expected": ApplicationMsgProcessor},
+            {"event_type": KAFKA_APPLICATION_PAUSE, "expected": ApplicationMsgProcessor},
+            {"event_type": KAFKA_APPLICATION_UNPAUSE, "expected": ApplicationMsgProcessor},
             {"event_type": KAFKA_AUTHENTICATION_CREATE, "expected": AuthenticationMsgProcessor},
             {"event_type": KAFKA_AUTHENTICATION_UPDATE, "expected": AuthenticationMsgProcessor},
             {
@@ -286,6 +292,10 @@ class KafkaMessageProcessorTest(IamTestCase):
             {"event-type": KAFKA_APPLICATION_UPDATE, "expected": False, "value": test_app_value_is_not_cost},
             {"event-type": KAFKA_APPLICATION_DESTROY, "expected": True, "value": test_app_value_is_cost},
             {"event-type": KAFKA_APPLICATION_DESTROY, "expected": False, "value": test_app_value_is_not_cost},
+            {"event-type": KAFKA_APPLICATION_PAUSE, "expected": True, "value": test_app_value_is_cost},
+            {"event-type": KAFKA_APPLICATION_PAUSE, "expected": False, "value": test_app_value_is_not_cost},
+            {"event-type": KAFKA_APPLICATION_UNPAUSE, "expected": True, "value": test_app_value_is_cost},
+            {"event-type": KAFKA_APPLICATION_UNPAUSE, "expected": False, "value": test_app_value_is_not_cost},
             # Authentication events
             {
                 "event-type": KAFKA_AUTHENTICATION_CREATE,
