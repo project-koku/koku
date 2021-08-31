@@ -1071,7 +1071,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             self.mocked_query_params(url, OCPAzureCostView)
 
     def test_ocp_azure_out_of_range_under_date(self):
-        wrong_date = DateHelper().today.date() - timedelta(months=3, days=1)
+        wrong_date = DateHelper().today.date() - relativedelta(months=3, days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPAzureCostView)

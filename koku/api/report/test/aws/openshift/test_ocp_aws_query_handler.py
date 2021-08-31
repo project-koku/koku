@@ -7,6 +7,7 @@ import copy
 from datetime import datetime
 from datetime import timedelta
 
+from dateutil.relativedelta import relativedelta
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
@@ -454,7 +455,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
             self.mocked_query_params(url, OCPAWSCostView)
 
     def test_ocp_aws_out_of_range_under_date(self):
-        wrong_date = DateHelper().today.date() - timedelta(months=3, days=1)
+        wrong_date = DateHelper().today.date() - relativedelta(months=3, days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPAWSCostView)

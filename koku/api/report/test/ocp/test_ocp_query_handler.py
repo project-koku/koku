@@ -10,6 +10,7 @@ from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
+from dateutil.relativedelta import relativedelta
 from django.db.models import Max
 from django.db.models.expressions import OrderBy
 from rest_framework.exceptions import ValidationError
@@ -643,7 +644,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.mocked_query_params(url, OCPCostView)
 
     def test_ocp_out_of_range_under_date(self):
-        wrong_date = DateHelper().today.date() - timedelta(months=3, days=1)
+        wrong_date = DateHelper().today.date() - relativedelta(months=3, days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPCostView)
