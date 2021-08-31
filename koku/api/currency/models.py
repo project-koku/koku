@@ -56,6 +56,7 @@ class CurrencyCodes(models.Model):
     )
     name = models.CharField(max_length=100, choices=SUPPORTED_CURRENCIES, unique=True)
 
+
 class ExchangeRate(models.Model): 
     startingCurrency = models.ForeignKey(CurrencyCodes, related_name='column_item', on_delete=models.CASCADE)
     endingCurrency = models.ForeignKey(CurrencyCodes, related_name='row_item', on_delete=models.CASCADE)
