@@ -237,7 +237,7 @@ services:
       hostname: koku-worker-1
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', '$CELERY_LOG_LEVEL', '-Q', 'celery,download,ocp,priority,summary,cost_model,refresh']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', '${CELERY_LOG_LEVEL:-info}', '-Q', 'celery,download,ocp,priority,summary,cost_model,refresh']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
