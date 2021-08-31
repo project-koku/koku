@@ -642,13 +642,13 @@ class OCPReportQueryHandlerTest(IamTestCase):
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPCostView)
 
-    def test_aws_out_of_range_under_date(self):
-        wrong_date = DateHelper().today.date() - timedelta(days=91)
+    def test_ocp_out_of_range_under_date(self):
+        wrong_date = DateHelper().today.date() - timedelta(months=3, days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPCostView)
 
-    def test_aws_out_of_range_over_date(self):
+    def test_ocp_out_of_range_over_date(self):
         wrong_date = DateHelper().today.date() + timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"
         with self.assertRaises(ValidationError):
