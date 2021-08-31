@@ -250,7 +250,6 @@ services:
         - RABBITMQ_PORT=5672
         - USE_RABBIT=${USE_RABBIT}
         - DEVELOPMENT=${DEVELOPMENT-True}
-        - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
         - prometheus_multiproc_dir=/tmp
         - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
@@ -390,7 +389,7 @@ services:
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
         - DEMO_ACCOUNTS
         - prometheus_multiproc_dir=/tmp
-        - LOG_LEVEL=DEBUG
+        - GUNICORN_LOG_LEVEL=INFO
         - KOKU_LOG_LEVEL=DEBUG
         - DJANGO_LOG_LEVEL=INFO
         - SOURCES_API_PREFIX=${SOURCES_API_PREFIX}
@@ -432,7 +431,6 @@ services:
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
         - USE_RABBIT=${USE_RABBIT}
-        - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
         - prometheus_multiproc_dir=/tmp
         - SCHEDULE_REPORT_CHECKS=True

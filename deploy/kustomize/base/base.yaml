@@ -99,8 +99,11 @@ parameters:
 - displayName: Enable threads in Gunicorn
   name: GUNICORN_THREADS
   value: "True"
+- displayName: Celery log level
+  name: CELERY_LOG_LEVEL
+  value: INFO
 - displayName: Gunicorn log level
-  name: LOG_LEVEL
+  name: GUNICORN_LOG_LEVEL
   value: INFO
 - displayName: Koku log level
   name: KOKU_LOG_LEVEL
